@@ -557,9 +557,7 @@ struct TaskWindowView: View {
 
   private func tabStrip(_ task: WorkspaceTask, placement: WorkspaceTabPlacement) -> some View {
     TaskWindowTabStrip(store: store, resources: resources, tabs: tabs, title: task.title, placement: placement,
-      defaultReviewScope: store.library.gitPreferences.defaultReviewScope, openFiles: openTaskFileSearch,
-      openPlugins: { store.showPlugins(); openWindow(id: "main") },
-      openAutomations: { store.showAutomations(); openWindow(id: "main") })
+      openFiles: openTaskFileSearch, showMainWindow: { openWindow(id: "main") })
   }
 
   private func conversation(_ task: WorkspaceTask) -> some View {

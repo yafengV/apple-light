@@ -29,9 +29,12 @@ struct WorkspaceTabStrip: View {
         .help(placement == .bottom ? "打开底部面板标签" : "新标签页")
         .accessibilityLabel(placement == .bottom ? "打开底部面板标签" : "新标签页")
         .popover(isPresented: $showingNewTabLauncher, arrowEdge: .bottom) {
-          WorkspaceNewTabLauncher(
-            store: store, placement: placement,
-            dismiss: { showingNewTabLauncher = false })
+          ContentTabLauncher(placement: placement, hasProject: store.project != nil,
+            canReopen: store.canReopenClosedWorkspaceTab, plugins: store.pluginPreferences.installed,
+            dismiss: { showingNewTabLauncher = false }) { action in
+              store.performContentTabLauncherAction(action, in: placement,
+                openFiles: { store.executeCommand("files") })
+            }
         }
     }
     .frame(height: 38)
@@ -68,102 +71,6 @@ struct WorkspaceTabStrip: View {
       Button("关闭右侧标签页") { store.closeWorkspaceTabsToRight(of: nil) }
         .disabled(!store.canCloseWorkspaceTabsToRight(of: nil))
     }
-  }
-}
-
-private struct WorkspaceNewTabLauncher: View {
-  @Bindable var store: WorkspaceStore
-  let placement: WorkspaceTabPlacement
-  let dismiss: () -> Void
-
-  var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 18) {
-        if placement == .bottom {
-          launcherSection("终端") {
-            launcherButton("打开底部终端", icon: "terminal") {
-              store.newTerminalTab(in: .bottom)
-            }
-            launcherButton("终端选项", icon: "slider.horizontal.3") {
-              store.openSettings(.runtime)
-            }
-          }
-        } else {
-          launcherSection("推荐") {
-            launcherButton("浏览器", icon: "globe") { store.newBrowserTab(in: placement) }
-            if store.project != nil {
-              launcherButton("审查", icon: "square.stack.3d.up") {
-                store.openReviewTab(in: placement)
-              }
-              launcherButton("打开底部终端", icon: "terminal") {
-                store.newTerminalTab(in: .bottom)
-              }
-            }
-          }
-          launcherSection("最近工作") {
-            if store.canReopenClosedWorkspaceTab {
-              launcherButton("重新打开关闭的标签页", icon: "arrow.uturn.backward") {
-                store.reopenClosedWorkspaceTab()
-              }
-            } else {
-              Text("暂无最近关闭的标签页").foregroundStyle(.secondary).appFont(.caption)
-                .padding(.horizontal, 8)
-            }
-          }
-          launcherSection("插件和 MCP") {
-            let plugins = store.pluginPreferences.installed.filter(\.enabled)
-            if plugins.isEmpty {
-              launcherButton("浏览插件", icon: "shippingbox") { store.showPlugins() }
-            } else {
-              ForEach(plugins.prefix(4)) { plugin in
-                launcherButton(plugin.name, icon: "shippingbox") { store.showPlugins() }
-              }
-              if plugins.count > 4 {
-                launcherButton("显示全部", icon: "ellipsis") { store.showPlugins() }
-              }
-            }
-          }
-          launcherSection("更多工具") {
-            if store.project != nil {
-              launcherButton("文件", icon: "doc.text.magnifyingglass") {
-                store.executeCommand("files")
-              }
-            }
-            launcherButton("自动化", icon: "clock.arrow.circlepath") {
-              store.showAutomations()
-            }
-          }
-        }
-      }
-      .padding(16)
-    }
-    .frame(width: 320, height: placement == .bottom ? 150 : 430)
-    .accessibilityLabel(placement == .bottom ? "打开底部面板标签" : "新标签页")
-  }
-
-  private func launcherSection<Content: View>(
-    _ title: String, @ViewBuilder content: () -> Content
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 7) {
-      Text(title).appFont(.caption, weight: .semibold).foregroundStyle(.secondary)
-        .padding(.horizontal, 8)
-      content()
-    }
-  }
-
-  private func launcherButton(
-    _ title: String, icon: String, action: @escaping () -> Void
-  ) -> some View {
-    Button {
-      dismiss()
-      action()
-    } label: {
-      Label(title, systemImage: icon)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 9).padding(.vertical, 7)
-        .contentShape(Rectangle())
-    }
-    .buttonStyle(.plain)
   }
 }
 

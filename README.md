@@ -217,7 +217,8 @@ python3 script/smoke_ipc.py
 | [独立窗口统一内容标签](docs/160-task-window-content-tabs.md) | 混合标签、多个终端、面板移动、关闭恢复及任务隔离 |
 | [回复链接命中与后台焦点](docs/161-message-link-hit-testing-and-focus.md) | 可选择正文的中键/菜单、跨行测量、后台面板和输入焦点同步 |
 | [独立窗口标签固定到侧栏](docs/162-task-window-sidebar-pins.md) | 窗口归属、原实例唤回和关闭恢复；终端焦点后续见第 163 篇 |
-| [终端重新挂载焦点](docs/163-terminal-attachment-focus.md) | 按实际附着重试、取消过期请求及旧宿主隔离；桌面键盘复验待解锁 |
+| [终端重新挂载焦点](docs/163-terminal-attachment-focus.md) | 按实际附着重试、取消过期请求及旧宿主隔离；侧栏唤回键盘复验见第 164 篇 |
+| [共用新标签启动器](docs/164-shared-content-tab-launcher.md) | 插件条目、终端选项及窗口归属；原生菜单及终端选项已验；插件详情观察中断待查 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

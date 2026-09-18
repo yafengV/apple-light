@@ -6,10 +6,8 @@ struct TaskWindowTabStrip: View {
   @Bindable var tabs: TaskWindowTabs
   let title: String
   var placement: WorkspaceTabPlacement = .left
-  let defaultReviewScope: GitReviewScope
   let openFiles: () -> Void
-  let openPlugins: () -> Void
-  let openAutomations: () -> Void
+  let showMainWindow: () -> Void
   @State private var showingLauncher = false
 
   var body: some View {
@@ -46,7 +44,14 @@ struct TaskWindowTabStrip: View {
       }
       Button { showingLauncher.toggle() } label: { Image(systemName: "plus") }
         .buttonStyle(.plain).padding(8).accessibilityLabel(placement == .bottom ? "打开底部面板标签" : "新标签页")
-        .popover(isPresented: $showingLauncher, arrowEdge: .bottom) { launcher }
+        .popover(isPresented: $showingLauncher, arrowEdge: .bottom) {
+          ContentTabLauncher(placement: placement, hasProject: tabs.panels.workspace.root != nil,
+            canReopen: tabs.canReopen, plugins: store.pluginPreferences.installed,
+            dismiss: { showingLauncher = false }) { action in
+              if store.performContentTabLauncherAction(action, in: placement, taskTabs: tabs,
+                openFiles: openFiles) { showMainWindow() }
+            }
+        }
       if placement != .left {
         Button { tabs.hide(placement) } label: { Image(systemName: "xmark") }
           .buttonStyle(.plain).padding(.trailing, 10)
@@ -54,50 +59,6 @@ struct TaskWindowTabStrip: View {
       }
     }
     .frame(height: 38).appFont(.caption).background(Color.primary.opacity(0.025))
-  }
-
-  private var launcher: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 18) {
-        if placement == .bottom {
-          section("终端") {
-            action("打开底部终端", icon: "terminal") { tabs.newTerminal() }
-          }
-        } else {
-          section("推荐") {
-            action("浏览器", icon: "globe") { tabs.newBrowser(in: placement) }
-            if tabs.panels.workspace.root != nil {
-              action("审查", icon: "square.stack.3d.up") {
-                tabs.openReview(in: placement, defaultScope: defaultReviewScope)
-              }
-              action("打开底部终端", icon: "terminal") { tabs.newTerminal() }
-            }
-          }
-          section("最近工作") {
-            if tabs.canReopen {
-              action("重新打开关闭的标签页", icon: "arrow.uturn.backward") { tabs.reopen() }
-            } else { Text("暂无最近关闭的标签页").foregroundStyle(.secondary).appFont(.caption) }
-          }
-          section("插件和 MCP") { action("浏览插件", icon: "shippingbox", perform: openPlugins) }
-          section("更多工具") {
-            if tabs.panels.workspace.root != nil { action("文件", icon: "doc.text.magnifyingglass", perform: openFiles) }
-            action("自动化", icon: "clock.arrow.circlepath", perform: openAutomations)
-          }
-        }
-      }.padding(16)
-    }.frame(width: 320, height: placement == .bottom ? 110 : 430)
-  }
-  private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-    VStack(alignment: .leading, spacing: 7) {
-      Text(title).appFont(.caption, weight: .semibold).foregroundStyle(.secondary)
-      content()
-    }
-  }
-  private func action(_ title: String, icon: String, perform: @escaping () -> Void) -> some View {
-    Button { showingLauncher = false; perform() } label: {
-      Label(title, systemImage: icon).frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 9).padding(.vertical, 7).contentShape(Rectangle())
-    }.buttonStyle(.plain)
   }
 }
 
