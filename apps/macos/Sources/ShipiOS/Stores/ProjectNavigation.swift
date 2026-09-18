@@ -1,6 +1,19 @@
 import Foundation
 
 extension WorkspaceStore {
+  func renameTask(_ id: String, title: String) throws {
+    guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
+    let cleaned = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !cleaned.isEmpty else { throw AgentFailure(message: "请填写任务名称。") }
+    var candidate = library
+    guard let index = candidate.tasks.firstIndex(where: { $0.id == id }) else {
+      throw AgentFailure(message: "任务已经不存在，无法重命名。")
+    }
+    candidate.tasks[index].title = String(cleaned.prefix(120))
+    candidate.tasks[index].updatedAt = Date()
+    try commitLibrary(candidate)
+  }
+
   func beginRenamingProject(_ path: String) {
     renameDraft = library.projectTitle(path)
     renameTaskID = nil

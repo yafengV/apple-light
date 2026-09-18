@@ -157,6 +157,7 @@ struct WorkspaceView: View {
                 ShareLink(item: store.taskShareText(task)) {
                   Label("共享任务…", systemImage: "square.and.arrow.up")
                 }
+                Button("重命名任务") { store.beginRenamingTask(task.id) }
                 Button("复制任务内容") { store.copyTaskTranscript(task) }
                 Button("复制任务链接") { store.copyTaskDeepLink(task) }
                 Divider()
@@ -176,29 +177,14 @@ struct WorkspaceView: View {
       .onChange(of: store.selection) { _, _ in Task { await store.loadDetails() } }
       .onChange(of: store.project) { _, _ in store.showingBranchPicker = false }
       .onChange(of: store.logName) { _, _ in Task { await store.loadDetails() } }
-      .alert(
-        store.renameProjectPath == nil ? "重命名任务" : "重命名项目",
-        isPresented: Binding(
-          get: { store.renameTaskID != nil || store.renameProjectPath != nil },
-          set: {
-            if !$0 {
-              store.renameTaskID = nil
-              store.renameProjectPath = nil
-            }
-          })
+      .alert("重命名项目", isPresented: Binding(
+        get: { store.renameProjectPath != nil },
+        set: { if !$0 { store.renameProjectPath = nil } })
       ) {
         TextField("名称", text: $store.renameDraft)
-        Button("取消", role: .cancel) {
-          store.renameTaskID = nil
-          store.renameProjectPath = nil
-        }
+        Button("取消", role: .cancel) { store.renameProjectPath = nil }
         Button("保存") {
-          if let path = store.renameProjectPath {
-            store.renameProject(path, title: store.renameDraft)
-          } else if let id = store.renameTaskID {
-            store.updateTask(id, title: store.renameDraft)
-          }
-          store.renameTaskID = nil
+          if let path = store.renameProjectPath { store.renameProject(path, title: store.renameDraft) }
           store.renameProjectPath = nil
         }.disabled(store.renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       }
@@ -213,6 +199,17 @@ struct WorkspaceView: View {
         }
       }
     }
+    .disabled(store.renameTaskID != nil)
+    .accessibilityHidden(store.renameTaskID != nil)
+    .overlay {
+      if let id = store.renameTaskID {
+        TaskRenameDialog(initialTitle: store.renameDraft,
+          save: { try store.renameTask(id, title: $0) },
+          close: { store.renameTaskID = nil; store.focusComposer = UUID() })
+          .id(id)
+      }
+    }
+    .focusedSceneValue(\.taskRenameActive, store.renameTaskID != nil)
     .overlay(alignment: .top) {
       if store.draggingWorkspaceTabID != nil {
         VStack(spacing: 8) {

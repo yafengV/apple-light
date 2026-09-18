@@ -17,6 +17,7 @@ struct TaskWindowView: View {
   @State private var previewImages: [ImagePreviewItem] = []
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
+  @State private var renameTitle: String?
   @State private var dropTargeted = false
   @State private var showingFind = false
   @State private var findText = ""
@@ -153,6 +154,13 @@ struct TaskWindowView: View {
               .accessibilityLabel("任务终端")
             }
             if !task.isPopoutDraft {
+              Menu {
+                Button("重命名任务") { performWindowCommand("rename") }
+                Button(task.pinned ? "取消置顶" : "置顶任务") { performWindowCommand("pin") }
+                Button("标为未读") { performWindowCommand("unread") }
+                Button("复制任务内容") { store.copyTaskTranscript(task) }
+              } label: { Image(systemName: "ellipsis") }
+                .accessibilityLabel("任务操作").help("任务操作")
               ShareLink(item: store.taskShareText(task)) {
                 Image(systemName: "square.and.arrow.up")
               }.help("共享任务")
@@ -181,19 +189,29 @@ struct TaskWindowView: View {
           description: Text("任务可能已经被永久删除。"))
       }
     }
+    .disabled(renameTitle != nil)
+    .accessibilityHidden(renameTitle != nil)
+    .overlay {
+      if let renameTitle {
+        TaskRenameDialog(initialTitle: renameTitle,
+          save: { try store.renameTask(taskID, title: $0) },
+          close: { self.renameTitle = nil; composerFocused = true; taskComposerFocusRequest = UUID() })
+      }
+    }
+    .focusedSceneValue(\.taskRenameActive, renameTitle != nil)
     .frame(minWidth: 620, minHeight: 520)
     .focusedSceneValue(\.taskWindowCommands, windowCommandContext)
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      !showingFind && !showingGoalEditor && !showingTaskModelPicker && previewFile == nil && previewImage == nil)
+      !showingFind && !showingGoalEditor && !showingTaskModelPicker && renameTitle == nil && previewFile == nil && previewImage == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && previewFile == nil && previewImage == nil)
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && renameTitle == nil && previewFile == nil && previewImage == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && previewFile == nil && previewImage == nil))
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && renameTitle == nil && previewFile == nil && previewImage == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
-      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker else { return }
+      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, renameTitle == nil else { return }
       imagePreviewReturnFocus = returnFocus
       previewImage = image
       previewImages = images
@@ -209,7 +227,7 @@ struct TaskWindowView: View {
           imagePreviewReturnFocus = nil
           if let returnFocus {
             DispatchQueue.main.async {
-              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker else { return }
+              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, renameTitle == nil else { return }
               returnFocus()
             }
           } else {
@@ -260,7 +278,7 @@ struct TaskWindowView: View {
   }
 
   private var windowCommandsBlocked: Bool {
-    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker || store.restoringLibrary
+    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker || renameTitle != nil || store.restoringLibrary
   }
 
   private var windowCommandContext: TaskWindowCommandContext {
@@ -269,7 +287,7 @@ struct TaskWindowView: View {
       enabled.formUnion(["find", "plan", "model"])
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
-      if !task.isPopoutDraft { enabled.formUnion(["pin", "unread"]) }
+      if !task.isPopoutDraft { enabled.formUnion(["pin", "unread", "rename"]) }
       if !task.isPopoutDraft, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
       if !task.project.isEmpty { enabled.formUnion(["tree", "review", "review-open", "terminal", "bottom-panel"]) }
@@ -288,6 +306,7 @@ struct TaskWindowView: View {
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find": showingFind = true; findFocusRequest = UUID()
     case "model": openTaskModelPicker()
+    case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)
     case "find-previous": moveFindMatch(-1)
     case "pin": store.updateTask(taskID, pin: !task.pinned)
