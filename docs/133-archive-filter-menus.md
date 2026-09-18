@@ -18,4 +18,4 @@
 - 菜单弹出期间电脑使用工具无法提供截图。菜单分区以原生辅助功能树验证，勾选状态、图标和路径提示以原生控件自动化测试验证；不宣称菜单视觉已经完成与 Codex 的截图配对。
 - 原工作区通过项目脚本恢复，原任务和草稿保留，输入框实际获得焦点。构建与恢复日志为 `.cache/archive-dropdown-build.log`、`.cache/archive-dropdown-restore.log`。
 
-归档页整体视觉、项目删除项危险色和图标、VoiceOver，以及全产品逐页配对仍待继续。
+项目删除项危险色和图标的后续实现见 [第 134 篇](134-archive-actions-and-restoration.md)。归档页整体视觉、VoiceOver，以及全产品逐页配对仍待继续。

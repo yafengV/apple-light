@@ -26,7 +26,7 @@ private struct SettingsConfirmationReturnFocus: ViewModifier {
   }
 }
 
-private struct SettingsConfirmationTriggerFocus<Value: Hashable>: ViewModifier {
+private struct SettingsActionFocus<Value: Hashable>: ViewModifier {
   let focus: FocusState<Value?>.Binding
   let value: Value
   let activate: (() -> Void)?
@@ -57,8 +57,8 @@ extension View {
     modifier(SettingsConfirmationReturnFocus(presented: presented, store: store, page: page, restore: restore))
   }
 
-  func settingsConfirmationTriggerFocus<Value: Hashable>(_ focus: FocusState<Value?>.Binding,
+  func settingsActionFocus<Value: Hashable>(_ focus: FocusState<Value?>.Binding,
     equals value: Value, activate: (() -> Void)? = nil) -> some View {
-    modifier(SettingsConfirmationTriggerFocus(focus: focus, value: value, activate: activate))
+    modifier(SettingsActionFocus(focus: focus, value: value, activate: activate))
   }
 }

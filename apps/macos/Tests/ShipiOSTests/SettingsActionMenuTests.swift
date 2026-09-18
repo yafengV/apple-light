@@ -107,6 +107,32 @@ import XCTest
     XCTAssertFalse(button.active)
   }
 
+  func testProjectDeletionMenuHasDangerPresentationAndBusyDisablesItsAction() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.openSettings(.archived)
+    store.library.tasks = [.init(id: "test", project: "/project", title: "test", runIDs: [], archived: true)]
+    let (window, host) = makeHost(ArchiveActionMenuFixture(store: store))
+    defer { window.close() }
+    try await settle(host)
+    let button = try XCTUnwrap(findControl(host))
+    let item = try XCTUnwrap(button.item(at: 1))
+    XCTAssertEqual(item.attributedTitle?.string, "删除项目中的全部任务")
+    XCTAssertEqual(item.attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor, .systemRed)
+    XCTAssertNotNil(item.image)
+    store.restoringArchivedTaskIDs = ["test"]
+    try await settle(host)
+    XCTAssertFalse(button.isEnabled)
+    XCTAssertFalse(button.canBecomeKeyView)
+    button.selectItem(at: 1)
+    button.sendAction(button.action, to: button.target)
+    XCTAssertNil(store.archiveDeletion)
+    store.restoringArchivedTaskIDs = []
+    try await settle(host)
+    XCTAssertTrue(button.isEnabled)
+  }
+
   private func makeHost<Content: View>(_ content: Content) -> (NSWindow, NSHostingView<Content>) {
     _ = NSApplication.shared
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 600),

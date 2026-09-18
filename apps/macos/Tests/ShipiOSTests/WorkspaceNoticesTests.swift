@@ -4,6 +4,46 @@ import XCTest
 @testable import ShipiOS
 
 final class WorkspaceNoticesTests: XCTestCase {
+  @MainActor func testArchiveMutationsAreExclusiveAndBecomeAvailableAfterRestoreFailure() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
+    store.openSettings(.archived)
+    store.library.tasks = ["one", "two"].map {
+      .init(id: $0, project: "", title: $0, runIDs: [], archived: true)
+    }
+    store.restoringArchivedTaskIDs = ["one"]
+    XCTAssertTrue(store.archiveActionsBusy)
+    await store.restoreArchivedTaskWithFeedback("one")
+    await store.restoreArchivedTaskWithFeedback("two")
+    store.requestArchiveDeletion(.all, ids: ["one", "two"])
+    XCTAssertTrue(store.library.tasks.allSatisfy(\.archived))
+    XCTAssertNil(store.archiveDeletion)
+    XCTAssertTrue(store.notices.items.isEmpty)
+    store.restoringArchivedTaskIDs = []
+    store.deletingArchive = true
+    XCTAssertTrue(store.archiveActionsBusy)
+    await store.restoreArchivedTaskWithFeedback("two")
+    XCTAssertTrue(store.library.tasks.allSatisfy(\.archived))
+    store.deletingArchive = false
+
+    let file = root.appendingPathComponent("workspace.json")
+    try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
+    await store.restoreArchivedTaskWithFeedback("one")
+    XCTAssertEqual(store.notices.items.first?.level, .error)
+    XCTAssertFalse(store.archiveActionsBusy)
+    XCTAssertTrue(store.library.tasks.allSatisfy(\.archived))
+    try FileManager.default.removeItem(at: file)
+    await store.restoreArchivedTaskWithFeedback("one")
+    XCTAssertFalse(store.library.tasks[0].archived)
+    XCTAssertFalse(store.archiveActionsBusy)
+    store.requestArchiveDeletion(.single, ids: ["two"])
+    XCTAssertEqual(store.archiveDeletion?.taskIDs, ["two"])
+    let saved = try WorkspaceLibrary.load(from: file)
+    XCTAssertFalse(saved.tasks[0].archived)
+    XCTAssertTrue(saved.tasks[1].archived)
+  }
+
   func testLifetimePausePendingReplacementAndStack() {
     let notices = WorkspaceNotices()
     notices.show(id: "restore", title: "Restoring", level: .pending)

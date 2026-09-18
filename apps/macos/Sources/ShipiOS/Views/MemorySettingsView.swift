@@ -70,7 +70,7 @@ struct MemorySettingsView: View {
                   } label: {
                     Image(systemName: "trash")
                   }.buttonStyle(.plain)
-                    .settingsConfirmationTriggerFocus($deletionFocus, equals: .single(memory.id),
+                    .settingsActionFocus($deletionFocus, equals: .single(memory.id),
                       activate: { requestDeletion(memory.id) })
                     .help("删除记忆")
                     .accessibilityLabel("删除记忆")
@@ -84,7 +84,7 @@ struct MemorySettingsView: View {
             Spacer()
             Button("清空全部…", role: .destructive) {
               requestDeletion()
-            }.settingsConfirmationTriggerFocus($deletionFocus, equals: .all, activate: { requestDeletion() })
+            }.settingsActionFocus($deletionFocus, equals: .all, activate: { requestDeletion() })
           }
         }
       }.disabled(!store.memoriesLoaded).settingsSearchTarget(.memorySaved)

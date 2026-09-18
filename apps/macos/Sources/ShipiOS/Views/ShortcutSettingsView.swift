@@ -21,7 +21,7 @@ struct ShortcutSettingsView: View {
         if store.shortcuts.hasCustomizations {
           Button("恢复全部默认") {
             requestReset()
-          }.settingsConfirmationTriggerFocus($resetFocus, equals: true, activate: requestReset)
+          }.settingsActionFocus($resetFocus, equals: true, activate: requestReset)
             .settingsSearchTarget(.shortcutReset)
         }
       } controls: {

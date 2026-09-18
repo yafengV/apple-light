@@ -4,6 +4,7 @@ struct ArchivedTasksSettingsView: View {
   let store: WorkspaceStore
   private enum DeletionFocus: Hashable { case all, project(String), single(String) }
   @FocusState private var deletionFocus: DeletionFocus?
+  @FocusState private var restoreFocus: String?
   @State private var deletionOrigin: DeletionFocus?
   @State private var projectMenuFocus: (id: String, request: UUID)?
   @State private var query = ""
@@ -23,9 +24,10 @@ struct ArchivedTasksSettingsView: View {
         requestDeletion(.all, ids: Set(value.entries.map(\.id)))
       } label: {
         Label("全部删除", systemImage: "trash")
-      }.settingsConfirmationTriggerFocus($deletionFocus, equals: .all,
+      }.buttonStyle(ArchiveActionButtonStyle(kind: .deleteAll))
+        .settingsActionFocus($deletionFocus, equals: .all,
         activate: { requestDeletion(.all, ids: Set(value.entries.map(\.id))) })
-        .disabled(value.entries.isEmpty).settingsSearchTarget(.archivedDeleteAll)
+        .disabled(value.entries.isEmpty || store.archiveActionsBusy).settingsSearchTarget(.archivedDeleteAll)
     } controls: {
       ViewThatFits(in: .horizontal) {
         HStack(spacing: 8) { search; filters }
@@ -52,9 +54,10 @@ struct ArchivedTasksSettingsView: View {
                 if group.project != nil {
                   SettingsActionMenu(title: "\(group.title)归档任务操作",
                     actionTitle: "删除项目中的全部任务",
+                    destructive: true, actionSystemImage: "trash",
                     focusRequest: projectMenuFocus?.id == group.id ? projectMenuFocus?.request : nil) {
                       requestDeletion(.project(group.id), ids: Set(group.entries.map(\.id)))
-                    }.frame(width: 24, height: 24)
+                    }.frame(width: 24, height: 24).disabled(store.archiveActionsBusy)
                 }
               }.padding(.vertical, 8)
             }
@@ -135,17 +138,20 @@ struct ArchivedTasksSettingsView: View {
       Button(role: .destructive) {
         requestDeletion(.single(entry.id), ids: [entry.id])
       } label: { Image(systemName: "trash") }
-        .buttonStyle(.borderless).help("永久删除此归档任务")
-        .settingsConfirmationTriggerFocus($deletionFocus, equals: .single(entry.id),
+        .buttonStyle(ArchiveActionButtonStyle(kind: .deleteSingle)).help("永久删除此归档任务")
+        .settingsActionFocus($deletionFocus, equals: .single(entry.id),
           activate: { requestDeletion(.single(entry.id), ids: [entry.id]) })
         .accessibilityLabel("删除归档任务：\(entry.task.title)")
+        .disabled(store.archiveActionsBusy)
       Button {
         Task { await store.restoreArchivedTaskWithFeedback(entry.id) }
       } label: {
-        if store.restoringArchivedTaskIDs.contains(entry.id) { ProgressView().controlSize(.small) }
-        else { Text("恢复") }
-      }.disabled(store.restoringArchivedTaskIDs.contains(entry.id))
-        .accessibilityLabel("恢复任务：\(entry.task.title)")
+        ArchiveRestoreLabel(busy: store.restoringArchivedTaskIDs.contains(entry.id))
+      }.buttonStyle(ArchiveActionButtonStyle(kind: .restore))
+        .settingsActionFocus($restoreFocus, equals: entry.id,
+          activate: { Task { await store.restoreArchivedTaskWithFeedback(entry.id) } })
+        .disabled(store.archiveActionsBusy)
+        .accessibilityLabel("\(store.restoringArchivedTaskIDs.contains(entry.id) ? "正在恢复任务" : "恢复任务")：\(entry.task.title)")
     }.padding(.vertical, 12)
   }
 }

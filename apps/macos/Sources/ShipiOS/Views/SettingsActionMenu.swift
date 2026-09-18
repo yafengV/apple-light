@@ -5,6 +5,8 @@ import SwiftUI
 struct SettingsActionMenu: NSViewRepresentable {
   let title: String
   let actionTitle: String
+  var destructive = false
+  var actionSystemImage: String?
   var focusRequest: UUID?
   let action: () -> Void
   @Environment(\.isEnabled) private var isEnabled
@@ -34,6 +36,13 @@ struct SettingsActionMenu: NSViewRepresentable {
     button.toolTip = title
     button.item(at: 1)?.title = actionTitle
     button.item(at: 1)?.isEnabled = isEnabled
+    let foreground: NSColor = destructive ? .systemRed : .labelColor
+    button.item(at: 1)?.attributedTitle = NSAttributedString(string: actionTitle,
+      attributes: [.foregroundColor: foreground, .font: appearance.nativeFont(size: 13)])
+    button.item(at: 1)?.image = actionSystemImage.flatMap {
+      NSImage(systemSymbolName: $0, accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(paletteColors: [foreground]))
+    }
     context.coordinator.update(button, enabled: isEnabled, request: focusRequest, action: action)
   }
 
