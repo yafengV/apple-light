@@ -13,14 +13,13 @@ struct ComputerUseSettingsView: View {
           .foregroundStyle(.secondary)
       }
       Section("控制") {
-        Toggle(
-          "任意应用",
+        SettingsToggle(
+          title: "任意应用",
+          description: "连接电脑使用运行时后，首次控制应用仍会请求许可；始终允许列表中的应用可跳过该询问。",
           isOn: Binding(
             get: { store.computerUsePreferences.anyAppEnabled },
             set: { _ = store.setAnyAppComputerUse($0) }))
           .disabled(!store.computerUseLoaded).settingsSearchTarget(.anyApplication)
-        Text("连接电脑使用运行时后，首次控制应用仍会请求许可；始终允许列表中的应用可跳过该询问。")
-          .appFont(.caption).foregroundStyle(.secondary)
         HStack {
           Text("内置浏览器")
           Spacer()
@@ -63,9 +62,9 @@ struct ComputerUseSettingsView: View {
           .disabled(!store.computerUseLoaded)
       }
       Section("锁定状态下使用") {
-        Toggle("允许在 Mac 锁定时使用电脑", isOn: .constant(false)).disabled(true)
-        Text("此功能需要 Apple 授权的系统插件。当前 ShipiOS 构建尚未包含该插件，因此不会在锁定状态下控制应用。")
-          .appFont(.caption).foregroundStyle(.secondary)
+        SettingsToggle(title: "允许在 Mac 锁定时使用电脑",
+          description: "此功能需要 Apple 授权的系统插件。当前 ShipiOS 构建尚未包含该插件，因此不会在锁定状态下控制应用。",
+          isOn: .constant(false)).disabled(true)
       }
       if let error = store.computerUseError {
         Section {

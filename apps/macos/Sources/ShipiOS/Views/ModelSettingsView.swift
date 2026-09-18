@@ -21,10 +21,10 @@ struct ModelSettingsView: View {
           SettingsMenuOption(value: "medium", title: "中"),
           SettingsMenuOption(value: "high", title: "高")
         ]).settingsSearchTarget(.reasoning)
-        Toggle("记录服务返回的 token 用量", isOn: $draft.includeUsage)
+        SettingsToggle(title: "记录服务返回的 token 用量",
+          description: "开启后请求流式接口返回权威 token 统计。若兼容服务不支持 stream_options，请关闭此项。",
+          isOn: $draft.includeUsage)
           .settingsSearchTarget(.tokenUsage)
-        Text("开启后请求流式接口返回权威 token 统计。若兼容服务不支持 stream_options，请关闭此项。")
-          .appFont(.caption).foregroundStyle(.secondary)
         Text("使用 OpenAI 兼容 Chat Completions 流式接口。地址与模型保存在 ShipiOS，密钥保存在 macOS Keychain，并按服务地址隔离。")
           .appFont(.caption).foregroundStyle(.secondary)
         Text("发送图片需要所选服务和模型支持图片输入。")

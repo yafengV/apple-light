@@ -11,11 +11,10 @@ struct AgentSettingsView: View {
         Button("配置模型与 API…") { store.settingsPage = .model }
       }
       Section("建议") {
-        Toggle("显示建议提示", isOn: Binding(
+        SettingsToggle(title: "显示建议提示", description: "在空白任务中根据当前项目提供可直接执行的建议。", isOn: Binding(
           get: { store.personalization.showSuggestedPrompts },
-          set: { _ = store.saveSuggestedPrompts($0) })).settingsSearchTarget(.agentSuggestions)
-        Text("在空白任务中根据当前项目提供可直接执行的建议。")
-          .appFont(.caption).foregroundStyle(.secondary)
+          set: { _ = store.saveSuggestedPrompts($0) }))
+          .disabled(!store.personalizationLoaded).settingsSearchTarget(.agentSuggestions)
       }
       Section("运行边界") {
         Text("模型会话使用 ShipiOS 独立 API。自主编码工具循环、审批策略和沙箱策略将在 Codex Core 接入后出现在此页。")
@@ -53,7 +52,7 @@ struct GitSettingsView: View {
         if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
       }
       Section("推送") {
-        Toggle("始终强制推送", isOn: Binding(
+        SettingsToggle(title: "始终强制推送", description: "从 ShipiOS 推送时使用 --force-with-lease。", isOn: Binding(
           get: { store.library.gitPreferences.alwaysForcePush },
           set: { value in
             var preferences = store.library.gitPreferences
@@ -62,18 +61,15 @@ struct GitSettingsView: View {
               ? (value ? "已启用始终强制推送。" : "已关闭始终强制推送。")
               : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.alwaysForcePush)
-        Text("从 ShipiOS 推送时使用 --force-with-lease。")
-          .appFont(.caption).foregroundStyle(.secondary)
       }
       Section("Pull Request") {
-        Toggle("创建草稿 PR", isOn: Binding(
+        SettingsToggle(title: "创建草稿 PR", description: "创建 PR 时默认使用草稿状态。", isOn: Binding(
           get: { store.library.gitPreferences.createDraftPullRequests },
           set: { value in
             var preferences = store.library.gitPreferences
             preferences.createDraftPullRequests = value
             status = store.saveGitPreferences(preferences) ? "已保存 PR 创建方式。" : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.createDraftPullRequests)
-        Text("创建 PR 时默认使用草稿状态。").appFont(.caption).foregroundStyle(.secondary)
       }
       Section("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.gitWorktreeRoot)
@@ -122,7 +118,8 @@ struct CodeReviewSettingsView: View {
             store.saveGitPreferences(preferences)
           }), options: GitReviewScope.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
         .settingsSearchTarget(.reviewScope)
-        Toggle("只读审查", isOn: Binding(
+        SettingsToggle(title: "只读审查",
+          description: "只读时隐藏暂存、撤销和提交操作，差异、历史提交、分支比较和评论仍可使用。", isOn: Binding(
           get: { store.library.gitPreferences.readOnlyReview },
           set: { readOnly in
             var preferences = store.library.gitPreferences
@@ -130,8 +127,6 @@ struct CodeReviewSettingsView: View {
             store.saveGitPreferences(preferences)
           }))
         .settingsSearchTarget(.readOnlyReview)
-        Text("只读时隐藏暂存、撤销和提交操作，差异、历史提交、分支比较和评论仍可使用。")
-          .appFont(.caption).foregroundStyle(.secondary)
         Button("打开当前项目审查") { store.openReviewFromSettings() }
           .disabled(store.project == nil || !store.workspace.gitAvailable)
       }

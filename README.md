@@ -181,6 +181,7 @@ python3 script/smoke_ipc.py
 | [追加消息设置按钮组](docs/124-follow-up-settings-buttons.md) | 排队/引导选项顺序、独立 Tab 焦点、空格/Enter 激活及原生验收 |
 | [外观与终端位置按钮组](docs/125-appearance-and-terminal-buttons.md) | 三组控件类型与顺序修正、辅助功能激活焦点及原生键鼠验收 |
 | [设置行内说明布局](docs/126-settings-inline-descriptions.md) | 16 处标题与说明合并、右侧控件居中、换行和搜索定位复核 |
+| [更多设置页行内说明](docs/127-settings-description-coverage.md) | 9 页 12 处控件说明合并、Agent 加载保护及原生页面复核 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

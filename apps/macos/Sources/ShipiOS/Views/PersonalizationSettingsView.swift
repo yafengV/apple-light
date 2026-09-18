@@ -21,14 +21,13 @@ struct PersonalizationSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
       Section("新任务建议") {
-        Toggle(
-          "显示建议提示",
+        SettingsToggle(
+          title: "显示建议提示",
+          description: "在空白新任务中显示可直接填入输入区的起步建议。关闭后不会影响已有任务或草稿。",
           isOn: Binding(
             get: { store.personalization.showSuggestedPrompts },
             set: { _ = store.saveSuggestedPrompts($0) })
         ).disabled(!store.personalizationLoaded).settingsSearchTarget(.suggestions)
-        Text("在空白新任务中显示可直接填入输入区的起步建议。关闭后不会影响已有任务或草稿。")
-          .appFont(.caption).foregroundStyle(.secondary)
       }
       Section("自定义指令") {
         Text("告诉 ShipiOS 你的偏好，例如回复语言、详细程度或项目约定。")

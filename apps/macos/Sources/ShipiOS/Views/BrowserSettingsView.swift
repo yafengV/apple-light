@@ -105,13 +105,12 @@ struct BrowserSettingsView: View {
         Button("使用系统默认") { store.useSystemBrowserDownloadFolder() }
           .disabled(store.browserDownloadPreferences.directory == nil)
       }
-      Toggle(
-        "每次下载时询问保存位置",
+      SettingsToggle(
+        title: "每次下载时询问保存位置",
+        description: "关闭询问时，文件会保存到上方文件夹；同名文件会自动生成新的名称。",
         isOn: Binding(
           get: { store.browserDownloadPreferences.askWhereToSave },
           set: { store.setBrowserAskWhereToSave($0) })).settingsSearchTarget(.browserAskDownload)
-      Text("关闭询问时，文件会保存到上方文件夹；同名文件会自动生成新的名称。")
-        .appFont(.caption).foregroundStyle(.secondary)
       if let error = store.browserSettingsError {
         Text(error).foregroundStyle(.red).textSelection(.enabled)
       }
@@ -135,13 +134,12 @@ struct BrowserSettingsView: View {
     Section("默认网站访问") {
       SettingsMenuPicker(
         "浏览器 Agent 首次访问网站时",
+        description: "这些规则用于 Agent 控制网页时的访问授权。你在地址栏中手动打开网站不受影响。",
         selection: Binding(
           get: { store.browserPermissionPreferences.defaultDecision },
           set: { store.setBrowserDefaultAccess($0) }),
         options: BrowserAccessDecision.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
       .settingsSearchTarget(.browserDefaultAccess)
-      Text("这些规则用于 Agent 控制网页时的访问授权。你在地址栏中手动打开网站不受影响。")
-        .appFont(.caption).foregroundStyle(.secondary)
     }
     Section("添加网站规则") {
       TextField("example.com", text: $site).settingsSearchTarget(.browserAddRule)
