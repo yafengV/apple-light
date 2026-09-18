@@ -12,6 +12,7 @@ struct TaskWindowView: View {
   @State private var skillSelection = SkillMentionSelection()
   @State private var previewFile: FileAttachment?
   @State private var previewImage: ImageAttachment?
+  @State private var previewImages: [ImageAttachment] = []
   @State private var showingGoalEditor = false
   @State private var dropTargeted = false
   @State private var showingFind = false
@@ -184,7 +185,17 @@ struct TaskWindowView: View {
       visible: !showingFind && !showingGoalEditor && previewFile == nil && previewImage == nil))
     .appSurface()
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
-    .sheet(item: $previewImage) { ImageAttachmentPreview(image: $0, root: store.dataRoot) }
+    .disabled(previewImage != nil).allowsHitTesting(previewImage == nil).accessibilityHidden(previewImage != nil)
+    .overlay {
+      if let image = previewImage {
+        ImageAttachmentPreview(image: image, images: previewImages, root: store.dataRoot) {
+          previewImage = nil
+          composerFocused = true
+          taskComposerFocusRequest = UUID()
+        }.id(image.id)
+      }
+    }
+    .focusedSceneValue(\.imagePreviewActive, previewImage != nil)
     .sheet(isPresented: $showingGoalEditor) {
       GoalEditorView(initial: store.goalSession(for: taskID)?.definition) {
         store.configureGoal($0, taskID: taskID)
@@ -246,7 +257,7 @@ struct TaskWindowView: View {
           ForEach(taskRuns) { run in
             TaskWindowMessageView(
               store: store, run: run,
-              onPreviewFile: { previewFile = $0 }, onPreviewImage: { previewImage = $0 }
+              onPreviewFile: { previewFile = $0 }, onPreviewImage: { previewImage = $0; previewImages = $1 }
             ).id(run.id)
           }
           Color.clear.frame(height: 1).id("task-window-end")
@@ -401,7 +412,7 @@ struct TaskWindowView: View {
       }
       ImageAttachmentsView(
         store: store, images: store.taskWindowImages(taskID), removable: true,
-        onPreview: { previewImage = $0 },
+        onPreview: { previewImage = $0; previewImages = $1 },
         onRemove: { store.removeDraftImage($0, draft: taskID) })
       FileAttachmentsView(
         store: store, files: store.taskWindowFiles(taskID), removable: true,
@@ -623,7 +634,7 @@ private struct TaskWindowMessageView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
   let onPreviewFile: (FileAttachment) -> Void
-  let onPreviewImage: (ImageAttachment) -> Void
+  let onPreviewImage: (ImageAttachment, [ImageAttachment]) -> Void
   @State private var copied = false
 
   var body: some View {

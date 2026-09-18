@@ -5,6 +5,7 @@ struct WorkspaceCommands: Commands {
   let store: WorkspaceStore
   @Environment(\.openWindow) private var openWindow
   @FocusedValue(\.mcpApprovalCommands) private var approvalCommands
+  @FocusedValue(\.imagePreviewActive) private var imagePreviewActive
   var body: some Commands {
     CommandGroup(replacing: .appSettings) { command("settings") }
     CommandGroup(replacing: .newItem) {
@@ -15,8 +16,8 @@ struct WorkspaceCommands: Commands {
     CommandMenu("任务") {
       command("send")
       command("stop")
-      Button("批准当前请求") { performApproval { approvalCommands?.approve() } }.disabled(approvalCommands == nil)
-      Button("拒绝当前请求") { performApproval { approvalCommands?.decline() } }.disabled(approvalCommands == nil)
+      Button("批准当前请求") { performApproval { approvalCommands?.approve() } }.disabled(approvalCommands == nil || imagePreviewActive == true)
+      Button("拒绝当前请求") { performApproval { approvalCommands?.decline() } }.disabled(approvalCommands == nil || imagePreviewActive == true)
       Divider()
       command("rename")
       command("pin")
@@ -36,9 +37,9 @@ struct WorkspaceCommands: Commands {
       command("forward")
     }
     CommandMenu("标签页") {
-      Button("关闭当前标签") { store.executeCommand("tab-close") }
+      Button("关闭当前标签") { if imagePreviewActive != true { store.executeCommand("tab-close") } }
         .keyboardShortcut("w", modifiers: .command)
-        .disabled(!store.commandEnabled("tab-close"))
+        .disabled(imagePreviewActive == true || !store.commandEnabled("tab-close"))
       command("tab-close-others")
       Divider()
       command("previous-task")
@@ -75,9 +76,10 @@ struct WorkspaceCommands: Commands {
     CommandMenu("宠物") {
       command("pet")
       Button("宠物设置…") {
+        guard imagePreviewActive != true else { return }
         store.openSettings(.pets)
         openWindow(id: "main")
-      }.disabled(!store.commandEnabled("settings"))
+      }.disabled(imagePreviewActive == true || !store.commandEnabled("settings"))
     }
     CommandMenu("浏览器") {
       ForEach(BrowserKeyboardBridge.contextualCommands.filter { $0 != "browser-address" }, id: \.self) { id in command(id) }
@@ -87,15 +89,16 @@ struct WorkspaceCommands: Commands {
   private func command(_ id: String) -> some View {
     let item = DesktopCommand.all.first { $0.id == id }!
     return Button(item.title) {
+      guard imagePreviewActive != true else { return }
       store.executeCommand(id)
       if id == "settings" || id == "shortcuts" { openWindow(id: "main") }
     }
       .keyboardShortcut(BrowserKeyboardBridge.contextualCommands.contains(id) ? nil : store.shortcuts.binding(id)?.keyboardShortcut)
-      .disabled(!store.commandEnabled(id))
+      .disabled(imagePreviewActive == true || !store.commandEnabled(id))
   }
   private func performApproval(_ action: () -> Void) {
     // Focused scene values may outlive the presentation of a sheet.
-    guard !store.hasSettingsConfirmation, let window = NSApp.keyWindow, window.attachedSheet == nil,
+    guard imagePreviewActive != true, !store.hasSettingsConfirmation, let window = NSApp.keyWindow, window.attachedSheet == nil,
       window.sheetParent == nil, NSApp.modalWindow == nil else { return }
     action()
   }

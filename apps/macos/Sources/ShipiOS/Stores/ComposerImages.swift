@@ -141,7 +141,9 @@ extension WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
 
-  func preview(_ image: ImageAttachment) {
+  func preview(_ image: ImageAttachment, images: [ImageAttachment] = []) {
+    guard !hasSettingsConfirmation else { return }
+    previewImages = images.contains(where: { $0.id == image.id }) ? images : [image]
     previewImage = image
     setOverlay(.imagePreview, presented: true)
   }

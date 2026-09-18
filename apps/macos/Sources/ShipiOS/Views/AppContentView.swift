@@ -40,9 +40,9 @@ struct AppContentView: View {
             .accessibilityHidden(store.destination != .settings)
         }
       }
-      .disabled(store.hasSettingsConfirmation)
-      .allowsHitTesting(!store.hasSettingsConfirmation)
-      .accessibilityHidden(store.hasSettingsConfirmation)
+      .disabled(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview)
+      .allowsHitTesting(!store.hasSettingsConfirmation && store.presentedOverlay != .imagePreview)
+      .accessibilityHidden(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview)
       .overlay {
         if let request = store.archiveDeletion {
           ArchiveDeletionDialog(store: store, request: request).id(request.id)
@@ -64,8 +64,20 @@ struct AppContentView: View {
       .overlay(alignment: .top) {
         if !store.notices.items.isEmpty { WorkspaceNoticesView(store: store) }
       }
+      .overlay {
+        if store.presentedOverlay == .imagePreview, let image = store.previewImage {
+          ImageAttachmentPreview(image: image, images: store.previewImages, root: store.dataRoot) {
+            store.setOverlay(.imagePreview, presented: false)
+          }.id(image.id)
+        }
+      }
+      .onChange(of: store.presentedOverlay) { previous, current in
+        if previous == .imagePreview, current == nil { store.restoreOverlayFocus() }
+      }
+      .focusedSceneValue(\.imagePreviewActive, store.presentedOverlay == .imagePreview)
       // Global sheets belong to the active main window, not its disabled workspace.
-      .sheet(item: $store.presentedOverlay, onDismiss: {
+      .sheet(item: Binding(get: { store.presentedOverlay == .imagePreview ? nil : store.presentedOverlay },
+        set: { if store.presentedOverlay != .imagePreview { store.presentedOverlay = $0 } }), onDismiss: {
         store.restoreOverlayFocus()
       }) { overlay in
         switch overlay {
@@ -79,7 +91,7 @@ struct AppContentView: View {
         case .filePreview:
           if let file = store.previewFile { FileAttachmentPreview(file: file, root: store.dataRoot) }
         case .imagePreview:
-          if let image = store.previewImage { ImageAttachmentPreview(image: image, root: store.dataRoot) }
+          EmptyView()
         }
       }
       .disabled(store.restoringLibrary)

@@ -213,6 +213,7 @@ final class WorkspaceStore {
   var importingFiles = false
   var previewFile: FileAttachment?
   var previewImage: ImageAttachment?
+  var previewImages: [ImageAttachment] = []
   @ObservationIgnored private var modelTasks: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var compatibilityModelTask: Task<Void, Never>?
   var modelTask: Task<Void, Never>? {
