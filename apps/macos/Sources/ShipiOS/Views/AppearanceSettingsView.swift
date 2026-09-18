@@ -12,11 +12,11 @@ struct AppearanceSettingsView: View {
   var body: some View {
     Form {
       Section("主题") {
-        Picker("基础主题", selection: binding(\.theme)) {
-          Text("跟随系统").tag("system")
-          Text("浅色").tag("light")
-          Text("深色").tag("dark")
-        }.settingsSearchTarget(.theme)
+        SettingsMenuPicker("基础主题", selection: binding(\.theme), options: [
+          SettingsMenuOption(value: "system", title: "跟随系统"),
+          SettingsMenuOption(value: "light", title: "浅色"),
+          SettingsMenuOption(value: "dark", title: "深色")
+        ]).settingsSearchTarget(.theme)
       }
       paletteSection("浅色主题", key: \.light, dark: false)
         .settingsSearchTarget(.lightPalette)

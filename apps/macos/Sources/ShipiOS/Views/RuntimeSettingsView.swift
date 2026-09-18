@@ -58,11 +58,10 @@ struct RuntimeSettingsView: View {
             .settingsSearchTarget(.tips)
           Text("在输入框上方显示可关闭的功能提示。")
             .appFont(.caption).foregroundStyle(.secondary)
-          Picker("发送快捷键", selection: $sendShortcutRaw) {
-            ForEach(ComposerSendShortcut.allCases) { behavior in
-              Text(behavior.title).tag(behavior.rawValue)
-            }
-          }
+          SettingsMenuPicker("发送快捷键", selection: $sendShortcutRaw,
+            options: ComposerSendShortcut.allCases.map {
+              SettingsMenuOption(value: $0.rawValue, title: $0.title)
+            })
           .settingsSearchTarget(.sendShortcut)
           Text(sendShortcut.explanation).foregroundStyle(.secondary)
           Toggle("纯文本编辑器", isOn: $store.composerPlainTextMode)
@@ -79,11 +78,8 @@ struct RuntimeSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("链接与无项目任务") {
-          Picker("打开网页链接", selection: $store.webLinkTarget) {
-            ForEach(WebLinkTarget.allCases) { target in
-              Text(target.title).tag(target)
-            }
-          }
+          SettingsMenuPicker("打开网页链接", selection: $store.webLinkTarget,
+            options: WebLinkTarget.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.webLinks)
           Text("应用内浏览器会把回答中的 HTTP 和 HTTPS 链接作为当前任务的内容标签打开；邮件链接仍交给系统。")
             .appFont(.caption).foregroundStyle(.secondary)
@@ -142,12 +138,12 @@ struct RuntimeSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("终端") {
-          Picker("默认终端位置", selection: Binding(
+          SettingsMenuPicker("默认终端位置", selection: Binding(
             get: { store.library.defaultTerminalLocation },
-            set: { store.setDefaultTerminalLocation($0) })) {
-            Text("右侧").tag(WorkspaceTabPlacement.right)
-            Text("底部").tag(WorkspaceTabPlacement.bottom)
-          }
+            set: { store.setDefaultTerminalLocation($0) }), options: [
+              SettingsMenuOption(value: .right, title: "右侧"),
+              SettingsMenuOption(value: .bottom, title: "底部")
+            ])
           .settingsSearchTarget(.terminalLocation)
           Text("工具栏终端按钮、命令菜单和固定终端恢复都会使用此位置。")
             .appFont(.caption).foregroundStyle(.secondary)

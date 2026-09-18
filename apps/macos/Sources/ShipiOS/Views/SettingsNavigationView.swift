@@ -187,6 +187,11 @@ struct SettingsNavigationView: View {
   private func select(_ page: SettingsPage) {
     exitingSidebar = false
     store.settingsSearchRequest = nil
+    // End native popup focus before the old page becomes disabled. Otherwise
+    // its responder teardown can cancel the sidebar's SwiftUI focus request.
+    if let window = NSApp.keyWindow, window.firstResponder is SettingsMenuControl {
+      window.makeFirstResponder(window.contentView)
+    }
     store.settingsPage = page
     focusedPage = page
   }

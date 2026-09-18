@@ -8,11 +8,10 @@ struct NotificationSettingsView: View {
   var body: some View {
     Form {
       Section("任务结束") {
-        Picker("显示通知", selection: binding(\.timing)) {
-          ForEach(CompletionNotificationTiming.allCases) { timing in
-            Text(timing.title).tag(timing)
-          }
-        }
+        SettingsMenuPicker("显示通知", selection: binding(\.timing),
+          options: CompletionNotificationTiming.allCases.map {
+            SettingsMenuOption(value: $0, title: $0.title)
+          })
         .settingsSearchTarget(.notificationTiming)
         Toggle("需要通知时询问系统权限", isOn: binding(\.promptForPermission)).settingsSearchTarget(.notificationPrompt)
         Text("通知已完成或失败的任务；主动停止的任务不提醒。点击通知可返回对应任务。")

@@ -5,11 +5,11 @@ struct EditorSettingsSection: View {
   @State private var available: Set<ExternalEditor> = []
   var body: some View {
     Section("文件打开方式") {
-      Picker("默认编辑器", selection: $store.preferredEditor) {
-        ForEach(ExternalEditor.allCases) { editor in
-          Text(editor.title + (available.contains(editor) ? "" : "（未检测到）")).tag(editor)
-        }
-      }
+      SettingsMenuPicker("默认编辑器", selection: $store.preferredEditor,
+        options: ExternalEditor.allCases.map { editor in
+          SettingsMenuOption(value: editor,
+            title: editor.title + (available.contains(editor) ? "" : "（未检测到）"))
+        })
       .settingsSearchTarget(.editor)
       Text("审查页文件名和文件面板的“打开”使用此设置。Cmd 点击差异代码行可定位到工作区文件；已删除的行定位到附近的现有行。")
         .foregroundStyle(.secondary)
