@@ -7,6 +7,9 @@ struct TaskWindowView: View {
   let taskID: String
   let renameHistory: TaskRenameHistory
   let onNavigate: (String) -> Void
+  let canGoBack: Bool
+  let canGoForward: Bool
+  let onMove: (Bool) -> Void
   @Environment(\.openWindow) private var openWindow
   @Environment(\.dismiss) private var dismiss
   @State private var forkError: String?
@@ -328,6 +331,10 @@ struct TaskWindowView: View {
 
   private var windowCommandContext: TaskWindowCommandContext {
     var enabled: Set<String> = windowCommandsBlocked ? [] : ["tab-close"]
+    if !windowCommandsBlocked {
+      if canGoBack { enabled.insert("back") }
+      if canGoForward { enabled.insert("forward") }
+    }
     if !windowCommandsBlocked, let task {
       enabled.formUnion(["find", "plan", "model"])
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
@@ -346,6 +353,8 @@ struct TaskWindowView: View {
   private func performWindowCommand(_ id: String) {
     guard !windowCommandsBlocked else { return }
     if id == "tab-close" { dismiss(); return }
+    if id == "back" { if canGoBack { onMove(true) }; return }
+    if id == "forward" { if canGoForward { onMove(false) }; return }
     guard let task else { return }
     switch id {
     case "send": if canSend { submitTaskDraft() }

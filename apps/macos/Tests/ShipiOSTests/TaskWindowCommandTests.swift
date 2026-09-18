@@ -25,6 +25,13 @@ final class TaskWindowCommandTests: XCTestCase {
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘W"), shortcuts: shortcuts), "tab-close")
     XCTAssertNil(context.command(for: ShortcutBinding("⌘,"), shortcuts: shortcuts))
     XCTAssertNil(context.command(for: ShortcutBinding("↵"), shortcuts: shortcuts), "Approval/plain editing keys have their own route")
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘["), shortcuts: shortcuts), "back")
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘]"), shortcuts: shortcuts), "forward")
+    try shortcuts.set(ShortcutBinding("⌃⌥B"), for: "back")
+    XCTAssertNil(context.command(for: ShortcutBinding("⌘["), shortcuts: shortcuts))
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌃⌥B"), shortcuts: shortcuts), "back")
+    try shortcuts.set(nil, for: "forward")
+    XCTAssertNil(context.command(for: ShortcutBinding("⌘]"), shortcuts: shortcuts))
   }
 
   @MainActor func testBackgroundMainPreviewDoesNotDetermineLocalTaskCommandAvailability() async throws {
