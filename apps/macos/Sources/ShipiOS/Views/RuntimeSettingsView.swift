@@ -101,11 +101,8 @@ struct RuntimeSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("追加消息") {
-          Picker("模型运行时发送消息", selection: $store.followUpBehavior) {
-            ForEach(FollowUpBehavior.allCases) { behavior in
-              Text(behavior.title).tag(behavior)
-            }
-          }.pickerStyle(.segmented)
+          SettingsSegmentedPicker(title: "模型运行时发送消息", selection: $store.followUpBehavior,
+            options: [FollowUpBehavior.queue, .steer].map { (value: $0, title: $0.title) })
           .settingsSearchTarget(.followUp)
           Text(store.followUpBehavior.explanation).foregroundStyle(.secondary)
           if let error = store.generalSettingsError {

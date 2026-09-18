@@ -178,6 +178,7 @@ python3 script/smoke_ipc.py
 | [设置焦点分区](docs/121-settings-focus-regions.md) | 修复完整循环后的反向 Tab，核验单结果、空结果与空表单边界 |
 | [设置菜单键盘操作](docs/122-settings-menu-keyboard.md) | 六个下拉菜单的 Tab、打开、选择、取消及原生控件生命周期保护 |
 | [设置菜单接入范围](docs/123-settings-menu-coverage.md) | 七处设置菜单接入、辅助功能激活焦点、隐藏标签布局及待验收范围 |
+| [追加消息设置按钮组](docs/124-follow-up-settings-buttons.md) | 排队/引导选项顺序、独立 Tab 焦点、空格/Enter 激活及原生验收 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
