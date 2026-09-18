@@ -138,11 +138,15 @@ final class PageNavigationTests: XCTestCase {
     XCTAssertFalse(store.retainsProjectsPage)
   }
 
-  @MainActor func testMenuRoutesDismissTransientSearchAndAllowNewTask() {
+  @MainActor func testMenuRoutesWaitForSearchDismissalAndThenAllowNewTask() {
     let store = WorkspaceStore()
     store.showingCommands = true
     store.showingSearch = true
     store.showingFileSearch = true
+    store.executeCommand("settings")
+    XCTAssertEqual(store.destination, .workspace)
+    XCTAssertTrue(store.showingFileSearch)
+    store.showingFileSearch = false
     store.executeCommand("settings")
     XCTAssertEqual(store.destination, .settings)
     XCTAssertFalse(store.showingCommands)

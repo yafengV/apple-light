@@ -4,11 +4,11 @@ import XCTest
 
 @MainActor final class FileSearchDialogTests: XCTestCase {
   func testDialogKeysLeaveTextEditingAndIMEToNativeEditor() throws {
-    func key(_ code: UInt16, _ flags: NSEvent.ModifierFlags = [], _ text: String = "", marked: Bool = false) throws -> FileSearchKeyboardBridge.Key? {
+    func key(_ code: UInt16, _ flags: NSEvent.ModifierFlags = [], _ text: String = "", marked: Bool = false) throws -> SearchDialogKeyboardBridge.Key? {
       let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags,
         timestamp: 0, windowNumber: 0, context: nil, characters: text,
         charactersIgnoringModifiers: text, isARepeat: false, keyCode: code))
-      return FileSearchKeyboardBridge.key(for: event, markedText: marked)
+      return SearchDialogKeyboardBridge.key(for: event, markedText: marked)
     }
     for code: UInt16 in [36, 53, 125, 126, 48] { XCTAssertNil(try key(code, marked: true)) }
     XCTAssertNil(try key(0, [], "a"))

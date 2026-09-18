@@ -12,6 +12,7 @@ final class WorkspaceStore {
   @ObservationIgnored private let agentExecutable: URL?
   var query = ""
   var presentedOverlay: WorkspaceOverlay?
+  @ObservationIgnored var searchDialogReturnFocus: SearchDialogReturnFocus?
   var fileFocusAfterOverlay: (root: URL, path: String)?
   var showingSearch: Bool {
     get { presentedOverlay == .taskSearch }

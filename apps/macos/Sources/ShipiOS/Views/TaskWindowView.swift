@@ -255,7 +255,7 @@ struct TaskWindowView: View {
       }, cancel: { showingFileSearch = false }) }
     }
     .onChange(of: showingFileSearch) { _, visible in if !visible { restoreFileSearchFocus() } }
-    .focusedSceneValue(\.fileSearchActive, showingFileSearch)
+    .focusedSceneValue(\.searchDialogActive, showingFileSearch)
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
     .disabled(previewImage != nil).allowsHitTesting(previewImage == nil).accessibilityHidden(previewImage != nil)
     .overlay {

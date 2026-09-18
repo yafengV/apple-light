@@ -86,7 +86,32 @@ extension WorkspaceStore {
     }
   }
   func commandEnabled(_ id: String) -> Bool {
-    guard renameTaskID == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview, presentedOverlay != .fileSearch else { return false }
+    guard presentedOverlay?.isSearchDialog != true else { return false }
+    return commandAvailable(id)
+  }
+
+  func paletteCommandEnabled(_ id: String) -> Bool {
+    guard presentedOverlay == .commands else { return false }
+    return commandAvailable(id)
+  }
+
+  func executePaletteCommand(_ id: String) {
+    guard paletteCommandEnabled(id) else { return }
+    let returnFocus = searchDialogReturnFocus
+    let fileFocus = fileFocusAfterOverlay
+    searchDialogReturnFocus = nil
+    setOverlay(.commands, presented: false)
+    restoreOverlayFocus()
+    executeCommand(id)
+    // Switching between search modes retains the original page's focus target.
+    if presentedOverlay?.isSearchDialog == true {
+      searchDialogReturnFocus = returnFocus
+      fileFocusAfterOverlay = fileFocus
+    } else { searchDialogReturnFocus = nil }
+  }
+
+  private func commandAvailable(_ id: String) -> Bool {
+    guard renameTaskID == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
     switch id {
     case "approval-approve", "approval-decline":
       return destination == .workspace && activeWorkspaceContentTab == nil

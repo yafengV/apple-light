@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct FileSearchKeyboardBridge: NSViewRepresentable {
+struct SearchDialogKeyboardBridge: NSViewRepresentable {
   enum Key: Equatable { case cancel, submit, move(Int), tab(reverse: Bool) }
   let onReady: () -> Void
   let action: (Key) -> Void
@@ -55,7 +55,7 @@ struct FileSearchKeyboardBridge: NSViewRepresentable {
         MainActor.assumeIsolated {
           guard let self, let window = view?.window, window.isKeyWindow, event.window === window,
             window.attachedSheet == nil,
-            let key = FileSearchKeyboardBridge.key(for: event,
+            let key = SearchDialogKeyboardBridge.key(for: event,
               markedText: (window.firstResponder as? NSTextView)?.hasMarkedText() == true) else { return event }
           self.action(key)
           return nil

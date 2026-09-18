@@ -29,21 +29,11 @@ struct WorkspaceFileSearchView: View {
       }.prefix(200))
   }
   var body: some View {
-    GeometryReader { geometry in
-      ZStack {
-        Color.black.opacity(0.3).contentShape(Rectangle())
-          .onTapGesture(perform: cancel).accessibilityHidden(true)
-        panel
-          .frame(width: min(640, geometry.size.width * 0.92), height: min(430, geometry.size.height * 0.85))
-          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-          .clipShape(RoundedRectangle(cornerRadius: 16))
-          .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
-          .accessibilityElement(children: .contain).accessibilityAddTraits(.isModal)
-          .accessibilityIdentifier("file-search-dialog")
-          .background(FileSearchKeyboardBridge(onReady: { focus = .query }, action: handleKey)
-            .frame(width: 0, height: 0))
-      }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    SearchDialog(identifier: "file-search-dialog", cancel: cancel) {
+      panel
     }
+    .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey)
+      .frame(width: 0, height: 0))
     .onChange(of: results) { _, values in selected = min(selected, max(0, values.count - 1)) }
     .task(id: workspace.root) { await workspace.refreshFiles() }
   }
@@ -90,7 +80,7 @@ struct WorkspaceFileSearchView: View {
     }
   }
 
-  private func handleKey(_ key: FileSearchKeyboardBridge.Key) {
+  private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
     switch key {
     case .cancel: cancel()
     case .move(let delta):
@@ -115,13 +105,5 @@ struct WorkspaceFileSearchView: View {
   private func openSelected() {
     guard results.indices.contains(selected) else { return }
     open(results[selected])
-  }
-}
-
-private struct FileSearchActiveKey: FocusedValueKey { typealias Value = Bool }
-extension FocusedValues {
-  var fileSearchActive: Bool? {
-    get { self[FileSearchActiveKey.self] }
-    set { self[FileSearchActiveKey.self] = newValue }
   }
 }

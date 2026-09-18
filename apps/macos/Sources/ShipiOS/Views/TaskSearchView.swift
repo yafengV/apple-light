@@ -2,12 +2,12 @@ import SwiftUI
 
 struct TaskSearchView: View {
   @Bindable var store: WorkspaceStore
-  @Environment(\.dismiss) private var dismiss
   @State private var text = ""
   @State private var selectedID: String?
   @State private var catalog = TaskSearchCatalog()
   @State private var reload = UUID()
-  @FocusState private var focused: Bool
+  @FocusState private var focus: Field?
+  private enum Field { case query, cancel, retry }
 
   private var request: TaskSearchRequest {
     TaskSearchRequest(query: text, tasks: store.library.tasks, names: store.library.projectNames,
@@ -18,20 +18,33 @@ struct TaskSearchView: View {
     catalog.results.filter { store.canSelectTask($0.task) }.map(\.id)
   }
   var body: some View {
+    SearchDialog(identifier: "task-search-dialog", cancel: cancel) {
+      panel
+    }
+    .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey)
+      .frame(width: 0, height: 0))
+    .task(id: reload) { await catalog.load(root: store.dataRoot, library: store.library) }
+    .task(id: request) {
+      await catalog.search(request)
+      guard !Task.isCancelled, catalog.resultsQuery == text else { return }
+      if selectedID == nil || !selectable.contains(selectedID!) { selectedID = selectable.first }
+    }
+    .onChange(of: selectable) { _, ids in
+      if selectedID == nil || !ids.contains(selectedID!) { selectedID = ids.first }
+    }
+    .onChange(of: catalog.searching) { _, searching in
+      if !searching && selectedID == nil { selectedID = selectable.first }
+    }
+  }
+
+  private var panel: some View {
     VStack(spacing: 0) {
       HStack {
         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-        TextField("搜索任务、消息或分支…", text: $text).textFieldStyle(.plain).focused($focused)
-          .onSubmit {
-            guard !catalog.searching, catalog.resultsQuery == text,
-              let result = catalog.results.first(where: { $0.id == selectedID }) else { return }
-            choose(result.task)
-          }
-          .onChange(of: text) { _, _ in selectedID = nil }
-          .onKeyPress(.downArrow) { move(1); return .handled }
-          .onKeyPress(.upArrow) { move(-1); return .handled }
-        Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-      }.padding(20)
+        TextField("搜索任务、消息或分支…", text: Binding(get: { text }, set: { text = $0; selectedID = nil }))
+          .textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel("搜索任务")
+        Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
+      }.padding(18)
       Divider()
       ScrollViewReader { reader in
         List(catalog.results) { result in
@@ -67,7 +80,8 @@ struct TaskSearchView: View {
         HStack {
           Text("部分项目历史未能读取").help(catalog.historyErrors.joined(separator: "\n"))
           Spacer()
-          Button("重试") { reload = UUID() }.disabled(catalog.loading)
+          Button("重试", action: retry).disabled(catalog.loading)
+            .settingsActionFocus($focus, equals: .retry, activate: retry)
         }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 14)
       }
       HStack {
@@ -75,20 +89,28 @@ struct TaskSearchView: View {
         Spacer()
         Text("↑↓ 选择 · ↵ 打开 · esc 关闭")
       }.appFont(.caption).foregroundStyle(.secondary).padding(14)
-    }.frame(width: 600, height: 430)
-      .task { focused = true }
-      .task(id: reload) { await catalog.load(root: store.dataRoot, library: store.library) }
-      .task(id: request) {
-        await catalog.search(request)
-        guard !Task.isCancelled, catalog.resultsQuery == text else { return }
-        if selectedID == nil || !selectable.contains(selectedID!) { selectedID = selectable.first }
-      }
-      .onChange(of: selectable) { _, ids in
-        if selectedID == nil || !ids.contains(selectedID!) { selectedID = ids.first }
-      }
-      .onChange(of: catalog.searching) { _, searching in
-        if !searching && selectedID == nil { selectedID = selectable.first }
-      }
+    }
+  }
+
+  private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
+    switch key {
+    case .cancel: cancel()
+    case .submit:
+      if focus == .cancel { cancel() }
+      else if focus == .retry { retry() }
+      else if let result = catalog.results.first(where: { $0.id == selectedID }) { choose(result.task) }
+    case .move(let delta): move(delta); focus = .query
+    case .tab(let reverse):
+      let fields: [Field] = !catalog.historyErrors.isEmpty && !catalog.loading
+        ? [.query, .cancel, .retry] : [.query, .cancel]
+      let index = fields.firstIndex(of: focus ?? .query) ?? 0
+      focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
+    }
+  }
+  private func retry() { focus = .query; reload = UUID() }
+  private func cancel() {
+    store.setOverlay(.taskSearch, presented: false)
+    store.restoreOverlayFocus()
   }
   private func highlighted(_ text: String) -> Text {
     var attributed = AttributedString(text)
@@ -113,7 +135,9 @@ struct TaskSearchView: View {
   private func choose(_ task: WorkspaceTask) {
     guard !catalog.searching, catalog.resultsQuery == text,
       let current = store.library.tasks.first(where: { $0.id == task.id }), store.canSelectTask(current) else { return }
+    store.setOverlay(.taskSearch, presented: false)
+    store.fileFocusAfterOverlay = nil
+    store.searchDialogReturnFocus = nil
     store.selectTask(current)
-    dismiss()
   }
 }

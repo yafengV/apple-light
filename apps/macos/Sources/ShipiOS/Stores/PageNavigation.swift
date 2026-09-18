@@ -7,13 +7,20 @@ enum AppDestination: Equatable {
 enum WorkspaceOverlay: String, Identifiable, CaseIterable {
   case commands, taskSearch, fileSearch, imagePreview, filePreview, worktreeCreation
   var id: String { rawValue }
+  var isSearchDialog: Bool { self == .commands || self == .taskSearch || self == .fileSearch }
+  var usesWindowOverlay: Bool { self == .imagePreview || isSearchDialog }
 }
 
 extension WorkspaceStore {
   func setOverlay(_ overlay: WorkspaceOverlay, presented: Bool) {
     guard !hasSettingsConfirmation else { return }
     if presented {
-      if overlay == .fileSearch, filesVisible,
+      if overlay.isSearchDialog {
+        if presentedOverlay?.isSearchDialog != true {
+          searchDialogReturnFocus = SearchDialogReturnFocus(window: NSApp?.keyWindow, destination: destination)
+        }
+      } else { searchDialogReturnFocus = nil }
+      if overlay.isSearchDialog, filesVisible,
         (NSApp?.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === workspace,
         let root = workspace.root, let path = workspace.selectedFile {
         fileFocusAfterOverlay = (root, path)

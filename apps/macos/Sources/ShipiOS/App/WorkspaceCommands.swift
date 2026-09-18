@@ -7,7 +7,7 @@ struct WorkspaceCommands: Commands {
   @FocusedValue(\.mcpApprovalCommands) private var approvalCommands
   @FocusedValue(\.taskWindowCommands) private var taskWindowCommands
   @FocusedValue(\.imagePreviewActive) private var imagePreviewActive
-  @FocusedValue(\.fileSearchActive) private var fileSearchActive
+  @FocusedValue(\.searchDialogActive) private var searchDialogActive
   @FocusedValue(\.taskRenameActive) private var taskRenameActive
   @FocusedValue(\.taskRenameUndo) private var taskRenameUndo
   var body: some Commands {
@@ -26,8 +26,8 @@ struct WorkspaceCommands: Commands {
     CommandMenu("任务") {
       command("send")
       command("stop")
-      Button("批准当前请求") { performApproval { approvalCommands?.approve() } }.disabled(fileSearchActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)
-      Button("拒绝当前请求") { performApproval { approvalCommands?.decline() } }.disabled(fileSearchActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)
+      Button("批准当前请求") { performApproval { approvalCommands?.approve() } }.disabled(searchDialogActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)
+      Button("拒绝当前请求") { performApproval { approvalCommands?.decline() } }.disabled(searchDialogActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)
       Divider()
       command("rename")
       command("pin")
@@ -86,10 +86,10 @@ struct WorkspaceCommands: Commands {
     CommandMenu("宠物") {
       command("pet")
       Button("宠物设置…") {
-        guard fileSearchActive != true, taskRenameActive != true, imagePreviewActive != true else { return }
+        guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return }
         store.openSettings(.pets)
         openWindow(id: "main")
-      }.disabled(fileSearchActive == true || taskRenameActive == true || imagePreviewActive == true || !store.commandEnabled("settings"))
+      }.disabled(searchDialogActive == true || taskRenameActive == true || imagePreviewActive == true || !store.commandEnabled("settings"))
     }
     CommandMenu("浏览器") {
       ForEach(BrowserKeyboardBridge.contextualCommands.filter { $0 != "browser-address" }, id: \.self) { id in command(id) }
@@ -103,14 +103,14 @@ struct WorkspaceCommands: Commands {
   private func command(_ id: String) -> some View {
     let item = DesktopCommand.all.first { $0.id == id }!
     return Button(item.title) {
-      guard fileSearchActive != true, taskRenameActive != true, imagePreviewActive != true else { return }
+      guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return }
       perform(id)
     }
       .keyboardShortcut(BrowserKeyboardBridge.contextualCommands.contains(id) ? nil : store.shortcuts.binding(id)?.keyboardShortcut)
       .disabled(!commandEnabled(id))
   }
   private func commandEnabled(_ id: String) -> Bool {
-    guard fileSearchActive != true, taskRenameActive != true, imagePreviewActive != true else { return false }
+    guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return false }
     if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       return taskWindowCommands.enabled.contains(id)
     }
@@ -127,7 +127,7 @@ struct WorkspaceCommands: Commands {
   }
   private func performApproval(_ action: () -> Void) {
     // Focused scene values may outlive the presentation of a sheet.
-    guard fileSearchActive != true, taskRenameActive != true, imagePreviewActive != true, !store.hasSettingsConfirmation, let window = NSApp.keyWindow, window.attachedSheet == nil,
+    guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true, !store.hasSettingsConfirmation, let window = NSApp.keyWindow, window.attachedSheet == nil,
       window.sheetParent == nil, NSApp.modalWindow == nil else { return }
     action()
   }
