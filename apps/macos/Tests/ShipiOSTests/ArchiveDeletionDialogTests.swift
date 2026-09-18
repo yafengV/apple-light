@@ -85,11 +85,39 @@ final class ArchiveDeletionDialogTests: XCTestCase {
     XCTAssertEqual(ModalKeyboardBridge.key(for: try event(53)), .cancel)
     XCTAssertEqual(ModalKeyboardBridge.key(for: try event(13, flags: .command, characters: "w")), .cancel)
     XCTAssertEqual(ModalKeyboardBridge.key(for: try event(36)), .activate)
+    XCTAssertEqual(ModalKeyboardBridge.key(for: try event(49, characters: " ")), .activate)
+    XCTAssertEqual(SettingsConfirmationDialog.activationTarget(nil), .cancel)
+    XCTAssertEqual(SettingsConfirmationDialog.activationTarget(.cancel), .cancel)
+    XCTAssertEqual(SettingsConfirmationDialog.activationTarget(.confirm), .confirm)
     XCTAssertEqual(ModalKeyboardBridge.key(for: try event(76, flags: .numericPad)), .activate)
     XCTAssertEqual(ModalKeyboardBridge.key(for: try event(48)), .next)
     XCTAssertEqual(ModalKeyboardBridge.key(for: try event(48, flags: .shift)), .next)
     XCTAssertNil(ModalKeyboardBridge.key(for: try event(8, flags: .command, characters: "c")))
     XCTAssertNil(ModalKeyboardBridge.key(for: try event(36, flags: .command)))
+  }
+
+  @MainActor func testInitialFocusWaitsForNativeCaptureAndCannotRunAfterDismantle() async throws {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 100, height: 100),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let view = NSView()
+    window.contentView = view
+    var ready = 0
+    let coordinator = ModalKeyboardBridge.Coordinator(onReady: { ready += 1 }, action: { _ in })
+    coordinator.install(view)
+    coordinator.capture(window)
+    coordinator.capture(window)
+    XCTAssertEqual(ready, 0)
+    try await Task.sleep(for: .milliseconds(20))
+    XCTAssertEqual(ready, 1)
+    coordinator.stop()
+    coordinator.install(view)
+    coordinator.capture(window)
+    coordinator.stop()
+    try await Task.sleep(for: .milliseconds(20))
+    XCTAssertEqual(ready, 1, "A dismissed modal must not steal focus from its parent")
   }
 
   @MainActor func testDialogRendersInsideExistingWindowAtNormalAndCompactWidths() async throws {

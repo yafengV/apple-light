@@ -4,6 +4,7 @@ import SwiftUI
 /// Tab cycles the two dialog actions even when full keyboard access is disabled.
 struct ModalKeyboardBridge: NSViewRepresentable {
   enum Key: Equatable { case cancel, activate, next }
+  let onReady: () -> Void
   let action: (Key) -> Void
   static func key(for event: NSEvent) -> Key? {
     let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -12,20 +13,23 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     guard flags.isEmpty || flags == .shift else { return nil }
     switch event.keyCode {
     case 53: return .cancel
-    case 36, 76: return .activate
+    case 36, 49, 76: return .activate
     case 48: return .next
     default: return nil
     }
   }
 
-  func makeCoordinator() -> Coordinator { Coordinator(action: action) }
+  func makeCoordinator() -> Coordinator { Coordinator(onReady: onReady, action: action) }
   func makeNSView(context: Context) -> Anchor {
     let view = Anchor()
     view.coordinator = context.coordinator
     context.coordinator.install(view)
     return view
   }
-  func updateNSView(_ view: Anchor, context: Context) { context.coordinator.action = action }
+  func updateNSView(_ view: Anchor, context: Context) {
+    context.coordinator.onReady = onReady
+    context.coordinator.action = action
+  }
   static func dismantleNSView(_ view: Anchor, coordinator: Coordinator) { coordinator.stop() }
 
   final class Anchor: NSView {
@@ -36,16 +40,26 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     }
   }
   final class Coordinator {
+    var onReady: () -> Void
     var action: (Key) -> Void
     private var monitor: Any?
     private weak var window: NSWindow?
     private weak var previousResponder: NSResponder?
-    init(action: @escaping (Key) -> Void) { self.action = action }
+    init(onReady: @escaping () -> Void, action: @escaping (Key) -> Void) {
+      self.onReady = onReady
+      self.action = action
+    }
     func capture(_ window: NSWindow) {
       guard self.window == nil else { return }
       self.window = window
       previousResponder = window.firstResponder
       window.makeFirstResponder(nil)
+      // SwiftUI's onAppear can focus a button before this native anchor has
+      // captured the responder. Hand focus back only after capture completes.
+      DispatchQueue.main.async { [weak self, weak window] in
+        guard let self, let window, self.window === window, self.monitor != nil else { return }
+        self.onReady()
+      }
     }
     func install(_ view: NSView) {
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak view] event in

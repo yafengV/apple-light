@@ -4,8 +4,6 @@ struct MemorySettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var editingID: UUID?
   @State private var editingText = ""
-  @State private var deleting: SavedMemory?
-  @State private var confirmingClear = false
 
   var body: some View {
     Form {
@@ -64,7 +62,7 @@ struct MemorySettingsView: View {
                     editingID = memory.id
                     editingText = memory.text
                   }.buttonStyle(.plain)
-                  Button(role: .destructive) { deleting = memory } label: {
+                  Button(role: .destructive) { store.requestMemoryDeletion(memory.id) } label: {
                     Image(systemName: "trash")
                   }.buttonStyle(.plain).help("删除记忆")
                     .accessibilityLabel("删除记忆")
@@ -76,10 +74,10 @@ struct MemorySettingsView: View {
             Text("共 \(store.memoryPreferences.items.count) 条")
               .appFont(.caption).foregroundStyle(.secondary)
             Spacer()
-            Button("清空全部…", role: .destructive) { confirmingClear = true }
+            Button("清空全部…", role: .destructive) { store.requestMemoryDeletion() }
           }
         }
-      }.settingsSearchTarget(.memorySaved)
+      }.disabled(!store.memoriesLoaded).settingsSearchTarget(.memorySaved)
 
       if let error = store.memoryError {
         Section {
@@ -89,26 +87,8 @@ struct MemorySettingsView: View {
         }
       }
     }.settingsFormStyle().appSurface()
-      .confirmationDialog(
-        "删除这条记忆？", isPresented: Binding(
-          get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-        titleVisibility: .visible
-      ) {
-        Button("删除", role: .destructive) {
-          if let deleting { _ = store.deleteMemory(deleting.id) }
-          deleting = nil
-        }
-        Button("取消", role: .cancel) { deleting = nil }
-      } message: {
-        Text("删除后，这条内容不会再用于后续模型请求。")
-      }
-      .confirmationDialog("清空全部记忆？", isPresented: $confirmingClear, titleVisibility: .visible) {
-        Button("清空全部", role: .destructive) {
-          if store.clearMemories() { cancelEditing() }
-        }
-        Button("取消", role: .cancel) {}
-      } message: {
-        Text("此操作会永久删除 ShipiOS 当前数据目录中的全部记忆。")
+      .onChange(of: store.memoryPreferences.items.map(\.id)) { _, ids in
+        if let editingID, !ids.contains(editingID) { cancelEditing() }
       }
   }
 

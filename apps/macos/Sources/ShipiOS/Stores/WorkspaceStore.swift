@@ -195,7 +195,12 @@ final class WorkspaceStore {
   var shortcutResetRequested = false
   var resettingShortcuts = false
   var shortcutResetError: String?
-  var hasSettingsConfirmation: Bool { archiveDeletion != nil || shortcutResetRequested }
+  var memoryDeletion: MemoryDeletionRequest?
+  var deletingMemories = false
+  var memoryDeletionError: String?
+  var hasSettingsConfirmation: Bool {
+    archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil
+  }
   @ObservationIgnored var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?
   @ObservationIgnored var completionTracker = CompletionTracker()

@@ -46,6 +46,12 @@ struct AppContentView: View {
       .overlay {
         if let request = store.archiveDeletion {
           ArchiveDeletionDialog(store: store, request: request).id(request.id)
+        } else if let request = store.memoryDeletion {
+          SettingsConfirmationDialog(title: request.title, message: request.message,
+            confirmLabel: "删除", busyLabel: "正在删除…", busy: store.deletingMemories,
+            error: store.memoryDeletionError, width: 420, identifier: "memory-deletion-dialog",
+            cancel: store.dismissMemoryDeletion,
+            confirm: { Task { await store.confirmMemoryDeletion() } }).id(request.id)
         } else if store.shortcutResetRequested {
           SettingsConfirmationDialog(title: "恢复所有默认快捷键？",
             message: "这将移除全部自定义快捷键并恢复默认设置。",

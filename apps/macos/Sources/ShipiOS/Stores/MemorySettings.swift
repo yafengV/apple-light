@@ -71,6 +71,17 @@ extension WorkspaceStore {
     mutateMemories { $0.items.removeAll() }
   }
 
+  /// Delete only the exact records the user saw when opening confirmation.
+  @discardableResult func deleteMemories(_ expected: [SavedMemory]) -> Bool {
+    mutateMemories { preferences in
+      let ids = Set(expected.map(\.id))
+      guard !expected.isEmpty, expected.allSatisfy({ preferences.items.contains($0) }) else {
+        throw AgentFailure(message: "记忆内容已变化，请取消后重新选择。")
+      }
+      preferences.items.removeAll { ids.contains($0.id) }
+    }
+  }
+
   private func mutateMemories(_ mutation: (inout MemoryPreferences) throws -> Void) -> Bool {
     guard memoriesLoaded else { return false }
     do {

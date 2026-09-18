@@ -12,8 +12,12 @@ struct SettingsConfirmationDialog: View {
   let identifier: String
   let cancel: () -> Void
   let confirm: () -> Void
+  @Environment(\.appAppearance) private var appearance
   @FocusState private var focusedButton: Action?
   enum Action { case cancel, confirm }
+  static func activationTarget(_ focused: Action?) -> Action {
+    focused == .confirm ? .confirm : .cancel
+  }
 
   var body: some View {
     GeometryReader { geometry in
@@ -32,7 +36,8 @@ struct SettingsConfirmationDialog: View {
             Spacer()
             Button("取消", action: cancel)
               .buttonStyle(.plain).padding(.horizontal, 12).padding(.vertical, 8)
-              .focused($focusedButton, equals: .cancel)
+              .focusable(!busy).focused($focusedButton, equals: .cancel).focusEffectDisabled()
+              .overlay { focusOutline(.cancel) }
             Button { confirm() } label: {
               HStack(spacing: 6) {
                 if busy { ProgressView().controlSize(.small) }
@@ -40,7 +45,9 @@ struct SettingsConfirmationDialog: View {
               }.padding(.horizontal, 12).padding(.vertical, 8)
                 .foregroundStyle(.white)
                 .background(Color.red, in: RoundedRectangle(cornerRadius: 8))
-            }.buttonStyle(.plain).focused($focusedButton, equals: .confirm)
+            }.buttonStyle(.plain)
+              .focusable(!busy).focused($focusedButton, equals: .confirm).focusEffectDisabled()
+              .overlay { focusOutline(.confirm) }
           }.disabled(busy)
         }
         .padding(20)
@@ -51,18 +58,23 @@ struct SettingsConfirmationDialog: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier(identifier)
-        .background(ModalKeyboardBridge { key in
+        .background(ModalKeyboardBridge(onReady: { focusedButton = .cancel }) { key in
           guard !busy else { return }
           switch key {
           case .cancel: cancel()
           case .activate:
-            if focusedButton == .cancel { cancel() } else { confirm() }
+            if Self.activationTarget(focusedButton) == .confirm { confirm() } else { cancel() }
           case .next: focusedButton = focusedButton == .cancel ? .confirm : .cancel
           }
         }.frame(width: 0, height: 0))
       }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .onAppear { focusedButton = .cancel }
   }
-
+  @ViewBuilder private func focusOutline(_ action: Action) -> some View {
+    if focusedButton == action && !busy {
+      RoundedRectangle(cornerRadius: 8)
+        .strokeBorder(appearance.accentColor, lineWidth: 2)
+        .padding(-3).allowsHitTesting(false)
+    }
+  }
 }

@@ -184,6 +184,7 @@ python3 script/smoke_ipc.py
 | [更多设置页行内说明](docs/127-settings-description-coverage.md) | 9 页 12 处控件说明合并、Agent 加载保护及原生页面复核 |
 | [自定义指令保存交互](docs/128-personalization-save-interaction.md) | 区块右侧保存、⌘S、浮动反馈、隐藏页隔离及失败重试 |
 | [个性化编辑器加载与重试](docs/129-personalization-loading-and-retry.md) | 原位加载/错误提示、读取修复后重试、保存失败保留编辑器 |
+| [记忆删除确认与弹层焦点](docs/130-memory-deletion-dialog.md) | 主窗口确认、失败重试、记录快照保护、默认取消与键盘焦点 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
