@@ -73,7 +73,7 @@ struct FileSourcePreview: NSViewRepresentable {
       }
     }
     let request = workspace.fileFocusRequest
-    if coordinator.focusRequest != request {
+    if coordinator.focusRequest != request, !workspace.fileLoading {
       coordinator.focusRequest = request
       DispatchQueue.main.async { [weak text, weak store, weak workspace] in
         guard let text, let store, let workspace,

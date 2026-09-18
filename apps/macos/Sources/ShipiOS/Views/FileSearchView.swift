@@ -3,12 +3,28 @@ import SwiftUI
 struct FileSearchView: View {
   @Bindable var store: WorkspaceStore
   @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    WorkspaceFileSearchView(workspace: store.workspace, open: { path in
+      store.showPane("files")
+      store.workspace.selectFile(path)
+      if let root = store.workspace.root { store.fileFocusAfterOverlay = (root, path) }
+      dismiss()
+    }, cancel: { dismiss() })
+  }
+}
+
+/// Search UI is shared, but each caller owns the workspace and destination.
+struct WorkspaceFileSearchView: View {
+  @Bindable var workspace: DeveloperWorkspace
+  let open: (String) -> Void
+  let cancel: () -> Void
   @State private var query = ""
   @State private var selected = 0
   @FocusState private var focused: Bool
   private var results: [String] {
     Array(
-      store.workspace.files.filter {
+      workspace.files.filter {
         query.isEmpty || $0.localizedCaseInsensitiveContains(query)
       }.prefix(200))
   }
@@ -26,14 +42,18 @@ struct FileSearchView: View {
             selected = max(0, selected - 1)
             return .handled
           }
-        Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
+        Button("取消", action: cancel).keyboardShortcut(.cancelAction)
       }.padding(18)
       Divider()
-      if let error = store.workspace.filesError {
-        Text(error).foregroundStyle(.orange).appFont(.caption).padding(10)
+      if let error = workspace.filesError {
+        HStack {
+          Text(error).foregroundStyle(.orange).appFont(.caption)
+          Spacer()
+          Button("重试") { Task { await workspace.refreshFiles() } }.disabled(workspace.loading)
+        }.padding(10)
       }
-      if results.isEmpty {
-        Text(store.workspace.loading ? "正在读取文件…" : "没有匹配的文件")
+      if results.isEmpty, workspace.filesError == nil {
+        Text(workspace.loading ? "正在读取文件…" : "没有匹配的文件")
           .foregroundStyle(.secondary).padding()
       }
       ScrollViewReader { reader in
@@ -57,19 +77,17 @@ struct FileSearchView: View {
     }.frame(width: 640, height: 430)
       .onChange(of: query) { _, _ in selected = 0 }
       .onChange(of: results) { _, values in selected = min(selected, max(0, values.count - 1)) }
-      .task {
+      .task(id: workspace.root) {
+        query = ""
+        selected = 0
+        await Task.yield()
+        guard !Task.isCancelled else { return }
         focused = true
-        await store.workspace.refreshFiles()
+        await workspace.refreshFiles()
       }
   }
   private func openSelected() {
     guard results.indices.contains(selected) else { return }
     open(results[selected])
-  }
-  private func open(_ path: String) {
-    store.showPane("files")
-    store.workspace.selectFile(path)
-    if let root = store.workspace.root { store.fileFocusAfterOverlay = (root, path) }
-    dismiss()
   }
 }

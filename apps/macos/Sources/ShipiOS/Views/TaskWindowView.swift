@@ -37,6 +37,8 @@ struct TaskWindowView: View {
   @State private var pendingText: ConversationTextID?
   @State private var pendingMatch: ConversationMatch.ID?
   @State private var showingFiles = false
+  @State private var showingFileSearch = false
+  @State private var fileFocusAfterSearch: String?
   @State private var showingReview = false
   @State private var showingTerminal = false
   @State private var taskWorkspace = DeveloperWorkspace()
@@ -65,6 +67,9 @@ struct TaskWindowView: View {
   }
   private var canSend: Bool {
     guard task != nil else { return false }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.files.token {
+      return task?.project.isEmpty == false
+    }
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token {
       return store.canForkTaskWindow(taskID)
     }
@@ -146,6 +151,8 @@ struct TaskWindowView: View {
             .help("在当前任务中查找 " + store.shortcuts.label("find"))
 
             if !task.project.isEmpty {
+              Button { openTaskFileSearch() } label: { Image(systemName: "doc.text.magnifyingglass") }
+                .help("搜索任务文件 " + store.shortcuts.label("files")).accessibilityLabel("搜索任务文件")
               Button {
                 showingReview = false
                 showingFiles.toggle()
@@ -224,19 +231,28 @@ struct TaskWindowView: View {
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      !showingFind && !showingGoalEditor && !showingTaskModelPicker && renameTitle == nil && previewFile == nil && previewImage == nil)
+      !showingFind && !showingGoalEditor && !showingTaskModelPicker && !showingFileSearch && renameTitle == nil && previewFile == nil && previewImage == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && renameTitle == nil && previewFile == nil && previewImage == nil)
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && !showingFileSearch && renameTitle == nil && previewFile == nil && previewImage == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && renameTitle == nil && previewFile == nil && previewImage == nil))
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && !showingFileSearch && renameTitle == nil && previewFile == nil && previewImage == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
-      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, renameTitle == nil else { return }
+      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, !showingFileSearch, renameTitle == nil else { return }
       imagePreviewReturnFocus = returnFocus
       previewImage = image
       previewImages = images
     }
     .appSurface()
+    .sheet(isPresented: $showingFileSearch, onDismiss: restoreFileSearchFocus) {
+      WorkspaceFileSearchView(workspace: taskWorkspace, open: { path in
+        showingReview = false
+        showingFiles = true
+        taskWorkspace.selectFile(path)
+        fileFocusAfterSearch = path
+        showingFileSearch = false
+      }, cancel: { showingFileSearch = false })
+    }
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
     .disabled(previewImage != nil).allowsHitTesting(previewImage == nil).accessibilityHidden(previewImage != nil)
     .overlay {
@@ -247,7 +263,7 @@ struct TaskWindowView: View {
           imagePreviewReturnFocus = nil
           if let returnFocus {
             DispatchQueue.main.async {
-              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, renameTitle == nil else { return }
+              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, !showingFileSearch, renameTitle == nil else { return }
               returnFocus()
             }
           } else {
@@ -293,7 +309,11 @@ struct TaskWindowView: View {
   }
 
   private func submitTaskDraft() {
-    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token {
+    let command = store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines)
+    if command == ComposerCommand.files.token {
+      guard !windowCommandsBlocked, task?.project.isEmpty == false else { return }
+      selectTaskWindowCommand(.files)
+    } else if command == ComposerCommand.fork.token {
       forkTask(consumeCommand: true)
     } else {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
@@ -326,7 +346,26 @@ struct TaskWindowView: View {
   }
 
   private var windowCommandsBlocked: Bool {
-    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker || renameTitle != nil || store.restoringLibrary
+    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker || showingFileSearch || renameTitle != nil || store.restoringLibrary
+  }
+
+  private func openTaskFileSearch() {
+    guard !windowCommandsBlocked, let task, !task.project.isEmpty else { return }
+    configureTaskWorkspace()
+    composerFocused = false
+    fileFocusAfterSearch = (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace
+      ? taskWorkspace.selectedFile : nil
+    showingFileSearch = true
+  }
+
+  private func restoreFileSearchFocus() {
+    if let path = fileFocusAfterSearch, showingFiles, taskWorkspace.selectedFile == path {
+      taskWorkspace.fileFocusRequest = UUID()
+    } else {
+      composerFocused = true
+      taskComposerFocusRequest = UUID()
+    }
+    fileFocusAfterSearch = nil
   }
 
   private var windowCommandContext: TaskWindowCommandContext {
@@ -343,7 +382,7 @@ struct TaskWindowView: View {
       if !task.isPopoutDraft { enabled.formUnion(["pin", "unread", "rename"]) }
       if !task.isPopoutDraft, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
-      if !task.project.isEmpty { enabled.formUnion(["tree", "review", "review-open", "terminal", "bottom-panel"]) }
+      if !task.project.isEmpty { enabled.formUnion(["files", "tree", "review", "review-open", "terminal", "bottom-panel"]) }
       if showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
         taskWorkspace.fileError == nil { enabled.insert("browser-address") }
     }
@@ -362,6 +401,7 @@ struct TaskWindowView: View {
     case "find": showingFind = true; findFocusRequest = UUID()
     case "model": openTaskModelPicker()
     case "fork": forkTask()
+    case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)
     case "find-previous": moveFindMatch(-1)
@@ -735,6 +775,9 @@ struct TaskWindowView: View {
     case .model, .reasoning:
       setDraft("")
       openTaskModelPicker()
+    case .files:
+      setDraft("")
+      openTaskFileSearch()
     default:
       guard let task else { return }
       setDraft("")
