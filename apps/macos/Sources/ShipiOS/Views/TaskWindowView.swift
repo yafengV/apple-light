@@ -37,7 +37,8 @@ struct TaskWindowView: View {
   @State private var pendingText: ConversationTextID?
   @State private var pendingMatch: ConversationMatch.ID?
   @State private var showingFiles = false
-  @State private var showingFileSearch = false
+  @State private var searchMode: TaskWindowSearchMode?
+  @State private var searchReturnFocus: SearchDialogReturnFocus?
   @State private var fileFocusAfterSearch: String?
   @State private var showingReview = false
   @State private var showingTerminal = false
@@ -87,7 +88,7 @@ struct TaskWindowView: View {
       runs: taskRuns.map { RunRevision(id: $0.id, updatedAt: $0.updatedAt, status: $0.status) })
   }
 
-  var body: some View {
+  private var taskContent: some View {
     Group {
       if let task {
         GeometryReader { geometry in
@@ -215,6 +216,10 @@ struct TaskWindowView: View {
           description: Text("任务可能已经被永久删除。"))
       }
     }
+  }
+
+  var body: some View {
+    taskContent
     .disabled(renameTitle != nil)
     .accessibilityHidden(renameTitle != nil)
     .overlay {
@@ -231,31 +236,23 @@ struct TaskWindowView: View {
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      !showingFind && !showingGoalEditor && !showingTaskModelPicker && !showingFileSearch && renameTitle == nil && previewFile == nil && previewImage == nil)
+      !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && !showingFileSearch && renameTitle == nil && previewFile == nil && previewImage == nil)
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && !showingFileSearch && renameTitle == nil && previewFile == nil && previewImage == nil))
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
-      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, !showingFileSearch, renameTitle == nil else { return }
+      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, searchMode == nil, renameTitle == nil else { return }
       imagePreviewReturnFocus = returnFocus
       previewImage = image
       previewImages = images
     }
     .appSurface()
-    .disabled(showingFileSearch).allowsHitTesting(!showingFileSearch).accessibilityHidden(showingFileSearch)
-    .overlay {
-      if showingFileSearch { WorkspaceFileSearchView(workspace: taskWorkspace, executable: store.executable, open: { path in
-        showingReview = false
-        showingFiles = true
-        taskWorkspace.selectFile(path)
-        fileFocusAfterSearch = path
-        showingFileSearch = false
-      }, cancel: { showingFileSearch = false }) }
-    }
-    .onChange(of: showingFileSearch) { _, visible in if !visible { restoreFileSearchFocus() } }
-    .focusedSceneValue(\.searchDialogActive, showingFileSearch)
+    .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
+    .overlay { searchOverlay }
+    .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
+    .focusedSceneValue(\.searchDialogActive, searchMode != nil)
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
     .disabled(previewImage != nil).allowsHitTesting(previewImage == nil).accessibilityHidden(previewImage != nil)
     .overlay {
@@ -266,7 +263,7 @@ struct TaskWindowView: View {
           imagePreviewReturnFocus = nil
           if let returnFocus {
             DispatchQueue.main.async {
-              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, !showingFileSearch, renameTitle == nil else { return }
+              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, searchMode == nil, renameTitle == nil else { return }
               returnFocus()
             }
           } else {
@@ -311,6 +308,22 @@ struct TaskWindowView: View {
     }
   }
 
+  @ViewBuilder private var searchOverlay: some View {
+    switch searchMode {
+    case .commands: CommandPaletteView(store: store, context: searchContext)
+    case .tasks: TaskSearchView(store: store, context: searchContext)
+    case .files:
+      WorkspaceFileSearchView(workspace: taskWorkspace, executable: store.executable, open: { path in
+        showingReview = false
+        showingFiles = true
+        taskWorkspace.selectFile(path)
+        fileFocusAfterSearch = path
+        searchMode = nil
+      }, cancel: { searchMode = nil })
+    case nil: EmptyView()
+    }
+  }
+
   private func submitTaskDraft() {
     let command = store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines)
     if command == ComposerCommand.files.token {
@@ -348,36 +361,88 @@ struct TaskWindowView: View {
     showingTaskModelPicker = true
   }
 
-  private var windowCommandsBlocked: Bool {
-    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker || showingFileSearch || renameTitle != nil || store.restoringLibrary
+  private var otherWindowModalActive: Bool {
+    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker
+      || renameTitle != nil || store.restoringLibrary
   }
+  private var windowCommandsBlocked: Bool { otherWindowModalActive || searchMode != nil }
 
-  private func openTaskFileSearch() {
-    guard !windowCommandsBlocked, let task, !task.project.isEmpty else { return }
-    configureTaskWorkspace()
+  private func openTaskFileSearch() { openSearch(.files) }
+
+  private func openSearch(_ mode: TaskWindowSearchMode) {
+    guard !otherWindowModalActive, task != nil else { return }
+    if mode == .files {
+      guard task?.project.isEmpty == false else { return }
+      configureTaskWorkspace()
+    }
+    if searchMode == nil {
+      searchReturnFocus = SearchDialogReturnFocus(window: NSApp.keyWindow, destination: .workspace)
+      fileFocusAfterSearch = (searchReturnFocus?.view as? FilePreviewTextView)?.workspace === taskWorkspace
+        ? taskWorkspace.selectedFile : nil
+    }
     composerFocused = false
-    fileFocusAfterSearch = (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace
-      ? taskWorkspace.selectedFile : nil
-    showingFileSearch = true
+    searchMode = mode
   }
 
-  private func restoreFileSearchFocus() {
-    if let path = fileFocusAfterSearch, showingFiles, taskWorkspace.selectedFile == path {
+  private func restoreSearchFocus() {
+    let source = searchReturnFocus
+    searchReturnFocus = nil
+    let path = fileFocusAfterSearch
+    fileFocusAfterSearch = nil
+    guard !windowCommandsBlocked else { return }
+    if let path, showingFiles, taskWorkspace.selectedFile == path {
       taskWorkspace.fileFocusRequest = UUID()
-    } else {
+    } else if source?.view is ComposerNativeTextView {
       composerFocused = true
       taskComposerFocusRequest = UUID()
+    } else if let source {
+      source.restore { !windowCommandsBlocked }
     }
-    fileFocusAfterSearch = nil
   }
 
-  private var windowCommandContext: TaskWindowCommandContext {
-    var enabled: Set<String> = windowCommandsBlocked ? [] : ["tab-close"]
-    if !windowCommandsBlocked {
+  private var searchContext: SearchDialogContext {
+    SearchDialogContext(currentTaskID: taskID, commandEnabled: { id in
+      guard searchMode == .commands, !otherWindowModalActive else { return false }
+      if TaskWindowCommandContext.owns(id) { return availableWindowCommands.contains(id) }
+      return ["settings", "shortcuts", "projects", "plugins", "automations", "new", "new-alternate", "open", "pet", "clear-unread"].contains(id)
+        && store.commandEnabled(id)
+    }, performCommand: { id in
+      switch id {
+      case "palette", "palette-alternate": break
+      case "search": openSearch(.tasks)
+      case "files": openSearch(.files)
+      default:
+        searchMode = nil
+        if TaskWindowCommandContext.owns(id) {
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "back", "forward",
+            "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address"].contains(id) {
+            searchReturnFocus = nil
+          }
+          performWindowCommand(id)
+        }
+        else {
+          searchReturnFocus = nil
+          store.executeCommand(id)
+          if id != "pet" && id != "clear-unread" { openWindow(id: "main") }
+        }
+      }
+    }, canSelectTask: { candidate in
+      (searchMode == .commands || searchMode == .tasks) && !otherWindowModalActive
+        && store.library.tasks.contains(where: { $0.id == candidate.id })
+    }, navigate: { candidate in
+      if candidate.id != taskID { searchReturnFocus = nil }
+      searchMode = nil
+      onNavigate(candidate.id)
+    }, cancel: { searchMode = nil })
+  }
+
+  private var availableWindowCommands: Set<String> {
+    var enabled: Set<String> = otherWindowModalActive ? [] : ["tab-close", "palette", "palette-alternate", "search"]
+    if !otherWindowModalActive {
       if canGoBack { enabled.insert("back") }
       if canGoForward { enabled.insert("forward") }
     }
-    if !windowCommandsBlocked, let task {
+    if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model"])
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
@@ -389,7 +454,12 @@ struct TaskWindowView: View {
       if showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
         taskWorkspace.fileError == nil { enabled.insert("browser-address") }
     }
-    return TaskWindowCommandContext(enabled: enabled, perform: performWindowCommand)
+    return enabled
+  }
+
+  private var windowCommandContext: TaskWindowCommandContext {
+    TaskWindowCommandContext(enabled: windowCommandsBlocked ? [] : availableWindowCommands,
+      perform: performWindowCommand)
   }
 
   private func performWindowCommand(_ id: String) {
@@ -399,6 +469,8 @@ struct TaskWindowView: View {
     if id == "forward" { if canGoForward { onMove(false) }; return }
     guard let task else { return }
     switch id {
+    case "palette", "palette-alternate": openSearch(.commands)
+    case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find": showingFind = true; findFocusRequest = UUID()

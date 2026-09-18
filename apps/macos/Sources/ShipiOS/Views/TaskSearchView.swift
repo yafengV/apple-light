@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TaskSearchView: View {
   @Bindable var store: WorkspaceStore
+  var context: SearchDialogContext? = nil
   @State private var text = ""
   @State private var selectedID: String?
   @State private var pointerSelection = false
@@ -17,7 +18,7 @@ struct TaskSearchView: View {
   }
   private var selectable: [String] {
     guard !catalog.searching, catalog.resultsQuery == text else { return [] }
-    return results.filter { store.canSelectTask($0.task) }.map(\.id)
+    return results.filter { canSelectTask($0.task) }.map(\.id)
   }
   private var selection: String? {
     if let selectedID, selectable.contains(selectedID) { return selectedID }
@@ -61,8 +62,8 @@ struct TaskSearchView: View {
                 Button { choose(result.task) } label: {
                   TaskSearchResultRow(result: result, query: text, shortcut: results.firstIndex(where: { $0.id == result.id })
                     .flatMap { TaskSearchPresentation.shortcutCommand($0) }.map { store.shortcuts.label($0) })
-                }.buttonStyle(.plain).disabled(catalog.searching || catalog.resultsQuery != text || !store.canSelectTask(result.task))
-                  .searchResultPointer(enabled: !catalog.searching && catalog.resultsQuery == text && store.canSelectTask(result.task)) {
+                }.buttonStyle(.plain).disabled(catalog.searching || catalog.resultsQuery != text || !canSelectTask(result.task))
+                  .searchResultPointer(enabled: !catalog.searching && catalog.resultsQuery == text && canSelectTask(result.task)) {
                     pointerSelection = true; selectedID = result.id
                   }
                   .listRowBackground(selection == result.id ? Color.primary.opacity(0.07) : Color.clear)
@@ -115,8 +116,12 @@ struct TaskSearchView: View {
       focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
     }
   }
+  private func canSelectTask(_ task: WorkspaceTask) -> Bool {
+    context?.canSelectTask(task) ?? store.canSelectTask(task)
+  }
   private func retry() { focus = .query; reload = UUID() }
   private func cancel() {
+    if let context { context.cancel(); return }
     store.setOverlay(.taskSearch, presented: false)
     store.restoreOverlayFocus()
   }
@@ -126,7 +131,8 @@ struct TaskSearchView: View {
   }
   private func choose(_ task: WorkspaceTask) {
     guard !catalog.searching, catalog.resultsQuery == text,
-      let current = store.library.tasks.first(where: { $0.id == task.id }), store.canSelectTask(current) else { return }
+      let current = store.library.tasks.first(where: { $0.id == task.id }), canSelectTask(current) else { return }
+    if let context { context.select(current); return }
     store.setOverlay(.taskSearch, presented: false)
     store.fileFocusAfterOverlay = nil
     store.searchDialogReturnFocus = nil

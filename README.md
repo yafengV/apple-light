@@ -211,6 +211,7 @@ python3 script/smoke_ipc.py
 | [搜索结果选择与辅助功能](docs/154-search-result-selection.md) | 原生选中状态、默认首项、指针命中保护和稳定路径滚动；真实悬停待验收 |
 | [文件路径模糊检索](docs/155-file-search-fuzzy-candidates.md) | nucleo 路径候选、文件名二次排序、目录打开、请求取消和空查询状态 |
 | [文件搜索增量会话](docs/156-file-search-incremental-session.md) | 单窗口索引复用、部分结果、稳定选择、进程清理和失败重试 |
+| [独立窗口命令与任务搜索](docs/157-task-window-command-search.md) | 当前窗口快捷键与执行、同窗口任务导航、模式切换和原焦点恢复 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

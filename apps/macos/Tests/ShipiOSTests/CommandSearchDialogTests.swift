@@ -32,6 +32,46 @@ import XCTest
     XCTAssertTrue(target.window === window)
   }
 
+  func testAlternateWindowRoutesRevalidateStateAndPreserveMainSelectionAndOverlay() async {
+    let store = await store()
+    let popout = WorkspaceTask(id: "b", project: "", title: "Popout", runIDs: [])
+    store.library.tasks.append(popout)
+    store.library.drafts["b"] = "Popout draft"
+    store.showingCommands = true
+    var mode: TaskWindowSearchMode? = .commands
+    var destination = popout.id
+    let context = SearchDialogContext(currentTaskID: popout.id,
+      commandEnabled: { mode == .commands && ["pin", "search"].contains($0) },
+      performCommand: { id in
+        if id == "search" { mode = .tasks }
+        else { mode = nil; store.updateTask(popout.id, pin: true) }
+      }, canSelectTask: { candidate in
+        mode != nil && store.library.tasks.contains { $0.id == candidate.id }
+      }, navigate: { destination = $0.id; mode = nil }, cancel: { mode = nil })
+    context.execute("files")
+    XCTAssertEqual(mode, .commands)
+    context.execute("search")
+    XCTAssertEqual(mode, .tasks)
+    context.execute("pin") // A command result delivered after switching modes is stale.
+    XCTAssertFalse(store.library.tasks[1].pinned)
+    context.select(.init(id: "removed", project: "", title: "Removed", runIDs: []))
+    XCTAssertEqual(mode, .tasks)
+    context.select(store.library.tasks[0])
+    XCTAssertEqual(destination, "a")
+    XCTAssertNil(mode)
+    context.select(popout)
+    XCTAssertEqual(destination, "a")
+    mode = .commands
+    context.execute("pin")
+    XCTAssertTrue(store.library.tasks[1].pinned)
+    XCTAssertFalse(store.library.tasks[0].pinned)
+    XCTAssertEqual(store.selectedTask?.id, "a")
+    XCTAssertEqual(store.presentedOverlay, .commands)
+    XCTAssertEqual(store.library.drafts["a"], "Keep draft")
+    XCTAssertEqual(store.library.drafts["b"], "Popout draft")
+    await store.shutdown()
+  }
+
   func testPaletteAllowsOnlyExplicitSelectionAndExecutesWithoutDelay() async {
     let store = await store()
     store.showingCommands = true

@@ -16,9 +16,14 @@ import AppKit
   }
 
   func restore(store: WorkspaceStore) {
-    DispatchQueue.main.async { [weak store, weak view, weak window, destination] in
-      guard let store, store.presentedOverlay == nil, store.destination == destination,
-        let view, let window, window.isKeyWindow, view.window === window,
+    restore { [weak store, destination] in
+      store?.presentedOverlay == nil && store?.destination == destination
+    }
+  }
+
+  func restore(when allowed: @escaping @MainActor () -> Bool) {
+    DispatchQueue.main.async { [weak view, weak window] in
+      guard allowed(), let view, let window, window.isKeyWindow, view.window === window,
         !view.isHiddenOrHasHiddenAncestor, window.attachedSheet == nil else { return }
       window.makeFirstResponder(view)
     }

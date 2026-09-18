@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CommandPaletteView: View {
   @Bindable var store: WorkspaceStore
+  var context: SearchDialogContext? = nil
   @State private var query = ""
   @State private var selectedID: String?
   @State private var catalog = TaskSearchCatalog()
@@ -36,13 +37,13 @@ struct CommandPaletteView: View {
   private var groups: [ResultGroup] {
     var result: [ResultGroup] = []
     if searchQuery.isEmpty {
-      let recent = CommandMenuSearch.recent(library: store.library, currentID: store.selectedTask?.id)
+      let recent = CommandMenuSearch.recent(library: store.library, currentID: context?.currentTaskID ?? store.selectedTask?.id)
       if !recent.isEmpty { result.append(.init(id: "recent", title: "最近任务", tasks: recent)) }
       result.append(.init(id: "quick", title: "快捷操作", commands: matches.filter { ["new", "open"].contains($0.id) }))
       result.append(.init(id: "commands", title: "命令", commands: matches.filter { !["new", "open"].contains($0.id) }))
     } else {
       if !matches.isEmpty { result.append(.init(id: "commands", title: "命令", commands: matches)) }
-      let browsers = CommandBrowserResult.search(store.commandBrowserTabs, query: query)
+      let browsers = CommandBrowserResult.search(context == nil ? store.commandBrowserTabs : [], query: query)
       if !browsers.isEmpty { result.append(.init(id: "browsers", title: "浏览器标签", browsers: browsers)) }
       if !taskResults.isEmpty { result.append(.init(id: "tasks", title: "任务", tasks: taskResults)) }
     }
@@ -50,9 +51,9 @@ struct CommandPaletteView: View {
   }
   private var selectableGroups: [[String]] {
     groups.map { group in
-      group.commands.filter { store.paletteCommandEnabled($0.id) }.map { "command:" + $0.id }
+      group.commands.filter { commandEnabled($0.id) }.map { "command:" + $0.id }
         + group.browsers.filter { store.canOpenCommandBrowserTab($0) }.map(\.id)
-        + group.tasks.filter { store.canSelectTask($0.task) }.map { "task:" + $0.id }
+        + group.tasks.filter { canSelectTask($0.task) }.map { "task:" + $0.id }
     }.filter { !$0.isEmpty }
   }
   private var selectable: [String] { selectableGroups.flatMap { $0 } }
@@ -122,8 +123,8 @@ struct CommandPaletteView: View {
         Spacer()
         Text(store.shortcuts.label(item.id)).appFont(.caption).foregroundStyle(.secondary)
       }.padding(.vertical, 6).contentShape(Rectangle())
-    }.buttonStyle(.plain).disabled(!store.paletteCommandEnabled(item.id))
-      .searchResultPointer(enabled: store.paletteCommandEnabled(item.id)) { selectFromPointer(id) }
+    }.buttonStyle(.plain).disabled(!commandEnabled(item.id))
+      .searchResultPointer(enabled: commandEnabled(item.id)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
       .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
   }
@@ -138,8 +139,8 @@ struct CommandPaletteView: View {
             .accessibilityLabel("未读")
         }
       }
-    }.buttonStyle(.plain).disabled(!store.canSelectTask(result.task))
-      .searchResultPointer(enabled: store.canSelectTask(result.task)) { selectFromPointer(id) }
+    }.buttonStyle(.plain).disabled(!canSelectTask(result.task))
+      .searchResultPointer(enabled: canSelectTask(result.task)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
       .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
   }
@@ -183,7 +184,7 @@ struct CommandPaletteView: View {
     case .tab(let reverse):
       let searchGroups = groups.compactMap { group -> [String]? in
         if group.id == "browsers" { return group.browsers.filter { store.canOpenCommandBrowserTab($0) }.map(\.id) }
-        if group.id == "tasks" { return group.tasks.filter { store.canSelectTask($0.task) }.map { "task:" + $0.id } }
+        if group.id == "tasks" { return group.tasks.filter { canSelectTask($0.task) }.map { "task:" + $0.id } }
         return nil
       }
       if let next = CommandSearchSections.next(selection, groups: searchGroups,
@@ -197,14 +198,24 @@ struct CommandPaletteView: View {
       focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
     }
   }
+  private func commandEnabled(_ id: String) -> Bool {
+    context?.commandEnabled(id) ?? store.paletteCommandEnabled(id)
+  }
+  private func canSelectTask(_ task: WorkspaceTask) -> Bool {
+    context?.canSelectTask(task) ?? store.canSelectTask(task)
+  }
   private func retry() { focus = .query; reload = UUID() }
   private func cancel() {
+    if let context { context.cancel(); return }
     store.setOverlay(.commands, presented: false)
     store.restoreOverlayFocus()
   }
   private func invoke(_ id: String? = nil) {
     guard let id = id ?? selection, selectable.contains(id) else { return }
-    if id.hasPrefix("command:") { store.executePaletteCommand(String(id.dropFirst(8))) }
+    if id.hasPrefix("command:") {
+      let command = String(id.dropFirst(8))
+      if let context { context.execute(command) } else { store.executePaletteCommand(command) }
+    }
     else if let result = groups.flatMap(\.browsers).first(where: { $0.id == id }) {
       store.setOverlay(.commands, presented: false)
       store.fileFocusAfterOverlay = nil
@@ -212,7 +223,8 @@ struct CommandPaletteView: View {
       Task { await store.openCommandBrowserTab(result) }
     }
     else if let result = groups.flatMap(\.tasks).first(where: { "task:" + $0.id == id }),
-      let task = store.library.tasks.first(where: { $0.id == result.id }), store.canSelectTask(task) {
+      let task = store.library.tasks.first(where: { $0.id == result.id }), canSelectTask(task) {
+      if let context { context.select(task); return }
       store.setOverlay(.commands, presented: false)
       store.fileFocusAfterOverlay = nil
       store.searchDialogReturnFocus = nil

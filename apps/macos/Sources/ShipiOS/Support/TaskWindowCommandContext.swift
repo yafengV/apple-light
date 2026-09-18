@@ -11,7 +11,7 @@ struct TaskWindowCommandContext {
       "plan", "model", "fork", "doctor", "build", "files", "tree", "review", "review-open",
       "terminal", "bottom-panel", "branch", "sidebar", "tab-close", "tab-close-others",
       "workspace-tabs", "workspace-view", "workspace-swap-panes", "previous-task", "next-task",
-      "back", "forward",
+      "back", "forward", "palette", "palette-alternate", "search",
     ]
     return taskCommands.contains(id) || id.hasPrefix("browser-") || id == "browser"
       || DesktopCommand.numberSlot(id) != nil
