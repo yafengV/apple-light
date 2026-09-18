@@ -33,6 +33,25 @@ final class BrowserTests: XCTestCase {
     tab.address = base + path; tab.navigate()
     try await eventually("Page did not finish: \(path)") { !tab.loading && tab.title == title && tab.error == nil }
   }
+  @MainActor func testCopyURLTargetsExactVisiblePaneAndIgnoresClosedTab() async throws {
+    let session = BrowserSession()
+    defer { session.shutdown() }
+    let first = session.newTab()
+    try await load(first, "/one", title: "One")
+    let second = session.newTab()
+    try await load(second, "/two", title: "Two")
+    let pasteboard = NSPasteboard(name: .init("window-tabs-copy-\(UUID())"))
+    defer { pasteboard.releaseGlobally() }
+    session.copyURL(tabID: first.id, to: pasteboard)
+    XCTAssertEqual(pasteboard.string(forType: .string), base + "/one")
+    XCTAssertEqual(session.selection, second.id)
+    session.close(first.id)
+    session.copyURL(tabID: first.id, to: pasteboard)
+    XCTAssertEqual(pasteboard.string(forType: .string), base + "/one", "A closed pane must not copy a different page")
+    session.copyURL(to: pasteboard)
+    XCTAssertEqual(pasteboard.string(forType: .string), base + "/two")
+  }
+
   func testAddressValidationAndLocalDevelopmentDefaults() throws {
     XCTAssertEqual(try BrowserAddress.url("localhost:3000/a").absoluteString, "http://localhost:3000/a")
     XCTAssertEqual(try BrowserAddress.url("[::1]:8080").scheme, "http")

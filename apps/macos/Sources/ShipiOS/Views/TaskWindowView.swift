@@ -5,9 +5,8 @@ import UniformTypeIdentifiers
 struct TaskWindowView: View {
   @Bindable var store: WorkspaceStore
   let taskID: String
-  @Bindable var browser: TaskWindowBrowser
-  let browsers: TaskWindowBrowsers
-  @Bindable var panels: TaskWindowPanels
+  @Bindable var tabs: TaskWindowTabs
+  let resources: TaskWindowResources
   let renameHistory: TaskRenameHistory
   let onNavigate: (String) -> Void
   let canGoBack: Bool
@@ -57,6 +56,9 @@ struct TaskWindowView: View {
     let runs: [RunRevision]
   }
 
+  private var browser: TaskWindowBrowser { tabs.browser }
+  private var panels: TaskWindowPanels { tabs.panels }
+  private var browsers: TaskWindowBrowsers { resources.browsers }
   private var taskWorkspace: DeveloperWorkspace { panels.workspace }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
   private var taskRuns: [AgentRun] { store.taskWindowRuns(taskID) }
@@ -91,55 +93,28 @@ struct TaskWindowView: View {
     Group {
       if let task {
         GeometryReader { geometry in
-          HStack(spacing: 0) {
-            if !browser.visible || !browser.fullWidth {
+          VStack(spacing: 0) {
+            HStack(spacing: 0) {
+              if tabs.primarySide == .right { rightContent(geometry) }
               VStack(spacing: 0) {
-                if showingFind {
-                  TaskWindowFindBar(
-                    text: $findText, count: findMatches.count, index: findIndex, finding: finding,
-                    focusRequest: findFocusRequest, shortcuts: store.shortcuts,
-                    previous: { moveFindMatch(-1) }, next: { moveFindMatch(1) },
-                    close: { closeFind() })
-                  Divider()
+                if tabs.showingTabs { tabStrip(task, placement: .left); Divider() }
+                if let tab = tabs.selected(.left) {
+                  content(tab, task: task).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                if let forkError {
-                  HStack {
-                    Text(forkError).foregroundStyle(.red).textSelection(.enabled)
-                    Spacer()
-                    Button { self.forkError = nil } label: { Image(systemName: "xmark") }
-                      .buttonStyle(.plain).accessibilityLabel("关闭分叉错误")
-                  }.padding(12)
-                }
-                taskTimeline
-                Divider()
-                taskComposer(task)
-                if panels.showingTerminal, let session = panels.terminal {
-                  Divider()
-                  TaskWindowTerminalPanel(
-                    session: session, task: task, focus: panels.terminalFocus,
-                    canFocus: { panels.showingTerminal && !windowCommandsBlocked },
-                    hide: { panels.hideTerminal() }, restart: { panels.restartTerminal() })
-                  .id(session.id)
-                  .frame(height: min(300, max(180, geometry.size.height * 0.34)))
-                }
+                else { conversation(task) }
               }
               .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .taskWindowDropDestination(tabs: tabs, placement: .left)
+              if tabs.primarySide == .left { rightContent(geometry) }
             }
-            if browser.visible {
-              TaskWindowBrowserPanel(store: store, browser: browser, context: browserPanelContext)
-                .frame(width: browser.fullWidth ? nil : min(620, max(360, geometry.size.width * 0.5)))
-                .frame(maxWidth: browser.fullWidth ? .infinity : nil)
-            } else if panels.showingFiles {
+            if tabs.showingBottom, let tab = tabs.selected(.bottom) {
               Divider()
-              TaskWindowFilesPanel(
-                store: store, workspace: taskWorkspace, close: { panels.showingFiles = false })
-              .frame(width: min(380, max(300, geometry.size.width * 0.38)))
-            } else if panels.showingReview {
-              Divider()
-              TaskWindowReviewPanel(
-                store: store, workspace: taskWorkspace, taskID: taskID,
-                close: { panels.showingReview = false }, focusComposer: { composerFocused = true })
-              .frame(width: min(430, max(330, geometry.size.width * 0.43)))
+              VStack(spacing: 0) {
+                if tabs.showingTabs { tabStrip(task, placement: .bottom); Divider() }
+                content(tab, task: task)
+              }
+              .frame(height: min(300, max(180, geometry.size.height * 0.34)))
+              .taskWindowDropDestination(tabs: tabs, placement: .bottom)
             }
           }
         }
@@ -161,8 +136,6 @@ struct TaskWindowView: View {
               Button { openTaskFileSearch() } label: { Image(systemName: "doc.text.magnifyingglass") }
                 .help("搜索任务文件 " + store.shortcuts.label("files")).accessibilityLabel("搜索任务文件")
               Button {
-                browser.visible = false
-                panels.showingReview = false
                 panels.showingFiles.toggle()
               } label: {
                 Image(systemName: "doc")
@@ -170,9 +143,7 @@ struct TaskWindowView: View {
               .help("显示或隐藏任务文件")
               .accessibilityLabel("任务文件")
               Button {
-                browser.visible = false
-                panels.showingFiles = false
-                panels.showingReview.toggle()
+                toggleReview()
               } label: {
                 Image(systemName: "square.stack.3d.up")
               }
@@ -186,6 +157,14 @@ struct TaskWindowView: View {
               .help("显示或隐藏任务终端")
               .accessibilityLabel("任务终端")
             }
+            Menu {
+              Button(tabs.showingTabs ? "隐藏标签页" : "显示标签页") { tabs.showingTabs.toggle() }
+              Button(tabs.selected(.left) == nil ? "打开完整视图" : "退出完整视图") { tabs.toggleFullWidth() }
+                .disabled(!tabs.commandEnabled("workspace-view"))
+              Button("交换左侧和右侧面板") { tabs.primarySide.swap() }
+                .disabled(!tabs.showingRight && !panels.showingFiles)
+            } label: { Image(systemName: "rectangle.split.2x1") }
+              .accessibilityLabel("任务布局")
             if !task.isPopoutDraft {
               Menu {
                 Button("分叉到新任务") { forkTask() }
@@ -226,7 +205,7 @@ struct TaskWindowView: View {
     }
   }
 
-  var body: some View {
+  private var routedTaskContent: some View {
     taskContent
     .disabled(renameTitle != nil)
     .accessibilityHidden(renameTitle != nil)
@@ -244,12 +223,12 @@ struct TaskWindowView: View {
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      (!browser.visible || !browser.fullWidth) && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
+      tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: (!browser.visible || !browser.fullWidth) && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
+      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: (!browser.visible || !browser.fullWidth) && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil))
+      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, searchMode == nil, renameTitle == nil else { return }
       imagePreviewReturnFocus = returnFocus
@@ -258,12 +237,21 @@ struct TaskWindowView: View {
     }
     .environment(\.messageBrowserRoute) { url, presentation in
       guard !windowCommandsBlocked else { return }
-      browser.open(url, presentation: presentation)
+      tabs.openBrowser(url, presentation: presentation)
     }
-    .onChange(of: browser.visible) { _, visible in
-      if visible { panels.showingFiles = false; panels.showingReview = false }
+    .onChange(of: tabs.chatFocus) { _, _ in
+      guard tabs.chatVisible, !windowCommandsBlocked else { return }
+      composerFocused = true; taskComposerFocusRequest = UUID()
+    }
+    .onChange(of: tabs.focusedID) { _, id in if id != nil { composerFocused = false } }
+    .onChange(of: composerFocused) { _, focused in
+      if focused, tabs.chatVisible { tabs.activate(nil, focus: false) }
     }
     .appSurface()
+  }
+
+  var body: some View {
+    routedTaskContent
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
@@ -301,9 +289,8 @@ struct TaskWindowView: View {
     .task(id: taskID) {
       await Task.yield()
       guard !Task.isCancelled else { return }
-      if browser.visible, let id = browser.session.selection { browser.session.select(id) }
-      else if panels.showingFiles { taskWorkspace.fileFocusRequest = UUID() }
-      else if panels.showingTerminal { panels.focusTerminal() }
+      if panels.showingFiles { taskWorkspace.fileFocusRequest = UUID() }
+      else if let tab = tabs.focused { tabs.activate(tab.id) }
       else { composerFocused = true; taskComposerFocusRequest = UUID() }
     }
     .onDisappear {
@@ -330,8 +317,6 @@ struct TaskWindowView: View {
     case .tasks: TaskSearchView(store: store, context: searchContext)
     case .files:
       WorkspaceFileSearchView(workspace: taskWorkspace, executable: store.executable, open: { path in
-        browser.visible = false
-        panels.showingReview = false
         panels.showingFiles = true
         taskWorkspace.selectFile(path)
         fileFocusAfterSearch = path
@@ -369,7 +354,7 @@ struct TaskWindowView: View {
 
   private func openTaskModelPicker() {
     guard !windowCommandsBlocked else { return }
-    browser.fullWidth = false
+    tabs.revealChat()
     guard (try? store.modelConfiguration.endpoint("models")) != nil else {
       store.openSettings(.model)
       openWindow(id: "main")
@@ -480,11 +465,11 @@ struct TaskWindowView: View {
       if !task.isPopoutDraft, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
       if !task.project.isEmpty { enabled.formUnion(["files", "tree", "review", "review-open", "terminal", "bottom-panel"]) }
-      for command in DesktopCommand.all where browser.commandEnabled(command.id) {
+      for command in DesktopCommand.all where tabs.commandEnabled(command.id) {
         enabled.insert(command.id)
       }
-      if !browser.session.tabs.isEmpty {
-        for index in 1...9 where index <= browser.session.tabs.count + 1 { enabled.insert("focus-tab-\(index)") }
+      if !tabs.tabs.isEmpty {
+        for index in 1...9 where index <= tabs.tabs.count + 1 { enabled.insert("focus-tab-\(index)") }
       }
       if panels.showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
         taskWorkspace.fileError == nil { enabled.insert("browser-address") }
@@ -505,18 +490,16 @@ struct TaskWindowView: View {
   private func performWindowCommand(_ id: String) {
     guard !windowCommandsBlocked else { return }
     if id == "tab-close" {
-      if browser.visible, let id = browser.session.selection { browser.session.close(id) }
+      if (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace,
+        let path = taskWorkspace.selectedFile { taskWorkspace.closeFile(path) }
+      else if let tab = tabs.focused { tabs.close(tab.id) }
       else { dismiss() }
       return
     }
     if id == "browser-address", panels.showingFiles { taskWorkspace.showingFileLine = true; return }
-    if browser.commandEnabled(id) { browser.perform(id); return }
+    if tabs.perform(id) { return }
     if id.hasPrefix("focus-tab-"), let slot = DesktopCommand.numberSlot(id) {
-      if slot.index == 1 { browser.visible = false; composerFocused = true; taskComposerFocusRequest = UUID() }
-      else if browser.session.tabs.indices.contains(slot.index - 2) {
-        browser.visible = true; browser.session.select(browser.session.tabs[slot.index - 2].id)
-      }
-      return
+      tabs.focusSlot(slot.index); return
     }
     if id == "back" { if canGoBack { onMove(true) }; return }
     if id == "forward" { if canGoForward { onMove(false) }; return }
@@ -526,7 +509,7 @@ struct TaskWindowView: View {
     case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
     case "stop": Task { await store.cancel(taskID: taskID) }
-    case "find": browser.fullWidth = false; showingFind = true; findFocusRequest = UUID()
+    case "find": tabs.revealChat(); showingFind = true; findFocusRequest = UUID()
     case "model": openTaskModelPicker()
     case "fork": forkTask()
     case "files": openTaskFileSearch()
@@ -539,38 +522,97 @@ struct TaskWindowView: View {
       store.updateTask(taskID, archive: true)
       if store.library.tasks.first(where: { $0.id == taskID })?.archived == true { dismiss() }
     case "plan":
-      browser.fullWidth = false
+      tabs.revealChat()
       if mode == .goal { store.pauseGoal(taskID) }
       mode = .plan
       composerFocused = true
-    case "tree": browser.visible = false; panels.showingReview = false; panels.showingFiles.toggle()
-    case "review": browser.visible = false; panels.showingFiles = false; panels.showingReview.toggle()
-    case "review-open": browser.visible = false; panels.showingFiles = false; panels.showingReview = true
-    case "terminal", "bottom-panel": toggleTerminal(task)
+    case "tree": panels.showingFiles.toggle()
+    case "review": toggleReview()
+    case "review-open": tabs.openReview(defaultScope: store.library.gitPreferences.defaultReviewScope)
+    case "terminal": toggleTerminal(task)
+    case "bottom-panel": tabs.toggleBottom()
     case "browser-address": taskWorkspace.showingFileLine = true
     default: break
     }
   }
 
-  private var browserPanelContext: BrowserPanelContext {
-    BrowserPanelContext(taskID: taskID, canFocus: { browser.visible && !windowCommandsBlocked },
-      newTab: { browser.newTab() }, closeTab: { browser.session.close($0) }, reopen: { browser.reopen() },
+  private func browserPanelContext(_ tab: WorkspaceContentTab) -> BrowserPanelContext {
+    BrowserPanelContext(taskID: taskID, canFocus: { tabs.isVisible(tab.id) && tabs.focusedID == tab.id && !windowCommandsBlocked },
+      newTab: { tabs.newBrowser(in: tabs.placement(tab.id)) },
+      closeTab: { tabs.close(WorkspaceContentTab.browser($0, owner: taskID).id) }, reopen: { tabs.reopen() },
       openSettings: { store.openSettings(.browser); openWindow(id: "main") },
-      focusComposer: {
-        browser.fullWidth = false
-        composerFocused = true
-        taskComposerFocusRequest = UUID()
-      })
+      focusComposer: { tabs.revealChat() })
   }
 
-  private func configureTaskWorkspace() {
-    panels.configure(project: task?.project ?? "")
-  }
+  private func configureTaskWorkspace() { resources.prepare(taskID, store: store) }
 
   private func toggleTerminal(_ task: WorkspaceTask) {
     guard !task.project.isEmpty else { return }
-    browser.fullWidth = false
-    panels.toggleTerminal()
+    tabs.toggleTerminal(in: store.library.defaultTerminalLocation)
+  }
+  private func toggleReview() {
+    if tabs.showingRight, tabs.selected(.right) == .review(owner: taskID) { tabs.hide(.right) }
+    else { tabs.openReview(in: .right, defaultScope: store.library.gitPreferences.defaultReviewScope) }
+  }
+
+  private func tabStrip(_ task: WorkspaceTask, placement: WorkspaceTabPlacement) -> some View {
+    TaskWindowTabStrip(tabs: tabs, title: task.title, placement: placement,
+      defaultReviewScope: store.library.gitPreferences.defaultReviewScope, openFiles: openTaskFileSearch,
+      openPlugins: { store.showPlugins(); openWindow(id: "main") },
+      openAutomations: { store.showAutomations(); openWindow(id: "main") })
+  }
+
+  private func conversation(_ task: WorkspaceTask) -> some View {
+    VStack(spacing: 0) {
+      if showingFind {
+        TaskWindowFindBar(text: $findText, count: findMatches.count, index: findIndex, finding: finding,
+          focusRequest: findFocusRequest, shortcuts: store.shortcuts,
+          previous: { moveFindMatch(-1) }, next: { moveFindMatch(1) }, close: { closeFind() })
+        Divider()
+      }
+      if let forkError {
+        HStack {
+          Text(forkError).foregroundStyle(.red).textSelection(.enabled)
+          Spacer()
+          Button { self.forkError = nil } label: { Image(systemName: "xmark") }
+            .buttonStyle(.plain).accessibilityLabel("关闭分叉错误")
+        }.padding(12)
+      }
+      taskTimeline
+      Divider()
+      taskComposer(task)
+    }
+  }
+
+  @ViewBuilder private func rightContent(_ geometry: GeometryProxy) -> some View {
+    if panels.showingFiles {
+      TaskWindowFilesPanel(store: store, workspace: taskWorkspace, close: { panels.showingFiles = false })
+        .frame(width: min(380, max(300, geometry.size.width * 0.38)))
+    } else if tabs.showingRight, let task, let tab = tabs.selected(.right) {
+      VStack(spacing: 0) {
+        if tabs.showingTabs { tabStrip(task, placement: .right); Divider() }
+        content(tab, task: task).frame(maxWidth: .infinity, maxHeight: .infinity)
+      }.frame(width: min(620, max(360, geometry.size.width * 0.5)))
+        .taskWindowDropDestination(tabs: tabs, placement: .right)
+    }
+  }
+
+  @ViewBuilder private func content(_ tab: WorkspaceContentTab, task: WorkspaceTask) -> some View {
+    Group {
+      switch tab {
+      case .browser(let id, _):
+        BrowserPanel(store: store, session: browser.session, context: browserPanelContext(tab), showsTabStrip: false, tabID: id)
+      case .review:
+        GitReviewView(store: store, workspace: taskWorkspace, taskID: taskID, focusComposer: { tabs.revealChat() })
+      case .terminal(let id, _):
+        if let session = panels.terminals.first(where: { $0.id == id }) {
+          TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,
+            canFocus: { tabs.isVisible(tab.id) && tabs.focusedID == tab.id && !windowCommandsBlocked },
+            hide: { tabs.hide(tabs.placement(tab.id)) }, restart: { tabs.restartTerminal(id) },
+            showsHide: tabs.placement(tab.id) == .bottom).id(id)
+        }
+      }
+    }.simultaneousGesture(TapGesture().onEnded { tabs.activate(tab.id, focus: false) })
   }
 
   private var taskTimeline: some View {
@@ -1115,28 +1157,6 @@ private struct TaskWindowFilesPanel: View {
   }
 }
 
-private struct TaskWindowReviewPanel: View {
-  @Bindable var store: WorkspaceStore
-  @Bindable var workspace: DeveloperWorkspace
-  let taskID: String
-  let close: () -> Void
-  let focusComposer: () -> Void
-
-  var body: some View {
-    VStack(spacing: 0) {
-      HStack {
-        Label("审查", systemImage: "square.stack.3d.up").appFont(.caption, weight: .medium)
-        Spacer()
-        Button(action: close) { Image(systemName: "xmark") }
-          .buttonStyle(.plain).help("隐藏任务审查").accessibilityLabel("隐藏任务审查")
-      }.padding(10)
-      Divider()
-      GitReviewView(
-        store: store, workspace: workspace, taskID: taskID, focusComposer: focusComposer)
-    }
-  }
-}
-
 private struct TaskWindowTerminalPanel: View {
   @Bindable var session: TerminalSession
   let task: WorkspaceTask
@@ -1144,6 +1164,7 @@ private struct TaskWindowTerminalPanel: View {
   let canFocus: () -> Bool
   let hide: () -> Void
   let restart: () -> Void
+  var showsHide = true
 
   var body: some View {
     VStack(spacing: 0) {
@@ -1158,8 +1179,10 @@ private struct TaskWindowTerminalPanel: View {
         }
         Button(action: restart) { Image(systemName: "arrow.clockwise") }
           .buttonStyle(.plain).help("重新打开终端").accessibilityLabel("重新打开终端")
-        Button(action: hide) { Image(systemName: "xmark") }
-          .buttonStyle(.plain).help("隐藏终端，保留会话").accessibilityLabel("隐藏任务终端")
+        if showsHide {
+          Button(action: hide) { Image(systemName: "xmark") }
+            .buttonStyle(.plain).help("隐藏终端，保留会话").accessibilityLabel("隐藏任务终端")
+        }
       }.padding(10)
       Divider()
       TerminalHost(session: session, focus: focus) { request in

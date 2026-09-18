@@ -101,7 +101,7 @@ struct BrowserPanel: View {
               .help("选择网页元素").accessibilityLabel("选择网页元素")
           }
           Menu {
-            Button("复制网址") { session.copyURL() }.disabled(tab.committedURL == nil)
+            Button("复制网址") { session.copyURL(tabID: tab.id) }.disabled(tab.committedURL == nil)
             Button("忽略缓存重新加载") { tab.reload(bypassCache: true) }
             Button("重新打开关闭的标签页") { if let context { context.reopen() } else { store.reopenClosedBrowserTab() } }
               .disabled(!session.canReopenClosedTab)

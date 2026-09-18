@@ -214,6 +214,7 @@ python3 script/smoke_ipc.py
 | [独立窗口命令与任务搜索](docs/157-task-window-command-search.md) | 当前窗口快捷键与执行、同窗口任务导航、模式切换和原焦点恢复 |
 | [独立任务窗口浏览器](docs/158-task-window-browser.md) | 网页标签与搜索、回复链接、全宽切换、页面保留及截图评论归属 |
 | [独立窗口文件与终端生命周期](docs/159-task-window-panel-lifetime.md) | 跨任务保留文件选区与滚动、真实终端状态及窗口关闭回收 |
+| [独立窗口统一内容标签](docs/160-task-window-content-tabs.md) | 混合标签、多个终端、面板移动、关闭恢复及任务隔离 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

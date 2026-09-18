@@ -35,7 +35,11 @@ struct BrowserAddressField: NSViewRepresentable {
     var parent: BrowserAddressField
     var handled: UUID?
     init(_ parent: BrowserAddressField) { self.parent = parent }
-    func controlTextDidBeginEditing(_ notification: Notification) { parent.tab.editingAddress = true }
+    func controlTextDidBeginEditing(_ notification: Notification) {
+      parent.tab.editingAddress = true
+      parent.session.addressField = notification.object as? NSTextField
+      parent.session.select(parent.tab.id, focus: false)
+    }
     func controlTextDidEndEditing(_ notification: Notification) { parent.tab.editingAddress = false }
     func controlTextDidChange(_ notification: Notification) {
       if let field = notification.object as? NSTextField { parent.tab.address = field.stringValue }

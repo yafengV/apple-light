@@ -21,6 +21,8 @@ final class BrowserSession {
   @ObservationIgnored var onTabSelected: ((UUID) -> Void)?
   @ObservationIgnored var onTabClosed: ((UUID) -> Void)?
   @ObservationIgnored var onTabsReordered: (([UUID]) -> Void)?
+  /// Content-tab owners choose the fallback within the closing tab's own pane.
+  @ObservationIgnored var selectsAdjacentTabOnClose = true
   @ObservationIgnored var onVisit: ((URL, String) -> Void)?
   @ObservationIgnored var chooseDownloadDestination:
     ((URL, String, @escaping (BrowserDownloadDestination) -> Void) -> Void)?
@@ -104,7 +106,8 @@ final class BrowserSession {
     if contentFocusTarget == id { contentFocusTarget = nil }
     if selection == id {
       if tabs.isEmpty { selection = nil }
-      else { select(tabs[min(index, tabs.count - 1)].id) }
+      else if selectsAdjacentTabOnClose { select(tabs[min(index, tabs.count - 1)].id) }
+      else { selection = nil }
     }
     if tabs.isEmpty { onEmpty?() }
   }
@@ -183,8 +186,10 @@ final class BrowserSession {
       tab.view.window === window, view === tab.view || view.isDescendant(of: tab.view) { return true }
     return false
   }
-  func copyURL(to pasteboard: NSPasteboard = .general) {
-    guard let url = selected?.committedURL else { return }
+  func copyURL(tabID: UUID? = nil, to pasteboard: NSPasteboard = .general) {
+    let tab: BrowserTab?
+    if let tabID { tab = tabs.first { $0.id == tabID } } else { tab = selected }
+    guard let url = tab?.committedURL else { return }
     pasteboard.clearContents(); pasteboard.setString(url.absoluteString, forType: .string)
   }
   func shutdown() {

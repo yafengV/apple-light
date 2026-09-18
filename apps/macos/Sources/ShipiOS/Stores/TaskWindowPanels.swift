@@ -32,7 +32,9 @@ import Observation
   var showingFiles = false
   var showingReview = false
   var showingTerminal = false
-  private(set) var terminal: TerminalSession?
+  private(set) var terminals: [TerminalSession] = []
+  private(set) var selectedTerminalID: UUID?
+  var terminal: TerminalSession? { terminals.first { $0.id == selectedTerminalID } }
   var terminalFocus: TerminalFocusRequest?
 
   init(taskID: String) { self.taskID = taskID }
@@ -40,8 +42,9 @@ import Observation
   func configure(project: String) {
     let root = project.isEmpty ? nil : GitBranchService.canonicalRoot(URL(fileURLWithPath: project))
     guard root != workspace.root else { return }
-    terminal?.stop()
-    terminal = nil
+    terminals.forEach { $0.stop() }
+    terminals = []
+    selectedTerminalID = nil
     terminalFocus = nil
     showingFiles = false
     showingReview = false
@@ -50,8 +53,8 @@ import Observation
   }
 
   func toggleTerminal() {
-    guard let root = workspace.root else { return }
-    if terminal == nil { terminal = TerminalSession(root: root) }
+    guard workspace.root != nil else { return }
+    if terminal == nil { _ = newTerminal() }
     showingTerminal.toggle()
     if showingTerminal { focusTerminal() } else { terminalFocus = nil }
   }
@@ -62,19 +65,50 @@ import Observation
       scope: TerminalScope(root: terminal.root, conversation: taskID), sessionID: terminal.id)
   }
 
-  func restartTerminal() {
-    guard let root = workspace.root else { return }
-    terminal?.stop()
-    terminal = TerminalSession(root: root)
+  @discardableResult func newTerminal() -> TerminalSession? {
+    guard let root = workspace.root else { return nil }
+    let session = TerminalSession(root: root)
+    terminals.append(session)
+    selectedTerminalID = session.id
+    return session
+  }
+
+  func selectTerminal(_ id: UUID, focus: Bool = true) {
+    guard terminals.contains(where: { $0.id == id }) else { return }
+    selectedTerminalID = id
     showingTerminal = true
-    focusTerminal()
+    if focus { focusTerminal() }
+  }
+
+  func closeTerminal(_ id: UUID) {
+    guard let index = terminals.firstIndex(where: { $0.id == id }) else { return }
+    terminals.remove(at: index).stop()
+    if selectedTerminalID == id {
+      selectedTerminalID = terminals.isEmpty ? nil : terminals[min(index, terminals.count - 1)].id
+      terminalFocus = nil
+    }
+  }
+
+  @discardableResult func restartTerminal(_ id: UUID) -> TerminalSession? {
+    guard let index = terminals.firstIndex(where: { $0.id == id }), let root = workspace.root else { return nil }
+    terminals[index].stop()
+    let replacement = TerminalSession(root: root)
+    terminals[index] = replacement
+    selectTerminal(replacement.id)
+    return replacement
+  }
+
+  func restartTerminal() {
+    if let id = terminal?.id { _ = restartTerminal(id) }
+    else if let terminal = newTerminal() { selectTerminal(terminal.id) }
   }
 
   func hideTerminal() { showingTerminal = false; terminalFocus = nil }
 
   func shutdown() {
-    terminal?.stop()
-    terminal = nil
+    terminals.forEach { $0.stop() }
+    terminals = []
+    selectedTerminalID = nil
     terminalFocus = nil
     showingFiles = false
     showingReview = false
