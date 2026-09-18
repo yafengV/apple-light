@@ -4,14 +4,15 @@ import SwiftTerm
 
 @MainActor @Observable
 final class TerminalSession {
-  let id = UUID()
+  let id: UUID
   let root: URL
   private(set) var status: TerminalStatus = .running
   private(set) var title = "zsh"
   @ObservationIgnored let view: SessionTerminalView
   @ObservationIgnored private let delegate = TerminalSessionDelegate()
 
-  init(root: URL) {
+  init(root: URL, id: UUID = UUID()) {
+    self.id = id
     self.root = root
     view = SessionTerminalView(frame: NSRect(x: 0, y: 0, width: 700, height: 240))
     view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)

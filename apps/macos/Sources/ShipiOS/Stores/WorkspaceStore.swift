@@ -87,6 +87,10 @@ final class WorkspaceStore {
   }
   var pane = "execution"
   var workspaceTabs: [WorkspaceContentTab] = []
+  @ObservationIgnored var workspaceLayoutActiveOwner: String?
+  @ObservationIgnored var restoredWorkspaceTabOwners: Set<String> = []
+  @ObservationIgnored var restoringWorkspaceTabLayout = false
+  var restoredDetachedWorkspaceTabIDs: [String] = []
   var workspaceTabPlacements: [String: WorkspaceTabPlacement] = [:]
   var activeWorkspaceTabID: String?
   var activeRightWorkspaceTabID: String?
@@ -257,7 +261,15 @@ final class WorkspaceStore {
   }
   var inspection: ProjectInspection?
   var runs: [AgentRun] = [] { didSet { updateSleepPrevention() } }
-  var selection: String? { didSet { if selection != oldValue { terminalFocusRequest = nil } } }
+  var selection: String? {
+    willSet {
+      if selection != newValue {
+        captureWorkspaceTabLayout()
+        workspaceLayoutActiveOwner = nil
+      }
+    }
+    didSet { if selection != oldValue { terminalFocusRequest = nil } }
+  }
   var events: [AgentEvent] = []
   var container = ""
   var scheme = ""
@@ -410,6 +422,8 @@ final class WorkspaceStore {
   /// Switches to a scope with no filesystem root and no local Agent connection.
   func openProjectless() async {
     guard activeLocalRun == nil, !busy, await loadLibrary() else { return }
+    captureWorkspaceTabLayout()
+    workspaceLayoutActiveOwner = nil
     rememberProjectSelection()
     saveProfile()
     busy = true
@@ -444,6 +458,7 @@ final class WorkspaceStore {
     query = ""
     library.lastWorkspace = ""
     scopeLoaded = true
+    restoreWorkspaceTabLayout()
     saveLibrary()
   }
 
@@ -499,6 +514,8 @@ final class WorkspaceStore {
       returnToWorkspace()
       return
     }
+    captureWorkspaceTabLayout()
+    workspaceLayoutActiveOwner = nil
     rememberProjectSelection()
     saveProfile()
     destination = .workspace
@@ -559,6 +576,7 @@ final class WorkspaceStore {
       selection = library.rememberedSelection(project: project!.path)
       chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active
         ? .goal : .standard
+      restoreWorkspaceTabLayout()
       await loadDetails()
     } catch {
       self.error = error.localizedDescription
@@ -758,6 +776,8 @@ final class WorkspaceStore {
   }
 
   func applyTaskSelection(_ task: WorkspaceTask) {
+    captureWorkspaceTabLayout()
+    workspaceLayoutActiveOwner = nil
     destination = .workspace
     pendingGoal = nil
     selection = task.selectionID
@@ -778,6 +798,7 @@ final class WorkspaceStore {
     }
     library.unreadTasks.remove(task.id)
     library.recordTaskVisit(task.id)
+    restoreWorkspaceTabLayout()
     rememberProjectSelection()
     saveLibrary()
     focusComposer = UUID()
@@ -947,12 +968,14 @@ final class WorkspaceStore {
 
   func saveLibrary() {
     guard libraryLoaded else { return }
+    captureWorkspaceTabLayout()
     do { try library.save(to: dataRoot.appendingPathComponent("workspace.json")) } catch {
       self.error = "无法保存工作区记录：\(error.localizedDescription)"
     }
   }
 
   func shutdown() async {
+    captureWorkspaceTabLayout()
     shuttingDown = true
     await shutdownMCPConnections()
     sleepPrevention.stop()

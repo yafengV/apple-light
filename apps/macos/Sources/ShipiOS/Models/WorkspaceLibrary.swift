@@ -160,6 +160,7 @@ struct WorkspaceLibrary: Codable {
   var projectNames: [String: String] = [:]
   var pinnedProjects: Set<String> = []
   var pinnedContentTabs: [PinnedWorkspaceTab] = []
+  var workspaceTabLayouts: [String: WorkspaceTabLayout] = [:]
   var unreadTasks: Set<String> = []
   var recentTaskIDs: [String] = []
   var collapsedProjects: Set<String> = []
@@ -198,7 +199,7 @@ struct WorkspaceLibrary: Codable {
   init() {}
   enum CodingKeys: String, CodingKey {
     case tasks, projects, lastWorkspace, notes, runBranches, drafts, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
-      pinnedProjects, pinnedContentTabs, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
+      pinnedProjects, pinnedContentTabs, workspaceTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
       browserDownloads,
@@ -231,6 +232,8 @@ struct WorkspaceLibrary: Codable {
     pinnedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .pinnedProjects) ?? []
     pinnedContentTabs =
       try c.decodeIfPresent([PinnedWorkspaceTab].self, forKey: .pinnedContentTabs) ?? []
+    // Layout is a recoverable cache: malformed optional metadata must not block task loading.
+    workspaceTabLayouts = (try? c.decode([String: WorkspaceTabLayout].self, forKey: .workspaceTabLayouts)) ?? [:]
     unreadTasks = try c.decodeIfPresent(Set<String>.self, forKey: .unreadTasks) ?? []
     recentTaskIDs = try c.decodeIfPresent([String].self, forKey: .recentTaskIDs) ?? []
     collapsedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .collapsedProjects) ?? []
@@ -391,6 +394,7 @@ struct WorkspaceLibrary: Codable {
       runFiles[id] = nil
     }
     for id in deletedTaskIDs {
+      workspaceTabLayouts[id] = nil
       goalSessions[id] = nil
       projectlessTaskDirectories[id] = nil
       drafts[id] = nil

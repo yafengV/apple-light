@@ -177,6 +177,7 @@ struct WorkspaceView: View {
       }
       .onChange(of: store.selection) { _, _ in
         store.endWorkspaceTabDrag()
+        store.restoreWorkspaceTabLayout()
         Task { await store.loadDetails() }
       }
       .onChange(of: store.destination) { _, _ in store.endWorkspaceTabDrag() }
@@ -203,6 +204,15 @@ struct WorkspaceView: View {
           try? await Task.sleep(for: .seconds(30))
         }
       }
+    }
+    .task(id: store.currentWorkspaceTabOwner) { store.restoreWorkspaceTabLayout() }
+    .task(id: store.workspaceTabLayoutSnapshot) {
+      do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+      store.saveLibrary()
+    }
+    .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
+      for id in ids { openWindow(value: WorkspaceTabWindowRoute(tabID: id)) }
+      if !ids.isEmpty { store.restoredDetachedWorkspaceTabIDs = [] }
     }
     .onDisappear { store.endWorkspaceTabDrag() }
     .disabled(store.renameTaskID != nil)

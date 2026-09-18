@@ -31,9 +31,10 @@ final class BrowserSession {
   @ObservationIgnored private var linkDownloadWorker: BrowserTab?
   var selected: BrowserTab? { tabs.first { $0.id == selection } }
 
-  @discardableResult func newTab(configuration: WKWebViewConfiguration? = nil, activate: Bool = true) -> BrowserTab {
+  @discardableResult func newTab(configuration: WKWebViewConfiguration? = nil, activate: Bool = true, id: UUID = UUID()) -> BrowserTab {
+    if let existing = tabs.first(where: { $0.id == id }) { return existing }
     let configuration = configuration ?? makeConfiguration()
-    let tab = BrowserTab(configuration: configuration)
+    let tab = BrowserTab(configuration: configuration, id: id)
     tab.openWindow = { [weak self] configuration in
       self?.newTab(configuration: configuration)
     }

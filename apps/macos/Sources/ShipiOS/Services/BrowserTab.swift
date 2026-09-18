@@ -37,7 +37,7 @@ struct BrowserElementReference: Codable, Equatable, Sendable {
 final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelegate,
   WKDownloadDelegate
 {
-  let id = UUID()
+  let id: UUID
   var address = ""
   var editingAddress = false
   private(set) var title = "新标签页"
@@ -72,7 +72,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored var nativeInspectTarget: AnyObject?
   @ObservationIgnored var nativeInspectAction: Selector?
 
-  init(configuration: WKWebViewConfiguration) {
+  init(configuration: WKWebViewConfiguration, id: UUID = UUID()) {
+    self.id = id
     configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
     view = BrowserWebView(frame: .zero, configuration: configuration)
     super.init()

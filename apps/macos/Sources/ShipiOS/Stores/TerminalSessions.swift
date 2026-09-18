@@ -8,8 +8,9 @@ final class TerminalSessions {
     if let session = sessions[scope]?.values.first { return session }
     return newSession(for: scope)
   }
-  func newSession(for scope: TerminalScope) -> TerminalSession {
-    let session = TerminalSession(root: scope.root)
+  func newSession(for scope: TerminalScope, id: UUID = UUID()) -> TerminalSession {
+    if let existing = sessions[scope]?[id] { return existing }
+    let session = TerminalSession(root: scope.root, id: id)
     sessions[scope, default: [:]][session.id] = session
     return session
   }
