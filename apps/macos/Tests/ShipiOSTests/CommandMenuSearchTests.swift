@@ -1,0 +1,75 @@
+import XCTest
+@testable import ShipiOS
+
+final class CommandMenuSearchTests: XCTestCase {
+  private func task(_ id: String, updated: Double = 1) -> WorkspaceTask {
+    .init(id: id, project: "", title: id, runIDs: [id], updatedAt: Date(timeIntervalSince1970: updated))
+  }
+
+  func testRootSearchThresholdsTrimWhitespaceAndUseClientUTF16Length() {
+    XCTAssertFalse(CommandMenuSearch.searchesTasks(" a "))
+    XCTAssertTrue(CommandMenuSearch.searchesTasks(" 任务 "))
+    XCTAssertFalse(CommandMenuSearch.searchesContent(" 任务 "))
+    XCTAssertTrue(CommandMenuSearch.searchesContent("task"))
+    XCTAssertTrue(CommandMenuSearch.searchesTasks("🙂"))
+    XCTAssertFalse(CommandMenuSearch.searchesContent("🙂"))
+  }
+
+  func testMetadataSearchExcludesContentButRetainsBranchMatches() {
+    let tasks = [task("message"), task("branch"), task("ab title")]
+    var request = TaskSearchRequest(query: "ab", tasks: tasks, names: [:], notes: ["message": "ab message"],
+      branches: ["branch": "ab-branch"], runs: [], includeContentResults: false)
+    XCTAssertEqual(request.search().map(\.id), ["branch", "ab title"])
+    request.includeContentResults = true
+    XCTAssertEqual(request.search().map(\.id), ["message", "branch", "ab title"])
+  }
+
+  func testRecentsPrioritizeUnreadThenVisitsThenUpdatesAndExcludeHiddenTasks() {
+    var library = WorkspaceLibrary()
+    library.tasks = [task("current", updated: 100), task("new", updated: 9), task("visited", updated: 1),
+      task("unread", updated: 2), task("archived", updated: 300), task("draft", updated: 400)]
+    library.tasks[4].archived = true
+    library.tasks[5].popoutDraft = true
+    library.unreadTasks = ["unread", "archived"]
+    library.recentTaskIDs = ["missing", "visited", "visited", "current", "draft"]
+    XCTAssertEqual(CommandMenuSearch.recent(library: library, currentID: "current").map(\.id),
+      ["unread", "visited", "new"])
+    library.tasks += (0..<10).map { task("extra\($0)") }
+    XCTAssertEqual(CommandMenuSearch.recent(library: library, currentID: "current").count, 7)
+  }
+
+  func testVisitOrderMigratesPersistsAndPrunesDeletedTasks() throws {
+    var library = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
+    XCTAssertTrue(library.recentTaskIDs.isEmpty)
+    library.tasks = [task("a"), task("b"), task("draft")]
+    library.tasks[2].popoutDraft = true
+    XCTAssertTrue(library.recordTaskVisit("a"))
+    XCTAssertTrue(library.recordTaskVisit("b"))
+    XCTAssertTrue(library.recordTaskVisit("a"))
+    XCTAssertFalse(library.recordTaskVisit("a"))
+    XCTAssertFalse(library.recordTaskVisit("draft"))
+    XCTAssertFalse(library.recordTaskVisit("missing"))
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: JSONEncoder().encode(library))
+    XCTAssertEqual(restored.recentTaskIDs, ["a", "b"])
+    library.tasks[0].archived = true
+    library.deleteArchivedTasks(["a"])
+    XCTAssertEqual(library.recentTaskIDs, ["b"])
+  }
+
+  @MainActor func testFirstNavigationRecordsRestoredTaskAndPersistsNewVisitWithoutChangingDrafts() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.library.tasks = [task("a"), task("b")]
+    store.library.drafts = ["a": "Draft A", "b": "Draft B"]
+    store.selection = "a"
+    store.selectTask(store.library.tasks[1])
+    XCTAssertEqual(store.library.recentTaskIDs, ["b", "a"])
+    XCTAssertEqual(store.library.drafts, ["a": "Draft A", "b": "Draft B"])
+    let saved = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(saved.recentTaskIDs, ["b", "a"])
+    await store.shutdown()
+  }
+
+}

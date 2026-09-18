@@ -161,6 +161,7 @@ struct WorkspaceLibrary: Codable {
   var pinnedProjects: Set<String> = []
   var pinnedContentTabs: [PinnedWorkspaceTab] = []
   var unreadTasks: Set<String> = []
+  var recentTaskIDs: [String] = []
   var collapsedProjects: Set<String> = []
   /// Empty string explicitly remembers a new, unsent task.
   var projectSelections: [String: String] = [:]
@@ -197,7 +198,7 @@ struct WorkspaceLibrary: Codable {
   init() {}
   enum CodingKeys: String, CodingKey {
     case tasks, projects, lastWorkspace, notes, runBranches, drafts, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
-      pinnedProjects, pinnedContentTabs, unreadTasks, collapsedProjects, projectSelections, sidebar, panelSizes,
+      pinnedProjects, pinnedContentTabs, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
       browserDownloads,
@@ -231,6 +232,7 @@ struct WorkspaceLibrary: Codable {
     pinnedContentTabs =
       try c.decodeIfPresent([PinnedWorkspaceTab].self, forKey: .pinnedContentTabs) ?? []
     unreadTasks = try c.decodeIfPresent(Set<String>.self, forKey: .unreadTasks) ?? []
+    recentTaskIDs = try c.decodeIfPresent([String].self, forKey: .recentTaskIDs) ?? []
     collapsedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .collapsedProjects) ?? []
     projectSelections =
       try c.decodeIfPresent([String: String].self, forKey: .projectSelections) ?? [:]
@@ -380,6 +382,7 @@ struct WorkspaceLibrary: Codable {
     forkRunOrigins = forkRunOrigins.filter { !runIDs.contains($0.key) }
     queuedMessages.removeAll { deletedTaskIDs.contains($0.taskID) }
     unreadTasks.subtract(deletedTaskIDs)
+    recentTaskIDs.removeAll { deletedTaskIDs.contains($0) }
 
     for id in runIDs {
       notes[id] = nil

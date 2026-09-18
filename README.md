@@ -204,6 +204,7 @@ python3 script/smoke_ipc.py
 | [独立任务窗口文件搜索](docs/147-task-window-file-search.md) | 当前项目搜索、⌘P 与 /files、结果打开、失败重试及焦点恢复 |
 | [文件搜索窗口内弹层](docs/148-file-search-in-window-dialog.md) | 主窗口与独立窗口内搜索、快速选择竞态、焦点循环和背景命令隔离 |
 | [命令菜单与任务搜索窗口内弹层](docs/149-command-and-task-search-dialogs.md) | 共用搜索弹层、即时命令执行、模式切换和原页面焦点恢复 |
+| [根命令菜单统一搜索](docs/150-unified-command-menu-search.md) | 最近任务持久化、命令与任务混合结果、查询门槛和跨项目打开 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

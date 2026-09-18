@@ -49,21 +49,7 @@ struct TaskSearchView: View {
       ScrollViewReader { reader in
         List(catalog.results) { result in
           Button { choose(result.task) } label: {
-            HStack(alignment: .top) {
-              Image(systemName: result.task.archived ? "archivebox" : "text.bubble").foregroundStyle(.secondary)
-              VStack(alignment: .leading, spacing: 4) {
-                highlighted(result.task.title).lineLimit(1)
-                highlighted(result.projectTitle).appFont(.caption).foregroundStyle(.secondary)
-                if let snippet = result.snippet, let source = result.source {
-                  HStack(alignment: .top, spacing: 6) {
-                    Text(source).appFont(.caption).foregroundStyle(.secondary)
-                    highlighted(snippet).appFont(.caption).lineLimit(3)
-                  }
-                }
-              }
-              Spacer()
-              if result.task.archived { Text("已归档").appFont(.caption).foregroundStyle(.secondary) }
-            }.padding(.vertical, 6).contentShape(Rectangle())
+            TaskSearchResultRow(result: result, query: text)
           }.buttonStyle(.plain).disabled(catalog.searching || catalog.resultsQuery != text || !store.canSelectTask(result.task))
             .listRowBackground(selectedID == result.id ? Color.primary.opacity(0.07) : Color.clear)
             .id(result.id)
@@ -111,22 +97,6 @@ struct TaskSearchView: View {
   private func cancel() {
     store.setOverlay(.taskSearch, presented: false)
     store.restoreOverlayFocus()
-  }
-  private func highlighted(_ text: String) -> Text {
-    var attributed = AttributedString(text)
-    let query = self.text.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !query.isEmpty {
-      var remaining = text.startIndex..<text.endIndex
-      while let range = text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive], range: remaining),
-        !range.isEmpty {
-        if let start = AttributedString.Index(range.lowerBound, within: attributed),
-          let end = AttributedString.Index(range.upperBound, within: attributed) {
-          attributed[start..<end].backgroundColor = .yellow.opacity(0.35)
-        }
-        remaining = range.upperBound..<text.endIndex
-      }
-    }
-    return Text(attributed)
   }
   private func move(_ offset: Int) {
     guard !catalog.searching, catalog.resultsQuery == text else { return }

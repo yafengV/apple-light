@@ -38,6 +38,7 @@ struct TaskWindowSceneView: View {
       Self.logger.notice("Restoration: route=\(route != nil) loaded=\(store.libraryLoaded) restoring=\(store.restoringLibrary) taskExists=\(route.map { availableTasks.contains($0.taskID) } ?? false) closing=\(restoration == .close)")
       switch restoration {
       case .ready(let taskID):
+        if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
         hasPresentedTask = true
         if route?.dataRoot == nil { route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot) }
       case .close: dismiss()

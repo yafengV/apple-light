@@ -16,6 +16,7 @@ struct TaskSearchRequest: Equatable {
   let notes: [String: String]
   let branches: [String: String]
   let runs: [AgentRun]
+  var includeContentResults = true
 
   func search() -> [TaskSearchResult] {
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -33,6 +34,7 @@ struct TaskSearchRequest: Equatable {
       if query.isEmpty || Self.matches(task.title, query) || Self.matches(project, query) { return result() }
       for id in task.runIDs.reversed() {
         if let branch = branches[id], Self.matches(branch, query) { return result("分支", branch) }
+        guard includeContentResults else { continue }
         if let note = notes[id], Self.matches(note, query) { return result("消息", note) }
         guard let run = records[id], run.project == task.project else { continue }
         if run.kind == "chat", let response = run.result?["response"].text {

@@ -740,6 +740,8 @@ final class WorkspaceStore {
 
   func selectTask(_ task: WorkspaceTask) {
     guard canSelectTask(task) else { return }
+    // Seed the restored current task too when migrating a library without visits.
+    if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
     guard currentProjectKey == task.project else {
       Task {
         recordNavigation()
@@ -771,6 +773,7 @@ final class WorkspaceStore {
       }
     }
     library.unreadTasks.remove(task.id)
+    library.recordTaskVisit(task.id)
     rememberProjectSelection()
     saveLibrary()
     focusComposer = UUID()
