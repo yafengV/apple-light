@@ -51,6 +51,8 @@ enum Action {
         #[arg(long, allow_hyphen_values = true)]
         query: String,
     },
+    /// Stream queries/results over stdio while reusing the workspace index.
+    SearchFilesSession,
 }
 
 fn main() -> Result<()> {
@@ -66,6 +68,9 @@ fn main() -> Result<()> {
 
 async fn run() -> Result<()> {
     let args = Args::parse();
+    if matches!(args.command, Action::SearchFilesSession) {
+        return shipios_tools::file_search_session::serve(&args.project);
+    }
     if let Action::SearchFiles { query } = &args.command {
         println!(
             "{}",

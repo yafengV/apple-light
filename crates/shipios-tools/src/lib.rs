@@ -1,4 +1,5 @@
 pub mod file_search;
+pub mod file_search_session;
 pub mod process;
 pub mod project;
 

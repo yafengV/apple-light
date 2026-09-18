@@ -48,35 +48,59 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
   private(set) var error: String?
   private(set) var request: WorkspaceFileSearchRequest?
   private var version = UUID()
+  @ObservationIgnored private var session: (any FileSearchSession)?
+  @ObservationIgnored private let sessionFactory: @MainActor (WorkspaceFileSearchRequest) throws -> any FileSearchSession
+
+  init(sessionFactory: @escaping @MainActor (WorkspaceFileSearchRequest) throws -> any FileSearchSession = { request in
+    guard let root = request.root else { throw AgentFailure(message: "请先选择项目。") }
+    return try WorkspaceFileSearchSession(root: root, executable: request.executable)
+  }) {
+    self.sessionFactory = sessionFactory
+  }
 
   func search(_ request: WorkspaceFileSearchRequest,
-    loader: Loader = { try await WorkspaceFileSearchCatalog.load($0) }) async {
+    loader: Loader? = nil) async {
     let token = UUID()
     version = token
+    if self.request?.root != request.root || self.request?.executable != request.executable || self.request?.retry != request.retry {
+      session?.close(); session = nil
+      results = []
+    }
     self.request = request
-    results = []; error = nil; searching = false
-    guard request.root != nil, !request.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    error = nil; searching = false
+    guard request.root != nil, !request.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      results = []; session?.cancelQuery(); return
+    }
     searching = true
     defer { if version == token { searching = false } }
     do {
       try Task.checkCancellation()
-      let candidates = try await loader(request)
-      guard !Task.isCancelled, version == token else { return }
-      results = WorkspaceFileSearchResult.ranked(candidates, query: request.query)
+      if let loader {
+        let candidates = try await loader(request)
+        guard !Task.isCancelled, version == token else { return }
+        results = WorkspaceFileSearchResult.ranked(candidates, query: request.query)
+      } else {
+        try await Task.sleep(for: .milliseconds(75))
+        guard !Task.isCancelled, version == token else { return }
+        if session == nil { session = try sessionFactory(request) }
+        guard let session else { return }
+        let updates = try session.query(request.query)
+        for try await update in updates {
+          guard !Task.isCancelled, version == token else { return }
+          results = WorkspaceFileSearchResult.ranked(update.files, query: request.query)
+          searching = !update.complete
+        }
+      }
     } catch {
       guard !Task.isCancelled, version == token else { return }
       self.error = error.localizedDescription
+      session?.close(); session = nil
     }
   }
 
-  nonisolated private static func load(_ request: WorkspaceFileSearchRequest) async throws -> [WorkspaceFileSearchResult] {
-    guard let root = request.root else { return [] }
-    // Debounce typing before starting an isolated helper process.
-    try await Task.sleep(for: .milliseconds(75))
-    let output = try await LocalWorkspaceService.command(request.executable.path,
-      ["--project", root.path, "search-files", "--query", request.query.trimmingCharacters(in: .whitespacesAndNewlines)],
-      at: root, cancelWithTask: true)
-    guard output.status == 0 else { throw AgentFailure(message: output.text) }
-    return try JSONDecoder().decode([WorkspaceFileSearchResult].self, from: Data(output.text.utf8))
+  func close() {
+    version = UUID()
+    session?.close(); session = nil
+    request = nil; results = []; searching = false; error = nil
   }
 }

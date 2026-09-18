@@ -51,7 +51,7 @@ import XCTest
     cancelled.cancel()
     await gate.finish("cancelled", result: [result("old.swift")])
     await cancelled.value
-    XCTAssertTrue(catalog.results.isEmpty)
+    XCTAssertEqual(catalog.results, [current], "Keep the last displayed results while replacing a query; ignore late cancelled output")
     XCTAssertNil(catalog.error)
     XCTAssertFalse(catalog.searching)
   }

@@ -20,7 +20,7 @@ struct WorkspaceFileSearchView: View {
   let open: (String) -> Void
   let cancel: () -> Void
   @State private var query = ""
-  @State private var selected = 0
+  @State private var selectedPath: String?
   @State private var pointerSelection = false
   @State private var catalog = WorkspaceFileSearchCatalog()
   @State private var retries = 0
@@ -31,7 +31,13 @@ struct WorkspaceFileSearchView: View {
     .init(root: workspace.root, query: query, executable: executable, retry: retries)
   }
   private var results: [WorkspaceFileSearchResult] {
-    catalog.request == request && !catalog.searching ? catalog.results : []
+    guard catalog.request?.root == workspace.root, catalog.request?.executable == executable,
+      catalog.request?.retry == retries, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+    return catalog.results
+  }
+  private var selection: String? {
+    if let selectedPath, results.contains(where: { $0.path == selectedPath }) { return selectedPath }
+    return results.first?.path
   }
   var body: some View {
     SearchDialog(identifier: "file-search-dialog", cancel: cancel) {
@@ -39,15 +45,15 @@ struct WorkspaceFileSearchView: View {
     }
     .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey)
       .frame(width: 0, height: 0))
-    .onChange(of: results) { _, values in selected = min(selected, max(0, values.count - 1)) }
     .task(id: request) { openError = nil; await catalog.search(request) }
+    .onDisappear { catalog.close() }
   }
 
   private var panel: some View {
     VStack(spacing: 0) {
       HStack {
         Image(systemName: "doc.text.magnifyingglass").foregroundStyle(.secondary)
-        TextField("搜索文件", text: Binding(get: { query }, set: { query = $0; selected = 0; pointerSelection = false })).textFieldStyle(.plain).focused($focus, equals: .query)
+        TextField("搜索文件", text: Binding(get: { query }, set: { query = $0; selectedPath = nil; pointerSelection = false })).textFieldStyle(.plain).focused($focus, equals: .query)
           .accessibilityLabel("搜索文件")
         Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
       }.padding(18)
@@ -60,16 +66,19 @@ struct WorkspaceFileSearchView: View {
             .settingsActionFocus($focus, equals: .retry, activate: retry)
         }.padding(10)
       }
-      HStack { Text("文件"); Spacer() }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 18).padding(.top, 10)
+      HStack {
+        Text("文件")
+        if catalog.searching { ProgressView().controlSize(.mini).accessibilityLabel("正在搜索文件") }
+        Spacer()
+      }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 18).padding(.top, 10)
       if results.isEmpty, catalog.error == nil {
         Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "输入以搜索文件"
           : catalog.searching || catalog.request != request ? "正在搜索文件…" : "没有匹配的文件")
           .foregroundStyle(.secondary).padding()
       }
       ScrollViewReader { reader in
-        List(Array(results.enumerated()), id: \.element.path, selection: Binding<String?>(
-          get: { results.indices.contains(selected) ? results[selected].path : nil },
-          set: { path in if let path, let index = results.firstIndex(where: { $0.path == path }) { selected = index } })) { index, result in
+        List(results, selection: Binding<String?>(
+          get: { selection }, set: { selectedPath = $0 })) { result in
           Button {
             openResult(result)
           } label: {
@@ -81,11 +90,11 @@ struct WorkspaceFileSearchView: View {
             }.frame(maxWidth: .infinity, alignment: .leading)
               .padding(.vertical, 5).contentShape(Rectangle())
           }.buttonStyle(.plain).help(result.path)
-            .searchResultPointer { pointerSelection = true; selected = index }
-            .listRowBackground(index == selected ? Color.primary.opacity(0.08) : .clear)
-            .accessibilityAddTraits(index == selected ? .isSelected : []).tag(result.path).id(result.path)
-        }.onChange(of: selected) { _, index in
-          if !pointerSelection, results.indices.contains(index) { reader.scrollTo(results[index].path) }
+            .searchResultPointer { pointerSelection = true; selectedPath = result.path }
+            .listRowBackground(result.path == selection ? Color.primary.opacity(0.08) : .clear)
+            .accessibilityAddTraits(result.path == selection ? .isSelected : []).tag(result.path).id(result.path)
+        }.onChange(of: selection) { _, path in
+          if !pointerSelection, let path { reader.scrollTo(path) }
         }
       }
       Divider()
@@ -103,7 +112,10 @@ struct WorkspaceFileSearchView: View {
     case .taskSlot: break // File search does not register task-result shortcuts.
     case .cancel: cancel()
     case .move(let delta):
-      selected = min(max(0, selected + delta), max(0, results.count - 1))
+      if !results.isEmpty {
+        let index = results.firstIndex(where: { $0.path == selection }) ?? 0
+        selectedPath = results[min(max(0, index + delta), results.count - 1)].path
+      }
       focus = .query
     case .submit:
       if focus == .cancel { cancel() }
@@ -122,8 +134,8 @@ struct WorkspaceFileSearchView: View {
   }
 
   private func openSelected() {
-    guard results.indices.contains(selected) else { return }
-    openResult(results[selected])
+    guard let result = results.first(where: { $0.path == selection }) else { return }
+    openResult(result)
   }
 
   private func openResult(_ result: WorkspaceFileSearchResult) {
