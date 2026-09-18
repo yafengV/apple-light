@@ -2,15 +2,14 @@ import SwiftUI
 
 struct FileSearchView: View {
   @Bindable var store: WorkspaceStore
-  @Environment(\.dismiss) private var dismiss
 
   var body: some View {
     WorkspaceFileSearchView(workspace: store.workspace, open: { path in
       store.showPane("files")
       store.workspace.selectFile(path)
       if let root = store.workspace.root { store.fileFocusAfterOverlay = (root, path) }
-      dismiss()
-    }, cancel: { dismiss() })
+      store.setOverlay(.fileSearch, presented: false)
+    }, cancel: { store.setOverlay(.fileSearch, presented: false) })
   }
 }
 
@@ -21,7 +20,8 @@ struct WorkspaceFileSearchView: View {
   let cancel: () -> Void
   @State private var query = ""
   @State private var selected = 0
-  @FocusState private var focused: Bool
+  @FocusState private var focus: Field?
+  private enum Field { case query, cancel, retry }
   private var results: [String] {
     Array(
       workspace.files.filter {
@@ -29,27 +29,40 @@ struct WorkspaceFileSearchView: View {
       }.prefix(200))
   }
   var body: some View {
+    GeometryReader { geometry in
+      ZStack {
+        Color.black.opacity(0.3).contentShape(Rectangle())
+          .onTapGesture(perform: cancel).accessibilityHidden(true)
+        panel
+          .frame(width: min(640, geometry.size.width * 0.92), height: min(430, geometry.size.height * 0.85))
+          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+          .clipShape(RoundedRectangle(cornerRadius: 16))
+          .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
+          .accessibilityElement(children: .contain).accessibilityAddTraits(.isModal)
+          .accessibilityIdentifier("file-search-dialog")
+          .background(FileSearchKeyboardBridge(onReady: { focus = .query }, action: handleKey)
+            .frame(width: 0, height: 0))
+      }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    .onChange(of: results) { _, values in selected = min(selected, max(0, values.count - 1)) }
+    .task(id: workspace.root) { await workspace.refreshFiles() }
+  }
+
+  private var panel: some View {
     VStack(spacing: 0) {
       HStack {
         Image(systemName: "doc.text.magnifyingglass").foregroundStyle(.secondary)
-        TextField("按路径搜索文件…", text: $query).textFieldStyle(.plain).focused($focused)
-          .onSubmit { openSelected() }
-          .onKeyPress(.downArrow) {
-            selected = min(selected + 1, max(0, results.count - 1))
-            return .handled
-          }
-          .onKeyPress(.upArrow) {
-            selected = max(0, selected - 1)
-            return .handled
-          }
-        Button("取消", action: cancel).keyboardShortcut(.cancelAction)
+        TextField("按路径搜索文件…", text: Binding(get: { query }, set: { query = $0; selected = 0 })).textFieldStyle(.plain).focused($focus, equals: .query)
+          .accessibilityLabel("搜索文件")
+        Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
       }.padding(18)
       Divider()
       if let error = workspace.filesError {
         HStack {
           Text(error).foregroundStyle(.orange).appFont(.caption)
           Spacer()
-          Button("重试") { Task { await workspace.refreshFiles() } }.disabled(workspace.loading)
+          Button("重试", action: retry).disabled(workspace.loading)
+            .settingsActionFocus($focus, equals: .retry, activate: retry)
         }.padding(10)
       }
       if results.isEmpty, workspace.filesError == nil {
@@ -74,20 +87,41 @@ struct WorkspaceFileSearchView: View {
         Spacer()
         Text("↑↓ 选择 · ↵ 打开 · esc 关闭")
       }.appFont(.caption).foregroundStyle(.secondary).padding(14)
-    }.frame(width: 640, height: 430)
-      .onChange(of: query) { _, _ in selected = 0 }
-      .onChange(of: results) { _, values in selected = min(selected, max(0, values.count - 1)) }
-      .task(id: workspace.root) {
-        query = ""
-        selected = 0
-        await Task.yield()
-        guard !Task.isCancelled else { return }
-        focused = true
-        await workspace.refreshFiles()
-      }
+    }
   }
+
+  private func handleKey(_ key: FileSearchKeyboardBridge.Key) {
+    switch key {
+    case .cancel: cancel()
+    case .move(let delta):
+      selected = min(max(0, selected + delta), max(0, results.count - 1))
+      focus = .query
+    case .submit:
+      if focus == .cancel { cancel() }
+      else if focus == .retry { retry() }
+      else { openSelected() }
+    case .tab(let reverse):
+      let fields: [Field] = workspace.filesError != nil && !workspace.loading
+        ? [.query, .cancel, .retry] : [.query, .cancel]
+      let index = fields.firstIndex(of: focus ?? .query) ?? 0
+      focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
+    }
+  }
+  private func retry() {
+    focus = .query
+    Task { await workspace.refreshFiles() }
+  }
+
   private func openSelected() {
     guard results.indices.contains(selected) else { return }
     open(results[selected])
+  }
+}
+
+private struct FileSearchActiveKey: FocusedValueKey { typealias Value = Bool }
+extension FocusedValues {
+  var fileSearchActive: Bool? {
+    get { self[FileSearchActiveKey.self] }
+    set { self[FileSearchActiveKey.self] = newValue }
   }
 }

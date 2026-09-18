@@ -46,9 +46,9 @@ struct AppContentView: View {
             .accessibilityHidden(store.destination != .settings)
         }
       }
-      .disabled(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview)
-      .allowsHitTesting(!store.hasSettingsConfirmation && store.presentedOverlay != .imagePreview)
-      .accessibilityHidden(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview)
+      .disabled(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview || store.presentedOverlay == .fileSearch)
+      .allowsHitTesting(!store.hasSettingsConfirmation && store.presentedOverlay != .imagePreview && store.presentedOverlay != .fileSearch)
+      .accessibilityHidden(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview || store.presentedOverlay == .fileSearch)
       .overlay {
         if let request = store.archiveDeletion {
           ArchiveDeletionDialog(store: store, request: request).id(request.id)
@@ -77,7 +77,12 @@ struct AppContentView: View {
           }.id(image.id)
         }
       }
+      .overlay {
+        if store.presentedOverlay == .fileSearch { FileSearchView(store: store) }
+      }
+      .focusedSceneValue(\.fileSearchActive, store.presentedOverlay == .fileSearch)
       .onChange(of: store.presentedOverlay) { previous, current in
+        if previous == .fileSearch, current == nil { store.restoreOverlayFocus() }
         if previous == .imagePreview, current == nil {
           let returnFocus = imagePreviewReturnFocus
           imagePreviewReturnFocus = nil
@@ -91,14 +96,14 @@ struct AppContentView: View {
       }
       .focusedSceneValue(\.imagePreviewActive, store.presentedOverlay == .imagePreview)
       // Global sheets belong to the active main window, not its disabled workspace.
-      .sheet(item: Binding(get: { store.presentedOverlay == .imagePreview ? nil : store.presentedOverlay },
-        set: { if store.presentedOverlay != .imagePreview { store.presentedOverlay = $0 } }), onDismiss: {
+      .sheet(item: Binding(get: { [.imagePreview, .fileSearch].contains(store.presentedOverlay) ? nil : store.presentedOverlay },
+        set: { if ![.imagePreview, .fileSearch].contains(store.presentedOverlay) { store.presentedOverlay = $0 } }), onDismiss: {
         store.restoreOverlayFocus()
       }) { overlay in
         switch overlay {
         case .commands: CommandPaletteView(store: store)
         case .taskSearch: TaskSearchView(store: store)
-        case .fileSearch: FileSearchView(store: store)
+        case .fileSearch: EmptyView()
         case .worktreeCreation:
           if let path = store.worktreeSource {
             WorktreeCreationView(store: store, root: URL(fileURLWithPath: path))

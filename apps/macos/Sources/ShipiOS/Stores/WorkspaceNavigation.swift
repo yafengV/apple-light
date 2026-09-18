@@ -86,7 +86,7 @@ extension WorkspaceStore {
     }
   }
   func commandEnabled(_ id: String) -> Bool {
-    guard renameTaskID == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
+    guard renameTaskID == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview, presentedOverlay != .fileSearch else { return false }
     switch id {
     case "approval-approve", "approval-decline":
       return destination == .workspace && activeWorkspaceContentTab == nil

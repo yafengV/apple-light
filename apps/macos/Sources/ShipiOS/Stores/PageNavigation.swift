@@ -13,7 +13,11 @@ extension WorkspaceStore {
   func setOverlay(_ overlay: WorkspaceOverlay, presented: Bool) {
     guard !hasSettingsConfirmation else { return }
     if presented {
-      fileFocusAfterOverlay = nil
+      if overlay == .fileSearch, filesVisible,
+        (NSApp?.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === workspace,
+        let root = workspace.root, let path = workspace.selectedFile {
+        fileFocusAfterOverlay = (root, path)
+      } else { fileFocusAfterOverlay = nil }
       terminalFocusRequest = nil
       showingModelPicker = false
       showingBranchPicker = false

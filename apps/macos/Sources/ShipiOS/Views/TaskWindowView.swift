@@ -244,15 +244,18 @@ struct TaskWindowView: View {
       previewImages = images
     }
     .appSurface()
-    .sheet(isPresented: $showingFileSearch, onDismiss: restoreFileSearchFocus) {
-      WorkspaceFileSearchView(workspace: taskWorkspace, open: { path in
+    .disabled(showingFileSearch).allowsHitTesting(!showingFileSearch).accessibilityHidden(showingFileSearch)
+    .overlay {
+      if showingFileSearch { WorkspaceFileSearchView(workspace: taskWorkspace, open: { path in
         showingReview = false
         showingFiles = true
         taskWorkspace.selectFile(path)
         fileFocusAfterSearch = path
         showingFileSearch = false
-      }, cancel: { showingFileSearch = false })
+      }, cancel: { showingFileSearch = false }) }
     }
+    .onChange(of: showingFileSearch) { _, visible in if !visible { restoreFileSearchFocus() } }
+    .focusedSceneValue(\.fileSearchActive, showingFileSearch)
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
     .disabled(previewImage != nil).allowsHitTesting(previewImage == nil).accessibilityHidden(previewImage != nil)
     .overlay {

@@ -202,6 +202,7 @@ python3 script/smoke_ipc.py
 | [独立任务窗口导航](docs/145-task-window-navigation.md) | 返回/前进、历史分支、删除任务跳过、弹层隔离及草稿恢复 |
 | [任务窗口恢复](docs/146-task-window-restoration.md) | 数据目录归属、启动加载、损坏记录重试、失效窗口关闭及原生重启验收 |
 | [独立任务窗口文件搜索](docs/147-task-window-file-search.md) | 当前项目搜索、⌘P 与 /files、结果打开、失败重试及焦点恢复 |
+| [文件搜索窗口内弹层](docs/148-file-search-in-window-dialog.md) | 主窗口与独立窗口内搜索、快速选择竞态、焦点循环和背景命令隔离 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
