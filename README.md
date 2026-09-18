@@ -200,6 +200,7 @@ python3 script/smoke_ipc.py
 | [重命名撤销与重做](docs/143-task-rename-undo.md) | Edit 菜单、文字撤销优先、限时历史、失败重试和任务导航 |
 | [独立任务窗口内分叉](docs/144-task-window-fork.md) | 指定回复分叉、同窗口导航、草稿隔离、失败重试与跨任务撤销 |
 | [独立任务窗口导航](docs/145-task-window-navigation.md) | 返回/前进、历史分支、删除任务跳过、弹层隔离及草稿恢复 |
+| [任务窗口恢复](docs/146-task-window-restoration.md) | 数据目录归属、启动加载、损坏记录重试、失效窗口关闭及原生重启验收 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

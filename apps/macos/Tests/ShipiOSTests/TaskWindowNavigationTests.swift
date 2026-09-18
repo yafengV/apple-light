@@ -55,10 +55,10 @@ final class TaskWindowNavigationTests: XCTestCase {
     let selection = store.selection, projectSelections = store.library.projectSelections
     let mainHistory = store.navigationBack
     var first = TaskWindowNavigation(), second = TaskWindowNavigation()
-    var route = TaskWindowRoute(taskID: "source")
+    var route = TaskWindowRoute(taskID: "source", dataRoot: root)
     let available = Set(store.library.tasks.map(\.id))
-    if first.visit("fork", from: route.taskID, available: available) { route = .init(taskID: "fork") }
-    if let id = first.move(backwards: true, current: route.taskID, available: available) { route = .init(taskID: id) }
+    if first.visit("fork", from: route.taskID, available: available) { route = .init(taskID: "fork", dataRoot: root) }
+    if let id = first.move(backwards: true, current: route.taskID, available: available) { route = .init(taskID: id, dataRoot: root) }
     XCTAssertEqual(route.taskID, "source")
     XCTAssertNil(second.move(backwards: true, current: "fork", available: available))
     XCTAssertEqual(store.selection, selection)
