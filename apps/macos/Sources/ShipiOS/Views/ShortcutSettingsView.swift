@@ -3,6 +3,7 @@ import SwiftUI
 struct ShortcutSettingsView: View {
   let store: WorkspaceStore
   @State var editor = ShortcutSettingsState()
+  @FocusState private var resetFocus: Bool?
   @State private var numberShortcutError: String?
   @State private var linkShortcutError: String?
 
@@ -19,9 +20,9 @@ struct ShortcutSettingsView: View {
       SettingsScrollPage(title: SettingsPage.shortcuts.title, pinsControls: true) {
         if store.shortcuts.hasCustomizations {
           Button("恢复全部默认") {
-            editor.capture = nil
-            store.requestShortcutReset()
-          }.settingsSearchTarget(.shortcutReset)
+            requestReset()
+          }.settingsConfirmationTriggerFocus($resetFocus, equals: true, activate: requestReset)
+            .settingsSearchTarget(.shortcutReset)
         }
       } controls: {
         HStack(spacing: 8) {
@@ -79,6 +80,10 @@ struct ShortcutSettingsView: View {
       }
     }
     }
+    .onSettingsConfirmationDismissal(store.shortcutResetRequested, store: store, page: .shortcuts) {
+      if store.shortcuts.hasCustomizations { resetFocus = true }
+      else { store.settingsSearchFocusRequest = UUID() }
+    }
     .onChange(of: store.settingsPage) { _, _ in editor.capture = nil; editor.searchByKeys = false }
     .onChange(of: store.destination) { _, _ in editor.capture = nil; editor.searchByKeys = false }
     .onChange(of: editor.query) { _, value in
@@ -86,6 +91,11 @@ struct ShortcutSettingsView: View {
       if !value.isEmpty { clearCommandTarget() }
     }
     .onChange(of: editor.searchByKeys) { _, value in if value { clearCommandTarget() } }
+  }
+
+  private func requestReset() {
+    editor.capture = nil
+    store.requestShortcutReset()
   }
 
   private func externalBrowserPreference(contentWidth: CGFloat) -> some View {

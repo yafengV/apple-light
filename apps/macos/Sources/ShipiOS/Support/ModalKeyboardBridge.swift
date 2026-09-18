@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Scope keyboard handling to this window and restore its previous responder.
+/// Scope keyboard handling to this window; the owning page restores its trigger.
 /// Tab cycles the two dialog actions even when full keyboard access is disabled.
 struct ModalKeyboardBridge: NSViewRepresentable {
   enum Key: Equatable { case cancel, activate, next }
@@ -44,7 +44,6 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     var action: (Key) -> Void
     private var monitor: Any?
     private weak var window: NSWindow?
-    private weak var previousResponder: NSResponder?
     init(onReady: @escaping () -> Void, action: @escaping (Key) -> Void) {
       self.onReady = onReady
       self.action = action
@@ -52,7 +51,6 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     func capture(_ window: NSWindow) {
       guard self.window == nil else { return }
       self.window = window
-      previousResponder = window.firstResponder
       window.makeFirstResponder(nil)
       // SwiftUI's onAppear can focus a button before this native anchor has
       // captured the responder. Hand focus back only after capture completes.
@@ -76,12 +74,7 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     func stop() {
       if let monitor { NSEvent.removeMonitor(monitor) }
       monitor = nil
-      if let window, let previousResponder,
-        (previousResponder as? NSView).map({ $0.window === window }) ?? true {
-        window.makeFirstResponder(previousResponder)
-      }
       window = nil
-      previousResponder = nil
     }
     deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
   }

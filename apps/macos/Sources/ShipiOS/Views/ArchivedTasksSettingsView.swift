@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ArchivedTasksSettingsView: View {
   let store: WorkspaceStore
+  private enum DeletionFocus: Hashable { case all, project(String), single(String) }
+  @FocusState private var deletionFocus: DeletionFocus?
+  @State private var deletionOrigin: DeletionFocus?
   @State private var query = ""
   @State private var project = ArchivedProjectFilter.all
   @State private var kind = ArchivedTaskKind.all
@@ -16,10 +19,12 @@ struct ArchivedTasksSettingsView: View {
     let grouped = value.effectiveFilter(project) == .all
     SettingsScrollPage(title: SettingsPage.archived.title, pinsControls: !value.entries.isEmpty) {
       Button(role: .destructive) {
-        store.requestArchiveDeletion(.all, ids: Set(value.entries.map(\.id)))
+        requestDeletion(.all, ids: Set(value.entries.map(\.id)))
       } label: {
         Label("全部删除", systemImage: "trash")
-      }.disabled(value.entries.isEmpty).settingsSearchTarget(.archivedDeleteAll)
+      }.settingsConfirmationTriggerFocus($deletionFocus, equals: .all,
+        activate: { requestDeletion(.all, ids: Set(value.entries.map(\.id))) })
+        .disabled(value.entries.isEmpty).settingsSearchTarget(.archivedDeleteAll)
     } controls: {
       ViewThatFits(in: .horizontal) {
         HStack(spacing: 8) { search; filters }
@@ -46,7 +51,7 @@ struct ArchivedTasksSettingsView: View {
                 if group.project != nil {
                   Menu {
                     Button("删除项目中的全部任务", role: .destructive) {
-                      store.requestArchiveDeletion(.project, ids: Set(group.entries.map(\.id)))
+                      requestDeletion(.project(group.id), ids: Set(group.entries.map(\.id)))
                     }
                   } label: { Image(systemName: "ellipsis") }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
@@ -64,6 +69,30 @@ struct ArchivedTasksSettingsView: View {
         }
       }
     }
+    .onSettingsConfirmationDismissal(store.archiveDeletion != nil, store: store, page: .archived) {
+      let current = presentation.groups(query: query, project: project, kind: kind, sort: sort)
+      switch deletionOrigin {
+      case .all where !presentation.entries.isEmpty: deletionFocus = .all
+      case .single(let id) where current.contains(where: { $0.entries.contains(where: { $0.id == id }) }):
+        deletionFocus = .single(id)
+      // SwiftUI Menu does not reliably accept restored FocusState focus on macOS.
+      // Use the settings search until the action menu has a native focus bridge.
+      case .project: store.settingsSearchFocusRequest = UUID()
+      default: store.settingsSearchFocusRequest = UUID()
+      }
+      deletionOrigin = nil
+    }
+  }
+
+  private func requestDeletion(_ origin: DeletionFocus, ids: Set<String>) {
+    deletionOrigin = origin
+    let kind: ArchiveDeletionRequest.Kind
+    switch origin {
+    case .all: kind = .all
+    case .single: kind = .single
+    case .project: kind = .project
+    }
+    store.requestArchiveDeletion(kind, ids: ids)
   }
 
   private var search: some View {
@@ -117,9 +146,11 @@ struct ArchivedTasksSettingsView: View {
         }.appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
       }.frame(maxWidth: .infinity, alignment: .leading)
       Button(role: .destructive) {
-        store.requestArchiveDeletion(.single, ids: [entry.id])
+        requestDeletion(.single(entry.id), ids: [entry.id])
       } label: { Image(systemName: "trash") }
         .buttonStyle(.borderless).help("永久删除此归档任务")
+        .settingsConfirmationTriggerFocus($deletionFocus, equals: .single(entry.id),
+          activate: { requestDeletion(.single(entry.id), ids: [entry.id]) })
         .accessibilityLabel("删除归档任务：\(entry.task.title)")
       Button {
         Task { await store.restoreArchivedTaskWithFeedback(entry.id) }

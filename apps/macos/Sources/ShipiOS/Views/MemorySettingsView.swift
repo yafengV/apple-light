@@ -2,6 +2,9 @@ import SwiftUI
 
 struct MemorySettingsView: View {
   @Bindable var store: WorkspaceStore
+  private enum DeletionFocus: Hashable { case single(UUID), all }
+  @FocusState private var deletionFocus: DeletionFocus?
+  @State private var deletionOrigin: DeletionFocus?
   @State private var editingID: UUID?
   @State private var editingText = ""
 
@@ -62,9 +65,14 @@ struct MemorySettingsView: View {
                     editingID = memory.id
                     editingText = memory.text
                   }.buttonStyle(.plain)
-                  Button(role: .destructive) { store.requestMemoryDeletion(memory.id) } label: {
+                  Button(role: .destructive) {
+                    requestDeletion(memory.id)
+                  } label: {
                     Image(systemName: "trash")
-                  }.buttonStyle(.plain).help("删除记忆")
+                  }.buttonStyle(.plain)
+                    .settingsConfirmationTriggerFocus($deletionFocus, equals: .single(memory.id),
+                      activate: { requestDeletion(memory.id) })
+                    .help("删除记忆")
                     .accessibilityLabel("删除记忆")
                 }
               }
@@ -74,7 +82,9 @@ struct MemorySettingsView: View {
             Text("共 \(store.memoryPreferences.items.count) 条")
               .appFont(.caption).foregroundStyle(.secondary)
             Spacer()
-            Button("清空全部…", role: .destructive) { store.requestMemoryDeletion() }
+            Button("清空全部…", role: .destructive) {
+              requestDeletion()
+            }.settingsConfirmationTriggerFocus($deletionFocus, equals: .all, activate: { requestDeletion() })
           }
         }
       }.disabled(!store.memoriesLoaded).settingsSearchTarget(.memorySaved)
@@ -87,9 +97,23 @@ struct MemorySettingsView: View {
         }
       }
     }.settingsFormStyle().appSurface()
+      .onSettingsConfirmationDismissal(store.memoryDeletion != nil, store: store, page: .memories) {
+        if let origin = deletionOrigin, store.memoriesLoaded,
+          !store.memoryPreferences.items.isEmpty {
+          if case .single(let id) = origin, !store.memoryPreferences.items.contains(where: { $0.id == id }) {
+            store.settingsSearchFocusRequest = UUID()
+          } else { deletionFocus = origin }
+        } else { store.settingsSearchFocusRequest = UUID() }
+        deletionOrigin = nil
+      }
       .onChange(of: store.memoryPreferences.items.map(\.id)) { _, ids in
         if let editingID, !ids.contains(editingID) { cancelEditing() }
       }
+  }
+
+  private func requestDeletion(_ id: UUID? = nil) {
+    deletionOrigin = id.map(DeletionFocus.single) ?? .all
+    store.requestMemoryDeletion(id)
   }
 
   private func cancelEditing() {
