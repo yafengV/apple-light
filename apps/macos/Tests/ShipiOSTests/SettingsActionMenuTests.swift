@@ -5,6 +5,45 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsActionMenuTests: XCTestCase {
+  func testDisabledFocusedMenuRejectsActionsImmediatelyAndDoesNotReplayStaleCellUpdates() async throws {
+    let state = ActionMenuState()
+    let (window, host) = makeHost(ActionMenuFixture(state: state))
+    defer { window.close() }
+    try await settle(host)
+    let button = try XCTUnwrap(findControl(host))
+    window.makeFirstResponder(button)
+    button.isEnabled = false
+    XCTAssertFalse(button.acceptsFirstResponder)
+    XCTAssertFalse(button.canBecomeKeyView)
+    XCTAssertFalse(button.accessibilityPerformPress())
+    button.selectItem(at: 1)
+    button.sendAction(button.action, to: button.target)
+    XCTAssertEqual(state.actions, 0)
+    // The cell cannot traverse SwiftUI's key loop inside a view transaction.
+    XCTAssertTrue(button.cell?.isEnabled == true)
+    try await settle(host)
+    XCTAssertFalse(window.firstResponder === button)
+    XCTAssertFalse(button.cell?.isEnabled == true)
+
+    button.isEnabled = true
+    button.isEnabled = false
+    button.isEnabled = true
+    try await settle(host)
+    XCTAssertTrue(button.isEnabled)
+    XCTAssertTrue(button.cell?.isEnabled == true)
+    XCTAssertEqual(state.actions, 0)
+
+    let next = NSTextField(frame: .init(x: 0, y: 0, width: 100, height: 24))
+    host.addSubview(next)
+    window.makeFirstResponder(button)
+    button.isEnabled = false
+    window.makeFirstResponder(next)
+    try await settle(host)
+    XCTAssertTrue(window.firstResponder === next.currentEditor(),
+      "A delayed disable must not clear focus already moved by navigation")
+    XCTAssertFalse(button.cell?.isEnabled == true)
+  }
+
   func testFocusRequestTargetsNativeControlOnlyOnceAndDoesNotInvokeAction() async throws {
     let state = ActionMenuState()
     let (window, host) = makeHost(ActionMenuFixture(state: state))

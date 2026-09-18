@@ -191,6 +191,7 @@ python3 script/smoke_ipc.py
 | [归档动作与恢复流程](docs/134-archive-actions-and-restoration.md) | 危险操作样式、恢复期间动作互斥、键盘恢复及失败重试 |
 | [归档加载、错误与空状态](docs/135-archive-list-states.md) | 简洁状态行、读取失败独立呈现、无结果保留筛选和空列表隐藏动作 |
 | [记忆列表搜索、排序与操作焦点](docs/136-memory-list-interactions.md) | 模糊搜索、原生排序及更多菜单、读取重试和编辑焦点返回 |
+| [原生菜单禁用时序](docs/137-settings-menu-update-order.md) | 修复 SwiftUI/AppKit 焦点循环、立即禁用交互及过期更新保护 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

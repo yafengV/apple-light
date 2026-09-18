@@ -98,9 +98,32 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
 
 final class SettingsMenuControl: NSPopUpButton {
   var active = true { didSet { releaseDisabledFocus() } }
-  override var isEnabled: Bool { didSet { releaseDisabledFocus() } }
+  private var requestedEnabled = true
+  private var enabledGeneration = UUID()
+  override var isEnabled: Bool {
+    get { requestedEnabled }
+    set {
+      guard requestedEnabled != newValue else { return }
+      requestedEnabled = newValue
+      enabledGeneration = UUID()
+      let generation = enabledGeneration
+      // SwiftUI also sets this property while adopting the environment, before
+      // updateNSView. NSCell.setEnabled walks the key loop synchronously, which
+      // re-enters NSHostingView's focus graph during that unfinished update.
+      // Reject interaction immediately; update the cell after the transaction.
+      DispatchQueue.main.async { [weak self] in
+        guard let self, self.enabledGeneration == generation else { return }
+        self.applyEnabled(newValue)
+      }
+    }
+  }
   override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor }
   override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
+
+  private func applyEnabled(_ enabled: Bool) {
+    if !enabled, let window, window.firstResponder === self { window.makeFirstResponder(nil) }
+    super.isEnabled = enabled
+  }
 
   private func releaseDisabledFocus() {
     guard !active || !isEnabled else { return }
