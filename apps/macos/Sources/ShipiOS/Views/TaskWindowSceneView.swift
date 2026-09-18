@@ -1,13 +1,14 @@
 import SwiftUI
 import OSLog
 
-/// Window-owned history survives task navigation; task-owned panels are recreated.
+/// History and task resources survive navigation within this window.
 struct TaskWindowSceneView: View {
   private static let logger = Logger(subsystem: "dev.shipios.desktop", category: "WindowRestoration")
   @Bindable var store: WorkspaceStore
   @Binding var route: TaskWindowRoute?
   @State private var renameHistory = TaskRenameHistory()
   @State private var browsers = TaskWindowBrowsers()
+  @State private var panelSessions = TaskWindowPanelSessions()
   @State private var navigation = TaskWindowNavigation()
   @State private var hasPresentedTask = false
   @Environment(\.dismiss) private var dismiss
@@ -21,8 +22,9 @@ struct TaskWindowSceneView: View {
 
   var body: some View {
     Group {
-      if case .ready(let taskID) = restoration, let browser = browsers.tasks[taskID] {
-        TaskWindowView(store: store, taskID: taskID, browser: browser, browsers: browsers, renameHistory: renameHistory,
+      if case .ready(let taskID) = restoration, let browser = browsers.tasks[taskID],
+        let panels = panelSessions.tasks[taskID] {
+        TaskWindowView(store: store, taskID: taskID, browser: browser, browsers: browsers, panels: panels, renameHistory: renameHistory,
           onNavigate: visit,
           canGoBack: navigation.destination(backwards: true, current: taskID, available: availableTasks) != nil,
           canGoForward: navigation.destination(backwards: false, current: taskID, available: availableTasks) != nil,
@@ -35,11 +37,18 @@ struct TaskWindowSceneView: View {
             TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in dismiss() }))
       }
     }
-    .onDisappear { browsers.shutdown() }
+    .onDisappear { browsers.shutdown(); panelSessions.shutdown() }
+    .onChange(of: availableTasks) { _, available in
+      panelSessions.retainTasks(available, displaying: route?.taskID)
+    }
     .task(id: restoration) {
       Self.logger.notice("Restoration: route=\(route != nil) loaded=\(store.libraryLoaded) restoring=\(store.restoringLibrary) taskExists=\(route.map { availableTasks.contains($0.taskID) } ?? false) closing=\(restoration == .close)")
       switch restoration {
       case .ready(let taskID):
+        panelSessions.retainTasks(availableTasks, displaying: taskID)
+        store.additionalTaskWindowPanels.add(panelSessions)
+        _ = panelSessions.panels(for: taskID,
+          project: store.library.tasks.first(where: { $0.id == taskID })?.project ?? "")
         _ = browsers.browser(for: taskID, store: store)
         if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
         hasPresentedTask = true

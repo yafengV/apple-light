@@ -16,6 +16,7 @@ final class DeveloperWorkspace {
   var showingFileLine = false
   var fileLineRange: NSRange?
   var fileLineRequest = UUID()
+  @ObservationIgnored var filePreviewPositions: [String: FilePreviewPosition] = [:]
   @ObservationIgnored private let fileReader: @Sendable (String, URL) async throws -> String
 
   init(fileReader: @escaping @Sendable (String, URL) async throws -> String = { path, root in
@@ -94,6 +95,7 @@ final class DeveloperWorkspace {
     filesError = nil
     showingFileLine = false
     fileLineRange = nil
+    filePreviewPositions.removeAll()
     gitFiles = []
     gitAvailable = false
     canCommit = false
@@ -168,6 +170,7 @@ final class DeveloperWorkspace {
   func closeFile(_ path: String) {
     guard let index = openFiles.firstIndex(of: path) else { return }
     openFiles.remove(at: index)
+    filePreviewPositions[(root?.path ?? "") + "/" + path] = nil
     guard selectedFile == path else { return }
     fileVersion = UUID()
     selectedFile = nil

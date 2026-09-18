@@ -47,7 +47,7 @@ struct FileSourcePreview: NSViewRepresentable {
     coordinator.wasLoading = workspace.fileLoading
     let root = (workspace.root?.path ?? "") + "/"
     let open = Set(workspace.openFiles.map { root + $0 })
-    coordinator.positions = coordinator.positions.filter { open.contains($0.key) }
+    workspace.filePreviewPositions = workspace.filePreviewPositions.filter { open.contains($0.key) }
     if text.string != workspace.fileText {
       text.string = workspace.fileText
       text.setSelectedRange(NSRange(location: 0, length: 0))
@@ -57,7 +57,9 @@ struct FileSourcePreview: NSViewRepresentable {
     text.textColor = NSColor(appearance.foregroundColor)
     if !workspace.fileLoading, coordinator.needsRestore {
       coordinator.needsRestore = false
-      let position = coordinator.positions[identity]
+      let position = workspace.filePreviewPositions[identity]
+      // A remounted view restores its last selection, not an old line-jump request.
+      if position != nil, coordinator.lineRequest == nil { coordinator.lineRequest = workspace.fileLineRequest }
       let length = (text.string as NSString).length
       let range = position?.selection ?? NSRange(location: 0, length: 0)
       text.setSelectedRange(NSRange(location: min(range.location, length), length: min(range.length, max(0, length - range.location))))
@@ -79,30 +81,36 @@ struct FileSourcePreview: NSViewRepresentable {
         guard let text, let store, let workspace,
           workspace.selectedFile != nil, !workspace.fileLoading, workspace.fileError == nil,
           !workspace.showingFileLine, workspace.fileFocusRequest == request, let window = text.window,
-          window.attachedSheet == nil else { return }
+          window.isKeyWindow, window.attachedSheet == nil else { return }
         if workspace === store.workspace, !store.fileCommandsAvailable { return }
         window.makeFirstResponder(text)
       }
     }
   }
 
-  static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.stop() }
+  static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
+    if let text = view.documentView as? NSTextView { coordinator.savePosition(text) }
+    coordinator.stop()
+  }
 
   final class Coordinator {
-    struct Position { let selection: NSRange; let origin: NSPoint }
     var identity: String?
-    var positions: [String: Position] = [:]
+    weak var workspace: DeveloperWorkspace?
     var needsRestore = false
     var wasLoading = false
     var focusRequest: UUID?
     var lineRequest: UUID?
     private var monitor: Any?
 
-    func savePosition(_ text: NSTextView) {
-      guard let identity, !needsRestore else { return }
-      positions[identity] = Position(selection: text.selectedRange(), origin: text.enclosingScrollView?.contentView.bounds.origin ?? .zero)
+    @MainActor func savePosition(_ text: NSTextView) {
+      guard let identity, !needsRestore, !wasLoading, let workspace,
+        let root = workspace.root?.path,
+        workspace.openFiles.contains(where: { root + "/" + $0 == identity }) else { return }
+      workspace.filePreviewPositions[identity] = FilePreviewPosition(
+        selection: text.selectedRange(), origin: text.enclosingScrollView?.contentView.bounds.origin ?? .zero)
     }
     func install(_ text: NSTextView, store: WorkspaceStore, workspace: DeveloperWorkspace) {
+      self.workspace = workspace
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
         [weak text, weak store, weak workspace] event in
         guard let binding = ShortcutBinding(event: event) else { return event }

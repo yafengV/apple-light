@@ -20,7 +20,8 @@ struct TerminalHost: NSViewRepresentable {
     if let focus, context.coordinator.handled != focus.id {
       context.coordinator.handled = focus.id
       DispatchQueue.main.async {
-        if canFocus(focus), view.window?.attachedSheet == nil { view.window?.makeFirstResponder(view) }
+        if canFocus(focus), view.window?.isKeyWindow == true,
+          view.window?.attachedSheet == nil { view.window?.makeFirstResponder(view) }
       }
     }
   }
