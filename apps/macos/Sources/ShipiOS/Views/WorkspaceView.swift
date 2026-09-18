@@ -3,6 +3,7 @@ import SwiftUI
 struct WorkspaceView: View {
   @Bindable var store: WorkspaceStore
   @Environment(\.openWindow) private var openWindow
+  @State private var renameHistory = TaskRenameHistory()
   @State private var columns: NavigationSplitViewVisibility = .all
 
   var body: some View {
@@ -204,12 +205,15 @@ struct WorkspaceView: View {
     .overlay {
       if let id = store.renameTaskID {
         TaskRenameDialog(initialTitle: store.renameDraft,
-          save: { try store.renameTask(id, title: $0) },
+          save: { try renameHistory.rename(store: store, taskID: id, title: $0) },
           close: { store.renameTaskID = nil; store.focusComposer = UUID() })
           .id(id)
       }
     }
     .focusedSceneValue(\.taskRenameActive, store.renameTaskID != nil)
+    .taskRenameUndo(store: store, history: renameHistory,
+      blocked: store.renameTaskID != nil || store.presentedOverlay != nil || store.hasSettingsConfirmation
+        || store.destination != .workspace || store.showingModelPicker || store.showingBranchPicker, revealInMain: true)
     .overlay(alignment: .top) {
       if store.draggingWorkspaceTabID != nil {
         VStack(spacing: 8) {

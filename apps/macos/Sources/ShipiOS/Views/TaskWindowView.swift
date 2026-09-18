@@ -18,6 +18,7 @@ struct TaskWindowView: View {
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
   @State private var renameTitle: String?
+  @State private var renameHistory = TaskRenameHistory()
   @State private var dropTargeted = false
   @State private var showingFind = false
   @State private var findText = ""
@@ -194,11 +195,12 @@ struct TaskWindowView: View {
     .overlay {
       if let renameTitle {
         TaskRenameDialog(initialTitle: renameTitle,
-          save: { try store.renameTask(taskID, title: $0) },
+          save: { try renameHistory.rename(store: store, taskID: taskID, title: $0) },
           close: { self.renameTitle = nil; composerFocused = true; taskComposerFocusRequest = UUID() })
       }
     }
     .focusedSceneValue(\.taskRenameActive, renameTitle != nil)
+    .taskRenameUndo(store: store, history: renameHistory, blocked: windowCommandsBlocked)
     .frame(minWidth: 620, minHeight: 520)
     .focusedSceneValue(\.taskWindowCommands, windowCommandContext)
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,

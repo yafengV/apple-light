@@ -8,7 +8,14 @@ struct WorkspaceCommands: Commands {
   @FocusedValue(\.taskWindowCommands) private var taskWindowCommands
   @FocusedValue(\.imagePreviewActive) private var imagePreviewActive
   @FocusedValue(\.taskRenameActive) private var taskRenameActive
+  @FocusedValue(\.taskRenameUndo) private var taskRenameUndo
   var body: some Commands {
+    CommandGroup(replacing: .undoRedo) {
+      Button(taskRenameUndo?.undoTitle ?? "撤销") { performUndo(redo: false) }
+        .keyboardShortcut("z", modifiers: .command).disabled(taskRenameUndo?.canUndo == false)
+      Button(taskRenameUndo?.redoTitle ?? "重做") { performUndo(redo: true) }
+        .keyboardShortcut("z", modifiers: [.command, .shift]).disabled(taskRenameUndo?.canRedo == false)
+    }
     CommandGroup(replacing: .appSettings) { command("settings") }
     CommandGroup(replacing: .newItem) {
       command("new")
@@ -87,6 +94,10 @@ struct WorkspaceCommands: Commands {
       ForEach(BrowserKeyboardBridge.contextualCommands.filter { $0 != "browser-address" }, id: \.self) { id in command(id) }
       command("browser-reopen")
     }
+  }
+  private func performUndo(redo: Bool) {
+    if let taskRenameUndo { taskRenameUndo.perform(redo) }
+    else { NSApp.sendAction(NSSelectorFromString(redo ? "redo:" : "undo:"), to: nil, from: nil) }
   }
   private func command(_ id: String) -> some View {
     let item = DesktopCommand.all.first { $0.id == id }!
