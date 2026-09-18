@@ -1,0 +1,109 @@
+import XCTest
+
+@testable import ShipiOS
+
+final class ModelSelectionTests: XCTestCase {
+  func testCatalogRequiresValidShapeAndKeepsLiteralDistinctIDs() throws {
+    let payload = Data(#"{"data":[{"id":"z"},{"id":"Model/A"},{"id":"model/a"},{"id":"z"},{"id":" "}]}"#.utf8)
+    XCTAssertEqual(try ModelCatalog.decode(payload), ["Model/A", "model/a", "z"])
+    XCTAssertEqual(try ModelCatalog.decode(Data(#"{"data":[]}"#.utf8)), [])
+    for bad in [#"{"error":{"message":"private-server-detail"}}"#, #"{"data":[{}]}"#, "[]"] {
+      XCTAssertThrowsError(try ModelCatalog.decode(Data(bad.utf8))) { error in
+        XCTAssertFalse(error.localizedDescription.contains("private-server-detail"))
+      }
+    }
+  }
+
+  @MainActor func testCatalogFailureRetainsConfiguredModelAndAllowsSearch() async {
+    let catalog = ModelCatalog()
+    await catalog.load(config: ModelConfiguration()) { _ in
+      throw AgentFailure(message: "Unavailable")
+    }
+    XCTAssertEqual(catalog.error, "Unavailable")
+    XCTAssertFalse(catalog.loading)
+    XCTAssertEqual(catalog.choices(current: "private-model", query: "PRIVATE"), ["private-model"])
+    XCTAssertEqual(catalog.choices(current: "private-model", query: "missing"), [])
+    await catalog.load(config: ModelConfiguration()) { _ in ["a", "private-model", "z"] }
+    XCTAssertNil(catalog.error)
+    XCTAssertEqual(catalog.choices(current: "private-model", query: ""), ["private-model", "a", "z"])
+  }
+
+  @MainActor func testOldProviderResponseCannotReplaceNewProviderList() async {
+    let catalog = ModelCatalog()
+    let started = expectation(description: "first request started")
+    var completion: CheckedContinuation<[String], Error>?
+    let first = Task {
+      await catalog.load(config: ModelConfiguration()) { _ in
+        try await withCheckedThrowingContinuation {
+          completion = $0
+          started.fulfill()
+        }
+      }
+    }
+    await fulfillment(of: [started], timeout: 2)
+    await catalog.load(config: ModelConfiguration()) { _ in ["new-provider-model"] }
+    completion?.resume(returning: ["old-provider-model"])
+    await first.value
+    XCTAssertEqual(catalog.models, ["new-provider-model"])
+    XCTAssertFalse(catalog.loading)
+  }
+
+  @MainActor func testCancelledCatalogDoesNotApplyResultsOrLeaveSpinner() async {
+    let catalog = ModelCatalog()
+    let task = Task {
+      await catalog.load(config: ModelConfiguration()) { _ in
+        withUnsafeCurrentTask { $0?.cancel() }
+        return ["cancelled-model"]
+      }
+    }
+    await task.value
+    XCTAssertTrue(catalog.models.isEmpty)
+    XCTAssertFalse(catalog.loading)
+    XCTAssertNil(catalog.error)
+  }
+
+  @MainActor func testSelectionPersistsWithoutChangingActiveRequestOrDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    var config = ModelConfiguration()
+    config.baseURL = "https://example.com/v1"
+    config.model = "old-model"
+    config.instructions = "keep these instructions"
+    try store.saveModelConfiguration(config)
+    let run = AgentRun(
+      id: "running", kind: "chat", project: "/fixture", status: "running", createdAt: 0,
+      updatedAt: 0, request: .object(["model": .string("old-model")]), result: nil)
+    store.runs = [run]
+    store.draft = "keep draft"
+    try store.selectModel(" new-model ", reasoning: "high")
+    XCTAssertEqual(store.draft, "keep draft")
+    XCTAssertEqual(store.activeRun?.request["model"].text, "old-model")
+    XCTAssertEqual(store.modelConfiguration.baseURL, config.baseURL)
+    XCTAssertEqual(store.modelConfiguration.instructions, config.instructions)
+    let restored = WorkspaceStore(dataRoot: root)
+    await restored.loadModelConfiguration()
+    XCTAssertEqual(restored.modelConfiguration.model, "new-model")
+    XCTAssertEqual(restored.modelConfiguration.reasoning, "high")
+    XCTAssertThrowsError(try store.selectModel(" \n", reasoning: "low"))
+    XCTAssertEqual(store.modelConfiguration.model, "new-model")
+    XCTAssertEqual(store.modelConfiguration.reasoning, "high")
+  }
+
+  @MainActor func testShortcutOpensInlinePickerAndSettingsClosesIt() {
+    let store = WorkspaceStore()
+    store.executeCommand("model")
+    XCTAssertEqual(store.destination, .settings)
+    XCTAssertEqual(store.settingsPage, .model)
+    XCTAssertFalse(store.showingModelPicker)
+    store.modelConfiguration.baseURL = "https://example.com/v1"
+    store.modelConfiguration.model = "fixture"
+    store.action = .build
+    store.executeCommand("model")
+    XCTAssertEqual(store.destination, .workspace)
+    XCTAssertEqual(store.action, .chat)
+    XCTAssertTrue(store.showingModelPicker)
+    store.openSettings(.model)
+    XCTAssertFalse(store.showingModelPicker)
+  }
+}

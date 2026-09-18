@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/openai/codex.git",
+  "revision": "50d77959bf927293c4b5ddcca81d05331ae582ea",
+  "inspectedAt": "2026-09-16",
+  "integrationStatus": "source-audited-not-linked",
+  "rustToolchain": "1.95.0",
+  "paths": {
+    "coreFacade": "codex-rs/core-api/src/lib.rs",
+    "extensionApi": "codex-rs/ext/extension-api",
+    "contributors": "codex-rs/ext/extension-api/src/contributors.rs",
+    "registry": "codex-rs/ext/extension-api/src/registry.rs",
+    "embeddingSample": "codex-rs/thread-manager-sample/src/main.rs",
+    "configLoader": "codex-rs/config/src/loader/README.md"
+  }
+}

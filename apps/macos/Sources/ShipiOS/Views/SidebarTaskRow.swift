@@ -1,0 +1,64 @@
+import SwiftUI
+
+struct SidebarTaskRow: View {
+  let store: WorkspaceStore
+  let task: WorkspaceTask
+  var showsProject = false
+  private var run: AgentRun? {
+    task.runIDs.last.flatMap { id in
+      store.runs.first { $0.id == id } ?? store.library.localRuns.first { $0.id == id }
+    }
+  }
+  var body: some View {
+    Button {
+      store.selectTask(task)
+    } label: {
+      HStack(spacing: 8) {
+        if store.mcpPendingApprovals.values.contains(where: { task.runIDs.contains($0.runID) }) {
+          Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
+            .accessibilityLabel("等待工具批准")
+        } else if let run, run.isActive {
+          ProgressView().controlSize(.mini).frame(width: 12)
+        } else {
+          Image(systemName: task.pinned ? "pin" : "text.bubble").appFont(size: 11)
+            .foregroundStyle(.tertiary).frame(width: 12)
+        }
+        if store.library.unreadTasks.contains(task.id) {
+          Circle().fill(.blue).frame(width: 5, height: 5)
+        }
+        VStack(alignment: .leading, spacing: 3) {
+          Text(task.title).lineLimit(1).appFont(size: 12)
+          if showsProject {
+            Text(store.library.projectTitle(task.project)).appFont(size: 10).foregroundStyle(
+              .secondary
+            ).lineLimit(1)
+          }
+        }
+        Spacer(minLength: 2)
+        if run?.status == "failed" { Circle().fill(.orange).frame(width: 5, height: 5) }
+      }.padding(.horizontal, 10).padding(.vertical, 9)
+        .background(
+          store.destination == .workspace && store.selectedTask?.id == task.id
+            ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7)
+        )
+        .contentShape(Rectangle())
+    }.buttonStyle(.plain).disabled(!store.canSelectTask(task))
+      .help("\(task.title) · \(store.library.projectTitle(task.project))")
+      .accessibilityAddTraits(
+        store.destination == .workspace && store.selectedTask?.id == task.id ? .isSelected : []
+      )
+      .contextMenu {
+        Button("重命名…") { store.beginRenamingTask(task.id) }
+        Button(store.library.unreadTasks.contains(task.id) ? "标记为已读" : "标记为未读") {
+          store.setTaskUnread(task.id, unread: !store.library.unreadTasks.contains(task.id))
+        }
+        Button(task.pinned ? "取消置顶" : "置顶任务") { store.updateTask(task.id, pin: !task.pinned) }
+        SidebarPlacementMenu(store: store, item: .task(task.id))
+        Button(task.archived ? "恢复任务" : "归档任务") {
+          store.updateTask(task.id, archive: !task.archived)
+        }
+        .disabled(store.activeRun(taskID: task.id) != nil)
+      }
+      .modifier(SidebarItemDrag(store: store, item: .task(task.id)))
+  }
+}

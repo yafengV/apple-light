@@ -1,0 +1,13 @@
+/target/
+/.cache/
+/.shipios-local/
+/.build/
+/dist/
+/apps/macos/.build/
+/apps/macos/.swiftpm/
+.DS_Store
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
