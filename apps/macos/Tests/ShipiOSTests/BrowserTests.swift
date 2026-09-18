@@ -52,6 +52,54 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(pasteboard.string(forType: .string), base + "/two")
   }
 
+  @MainActor func testColdWorkspaceRestoreLoadsSavedPageWithoutSubmittingAddressDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-cold-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let original = WorkspaceStore(dataRoot: root)
+    original.libraryLoaded = true
+    original.scopeLoaded = true
+    original.library.tasks = [.init(id: "restored", project: "", title: "Restored", runIDs: [])]
+    original.library.lastWorkspace = ""
+    original.library.projectSelections[""] = "restored"
+    original.selection = "restored"
+    original.restoreWorkspaceTabLayout()
+    original.newBrowserTab()
+    let page = try XCTUnwrap(original.workspace.browser.selected)
+    try await load(page, "/one", title: "One")
+    page.address = "unfinished address edit"
+    page.editingAddress = true
+    let tabID = try XCTUnwrap(original.activeWorkspaceTabID)
+    original.moveWorkspaceTab(tabID, to: .right)
+    original.newBrowserTab()
+    let empty = try XCTUnwrap(original.workspace.browser.selected)
+    empty.address = "not a submitted URL"
+    original.saveLibrary()
+    await original.shutdown()
+
+    let cold = WorkspaceStore(dataRoot: root)
+    defer { cold.workspace.browser.shutdown() }
+    await cold.restore()
+    XCTAssertFalse(cold.restoringLibrary)
+    XCTAssertNil(cold.libraryReadError)
+    let restored = try XCTUnwrap(cold.workspace.browser.tabs.first { $0.id == page.id })
+    try await eventually("Saved URL did not finish restoring") {
+      restored.title == "One" && !restored.loading && restored.error == nil
+    }
+    XCTAssertEqual(restored.committedURL?.absoluteString, base + "/one")
+    XCTAssertEqual(restored.address, "unfinished address edit")
+    XCTAssertTrue(restored.editingAddress)
+    XCTAssertEqual(cold.activeRightWorkspaceTabID, tabID)
+    XCTAssertEqual(cold.activeWorkspaceContentTab?.browserID, empty.id)
+    XCTAssertEqual(cold.workspace.browser.selected?.address, "not a submitted URL")
+    XCTAssertNil(cold.workspace.browser.selected?.view.url)
+    // A later save must keep the committed URL independently from both address drafts.
+    cold.saveLibrary()
+    let disk = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    let saved = try XCTUnwrap(disk.workspaceTabLayouts["restored"]?.tabs.first { $0.id == tabID })
+    XCTAssertEqual(saved.committedURL, base + "/one")
+    XCTAssertEqual(saved.address, "unfinished address edit")
+  }
+
   func testAddressValidationAndLocalDevelopmentDefaults() throws {
     XCTAssertEqual(try BrowserAddress.url("localhost:3000/a").absoluteString, "http://localhost:3000/a")
     XCTAssertEqual(try BrowserAddress.url("[::1]:8080").scheme, "http")

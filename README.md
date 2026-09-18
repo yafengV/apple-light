@@ -224,7 +224,8 @@ python3 script/smoke_ipc.py
 | [独立窗口投放区域](docs/167-task-window-drop-targets.md) | 隐藏面板目标、有效落点与清理；50 项回归通过，真实系统拖放仍待验收 |
 | [主窗口投放与共享清理](docs/168-workspace-drop-lifecycle.md) | 隐藏侧面板/底部目标、移除 10 秒失效、共用释放清理；67 项回归通过，真实拖放仍待验收 |
 | [原生标签拖动会话](docs/169-native-tab-drag-sessions.md) | 系统结束回调取代轮询、原生隐藏投放区域；75 项回归通过，原生提示/目标高亮已观察，完整释放仍待验收 |
-| [主窗口标签恢复阶段性提交](docs/170-workspace-tab-restoration-checkpoint.md) | 按任务持久化布局与地址草稿；153 项回归通过，原生重启后右侧网页空白待修 |
+| [主窗口标签恢复阶段性提交](docs/170-workspace-tab-restoration-checkpoint.md) | 按任务持久化布局与地址草稿；153 项回归通过，网页可见性复核见第 171 篇 |
+| [网页恢复可见性复核](docs/171-browser-restoration-visibility-verification.md) | 前台原基线显示与输入通过，补真实 HTTP 冷启动回归；第二次原生重启被锁屏中断 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
