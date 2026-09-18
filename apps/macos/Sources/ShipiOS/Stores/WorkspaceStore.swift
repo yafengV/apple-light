@@ -94,7 +94,7 @@ final class WorkspaceStore {
   var focusedWorkspaceTabID: String?
   var draggingWorkspaceTabID: String?
   var workspaceTabDropTarget: WorkspaceTabDropTarget?
-  @ObservationIgnored var workspaceTabDragSessionID = UUID()
+  var workspaceTabDragSessionID: UUID?
   var showingWorkspaceTabs = true
   var workspaceContentPaneSide: WorkspacePaneSide = .right
   var lastWorkspaceContentTabID: String?

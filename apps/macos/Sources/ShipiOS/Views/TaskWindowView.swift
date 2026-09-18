@@ -277,16 +277,7 @@ struct TaskWindowView: View {
 
   var body: some View {
     routedTaskContent
-    .background(TaskWindowDragLifecycle(tabs: tabs).frame(width: 0, height: 0))
-    .task(id: tabs.dragSessionID) {
-      guard let session = tabs.dragSessionID else { return }
-      // SwiftUI does not expose drag cancellation. Watch only this active mouse drag,
-      // including releases outside the app, rather than expiring long drags on a timer.
-      while !Task.isCancelled, tabs.dragSessionID == session, NSEvent.pressedMouseButtons & 1 != 0 {
-        try? await Task.sleep(for: .milliseconds(50))
-      }
-      if !Task.isCancelled { tabs.endDrag(session: session) }
-    }
+    .tabDragLifecycle(session: tabs.dragSessionID) { tabs.endDrag(session: $0) }
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }

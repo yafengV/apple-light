@@ -326,17 +326,26 @@ extension WorkspaceStore {
     workspaceTabDragSessionID = sessionID
     draggingWorkspaceTabID = id
     workspaceTabDropTarget = nil
-    Task { @MainActor [weak self] in
-      try? await Task.sleep(for: .seconds(10))
-      guard let self, self.workspaceTabDragSessionID == sessionID else { return }
-      self.endWorkspaceTabDrag()
-    }
   }
 
-  func endWorkspaceTabDrag() {
-    workspaceTabDragSessionID = UUID()
+  func endWorkspaceTabDrag(session: UUID? = nil) {
+    if let session, session != workspaceTabDragSessionID { return }
+    workspaceTabDragSessionID = nil
     draggingWorkspaceTabID = nil
     workspaceTabDropTarget = nil
+  }
+
+  func canDropWorkspaceTab(to placement: WorkspaceTabPlacement) -> Bool {
+    destination == .workspace && draggingWorkspaceTabID.map { canMoveWorkspaceTab($0, to: placement) } == true
+  }
+
+  @discardableResult func dropWorkspaceTab(_ values: [String], to placement: WorkspaceTabPlacement) -> Bool {
+    defer { endWorkspaceTabDrag() }
+    guard destination == .workspace,
+      let id = values.compactMap(WorkspaceTabDragToken.decode).first,
+      canMoveWorkspaceTab(id, to: placement) else { return false }
+    moveWorkspaceTab(id, to: placement)
+    return true
   }
 
   @discardableResult func moveWorkspaceTab(_ id: String, toOwner newOwner: String) -> String? {
@@ -414,6 +423,7 @@ extension WorkspaceStore {
   }
 
   private func workspaceTabDidDisappear(_ id: String) {
+    if draggingWorkspaceTabID == id { endWorkspaceTabDrag() }
     workspaceTabPlacements[id] = nil
     if activeWorkspaceTabID == id { activeWorkspaceTabID = nil }
     if activeRightWorkspaceTabID == id { activeRightWorkspaceTabID = nil }

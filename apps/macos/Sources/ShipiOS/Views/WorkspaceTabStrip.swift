@@ -107,7 +107,7 @@ private struct WorkspaceContentTabChip: View {
       }
     }
     .overlay {
-      if dropTargeted {
+      if dropTargeted && store.draggingWorkspaceTabID != nil {
         RoundedRectangle(cornerRadius: 7).stroke(Color.accentColor, lineWidth: 2)
           .allowsHitTesting(false)
       }
@@ -169,13 +169,7 @@ extension View {
     store: WorkspaceStore, placement: WorkspaceTabPlacement
   ) -> some View {
     dropDestination(for: String.self) { values, _ in
-      defer {
-        store.endWorkspaceTabDrag()
-      }
-      guard let id = values.compactMap(WorkspaceTabDragToken.decode).first,
-        store.canMoveWorkspaceTab(id, to: placement) else { return false }
-      store.moveWorkspaceTab(id, to: placement)
-      return true
+      store.dropWorkspaceTab(values, to: placement)
     } isTargeted: { targeted in
       if targeted {
         if let id = store.draggingWorkspaceTabID,

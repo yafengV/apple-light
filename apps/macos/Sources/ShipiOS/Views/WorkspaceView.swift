@@ -175,7 +175,11 @@ struct WorkspaceView: View {
           }
         }
       }
-      .onChange(of: store.selection) { _, _ in Task { await store.loadDetails() } }
+      .onChange(of: store.selection) { _, _ in
+        store.endWorkspaceTabDrag()
+        Task { await store.loadDetails() }
+      }
+      .onChange(of: store.destination) { _, _ in store.endWorkspaceTabDrag() }
       .onChange(of: store.project) { _, _ in store.showingBranchPicker = false }
       .onChange(of: store.logName) { _, _ in Task { await store.loadDetails() } }
       .alert("重命名项目", isPresented: Binding(
@@ -200,6 +204,7 @@ struct WorkspaceView: View {
         }
       }
     }
+    .tabDragLifecycle(session: store.workspaceTabDragSessionID) { store.endWorkspaceTabDrag(session: $0) }
     .disabled(store.renameTaskID != nil)
     .accessibilityHidden(store.renameTaskID != nil)
     .overlay {
@@ -221,7 +226,7 @@ struct WorkspaceView: View {
             store.moveWorkspaceTab(id, to: .detached)
             openWindow(value: WorkspaceTabWindowRoute(tabID: id))
           }
-          if let cue = store.workspaceTabDropTarget?.cue, store.workspaceTabDropTarget != .newWindow {
+          if let cue = store.workspaceTabDropTarget?.cue(side: store.workspaceContentPaneSide), store.workspaceTabDropTarget != .newWindow {
             Label(cue.title, systemImage: cue.icon)
               .appFont(.callout)
               .padding(.horizontal, 14).padding(.vertical, 8)
@@ -292,6 +297,36 @@ struct WorkspaceView: View {
       }
     }
     .frame(width: width, height: height)
+    .overlay(alignment: store.workspaceContentPaneSide == .right ? .trailing : .leading) {
+      if !store.showingInspector, store.canDropWorkspaceTab(to: .right) {
+        hiddenPanelDropTarget(.right,
+          title: store.workspaceContentPaneSide == .right ? "移到右侧" : "移到左侧",
+          icon: store.workspaceContentPaneSide == .right ? "rectangle.trailinghalf.inset.filled" : "rectangle.leadinghalf.inset.filled")
+          .frame(width: min(150, width * 0.22))
+          .padding(.vertical, showsHiddenBottomDropTarget ? 90 : 8)
+      }
+    }
+    .overlay(alignment: .bottom) {
+      if showsHiddenBottomDropTarget {
+        hiddenPanelDropTarget(.bottom, title: "移到底部", icon: "rectangle.bottomhalf.inset.filled")
+          .frame(height: 84).padding(8)
+      }
+    }
+  }
+
+  private var showsHiddenBottomDropTarget: Bool {
+    (!store.showingTerminal || store.visibleWorkspaceContentTabs(in: .bottom).isEmpty)
+      && store.canDropWorkspaceTab(to: .bottom)
+  }
+
+  private func hiddenPanelDropTarget(_ placement: WorkspaceTabPlacement, title: String, icon: String) -> some View {
+    Label(title, systemImage: icon)
+      .appFont(.callout)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+      .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [6, 4])))
+      .workspaceTabDropDestination(store: store, placement: placement)
+      .accessibilityLabel(title)
   }
 
   private func inspectorResizeHandle(availableWidth: CGFloat) -> some View {
@@ -313,10 +348,12 @@ struct WorkspaceView: View {
 }
 
 private extension WorkspaceTabDropTarget {
-  var cue: (title: String, icon: String) {
+  func cue(side: WorkspacePaneSide) -> (title: String, icon: String) {
     switch self {
-    case .placement(.left): ("移到左侧", "rectangle.leadinghalf.inset.filled")
-    case .placement(.right): ("移到右侧", "rectangle.trailinghalf.inset.filled")
+    case .placement(.left): side == .right
+      ? ("移到左侧", "rectangle.leadinghalf.inset.filled") : ("移到右侧", "rectangle.trailinghalf.inset.filled")
+    case .placement(.right): side == .right
+      ? ("移到右侧", "rectangle.trailinghalf.inset.filled") : ("移到左侧", "rectangle.leadinghalf.inset.filled")
     case .placement(.bottom): ("移到底部", "rectangle.bottomhalf.inset.filled")
     case .placement(.detached), .newWindow: ("在新窗口中打开", "macwindow.badge.plus")
     case .pin: ("固定标签页", "pin")
