@@ -9,6 +9,7 @@ extension WorkspaceStore {
   func loadPersonalization() async {
     guard !personalizationLoading else { return }
     personalizationLoading = true
+    personalizationError = nil
     defer { personalizationLoading = false }
     let root = dataRoot
     let legacy = modelConfiguration.instructions

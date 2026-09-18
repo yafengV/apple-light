@@ -38,19 +38,38 @@ struct PersonalizationSettingsView: View {
             .help("保存自定义指令（⌘S）")
             .disabled(!store.canSavePersonalizationEdits)
         }
-        SettingsTextEditor(text: $store.personalizationDraft, label: "自定义指令",
-          placeholder: "添加自定义指令…")
-          .appFont(size: 13).frame(minHeight: 190)
-          .accessibilityLabel("自定义指令").settingsSearchTarget(.instructions)
-          .disabled(!store.personalizationLoaded)
-      }
-      if let error = store.personalizationError {
-        Section {
-          Text(error).foregroundStyle(.red).textSelection(.enabled)
-          Button("重新加载") { Task { await store.loadPersonalization() } }
-            .disabled(store.personalizationLoading)
-        }
+        VStack(alignment: .leading, spacing: 12) { instructionsContent }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .settingsSearchTarget(.instructions)
       }
     }.settingsFormStyle().appSurface()
+  }
+
+  @ViewBuilder private var instructionsContent: some View {
+    if store.personalizationLoaded {
+      SettingsTextEditor(text: $store.personalizationDraft, label: "自定义指令",
+        placeholder: "添加自定义指令…")
+        .appFont(size: 13).frame(minHeight: 190)
+        .accessibilityLabel("自定义指令")
+      if let error = store.personalizationError {
+        Text(error).foregroundStyle(.red).textSelection(.enabled)
+      }
+    } else if store.personalizationLoading || store.personalizationError == nil {
+      HStack(spacing: 8) {
+        ProgressView().controlSize(.small).accessibilityHidden(true)
+        Text("正在加载自定义指令…").foregroundStyle(.secondary)
+      }.accessibilityElement(children: .combine)
+    } else {
+      HStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("无法加载个性化设置和自定义指令。")
+          if let error = store.personalizationError {
+            Text(error).appFont(.caption).textSelection(.enabled)
+          }
+        }.foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+        Button("重试") { Task { await store.loadPersonalization() } }
+          .accessibilityLabel("重新加载自定义指令")
+      }
+    }
   }
 }
