@@ -4,6 +4,7 @@ struct SettingsNavigationView: View {
   @Bindable var store: WorkspaceStore
   @State private var query = ""
   @State private var highlightedResultID: String?
+  @State private var navigationFocusRequest: UUID?
   @FocusState private var focusedPage: SettingsPage?
   @FocusState private var focusedResultID: String?
 
@@ -79,6 +80,8 @@ struct SettingsNavigationView: View {
     }
     .padding(.horizontal, 12).padding(.top, 16)
     .frame(width: 220).appSidebarSurface()
+    .background(SettingsNavigationKeyboardTarget(request: navigationFocusRequest,
+      visible: store.destination == .settings, onMove: movePageHighlight).frame(width: 0, height: 0))
     .onAppear { store.settingsSearchFocusRequest = UUID() }
     .onChange(of: query) { _, _ in highlightedResultID = nil }
   }
@@ -116,11 +119,17 @@ struct SettingsNavigationView: View {
     store.settingsSearchRequest = nil
     store.settingsPage = page
     if focusNavigation {
-      // SwiftUI button focus does not reliably end the embedded NSSearchField's
-      // field-editor session. End that session before focusing navigation.
-      if let window = NSApp?.keyWindow { window.makeFirstResponder(window.contentView) }
       focusedPage = page
+      navigationFocusRequest = UUID()
     }
+  }
+
+  private func movePageHighlight(_ direction: MoveCommandDirection) {
+    let offset = direction == .down ? 1 : direction == .up ? -1 : 0
+    guard offset != 0,
+      let next = SettingsNavigation.adjacent(to: store.settingsPage, offset: offset,
+        in: SettingsNavigation.pages) else { return }
+    select(next, focusNavigation: true)
   }
 
   private func moveSearchHighlight(_ direction: MoveCommandDirection) {
