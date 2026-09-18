@@ -21,6 +21,7 @@ cp .cache/macos-build/debug/ShipiOS "$app/Contents/MacOS/ShipiOS"
 cp target/debug/shipios-agent "$app/Contents/Helpers/shipios-agent"
 ditto .cache/macos-build/debug/SwiftTerm_SwiftTerm.bundle "$app/Contents/Resources/SwiftTerm_SwiftTerm.bundle"
 install -m 644 .cache/macos-build/checkouts/SwiftTerm/LICENSE "$app/Contents/Resources/SwiftTerm-LICENSE.txt"
+ditto licenses "$app/Contents/Resources/Licenses"
 ditto fixtures/HelloShipiOS "$app/Contents/Resources/HelloShipiOS"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

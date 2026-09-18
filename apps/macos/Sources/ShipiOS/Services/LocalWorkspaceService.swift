@@ -8,17 +8,23 @@ struct CommandOutput: Sendable {
 /// No shell interpolation. Output is drained into a temporary file to avoid pipe deadlocks.
 enum LocalWorkspaceService {
   static func command(_ executable: String, _ arguments: [String], at root: URL,
-    indexFile: URL? = nil) async throws
+    indexFile: URL? = nil, cancelWithTask: Bool = false) async throws
     -> CommandOutput
   {
-    try await Task.detached(priority: .userInitiated) {
+    let job = Task.detached(priority: .userInitiated) {
       try runCommand(executable, arguments, at: root, indexFile: indexFile)
-    }.value
+    }
+    return try await withTaskCancellationHandler {
+      try await job.value
+    } onCancel: {
+      if cancelWithTask { job.cancel() }
+    }
   }
   private static func runCommand(_ executable: String, _ arguments: [String], at root: URL,
     indexFile: URL?) throws
     -> CommandOutput
   {
+    try Task<Never, Never>.checkCancellation()
     let output = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     FileManager.default.createFile(
       atPath: output.path, contents: nil, attributes: [.posixPermissions: 0o600])
@@ -47,15 +53,17 @@ enum LocalWorkspaceService {
     process.standardError = errorHandle
     try process.run()
     let deadline = Date().addingTimeInterval(20)
-    while process.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.03) }
+    while process.isRunning && Date() < deadline && !Task<Never, Never>.isCancelled { Thread.sleep(forTimeInterval: 0.03) }
     if process.isRunning {
       process.terminate()
       Thread.sleep(forTimeInterval: 0.1)
       if process.isRunning { kill(process.processIdentifier, SIGKILL) }
       process.waitUntilExit()
+      try Task<Never, Never>.checkCancellation()
       throw AgentFailure(message: "命令超时，请在终端检查项目。")
     }
     process.waitUntilExit()
+    try Task<Never, Never>.checkCancellation()
     let reader = try FileHandle(forReadingFrom: output)
     defer { try? reader.close() }
     let data = try reader.read(upToCount: 1_048_577) ?? Data()

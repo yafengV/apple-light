@@ -46,6 +46,11 @@ enum Action {
     },
     /// List persisted runs; unfinished runs from an earlier process become interrupted.
     Runs,
+    /// Read-only workspace path search; does not load configuration or create state.
+    SearchFiles {
+        #[arg(long, allow_hyphen_values = true)]
+        query: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -61,6 +66,13 @@ fn main() -> Result<()> {
 
 async fn run() -> Result<()> {
     let args = Args::parse();
+    if let Action::SearchFiles { query } = &args.command {
+        println!(
+            "{}",
+            serde_json::to_string(&shipios_tools::file_search::search(&args.project, query)?)?
+        );
+        return Ok(());
+    }
     let data_dir = match args
         .data_dir
         .or_else(|| std::env::var_os("SHIPIOS_HOME").map(PathBuf::from))

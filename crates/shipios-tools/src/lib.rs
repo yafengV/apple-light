@@ -1,3 +1,4 @@
+pub mod file_search;
 pub mod process;
 pub mod project;
 

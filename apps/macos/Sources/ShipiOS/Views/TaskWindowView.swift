@@ -246,7 +246,7 @@ struct TaskWindowView: View {
     .appSurface()
     .disabled(showingFileSearch).allowsHitTesting(!showingFileSearch).accessibilityHidden(showingFileSearch)
     .overlay {
-      if showingFileSearch { WorkspaceFileSearchView(workspace: taskWorkspace, open: { path in
+      if showingFileSearch { WorkspaceFileSearchView(workspace: taskWorkspace, executable: store.executable, open: { path in
         showingReview = false
         showingFiles = true
         taskWorkspace.selectFile(path)
