@@ -5,8 +5,11 @@ import UniformTypeIdentifiers
 struct TaskWindowView: View {
   @Bindable var store: WorkspaceStore
   let taskID: String
+  let renameHistory: TaskRenameHistory
+  let onNavigate: (String) -> Void
   @Environment(\.openWindow) private var openWindow
   @Environment(\.dismiss) private var dismiss
+  @State private var forkError: String?
   @State private var mode = ChatMode.standard
   @State private var commandSelection = ComposerCommandSelection()
   @State private var pluginSelection = PluginMentionSelection()
@@ -18,7 +21,6 @@ struct TaskWindowView: View {
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
   @State private var renameTitle: String?
-  @State private var renameHistory = TaskRenameHistory()
   @State private var dropTargeted = false
   @State private var showingFind = false
   @State private var findText = ""
@@ -60,6 +62,9 @@ struct TaskWindowView: View {
   }
   private var canSend: Bool {
     guard task != nil else { return false }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token {
+      return store.canForkTaskWindow(taskID)
+    }
     return store.canStartChat(taskID: taskID)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
@@ -87,6 +92,14 @@ struct TaskWindowView: View {
                   previous: { moveFindMatch(-1) }, next: { moveFindMatch(1) },
                   close: { closeFind() })
                 Divider()
+              }
+              if let forkError {
+                HStack {
+                  Text(forkError).foregroundStyle(.red).textSelection(.enabled)
+                  Spacer()
+                  Button { self.forkError = nil } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.plain).accessibilityLabel("关闭分叉错误")
+                }.padding(12)
               }
               taskTimeline
               Divider()
@@ -156,6 +169,8 @@ struct TaskWindowView: View {
             }
             if !task.isPopoutDraft {
               Menu {
+                Button("分叉到新任务") { forkTask() }
+                  .disabled(!store.canForkTaskWindow(taskID) || windowCommandsBlocked)
                 Button("重命名任务") { performWindowCommand("rename") }
                 Button(task.pinned ? "取消置顶" : "置顶任务") { performWindowCommand("pin") }
                 Button("标为未读") { performWindowCommand("unread") }
@@ -200,7 +215,7 @@ struct TaskWindowView: View {
       }
     }
     .focusedSceneValue(\.taskRenameActive, renameTitle != nil)
-    .taskRenameUndo(store: store, history: renameHistory, blocked: windowCommandsBlocked)
+    .taskRenameUndo(store: store, history: renameHistory, blocked: windowCommandsBlocked, onReveal: onNavigate)
     .frame(minWidth: 620, minHeight: 520)
     .focusedSceneValue(\.taskWindowCommands, windowCommandContext)
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
@@ -249,6 +264,12 @@ struct TaskWindowView: View {
       mode = store.goalSession(for: taskID)?.status == .active ? .goal : .standard
       configureTaskWorkspace()
     }
+    .task(id: taskID) {
+      await Task.yield()
+      guard !Task.isCancelled else { return }
+      composerFocused = true
+      taskComposerFocusRequest = UUID()
+    }
     .onDisappear {
       terminalSession?.stop()
       store.discardPopoutTaskIfEmpty(taskID)
@@ -265,6 +286,28 @@ struct TaskWindowView: View {
     .task(id: findRevision) {
       guard showingFind else { return }
       await refreshFindMatches()
+    }
+  }
+
+  private func submitTaskDraft() {
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token {
+      forkTask(consumeCommand: true)
+    } else {
+      Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
+    }
+  }
+
+  private func forkTask(through runID: String? = nil, consumeCommand: Bool = false) {
+    guard !windowCommandsBlocked else { return }
+    do {
+      let fork = try store.forkTaskWindowConversation(taskID, through: runID, consumeCommand: consumeCommand)
+      forkError = nil
+      onNavigate(fork.id)
+    } catch {
+      forkError = error.localizedDescription
+      composerFocused = true
+      taskComposerFocusRequest = UUID()
+      if consumeCommand { commandSelection = ComposerCommandSelection(); updateCandidates() }
     }
   }
 
@@ -287,6 +330,7 @@ struct TaskWindowView: View {
     var enabled: Set<String> = windowCommandsBlocked ? [] : ["tab-close"]
     if !windowCommandsBlocked, let task {
       enabled.formUnion(["find", "plan", "model"])
+      if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
       if !task.isPopoutDraft { enabled.formUnion(["pin", "unread", "rename"]) }
@@ -304,10 +348,11 @@ struct TaskWindowView: View {
     if id == "tab-close" { dismiss(); return }
     guard let task else { return }
     switch id {
-    case "send": if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode) } }
+    case "send": if canSend { submitTaskDraft() }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find": showingFind = true; findFocusRequest = UUID()
     case "model": openTaskModelPicker()
+    case "fork": forkTask()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)
     case "find-previous": moveFindMatch(-1)
@@ -359,10 +404,18 @@ struct TaskWindowView: View {
     ScrollViewReader { reader in
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 28) {
+          if let origin = task?.forkOrigin,
+            let source = store.library.tasks.first(where: { $0.id == origin.taskID }) {
+            Button { onNavigate(source.id) } label: {
+              Label("分叉自 \(source.title)", systemImage: "arrow.triangle.branch").lineLimit(2)
+            }.buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
+          }
           ForEach(taskRuns) { run in
             TaskWindowMessageView(
               store: store, run: run,
-              onPreviewFile: { previewFile = $0 }
+              onPreviewFile: { previewFile = $0 },
+              canFork: !windowCommandsBlocked && store.canForkTaskWindow(taskID, through: run.id),
+              onFork: { forkTask(through: run.id) }
             ).id(run.id)
           }
           Color.clear.frame(height: 1).id("task-window-end")
@@ -572,7 +625,7 @@ struct TaskWindowView: View {
           .buttonStyle(.bordered).clipShape(Circle()).help("停止任务")
         } else {
           Button {
-            Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
+            submitTaskDraft()
           } label: {
             Image(systemName: "arrow.up")
               .foregroundStyle(Color(nsColor: .windowBackgroundColor))
@@ -626,6 +679,7 @@ struct TaskWindowView: View {
   private var taskWindowCommands: Set<ComposerCommand> {
     guard let task else { return [] }
     return Set(ComposerCommand.allCases.filter { command in
+      if command == .fork { return store.canForkTaskWindow(taskID) }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -655,6 +709,9 @@ struct TaskWindowView: View {
 
   private func selectTaskWindowCommand(_ command: ComposerCommand) {
     switch command {
+    case .fork:
+      forkTask(consumeCommand: true)
+      return
     case .chat:
       if mode == .goal { store.pauseGoal(taskID) }
       mode = .standard
@@ -735,12 +792,12 @@ struct TaskWindowView: View {
       return true
     }
     if key == .enter, sendShortcut.sendsOnPlainReturn(draft.wrappedValue) {
-      if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode) } }
+      if canSend { submitTaskDraft() }
       return true
     }
     }
     if key == .enter, modifiers == .command, store.shortcuts.matches("send", ShortcutBinding("⌘↵")) {
-      if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode) } }
+      if canSend { submitTaskDraft() }
       return true
     }
     return false
@@ -751,6 +808,8 @@ private struct TaskWindowMessageView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
   let onPreviewFile: (FileAttachment) -> Void
+  let canFork: Bool
+  let onFork: () -> Void
   @State private var copied = false
 
   var body: some View {
@@ -795,16 +854,21 @@ private struct TaskWindowMessageView: View {
             .textSelection(.enabled)
         }
         if !run.isActive {
-          Button {
-            let text = run.kind == "chat" ? (run.result?["response"].text ?? "") : run.displaySummary
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
-            copied = true
-          } label: {
-            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+          HStack(spacing: 12) {
+            Button {
+              let text = run.kind == "chat" ? (run.result?["response"].text ?? "") : run.displaySummary
+              NSPasteboard.general.clearContents()
+              NSPasteboard.general.setString(text, forType: .string)
+              copied = true
+            } label: {
+              Image(systemName: copied ? "checkmark" : "doc.on.doc")
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary)
+            .help(copied ? "已复制" : "复制结果")
+            Button(action: onFork) { Image(systemName: "arrow.triangle.branch") }
+              .buttonStyle(.plain).foregroundStyle(.secondary).disabled(!canFork)
+              .help("从此处分叉到新任务").accessibilityLabel("从此处分叉到新任务")
           }
-          .buttonStyle(.plain).foregroundStyle(.secondary)
-          .help(copied ? "已复制" : "复制结果")
         }
       }
     }

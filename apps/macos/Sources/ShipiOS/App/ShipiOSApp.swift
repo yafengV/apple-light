@@ -28,16 +28,14 @@ struct ShipiOSApp: App {
     .windowResizability(.contentMinSize)
     .commands { WorkspaceCommands(store: store) }
     WindowGroup("任务", for: TaskWindowRoute.self) { route in
-      if let route = route.wrappedValue {
-        TaskWindowView(store: store, taskID: route.taskID)
-          .environment(\.appAppearance, store.appearance)
-          .transaction { $0.disablesAnimations = store.appearance.shouldReduceMotion }
-          .font(store.appearance.font(size: 13))
-          .foregroundStyle(store.appearance.foregroundColor)
-          .tint(store.appearance.accentColor)
-          .background(store.appearance.backgroundColor)
-          .preferredColorScheme(store.appearance.colorScheme)
-      }
+      TaskWindowSceneView(store: store, route: route)
+        .environment(\.appAppearance, store.appearance)
+        .transaction { $0.disablesAnimations = store.appearance.shouldReduceMotion }
+        .font(store.appearance.font(size: 13))
+        .foregroundStyle(store.appearance.foregroundColor)
+        .tint(store.appearance.accentColor)
+        .background(store.appearance.backgroundColor)
+        .preferredColorScheme(store.appearance.colorScheme)
     }
     .defaultSize(width: 760, height: 720)
     .windowResizability(.contentMinSize)

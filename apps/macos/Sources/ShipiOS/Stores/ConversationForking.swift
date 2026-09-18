@@ -2,8 +2,30 @@ import Foundation
 
 extension WorkspaceStore {
   var canForkConversation: Bool {
-    !busy && selectedTask?.project == currentProjectKey
-      && conversationRuns.first.map { !$0.isActive } == true
+    guard !busy, let task = selectedTask, task.project == currentProjectKey else { return false }
+    return (try? library.forkHistory(taskID: task.id, availableRuns: runs)) != nil
+  }
+
+  func canForkTaskWindow(_ taskID: String, through runID: String? = nil) -> Bool {
+    guard libraryLoaded, !busy else { return false }
+    return (try? library.forkHistory(taskID: taskID, through: runID,
+      availableRuns: taskWindowRuns(taskID))) != nil
+  }
+
+  /// Persist a fork for the calling window without touching main-window navigation.
+  func forkTaskWindowConversation(_ taskID: String, through runID: String? = nil,
+    consumeCommand: Bool = false) throws -> WorkspaceTask {
+    guard libraryLoaded, !busy else { throw AgentFailure(message: "请等待工作区完成当前操作后再分叉。") }
+    var candidate = library
+    let fork = try candidate.forkConversation(taskID: taskID, through: runID,
+      availableRuns: taskWindowRuns(taskID))
+    if consumeCommand { candidate.drafts[taskID] = "" }
+    try commitLibrary(candidate)
+    if fork.project == currentProjectKey {
+      let copied = Set(fork.runIDs)
+      runs.append(contentsOf: candidate.forkRuns.filter { copied.contains($0.id) })
+    }
+    return fork
   }
 
   @discardableResult func forkConversation(

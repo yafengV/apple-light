@@ -21,7 +21,7 @@ import SwiftTerm
     }
   }
 
-  func context(history: TaskRenameHistory, store: WorkspaceStore, blocked: Bool, revealInMain: Bool) -> TaskRenameUndoCommands {
+  func context(history: TaskRenameHistory, store: WorkspaceStore, blocked: Bool, revealInMain: Bool, onReveal: ((String) -> Void)? = nil) -> TaskRenameUndoCommands {
     func allowed(_ redo: Bool) -> Bool {
       guard !blocked, history.canPerform(redo: redo, store: store) else { return false }
       guard revealInMain else { return true }
@@ -42,7 +42,8 @@ import SwiftTerm
           if redo { manager.redo() } else { manager.undo() }
         } else if allowed(redo) {
           let id = history.perform(redo: redo, store: store)
-          if revealInMain, let id, let task = store.library.tasks.first(where: { $0.id == id }) {
+          if let id, let onReveal { onReveal(id) }
+          else if revealInMain, let id, let task = store.library.tasks.first(where: { $0.id == id }) {
             store.selectTask(task)
           }
         }

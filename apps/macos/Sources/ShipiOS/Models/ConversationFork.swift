@@ -13,29 +13,16 @@ extension WorkspaceLibrary {
     guard let source = tasks.first(where: { $0.id == taskID }) else {
       throw AgentFailure(message: "找不到要分叉的任务。")
     }
-    let end: Int
-    if let runID {
-      guard let index = source.runIDs.firstIndex(of: runID) else {
-        throw AgentFailure(message: "该回合不属于当前任务。")
-      }
-      end = index + 1
-    } else {
-      end = source.runIDs.firstIndex { id in
-        availableRuns.first(where: { $0.id == id })?.isActive == true
-      } ?? source.runIDs.count
-    }
-    let ids = Array(source.runIDs.prefix(end))
-    guard !ids.isEmpty else { throw AgentFailure(message: "至少需要一个已结束的回合才能分叉。") }
+    let history = try forkHistory(taskID: taskID, through: runID, availableRuns: availableRuns)
+    let ids = history.map(\.id)
     var snapshots: [AgentRun] = []
     var origins: [String: String] = [:]
     var copiedNotes: [String: String] = [:]
     var copiedBranches: [String: String] = [:]
     var copiedFiles: [String: [FileAttachment]] = [:]
     var copiedImages: [String: [ImageAttachment]] = [:]
-    for id in ids {
-      guard let run = availableRuns.first(where: { $0.id == id }),
-        run.project == source.project, !run.isActive
-      else { throw AgentFailure(message: "历史尚未完整加载或包含进行中的回合，无法分叉。") }
+    for run in history {
+      let id = run.id
       let newID = UUID().uuidString
       snapshots.append(AgentRun(
         id: newID, kind: run.kind, project: run.project, status: run.status,
@@ -59,6 +46,33 @@ extension WorkspaceLibrary {
     runImages.merge(copiedImages) { _, new in new }
     runFiles.merge(copiedFiles) { _, new in new }
     return fork
+  }
+
+  /// Resolve the complete source prefix before any new task or run is created.
+  func forkHistory(taskID: String, through runID: String? = nil, availableRuns: [AgentRun]) throws -> [AgentRun] {
+    guard let source = tasks.first(where: { $0.id == taskID }) else {
+      throw AgentFailure(message: "找不到要分叉的任务。")
+    }
+    let end: Int
+    if let runID {
+      guard let index = source.runIDs.firstIndex(of: runID) else {
+        throw AgentFailure(message: "该回合不属于当前任务。")
+      }
+      end = index + 1
+    } else {
+      end = source.runIDs.firstIndex { id in
+        availableRuns.first(where: { $0.id == id })?.isActive == true
+      } ?? source.runIDs.count
+    }
+    let ids = Array(source.runIDs.prefix(end))
+    guard !ids.isEmpty else { throw AgentFailure(message: "至少需要一个已结束的回合才能分叉。") }
+    let available = Dictionary(availableRuns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    return try ids.map { id in
+      guard let run = available[id], run.project == source.project, !run.isActive else {
+        throw AgentFailure(message: "历史尚未完整加载或包含进行中的回合，无法分叉。")
+      }
+      return run
+    }
   }
 
   func chatContext(taskID: String?) -> [ChatMessage] {

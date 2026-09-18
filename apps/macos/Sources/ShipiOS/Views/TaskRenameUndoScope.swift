@@ -5,9 +5,10 @@ private struct TaskRenameUndoScope: ViewModifier {
   let history: TaskRenameHistory
   let blocked: Bool
   let revealInMain: Bool
+  let onReveal: ((String) -> Void)?
   @State private var routing = TaskRenameUndoRouting()
   func body(content: Content) -> some View {
-    let commands = routing.context(history: history, store: store, blocked: blocked, revealInMain: revealInMain)
+    let commands = routing.context(history: history, store: store, blocked: blocked, revealInMain: revealInMain, onReveal: onReveal)
     content
       .focusedSceneValue(\.taskRenameUndo, commands)
       .background(TaskRenameUndoBridge(routing: routing, context: commands).frame(width: 0, height: 0))
@@ -38,7 +39,7 @@ private struct TaskRenameUndoScope: ViewModifier {
 }
 
 extension View {
-  func taskRenameUndo(store: WorkspaceStore, history: TaskRenameHistory, blocked: Bool, revealInMain: Bool = false) -> some View {
-    modifier(TaskRenameUndoScope(store: store, history: history, blocked: blocked, revealInMain: revealInMain))
+  func taskRenameUndo(store: WorkspaceStore, history: TaskRenameHistory, blocked: Bool, revealInMain: Bool = false, onReveal: ((String) -> Void)? = nil) -> some View {
+    modifier(TaskRenameUndoScope(store: store, history: history, blocked: blocked, revealInMain: revealInMain, onReveal: onReveal))
   }
 }
