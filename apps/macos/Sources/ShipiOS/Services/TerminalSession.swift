@@ -8,12 +8,12 @@ final class TerminalSession {
   let root: URL
   private(set) var status: TerminalStatus = .running
   private(set) var title = "zsh"
-  @ObservationIgnored let view: LocalProcessTerminalView
+  @ObservationIgnored let view: SessionTerminalView
   @ObservationIgnored private let delegate = TerminalSessionDelegate()
 
   init(root: URL) {
     self.root = root
-    view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 700, height: 240))
+    view = SessionTerminalView(frame: NSRect(x: 0, y: 0, width: 700, height: 240))
     view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
     view.nativeBackgroundColor = .textBackgroundColor
     view.nativeForegroundColor = .textColor
