@@ -6,6 +6,7 @@ struct CommandPaletteView: View {
   @State private var selectedID: String?
   @State private var catalog = TaskSearchCatalog()
   @State private var reload = UUID()
+  @State private var cyclingSearchSections = false
   @FocusState private var focus: Field?
   private enum Field { case query, cancel, retry }
   private struct ResultGroup: Identifiable {
@@ -13,6 +14,7 @@ struct CommandPaletteView: View {
     let title: String
     var commands: [DesktopCommand] = []
     var tasks: [TaskSearchResult] = []
+    var browsers: [CommandBrowserResult] = []
   }
   private var searchQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
   private var request: TaskSearchRequest {
@@ -39,6 +41,8 @@ struct CommandPaletteView: View {
       result.append(.init(id: "commands", title: "命令", commands: matches.filter { !["new", "open"].contains($0.id) }))
     } else {
       if !matches.isEmpty { result.append(.init(id: "commands", title: "命令", commands: matches)) }
+      let browsers = CommandBrowserResult.search(store.commandBrowserTabs, query: query)
+      if !browsers.isEmpty { result.append(.init(id: "browsers", title: "浏览器标签", browsers: browsers)) }
       if !taskResults.isEmpty { result.append(.init(id: "tasks", title: "任务", tasks: taskResults)) }
     }
     return result
@@ -46,6 +50,7 @@ struct CommandPaletteView: View {
   private var selectableGroups: [[String]] {
     groups.map { group in
       group.commands.filter { store.paletteCommandEnabled($0.id) }.map { "command:" + $0.id }
+        + group.browsers.filter { store.canOpenCommandBrowserTab($0) }.map(\.id)
         + group.tasks.filter { store.canSelectTask($0.task) }.map { "task:" + $0.id }
     }.filter { !$0.isEmpty }
   }
@@ -61,7 +66,7 @@ struct CommandPaletteView: View {
         HStack {
           Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
           TextField("搜索命令与任务…", text: Binding(get: { query }, set: {
-            query = $0; selectedID = nil
+            query = $0; selectedID = nil; cyclingSearchSections = false
           })).textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel("搜索命令与任务")
           Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
         }.padding(18)
@@ -70,8 +75,9 @@ struct CommandPaletteView: View {
           List {
             ForEach(groups) { group in
               Section(group.title) {
-                ForEach(group.commands) { item in commandRow(item) }
-                ForEach(group.tasks) { result in taskRow(result) }
+                ForEach(group.commands, id: \.paletteID) { item in commandRow(item) }
+                ForEach(group.browsers) { result in browserRow(result) }
+                ForEach(group.tasks, id: \.paletteID) { result in taskRow(result) }
               }
             }
           }.onChange(of: selection) { _, id in if let id { reader.scrollTo(id) } }
@@ -131,6 +137,23 @@ struct CommandPaletteView: View {
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
       .accessibilityAddTraits(id == selection ? .isSelected : []).id(id)
   }
+  private func browserRow(_ result: CommandBrowserResult) -> some View {
+    Button { invoke(result.id) } label: {
+      HStack {
+        Image(systemName: "globe").foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+          Text(result.title.isEmpty ? result.url : result.title).lineLimit(1)
+            .help(result.title.isEmpty ? result.url : result.title)
+          Text(result.url).appFont(.caption).foregroundStyle(.secondary).lineLimit(1).help(result.url)
+        }
+        Spacer()
+        Text(result.ownerTitle).appFont(.caption).foregroundStyle(.secondary)
+          .lineLimit(1).frame(maxWidth: 110, alignment: .trailing).help(result.ownerTitle)
+      }.padding(.vertical, 6).contentShape(Rectangle())
+    }.buttonStyle(.plain).disabled(!store.canOpenCommandBrowserTab(result))
+      .listRowBackground(result.id == selection ? Color.primary.opacity(0.08) : .clear)
+      .accessibilityAddTraits(result.id == selection ? .isSelected : []).id(result.id)
+  }
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
     switch key {
     case .cancel: cancel()
@@ -142,6 +165,16 @@ struct CommandPaletteView: View {
       selectedID = TaskSearchRequest.nextSelection(selection, ids: selectable, offset: delta)
       focus = .query
     case .tab(let reverse):
+      let searchGroups = groups.compactMap { group -> [String]? in
+        if group.id == "browsers" { return group.browsers.filter { store.canOpenCommandBrowserTab($0) }.map(\.id) }
+        if group.id == "tasks" { return group.tasks.filter { store.canSelectTask($0.task) }.map { "task:" + $0.id } }
+        return nil
+      }
+      if let next = CommandSearchSections.next(selection, groups: searchGroups,
+        continuing: cyclingSearchSections, reverse: reverse) {
+        selectedID = next; cyclingSearchSections = true; focus = .query
+        return
+      }
       let fields: [Field] = CommandMenuSearch.searchesContent(query) && !catalog.historyErrors.isEmpty && !catalog.loading
         ? [.query, .cancel, .retry] : [.query, .cancel]
       let index = fields.firstIndex(of: focus ?? .query) ?? 0
@@ -156,6 +189,12 @@ struct CommandPaletteView: View {
   private func invoke(_ id: String? = nil) {
     guard let id = id ?? selection, selectable.contains(id) else { return }
     if id.hasPrefix("command:") { store.executePaletteCommand(String(id.dropFirst(8))) }
+    else if let result = groups.flatMap(\.browsers).first(where: { $0.id == id }) {
+      store.setOverlay(.commands, presented: false)
+      store.fileFocusAfterOverlay = nil
+      store.searchDialogReturnFocus = nil
+      Task { await store.openCommandBrowserTab(result) }
+    }
     else if let result = groups.flatMap(\.tasks).first(where: { "task:" + $0.id == id }),
       let task = store.library.tasks.first(where: { $0.id == result.id }), store.canSelectTask(task) {
       store.setOverlay(.commands, presented: false)
@@ -164,4 +203,11 @@ struct CommandPaletteView: View {
       store.selectTask(task)
     }
   }
+}
+
+private extension DesktopCommand {
+  var paletteID: String { "command:" + id }
+}
+private extension TaskSearchResult {
+  var paletteID: String { "task:" + id }
 }
