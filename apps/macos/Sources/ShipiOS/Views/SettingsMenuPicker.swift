@@ -112,6 +112,12 @@ final class SettingsMenuControl: NSPopUpButton {
     super.mouseDown(with: event)
   }
 
+  override func accessibilityPerformPress() -> Bool {
+    guard acceptsFirstResponder else { return false }
+    window?.makeFirstResponder(self)
+    return super.accessibilityPerformPress()
+  }
+
   override func keyDown(with event: NSEvent) {
     guard acceptsFirstResponder else { return }
     let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])

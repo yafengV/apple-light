@@ -5,6 +5,19 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsMenuPickerTests: XCTestCase {
+  func testHiddenLabelDoesNotConsumeInlineMenuWidthButKeepsAccessibilityName() async throws {
+    let state = MenuState()
+    state.title = "访问权限：" + String(repeating: "long-host-name.", count: 8)
+    state.hideLabel = true
+    let (window, host) = makeHost(state)
+    defer { window.close() }
+    try await settle(host)
+    let control = try XCTUnwrap(findControl(host))
+    XCTAssertEqual(control.accessibilityLabel(), state.title)
+    XCTAssertLessThanOrEqual(host.fittingSize.width, control.intrinsicContentSize.width + 16,
+      "Inline menus must not render or reserve space for their accessibility label")
+  }
+
   func testSelectionWritesOnceAndKeepsDuplicateLabelsDistinct() async throws {
     let state = MenuState()
     let (window, host) = makeHost(state)
@@ -62,6 +75,7 @@ import XCTest
     try await settle(host)
     XCTAssertFalse(control.acceptsFirstResponder)
     XCTAssertFalse(control.canBecomeKeyView)
+    XCTAssertFalse(control.accessibilityPerformPress())
     control.selectItem(at: 1)
     control.sendAction(control.action, to: control.target)
     XCTAssertEqual(state.writes, 0)
@@ -70,6 +84,7 @@ import XCTest
     host.isHidden = true
     XCTAssertFalse(control.acceptsFirstResponder)
     XCTAssertFalse(control.canBecomeKeyView)
+    XCTAssertFalse(control.accessibilityPerformPress())
     control.selectItem(at: 1)
     control.sendAction(control.action, to: control.target)
     XCTAssertEqual(state.writes, 0)
@@ -79,6 +94,7 @@ import XCTest
     XCTAssertFalse(control.active)
     XCTAssertNil(control.target)
     XCTAssertFalse(control.acceptsFirstResponder)
+    XCTAssertFalse(control.accessibilityPerformPress())
     XCTAssertEqual(state.writes, 0)
   }
 
@@ -104,6 +120,8 @@ import XCTest
 }
 
 @Observable private final class MenuState {
+  var title = "菜单"
+  var hideLabel = false
   var selection = 1
   var writes = 0
   var enabled = true
@@ -119,9 +137,16 @@ private struct MenuFixture: View {
   let state: MenuState
   var body: some View {
     if state.mounted {
-      SettingsMenuPicker("菜单", selection: Binding(
-        get: { state.selection }, set: { state.selection = $0; state.writes += 1 }),
-        options: state.options).disabled(!state.enabled)
+      Group {
+        if state.hideLabel { menu.labelsHidden() }
+        else { menu }
+      }.disabled(!state.enabled).fixedSize()
     }
+  }
+
+  private var menu: some View {
+    SettingsMenuPicker(state.title, selection: Binding(
+      get: { state.selection }, set: { state.selection = $0; state.writes += 1 }),
+      options: state.options)
   }
 }

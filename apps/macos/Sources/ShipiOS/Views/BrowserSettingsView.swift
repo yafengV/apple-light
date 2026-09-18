@@ -133,14 +133,12 @@ struct BrowserSettingsView: View {
 
   @ViewBuilder private var permissions: some View {
     Section("默认网站访问") {
-      Picker(
+      SettingsMenuPicker(
         "浏览器 Agent 首次访问网站时",
         selection: Binding(
           get: { store.browserPermissionPreferences.defaultDecision },
-          set: { store.setBrowserDefaultAccess($0) })
-      ) {
-        ForEach(BrowserAccessDecision.allCases) { Text($0.title).tag($0) }
-      }
+          set: { store.setBrowserDefaultAccess($0) }),
+        options: BrowserAccessDecision.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
       .settingsSearchTarget(.browserDefaultAccess)
       Text("这些规则用于 Agent 控制网页时的访问授权。你在地址栏中手动打开网站不受影响。")
         .appFont(.caption).foregroundStyle(.secondary)
@@ -163,14 +161,13 @@ struct BrowserSettingsView: View {
           HStack {
             Text(host).textSelection(.enabled)
             Spacer()
-            Picker(
-              "访问权限",
+            SettingsMenuPicker(
+              "访问权限：\(host)",
               selection: Binding(
                 get: { store.browserPermissionPreferences.sites[host] ?? .ask },
-                set: { _ = store.setBrowserSiteAccess(host, decision: $0) })
-            ) {
-              ForEach(BrowserAccessDecision.allCases) { Text($0.title).tag($0) }
-            }.labelsHidden().frame(width: 120)
+                set: { _ = store.setBrowserSiteAccess(host, decision: $0) }),
+              options: BrowserAccessDecision.allCases.map { SettingsMenuOption(value: $0, title: $0.title) }
+            ).labelsHidden().frame(width: 120)
             Button(role: .destructive) { store.removeBrowserSiteAccess(host) } label: {
               Image(systemName: "trash")
             }.help("删除网站规则")

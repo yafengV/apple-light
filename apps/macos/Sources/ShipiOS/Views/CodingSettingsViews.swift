@@ -114,15 +114,13 @@ struct CodeReviewSettingsView: View {
   var body: some View {
     Form {
       Section("本地代码审查") {
-        Picker("默认变更范围", selection: Binding(
+        SettingsMenuPicker("默认变更范围", selection: Binding(
           get: { store.library.gitPreferences.defaultReviewScope },
           set: { scope in
             var preferences = store.library.gitPreferences
             preferences.defaultReviewScope = scope
             store.saveGitPreferences(preferences)
-          })) {
-          ForEach(GitReviewScope.allCases) { Text($0.title).tag($0) }
-        }
+          }), options: GitReviewScope.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
         .settingsSearchTarget(.reviewScope)
         Toggle("只读审查", isOn: Binding(
           get: { store.library.gitPreferences.readOnlyReview },
@@ -159,10 +157,10 @@ struct LocalEnvironmentSettingsView: View {
         Section("构建环境") {
           TextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
           TextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
-          Picker("构建配置", selection: $store.configuration) {
-            Text("Debug").tag("Debug")
-            Text("Release").tag("Release")
-          }
+          SettingsMenuPicker("构建配置", selection: $store.configuration, options: [
+            SettingsMenuOption(value: "Debug", title: "Debug"),
+            SettingsMenuOption(value: "Release", title: "Release")
+          ])
           .settingsSearchTarget(.environmentConfiguration)
           Button("保存项目环境") { store.saveProfile() }
           Text("这些值用于环境诊断和本地构建，并随项目保存在 ShipiOS 独立目录中。")

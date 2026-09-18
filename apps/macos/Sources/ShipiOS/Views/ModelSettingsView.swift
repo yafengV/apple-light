@@ -15,12 +15,12 @@ struct ModelSettingsView: View {
           .settingsSearchTarget(.modelID)
         SecureField("API Key", text: $key, prompt: Text("留空保留此地址已保存的密钥"))
           .settingsSearchTarget(.apiKey)
-        Picker("推理强度", selection: $draft.reasoning) {
-          Text("服务默认").tag("")
-          Text("低").tag("low")
-          Text("中").tag("medium")
-          Text("高").tag("high")
-        }.settingsSearchTarget(.reasoning)
+        SettingsMenuPicker("推理强度", selection: $draft.reasoning, options: [
+          SettingsMenuOption(value: "", title: "服务默认"),
+          SettingsMenuOption(value: "low", title: "低"),
+          SettingsMenuOption(value: "medium", title: "中"),
+          SettingsMenuOption(value: "high", title: "高")
+        ]).settingsSearchTarget(.reasoning)
         Toggle("记录服务返回的 token 用量", isOn: $draft.includeUsage)
           .settingsSearchTarget(.tokenUsage)
         Text("开启后请求流式接口返回权威 token 统计。若兼容服务不支持 stream_options，请关闭此项。")

@@ -103,15 +103,15 @@ struct ShortcutSettingsView: View {
           }
         }.frame(maxWidth: .infinity, alignment: .leading)
         HStack {
-          Picker("在默认浏览器中打开网页链接", selection: Binding(
+          SettingsMenuPicker("在默认浏览器中打开网页链接", selection: Binding(
             get: { store.shortcuts.externalBrowserLinkShortcut },
             set: { shortcut in
               editor.capture = nil
               do { try store.shortcuts.setExternalBrowserLinkShortcut(shortcut); linkShortcutError = nil }
               catch { linkShortcutError = "无法保存快捷键偏好：\(error.localizedDescription)" }
-            })) {
-              ForEach(ExternalBrowserLinkShortcut.allCases, id: \.self) { Text($0.title).tag($0) }
-            }.labelsHidden().fixedSize()
+            }), options: ExternalBrowserLinkShortcut.allCases.map {
+              SettingsMenuOption(value: $0, title: $0.title)
+            }).labelsHidden().fixedSize()
           Spacer(minLength: 0)
         }.frame(width: contentWidth >= 640 ? 384 : nil)
       }.padding(.vertical, 12).settingsSearchTarget(.shortcutExternalBrowser)
@@ -131,16 +131,16 @@ struct ShortcutSettingsView: View {
           Text(tabs ? "使用 ⌘1–9 切换标签，⌃1–9 切换聊天" : "使用 ⌘1–9 切换聊天，⌃1–9 切换标签")
             .appFont(.caption).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
-        Picker("数字快捷键", selection: Binding(
+        SettingsMenuPicker("数字快捷键", selection: Binding(
           get: { store.shortcuts.primaryNumberShortcutTarget },
           set: { target in
             editor.capture = nil
             do { try store.shortcuts.setNumberShortcutTarget(target); numberShortcutError = nil }
             catch { numberShortcutError = "无法保存快捷键偏好：\(error.localizedDescription)" }
-          })) {
-            Text("⌘1–9 切换标签").tag(NumberShortcutTarget.tabs)
-            Text("⌘1–9 切换聊天").tag(NumberShortcutTarget.sidebar)
-          }.labelsHidden().fixedSize()
+          }), options: [
+            SettingsMenuOption(value: .tabs, title: "⌘1–9 切换标签"),
+            SettingsMenuOption(value: .sidebar, title: "⌘1–9 切换聊天")
+          ]).labelsHidden().fixedSize()
       }
       if store.shortcuts.hasNumberShortcutConflicts {
         Text("部分数字快捷键已分配给其他操作").appFont(.caption).foregroundStyle(.orange)
