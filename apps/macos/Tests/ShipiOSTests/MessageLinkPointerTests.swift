@@ -97,9 +97,12 @@ import XCTest
     let text = try AttributedString(markdown: "Plain [First](https://example.invalid/first) and [second long link that wraps onto several lines](https://example.invalid/second) tail")
     let id = ConversationTextID(run: "run", part: "response.0")
     let match = ConversationMatch(id: .init(text: id, location: 6, length: 5))
+    var anchors: Set<ConversationMatch.ID> = []
     let root = ConversationSearchText(text, id: id).font(.system(size: 16)).lineSpacing(5)
+      .textSelection(.enabled)
       .environment(\.conversationFind, .init(query: "First", active: match))
       .environment(\.messageLinkActions, .init(activate: { _, _ in }, perform: { _, _ in }))
+      .onPreferenceChange(ConversationOccurrenceAnchors.self) { anchors = $0 }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 240, height: 180),
       styleMask: [.borderless], backing: .buffered, defer: false)
@@ -119,7 +122,13 @@ import XCTest
         regions = descendants(host).compactMap { $0 as? MessageLinkPointerTarget.TargetView }.first?.regions ?? []
         if Set(regions.map(\.url)).count == 2 { break }
       }
+      let pointer = try XCTUnwrap(descendants(host).compactMap { $0 as? MessageLinkPointerTarget.TargetView }.first)
+      for region in regions {
+        XCTAssertTrue(pointer.bounds.contains(NSPoint(x: region.rect.midX, y: region.rect.midY)),
+          "Every rendered link must be inside the pointer view: \(pointer.bounds), link: \(region.rect)")
+      }
       XCTAssertEqual(Set(regions.map(\.url)), [first, second])
+      XCTAssertTrue(anchors.contains(match.id), "Selectable text must publish its exact search occurrence anchor")
       XCTAssertTrue(regions.allSatisfy { $0.rect.width > 0 && $0.rect.minX >= 0 && $0.rect.maxX <= width + 1 })
       if width == 240 { XCTAssertGreaterThan(regions.filter { $0.url == second }.count, 1) }
       if let directory = ProcessInfo.processInfo.environment["SHIPIOS_SETTINGS_SNAPSHOTS"] {

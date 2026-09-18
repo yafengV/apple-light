@@ -19,11 +19,17 @@ struct LocatedSearchText: View {
   @State private var layoutSize = CGSize.zero
 
   var body: some View {
-    markedText.textRenderer(
-      MatchRenderer(text: text, target: match?.id, size: layoutSize) { measured in
-        if measurement != measured { measurement = measured }
-      }
-    )
+    markedText
+    // Selectable Text is hosted by AppKit and does not invoke TextRenderer.
+    // Measure a nonselectable copy without painting it, while the visible Text
+    // keeps its native selection, link semantics, and accessibility.
+    .background(alignment: .topLeading) {
+      markedText.textSelection(.disabled).textRenderer(
+        MatchRenderer(text: text, target: match?.id, size: layoutSize) { measured in
+          if measurement != measured { measurement = measured }
+        }
+      ).allowsHitTesting(false).accessibilityHidden(true)
+    }
     .background(alignment: .topLeading) {
       if let match, let measurement, measurement.text == text,
         measurement.id == match.id, let rect = measurement.rect {
@@ -108,7 +114,6 @@ private struct MatchRenderer: TextRenderer {
         if let url = run[MessageLinkAttribute.self]?.url {
           links.append(MessageLinkRegion(url: url, rect: run.typographicBounds.rect))
         }
-        context.draw(run)
       }
     }
     let measured = MatchMeasurement(text: text, id: target, size: size, rect: first, links: links)

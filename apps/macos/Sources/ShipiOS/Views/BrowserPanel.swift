@@ -169,8 +169,9 @@ struct BrowserPanel: View {
       if context == nil { BrowserKeyboardBridge(store: store).frame(width: 0, height: 0) }
     }
       .onAppear {
+        // Explicit content panes can appear in the background. Their layout
+        // owner selects and focuses tabs in response to user actions.
         if tabID == nil { session.ensureTab() }
-        else if session.selection != tabID, let tabID { session.select(tabID) }
       }
   }
 

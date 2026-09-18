@@ -121,6 +121,8 @@ struct ComposerTextEditor: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? ComposerNativeTextView else { return }
     context.coordinator.parent = self
+    let focusChanged = context.coordinator.appliedFocus != focused
+    context.coordinator.appliedFocus = focused
     editor.placeholder = placeholder
     editor.isEditable = isEnabled
     editor.isSelectable = isEnabled
@@ -134,7 +136,7 @@ struct ComposerTextEditor: NSViewRepresentable {
       context.coordinator.requestFocus(in: editor)
     } else if focused, editor.window?.firstResponder !== editor {
       context.coordinator.requestFocus(in: editor)
-    } else if !focused, editor.window?.firstResponder === editor {
+    } else if focusChanged, !focused, editor.window?.firstResponder === editor {
       editor.window?.makeFirstResponder(nil)
     }
   }
@@ -147,11 +149,26 @@ struct ComposerTextEditor: NSViewRepresentable {
   @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
     var parent: ComposerTextEditor
     var focusRequest: UUID
+    var appliedFocus: Bool
     var active = true
     private var applying = false
     init(_ parent: ComposerTextEditor) {
       self.parent = parent
       focusRequest = parent.focusRequest
+      appliedFocus = parent.focused
+    }
+
+    func nativeFocusChanged(in editor: ComposerNativeTextView) {
+      // AppKit editing notifications start only after typing. First-responder
+      // transitions also cover clicking an unchanged draft and leaving it.
+      // Defer binding writes beyond an in-progress SwiftUI view update, and
+      // read the current responder so rapid focus changes cannot replay stale state.
+      DispatchQueue.main.async { [weak self, weak editor] in
+        guard let self, self.active, let editor, let window = editor.window else { return }
+        let focused = window.firstResponder === editor
+        self.appliedFocus = focused
+        if self.parent.focused != focused { self.parent.focused = focused }
+      }
     }
 
     func requestFocus(in editor: ComposerNativeTextView) {
@@ -376,6 +393,18 @@ final class ComposerNativeTextView: NSTextView {
   weak var coordinator: ComposerTextEditor.Coordinator?
   var placeholder = ""
   override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
+
+  override func becomeFirstResponder() -> Bool {
+    let accepted = super.becomeFirstResponder()
+    if accepted { coordinator?.nativeFocusChanged(in: self) }
+    return accepted
+  }
+
+  override func resignFirstResponder() -> Bool {
+    let accepted = super.resignFirstResponder()
+    if accepted { coordinator?.nativeFocusChanged(in: self) }
+    return accepted
+  }
 
   override func keyDown(with event: NSEvent) {
     guard isEditable else { return }

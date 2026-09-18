@@ -5,6 +5,53 @@ import XCTest
 @testable import ShipiOS
 
 final class ComposerTextEditorTests: XCTestCase {
+  @MainActor func testClickFocusWithoutTypingSurvivesUnrelatedViewUpdate() async throws {
+    _ = NSApplication.shared
+    var text = "Keep this draft", focused = false
+    let request = UUID()
+    func root(_ placeholder: String) -> some View {
+      ComposerTextEditor(text: Binding(get: { text }, set: { text = $0 }),
+        focused: Binding(get: { focused }, set: { focused = $0 }), plainTextMode: false,
+        placeholder: placeholder, accessibilityLabel: "Composer", focusRequest: request,
+        onKey: { _, _, _ in false }, onPasteAttachments: { _ in })
+        .frame(width: 400, height: 100)
+    }
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 100),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: root("Message"))
+    window.contentView = host
+    host.layoutSubtreeIfNeeded()
+    func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? ComposerNativeTextView }.first)
+    XCTAssertTrue(window.makeFirstResponder(editor))
+    editor.setSelectedRange(.init(location: 5, length: 4))
+    host.rootView = root("Update during focus handoff")
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertTrue(focused, "Focus must be published before the user types the first character")
+    host.rootView = root("Changed surrounding UI")
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertTrue(window.firstResponder === editor)
+    XCTAssertEqual(editor.selectedRange(), .init(location: 5, length: 4))
+    XCTAssertEqual(text, "Keep this draft")
+    window.makeFirstResponder(nil)
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(focused, "Leaving the editor must clear its focus binding")
+    window.makeFirstResponder(editor)
+    window.makeFirstResponder(nil)
+    window.makeFirstResponder(editor)
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertTrue(focused, "Queued transitions must publish the latest responder")
+    focused = false
+    host.rootView = root("Explicit blur")
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(window.firstResponder === editor, "Explicit model blur must still work")
+  }
+
   @MainActor func testDisabledRetainedEditorCannotReclaimFocusOrAcceptInput() async throws {
     _ = NSApplication.shared
     var text = "Retained draft"
