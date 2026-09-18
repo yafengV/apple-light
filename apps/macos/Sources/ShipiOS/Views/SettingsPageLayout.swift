@@ -41,6 +41,7 @@ struct SettingsPageFormStyle: FormStyle {
     if embedded {
       Form { configuration.content.environment(\.settingsPageTitle, nil) }
         .formStyle(.columns).toggleStyle(SettingsSwitchStyle())
+        .buttonStyle(SettingsActionButtonStyle())
         .frame(maxWidth: .infinity, alignment: .leading)
     } else {
       Form {
@@ -57,6 +58,7 @@ struct SettingsPageFormStyle: FormStyle {
       }
       .formStyle(.grouped)
       .toggleStyle(SettingsSwitchStyle())
+      .buttonStyle(SettingsActionButtonStyle())
       .contentMargins(.horizontal, SettingsPageLayout.horizontalInset, for: .scrollContent)
     }
   }
