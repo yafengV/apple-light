@@ -188,6 +188,7 @@ final class WorkspaceStore {
   var browserSettingsError: String?
   @ObservationIgnored var additionalTaskWindowPanels = NSHashTable<TaskWindowPanelSessions>.weakObjects()
   @ObservationIgnored var taskWindowResources = NSHashTable<TaskWindowResources>.weakObjects()
+  @ObservationIgnored var restoringPinnedContentTabIDs = Set<String>()
   @ObservationIgnored var additionalBrowserSessions = NSHashTable<BrowserSession>.weakObjects()
   var browserDownloadProgress: [UUID: Double] = [:]
   @ObservationIgnored var messageDownloadIDs = Set<UUID>()

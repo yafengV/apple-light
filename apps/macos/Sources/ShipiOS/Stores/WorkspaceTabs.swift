@@ -115,6 +115,8 @@ extension WorkspaceStore {
   }
 
   func openPinnedWorkspaceTab(_ pinID: String) async {
+    guard !Task.isCancelled, restoringPinnedContentTabIDs.insert(pinID).inserted else { return }
+    defer { restoringPinnedContentTabIDs.remove(pinID) }
     guard let originalIndex = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID })
     else { return }
     let pin = library.pinnedContentTabs[originalIndex]
@@ -126,6 +128,10 @@ extension WorkspaceStore {
       if currentProjectKey != task.project {
         guard await openTaskScope(task.project) else { return }
       }
+      // Scope loading yields: the user may unpin while the Agent is connecting.
+      guard !Task.isCancelled, library.pinnedContentTabs.contains(where: {
+        $0.id == pinID && $0.owner == pin.owner
+      }) else { return }
       if let current = library.tasks.first(where: { $0.id == task.id }) {
         applyTaskSelection(current)
       }
