@@ -54,35 +54,33 @@ struct RuntimeSettingsView: View {
       Form {
         EditorSettingsSection(store: store)
         Section("输入") {
-          Toggle("显示教育提示", isOn: $store.showEducationalTips)
+          SettingsToggle(title: "显示教育提示", description: "在输入框上方显示可关闭的功能提示。",
+            isOn: $store.showEducationalTips)
             .settingsSearchTarget(.tips)
-          Text("在输入框上方显示可关闭的功能提示。")
-            .appFont(.caption).foregroundStyle(.secondary)
-          SettingsMenuPicker("发送快捷键", selection: $sendShortcutRaw,
+          SettingsMenuPicker("发送快捷键", description: sendShortcut.explanation, selection: $sendShortcutRaw,
             options: ComposerSendShortcut.allCases.map {
               SettingsMenuOption(value: $0.rawValue, title: $0.title)
             })
           .settingsSearchTarget(.sendShortcut)
-          Text(sendShortcut.explanation).foregroundStyle(.secondary)
-          Toggle("纯文本编辑器", isOn: $store.composerPlainTextMode)
+          SettingsToggle(title: "纯文本编辑器",
+            description: "编写消息时，将代码、Markdown 和链接保留为纯文本；关闭自动代码块、列表续行和富链接。",
+            isOn: $store.composerPlainTextMode)
             .settingsSearchTarget(.plainText)
-          Text("编写消息时，将代码、Markdown 和链接保留为纯文本；关闭自动代码块、列表续行和富链接。")
-            .appFont(.caption).foregroundStyle(.secondary)
-          Toggle("显示上下文窗口用量", isOn: $store.showContextUsageIndicator)
+          SettingsToggle(title: "显示上下文窗口用量",
+            description: "在主窗口和独立任务窗口的输入区显示最近一轮请求的输入 token。",
+            isOn: $store.showContextUsageIndicator)
             .settingsSearchTarget(.contextUsage)
-          Text("在主窗口和独立任务窗口的输入区显示最近一轮请求的输入 token。")
-            .appFont(.caption).foregroundStyle(.secondary)
-          Toggle("底部面板", isOn: $store.showBottomPanelControl)
+          SettingsToggle(title: "底部面板",
+            description: "在应用标题栏显示底部面板布局控制；终端快捷键仍可直接打开底部终端。",
+            isOn: $store.showBottomPanelControl)
             .settingsSearchTarget(.bottomPanel)
-          Text("在应用标题栏显示底部面板布局控制；终端快捷键仍可直接打开底部终端。")
-            .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("链接与无项目任务") {
-          SettingsMenuPicker("打开网页链接", selection: $store.webLinkTarget,
+          SettingsMenuPicker("打开网页链接",
+            description: "应用内浏览器会把回答中的 HTTP 和 HTTPS 链接作为当前任务的内容标签打开；邮件链接仍交给系统。",
+            selection: $store.webLinkTarget,
             options: WebLinkTarget.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.webLinks)
-          Text("应用内浏览器会把回答中的 HTTP 和 HTTPS 链接作为当前任务的内容标签打开；邮件链接仍交给系统。")
-            .appFont(.caption).foregroundStyle(.secondary)
           LabeledContent("无项目任务文件夹") {
             Text(store.projectlessWorkspaceRoot.path)
               .lineLimit(2).multilineTextAlignment(.trailing).textSelection(.enabled)
@@ -95,16 +93,16 @@ struct RuntimeSettingsView: View {
           }
           Text("每个无项目任务会在这里获得独立目录。该目录进入模型上下文，并作为回答中相对文件链接的安全根目录。")
             .appFont(.caption).foregroundStyle(.secondary)
-          Toggle("弹出窗口默认从项目外开始", isOn: $store.popoutWindowProjectlessDefault)
+          SettingsToggle(title: "弹出窗口默认从项目外开始",
+            description: "新建弹出任务窗口时使用无项目范围。关闭后，新窗口继承当前项目；当前没有项目时仍使用无项目范围。",
+            isOn: $store.popoutWindowProjectlessDefault)
             .settingsSearchTarget(.popoutScope)
-          Text("新建弹出任务窗口时使用无项目范围。关闭后，新窗口继承当前项目；当前没有项目时仍使用无项目范围。")
-            .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("追加消息") {
-          SettingsSegmentedPicker(title: "模型运行时发送消息", selection: $store.followUpBehavior,
+          SettingsSegmentedPicker(title: "模型运行时发送消息", description: store.followUpBehavior.explanation,
+            selection: $store.followUpBehavior,
             options: [FollowUpBehavior.queue, .steer].map { SettingsSegmentOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.followUp)
-          Text(store.followUpBehavior.explanation).foregroundStyle(.secondary)
           if let error = store.generalSettingsError {
             Text(error).foregroundStyle(.red).textSelection(.enabled)
           }
@@ -112,11 +110,10 @@ struct RuntimeSettingsView: View {
             .foregroundStyle(.secondary)
         }
         Section("应用") {
-          Toggle("在菜单栏中显示", isOn: $store.showInMenuBar)
+          SettingsToggle(title: "在菜单栏中显示", description: "主窗口关闭后，让 ShipiOS 保留在 macOS 菜单栏中。",
+            isOn: $store.showInMenuBar)
             .accessibilityLabel("在菜单栏中显示 ShipiOS")
             .settingsSearchTarget(.menuBar)
-          Text("主窗口关闭后，让 ShipiOS 保留在 macOS 菜单栏中。")
-            .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("代码审查") {
           Picker("审查结果呈现方式", selection: Binding(
@@ -135,21 +132,20 @@ struct RuntimeSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("终端") {
-          SettingsSegmentedPicker(title: "默认终端位置", selection: Binding(
+          SettingsSegmentedPicker(title: "默认终端位置",
+            description: "工具栏终端按钮、命令菜单和固定终端恢复都会使用此位置。", selection: Binding(
             get: { store.library.defaultTerminalLocation },
             set: { store.setDefaultTerminalLocation($0) }), options: [
               SettingsSegmentOption(value: .bottom, title: "底部"),
               SettingsSegmentOption(value: .right, title: "右侧")
             ])
           .settingsSearchTarget(.terminalLocation)
-          Text("工具栏终端按钮、命令菜单和固定终端恢复都会使用此位置。")
-            .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("运行") {
-          Toggle("运行时防止休眠", isOn: $store.preventIdleSleep)
+          SettingsToggle(title: "运行时防止休眠",
+            description: "任务执行期间阻止空闲休眠，结束后自动恢复。显示器仍可熄灭，手动休眠和合盖仍由系统处理。",
+            isOn: $store.preventIdleSleep)
             .settingsSearchTarget(.preventSleep)
-          Text("任务执行期间阻止空闲休眠，结束后自动恢复。显示器仍可熄灭，手动休眠和合盖仍由系统处理。")
-            .appFont(.caption).foregroundStyle(.secondary)
           if store.sleepPrevention.active {
             Label("正在防止空闲休眠", systemImage: "moon.zzz").foregroundStyle(.secondary)
           }
@@ -159,10 +155,10 @@ struct RuntimeSettingsView: View {
           }
         }
         Section("插件") {
-          Toggle("插件", isOn: $store.pluginsEnabled)
+          SettingsToggle(title: "插件",
+            description: "允许 ShipiOS 使用已安装并启用的插件。关闭后，@插件、$技能候选和模型请求中的插件上下文立即停用。",
+            isOn: $store.pluginsEnabled)
             .settingsSearchTarget(.enablePlugins)
-          Text("允许 ShipiOS 使用已安装并启用的插件。关闭后，@插件、$技能候选和模型请求中的插件上下文立即停用。")
-            .appFont(.caption).foregroundStyle(.secondary)
         }
       }.settingsFormStyle().appSurface()
     case .appearance:

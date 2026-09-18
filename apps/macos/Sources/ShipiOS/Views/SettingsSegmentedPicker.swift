@@ -9,11 +9,12 @@ struct SettingsSegmentOption<Value: Hashable> {
 /// The reference uses independently focusable pressed buttons, not a radio group.
 struct SettingsSegmentedPicker<Value: Hashable>: View {
   let title: String
+  var description: String? = nil
   @Binding var selection: Value
   let options: [SettingsSegmentOption<Value>]
 
   var body: some View {
-    LabeledContent(title) {
+    LabeledContent {
       HStack(spacing: 2) {
         ForEach(options, id: \.value) { option in
           SettingsSegmentButton(option: option, selected: selection == option.value) {
@@ -23,6 +24,11 @@ struct SettingsSegmentedPicker<Value: Hashable>: View {
       }
       .accessibilityElement(children: .contain)
       .accessibilityLabel(title)
+      .alignmentGuide(.firstTextBaseline) { dimensions in
+        description == nil ? dimensions[.firstTextBaseline] : dimensions[VerticalAlignment.center]
+      }
+    } label: {
+      SettingsControlLabel(title: title, description: description)
     }
   }
 }

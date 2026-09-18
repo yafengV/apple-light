@@ -11,19 +11,26 @@ struct SettingsMenuOption<Value: Hashable>: Equatable {
 /// owns keyboard focus and native menu tracking.
 struct SettingsMenuPicker<Value: Hashable>: View {
   let title: String
+  let description: String?
   @Binding var selection: Value
   let options: [SettingsMenuOption<Value>]
 
-  init(_ title: String, selection: Binding<Value>, options: [SettingsMenuOption<Value>]) {
+  init(_ title: String, description: String? = nil, selection: Binding<Value>, options: [SettingsMenuOption<Value>]) {
     self.title = title
+    self.description = description
     _selection = selection
     self.options = options
   }
 
   var body: some View {
-    LabeledContent(title) {
+    LabeledContent {
       SettingsMenuInput(title: title, selection: $selection, options: options)
         .fixedSize(horizontal: true, vertical: true)
+        .alignmentGuide(.firstTextBaseline) { dimensions in
+          description == nil ? dimensions[.firstTextBaseline] : dimensions[VerticalAlignment.center]
+        }
+    } label: {
+      SettingsControlLabel(title: title, description: description)
     }
   }
 }
