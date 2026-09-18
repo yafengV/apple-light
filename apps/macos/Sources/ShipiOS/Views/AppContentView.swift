@@ -9,7 +9,6 @@ struct AppContentView: View {
     WorkspaceView(store: store)
       .environment(\.mcpApprovalSurfaceVisible, store.mainMCPApprovalVisible)
       .background(ModifiedEscapeBridge(store: store).frame(width: 0, height: 0))
-      .background(WorkspaceKeyboardBridge(store: store).frame(width: 0, height: 0))
       .background(MCPApprovalKeyboardBridge(store: store, taskID: store.selectedTask?.id,
         visible: store.mainMCPApprovalVisible).frame(width: 0, height: 0))
       .focusedSceneValue(\.mcpApprovalCommands,
@@ -17,6 +16,7 @@ struct AppContentView: View {
       .opacity(store.destination == .settings ? 0 : 1)
       .allowsHitTesting(store.destination != .settings)
       .disabled(store.destination == .settings)
+      .accessibilityElement(children: .contain)
       .accessibilityHidden(store.destination == .settings)
       .onExitCommand {
         if store.destination == .pluginDetail {
@@ -36,6 +36,7 @@ struct AppContentView: View {
             .opacity(store.destination == .settings ? 1 : 0)
             .allowsHitTesting(store.destination == .settings)
             .disabled(store.destination != .settings)
+            .accessibilityElement(children: .contain)
             .accessibilityHidden(store.destination != .settings)
         }
       }
@@ -82,5 +83,8 @@ struct AppContentView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
       }
+      // Keep the window keyboard route attached while the workspace is hidden
+      // behind settings. SwiftUI may detach zero-opacity native backgrounds.
+      .background(WorkspaceKeyboardBridge(store: store).frame(width: 0, height: 0))
   }
 }

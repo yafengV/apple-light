@@ -101,6 +101,7 @@ struct SettingsNavigationView: View {
     .buttonStyle(.plain).focused($focusedPage, equals: page)
     .accessibilityLabel(page.title)
     .accessibilityAddTraits(store.settingsPage == page ? .isSelected : [])
+    .accessibilityRemoveTraits(store.settingsPage == page ? [] : .isSelected)
     .id(page)
     .onMoveCommand { direction in
       let offset = direction == .down ? 1 : direction == .up ? -1 : 0
@@ -115,6 +116,9 @@ struct SettingsNavigationView: View {
     store.settingsSearchRequest = nil
     store.settingsPage = page
     if focusNavigation {
+      // SwiftUI button focus does not reliably end the embedded NSSearchField's
+      // field-editor session. End that session before focusing navigation.
+      if let window = NSApp?.keyWindow { window.makeFirstResponder(window.contentView) }
       focusedPage = page
     }
   }

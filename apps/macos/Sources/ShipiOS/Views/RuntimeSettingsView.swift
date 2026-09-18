@@ -31,6 +31,7 @@ struct RuntimeSettingsView: View {
               .opacity(store.settingsPage == page ? 1 : 0)
               .allowsHitTesting(store.settingsPage == page)
               .disabled(store.settingsPage != page)
+              .accessibilityElement(children: .contain)
               .accessibilityHidden(store.settingsPage != page)
           }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -66,13 +66,15 @@ extension WorkspaceStore {
     if destination == .workspace { focusComposer = UUID() }
   }
 
-  func closeSettingsFromKeyboard() {
-    guard let window = NSApp?.keyWindow,
+  @discardableResult func closeSettingsFromKeyboard(in targetWindow: NSWindow? = nil) -> Bool {
+    guard destination == .settings, !hasSettingsConfirmation, presentedOverlay == nil,
+      let window = targetWindow ?? NSApp?.keyWindow,
       window.attachedSheet == nil, NSApp?.modalWindow == nil,
-      shortcutCaptureCount == 0 else { return }
+      shortcutCaptureCount == 0 else { return false }
     if let editor = window.firstResponder as? NSTextView,
-      editor.isEditable || editor.hasMarkedText() { return }
+      editor.isEditable || editor.hasMarkedText() { return false }
     closeSettings()
+    return true
   }
 
   func showProjects() {

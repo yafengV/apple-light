@@ -5,6 +5,54 @@ import XCTest
 @testable import ShipiOS
 
 final class ComposerTextEditorTests: XCTestCase {
+  @MainActor func testDisabledRetainedEditorCannotReclaimFocusOrAcceptInput() async throws {
+    _ = NSApplication.shared
+    var text = "Retained draft"
+    func root(enabled: Bool, request: UUID) -> some View {
+      ComposerTextEditor(text: Binding(get: { text }, set: { text = $0 }),
+        focused: .constant(true), plainTextMode: false, placeholder: "Message",
+        accessibilityLabel: "Composer", focusRequest: request,
+        onKey: { _, _, _ in XCTFail("Disabled editor must not dispatch keys"); return false },
+        onPasteAttachments: { _ in XCTFail("Disabled editor must not paste attachments") })
+        .disabled(!enabled).frame(width: 400, height: 100)
+    }
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 100),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: root(enabled: true, request: UUID()))
+    window.contentView = host
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(50))
+    func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? ComposerNativeTextView }.first)
+    XCTAssertTrue(editor.acceptsFirstResponder)
+    window.makeFirstResponder(editor)
+    editor.coordinator?.requestFocus(in: editor)
+    host.rootView = root(enabled: false, request: UUID())
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(80))
+    let retained = try XCTUnwrap(descendants(host).compactMap { $0 as? ComposerNativeTextView }.first)
+    XCTAssertTrue(retained === editor, "Hiding settings must not discard the native editor")
+    XCTAssertFalse(editor.isEditable)
+    XCTAssertFalse(editor.isSelectable)
+    XCTAssertFalse(editor.acceptsFirstResponder)
+    XCTAssertFalse(window.firstResponder === editor)
+    let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+      timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "x",
+      charactersIgnoringModifiers: "x", isARepeat: false, keyCode: 7))
+    editor.keyDown(with: key)
+    editor.paste(nil)
+    XCTAssertEqual(editor.string, "Retained draft")
+    XCTAssertEqual(text, "Retained draft")
+    host.rootView = root(enabled: true, request: UUID())
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(50))
+    XCTAssertTrue(editor.isEditable)
+    XCTAssertTrue(editor.acceptsFirstResponder)
+    XCTAssertEqual(editor.string, "Retained draft")
+  }
+
   func testRichStylePlanRecognizesMarkdownWithoutChangingSourceRanges() throws {
     let source = "# Title\n- item\n**bold** and `code` [site](https://example.com)\n```swift\nlet n = 1\n```"
     let spans = ComposerTextStylePlan.spans(in: source)

@@ -82,6 +82,7 @@ enum ComposerTextStylePlan {
 }
 
 struct ComposerTextEditor: NSViewRepresentable {
+  @Environment(\.isEnabled) private var isEnabled
   @Binding var text: String
   @Binding var focused: Bool
   let plainTextMode: Bool
@@ -121,24 +122,47 @@ struct ComposerTextEditor: NSViewRepresentable {
     guard let editor = scroll.documentView as? ComposerNativeTextView else { return }
     context.coordinator.parent = self
     editor.placeholder = placeholder
+    editor.isEditable = isEnabled
+    editor.isSelectable = isEnabled
     context.coordinator.sync(text, plainTextMode: plainTextMode, in: editor)
+    guard isEnabled else {
+      if editor.window?.firstResponder === editor { editor.window?.makeFirstResponder(nil) }
+      return
+    }
     if context.coordinator.focusRequest != focusRequest {
       context.coordinator.focusRequest = focusRequest
-      DispatchQueue.main.async { editor.window?.makeFirstResponder(editor) }
+      context.coordinator.requestFocus(in: editor)
     } else if focused, editor.window?.firstResponder !== editor {
-      DispatchQueue.main.async { editor.window?.makeFirstResponder(editor) }
+      context.coordinator.requestFocus(in: editor)
     } else if !focused, editor.window?.firstResponder === editor {
       editor.window?.makeFirstResponder(nil)
     }
   }
 
+  static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+    coordinator.active = false
+    (scroll.documentView as? ComposerNativeTextView)?.delegate = nil
+  }
+
   @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
     var parent: ComposerTextEditor
     var focusRequest: UUID
+    var active = true
     private var applying = false
     init(_ parent: ComposerTextEditor) {
       self.parent = parent
       focusRequest = parent.focusRequest
+    }
+
+    func requestFocus(in editor: ComposerNativeTextView) {
+      let request = focusRequest
+      DispatchQueue.main.async { [weak self, weak editor] in
+        guard let self, let editor, self.active, self.parent.isEnabled,
+          self.focusRequest == request, editor.isEditable,
+          let window = editor.window, window.isKeyWindow, window.attachedSheet == nil,
+          NSApp.modalWindow == nil else { return }
+        window.makeFirstResponder(editor)
+      }
     }
 
     func install(_ value: String, in editor: NSTextView) {
@@ -351,13 +375,16 @@ struct ComposerTextEditor: NSViewRepresentable {
 final class ComposerNativeTextView: NSTextView {
   weak var coordinator: ComposerTextEditor.Coordinator?
   var placeholder = ""
+  override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
 
   override func keyDown(with event: NSEvent) {
+    guard isEditable else { return }
     if coordinator?.handle(event, in: self) == true { return }
     super.keyDown(with: event)
   }
 
   override func paste(_ sender: Any?) {
+    guard isEditable else { return }
     if coordinator?.paste(in: self) == true { return }
     super.paste(sender)
   }

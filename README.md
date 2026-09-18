@@ -169,6 +169,7 @@ python3 script/smoke_ipc.py
 | [回复链接原生菜单](docs/112-message-link-context-menu.md) | 实际字形命中、四项菜单动作、中键映射与单次另存为 |
 | [链接兼容与辅助功能](docs/113-message-link-legacy-and-accessibility.md) | macOS 14 富文本兼容、逐链接辅助功能入口、选择保持与宽度测量 |
 | [启动恢复卡顿修复](docs/114-workspace-loading-feedback-loop.md) | 菜单栏状态反馈循环、相同值写入保护与原工作区实机恢复验证 |
+| [设置辅助功能与焦点](docs/115-settings-accessibility-and-focus.md) | 隐藏页隔离、导航选中状态、隐藏输入框焦点保护与 Esc 返回 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

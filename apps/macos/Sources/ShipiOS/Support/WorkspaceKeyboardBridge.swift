@@ -18,8 +18,13 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
     func install(_ view: NSView, store: WorkspaceStore) {
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak view, weak store] event in
         MainActor.assumeIsolated {
-          guard let window = view?.window, window.isKeyWindow, event.window === window,
-            window.attachedSheet == nil, let store, let binding = ShortcutBinding(event: event),
+          guard let window = view?.window, window.isKeyWindow,
+            event.window == nil || event.window === window,
+            window.attachedSheet == nil, let store else { return event }
+          if event.keyCode == 53,
+            event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
+            store.closeSettingsFromKeyboard(in: window) { return nil }
+          guard let binding = ShortcutBinding(event: event),
             store.handleWorkspaceShortcut(binding) else { return event }
           return nil
         }

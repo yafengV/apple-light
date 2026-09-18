@@ -4,6 +4,40 @@ import XCTest
 @testable import ShipiOS
 
 final class SettingsInteractionTests: XCTestCase {
+  @MainActor func testPageEscapeRoutesOutsideEditorsAndPreservesModalGuards() {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 300, height: 200),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let store = WorkspaceStore()
+    store.showProjects()
+    store.openSettings()
+    let editor = NSTextView(frame: .init(x: 0, y: 0, width: 200, height: 100))
+    window.contentView = editor
+    window.makeFirstResponder(editor)
+    XCTAssertFalse(store.closeSettingsFromKeyboard(in: window))
+    XCTAssertEqual(store.destination, .settings)
+    editor.setMarkedText("pin", selectedRange: .init(location: 3, length: 0),
+      replacementRange: .init(location: NSNotFound, length: 0))
+    XCTAssertTrue(editor.hasMarkedText())
+    XCTAssertFalse(store.closeSettingsFromKeyboard(in: window))
+    editor.unmarkText()
+    window.makeFirstResponder(nil)
+    store.shortcutCaptureCount = 1
+    XCTAssertFalse(store.closeSettingsFromKeyboard(in: window))
+    store.shortcutCaptureCount = 0
+    store.presentedOverlay = .commands
+    XCTAssertFalse(store.closeSettingsFromKeyboard(in: window))
+    store.presentedOverlay = nil
+    store.shortcutResetRequested = true
+    XCTAssertFalse(store.closeSettingsFromKeyboard(in: window))
+    store.shortcutResetRequested = false
+    XCTAssertTrue(store.closeSettingsFromKeyboard(in: window))
+    XCTAssertEqual(store.destination, .projects)
+    XCTAssertFalse(store.closeSettingsFromKeyboard(in: window))
+  }
+
   @MainActor func testFindStaysInEverySettingsPageAndPreservesReturnLocation() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
