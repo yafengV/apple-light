@@ -100,29 +100,17 @@ struct ArchivedTasksSettingsView: View {
   }
   private var filters: some View {
     HStack(spacing: 8) {
-      Menu {
-        Picker("类型", selection: $kind) {
-          ForEach(ArchivedTaskKind.allCases) { Text($0.title).tag($0) }
-        }
-        Divider()
-        Picker("排序依据", selection: $sort) {
-          ForEach(ArchivedTaskSort.allCases) { Text($0.title).tag($0) }
-        }
-      } label: { Label(kind.title, systemImage: "line.3.horizontal.decrease") }
-        .frame(width: 130).accessibilityLabel("筛选归档任务")
-      Menu {
-        Picker("项目", selection: Binding(
-          get: { presentation.effectiveFilter(project) }, set: { project = $0 })) {
-          Text("所有项目").tag(ArchivedProjectFilter.all)
-          ForEach(presentation.projects, id: \.path) { option in
-            Text(option.title).help(option.path).tag(ArchivedProjectFilter.project(option.path))
+      SettingsDropdownMenu(title: kind.title, accessibilityLabel: "筛选归档任务",
+        systemImage: "line.3.horizontal.decrease", items: ArchivedTaskMenu.filters(kind: kind, sort: sort)) { choice in
+          switch choice {
+          case .kind(let selected): kind = selected
+          case .sort(let selected): sort = selected
           }
-          Divider()
-          Text("无项目任务").tag(ArchivedProjectFilter.projectless)
-          Text("计划任务").tag(ArchivedProjectFilter.automations)
-        }
-      } label: { Label(projectTitle, systemImage: "folder").lineLimit(1) }
-        .frame(width: 160).accessibilityLabel("按项目筛选归档任务")
+        }.frame(width: 144, height: 24)
+      SettingsDropdownMenu(title: projectTitle, accessibilityLabel: "按项目筛选归档任务",
+        systemImage: "folder", items: ArchivedTaskMenu.projects(presentation, selection: project)) {
+          project = $0
+        }.frame(width: 176, height: 24)
     }
   }
   private var projectTitle: String {
