@@ -193,6 +193,7 @@ python3 script/smoke_ipc.py
 | [记忆列表搜索、排序与操作焦点](docs/136-memory-list-interactions.md) | 模糊搜索、原生排序及更多菜单、读取重试和编辑焦点返回 |
 | [原生菜单禁用时序](docs/137-settings-menu-update-order.md) | 修复 SwiftUI/AppKit 焦点循环、立即禁用交互及过期更新保护 |
 | [窗口内图片图库与缩放](docs/138-image-preview-gallery.md) | 附件分组切图、自然尺寸缩放、拖动、命令隔离与独立窗口焦点恢复 |
+| [历史与工具图片共用图库](docs/139-image-gallery-sources-and-focus.md) | MCP 窗口内图库、原始图片保存、来源缩略图焦点与键盘重开 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

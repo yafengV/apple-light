@@ -142,7 +142,11 @@ extension WorkspaceStore {
   }
 
   func preview(_ image: ImageAttachment, images: [ImageAttachment] = []) {
-    guard !hasSettingsConfirmation else { return }
+    preview(ImagePreviewItem(image), images: images.map(ImagePreviewItem.init))
+  }
+
+  func preview(_ image: ImagePreviewItem, images: [ImagePreviewItem]) {
+    guard !hasSettingsConfirmation, presentedOverlay == nil else { return }
     previewImages = images.contains(where: { $0.id == image.id }) ? images : [image]
     previewImage = image
     setOverlay(.imagePreview, presented: true)

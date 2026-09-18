@@ -3,11 +3,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// A gallery scoped to the clicked attachment group, contained in its task window.
-struct ImageAttachmentPreview: View {
-  let images: [ImageAttachment]
+struct ImageGalleryPreview: View {
+  let images: [ImagePreviewItem]
   let root: URL
   let close: () -> Void
-  @State private var selectedID: UUID
+  @State private var selectedID: String
   @State private var raster: CGImage?
   @State private var error: String?
   @State private var saveError: String?
@@ -16,14 +16,14 @@ struct ImageAttachmentPreview: View {
   @FocusState private var focused: Control?
   private enum Control: Hashable { case close, previous, next, smaller, larger, save, retry }
 
-  init(image: ImageAttachment, images: [ImageAttachment], root: URL, close: @escaping () -> Void) {
+  init(image: ImagePreviewItem, images: [ImagePreviewItem], root: URL, close: @escaping () -> Void) {
     self.images = images.contains(where: { $0.id == image.id }) ? images : [image]
     self.root = root
     self.close = close
     _selectedID = State(initialValue: image.id)
   }
   private var index: Int { images.firstIndex { $0.id == selectedID } ?? 0 }
-  private var image: ImageAttachment { images[index] }
+  private var image: ImagePreviewItem { images[index] }
   private var controls: [Control] {
     [.close] + (raster == nil ? [] : [.save]) + (index > 0 ? [.previous] : [])
       + (index + 1 < images.count ? [.next] : []) + (error == nil ? [] : [.retry])
@@ -78,9 +78,8 @@ struct ImageAttachmentPreview: View {
       let selected = image, directory = root
       do {
         let result = try await Task.detached(priority: .userInitiated) {
-          // Import already bounds originals to 40 MP; preserve natural pixels
-          // and EXIF orientation instead of magnifying a 1600 px thumbnail.
-          try ImageAttachmentStorage.thumbnail(selected, root: directory, size: 20_000)
+          // Decode bounded originals with their natural pixels and EXIF orientation.
+          try selected.raster(root: directory)
         }.value
         guard !Task.isCancelled, selectedID == selected.id else { return }
         raster = result
@@ -165,7 +164,7 @@ struct ImageAttachmentPreview: View {
     panel.allowedContentTypes = [UTType(mimeType: selected.mimeType) ?? .png]
     panel.beginSheetModal(for: window) { response in
       guard response == .OK, let url = panel.url else { return }
-      do { try ImageAttachmentStorage.data(selected, root: directory).write(to: url, options: .atomic) }
+      do { try selected.data(root: directory).write(to: url, options: .atomic) }
       catch { self.saveError = error.localizedDescription }
     }
   }

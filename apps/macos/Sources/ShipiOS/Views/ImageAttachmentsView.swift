@@ -5,7 +5,9 @@ struct ImageAttachmentsView: View {
   let store: WorkspaceStore
   let images: [ImageAttachment]
   var removable = false
-  var onPreview: ((ImageAttachment, [ImageAttachment]) -> Void)?
+  @Environment(\.isEnabled) private var isEnabled
+  @Environment(\.presentImageGallery) private var presentImageGallery
+  @FocusState private var focusedImage: UUID?
   var onRemove: ((ImageAttachment) -> Void)?
   var body: some View {
     if !images.isEmpty {
@@ -14,11 +16,17 @@ struct ImageAttachmentsView: View {
           ForEach(images) { image in
             VStack(spacing: 4) {
               Button {
-                if let onPreview { onPreview(image, images) } else { store.preview(image, images: images) }
+                open(image)
               } label: {
                 AttachmentThumbnail(image: image, root: store.dataRoot, size: 120)
                   .frame(width: 112, height: 70).clipped()
-              }.buttonStyle(.plain).accessibilityLabel("预览图片：\(image.name)")
+              }.buttonStyle(.plain).focusable().focused($focusedImage, equals: image.id)
+                .accessibilityLabel("预览图片：\(image.name)")
+                .onKeyPress(keys: [.space, .return], phases: .down) { press in
+                  guard isEnabled, press.modifiers.isEmpty else { return .ignored }
+                  open(image)
+                  return .handled
+                }
               HStack(spacing: 4) {
                 Text(image.name).lineLimit(1).truncationMode(.middle)
                 if removable {
@@ -35,6 +43,13 @@ struct ImageAttachmentsView: View {
         }
       }.scrollIndicators(.hidden).accessibilityLabel("图片附件")
     }
+  }
+  private func open(_ image: ImageAttachment) {
+    guard isEnabled else { return }
+    focusedImage = nil
+    if let presentImageGallery {
+      presentImageGallery(ImagePreviewItem(image), images.map(ImagePreviewItem.init), { focusedImage = image.id })
+    } else { store.preview(image, images: images) }
   }
 }
 

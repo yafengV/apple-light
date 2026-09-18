@@ -4,9 +4,15 @@ import SwiftUI
 /// opening settings does not discard scroll position, panel views, or the composer.
 struct AppContentView: View {
   @Bindable var store: WorkspaceStore
+  @State private var imagePreviewReturnFocus: (() -> Void)?
 
   var body: some View {
     WorkspaceView(store: store)
+      .environment(\.presentImageGallery) { image, images, returnFocus in
+        guard store.presentedOverlay == nil, !store.hasSettingsConfirmation else { return }
+        imagePreviewReturnFocus = returnFocus
+        store.preview(image, images: images)
+      }
       .environment(\.mcpApprovalSurfaceVisible, store.mainMCPApprovalVisible)
       .background(ModifiedEscapeBridge(store: store).frame(width: 0, height: 0))
       .background(MCPApprovalKeyboardBridge(store: store, taskID: store.selectedTask?.id,
@@ -66,13 +72,22 @@ struct AppContentView: View {
       }
       .overlay {
         if store.presentedOverlay == .imagePreview, let image = store.previewImage {
-          ImageAttachmentPreview(image: image, images: store.previewImages, root: store.dataRoot) {
+          ImageGalleryPreview(image: image, images: store.previewImages, root: store.dataRoot) {
             store.setOverlay(.imagePreview, presented: false)
           }.id(image.id)
         }
       }
       .onChange(of: store.presentedOverlay) { previous, current in
-        if previous == .imagePreview, current == nil { store.restoreOverlayFocus() }
+        if previous == .imagePreview, current == nil {
+          let returnFocus = imagePreviewReturnFocus
+          imagePreviewReturnFocus = nil
+          if let returnFocus {
+            DispatchQueue.main.async {
+              guard store.presentedOverlay == nil, store.destination == .workspace else { return }
+              returnFocus()
+            }
+          } else { store.restoreOverlayFocus() }
+        }
       }
       .focusedSceneValue(\.imagePreviewActive, store.presentedOverlay == .imagePreview)
       // Global sheets belong to the active main window, not its disabled workspace.

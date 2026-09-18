@@ -63,8 +63,8 @@ final class ImagePreviewTests: XCTestCase {
     let first = try ImageAttachmentStorage.importData(AttachmentFixture.png(), name: "first.png", root: root)
     let second = try ImageAttachmentStorage.importData(AttachmentFixture.png(), name: "second.png", root: root)
     store.preview(second, images: [first, second])
-    XCTAssertEqual(store.previewImage, second)
-    XCTAssertEqual(store.previewImages, [first, second])
+    XCTAssertEqual(store.previewImage, ImagePreviewItem(second))
+    XCTAssertEqual(store.previewImages, [first, second].map(ImagePreviewItem.init))
     XCTAssertEqual(store.presentedOverlay, .imagePreview)
     XCTAssertFalse(store.commandEnabled("settings"))
     XCTAssertFalse(store.commandEnabled("new"))
@@ -75,7 +75,7 @@ final class ImagePreviewTests: XCTestCase {
     XCTAssertNotEqual(store.focusComposer, oldFocus)
     XCTAssertTrue(store.commandEnabled("settings"))
     store.preview(first, images: [second])
-    XCTAssertEqual(store.previewImages, [first])
+    XCTAssertEqual(store.previewImages, [ImagePreviewItem(first)])
   }
 
   @MainActor func testNativeCanvasZoomPanResizeAndTeardown() async throws {

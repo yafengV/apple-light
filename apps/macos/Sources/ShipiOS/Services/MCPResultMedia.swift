@@ -28,4 +28,24 @@ enum MCPResultMedia {
       ] as CFDictionary) else { throw AgentFailure(message: "无法解码工具返回的图片。") }
     return image
   }
+
+  static func preview(base64: String, mime: String) throws -> CGImage {
+    let data = try decode(base64, mime: mime, kind: "image")
+    guard let source = CGImageSourceCreateWithData(data as CFData,
+      [kCGImageSourceShouldCache: false] as CFDictionary),
+      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+      let width = properties[kCGImagePropertyPixelWidth] as? Int,
+      let height = properties[kCGImagePropertyPixelHeight] as? Int,
+      width > 0, height > 0 else { throw AgentFailure(message: "无法解码工具返回的图片。") }
+    guard width <= 20_000, height <= 20_000,
+      width * height <= 40_000_000 else {
+      throw AgentFailure(message: "无法预览图片，请使用 4000 万像素以内的图片。")
+    }
+    guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceThumbnailMaxPixelSize: max(width, height),
+    ] as CFDictionary) else { throw AgentFailure(message: "无法解码工具返回的图片。") }
+    return image
+  }
 }

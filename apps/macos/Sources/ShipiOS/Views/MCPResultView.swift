@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MCPResultView: View {
   let output: String
+  @Environment(\.presentImageGallery) private var presentImageGallery
   @State private var document: MCPResultDocument?
 
   var body: some View {
@@ -13,7 +14,7 @@ struct MCPResultView: View {
         }
         ForEach(document.blocks) { block in
           VStack(alignment: .leading, spacing: 6) {
-            content(block.content)
+            content(block, images: document.previewImages)
             if let annotations = block.annotations {
               Text(annotations).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
@@ -35,11 +36,15 @@ struct MCPResultView: View {
     }
   }
 
-  @ViewBuilder private func content(_ value: MCPResultDocument.Content) -> some View {
-    switch value {
+  @ViewBuilder private func content(_ block: MCPResultDocument.Block, images: [ImagePreviewItem]) -> some View {
+    switch block.content {
     case .text(let text): MCPResultTextBlock(title: "纯文本", text: text)
     case .unknown(let raw): MCPResultTextBlock(title: "工具内容", text: raw, monospaced: true)
-    case .image(let data, let mime): MCPResultImageView(base64: data, mime: mime)
+    case .image(let data, let mime):
+      MCPResultImageView(base64: data, mime: mime) { returnFocus in
+        let selected = ImagePreviewItem(blockID: block.id, base64: data, mime: mime)
+        presentImageGallery?(selected, images, returnFocus)
+      }.disabled(presentImageGallery == nil)
     case .audio(let data, let mime): MCPResultAudioView(base64: data, mime: mime)
     case .resourceLink(let title, let uri, let description):
       VStack(alignment: .leading, spacing: 4) {
