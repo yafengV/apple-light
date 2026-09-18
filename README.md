@@ -190,6 +190,7 @@ python3 script/smoke_ipc.py
 | [归档类型、排序与项目菜单](docs/133-archive-filter-menus.md) | 平铺分区、独立勾选、同名项目识别、键盘选择及筛选回退 |
 | [归档动作与恢复流程](docs/134-archive-actions-and-restoration.md) | 危险操作样式、恢复期间动作互斥、键盘恢复及失败重试 |
 | [归档加载、错误与空状态](docs/135-archive-list-states.md) | 简洁状态行、读取失败独立呈现、无结果保留筛选和空列表隐藏动作 |
+| [记忆列表搜索、排序与操作焦点](docs/136-memory-list-interactions.md) | 模糊搜索、原生排序及更多菜单、读取重试和编辑焦点返回 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

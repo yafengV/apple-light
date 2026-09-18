@@ -4,6 +4,42 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsTextEditorTests: XCTestCase {
+  func testFocusRequestRunsOnceAndCannotStealFocusAfterDisableOrTeardown() async throws {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 100),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let editor = SettingsTextEditor.TextView(frame: .init(x: 0, y: 0, width: 400, height: 100))
+    let scroll = NSScrollView(frame: editor.frame)
+    scroll.documentView = editor
+    window.contentView = scroll
+    let coordinator = SettingsTextEditor(text: .constant("draft"), label: "Editor").makeCoordinator()
+    let request = UUID()
+    coordinator.updateFocus(editor, enabled: true, request: request)
+    await Task.yield()
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertTrue(window.firstResponder === editor)
+    window.makeFirstResponder(nil)
+    coordinator.updateFocus(editor, enabled: true, request: request)
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(window.firstResponder === editor)
+    coordinator.updateFocus(editor, enabled: true, request: UUID())
+    coordinator.updateFocus(editor, enabled: false, request: nil)
+    coordinator.updateFocus(editor, enabled: true, request: nil)
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(window.firstResponder === editor)
+    editor.isHidden = true
+    coordinator.updateFocus(editor, enabled: true, request: UUID())
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(window.firstResponder === editor)
+    editor.isHidden = false
+    coordinator.updateFocus(editor, enabled: true, request: UUID())
+    SettingsTextEditor.dismantleNSView(scroll, coordinator: coordinator)
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(window.firstResponder === editor)
+  }
+
   func testCompositionAndDismantledCallbacksDoNotPublishPartialDrafts() {
     var draft = "Saved draft"
     let view = SettingsTextEditor(text: Binding(get: { draft }, set: { draft = $0 }), label: "Draft")

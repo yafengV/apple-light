@@ -6,6 +6,7 @@ struct SettingsTextEditor: NSViewRepresentable {
   @Binding var text: String
   let label: String
   var placeholder: String = ""
+  var focusRequest: UUID?
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
 
@@ -45,6 +46,7 @@ struct SettingsTextEditor: NSViewRepresentable {
       editor.setSelectedRange(NSRange(location: location, length: min(selection.length, length - location)))
       editor.undoManager?.removeAllActions()
     }
+    context.coordinator.updateFocus(editor, enabled: isEnabled, request: focusRequest)
   }
 
   static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
@@ -56,7 +58,25 @@ struct SettingsTextEditor: NSViewRepresentable {
   final class Coordinator: NSObject, NSTextViewDelegate {
     var parent: SettingsTextEditor
     var active = true
+    private var lastFocusRequest: UUID?
+    private var focusGeneration = UUID()
+    private var enabled = true
     init(_ parent: SettingsTextEditor) { self.parent = parent }
+    func updateFocus(_ editor: TextView, enabled: Bool, request: UUID?) {
+      if self.enabled != enabled { focusGeneration = UUID() }
+      self.enabled = enabled
+      guard request != lastFocusRequest else { return }
+      lastFocusRequest = request
+      focusGeneration = UUID()
+      let generation = focusGeneration
+      guard enabled, request != nil else { return }
+      DispatchQueue.main.async { [weak self, weak editor] in
+        guard let self, self.active, self.enabled, self.focusGeneration == generation,
+          let editor, editor.isEditable, !editor.isHiddenOrHasHiddenAncestor,
+          let window = editor.window else { return }
+        window.makeFirstResponder(editor)
+      }
+    }
     func textDidChange(_ notification: Notification) {
       guard active, parent.isEnabled, let editor = notification.object as? TextView,
         editor.isEditable, !editor.hasMarkedText() else { return }

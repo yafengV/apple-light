@@ -19,6 +19,7 @@ struct SettingsDropdownMenu<Value: Hashable>: NSViewRepresentable {
   let title: String
   let accessibilityLabel: String
   let systemImage: String
+  var compact = false
   let items: [SettingsDropdownItem<Value>]
   let onSelect: (Value) -> Void
   @Environment(\.isEnabled) private var isEnabled
@@ -40,6 +41,10 @@ struct SettingsDropdownMenu<Value: Hashable>: NSViewRepresentable {
   func updateNSView(_ button: SettingsMenuControl, context: Context) {
     let coordinator = context.coordinator
     coordinator.parent = self
+    button.imagePosition = compact ? .imageOnly : .imageLeft
+    button.isBordered = !compact
+    (button.cell as? NSPopUpButtonCell)?.arrowPosition = compact ? .noArrow : .arrowAtBottom
+    button.toolTip = accessibilityLabel
     button.isEnabled = isEnabled && items.contains {
       if case .option(let option) = $0 { return option.enabled }
       return false

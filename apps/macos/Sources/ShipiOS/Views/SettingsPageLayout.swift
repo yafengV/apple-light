@@ -9,7 +9,7 @@ enum SettingsPageLayout {
 extension SettingsPage {
   var usesScrollingFormHeader: Bool {
     switch self {
-    case .plugins, .mcpServers, .skills, .connections, .shortcuts, .archived: false
+    case .plugins, .mcpServers, .skills, .connections, .shortcuts, .archived, .memories: false
     default: true
     }
   }
