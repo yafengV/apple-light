@@ -128,6 +128,20 @@ struct TaskWindowView: View {
               .taskWindowDropDestination(tabs: tabs, placement: .bottom)
             }
           }
+          .overlay(alignment: tabs.primarySide == .left ? .trailing : .leading) {
+            if !showsSidePanel, tabs.canDropDraggedTab(to: .right) {
+              hiddenPanelDropTarget(.right, title: tabs.primarySide == .left ? "移到右侧" : "移到左侧",
+                icon: tabs.primarySide == .left ? "rectangle.trailinghalf.inset.filled" : "rectangle.leadinghalf.inset.filled")
+                .frame(width: min(150, geometry.size.width * 0.22))
+                .padding(.vertical, tabs.canDropDraggedTab(to: .bottom) && !tabs.showingBottom ? 90 : 8)
+            }
+          }
+          .overlay(alignment: .bottom) {
+            if !tabs.showingBottom, tabs.canDropDraggedTab(to: .bottom) {
+              hiddenPanelDropTarget(.bottom, title: "移到底部", icon: "rectangle.bottomhalf.inset.filled")
+                .frame(height: 84).padding(8)
+            }
+          }
         }
         .task(id: task.project) {
           configureTaskWorkspace()
@@ -263,6 +277,16 @@ struct TaskWindowView: View {
 
   var body: some View {
     routedTaskContent
+    .background(TaskWindowDragLifecycle(tabs: tabs).frame(width: 0, height: 0))
+    .task(id: tabs.dragSessionID) {
+      guard let session = tabs.dragSessionID else { return }
+      // SwiftUI does not expose drag cancellation. Watch only this active mouse drag,
+      // including releases outside the app, rather than expiring long drags on a timer.
+      while !Task.isCancelled, tabs.dragSessionID == session, NSEvent.pressedMouseButtons & 1 != 0 {
+        try? await Task.sleep(for: .milliseconds(50))
+      }
+      if !Task.isCancelled { tabs.endDrag(session: session) }
+    }
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
@@ -305,6 +329,7 @@ struct TaskWindowView: View {
       else { composerFocused = true; taskComposerFocusRequest = UUID() }
     }
     .onDisappear {
+      tabs.endDrag()
       store.discardPopoutTaskIfEmpty(taskID)
     }
     .onChange(of: store.library.goalSessions[taskID]) { _, session in
@@ -597,6 +622,16 @@ struct TaskWindowView: View {
     panels.showingFiles || (tabs.showingRight && tabs.selected(.right) != nil)
   }
 
+  private func hiddenPanelDropTarget(_ placement: WorkspaceTabPlacement, title: String, icon: String) -> some View {
+    Label(title, systemImage: icon)
+      .appFont(.callout)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+      .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [6, 4])))
+      .taskWindowDropDestination(tabs: tabs, placement: placement)
+      .accessibilityLabel(title)
+  }
+
   private func sidePanelResizeHandle(_ geometry: GeometryProxy) -> some View {
     PanelResizeHandle(axis: .vertical, growsTowardLeading: tabs.primarySide == .left,
       value: panels.panelSizes.inspector(available: geometry.size.width),
@@ -610,6 +645,7 @@ struct TaskWindowView: View {
     if panels.showingFiles {
       TaskWindowFilesPanel(store: store, workspace: taskWorkspace, close: { panels.showingFiles = false })
         .frame(width: panels.panelSizes.inspector(available: geometry.size.width))
+        .taskWindowDropDestination(tabs: tabs, placement: .right)
     } else if tabs.showingRight, let task, let tab = tabs.selected(.right) {
       VStack(spacing: 0) {
         if tabs.showingTabs { tabStrip(task, placement: .right); Divider() }

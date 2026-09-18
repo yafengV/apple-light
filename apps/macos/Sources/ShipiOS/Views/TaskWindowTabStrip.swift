@@ -86,11 +86,19 @@ private struct TaskWindowTabChip: View {
           .onChange(of: geometry.size.width) { _, value in width = value }
       }
     }
-    .overlay { if targeted { RoundedRectangle(cornerRadius: 7).stroke(Color.accentColor, lineWidth: 2) } }
+    .overlay {
+      if targeted && tabs.draggingTabID != nil {
+        RoundedRectangle(cornerRadius: 7).stroke(Color.accentColor, lineWidth: 2)
+      }
+    }
     .accessibilityElement(children: .contain)
     .accessibilityAddTraits(tabs.selected(tabs.placement(tab.id))?.id == tab.id ? .isSelected : [])
-    .onDrag { NSItemProvider(object: tabs.dragToken(tab.id) as NSString) }
+    .onDrag {
+      tabs.beginDrag(tab.id)
+      return NSItemProvider(object: tabs.dragToken(tab.id) as NSString)
+    }
     .dropDestination(for: String.self) { values, location in
+      defer { tabs.endDrag() }
       guard let source = values.compactMap(tabs.draggedTab).first else { return false }
       return tabs.reorder(source, relativeTo: tab.id, after: location.x > width / 2)
     } isTargeted: { targeted = $0 }
@@ -119,8 +127,17 @@ private struct TaskWindowTabChip: View {
 extension View {
   func taskWindowDropDestination(tabs: TaskWindowTabs, placement: WorkspaceTabPlacement) -> some View {
     dropDestination(for: String.self) { values, _ in
-      guard let id = values.compactMap(tabs.draggedTab).first, tabs.canMove(id, to: placement) else { return false }
-      tabs.move(id, to: placement); return true
+      tabs.drop(values, to: placement)
+    } isTargeted: { targeted in
+      tabs.targetDrop(placement, entered: targeted)
+    }
+    .overlay {
+      if tabs.dropPlacement == placement {
+        RoundedRectangle(cornerRadius: 10)
+          .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [7, 5]))
+          .background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+          .padding(5).allowsHitTesting(false).accessibilityHidden(true)
+      }
     }
   }
 }

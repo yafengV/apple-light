@@ -24,6 +24,35 @@ import Observation
   @ObservationIgnored private var openingPlacement = WorkspaceTabPlacement.left
   @ObservationIgnored private var synchronizingBrowser = false
   private let dragScope = UUID().uuidString
+  private(set) var draggingTabID: String?
+  private(set) var dragSessionID: UUID?
+  private(set) var dropPlacement: WorkspaceTabPlacement?
+
+  func beginDrag(_ id: String) {
+    guard tabs.contains(where: { $0.id == id }) else { return }
+    draggingTabID = id
+    dragSessionID = UUID()
+    dropPlacement = nil
+  }
+  func endDrag(session: UUID? = nil) {
+    if let session, session != dragSessionID { return }
+    draggingTabID = nil
+    dragSessionID = nil
+    dropPlacement = nil
+  }
+  func canDropDraggedTab(to place: WorkspaceTabPlacement) -> Bool {
+    draggingTabID.map { canMove($0, to: place) } ?? false
+  }
+  func targetDrop(_ place: WorkspaceTabPlacement, entered: Bool) {
+    if entered, canDropDraggedTab(to: place) { dropPlacement = place }
+    else if dropPlacement == place { dropPlacement = nil }
+  }
+  @discardableResult func drop(_ values: [String], to place: WorkspaceTabPlacement) -> Bool {
+    defer { endDrag() }
+    guard let id = values.compactMap(draggedTab).first, canMove(id, to: place) else { return false }
+    move(id, to: place)
+    return true
+  }
 
   func dragToken(_ id: String) -> String { "shipios-task-window-tab:\(dragScope):\(id)" }
   func draggedTab(_ value: String) -> String? {
@@ -182,6 +211,7 @@ import Observation
     }
   }
   private func remove(_ id: String) {
+    if draggingTabID == id { endDrag() }
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
     let place = placement(id), wasFocused = focusedID == id
     closed.append(Closed(tab: tabs[index], placement: place))
@@ -257,6 +287,7 @@ import Observation
     activate(nil)
   }
   func resetProjectTabs() {
+    endDrag()
     for tab in tabs where tab.browserID == nil { clearSelection(tab.id); placements[tab.id] = nil }
     tabs.removeAll { $0.browserID == nil }
     closed.removeAll { $0.tab.browserID == nil }
