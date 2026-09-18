@@ -4,6 +4,7 @@ struct TaskSearchView: View {
   @Bindable var store: WorkspaceStore
   @State private var text = ""
   @State private var selectedID: String?
+  @State private var pointerSelection = false
   @State private var catalog = TaskSearchCatalog()
   @State private var reload = UUID()
   @FocusState private var focus: Field?
@@ -15,7 +16,12 @@ struct TaskSearchView: View {
       runs: catalog.history + store.library.localRuns + store.runs)
   }
   private var selectable: [String] {
-    results.filter { store.canSelectTask($0.task) }.map(\.id)
+    guard !catalog.searching, catalog.resultsQuery == text else { return [] }
+    return results.filter { store.canSelectTask($0.task) }.map(\.id)
+  }
+  private var selection: String? {
+    if let selectedID, selectable.contains(selectedID) { return selectedID }
+    return selectable.first
   }
   private var groups: [TaskSearchGroup] {
     TaskSearchPresentation.groups(catalog.results, query: text,
@@ -33,14 +39,6 @@ struct TaskSearchView: View {
     .task(id: reload) { await catalog.load(root: store.dataRoot, library: store.library) }
     .task(id: request) {
       await catalog.search(request)
-      guard !Task.isCancelled, catalog.resultsQuery == text else { return }
-      if selectedID == nil || !selectable.contains(selectedID!) { selectedID = selectable.first }
-    }
-    .onChange(of: selectable) { _, ids in
-      if selectedID == nil || !ids.contains(selectedID!) { selectedID = ids.first }
-    }
-    .onChange(of: catalog.searching) { _, searching in
-      if !searching && selectedID == nil { selectedID = selectable.first }
     }
   }
 
@@ -48,13 +46,15 @@ struct TaskSearchView: View {
     VStack(spacing: 0) {
       HStack {
         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-        TextField("搜索任务、消息或分支…", text: Binding(get: { text }, set: { text = $0; selectedID = nil }))
+        TextField("搜索任务、消息或分支…", text: Binding(get: { text }, set: { text = $0; selectedID = nil; pointerSelection = false }))
           .textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel("搜索任务")
         Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
       }.padding(18)
       Divider()
       ScrollViewReader { reader in
-        List {
+        List(selection: Binding(get: { selection }, set: { value in
+          if let value, selectable.contains(value) { selectedID = value }
+        })) {
           ForEach(groups) { group in
             Section(group.title) {
               ForEach(group.results) { result in
@@ -62,14 +62,17 @@ struct TaskSearchView: View {
                   TaskSearchResultRow(result: result, query: text, shortcut: results.firstIndex(where: { $0.id == result.id })
                     .flatMap { TaskSearchPresentation.shortcutCommand($0) }.map { store.shortcuts.label($0) })
                 }.buttonStyle(.plain).disabled(catalog.searching || catalog.resultsQuery != text || !store.canSelectTask(result.task))
-                  .listRowBackground(selectedID == result.id ? Color.primary.opacity(0.07) : Color.clear)
-                  .accessibilityAddTraits(selectedID == result.id ? .isSelected : [])
-                  .id(result.id)
+                  .searchResultPointer(enabled: !catalog.searching && catalog.resultsQuery == text && store.canSelectTask(result.task)) {
+                    pointerSelection = true; selectedID = result.id
+                  }
+                  .listRowBackground(selection == result.id ? Color.primary.opacity(0.07) : Color.clear)
+                  .accessibilityAddTraits(selection == result.id ? .isSelected : [])
+                  .tag(result.id).id(result.id)
               }
             }
           }
-        }.onChange(of: selectedID) { _, id in
-          if let id { reader.scrollTo(id) }
+        }.onChange(of: selection) { _, id in
+          if !pointerSelection, let id { reader.scrollTo(id) }
         }.overlay {
           if catalog.results.isEmpty {
             if catalog.loading || catalog.searching { ProgressView("正在搜索…") }
@@ -94,6 +97,7 @@ struct TaskSearchView: View {
   }
 
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
+    pointerSelection = false
     switch key {
     case .taskSlot(let index):
       guard results.indices.contains(index) else { return }
@@ -102,7 +106,7 @@ struct TaskSearchView: View {
     case .submit:
       if focus == .cancel { cancel() }
       else if focus == .retry { retry() }
-      else if let result = results.first(where: { $0.id == selectedID }) { choose(result.task) }
+      else if let result = results.first(where: { $0.id == selection }) { choose(result.task) }
     case .move(let delta): move(delta); focus = .query
     case .tab(let reverse):
       let fields: [Field] = !catalog.historyErrors.isEmpty && !catalog.loading
@@ -118,7 +122,7 @@ struct TaskSearchView: View {
   }
   private func move(_ offset: Int) {
     guard !catalog.searching, catalog.resultsQuery == text else { return }
-    selectedID = TaskSearchRequest.nextSelection(selectedID, ids: selectable, offset: offset)
+    selectedID = TaskSearchRequest.nextSelection(selection, ids: selectable, offset: offset)
   }
   private func choose(_ task: WorkspaceTask) {
     guard !catalog.searching, catalog.resultsQuery == text,

@@ -208,6 +208,7 @@ python3 script/smoke_ipc.py
 | [浏览器标签统一搜索](docs/151-command-browser-search.md) | 当前窗口跨任务浏览器搜索、Tab 分组导航和选中行滚动 |
 | [任务搜索结果快捷键](docs/152-task-search-shortcuts.md) | 置顶/最近任务分组、9 条上限、可配置结果快捷键与输入法保护 |
 | [任务与命令模糊排序](docs/153-task-search-fuzzy-ranking.md) | 词首/路径匹配、字段优先级、得分排序和分段高亮 |
+| [搜索结果选择与辅助功能](docs/154-search-result-selection.md) | 原生选中状态、默认首项、指针命中保护和稳定路径滚动；真实悬停待验收 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

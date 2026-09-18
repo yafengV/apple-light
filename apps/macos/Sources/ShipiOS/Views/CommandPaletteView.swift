@@ -7,6 +7,7 @@ struct CommandPaletteView: View {
   @State private var catalog = TaskSearchCatalog()
   @State private var reload = UUID()
   @State private var cyclingSearchSections = false
+  @State private var pointerSelection = false
   @FocusState private var focus: Field?
   private enum Field { case query, cancel, retry }
   private struct ResultGroup: Identifiable {
@@ -66,13 +67,15 @@ struct CommandPaletteView: View {
         HStack {
           Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
           TextField("搜索命令与任务…", text: Binding(get: { query }, set: {
-            query = $0; selectedID = nil; cyclingSearchSections = false
+            query = $0; selectedID = nil; cyclingSearchSections = false; pointerSelection = false
           })).textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel("搜索命令与任务")
           Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
         }.padding(18)
         Divider()
         ScrollViewReader { reader in
-          List {
+          List(selection: Binding(get: { selection }, set: { value in
+            if let value, selectable.contains(value) { selectedID = value }
+          })) {
             ForEach(groups) { group in
               Section(group.title) {
                 ForEach(group.commands, id: \.paletteID) { item in commandRow(item) }
@@ -80,7 +83,7 @@ struct CommandPaletteView: View {
                 ForEach(group.tasks, id: \.paletteID) { result in taskRow(result) }
               }
             }
-          }.onChange(of: selection) { _, id in if let id { reader.scrollTo(id) } }
+          }.onChange(of: selection) { _, id in if !pointerSelection, let id { reader.scrollTo(id) } }
             .overlay {
               if groups.isEmpty {
                 if CommandMenuSearch.searchesTasks(query) && (catalog.loading || catalog.searching) {
@@ -120,8 +123,9 @@ struct CommandPaletteView: View {
         Text(store.shortcuts.label(item.id)).appFont(.caption).foregroundStyle(.secondary)
       }.padding(.vertical, 6).contentShape(Rectangle())
     }.buttonStyle(.plain).disabled(!store.paletteCommandEnabled(item.id))
+      .searchResultPointer(enabled: store.paletteCommandEnabled(item.id)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
-      .accessibilityAddTraits(id == selection ? .isSelected : []).id(id)
+      .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
   }
   private func taskRow(_ result: TaskSearchResult) -> some View {
     let id = "task:" + result.id
@@ -135,8 +139,9 @@ struct CommandPaletteView: View {
         }
       }
     }.buttonStyle(.plain).disabled(!store.canSelectTask(result.task))
+      .searchResultPointer(enabled: store.canSelectTask(result.task)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
-      .accessibilityAddTraits(id == selection ? .isSelected : []).id(id)
+      .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
   }
   private func browserRow(_ result: CommandBrowserResult) -> some View {
     Button { invoke(result.id) } label: {
@@ -152,10 +157,17 @@ struct CommandPaletteView: View {
           .lineLimit(1).frame(maxWidth: 110, alignment: .trailing).help(result.ownerTitle)
       }.padding(.vertical, 6).contentShape(Rectangle())
     }.buttonStyle(.plain).disabled(!store.canOpenCommandBrowserTab(result))
+      .searchResultPointer(enabled: store.canOpenCommandBrowserTab(result)) { selectFromPointer(result.id) }
       .listRowBackground(result.id == selection ? Color.primary.opacity(0.08) : .clear)
-      .accessibilityAddTraits(result.id == selection ? .isSelected : []).id(result.id)
+      .accessibilityAddTraits(result.id == selection ? .isSelected : []).tag(result.id).id(result.id)
+  }
+  private func selectFromPointer(_ id: String) {
+    guard selectable.contains(id) else { return }
+    pointerSelection = true
+    selectedID = id
   }
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
+    pointerSelection = false
     switch key {
     case .taskSlot(let index):
       guard taskResults.indices.contains(index) else { return }
