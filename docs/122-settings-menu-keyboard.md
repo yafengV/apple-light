@@ -2,6 +2,8 @@
 
 2026-09-18。接续 [焦点分区修复](121-settings-focus-regions.md)，补齐六个设置菜单的键盘入口。
 
+后续修正：默认终端位置的参考控件实际为按钮组，已在 [第 125 篇](125-appearance-and-terminal-buttons.md) 替换。本篇关于终端下拉菜单的描述仅记录当时实现和测试，不代表最新 UI。
+
 ## 实现与参考
 
 本机 Codex 26.908.70816（9275）公开资源中的 DropdownMenuTrigger 接受 Enter、空格及向下键，并在关闭菜单后恢复触发按钮的焦点。ShipiOS 原先的 SwiftUI Picker 在当前系统键盘偏好下会被 Tab 跳过；给外层简单添加 focusable 只能聚焦包装视图，无法操作菜单。

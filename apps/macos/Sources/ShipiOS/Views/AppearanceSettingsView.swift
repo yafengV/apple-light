@@ -34,19 +34,17 @@ struct AppearanceSettingsView: View {
           .settingsSearchTarget(.pointer)
         Text("开启后，鼠标悬停在按钮和链接上会显示指针光标。")
           .appFont(.caption).foregroundStyle(.secondary)
-        Picker("差异标记", selection: binding(\.diffMarkerStyle)) {
-          ForEach(DiffMarkerStyle.allCases) { style in
-            Text(style.title).tag(style)
-          }
-        }.pickerStyle(.segmented)
+        SettingsSegmentedPicker(title: "差异标记", selection: binding(\.diffMarkerStyle), options: [
+          SettingsSegmentOption(value: .color, title: "颜色", accessibilityLabel: "颜色差异标记"),
+          SettingsSegmentOption(value: .symbols, title: "+/−", accessibilityLabel: "加减号差异标记")
+        ])
         .settingsSearchTarget(.diffMarkers)
         Text("使用颜色或 +/− 标记显示代码更改。")
           .appFont(.caption).foregroundStyle(.secondary)
-        Picker("减少动态效果", selection: binding(\.reduceMotion)) {
-          ForEach(ReduceMotionPreference.allCases) { preference in
-            Text(preference.title).tag(preference)
-          }
-        }.pickerStyle(.segmented)
+        SettingsSegmentedPicker(title: "减少动态效果", selection: binding(\.reduceMotion),
+          options: ReduceMotionPreference.allCases.map {
+            SettingsSegmentOption(value: $0, title: $0.title)
+          })
         .settingsSearchTarget(.reduceMotion)
         Text("减少界面动画，或跟随 macOS 辅助功能设置。")
           .appFont(.caption).foregroundStyle(.secondary)

@@ -102,7 +102,7 @@ struct RuntimeSettingsView: View {
         }
         Section("追加消息") {
           SettingsSegmentedPicker(title: "模型运行时发送消息", selection: $store.followUpBehavior,
-            options: [FollowUpBehavior.queue, .steer].map { (value: $0, title: $0.title) })
+            options: [FollowUpBehavior.queue, .steer].map { SettingsSegmentOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.followUp)
           Text(store.followUpBehavior.explanation).foregroundStyle(.secondary)
           if let error = store.generalSettingsError {
@@ -135,11 +135,11 @@ struct RuntimeSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("终端") {
-          SettingsMenuPicker("默认终端位置", selection: Binding(
+          SettingsSegmentedPicker(title: "默认终端位置", selection: Binding(
             get: { store.library.defaultTerminalLocation },
             set: { store.setDefaultTerminalLocation($0) }), options: [
-              SettingsMenuOption(value: .right, title: "右侧"),
-              SettingsMenuOption(value: .bottom, title: "底部")
+              SettingsSegmentOption(value: .bottom, title: "底部"),
+              SettingsSegmentOption(value: .right, title: "右侧")
             ])
           .settingsSearchTarget(.terminalLocation)
           Text("工具栏终端按钮、命令菜单和固定终端恢复都会使用此位置。")
