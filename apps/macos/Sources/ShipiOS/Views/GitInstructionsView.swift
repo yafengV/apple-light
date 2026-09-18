@@ -22,7 +22,7 @@ struct GitInstructionsView: View {
     Section(kind.title) {
       Text(kind.subtitle)
         .appFont(.caption).foregroundStyle(.secondary)
-      TextEditor(text: $draft).frame(minHeight: 110)
+      SettingsTextEditor(text: $draft, label: kind.title).frame(minHeight: 110)
         .accessibilityLabel(kind.title).settingsSearchTarget(kind.field)
       HStack {
         if let error { Text(error).appFont(.caption).foregroundStyle(.red) }

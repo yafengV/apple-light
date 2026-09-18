@@ -33,7 +33,7 @@ struct PersonalizationSettingsView: View {
       Section("自定义指令") {
         Text("告诉 ShipiOS 你的偏好，例如回复语言、详细程度或项目约定。")
           .appFont(.callout).foregroundStyle(.secondary)
-        TextEditor(text: $store.personalizationDraft)
+        SettingsTextEditor(text: $store.personalizationDraft, label: "自定义指令")
           .appFont(size: 13).frame(minHeight: 190)
           .accessibilityLabel("自定义指令").settingsSearchTarget(.instructions)
           .disabled(!store.personalizationLoaded)

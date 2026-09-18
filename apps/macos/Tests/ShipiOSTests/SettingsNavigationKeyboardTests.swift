@@ -17,6 +17,7 @@ import XCTest
     XCTAssertFalse(target.handle(try event(125)))
     target.available = true
     XCTAssertTrue(target.acceptsFirstResponder)
+    XCTAssertFalse(target.canBecomeKeyView, "The zero-size helper must never be a Tab stop")
     XCTAssertTrue(target.handle(try event(125)))
     XCTAssertTrue(target.handle(try event(126)))
     for flag: NSEvent.ModifierFlags in [.command, .control, .option, .shift] {

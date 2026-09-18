@@ -39,6 +39,9 @@ struct SettingsNavigationKeyboardTarget: NSViewRepresentable {
     var request: UUID?
     var onMove: ((MoveCommandDirection) -> Void)?
     override var acceptsFirstResponder: Bool { available }
+    // This zero-size view is only a programmatic arrow-key destination.
+    // Tab should visit visible controls, never the hidden helper itself.
+    override var canBecomeKeyView: Bool { false }
 
     @discardableResult func handle(_ event: NSEvent) -> Bool {
       guard available,

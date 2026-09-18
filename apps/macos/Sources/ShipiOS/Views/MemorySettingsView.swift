@@ -21,7 +21,7 @@ struct MemorySettingsView: View {
       }
 
       Section("添加记忆") {
-        TextEditor(text: $store.memoryDraft)
+        SettingsTextEditor(text: $store.memoryDraft, label: "新记忆")
           .appFont(size: 13).frame(minHeight: 72)
           .accessibilityLabel("新记忆").settingsSearchTarget(.memoryAdd)
           .disabled(!store.memoriesLoaded)
@@ -46,7 +46,7 @@ struct MemorySettingsView: View {
           ForEach(store.memoryPreferences.items.sorted { $0.updatedAt > $1.updatedAt }) { memory in
             VStack(alignment: .leading, spacing: 10) {
               if editingID == memory.id {
-                TextEditor(text: $editingText).frame(minHeight: 70)
+                SettingsTextEditor(text: $editingText, label: "编辑记忆").frame(minHeight: 70)
                   .accessibilityLabel("编辑记忆")
                 HStack {
                   Button("取消") { cancelEditing() }
