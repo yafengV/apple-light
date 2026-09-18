@@ -173,6 +173,7 @@ python3 script/smoke_ipc.py
 | [设置侧栏方向键](docs/116-settings-arrow-navigation.md) | 原生导航焦点、上下切页、首尾边界与搜索输入隔离 |
 | [隐藏设置编辑器焦点](docs/117-settings-hidden-editor-focus.md) | 禁用编辑器退出 Tab 顺序、保留草稿、输入法与原生编辑回归 |
 | [设置 Tab 循环](docs/118-settings-tab-cycle.md) | 搜索、22 项导航、表单文本字段和返回入口的正反向焦点衔接 |
+| [设置开关](docs/119-settings-switch-controls.md) | 统一开关样式、Tab 导航、空格/Enter 激活与辅助功能语义 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

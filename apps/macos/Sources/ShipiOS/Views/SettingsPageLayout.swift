@@ -40,7 +40,7 @@ struct SettingsPageFormStyle: FormStyle {
   @ViewBuilder func makeBody(configuration: Configuration) -> some View {
     if embedded {
       Form { configuration.content.environment(\.settingsPageTitle, nil) }
-        .formStyle(.columns).toggleStyle(.switch)
+        .formStyle(.columns).toggleStyle(SettingsSwitchStyle())
         .frame(maxWidth: .infinity, alignment: .leading)
     } else {
       Form {
@@ -56,6 +56,7 @@ struct SettingsPageFormStyle: FormStyle {
         configuration.content.environment(\.settingsPageTitle, nil)
       }
       .formStyle(.grouped)
+      .toggleStyle(SettingsSwitchStyle())
       .contentMargins(.horizontal, SettingsPageLayout.horizontalInset, for: .scrollContent)
     }
   }
