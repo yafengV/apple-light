@@ -91,7 +91,7 @@ enum PinnedWorkspaceTabKind: String, Codable {
 
 /// A durable sidebar reference to one exact task content tab.
 ///
-/// The live WebKit/review tab remains owned by `WorkspaceStore`. The durable reference keeps
+/// The live content stays with its owning window. The durable reference keeps
 /// enough presentation data to restore that source after an app restart without turning it into
 /// a project or task pin.
 struct PinnedWorkspaceTab: Codable, Equatable, Identifiable {
@@ -101,4 +101,5 @@ struct PinnedWorkspaceTab: Codable, Equatable, Identifiable {
   var kind: PinnedWorkspaceTabKind
   var title: String
   var restoreURL: String?
+  var sourceWindowID: String? = nil
 }

@@ -167,7 +167,7 @@ extension WorkspaceStore {
     if activeRightWorkspaceTabID == oldTab.id { activeRightWorkspaceTabID = newTab.id }
     if activeBottomWorkspaceTabID == oldTab.id { activeBottomWorkspaceTabID = newTab.id }
     if focusedWorkspaceTabID == oldTab.id { focusedWorkspaceTabID = newTab.id }
-    if let pin = library.pinnedContentTabs.firstIndex(where: { $0.sourceTabID == oldTab.id }) {
+    if let pin = library.pinnedContentTabs.firstIndex(where: { $0.sourceWindowID == nil && $0.sourceTabID == oldTab.id }) {
       library.pinnedContentTabs[pin].sourceTabID = newTab.id
       saveLibrary()
     }

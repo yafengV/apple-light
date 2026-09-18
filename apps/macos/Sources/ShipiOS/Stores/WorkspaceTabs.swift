@@ -48,8 +48,8 @@ extension WorkspaceStore {
     }
   }
 
-  func isWorkspaceTabPinned(_ id: String) -> Bool {
-    library.pinnedContentTabs.contains { $0.sourceTabID == id }
+  func isWorkspaceTabPinned(_ id: String, windowID: String? = nil) -> Bool {
+    library.pinnedContentTabs.contains { $0.sourceTabID == id && $0.sourceWindowID == windowID }
   }
 
   func pinWorkspaceTab(_ id: String) {
@@ -72,6 +72,11 @@ extension WorkspaceStore {
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .terminal,
         title: workspaceTabTitle(tab), restoreURL: nil)
     }
+    addPinnedWorkspaceTab(reference)
+  }
+
+  func addPinnedWorkspaceTab(_ reference: PinnedWorkspaceTab) {
+    guard !isWorkspaceTabPinned(reference.sourceTabID, windowID: reference.sourceWindowID) else { return }
     library.pinnedContentTabs.append(reference)
     var order = library.sidebar.order[SidebarLayout.pinned] ?? []
     order.removeAll { $0 == SidebarItem.contentTab(reference.id).id }
@@ -80,9 +85,9 @@ extension WorkspaceStore {
     saveLibrary()
   }
 
-  func unpinWorkspaceTab(_ id: String) {
+  func unpinWorkspaceTab(_ id: String, windowID: String? = nil) {
     guard let pin = library.pinnedContentTabs.first(where: {
-      $0.id == id || $0.sourceTabID == id
+      $0.id == id || ($0.sourceTabID == id && $0.sourceWindowID == windowID)
     }) else { return }
     library.pinnedContentTabs.removeAll { $0.id == pin.id }
     library.sidebar.placement[SidebarItem.contentTab(pin.id).id] = nil
@@ -93,6 +98,9 @@ extension WorkspaceStore {
   }
 
   func pinnedWorkspaceTabTitle(_ pin: PinnedWorkspaceTab) -> String {
+    if let windowID = pin.sourceWindowID {
+      return taskWindowResources.allObjects.first { $0.id == windowID }?.title(for: pin) ?? pin.title
+    }
     guard let source = workspaceTabs.first(where: { $0.id == pin.sourceTabID }) else {
       return pin.title
     }
@@ -100,13 +108,19 @@ extension WorkspaceStore {
   }
 
   func pinnedWorkspaceTabIsLive(_ pin: PinnedWorkspaceTab) -> Bool {
-    workspaceTabs.contains { $0.id == pin.sourceTabID }
+    if let windowID = pin.sourceWindowID {
+      return taskWindowResources.allObjects.first { $0.id == windowID }?.contains(pin) == true
+    }
+    return workspaceTabs.contains { $0.id == pin.sourceTabID }
   }
 
   func openPinnedWorkspaceTab(_ pinID: String) async {
     guard let originalIndex = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID })
     else { return }
     let pin = library.pinnedContentTabs[originalIndex]
+    if let windowID = pin.sourceWindowID,
+      let resources = taskWindowResources.allObjects.first(where: { $0.id == windowID }),
+      resources.reveal(pin) { return }
     if !pin.owner.hasPrefix("new:"),
       let task = library.tasks.first(where: { $0.id == pin.owner }) {
       if currentProjectKey != task.project {
@@ -120,7 +134,7 @@ extension WorkspaceStore {
       return
     }
     destination = .workspace
-    if workspaceTabs.contains(where: { $0.id == pin.sourceTabID }) {
+    if pin.sourceWindowID == nil, workspaceTabs.contains(where: { $0.id == pin.sourceTabID }) {
       activateWorkspaceTab(pin.sourceTabID)
       return
     }
@@ -134,6 +148,7 @@ extension WorkspaceStore {
       let sourceID = WorkspaceContentTab.browser(browser.id, owner: currentWorkspaceTabOwner).id
       if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
         library.pinnedContentTabs[index].sourceTabID = sourceID
+        library.pinnedContentTabs[index].sourceWindowID = nil
         library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
         saveLibrary()
       }
@@ -147,6 +162,7 @@ extension WorkspaceStore {
       if let tab = activeWorkspaceContentTab,
         let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
         library.pinnedContentTabs[index].sourceTabID = tab.id
+        library.pinnedContentTabs[index].sourceWindowID = nil
         library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
         saveLibrary()
       }
@@ -161,6 +177,7 @@ extension WorkspaceStore {
       if let tab = active,
         let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
         library.pinnedContentTabs[index].sourceTabID = tab.id
+        library.pinnedContentTabs[index].sourceWindowID = nil
         library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
         saveLibrary()
       }
@@ -379,7 +396,7 @@ extension WorkspaceStore {
     focusedWorkspaceTabID = focusedWorkspaceTabID == oldID ? newID : focusedWorkspaceTabID
     lastWorkspaceContentTabID = lastWorkspaceContentTabID == oldID ? newID : lastWorkspaceContentTabID
     for index in library.pinnedContentTabs.indices
-      where library.pinnedContentTabs[index].sourceTabID == oldID {
+      where library.pinnedContentTabs[index].sourceWindowID == nil && library.pinnedContentTabs[index].sourceTabID == oldID {
       library.pinnedContentTabs[index].sourceTabID = newID
       library.pinnedContentTabs[index].owner = owner
     }
@@ -537,7 +554,7 @@ extension WorkspaceStore {
       migrateWorkspaceTabState(from: oldID, to: newID, owner: newOwner)
     }
     for index in library.pinnedContentTabs.indices
-      where library.pinnedContentTabs[index].owner == oldOwner {
+      where library.pinnedContentTabs[index].sourceWindowID == nil && library.pinnedContentTabs[index].owner == oldOwner {
       library.pinnedContentTabs[index].owner = newOwner
     }
   }

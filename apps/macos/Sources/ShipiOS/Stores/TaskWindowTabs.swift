@@ -6,6 +6,8 @@ import Observation
   let taskID: String
   let browser: TaskWindowBrowser
   let panels: TaskWindowPanels
+  @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
+  @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
   private(set) var tabs: [WorkspaceContentTab] = []
   private var placements: [String: WorkspaceTabPlacement] = [:]
   private var selections: [WorkspaceTabPlacement: String] = [:]
@@ -135,6 +137,7 @@ import Observation
     let tab = WorkspaceContentTab.terminal(replacement.id, owner: taskID)
     clearSelection(old.id); placements[old.id] = nil
     tabs[index] = tab; placements[tab.id] = place; activate(tab.id)
+    onTabReplaced?(old.id, tab.id)
   }
   func toggleTerminal(in place: WorkspaceTabPlacement) {
     let visible = place == .right ? showingRight : showingBottom
@@ -171,6 +174,7 @@ import Observation
   }
   func close(_ id: String) {
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
+    onTabWillClose?(tab)
     if let browserID = tab.browserID { browser.session.close(browserID) }
     else {
       if let terminalID = tab.terminalID { panels.closeTerminal(terminalID) }

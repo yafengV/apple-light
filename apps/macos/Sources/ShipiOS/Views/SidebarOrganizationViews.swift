@@ -203,7 +203,7 @@ private struct SidebarPinnedContentTabRow: View {
       Task { await store.openPinnedWorkspaceTab(pin.id) }
     } label: {
       HStack(spacing: 8) {
-        Image(systemName: pin.kind == .browser ? "globe" : "square.stack.3d.up")
+        Image(systemName: pin.kind == .browser ? "globe" : pin.kind == .terminal ? "terminal" : "square.stack.3d.up")
           .appFont(size: 11).foregroundStyle(.tertiary).frame(width: 12)
         VStack(alignment: .leading, spacing: 3) {
           Text(store.pinnedWorkspaceTabTitle(pin)).lineLimit(1).appFont(size: 12)
@@ -214,7 +214,7 @@ private struct SidebarPinnedContentTabRow: View {
       }
       .padding(.horizontal, 10).padding(.vertical, 9)
       .background(
-        store.destination == .workspace && store.focusedWorkspaceTabID == pin.sourceTabID
+        pin.sourceWindowID == nil && store.destination == .workspace && store.focusedWorkspaceTabID == pin.sourceTabID
           ? Color.primary.opacity(0.09) : .clear,
         in: RoundedRectangle(cornerRadius: 7))
       .contentShape(Rectangle())
@@ -223,7 +223,7 @@ private struct SidebarPinnedContentTabRow: View {
     .help(store.pinnedWorkspaceTabTitle(pin))
     .accessibilityLabel("固定标签：\(store.pinnedWorkspaceTabTitle(pin))")
     .accessibilityAddTraits(
-      store.destination == .workspace && store.focusedWorkspaceTabID == pin.sourceTabID
+      pin.sourceWindowID == nil && store.destination == .workspace && store.focusedWorkspaceTabID == pin.sourceTabID
         ? .isSelected : [])
     .contextMenu {
       Button("打开") { Task { await store.openPinnedWorkspaceTab(pin.id) } }

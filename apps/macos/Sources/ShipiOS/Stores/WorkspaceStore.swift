@@ -187,6 +187,7 @@ final class WorkspaceStore {
   @ObservationIgnored var appearanceHandler: ((AppearancePreferences) -> Void)?
   var browserSettingsError: String?
   @ObservationIgnored var additionalTaskWindowPanels = NSHashTable<TaskWindowPanelSessions>.weakObjects()
+  @ObservationIgnored var taskWindowResources = NSHashTable<TaskWindowResources>.weakObjects()
   @ObservationIgnored var additionalBrowserSessions = NSHashTable<BrowserSession>.weakObjects()
   var browserDownloadProgress: [UUID: Double] = [:]
   @ObservationIgnored var messageDownloadIDs = Set<UUID>()
@@ -958,6 +959,7 @@ final class WorkspaceStore {
     compatibilityModelTask?.cancel()
     workspace.cancelCommitMessageGeneration()
     workspace.terminals.shutdown()
+    taskWindowResources.allObjects.forEach { $0.shutdown() }
     additionalTaskWindowPanels.allObjects.forEach { $0.shutdown() }
     additionalBrowserSessions.allObjects.forEach { $0.shutdown() }
     workspace.browser.shutdown()

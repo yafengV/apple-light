@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct TaskWindowTabStrip: View {
+  @Bindable var store: WorkspaceStore
+  let resources: TaskWindowResources
   @Bindable var tabs: TaskWindowTabs
   let title: String
   var placement: WorkspaceTabPlacement = .left
@@ -34,7 +36,7 @@ struct TaskWindowTabStrip: View {
               }
             }
             ForEach(tabs.visibleTabs(placement)) { tab in
-              TaskWindowTabChip(tabs: tabs, tab: tab).id(tab.id)
+              TaskWindowTabChip(store: store, resources: resources, tabs: tabs, tab: tab).id(tab.id)
             }
           }.padding(.horizontal, 8)
         }.scrollIndicators(.hidden)
@@ -100,6 +102,8 @@ struct TaskWindowTabStrip: View {
 }
 
 private struct TaskWindowTabChip: View {
+  @Bindable var store: WorkspaceStore
+  let resources: TaskWindowResources
   @Bindable var tabs: TaskWindowTabs
   let tab: WorkspaceContentTab
   @State private var width: CGFloat = 0
@@ -130,6 +134,12 @@ private struct TaskWindowTabChip: View {
       return tabs.reorder(source, relativeTo: tab.id, after: location.x > width / 2)
     } isTargeted: { targeted = $0 }
     .contextMenu {
+      Button(store.isWorkspaceTabPinned(tab.id, windowID: resources.id) ? "从侧栏取消固定" : "固定到侧栏") {
+        if store.isWorkspaceTabPinned(tab.id, windowID: resources.id) {
+          store.unpinWorkspaceTab(tab.id, windowID: resources.id)
+        } else { resources.pin(tab.id, taskID: tabs.taskID) }
+      }
+      Divider()
       ForEach([WorkspaceTabPlacement.left, .right, .bottom], id: \.self) { place in
         if tabs.placement(tab.id) != place, tabs.canMove(tab.id, to: place) {
           Button("移到\(place.label)") { tabs.move(tab.id, to: place) }

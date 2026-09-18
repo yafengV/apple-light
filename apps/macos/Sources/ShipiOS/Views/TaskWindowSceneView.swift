@@ -35,6 +35,9 @@ struct TaskWindowSceneView: View {
             TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in dismiss() }))
       }
     }
+    .background(TaskWindowResourceAttachment(resources: resources).frame(width: 0, height: 0))
+    .onAppear { resources.navigate = visit }
+    .onChange(of: route) { _, _ in resources.navigate = visit }
     .onDisappear { resources.shutdown() }
     .onChange(of: availableTasks) { _, available in
       resources.retainTasks(available, displaying: route?.taskID)
@@ -79,5 +82,19 @@ struct TaskWindowSceneView: View {
     guard let route,
       let next = navigation.move(backwards: backwards, current: route.taskID, available: availableTasks) else { return }
     self.route = TaskWindowRoute(taskID: next, dataRoot: store.dataRoot)
+  }
+}
+
+private struct TaskWindowResourceAttachment: NSViewRepresentable {
+  let resources: TaskWindowResources
+  func makeNSView(context: Context) -> Attachment { Attachment(resources: resources) }
+  func updateNSView(_ view: Attachment, context: Context) {}
+  final class Attachment: NSView {
+    weak var resources: TaskWindowResources?
+    init(resources: TaskWindowResources) { self.resources = resources; super.init(frame: .zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow(); resources?.attach(window: window, from: self)
+    }
   }
 }
