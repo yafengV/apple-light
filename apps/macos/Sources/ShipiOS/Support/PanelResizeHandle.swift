@@ -5,6 +5,7 @@ import SwiftUI
 struct PanelResizeHandle: NSViewRepresentable {
   enum Axis { case vertical, horizontal }
   let axis: Axis
+  var growsTowardLeading = true
   let value: Double
   let bounds: ClosedRange<Double>
   let label: String
@@ -15,6 +16,7 @@ struct PanelResizeHandle: NSViewRepresentable {
   func makeNSView(context: Context) -> ResizeView { ResizeView() }
   func updateNSView(_ view: ResizeView, context: Context) {
     view.axis = axis
+    view.growsTowardLeading = growsTowardLeading
     view.position = value
     view.limits = bounds
     view.onResize = onResize
@@ -33,6 +35,7 @@ struct PanelResizeHandle: NSViewRepresentable {
 
   final class ResizeView: NSView {
     var axis: Axis = .vertical
+    var growsTowardLeading = true
     var position = 0.0
     var limits = 0.0...0.0
     var onResize: ((Double) -> Void)?
@@ -78,7 +81,8 @@ struct PanelResizeHandle: NSViewRepresentable {
       guard let origin else { return }
       let delta =
         axis == .vertical
-        ? origin.x - event.locationInWindow.x : event.locationInWindow.y - origin.y
+        ? (origin.x - event.locationInWindow.x) * (growsTowardLeading ? 1 : -1)
+        : event.locationInWindow.y - origin.y
       resize(initial + delta, finish: false)
     }
     override func mouseUp(with event: NSEvent) {
@@ -91,13 +95,13 @@ struct PanelResizeHandle: NSViewRepresentable {
         if (axis == .vertical && event.keyCode == 123)
           || (axis == .horizontal && event.keyCode == 126)
         {
-          resize(position + 20, finish: true)
+          resize(position + (axis == .vertical && !growsTowardLeading ? -20 : 20), finish: true)
           return
         }
         if (axis == .vertical && event.keyCode == 124)
           || (axis == .horizontal && event.keyCode == 125)
         {
-          resize(position - 20, finish: true)
+          resize(position - (axis == .vertical && !growsTowardLeading ? -20 : 20), finish: true)
           return
         }
       }

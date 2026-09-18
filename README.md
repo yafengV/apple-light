@@ -219,6 +219,7 @@ python3 script/smoke_ipc.py
 | [独立窗口标签固定到侧栏](docs/162-task-window-sidebar-pins.md) | 窗口归属、原实例唤回和关闭恢复；终端焦点后续见第 163 篇 |
 | [终端重新挂载焦点](docs/163-terminal-attachment-focus.md) | 按实际附着重试、取消过期请求及旧宿主隔离；侧栏唤回键盘复验见第 164 篇 |
 | [共用新标签启动器](docs/164-shared-content-tab-launcher.md) | 插件条目、终端选项及窗口归属；原生菜单及终端选项已验；插件详情观察中断待查 |
+| [独立窗口面板尺寸与交换方向](docs/165-task-window-panel-resizing.md) | 拖动、键盘、双击复位、逐任务尺寸及左右交换方向；原生验收通过所列路径 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

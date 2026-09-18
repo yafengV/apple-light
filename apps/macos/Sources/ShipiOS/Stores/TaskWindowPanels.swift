@@ -29,6 +29,7 @@ import Observation
 @MainActor @Observable final class TaskWindowPanels {
   let taskID: String
   let workspace = DeveloperWorkspace()
+  var panelSizes = WorkspacePanelSizes()
   var showingFiles = false
   var showingReview = false
   var showingTerminal = false
@@ -38,6 +39,17 @@ import Observation
   var terminalFocus: TerminalFocusRequest?
 
   init(taskID: String) { self.taskID = taskID }
+
+  func resizeInspector(to width: Double) {
+    guard width.isFinite, width >= 0 else { return }
+    panelSizes.inspectorWidth = width
+  }
+  func resizeTerminal(to height: Double) {
+    guard height.isFinite, height >= 0 else { return }
+    panelSizes.terminalHeight = height
+  }
+  func resetInspectorSize() { panelSizes.inspectorWidth = nil }
+  func resetTerminalSize() { panelSizes.terminalHeight = nil }
 
   func configure(project: String) {
     let root = project.isEmpty ? nil : GitBranchService.canonicalRoot(URL(fileURLWithPath: project))

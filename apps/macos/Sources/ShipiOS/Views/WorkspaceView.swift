@@ -296,7 +296,8 @@ struct WorkspaceView: View {
 
   private func inspectorResizeHandle(availableWidth: CGFloat) -> some View {
     PanelResizeHandle(
-      axis: .vertical, value: store.panelSizes.inspector(available: availableWidth),
+      axis: .vertical, growsTowardLeading: store.workspaceContentPaneSide == .right,
+      value: store.panelSizes.inspector(available: availableWidth),
       bounds: WorkspacePanelSizes.inspectorBounds(available: availableWidth),
       label: "调整内容面板宽度", onResize: store.resizeInspector,
       onEnd: store.saveLibrary, onReset: store.resetInspectorSize

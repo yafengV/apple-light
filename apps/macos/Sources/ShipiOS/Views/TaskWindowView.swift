@@ -95,7 +95,10 @@ struct TaskWindowView: View {
         GeometryReader { geometry in
           VStack(spacing: 0) {
             HStack(spacing: 0) {
-              if tabs.primarySide == .right { rightContent(geometry) }
+              if showsSidePanel && tabs.primarySide == .right {
+                rightContent(geometry)
+                sidePanelResizeHandle(geometry)
+              }
               VStack(spacing: 0) {
                 if tabs.showingTabs { tabStrip(task, placement: .left); Divider() }
                 if let tab = tabs.selected(.left) {
@@ -105,15 +108,23 @@ struct TaskWindowView: View {
               }
               .frame(maxWidth: .infinity, maxHeight: .infinity)
               .taskWindowDropDestination(tabs: tabs, placement: .left)
-              if tabs.primarySide == .left { rightContent(geometry) }
+              if showsSidePanel && tabs.primarySide == .left {
+                sidePanelResizeHandle(geometry)
+                rightContent(geometry)
+              }
             }
             if tabs.showingBottom, let tab = tabs.selected(.bottom) {
-              Divider()
+              PanelResizeHandle(axis: .horizontal,
+                value: panels.panelSizes.terminal(available: geometry.size.height),
+                bounds: WorkspacePanelSizes.terminalBounds(available: geometry.size.height),
+                label: "调整终端高度", onResize: panels.resizeTerminal, onEnd: {},
+                onReset: panels.resetTerminalSize)
+                .frame(height: WorkspacePanelSizes.divider)
               VStack(spacing: 0) {
                 if tabs.showingTabs { tabStrip(task, placement: .bottom); Divider() }
                 content(tab, task: task)
               }
-              .frame(height: min(300, max(180, geometry.size.height * 0.34)))
+              .frame(height: panels.panelSizes.terminal(available: geometry.size.height))
               .taskWindowDropDestination(tabs: tabs, placement: .bottom)
             }
           }
@@ -582,15 +593,28 @@ struct TaskWindowView: View {
     }
   }
 
+  private var showsSidePanel: Bool {
+    panels.showingFiles || (tabs.showingRight && tabs.selected(.right) != nil)
+  }
+
+  private func sidePanelResizeHandle(_ geometry: GeometryProxy) -> some View {
+    PanelResizeHandle(axis: .vertical, growsTowardLeading: tabs.primarySide == .left,
+      value: panels.panelSizes.inspector(available: geometry.size.width),
+      bounds: WorkspacePanelSizes.inspectorBounds(available: geometry.size.width),
+      label: "调整内容面板宽度", onResize: panels.resizeInspector, onEnd: {},
+      onReset: panels.resetInspectorSize)
+      .frame(width: WorkspacePanelSizes.divider)
+  }
+
   @ViewBuilder private func rightContent(_ geometry: GeometryProxy) -> some View {
     if panels.showingFiles {
       TaskWindowFilesPanel(store: store, workspace: taskWorkspace, close: { panels.showingFiles = false })
-        .frame(width: min(380, max(300, geometry.size.width * 0.38)))
+        .frame(width: panels.panelSizes.inspector(available: geometry.size.width))
     } else if tabs.showingRight, let task, let tab = tabs.selected(.right) {
       VStack(spacing: 0) {
         if tabs.showingTabs { tabStrip(task, placement: .right); Divider() }
         content(tab, task: task).frame(maxWidth: .infinity, maxHeight: .infinity)
-      }.frame(width: min(620, max(360, geometry.size.width * 0.5)))
+      }.frame(width: panels.panelSizes.inspector(available: geometry.size.width))
         .taskWindowDropDestination(tabs: tabs, placement: .right)
     }
   }
