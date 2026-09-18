@@ -930,4 +930,107 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(ShortcutBinding(event: event), ShortcutBinding("⌘←"))
     XCTAssertEqual(ShortcutBinding("⌘←").keyboardShortcut.key, .leftArrow)
   }
+  @MainActor func testTaskWindowBrowsersPreserveTaskPagesAndNeverSelectMainWorkspace() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.library.tasks = [
+      .init(id: "main", project: "", title: "Main", runIDs: ["main-run"]),
+      .init(id: "popout", project: "", title: "Popout", runIDs: ["popout-run"]),
+    ]
+    store.selection = "main-run"
+    store.library.drafts = ["main": "Main draft", "popout": "Popout draft"]
+    let windows = TaskWindowBrowsers()
+    defer { windows.shutdown(); store.workspace.browser.shutdown() }
+    let browser = windows.browser(for: "popout", store: store)
+    let url = URL(string: base + "/one")!
+    store.performMessageLinkAction(.openInApp, url: url, ownerRunID: "popout-run",
+      openInApp: { browser.open($0, presentation: $1) })
+    let tab = try XCTUnwrap(browser.session.selected)
+    try await eventually("Independent page did not load") { !tab.loading && tab.title == "One" }
+    try await tab.view.evaluateJavaScript("window.windowOwnerMarker = 91")
+    browser.open(URL(string: base + "/one#section")!, presentation: .fullWidth)
+    try await eventually("Independent fragment did not load") { !tab.loading && tab.committedURL?.fragment == "section" }
+    XCTAssertEqual(browser.session.tabs.count, 1)
+    let marker = try await tab.view.evaluateJavaScript("window.windowOwnerMarker") as? Int
+    XCTAssertEqual(marker, 91)
+    XCTAssertTrue(browser.fullWidth)
+    _ = windows.browser(for: "main", store: store)
+    XCTAssertTrue(windows.browser(for: "popout", store: store) === browser)
+    let result = try XCTUnwrap(windows.results(library: store.library).first)
+    browser.visible = false
+    XCTAssertTrue(windows.select(result, library: store.library))
+    XCTAssertTrue(browser.visible)
+    XCTAssertEqual(browser.session.selection, tab.id)
+    XCTAssertEqual(store.selectedTask?.id, "main")
+    XCTAssertTrue(store.workspace.browser.tabs.isEmpty)
+    XCTAssertEqual(store.library.drafts["main"], "Main draft")
+    XCTAssertEqual(store.library.drafts["popout"], "Popout draft")
+    XCTAssertEqual(store.library.browserHistory.first?.url, base + "/one",
+      "History records the loaded document; fragment jumps retain the existing page")
+    browser.session.close(tab.id)
+    XCTAssertFalse(windows.select(result, library: store.library), "A closed search result is stale")
+    XCTAssertFalse(browser.visible)
+    browser.perform("browser-reopen")
+    XCTAssertTrue(browser.visible)
+    XCTAssertEqual(browser.session.tabs.count, 1)
+    XCTAssertNotEqual(browser.session.selection, tab.id)
+    let reopened = try XCTUnwrap(browser.session.selected)
+    windows.shutdown()
+    XCTAssertTrue(reopened.closed)
+  }
+
+  @MainActor func testIndependentBrowserBackgroundTabsAndGlobalDownloadCancellation() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let windows = TaskWindowBrowsers()
+    defer { windows.shutdown(); store.workspace.browser.shutdown() }
+    let browser = windows.browser(for: "task", store: store)
+    let focus = browser.session.contentFocus
+    browser.open(URL(string: base + "/one")!, presentation: .backgroundTab)
+    let first = try XCTUnwrap(browser.session.selection)
+    XCTAssertEqual(browser.session.contentFocus, focus)
+    XCTAssertNil(browser.session.addressFocusTarget)
+    browser.open(URL(string: base + "/two")!, presentation: .backgroundTab)
+    XCTAssertEqual(browser.session.selection, first)
+    XCTAssertEqual(browser.session.contentFocus, focus)
+    browser.perform("next-task")
+    XCTAssertNotEqual(browser.session.selection, first)
+    browser.perform("tab-close-others")
+    XCTAssertEqual(browser.session.tabs.count, 1)
+    XCTAssertFalse(browser.commandEnabled("previous-task"))
+    let id = try XCTUnwrap(browser.session.downloadLink(URL(string: base + "/download-slow")!))
+    store.cancelBrowserDownload(id)
+    XCTAssertEqual(store.browserDownloads.first(where: { $0.id == id })?.status, .cancelled)
+    XCTAssertTrue(store.workspace.browser.tabs.isEmpty)
+    let otherWindow = TaskWindowBrowsers()
+    defer { otherWindow.shutdown() }
+    let sameTask = otherWindow.browser(for: "task", store: store)
+    XCTAssertTrue(sameTask.session.tabs.isEmpty, "Separate windows never share a WKWebView")
+  }
+
+  @MainActor func testBrowserReferencesUseExplicitTaskDraftWhenMainSelectionDiffers() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.library.tasks = [
+      .init(id: "main", project: "", title: "Main", runIDs: ["main-run"]),
+      .init(id: "popout", project: "", title: "Popout", runIDs: ["popout-run"]),
+    ]
+    store.selection = "main-run"
+    store.library.drafts = ["main": "Main draft", "popout": "Popout draft"]
+    let reference = BrowserElementReference(url: base + "/one", pageTitle: "One", selector: "h1",
+      tag: "H1", text: "Fixture page", accessibilityLabel: "", role: "", rect: nil)
+    store.addBrowserElementToDraft(reference, taskID: "popout")
+    store.addBrowserComment(reference, body: "Only popout", taskID: "popout")
+    XCTAssertEqual(store.library.drafts["main"], "Main draft")
+    XCTAssertTrue(store.library.drafts["popout"]?.contains(reference.promptContext) == true)
+    XCTAssertTrue(store.browserComments.isEmpty)
+    XCTAssertEqual(store.browserComments(taskID: "popout").first?.body, "Only popout")
+  }
+
 }

@@ -31,15 +31,21 @@ extension WorkspaceStore {
     guard let url = workspace.browser.selected?.committedURL else { return }
     pasteboard.clearContents(); pasteboard.setString(url.absoluteString, forType: .string)
   }
-  func addBrowserElementToDraft(_ reference: BrowserElementReference) {
+  func addBrowserElementToDraft(_ reference: BrowserElementReference, taskID: String? = nil) {
+    if let taskID {
+      let draft = taskWindowDraft(taskID)
+      setTaskWindowDraft(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        ? reference.promptContext : draft + "\n\n" + reference.promptContext, taskID: taskID)
+      return
+    }
     let context = reference.promptContext
     draft = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       ? context : draft + "\n\n" + context
     focusComposer = UUID()
   }
-  @discardableResult func captureBrowserSnapshot(_ tab: BrowserTab) async -> Bool {
+  @discardableResult func captureBrowserSnapshot(_ tab: BrowserTab, taskID: String? = nil) async -> Bool {
     // Capture ownership before WebKit performs its asynchronous snapshot.
-    let key = draftKey
+    let key = taskID ?? draftKey
     guard let data = await tab.snapshotPNG() else { return false }
     let host = tab.committedURL?.host?.replacingOccurrences(
       of: "[^A-Za-z0-9.-]", with: "-", options: .regularExpression) ?? "webpage"

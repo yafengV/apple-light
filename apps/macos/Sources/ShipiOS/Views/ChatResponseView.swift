@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Shared by the main conversation and independent task windows.
 struct ChatResponseView: View {
+  @Environment(\.messageBrowserRoute) private var openInApp
   let store: WorkspaceStore
   let run: AgentRun
 
@@ -16,12 +17,12 @@ struct ChatResponseView: View {
             partPrefix: ordered == nil ? "response" : item.searchPrefix,
             linkActions: MessageLinkActions(
               activate: { url, click in
-                store.openMessageLink(url, project: store.workspaceRoot(for: run), ownerRunID: run.id, click: click)
+                store.openMessageLink(url, project: store.workspaceRoot(for: run), ownerRunID: run.id, click: click, openInApp: openInApp)
               },
-              perform: { url, action in store.performMessageLinkAction(action, url: url, ownerRunID: run.id) }
+              perform: { url, action in store.performMessageLinkAction(action, url: url, ownerRunID: run.id, openInApp: openInApp) }
             )) { url in
               store.openMessageLink(url, project: store.workspaceRoot(for: run), ownerRunID: run.id,
-                click: WebLinkClick(event: NSApp.currentEvent))
+                click: WebLinkClick(event: NSApp.currentEvent), openInApp: openInApp)
             }
         }
       case .tool(let id):

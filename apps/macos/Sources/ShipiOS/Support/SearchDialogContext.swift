@@ -8,6 +8,14 @@ import Foundation
   let canSelectTask: (WorkspaceTask) -> Bool
   let navigate: (WorkspaceTask) -> Void
   let cancel: () -> Void
+  var browserResults: [CommandBrowserResult] = []
+  var canOpenBrowser: (CommandBrowserResult) -> Bool = { _ in false }
+  var openBrowser: (CommandBrowserResult) -> Void = { _ in }
+
+  func selectBrowser(_ result: CommandBrowserResult) {
+    guard canOpenBrowser(result) else { return }
+    openBrowser(result)
+  }
 
   func execute(_ id: String) {
     guard commandEnabled(id) else { return }

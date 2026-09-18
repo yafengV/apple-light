@@ -78,10 +78,11 @@ final class BrowserSession {
     return configuration
   }
   func ensureTab() { if tabs.isEmpty { newTab() } }
-  func select(_ id: UUID) {
+  func select(_ id: UUID, focus: Bool = true) {
     guard tabs.contains(where: { $0.id == id }) else { return }
     selection = id
     onTabSelected?(id)
+    guard focus else { return }
     if selected?.committedURL == nil {
       focusAddress()
     } else {
@@ -181,6 +182,10 @@ final class BrowserSession {
     if let view = responder as? NSView, let tab = selected,
       tab.view.window === window, view === tab.view || view.isDescendant(of: tab.view) { return true }
     return false
+  }
+  func copyURL(to pasteboard: NSPasteboard = .general) {
+    guard let url = selected?.committedURL else { return }
+    pasteboard.clearContents(); pasteboard.setString(url.absoluteString, forType: .string)
   }
   func shutdown() {
     linkDownloadWorker?.close(); linkDownloadWorker = nil

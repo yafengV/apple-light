@@ -80,6 +80,7 @@ extension WorkspaceStore {
 
   func cancelBrowserDownload(_ id: UUID) {
     workspace.browser.cancelDownload(id)
+    additionalBrowserSessions.allObjects.forEach { $0.cancelDownload(id) }
   }
 
   @discardableResult func downloadMessageLink(_ url: URL, askWhereToSave: Bool = false) -> UUID? {

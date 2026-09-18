@@ -2,10 +2,13 @@ import AppKit
 
 extension WorkspaceStore {
   func performMessageLinkAction(_ action: MessageLinkAction, url: URL, ownerRunID: String?,
+    openInApp: ((URL, MessageWebLinkPresentation) -> Void)? = nil,
     pasteboard: NSPasteboard = .general, openExternal: (URL) -> Bool = { NSWorkspace.shared.open($0) }) {
     guard BrowserAddress.permits(url) else { return }
     switch action {
-    case .openInApp: Task { await openWebLinkInApp(url, ownerRunID: ownerRunID) }
+    case .openInApp:
+      if let openInApp { openInApp(url, .split) }
+      else { Task { await openWebLinkInApp(url, ownerRunID: ownerRunID) } }
     case .openExternal:
       if !openExternal(url) { error = "无法打开此链接。" }
     case .copy:
@@ -16,13 +19,15 @@ extension WorkspaceStore {
   }
 
   func openMessageLink(_ url: URL, project: URL?, ownerRunID: String? = nil,
-    click: WebLinkClick? = nil, openExternal: (URL) -> Bool = { NSWorkspace.shared.open($0) }) {
+    click: WebLinkClick? = nil, openInApp: ((URL, MessageWebLinkPresentation) -> Void)? = nil,
+    openExternal: (URL) -> Bool = { NSWorkspace.shared.open($0) }) {
     do {
       switch try MessageLink.target(url, root: project) {
       case .web(let url):
         switch messageWebLinkBehavior(url, click: click) {
         case .inApp(let presentation):
-          Task { await openWebLinkInApp(url, ownerRunID: ownerRunID, presentation: presentation) }
+          if let openInApp { openInApp(url, presentation) }
+          else { Task { await openWebLinkInApp(url, ownerRunID: ownerRunID, presentation: presentation) } }
         case .external:
           if !openExternal(url) { error = "无法打开此链接。" }
         case .download:

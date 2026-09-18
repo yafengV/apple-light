@@ -14,7 +14,7 @@ struct BrowserHost: NSViewRepresentable {
     DispatchQueue.main.async {
       guard canFocus(), session.selection == tab.id, session.contentFocusTarget == tab.id,
         session.contentFocus == request, !tab.closed, let window = view.window,
-        window.attachedSheet == nil else { return }
+        window.isKeyWindow, window.attachedSheet == nil else { return }
       window.makeFirstResponder(view)
     }
   }
@@ -24,9 +24,15 @@ struct BrowserHost: NSViewRepresentable {
 struct BrowserPanel: View {
   @Bindable var store: WorkspaceStore
   @Bindable var session: BrowserSession
+  var context: BrowserPanelContext? = nil
   var showsTabStrip = true
   var tabID: UUID? = nil
   @State private var showingDownloads = false
+  private var comments: [BrowserComment] { store.browserComments(taskID: context?.taskID) }
+  private func canFocus() -> Bool {
+    context?.canFocus() ?? (store.browserVisible && store.presentedOverlay == nil
+      && !store.showingModelPicker && !store.showingBranchPicker)
+  }
   private var displayedTab: BrowserTab? {
     if let tabID { return session.tabs.first { $0.id == tabID } }
     return session.selected
@@ -39,13 +45,13 @@ struct BrowserPanel: View {
             ScrollView(.horizontal) {
               HStack(spacing: 2) {
                 ForEach(session.tabs) { tab in
-                  BrowserTabChip(store: store, session: session, tab: tab).id(tab.id)
+                  BrowserTabChip(store: store, session: session, tab: tab, context: context).id(tab.id)
                 }
               }
             }.scrollIndicators(.hidden)
               .onChange(of: session.selection) { _, id in if let id { proxy.scrollTo(id) } }
           }
-          Button { store.newBrowserTab() } label: { Image(systemName: "plus") }
+          Button { if let context { context.newTab() } else { store.newBrowserTab() } } label: { Image(systemName: "plus") }
             .buttonStyle(.plain).help("新建浏览器标签 \(store.shortcuts.label("browser-new"))")
             .accessibilityLabel("新建浏览器标签").padding(8)
         }.appFont(.caption).padding(5)
@@ -60,11 +66,10 @@ struct BrowserPanel: View {
           Button { if tab.loading { tab.stop() } else { tab.reload() } } label: {
             Image(systemName: tab.loading ? "xmark" : "arrow.clockwise")
           }.help(tab.loading ? "停止加载" : "重新加载").accessibilityLabel(tab.loading ? "停止加载" : "重新加载网页")
-          BrowserAddressField(tab: tab, session: session, canFocus: { store.browserVisible && store.presentedOverlay == nil
-            && !store.showingModelPicker && !store.showingBranchPicker })
+          BrowserAddressField(tab: tab, session: session, canFocus: canFocus)
             .frame(minWidth: 90, minHeight: 24).id(tab.id)
           Button {
-            Task { await store.captureBrowserSnapshot(tab) }
+            Task { await store.captureBrowserSnapshot(tab, taskID: context?.taskID) }
           } label: {
             if tab.capturingSnapshot { ProgressView().controlSize(.mini) }
             else { Image(systemName: "camera") }
@@ -96,9 +101,9 @@ struct BrowserPanel: View {
               .help("选择网页元素").accessibilityLabel("选择网页元素")
           }
           Menu {
-            Button("复制网址") { store.copyBrowserURL() }.disabled(tab.committedURL == nil)
+            Button("复制网址") { session.copyURL() }.disabled(tab.committedURL == nil)
             Button("忽略缓存重新加载") { tab.reload(bypassCache: true) }
-            Button("重新打开关闭的标签页") { store.reopenClosedBrowserTab() }
+            Button("重新打开关闭的标签页") { if let context { context.reopen() } else { store.reopenClosedBrowserTab() } }
               .disabled(!session.canReopenClosedTab)
             if let url = tab.committedURL {
               Button("在系统浏览器中打开") { NSWorkspace.shared.open(url) }
@@ -127,14 +132,14 @@ struct BrowserPanel: View {
           }.padding(10)
         }
         if let reference = tab.selectedElement {
-          BrowserElementReferenceView(store: store, tab: tab, reference: reference)
+          BrowserElementReferenceView(store: store, tab: tab, reference: reference, context: context)
         } else if tab.selectingElement {
           Label("单击元素或拖动选择区域，按 Esc 取消", systemImage: "scope")
             .appFont(.caption).foregroundStyle(.secondary).padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        if !store.browserComments.isEmpty {
-          BrowserCommentsPanel(store: store)
+        if !comments.isEmpty {
+          BrowserCommentsPanel(store: store, taskID: context?.taskID)
         }
         if showingDownloads {
           VStack(alignment: .leading, spacing: 6) {
@@ -142,7 +147,7 @@ struct BrowserPanel: View {
               Label("下载", systemImage: "arrow.down.circle")
                 .appFont(.caption, weight: .medium)
               Spacer()
-              Button("下载设置…") { store.openSettings(.browser) }.controlSize(.small)
+              Button("下载设置…") { if let context { context.openSettings() } else { store.openSettings(.browser) } }.controlSize(.small)
               Button { showingDownloads = false } label: { Image(systemName: "xmark") }
                 .buttonStyle(.plain).accessibilityLabel("关闭下载列表")
             }.padding(.horizontal, 8).padding(.top, 8)
@@ -151,11 +156,8 @@ struct BrowserPanel: View {
           }.background(Color.primary.opacity(0.035))
         }
         Divider()
-        BrowserHost(tab: tab, session: session, canFocus: {
-          store.browserVisible && store.presentedOverlay == nil
-            && !store.showingModelPicker && !store.showingBranchPicker
-        }).id(tab.id)
-          .task(id: markerKey(tab: tab)) { await tab.renderCommentMarkers(store.browserComments) }
+        BrowserHost(tab: tab, session: session, canFocus: canFocus).id(tab.id)
+          .task(id: markerKey(tab: tab)) { await tab.renderCommentMarkers(comments) }
           .overlay {
           if tab.committedURL == nil && !tab.loading && tab.error == nil {
             ContentUnavailableView("打开网页", systemImage: "globe", description: Text("输入网址，或打开本地开发服务。"))
@@ -163,7 +165,9 @@ struct BrowserPanel: View {
           }
         }
       }
-    }.background(BrowserKeyboardBridge(store: store).frame(width: 0, height: 0))
+    }.background {
+      if context == nil { BrowserKeyboardBridge(store: store).frame(width: 0, height: 0) }
+    }
       .onAppear {
         if tabID == nil { session.ensureTab() }
         else if session.selection != tabID, let tabID { session.select(tabID) }
@@ -171,7 +175,7 @@ struct BrowserPanel: View {
   }
 
   private func markerKey(tab: BrowserTab) -> String {
-    ([tab.committedURL?.absoluteString ?? ""] + store.browserComments.map {
+    ([tab.committedURL?.absoluteString ?? ""] + comments.map {
       "\($0.id.uuidString):\($0.body):\($0.reference.url)"
     }).joined(separator: "|")
   }
@@ -181,6 +185,7 @@ private struct BrowserTabChip: View {
   @Bindable var store: WorkspaceStore
   @Bindable var session: BrowserSession
   @Bindable var tab: BrowserTab
+  var context: BrowserPanelContext? = nil
   @State private var chipWidth: CGFloat = 0
   @State private var dragOffset: CGFloat = 0
 
@@ -193,7 +198,7 @@ private struct BrowserTabChip: View {
         }
       }.buttonStyle(.plain).help(tab.committedURL?.absoluteString ?? tab.title)
         .accessibilityAddTraits(session.selection == tab.id ? .isSelected : [])
-      Button { store.closeBrowserTab(tab.id) } label: {
+      Button { if let context { context.closeTab(tab.id) } else { store.closeBrowserTab(tab.id) } } label: {
         Image(systemName: "xmark").appFont(size: 9)
       }
       .buttonStyle(.plain).accessibilityLabel("关闭标签：\(tab.title)")
@@ -220,13 +225,13 @@ private struct BrowserTabChip: View {
           withAnimation(.easeOut(duration: 0.12)) { dragOffset = 0 }
         })
     .contextMenu {
-      Button("关闭标签页") { store.closeBrowserTab(tab.id) }
+      Button("关闭标签页") { if let context { context.closeTab(tab.id) } else { store.closeBrowserTab(tab.id) } }
       Button("关闭其他标签页") { session.closeOtherTabs(keeping: tab.id) }
         .disabled(session.tabs.count <= 1)
       Button("关闭右侧标签页") { session.closeTabsToRight(of: tab.id) }
         .disabled(!session.canCloseTabsToRight(of: tab.id))
       Divider()
-      Button("重新打开关闭的标签页") { store.reopenClosedBrowserTab() }
+      Button("重新打开关闭的标签页") { if let context { context.reopen() } else { store.reopenClosedBrowserTab() } }
         .disabled(!session.canReopenClosedTab)
     }
   }
@@ -236,6 +241,7 @@ private struct BrowserElementReferenceView: View {
   @Bindable var store: WorkspaceStore
   @Bindable var tab: BrowserTab
   let reference: BrowserElementReference
+  var context: BrowserPanelContext? = nil
   @State private var comment = ""
 
   var body: some View {
@@ -256,10 +262,10 @@ private struct BrowserElementReferenceView: View {
       TextField("描述需要修改的内容…", text: $comment, axis: .vertical)
         .textFieldStyle(.roundedBorder).lineLimit(2...5).accessibilityLabel("浏览器评论")
       HStack {
-        Button("添加为引用") { store.addBrowserElementToDraft(reference) }
+        Button("添加为引用") { store.addBrowserElementToDraft(reference, taskID: context?.taskID); context?.focusComposer() }
         Spacer()
         Button("保存评论") {
-          store.addBrowserComment(reference, body: comment)
+          store.addBrowserComment(reference, body: comment, taskID: context?.taskID)
           tab.clearSelectedElement()
         }
         .buttonStyle(.borderedProminent)
@@ -272,11 +278,13 @@ private struct BrowserElementReferenceView: View {
 
 private struct BrowserCommentsPanel: View {
   @Bindable var store: WorkspaceStore
+  var taskID: String? = nil
+  private var comments: [BrowserComment] { store.browserComments(taskID: taskID) }
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      Label("\(store.browserComments.count) 条浏览器评论", systemImage: "text.bubble")
+      Label("\(comments.count) 条浏览器评论", systemImage: "text.bubble")
         .appFont(.caption, weight: .medium)
-      ForEach(Array(store.browserComments.enumerated()), id: \.element.id) { index, comment in
+      ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
         HStack(alignment: .top, spacing: 8) {
           Text("\(index + 1)").appFont(.caption, weight: .semibold)
             .foregroundStyle(.white).frame(width: 20, height: 20)
@@ -288,7 +296,7 @@ private struct BrowserCommentsPanel: View {
           }
           Spacer(minLength: 4)
           Button {
-            store.removeBrowserComment(comment.id)
+            store.removeBrowserComment(comment.id, taskID: taskID)
           } label: { Image(systemName: "xmark") }
           .buttonStyle(.plain).help("移除浏览器评论").accessibilityLabel("移除浏览器评论 \(index + 1)")
         }

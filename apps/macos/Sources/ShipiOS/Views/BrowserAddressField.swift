@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BrowserAddressField: NSViewRepresentable {
+  @Environment(\.isEnabled) private var isEnabled
   let tab: BrowserTab
   let session: BrowserSession
   let canFocus: () -> Bool
@@ -17,12 +18,13 @@ struct BrowserAddressField: NSViewRepresentable {
   }
   func updateNSView(_ field: NSTextField, context: Context) {
     context.coordinator.parent = self
+    field.isEnabled = isEnabled
     if field.stringValue != tab.address, field.currentEditor() == nil { field.stringValue = tab.address }
     let request = session.addressFocus
     if session.addressFocusTarget == tab.id, context.coordinator.handled != request {
       context.coordinator.handled = request
       DispatchQueue.main.async {
-        guard canFocus(), session.selection == tab.id, session.addressFocusTarget == tab.id,
+        guard isEnabled, canFocus(), field.window?.isKeyWindow == true, session.selection == tab.id, session.addressFocusTarget == tab.id,
           session.addressFocus == request, field.window?.attachedSheet == nil else { return }
         field.window?.makeFirstResponder(field)
         field.selectText(nil)

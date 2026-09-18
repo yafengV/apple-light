@@ -43,7 +43,7 @@ struct CommandPaletteView: View {
       result.append(.init(id: "commands", title: "命令", commands: matches.filter { !["new", "open"].contains($0.id) }))
     } else {
       if !matches.isEmpty { result.append(.init(id: "commands", title: "命令", commands: matches)) }
-      let browsers = CommandBrowserResult.search(context == nil ? store.commandBrowserTabs : [], query: query)
+      let browsers = CommandBrowserResult.search(context?.browserResults ?? store.commandBrowserTabs, query: query)
       if !browsers.isEmpty { result.append(.init(id: "browsers", title: "浏览器标签", browsers: browsers)) }
       if !taskResults.isEmpty { result.append(.init(id: "tasks", title: "任务", tasks: taskResults)) }
     }
@@ -52,7 +52,7 @@ struct CommandPaletteView: View {
   private var selectableGroups: [[String]] {
     groups.map { group in
       group.commands.filter { commandEnabled($0.id) }.map { "command:" + $0.id }
-        + group.browsers.filter { store.canOpenCommandBrowserTab($0) }.map(\.id)
+        + group.browsers.filter { canOpenBrowser($0) }.map(\.id)
         + group.tasks.filter { canSelectTask($0.task) }.map { "task:" + $0.id }
     }.filter { !$0.isEmpty }
   }
@@ -157,8 +157,8 @@ struct CommandPaletteView: View {
         Text(result.ownerTitle).appFont(.caption).foregroundStyle(.secondary)
           .lineLimit(1).frame(maxWidth: 110, alignment: .trailing).help(result.ownerTitle)
       }.padding(.vertical, 6).contentShape(Rectangle())
-    }.buttonStyle(.plain).disabled(!store.canOpenCommandBrowserTab(result))
-      .searchResultPointer(enabled: store.canOpenCommandBrowserTab(result)) { selectFromPointer(result.id) }
+    }.buttonStyle(.plain).disabled(!canOpenBrowser(result))
+      .searchResultPointer(enabled: canOpenBrowser(result)) { selectFromPointer(result.id) }
       .listRowBackground(result.id == selection ? Color.primary.opacity(0.08) : .clear)
       .accessibilityAddTraits(result.id == selection ? .isSelected : []).tag(result.id).id(result.id)
   }
@@ -183,7 +183,7 @@ struct CommandPaletteView: View {
       focus = .query
     case .tab(let reverse):
       let searchGroups = groups.compactMap { group -> [String]? in
-        if group.id == "browsers" { return group.browsers.filter { store.canOpenCommandBrowserTab($0) }.map(\.id) }
+        if group.id == "browsers" { return group.browsers.filter { canOpenBrowser($0) }.map(\.id) }
         if group.id == "tasks" { return group.tasks.filter { canSelectTask($0.task) }.map { "task:" + $0.id } }
         return nil
       }
@@ -197,6 +197,9 @@ struct CommandPaletteView: View {
       let index = fields.firstIndex(of: focus ?? .query) ?? 0
       focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
     }
+  }
+  private func canOpenBrowser(_ result: CommandBrowserResult) -> Bool {
+    context?.canOpenBrowser(result) ?? store.canOpenCommandBrowserTab(result)
   }
   private func commandEnabled(_ id: String) -> Bool {
     context?.commandEnabled(id) ?? store.paletteCommandEnabled(id)
@@ -217,6 +220,7 @@ struct CommandPaletteView: View {
       if let context { context.execute(command) } else { store.executePaletteCommand(command) }
     }
     else if let result = groups.flatMap(\.browsers).first(where: { $0.id == id }) {
+      if let context { context.selectBrowser(result); return }
       store.setOverlay(.commands, presented: false)
       store.fileFocusAfterOverlay = nil
       store.searchDialogReturnFocus = nil

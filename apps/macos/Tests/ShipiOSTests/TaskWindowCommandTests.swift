@@ -74,6 +74,23 @@ final class TaskWindowCommandTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testBrowserEditingKeysUseLiveFocusButMenuActionsStayAvailable() {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
+    var browserFocused = false
+    var invoked: [String] = []
+    let context = TaskWindowCommandContext(enabled: ["browser-back"], perform: { invoked.append($0) },
+      keyboardAllowed: { _ in browserFocused })
+    XCTAssertNil(context.command(for: ShortcutBinding("⌘←"), shortcuts: shortcuts))
+    XCTAssertTrue(context.execute("browser-back"), "Explicit menu selection is independent of editor key handling")
+    browserFocused = true
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘←"), shortcuts: shortcuts), "browser-back")
+    browserFocused = false
+    XCTAssertNil(context.command(for: ShortcutBinding("⌘←"), shortcuts: shortcuts))
+    XCTAssertEqual(invoked, ["browser-back"])
+  }
+
   func testTaskCommandsStayLocalIncludingUnavailablePanelAndNumberNavigation() {
     for id in ["palette", "palette-alternate", "search", "send", "stop", "find", "pin", "archive", "rename", "fork", "tree", "browser-copy", "tab-close", "focus-tab-1", "focus-chat-9"] {
       XCTAssertTrue(TaskWindowCommandContext.owns(id), id)

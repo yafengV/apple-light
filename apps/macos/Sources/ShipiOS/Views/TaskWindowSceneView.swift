@@ -7,6 +7,7 @@ struct TaskWindowSceneView: View {
   @Bindable var store: WorkspaceStore
   @Binding var route: TaskWindowRoute?
   @State private var renameHistory = TaskRenameHistory()
+  @State private var browsers = TaskWindowBrowsers()
   @State private var navigation = TaskWindowNavigation()
   @State private var hasPresentedTask = false
   @Environment(\.dismiss) private var dismiss
@@ -20,8 +21,8 @@ struct TaskWindowSceneView: View {
 
   var body: some View {
     Group {
-      if case .ready(let taskID) = restoration {
-        TaskWindowView(store: store, taskID: taskID, renameHistory: renameHistory,
+      if case .ready(let taskID) = restoration, let browser = browsers.tasks[taskID] {
+        TaskWindowView(store: store, taskID: taskID, browser: browser, browsers: browsers, renameHistory: renameHistory,
           onNavigate: visit,
           canGoBack: navigation.destination(backwards: true, current: taskID, available: availableTasks) != nil,
           canGoForward: navigation.destination(backwards: false, current: taskID, available: availableTasks) != nil,
@@ -34,10 +35,12 @@ struct TaskWindowSceneView: View {
             TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in dismiss() }))
       }
     }
+    .onDisappear { browsers.shutdown() }
     .task(id: restoration) {
       Self.logger.notice("Restoration: route=\(route != nil) loaded=\(store.libraryLoaded) restoring=\(store.restoringLibrary) taskExists=\(route.map { availableTasks.contains($0.taskID) } ?? false) closing=\(restoration == .close)")
       switch restoration {
       case .ready(let taskID):
+        _ = browsers.browser(for: taskID, store: store)
         if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
         hasPresentedTask = true
         if route?.dataRoot == nil { route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot) }

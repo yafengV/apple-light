@@ -4,6 +4,7 @@ import SwiftUI
 struct TaskWindowCommandContext {
   let enabled: Set<String>
   let perform: (String) -> Void
+  var keyboardAllowed: (String) -> Bool = { _ in true }
 
   static func owns(_ id: String) -> Bool {
     let taskCommands: Set<String> = [
@@ -25,7 +26,8 @@ struct TaskWindowCommandContext {
 
   @MainActor func command(for binding: ShortcutBinding, shortcuts: ShortcutPreferences) -> String? {
     if binding == ShortcutBinding("⌘W") { return "tab-close" }
-    return DesktopCommand.all.first { Self.owns($0.id) && shortcuts.matches($0.id, binding) }?.id
+    return DesktopCommand.all.first { Self.owns($0.id) && shortcuts.matches($0.id, binding)
+      && keyboardAllowed($0.id) }?.id
   }
 }
 

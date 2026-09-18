@@ -186,6 +186,7 @@ final class WorkspaceStore {
   var generalSettingsError: String?
   @ObservationIgnored var appearanceHandler: ((AppearancePreferences) -> Void)?
   var browserSettingsError: String?
+  @ObservationIgnored var additionalBrowserSessions = NSHashTable<BrowserSession>.weakObjects()
   var browserDownloadProgress: [UUID: Double] = [:]
   @ObservationIgnored var messageDownloadIDs = Set<UUID>()
   var archivedTaskDeletionError: String?
@@ -956,6 +957,7 @@ final class WorkspaceStore {
     compatibilityModelTask?.cancel()
     workspace.cancelCommitMessageGeneration()
     workspace.terminals.shutdown()
+    additionalBrowserSessions.allObjects.forEach { $0.shutdown() }
     workspace.browser.shutdown()
     rememberProjectSelection()
     saveProfile()
