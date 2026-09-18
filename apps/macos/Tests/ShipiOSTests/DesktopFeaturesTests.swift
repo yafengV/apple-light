@@ -165,6 +165,42 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testTaskModelOverrideReachesRequestAndChangingItDoesNotRewriteInflightRun() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.modelConfiguration = config
+    store.notificationPreferences = .init(timing: .never)
+    store.library.tasks = [
+      .init(id: "one", project: "", title: "One", runIDs: []),
+      .init(id: "two", project: "", title: "Two", runIDs: [])]
+    store.selectTask(store.library.tasks[0])
+    try store.selectModel("task-specific", reasoning: "high", taskID: "two")
+    store.setTaskWindowDraft("configuration", taskID: "two")
+    await store.sendTaskWindowDraft("two", mode: .standard)
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    let running = try XCTUnwrap(store.modelTask(runID: first.id))
+    try store.selectModel("next-model", reasoning: "", taskID: "two")
+    await running.value
+    let result = try XCTUnwrap(store.library.chatRuns.first { $0.id == first.id })
+    let echoed = try JSONDecoder().decode([String: String].self, from: Data((result.result?["response"].text ?? "").utf8))
+    XCTAssertEqual(echoed, ["model": "task-specific", "reasoning_effort": "high"])
+    XCTAssertEqual(result.request["model"].text, "task-specific")
+    XCTAssertEqual(store.modelConfiguration(for: "two").model, "next-model")
+    XCTAssertEqual(store.modelConfiguration(for: "one").model, "fixture-model")
+    XCTAssertEqual(store.selectedTask?.id, "one")
+    store.setTaskWindowDraft("configuration", taskID: "two")
+    await store.sendTaskWindowDraft("two", mode: .standard)
+    let next = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: next.id)?.value
+    let secondResult = try XCTUnwrap(store.library.chatRuns.first { $0.id == next.id })
+    let secondEcho = try JSONDecoder().decode([String: String].self, from: Data((secondResult.result?["response"].text ?? "").utf8))
+    XCTAssertEqual(secondEcho, ["model": "next-model"])
+    XCTAssertEqual(store.modelConfiguration.model, "fixture-model")
+    await store.shutdown()
+  }
+
   @MainActor func testDifferentTasksStreamInParallelAndKeepIndependentOwnership() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

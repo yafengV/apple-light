@@ -106,4 +106,70 @@ final class ModelSelectionTests: XCTestCase {
     store.openSettings(.model)
     XCTAssertFalse(store.showingModelPicker)
   }
+
+  @MainActor func testTaskChoicePersistsIndependentlyAndProviderChangesDoNotReuseForeignModelIDs() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    var config = ModelConfiguration()
+    config.baseURL = "https://example.com/v1"
+    config.model = "default-model"
+    config.reasoning = "low"
+    try store.saveModelConfiguration(config)
+    store.library.tasks = [
+      .init(id: "one", project: "", title: "One", runIDs: []),
+      .init(id: "two", project: "", title: "Two", runIDs: [])]
+    store.library.drafts = ["one": "first draft", "two": "second draft"]
+    try store.selectModel(" task-model ", reasoning: "high", taskID: "two")
+    XCTAssertEqual(store.modelConfiguration, config)
+    XCTAssertEqual(store.modelConfiguration(for: "one").model, "default-model")
+    XCTAssertEqual(store.modelConfiguration(for: "two").model, "task-model")
+    XCTAssertEqual(store.modelConfiguration(for: "two").reasoning, "high")
+    let restored = WorkspaceStore(dataRoot: root)
+    await restored.restore()
+    XCTAssertEqual(restored.modelConfiguration(for: "two").model, "task-model")
+    XCTAssertEqual(restored.library.drafts["one"], "first draft")
+    XCTAssertEqual(restored.library.drafts["two"], "second draft")
+    config.baseURL = "https://different.example/v1"
+    config.model = "different-default"
+    try restored.saveModelConfiguration(config)
+    XCTAssertEqual(restored.modelConfiguration(for: "two").model, "different-default")
+    XCTAssertEqual(restored.modelConfiguration(for: "two").reasoning, "low")
+    XCTAssertThrowsError(try restored.selectModel("oops", reasoning: "", taskID: "deleted"))
+    XCTAssertEqual(restored.modelConfiguration.model, "different-default")
+    await store.shutdown()
+    await restored.shutdown()
+  }
+
+  @MainActor func testTaskChoiceSaveFailureDoesNotReplacePriorSelection() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.modelConfiguration.baseURL = "https://example.com/v1"
+    store.library.tasks = [.init(id: "task", project: "", title: "Task", runIDs: [])]
+    try store.selectModel("before", reasoning: "low", taskID: "task")
+    let file = root.appendingPathComponent("workspace.json")
+    try FileManager.default.removeItem(at: file)
+    try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+    XCTAssertThrowsError(try store.selectModel("after", reasoning: "high", taskID: "task"))
+    XCTAssertEqual(store.modelConfiguration(for: "task").model, "before")
+    XCTAssertEqual(store.modelConfiguration(for: "task").reasoning, "low")
+    await store.shutdown()
+  }
+
+  func testLegacyTaskDecodesWithoutChoiceAndForkKeepsExplicitChoice() throws {
+    var library = WorkspaceLibrary()
+    var task = try JSONDecoder().decode(WorkspaceTask.self,
+      from: Data(#"{"id":"old","project":"","title":"Legacy","runIDs":["run"],"pinned":false,"archived":false}"#.utf8))
+    XCTAssertNil(task.modelSelection)
+    task.modelSelection = TaskModelSelection(model: "chosen", reasoning: "medium", providerAccount: "provider")
+    library.tasks = [task]
+    let run = AgentRun(id: "run", kind: "chat", project: "", status: "succeeded", createdAt: 0,
+      updatedAt: 0, request: .null, result: nil)
+    let fork = try library.forkConversation(taskID: task.id, availableRuns: [run])
+    XCTAssertEqual(fork.modelSelection, task.modelSelection)
+  }
+
 }

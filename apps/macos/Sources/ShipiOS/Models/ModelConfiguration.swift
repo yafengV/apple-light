@@ -1,5 +1,12 @@
 import Foundation
 
+struct TaskModelSelection: Codable, Equatable {
+  let model: String
+  let reasoning: String
+  /// Model IDs are local to the configured service, not portable across providers.
+  let providerAccount: String
+}
+
 struct ModelConfiguration: Codable, Equatable {
   var baseURL = ""
   var model = ""

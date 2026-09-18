@@ -9,6 +9,7 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   var archived = false
   var archivedAt: Date?
   var forkOrigin: ConversationForkOrigin?
+  var modelSelection: TaskModelSelection?
   /// Present only while a newly opened task window has not submitted its first message.
   var popoutDraft: Bool?
   var createdAt: Date?

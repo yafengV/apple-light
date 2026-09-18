@@ -2,6 +2,10 @@ import SwiftUI
 
 struct ComposerModelPicker: View {
   @Bindable var store: WorkspaceStore
+  var taskID: String? = nil
+  var onClose: (() -> Void)? = nil
+  var onSettings: (() -> Void)? = nil
+  private var configuration: ModelConfiguration { store.modelConfiguration(for: taskID) }
   @State private var catalog = ModelCatalog()
   @State private var query = ""
   @State private var highlighted: String?
@@ -10,7 +14,7 @@ struct ComposerModelPicker: View {
   @FocusState private var searching: Bool
 
   private var choices: [String] {
-    catalog.choices(current: store.modelConfiguration.model, query: query)
+    catalog.choices(current: configuration.model, query: query)
   }
   private let efforts = ["", "low", "medium", "high"]
   private let effortNames = ["": "服务默认", "low": "低", "medium": "中", "high": "高"]
@@ -44,7 +48,7 @@ struct ComposerModelPicker: View {
                 HStack {
                   Text(model).lineLimit(2).multilineTextAlignment(.leading)
                   Spacer()
-                  if store.modelConfiguration.model == model {
+                  if configuration.model == model {
                     Image(systemName: "checkmark").accessibilityLabel("当前模型")
                   }
                 }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
@@ -79,32 +83,42 @@ struct ComposerModelPicker: View {
       Picker(
         "推理强度",
         selection: Binding(
-          get: { store.modelConfiguration.reasoning },
+          get: { configuration.reasoning },
           set: { selectReasoning($0) })
       ) {
         ForEach(efforts, id: \.self) { effort in Text(effortNames[effort]!).tag(effort) }
-        if !efforts.contains(store.modelConfiguration.reasoning) {
-          Text(store.modelConfiguration.reasoning).tag(store.modelConfiguration.reasoning)
+        if !efforts.contains(configuration.reasoning) {
+          Text(configuration.reasoning).tag(configuration.reasoning)
         }
-      }.disabled(store.modelConfiguration.model.isEmpty)
+      }.disabled(configuration.model.isEmpty)
       Text("模型列表由当前服务提供；推理强度是否可用取决于所选模型。更改用于下一次请求。")
         .appFont(.caption).foregroundStyle(.secondary)
       if let saveError { Text(saveError).appFont(.caption).foregroundStyle(.red) }
       HStack {
-        Button("模型与 API 设置…") { store.openSettings(.model) }.buttonStyle(.plain)
+        Button("模型与 API 设置…") { if let onSettings { onSettings() } else { store.openSettings(.model) } }.buttonStyle(.plain)
         Spacer()
-        Button("完成") { store.showingModelPicker = false }
+        Button("完成", action: close)
       }
     }
     .padding(16).frame(width: 340).appFont(.callout)
     .task(id: "\(store.modelConfiguration.credentialAccount)|\(refresh)") {
       await catalog.load(config: store.modelConfiguration)
     }
-    .onAppear { searching = true; highlighted = choices.first }
+    .task {
+      highlighted = choices.first
+      await Task.yield()
+      guard !Task.isCancelled else { return }
+      searching = true
+    }
     .onChange(of: choices) { _, choices in
       if !choices.contains(highlighted ?? "") { highlighted = choices.first }
     }
-    .onExitCommand { store.showingModelPicker = false }
+    .onExitCommand(perform: close)
+  }
+
+  private func close() {
+    if let onClose { onClose() }
+    else { store.showingModelPicker = false; store.focusComposer = UUID() }
   }
 
   private func move(_ offset: Int) {
@@ -115,15 +129,14 @@ struct ComposerModelPicker: View {
 
   private func choose(_ model: String) {
     do {
-      try store.selectModel(model, reasoning: store.modelConfiguration.reasoning)
-      store.showingModelPicker = false
-      store.focusComposer = UUID()
+      try store.selectModel(model, reasoning: configuration.reasoning, taskID: taskID)
+      close()
     } catch { saveError = error.localizedDescription }
   }
 
   private func selectReasoning(_ reasoning: String) {
     do {
-      try store.selectModel(store.modelConfiguration.model, reasoning: reasoning)
+      try store.selectModel(configuration.model, reasoning: reasoning, taskID: taskID)
       saveError = nil
     } catch { saveError = error.localizedDescription }
   }

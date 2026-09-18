@@ -73,7 +73,10 @@ extension WorkspaceStore {
     busy = true
     defer { busy = false }
     do {
-      let config = modelConfiguration
+      let config = modelConfiguration(for: requestedTaskID)
+      let initialModelSelection = requestedTaskID.flatMap { id in
+        library.tasks.first(where: { $0.id == id })?.modelSelection
+      }
       let tools = mode == .plan || review != nil ? [] : try availableMCPTools()
       _ = try config.endpoint("chat/completions")
       guard !config.model.isEmpty else { throw AgentFailure(message: "请在设置 → 模型与 API 中配置独立服务。") }
@@ -172,6 +175,11 @@ extension WorkspaceStore {
       candidate.runImages[run.id] = images
       candidate.runFiles[run.id] = files
       candidate.attach(run, to: taskID, note: prompt)
+      if let owner = candidate.tasks.firstIndex(where: { $0.runIDs.contains(run.id) }),
+        candidate.tasks[owner].modelSelection == initialModelSelection {
+        candidate.tasks[owner].modelSelection = TaskModelSelection(model: config.model, reasoning: config.reasoning,
+          providerAccount: config.credentialAccount)
+      }
       if let goalDefinition, let owner = candidate.task(containing: run.id) {
         var session = candidate.goalSessions[owner.id] ?? GoalSession(definition: goalDefinition)
         session.definition = goalDefinition

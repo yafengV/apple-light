@@ -50,7 +50,7 @@ extension WorkspaceLibrary {
     let fork = WorkspaceTask(
       id: UUID().uuidString, project: source.project,
       title: String(source.title.prefix(112)) + " · 分叉", runIDs: snapshots.map(\.id),
-      forkOrigin: ConversationForkOrigin(taskID: source.id, runID: ids.last!), createdAt: now, updatedAt: now)
+      forkOrigin: ConversationForkOrigin(taskID: source.id, runID: ids.last!), modelSelection: source.modelSelection, createdAt: now, updatedAt: now)
     tasks.insert(fork, at: 0)
     forkRuns.append(contentsOf: snapshots)
     forkRunOrigins.merge(origins) { _, new in new }

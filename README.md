@@ -195,6 +195,7 @@ python3 script/smoke_ipc.py
 | [窗口内图片图库与缩放](docs/138-image-preview-gallery.md) | 附件分组切图、自然尺寸缩放、拖动、命令隔离与独立窗口焦点恢复 |
 | [历史与工具图片共用图库](docs/139-image-gallery-sources-and-focus.md) | MCP 窗口内图库、原始图片保存、来源缩略图焦点与键盘重开 |
 | [独立任务窗口命令归属](docs/140-task-window-command-routing.md) | 当前窗口菜单、自定义快捷键、后台预览隔离与查找焦点恢复 |
+| [逐任务模型选择](docs/141-task-model-selection.md) | 独立保存模型与推理强度、请求快照、分叉继承及独立窗口选择弹层 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

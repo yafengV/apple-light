@@ -16,6 +16,7 @@ struct TaskWindowView: View {
   @State private var imagePreviewReturnFocus: (() -> Void)?
   @State private var previewImages: [ImagePreviewItem] = []
   @State private var showingGoalEditor = false
+  @State private var showingTaskModelPicker = false
   @State private var dropTargeted = false
   @State private var showingFind = false
   @State private var findText = ""
@@ -185,14 +186,14 @@ struct TaskWindowView: View {
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      !showingFind && !showingGoalEditor && previewFile == nil && previewImage == nil)
+      !showingFind && !showingGoalEditor && !showingTaskModelPicker && previewFile == nil && previewImage == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && previewFile == nil && previewImage == nil)
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && previewFile == nil && previewImage == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: !showingFind && !showingGoalEditor && previewFile == nil && previewImage == nil))
+      visible: !showingFind && !showingGoalEditor && !showingTaskModelPicker && previewFile == nil && previewImage == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
-      guard previewImage == nil, previewFile == nil, !showingGoalEditor else { return }
+      guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker else { return }
       imagePreviewReturnFocus = returnFocus
       previewImage = image
       previewImages = images
@@ -208,7 +209,7 @@ struct TaskWindowView: View {
           imagePreviewReturnFocus = nil
           if let returnFocus {
             DispatchQueue.main.async {
-              guard previewImage == nil, previewFile == nil, !showingGoalEditor else { return }
+              guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker else { return }
               returnFocus()
             }
           } else {
@@ -247,14 +248,25 @@ struct TaskWindowView: View {
     }
   }
 
+  private func openTaskModelPicker() {
+    guard !windowCommandsBlocked else { return }
+    guard (try? store.modelConfiguration.endpoint("models")) != nil else {
+      store.openSettings(.model)
+      openWindow(id: "main")
+      return
+    }
+    composerFocused = false
+    showingTaskModelPicker = true
+  }
+
   private var windowCommandsBlocked: Bool {
-    previewImage != nil || previewFile != nil || showingGoalEditor || store.restoringLibrary
+    previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker || store.restoringLibrary
   }
 
   private var windowCommandContext: TaskWindowCommandContext {
     var enabled: Set<String> = windowCommandsBlocked ? [] : ["tab-close"]
     if !windowCommandsBlocked, let task {
-      enabled.formUnion(["find", "plan"])
+      enabled.formUnion(["find", "plan", "model"])
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
       if !task.isPopoutDraft { enabled.formUnion(["pin", "unread"]) }
@@ -275,6 +287,7 @@ struct TaskWindowView: View {
     case "send": if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode) } }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find": showingFind = true; findFocusRequest = UUID()
+    case "model": openTaskModelPicker()
     case "find-next": moveFindMatch(1)
     case "find-previous": moveFindMatch(-1)
     case "pin": store.updateTask(taskID, pin: !task.pinned)
@@ -552,7 +565,21 @@ struct TaskWindowView: View {
       .background(.background, in: RoundedRectangle(cornerRadius: 16))
       .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.12)))
       HStack {
-        Text(store.modelConfiguration.model.isEmpty ? "尚未配置独立 API" : store.modelConfiguration.model)
+        Button(store.modelConfiguration(for: taskID).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: taskID).model) {
+          openTaskModelPicker()
+        }.buttonStyle(.plain).help("选择模型与推理强度 " + store.shortcuts.label("model"))
+          .popover(isPresented: $showingTaskModelPicker, arrowEdge: .top) {
+            ComposerModelPicker(store: store, taskID: taskID,
+              onClose: { showingTaskModelPicker = false },
+              onSettings: {
+                showingTaskModelPicker = false
+                store.openSettings(.model)
+                openWindow(id: "main")
+              })
+          }
+          .onChange(of: showingTaskModelPicker) { _, presented in
+            if !presented { composerFocused = true; taskComposerFocusRequest = UUID() }
+          }
         Spacer()
         if store.showContextUsageIndicator, let tokens = store.contextInputTokens(taskID: taskID) {
           Label(tokens.formatted() + " tokens", systemImage: "gauge.with.dots.needle.33percent")
@@ -620,8 +647,7 @@ struct TaskWindowView: View {
       showingGoalEditor = true
     case .model, .reasoning:
       setDraft("")
-      store.openSettings(.model)
-      openWindow(id: "main")
+      openTaskModelPicker()
     default:
       guard let task else { return }
       setDraft("")

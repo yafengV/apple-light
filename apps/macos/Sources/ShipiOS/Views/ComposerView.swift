@@ -269,12 +269,12 @@ struct ComposerView: View {
           .accessibilityLabel(store.chatMode == .goal ? "暂停目标模式" : "退出计划模式")
       }
       if store.action == .chat {
-        Button(store.modelConfiguration.model.isEmpty ? "配置模型…" : store.modelConfiguration.model) {
+        Button(store.modelConfiguration(for: store.selectedTask?.id).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: store.selectedTask?.id).model) {
           store.openModelPicker()
         }.buttonStyle(.plain).appFont(.caption).lineLimit(1).help(
           "选择模型与推理强度 \(store.shortcuts.label("model"))")
           .popover(isPresented: $store.showingModelPicker, arrowEdge: .top) {
-            ComposerModelPicker(store: store)
+            ComposerModelPicker(store: store, taskID: store.selectedTask?.id)
           }
       }
       if store.action == .build {
