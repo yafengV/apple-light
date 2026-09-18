@@ -39,6 +39,13 @@ extension WorkspaceStore {
   func handleWorkspaceShortcut(_ binding: ShortcutBinding) -> Bool {
     guard !restoringLibrary, shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
       !showingModelPicker, !showingBranchPicker else { return false }
+    if destination == .settings, settingsPage == .personalization,
+      binding == ShortcutBinding("⌘S"), canSavePersonalizationEdits {
+      // Consume a failed save too: preserve the draft and show its error instead
+      // of falling through to an unrelated command or native save panel.
+      savePersonalizationEdits()
+      return true
+    }
     if destination == .settings, shortcuts.matches("find", binding) {
       executeCommand("find")
       return true

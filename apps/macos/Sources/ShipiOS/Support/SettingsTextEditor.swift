@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsTextEditor: NSViewRepresentable {
   @Binding var text: String
   let label: String
+  var placeholder: String = ""
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
 
@@ -32,6 +33,7 @@ struct SettingsTextEditor: NSViewRepresentable {
     guard let editor = scroll.documentView as? TextView else { return }
     context.coordinator.parent = self
     editor.setEnabled(isEnabled)
+    editor.placeholder = placeholder
     editor.setAccessibilityLabel(label)
     editor.font = appearance.nativeFont(size: 13)
     editor.textColor = NSColor(appearance.foregroundColor)
@@ -63,6 +65,19 @@ struct SettingsTextEditor: NSViewRepresentable {
   }
 
   final class TextView: NSTextView {
+    var placeholder = "" { didSet { if placeholder != oldValue { needsDisplay = true } } }
+
+    override func draw(_ dirtyRect: NSRect) {
+      super.draw(dirtyRect)
+      guard string.isEmpty, !placeholder.isEmpty, !hasMarkedText() else { return }
+      (placeholder as NSString).draw(at: NSPoint(
+        x: textContainerInset.width + (textContainer?.lineFragmentPadding ?? 0),
+        y: textContainerInset.height), withAttributes: [
+          .font: font ?? NSFont.systemFont(ofSize: 13),
+          .foregroundColor: NSColor.placeholderTextColor
+        ])
+    }
+
     override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
     override var canBecomeKeyView: Bool { isEditable && super.canBecomeKeyView }
 

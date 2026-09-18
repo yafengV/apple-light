@@ -138,4 +138,65 @@ final class PersonalizationTests: XCTestCase {
     XCTAssertEqual(store.draft, "preserve this prompt")
     XCTAssertTrue(store.error?.contains("个人指令") == true)
   }
+
+  @MainActor func testSaveShortcutIsScopedToVisiblePersonalizationAndEditableChanges() async throws {
+    let root = root()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.loadPersonalization()
+    let save = try XCTUnwrap(ShortcutBinding("⌘S"))
+    store.personalizationDraft = "仅在保存后使用"
+    store.openSettings(.personalization)
+    for page in SettingsNavigation.pages where page != .personalization {
+      store.settingsPage = page
+      XCTAssertFalse(store.handleWorkspaceShortcut(save), "Hidden editor saved from \(page)")
+    }
+    store.settingsPage = .personalization
+    store.personalizationLoaded = false
+    XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    store.personalizationLoaded = true
+    store.shortcutCaptureCount = 1
+    XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    store.shortcutCaptureCount = 0
+    store.presentedOverlay = .commands
+    XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    store.presentedOverlay = nil
+    store.shortcutResetRequested = true
+    XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    store.shortcutResetRequested = false
+    store.closeSettings()
+    XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    XCTAssertTrue(store.customInstructions.isEmpty)
+    store.openSettings(.personalization)
+    XCTAssertFalse(store.handleWorkspaceShortcut(try XCTUnwrap(ShortcutBinding("⌘⇧S"))))
+    XCTAssertTrue(store.handleWorkspaceShortcut(save))
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("AGENTS.md"), encoding: .utf8), "仅在保存后使用")
+    XCTAssertEqual(store.notices.items.last?.title, "已保存自定义指令")
+    XCTAssertFalse(store.canSavePersonalizationEdits)
+    XCTAssertFalse(store.handleWorkspaceShortcut(save))
+  }
+
+  @MainActor func testSaveFailureKeepsDraftAndCanRetryThroughSameAction() async throws {
+    let root = root()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.loadPersonalization()
+    store.openSettings(.personalization)
+    store.personalizationDraft = "Original"
+    XCTAssertTrue(store.savePersonalizationEdits())
+    store.personalizationDraft = String(repeating: "中", count: 30_000)
+    XCTAssertTrue(store.handleWorkspaceShortcut(try XCTUnwrap(ShortcutBinding("⌘S"))))
+    XCTAssertEqual(store.customInstructions, "Original")
+    XCTAssertEqual(store.personalizationDraft.count, 30_000)
+    XCTAssertTrue(store.canSavePersonalizationEdits)
+    XCTAssertNotNil(store.personalizationError)
+    XCTAssertEqual(store.notices.items.last?.level, .error)
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("AGENTS.md"), encoding: .utf8), "Original")
+    store.personalizationDraft = "Corrected"
+    XCTAssertTrue(store.savePersonalizationEdits())
+    XCTAssertNil(store.personalizationError)
+    XCTAssertEqual(store.customInstructions, "Corrected")
+    XCTAssertEqual(store.notices.items.last?.level, .info)
+  }
+
 }

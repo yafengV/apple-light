@@ -50,6 +50,19 @@ extension WorkspaceStore {
     } catch { personalizationError = error.localizedDescription; return false }
   }
 
+  var canSavePersonalizationEdits: Bool {
+    personalizationLoaded && personalizationDraft != customInstructions
+  }
+
+  @discardableResult func savePersonalizationEdits() -> Bool {
+    guard canSavePersonalizationEdits else { return false }
+    let saved = saveCustomInstructions()
+    notices.show(id: "personalization-save",
+      title: saved ? "已保存自定义指令" : "无法保存自定义指令，请重试。",
+      level: saved ? .info : .error)
+    return saved
+  }
+
   @discardableResult func saveCustomInstructions() -> Bool {
     guard personalizationLoaded else { return false }
     do {
