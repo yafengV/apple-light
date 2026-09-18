@@ -1,0 +1,2954 @@
+[
+  {
+    "text": "CommandPaletteView",
+    "query": "cpv",
+    "score": 109772,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      },
+      {
+        "startOffset": 14,
+        "endOffset": 15
+      }
+    ]
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "i",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 15,
+        "endOffset": 16
+      }
+    ]
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "CommandPaletteView",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "fb",
+    "score": 109913,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    ]
+  },
+  {
+    "text": "foo bar",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "foo bar",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "foo bar",
+    "query": "F B",
+    "score": 109913,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    ]
+  },
+  {
+    "text": "foo bar",
+    "query": "foo  bar",
+    "score": 110043,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 7
+      }
+    ]
+  },
+  {
+    "text": "abcXYZ",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "ab",
+    "score": 110024,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "abcXYZ",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "abcXYZ",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "ab*",
+    "score": 110024,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "abcXYZ",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abcXYZ",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "Café",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "cafe",
+    "score": 110005,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 4
+      }
+    ]
+  },
+  {
+    "text": "Café",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "Café",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Café",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "目标",
+    "score": 11,
+    "ranges": [
+      {
+        "startOffset": 7,
+        "endOffset": 9
+      }
+    ]
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "👩🏽‍💻目标",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "窗口 A",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    ]
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主窗口任务 A",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "lr",
+    "score": 9872,
+    "ranges": [
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      },
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    ]
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "fix/lr",
+    "score": 109912,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 5
+      },
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    ]
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "i",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "fix/login-redirect",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "proj/source",
+    "score": 9650,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 5
+      },
+      {
+        "startOffset": 9,
+        "endOffset": 10
+      },
+      {
+        "startOffset": 18,
+        "endOffset": 24
+      }
+    ]
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "i",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 12,
+        "endOffset": 13
+      }
+    ]
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/Projects/ShipiOS/Source.swift",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "i",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      }
+    ]
+  },
+  {
+    "text": "Build 123",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "Build 123",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Build 123",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "i",
+    "score": 9986,
+    "ranges": [
+      {
+        "startOffset": 9,
+        "endOffset": 10
+      }
+    ]
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "İstanbul ITest",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "fb",
+    "score": 109893,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    ]
+  },
+  {
+    "text": "FooßBar",
+    "query": "ab",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "ß",
+    "score": 3,
+    "ranges": [
+      {
+        "startOffset": 3,
+        "endOffset": 4
+      }
+    ]
+  },
+  {
+    "text": "FooßBar",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "FooßBar",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "ab*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "FooßBar",
+    "query": "F B",
+    "score": 109893,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    ]
+  },
+  {
+    "text": "FooßBar",
+    "query": "foo  bar",
+    "score": 109903,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 7
+      }
+    ]
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "ab",
+    "score": 109904,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    ]
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "alpha gamma",
+    "score": 109814,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 6
+      },
+      {
+        "startOffset": 11,
+        "endOffset": 16
+      }
+    ]
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "ab*",
+    "score": 109904,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    ]
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "alpha beta gamma",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "cpv",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "ab",
+    "score": 109630,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "cafe",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "窗口 A",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "目标",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "proj/source",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "fix/lr",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "b13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "i",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "ß",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "alpha gamma",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "ab*",
+    "score": 109630,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "F B",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ",
+    "query": "foo  bar",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "\\任主1a3\\任 务/-/Ca.C.C/ -主",
+    "query": "3",
+    "score": 9977,
+    "ranges": [
+      {
+        "startOffset": 5,
+        "endOffset": 6
+      }
+    ]
+  },
+  {
+    "text": "任 C3.1\\3_C.b1\\",
+    "query": "  * ",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "_/a主-任务-b-C 1-bC/a务\\/",
+    "query": "a1",
+    "score": 9779,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 12,
+        "endOffset": 13
+      }
+    ]
+  },
+  {
+    "text": ".务_务/务1 3",
+    "query": "务/务",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 6
+      }
+    ]
+  },
+  {
+    "text": "务务3_任C.b务.任.D D任主C主主任3 主务 C13\\/ 1\\任aCbb1D",
+    "query": "3\\",
+    "score": 8879,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 29,
+        "endOffset": 30
+      }
+    ]
+  },
+  {
+    "text": "ba -1-C1D_主\\D/-C_/ C任_-/任\\务主\\\\任3.3务主-Cb11 3__",
+    "query": " 1* /",
+    "score": 9565,
+    "ranges": [
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      },
+      {
+        "startOffset": 11,
+        "endOffset": 12
+      }
+    ]
+  },
+  {
+    "text": "/主",
+    "query": "/",
+    "score": 110028,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      }
+    ]
+  },
+  {
+    "text": "主/_a任\\aD-任.-主/aCD11任 3任D1.C主b/.",
+    "query": "*/",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "\\D/主 .a务-务主_务主//a_D\\-\\1Cbb 主__/任C务1 -",
+    "query": "务务",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      },
+      {
+        "startOffset": 9,
+        "endOffset": 10
+      }
+    ]
+  },
+  {
+    "text": "- 主aCD主/--/ _务_/D a1 b任/  3.bCC主aa.务.1_C3\\1",
+    "query": "a",
+    "score": 9977,
+    "ranges": [
+      {
+        "startOffset": 3,
+        "endOffset": 4
+      }
+    ]
+  },
+  {
+    "text": "D3Cbb  b务//主a_务b-a1./-3abba__-_b_133主主\\任b3C",
+    "query": " *c 1",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 18,
+        "endOffset": 19
+      }
+    ]
+  },
+  {
+    "text": "//任务务1务主任C_主a/--任3\\C.aa_1C3-C/3aa务\\任1务 -C /_务",
+    "query": "*a/c",
+    "score": 9665,
+    "ranges": [
+      {
+        "startOffset": 12,
+        "endOffset": 14
+      },
+      {
+        "startOffset": 19,
+        "endOffset": 20
+      }
+    ]
+  },
+  {
+    "text": "a1/D.主_.Ca1a任CC\\a\\31任 主务b",
+    "query": "主/a",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 5,
+        "endOffset": 6
+      },
+      {
+        "startOffset": 15,
+        "endOffset": 17
+      }
+    ]
+  },
+  {
+    "text": ".\\..b/\\ Ca.-DC1_bDab主",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "b.主_ .1C\\_主1务C/-CC任/a.务Db主b3C_a--1_Db 1C-\\.1",
+    "query": "3",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 27,
+        "endOffset": 28
+      }
+    ]
+  },
+  {
+    "text": "CC/主ab1.\\\\/ C主b主/b-任主- aC_任",
+    "query": "//cba ",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 8,
+        "endOffset": 9
+      },
+      {
+        "startOffset": 12,
+        "endOffset": 13
+      },
+      {
+        "startOffset": 14,
+        "endOffset": 15
+      },
+      {
+        "startOffset": 23,
+        "endOffset": 24
+      }
+    ]
+  },
+  {
+    "text": "务. D1务 务\\1 主1.3 -bD任任Da务/务任C/11-_D任3C13/_",
+    "query": "1",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    ]
+  },
+  {
+    "text": "主  C/",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "务主D/--._-aC.务主主任3C\\/",
+    "query": "主_",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      }
+    ]
+  },
+  {
+    "text": "D-D主主D务1D1主1b任/",
+    "query": "D-1D主",
+    "score": 109685,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 7,
+        "endOffset": 9
+      },
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    ]
+  },
+  {
+    "text": "任C1-主a31/任",
+    "query": "c*a",
+    "score": 9680,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 5,
+        "endOffset": 6
+      }
+    ]
+  },
+  {
+    "text": "务3_/3_\\3主a_",
+    "query": "/",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 3,
+        "endOffset": 4
+      }
+    ]
+  },
+  {
+    "text": "D1.a务3.a",
+    "query": "1",
+    "score": 12,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "主.-._任任-3.3/主1主1bb任-_任务a3主",
+    "query": "*bb",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 16,
+        "endOffset": 18
+      }
+    ]
+  },
+  {
+    "text": "务1-\\\\3a\\._务_.任DD 务任1  3 ___//-_-bD_1",
+    "query": "_",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 9,
+        "endOffset": 10
+      }
+    ]
+  },
+  {
+    "text": "-D务3b--3主/务",
+    "query": "3 ",
+    "score": 10009,
+    "ranges": [
+      {
+        "startOffset": 3,
+        "endOffset": 4
+      }
+    ]
+  },
+  {
+    "text": "D-a3-.任\\任a务1主b/-3_任任3a任bD- .3/ D_\\C",
+    "query": "务_任",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      {
+        "startOffset": 17,
+        "endOffset": 19
+      }
+    ]
+  },
+  {
+    "text": "D/D/31_务/a",
+    "query": "*/3a",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      },
+      {
+        "startOffset": 9,
+        "endOffset": 10
+      }
+    ]
+  },
+  {
+    "text": " \\b  .3任D任/务任主\\/C.D",
+    "query": "/D  D ",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 8,
+        "endOffset": 9
+      },
+      {
+        "startOffset": 18,
+        "endOffset": 19
+      }
+    ]
+  },
+  {
+    "text": "31C3 C/任/a_任3务任 3b3b__a任D_C务_务务ab_",
+    "query": "_",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    ]
+  },
+  {
+    "text": "b.3/D D_ b /1主\\任/3 C/a_任 DD bC11C.\\\\主3",
+    "query": "a 3",
+    "score": 9372,
+    "ranges": [
+      {
+        "startOffset": 21,
+        "endOffset": 22
+      },
+      {
+        "startOffset": 37,
+        "endOffset": 38
+      }
+    ]
+  },
+  {
+    "text": "C3b主",
+    "query": "31b3/*b",
+    "score": 16,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      }
+    ]
+  },
+  {
+    "text": "\\. 1C\\/ -_CC-131务b-a-.b13 b1a.C -__主3务-bb",
+    "query": "cb ",
+    "score": 9429,
+    "ranges": [
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      {
+        "startOffset": 17,
+        "endOffset": 18
+      }
+    ]
+  },
+  {
+    "text": "主任\\C3/_任.C/1_主.任.",
+    "query": "任.任",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 8,
+        "endOffset": 9
+      },
+      {
+        "startOffset": 15,
+        "endOffset": 16
+      }
+    ]
+  },
+  {
+    "text": "-a主务 a/a\\1 D 务\\D_D.C-a务b3a主11CC务1主_\\/a\\3--_",
+    "query": "1 //",
+    "score": 8667,
+    "ranges": [
+      {
+        "startOffset": 9,
+        "endOffset": 11
+      },
+      {
+        "startOffset": 14,
+        "endOffset": 15
+      },
+      {
+        "startOffset": 35,
+        "endOffset": 36
+      }
+    ]
+  },
+  {
+    "text": "_-主a务/-_主  _b3主务任b/_主务-b-b_abC",
+    "query": "务",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    ]
+  },
+  {
+    "text": "主1C \\a._-",
+    "query": "- ",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 8,
+        "endOffset": 9
+      }
+    ]
+  },
+  {
+    "text": "bb\\C3b务C3bC_ 主C 务DaCb\\ 任C\\\\\\任a_Da主C\\/-/1/_ .b",
+    "query": " cc",
+    "score": 9625,
+    "ranges": [
+      {
+        "startOffset": 3,
+        "endOffset": 4
+      },
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      }
+    ]
+  },
+  {
+    "text": "/C /\\",
+    "query": "C",
+    "score": 9975,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "1任3-3\\1/-3\\-._-/a主D\\/b_/主b-..D3主主C \\3-C",
+    "query": "/b",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 5,
+        "endOffset": 6
+      },
+      {
+        "startOffset": 21,
+        "endOffset": 22
+      }
+    ]
+  },
+  {
+    "text": "a-aC主任3Da务主任\\/主CC1-/ \\b/.D务",
+    "query": "/3*/ 3",
+    "score": 9993,
+    "ranges": [
+      {
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    ]
+  },
+  {
+    "text": " b/务",
+    "query": "务/bbb / 务",
+    "score": 16,
+    "ranges": [
+      {
+        "startOffset": 3,
+        "endOffset": 4
+      }
+    ]
+  },
+  {
+    "text": "CD-._1a1-D务任1主b1主-\\-主/.务任.任3b\\3.-Db /\\_1任务..-",
+    "query": "*",
+    "score": 1,
+    "ranges": []
+  },
+  {
+    "text": "3-DC主CD任-1 ..-\\1a_a.-a-  D3C-任D -3D3 任3务Db_a-",
+    "query": "a",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 16,
+        "endOffset": 17
+      }
+    ]
+  },
+  {
+    "text": "_-1主.Da任a\\aaaa-CD",
+    "query": "任",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      }
+    ]
+  },
+  {
+    "text": "3C",
+    "query": "c",
+    "score": 8,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      }
+    ]
+  },
+  {
+    "text": "/b_./CC务1/3C\\\\任a_a/\\3-_CC/11C_b任1b_1.D-",
+    "query": "a",
+    "score": 9961,
+    "ranges": [
+      {
+        "startOffset": 15,
+        "endOffset": 16
+      }
+    ]
+  },
+  {
+    "text": "务3 b3a133-D /..Da/务D3主",
+    "query": "..",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 13,
+        "endOffset": 15
+      }
+    ]
+  },
+  {
+    "text": "_ 任任\\a 31_-主a1aCCC\\D- 3务b",
+    "query": "a",
+    "score": 9975,
+    "ranges": [
+      {
+        "startOffset": 5,
+        "endOffset": 6
+      }
+    ]
+  },
+  {
+    "text": "D3务D任务D1-务1务D主/务Ca主CDba 1.D_-3任.1\\a\\DDD1",
+    "query": "1",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      }
+    ]
+  },
+  {
+    "text": "--_Da\\\\务D任1务 1主_任a_\\3务b3.33\\D务bb C.主3-务-/. 务 ",
+    "query": "  1",
+    "score": 9955,
+    "ranges": [
+      {
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    ]
+  },
+  {
+    "text": "任1b_务.b3\\1\\-主\\/任主D_33-.务 任3b主\\Db ",
+    "query": "b3.主",
+    "score": 9077,
+    "ranges": [
+      {
+        "startOffset": 6,
+        "endOffset": 8
+      },
+      {
+        "startOffset": 22,
+        "endOffset": 23
+      },
+      {
+        "startOffset": 28,
+        "endOffset": 29
+      }
+    ]
+  },
+  {
+    "text": "务/_\\- 主.C\\\\ba-b1_. C1-  务",
+    "query": " _ 1务",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 15,
+        "endOffset": 16
+      },
+      {
+        "startOffset": 24,
+        "endOffset": 25
+      }
+    ]
+  },
+  {
+    "text": "__\\ \\D",
+    "query": "/",
+    "score": 4,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      }
+    ]
+  },
+  {
+    "text": "任 3a 1任.Cb\\31C1任主C\\1C务-任C/C 31C 13D/D主",
+    "query": "33/1C1",
+    "score": 8572,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 11,
+        "endOffset": 12
+      },
+      {
+        "startOffset": 18,
+        "endOffset": 21
+      },
+      {
+        "startOffset": 32,
+        "endOffset": 33
+      }
+    ]
+  },
+  {
+    "text": "务b 主1主主主/ 任 .a/D.a3-1D 1",
+    "query": "b/",
+    "score": 9786,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 2
+      },
+      {
+        "startOffset": 8,
+        "endOffset": 9
+      }
+    ]
+  },
+  {
+    "text": "D1任主Da/C务aa_b任C-/任a",
+    "query": "CC",
+    "score": 9651,
+    "ranges": [
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      },
+      {
+        "startOffset": 14,
+        "endOffset": 15
+      }
+    ]
+  },
+  {
+    "text": "DababCb/a \\//任务--C务-主ab C主a任ab31/b主任\\任  务",
+    "query": "*b",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      }
+    ]
+  },
+  {
+    "text": "-D \\.-3",
+    "query": "DD-D\\-",
+    "score": 110023,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      }
+    ]
+  },
+  {
+    "text": "3任ba_任-D.a务31.1-",
+    "query": " 3b",
+    "score": 109804,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 2,
+        "endOffset": 3
+      }
+    ]
+  },
+  {
+    "text": "ba1\\任 务..主._任3 务D主__3/.务D主D任务主D ",
+    "query": "31",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "bD-_--D务任3/.1 _务\\_C3a.b主ab1a/ ..b主- 任任_D",
+    "query": ".务./-务b",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主b1/ba\\/-b\\3\\CDDD3任/任\\D//a3\\.b任D3_任DDa1a",
+    "query": "3 cbb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "..-1主b务/a D主 a任3a... \\\\\\C\\D/D主-aC-任a--Cb任b._",
+    "query": "C任 -\\b_D ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "1CbDCD-/任a主 任C主a\\C主1.\\\\a主.aa13务 /ab1任CD\\D",
+    "query": "aaca3/13",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "务aC__b3任务务3 主/务1 务.务C_D主3DC_C任3D3\\-b _D3\\/-3 ",
+    "query": " ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": ".主3D主DbC\\主\\.务 -Da任/-_a3/主D.Ca3\\-任a主D-b务",
+    "query": "a-D-/任33主",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "务_ab.1//-Db_务 主 ._Ca-//务C\\任DCb任_.\\务务",
+    "query": "任任 _-",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "务.C. b/a D主3",
+    "query": "aC",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": " ..11任_bD1务3_.",
+    "query": "bD.任.D",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主C主3务主1-D主abCb 3--/ ",
+    "query": "aa*b1",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": ".Db/",
+    "query": "1ca*3",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "1C务b C.C务1.._\\D33 主C-务/a任C/主3-a-\\-3-主3\\.",
+    "query": "3主主-\\C务-",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "b_C131D任-任.1DC3",
+    "query": "任1.",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "b主_b-_D1主b/.",
+    "query": "/bb_主bb/D主",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": ".ba\\3D主_../务1bb务_",
+    "query": "务务___D.",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主C.13._",
+    "query": "/a",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "-主b3\\.主务C.\\bb  -任_\\3任  a任 主-任任.\\ 1b  ",
+    "query": "1/1",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "任主主.\\主C务\\b务D\\a.D3主CC1.任Dab务DC ",
+    "query": "主.务\\务a任bD.",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "主主主务主.-C--DC___/\\.aDa1/b11a-务-主a_.Da.DC bbC_",
+    "query": "1bcb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "_.主\\C\\1C/",
+    "query": "C\\C主/",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "D-主1/任bb1主aD\\.",
+    "query": "b3111a ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "b1DDbbCD 务\\-_D3b主./主_\\./-务",
+    "query": "主.\\D",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "3_务3.D__31主任3Db主务 .\\任D-D-",
+    "query": "cc ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": ".主任D-务1Db-任bb务 11/任_3 -./.",
+    "query": "bc11*b*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": " 任_务3 _主3.务1-\\a1C\\",
+    "query": "_\\3",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": " b主\\\\_-bC_任-主3b务\\- C_C",
+    "query": " cc ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "D务_C.aCbCCa",
+    "query": "baCC",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "\\3.务_\\a...任务1_\\b b任_..a任任3",
+    "query": "\\\\_ 务_\\",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "13务aa\\Cb主任b主任-/.任任务D_主任.D主\\3..3主-3./3务.-.-主.务",
+    "query": "/ 3/ 3a",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "b _DDCb-1C",
+    "query": "D1b_-b -",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "Ca-b主_ _\\11主任_CDD 1 主a_D.3主31\\b\\ 1主\\3CC务_ 3/1",
+    "query": " a1*a",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "11D主D任b任主C_-务任.任D任a\\CDD313a.3/3--",
+    "query": "务主.1aC主b1-",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "/\\3b任31Ca1.ab主._D_1-任\\\\",
+    "query": "a cbb*a ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "aa 主主Caa务_b. .",
+    "query": "aC   主主a ",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "a3a任.  ",
+    "query": "c3/",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "DbaC任.b.",
+    "query": "*b33/c",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "务1",
+    "query": "11务11务11务",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "务a-1__D任D.-C1aC_ab__/b/a1 务 务",
+    "query": "C务D-D1任1-/",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "a.D\\ab\\1a_a",
+    "query": "bc*",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "score": 109910,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 101
+      }
+    ]
+  },
+  {
+    "text": "Xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "score": 1,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 102
+      }
+    ]
+  },
+  {
+    "text": "👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩",
+    "query": "👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩👩",
+    "score": 109870,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 120
+      }
+    ]
+  },
+  {
+    "text": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ",
+    "query": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ",
+    "score": 160410,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 101
+      }
+    ]
+  },
+  {
+    "text": "Xİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ",
+    "query": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ",
+    "score": 50399,
+    "ranges": [
+      {
+        "startOffset": 1,
+        "endOffset": 102
+      }
+    ]
+  },
+  {
+    "text": "b/",
+    "query": "a/b/",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "b/c",
+    "query": "a/b/c",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "prefix/CommandPaletteView",
+    "query": "cpv",
+    "score": 9735,
+    "ranges": [
+      {
+        "startOffset": 7,
+        "endOffset": 8
+      },
+      {
+        "startOffset": 14,
+        "endOffset": 15
+      },
+      {
+        "startOffset": 21,
+        "endOffset": 22
+      }
+    ]
+  },
+  {
+    "text": "foo/Bar",
+    "query": "fb",
+    "score": 0,
+    "ranges": null
+  },
+  {
+    "text": "项目/主窗口任务 A",
+    "query": "项目/窗口 A",
+    "score": 109910,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 3
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 6
+      },
+      {
+        "startOffset": 9,
+        "endOffset": 10
+      }
+    ]
+  },
+  {
+    "text": "Foo 123 Bar",
+    "query": "f12b",
+    "score": 109699,
+    "ranges": [
+      {
+        "startOffset": 0,
+        "endOffset": 1
+      },
+      {
+        "startOffset": 4,
+        "endOffset": 6
+      },
+      {
+        "startOffset": 8,
+        "endOffset": 9
+      }
+    ]
+  }
+]

@@ -25,7 +25,7 @@ struct CommandPaletteView: View {
       includeContentResults: CommandMenuSearch.searchesContent(query))
   }
   private var matches: [DesktopCommand] {
-    DesktopCommand.all.filter { searchQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(searchQuery) }
+    DesktopCommand.search(query: searchQuery)
   }
   private var taskResults: [TaskSearchResult] {
     guard CommandMenuSearch.searchesTasks(query), !catalog.searching,

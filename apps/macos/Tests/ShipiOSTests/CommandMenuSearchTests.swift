@@ -19,9 +19,9 @@ final class CommandMenuSearchTests: XCTestCase {
     let tasks = [task("message"), task("branch"), task("ab title")]
     var request = TaskSearchRequest(query: "ab", tasks: tasks, names: [:], notes: ["message": "ab message"],
       branches: ["branch": "ab-branch"], runs: [], includeContentResults: false)
-    XCTAssertEqual(request.search().map(\.id), ["branch", "ab title"])
+    XCTAssertEqual(request.search().map(\.id), ["ab title", "branch"])
     request.includeContentResults = true
-    XCTAssertEqual(request.search().map(\.id), ["message", "branch", "ab title"])
+    XCTAssertEqual(request.search().map(\.id), ["ab title", "message", "branch"])
   }
 
   func testRecentsPrioritizeUnreadThenVisitsThenUpdatesAndExcludeHiddenTasks() {

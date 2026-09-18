@@ -24,16 +24,11 @@ struct TaskSearchResultRow: View {
   }
   private func highlighted(_ text: String) -> Text {
     var attributed = AttributedString(text)
-    let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !query.isEmpty {
-      var remaining = text.startIndex..<text.endIndex
-      while let range = text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive], range: remaining),
-        !range.isEmpty {
-        if let start = AttributedString.Index(range.lowerBound, within: attributed),
-          let end = AttributedString.Index(range.upperBound, within: attributed) {
-          attributed[start..<end].backgroundColor = .yellow.opacity(0.35)
-        }
-        remaining = range.upperBound..<text.endIndex
+    for fragment in DesktopFuzzyQuery(query).match(text)?.ranges ?? [] {
+      if let range = Range(fragment, in: text),
+        let start = AttributedString.Index(range.lowerBound, within: attributed),
+        let end = AttributedString.Index(range.upperBound, within: attributed) {
+        attributed[start..<end].backgroundColor = .yellow.opacity(0.35)
       }
     }
     return Text(attributed)

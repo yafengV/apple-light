@@ -38,11 +38,13 @@ final class TaskSearchTests: XCTestCase {
     ]
     library.chatRuns = [run("one", response: "Use **Café** here.\n\n```swift\nlet emoji = \"👩🏽‍💻目标\"\n```"),
       run("two", project: "", response: "| Field | Value |\n| --- | --- |\n| result | table-needle |")]
-    XCTAssertEqual(request("cafe", library: library).search().first?.id, "first")
+    XCTAssertTrue(request("cafe", library: library).search().isEmpty)
+    XCTAssertEqual(request("café", library: library).search().first?.id, "first")
     XCTAssertEqual(request("Use Café here", library: library).search().first?.source, "回答")
     XCTAssertEqual(request("👩🏽‍💻目标", library: library).search().first?.id, "first")
     XCTAssertEqual(request("table-needle", library: library).search().first?.id, "second")
-    XCTAssertTrue(request("**Café**", library: library).search().isEmpty)
+    XCTAssertEqual(request("**Café**", library: library).search().first?.id, "first")
+    XCTAssertTrue(request("```swift", library: library).search().isEmpty)
     XCTAssertEqual(request(" \n ", library: library).search().map(\.id), ["first", "second"])
   }
 

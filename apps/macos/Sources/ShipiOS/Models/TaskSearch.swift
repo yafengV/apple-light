@@ -20,51 +20,80 @@ struct TaskSearchRequest: Equatable {
 
   func search() -> [TaskSearchResult] {
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    let matcher = DesktopFuzzyQuery(query)
     let records = Dictionary(runs.map { ($0.id, $0) }, uniquingKeysWith: { first, next in
       next.updatedAt >= first.updatedAt ? next : first
     })
-    return tasks.compactMap { task in
-      guard !Task.isCancelled else { return nil }
-      guard !task.isPopoutDraft else { return nil }
+    struct Ranked {
+      let result: TaskSearchResult
+      let priority: Int
+      let score: Int
+      let position: Int
+    }
+    let found: [Ranked] = tasks.enumerated().compactMap { position, task in
+      guard !Task.isCancelled, !task.isPopoutDraft else { return nil }
       let project = task.project.isEmpty ? "无项目" : names[task.project] ?? URL(fileURLWithPath: task.project).lastPathComponent
-      func result(_ source: String? = nil, _ text: String? = nil) -> TaskSearchResult {
-        TaskSearchResult(task: task, projectTitle: project, source: source,
-          snippet: text.map { Self.excerpt($0, query: query) })
+      func result(_ priority: Int, _ score: Int, _ source: String? = nil, _ text: String? = nil) -> Ranked {
+        Ranked(result: TaskSearchResult(task: task, projectTitle: project, source: source,
+          snippet: text.map { Self.excerpt($0, query: query) }), priority: priority, score: score, position: position)
       }
-      if query.isEmpty || Self.matches(task.title, query) || Self.matches(project, query) { return result() }
+      if query.isEmpty { return result(0, 0) }
+      if let match = matcher.match(task.title) { return result(0, match.score) }
+      var branchResult: Ranked?
+      func content(_ text: String, source: String) -> Ranked? {
+        guard matcher.match(text) != nil else { return nil }
+        let snippet = Self.excerpt(text, query: query)
+        return result(1, matcher.match(snippet)?.score ?? 1, source, text)
+      }
       for id in task.runIDs.reversed() {
-        if let branch = branches[id], Self.matches(branch, query) { return result("分支", branch) }
+        if branchResult == nil, let branch = branches[id], let match = matcher.match(branch) {
+          branchResult = result(2, match.score, "分支", branch)
+        }
         guard includeContentResults else { continue }
-        if let note = notes[id], Self.matches(note, query) { return result("消息", note) }
+        if let note = notes[id], let hit = content(note, source: "消息") { return hit }
         guard let run = records[id], run.project == task.project else { continue }
         if run.kind == "chat", let response = run.result?["response"].text {
-          // Search displayed text, including code/table cells, rather than Markdown syntax.
-          for (_, text) in ConversationSearch.segments(MessageDocument.parse(response)) where Self.matches(text, query) {
-            return result("回答", text)
+          for (_, text) in ConversationSearch.segments(MessageDocument.parse(response)) {
+            if let hit = content(text, source: "回答") { return hit }
           }
         } else {
           for text in [run.displaySummary, run.result?["command"]["stdout"].text ?? "",
-            run.result?["command"]["stderr"].text ?? ""] where Self.matches(text, query) {
-            return result("执行结果", text)
+            run.result?["command"]["stderr"].text ?? ""] {
+            if let hit = content(text, source: "执行结果") { return hit }
           }
           for diagnostic in run.result?["command"]["diagnostics"].items ?? [] {
-            if let text = diagnostic["message"].text, Self.matches(text, query) { return result("诊断", text) }
+            if let text = diagnostic["message"].text, let hit = content(text, source: "诊断") { return hit }
           }
         }
-        if let error = run.result?["message"].text, Self.matches(error, query) { return result("错误", error) }
+        if let error = run.result?["message"].text, let hit = content(error, source: "错误") { return hit }
       }
+      if query.utf16.count >= 8, task.id.lowercased().hasPrefix(query.lowercased()), let match = matcher.match(task.id) {
+        return result(0, match.score)
+      }
+      if let branchResult { return branchResult }
+      if let match = matcher.match(project) { return result(3, match.score) }
+      if let match = matcher.match(task.project) { return result(3, match.score) }
       return nil
     }
+    if query.isEmpty { return found.map(\.result) }
+    return found.sorted {
+      if $0.priority != $1.priority { return $0.priority < $1.priority }
+      if $0.score != $1.score { return $0.score > $1.score }
+      let left = $0.result.task.updatedAt ?? $0.result.task.createdAt ?? .distantPast
+      let right = $1.result.task.updatedAt ?? $1.result.task.createdAt ?? .distantPast
+      return left == right ? $0.position < $1.position : left > right
+    }.map(\.result)
   }
 
   static func matches(_ text: String, _ query: String) -> Bool {
-    text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+    DesktopFuzzyQuery(query).match(text) != nil
   }
 
   static func excerpt(_ text: String, query: String) -> String {
-    guard let match = text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else {
-      return String(text.prefix(180))
-    }
+    guard let fragments = DesktopFuzzyQuery(query).match(text)?.ranges,
+      let first = fragments.first, let last = fragments.last,
+      let match = Range(NSRange(location: first.location, length: NSMaxRange(last) - first.location), in: text)
+      else { return String(text.prefix(180)) }
     let start = text.index(match.lowerBound, offsetBy: -55, limitedBy: text.startIndex) ?? text.startIndex
     let end = text.index(match.upperBound, offsetBy: 100, limitedBy: text.endIndex) ?? text.endIndex
     return (start == text.startIndex ? "" : "…") + String(text[start..<end]) + (end == text.endIndex ? "" : "…")
