@@ -74,6 +74,13 @@ private struct TaskWindowTabChip: View {
       Button { tabs.activate(tab.id) } label: {
         Label(tabs.title(tab), systemImage: tab.icon).lineLimit(1).frame(maxWidth: 150)
       }.buttonStyle(.plain).help(tabs.title(tab)).accessibilityLabel("内容标签：\(tabs.title(tab))")
+        .overlay {
+          ContentTabDragSource(title: tabs.title(tab), token: tabs.dragToken(tab.id),
+            select: { tabs.activate(tab.id) },
+            begin: { tabs.beginDrag(tab.id); return tabs.dragSessionID },
+            end: { tabs.endDrag(session: $0) })
+            .accessibilityHidden(true)
+        }
       Button { tabs.close(tab.id) } label: { Image(systemName: "xmark").appFont(size: 9) }
         .buttonStyle(.plain).accessibilityLabel("关闭标签：\(tabs.title(tab))")
     }
@@ -93,10 +100,6 @@ private struct TaskWindowTabChip: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityAddTraits(tabs.selected(tabs.placement(tab.id))?.id == tab.id ? .isSelected : [])
-    .onDrag {
-      tabs.beginDrag(tab.id)
-      return NSItemProvider(object: tabs.dragToken(tab.id) as NSString)
-    }
     .dropDestination(for: String.self) { values, location in
       defer { tabs.endDrag() }
       guard let source = values.compactMap(tabs.draggedTab).first else { return false }

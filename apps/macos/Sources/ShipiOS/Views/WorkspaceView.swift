@@ -204,7 +204,7 @@ struct WorkspaceView: View {
         }
       }
     }
-    .tabDragLifecycle(session: store.workspaceTabDragSessionID) { store.endWorkspaceTabDrag(session: $0) }
+    .onDisappear { store.endWorkspaceTabDrag() }
     .disabled(store.renameTaskID != nil)
     .accessibilityHidden(store.renameTaskID != nil)
     .overlay {
@@ -325,7 +325,20 @@ struct WorkspaceView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
       .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [6, 4])))
-      .workspaceTabDropDestination(store: store, placement: placement)
+      .overlay {
+        ContentTabDropSurface(accepts: { value in
+          guard let id = WorkspaceTabDragToken.decode(value) else { return false }
+          return store.canDropWorkspaceTab(to: placement) && store.canMoveWorkspaceTab(id, to: placement)
+        }, drop: { store.dropWorkspaceTab([$0], to: placement) }, targeted: { entered in
+          if entered { store.workspaceTabDropTarget = .placement(placement) }
+          else if store.workspaceTabDropTarget == .placement(placement) { store.workspaceTabDropTarget = nil }
+        }).accessibilityHidden(true)
+      }
+      .overlay {
+        if store.workspaceTabDropTarget == .placement(placement) {
+          RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor, lineWidth: 2).allowsHitTesting(false)
+        }
+      }
       .accessibilityLabel(title)
   }
 

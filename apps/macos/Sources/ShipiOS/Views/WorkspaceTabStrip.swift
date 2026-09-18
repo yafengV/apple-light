@@ -89,6 +89,13 @@ private struct WorkspaceContentTabChip: View {
           Text(store.workspaceTabTitle(tab)).lineLimit(1).frame(maxWidth: 150)
         }
       }.buttonStyle(.plain).help(store.workspaceTabTitle(tab))
+        .overlay {
+          ContentTabDragSource(title: store.workspaceTabTitle(tab), token: WorkspaceTabDragToken.encode(tab.id),
+            select: { store.activateWorkspaceTab(tab.id) },
+            begin: { store.beginWorkspaceTabDrag(tab.id); return store.workspaceTabDragSessionID },
+            end: { store.endWorkspaceTabDrag(session: $0) })
+            .accessibilityHidden(true)
+        }
       Button { store.closeWorkspaceTab(tab.id) } label: {
         Image(systemName: "xmark").appFont(size: 9)
       }
@@ -114,10 +121,6 @@ private struct WorkspaceContentTabChip: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityAddTraits(activeID == tab.id ? .isSelected : [])
-    .onDrag {
-      store.beginWorkspaceTabDrag(tab.id)
-      return NSItemProvider(object: WorkspaceTabDragToken.encode(tab.id) as NSString)
-    }
     .dropDestination(for: String.self) { values, location in
       defer {
         dropTargeted = false

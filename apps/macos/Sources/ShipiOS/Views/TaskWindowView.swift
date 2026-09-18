@@ -277,7 +277,6 @@ struct TaskWindowView: View {
 
   var body: some View {
     routedTaskContent
-    .tabDragLifecycle(session: tabs.dragSessionID) { tabs.endDrag(session: $0) }
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
@@ -619,7 +618,18 @@ struct TaskWindowView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
       .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [6, 4])))
-      .taskWindowDropDestination(tabs: tabs, placement: placement)
+      .overlay {
+        ContentTabDropSurface(accepts: { value in
+          guard let id = tabs.draggedTab(value) else { return false }
+          return tabs.canDropDraggedTab(to: placement) && tabs.canMove(id, to: placement)
+        }, drop: { tabs.drop([$0], to: placement) }, targeted: { tabs.targetDrop(placement, entered: $0) })
+          .accessibilityHidden(true)
+      }
+      .overlay {
+        if tabs.dropPlacement == placement {
+          RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor, lineWidth: 2).allowsHitTesting(false)
+        }
+      }
       .accessibilityLabel(title)
   }
 
