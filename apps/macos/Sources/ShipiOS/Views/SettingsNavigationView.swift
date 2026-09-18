@@ -23,53 +23,58 @@ struct SettingsNavigationView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Button { store.closeSettings() } label: {
-        HStack(spacing: 8) {
-          Image(systemName: "arrow.left").frame(width: 16)
-          Text("返回应用")
+      // Keep the header separate from the scrolling navigation. A single
+      // sidebar focus section remembers a list anchor after wrapping from the
+      // form, so Shift-Tab from Back can incorrectly re-enter the sidebar.
+      VStack(alignment: .leading, spacing: 8) {
+        Button { store.closeSettings() } label: {
+          HStack(spacing: 8) {
+            Image(systemName: "arrow.left").frame(width: 16)
+            Text("返回应用")
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.vertical, 8).contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8).contentShape(Rectangle())
-      }
-      .buttonStyle(.plain).focusable().appFont(size: 13)
-      .focused($returnFocused)
-      .onKeyPress(keys: [.space, .return], phases: .down) { press in
-        guard press.modifiers.isEmpty else { return .ignored }
-        store.closeSettings()
-        return .handled
-      }
-      .onKeyPress(keys: [.tab], phases: .down) { press in
-        guard press.modifiers.isEmpty else { return .ignored }
-        store.settingsSearchFocusRequest = UUID()
-        return .handled
-      }
-      .help("返回之前的页面（Esc）").accessibilityLabel("返回应用")
+        .buttonStyle(.plain).focusable().appFont(size: 13)
+        .focused($returnFocused)
+        .onKeyPress(keys: [.space, .return], phases: .down) { press in
+          guard press.modifiers.isEmpty else { return .ignored }
+          store.closeSettings()
+          return .handled
+        }
+        .onKeyPress(keys: [.tab], phases: .down) { press in
+          guard press.modifiers.isEmpty else { return .ignored }
+          store.settingsSearchFocusRequest = UUID()
+          return .handled
+        }
+        .help("返回之前的页面（Esc）").accessibilityLabel("返回应用")
 
-      SettingsSearchInput(query: $query, focusRequest: store.settingsSearchFocusRequest,
-        visible: store.destination == .settings, onMove: moveSearchHighlight,
-        onSubmit: {
-          if let result = results.first(where: { $0.id == highlightedResultID }) {
-            reveal(result)
-          }
-        }, onTab: { backwards in
-          if !backwards, searching, results.isEmpty { return false }
-          exitingSidebar = false
-          focusedPage = nil
-          focusedResultID = nil
-          returnFocused = false
-          let request = UUID()
-          searchTabRequest = request
-          DispatchQueue.main.async {
-            guard searchTabRequest == request, store.destination == .settings, !store.hasSettingsConfirmation,
-              store.presentedOverlay == nil else { return }
-            searchTabRequest = nil
-            if backwards { returnFocused = true }
-            else if searching, let first = results.first { focusedResultID = first.id }
-            else { focusedPage = SettingsNavigation.pages.first }
-          }
-          return true
-        })
-        .frame(height: 28).padding(.bottom, 8)
+        SettingsSearchInput(query: $query, focusRequest: store.settingsSearchFocusRequest,
+          visible: store.destination == .settings, onMove: moveSearchHighlight,
+          onSubmit: {
+            if let result = results.first(where: { $0.id == highlightedResultID }) {
+              reveal(result)
+            }
+          }, onTab: { backwards in
+            if !backwards, searching, results.isEmpty { return false }
+            exitingSidebar = false
+            focusedPage = nil
+            focusedResultID = nil
+            returnFocused = false
+            let request = UUID()
+            searchTabRequest = request
+            DispatchQueue.main.async {
+              guard searchTabRequest == request, store.destination == .settings, !store.hasSettingsConfirmation,
+                store.presentedOverlay == nil else { return }
+              searchTabRequest = nil
+              if backwards { returnFocused = true }
+              else if searching, let first = results.first { focusedResultID = first.id }
+              else { focusedPage = SettingsNavigation.pages.first }
+            }
+            return true
+          })
+          .frame(height: 28).padding(.bottom, 8)
+      }.focusSection()
 
       ScrollViewReader { proxy in
         ScrollView {
@@ -121,11 +126,10 @@ struct SettingsNavigationView: View {
           if id != nil { exitingSidebar = false }
           if let id { proxy.scrollTo(id) }
         }
-      }
+      }.focusSection()
     }
     .padding(.horizontal, 12).padding(.top, 16)
     .frame(width: 220).appSidebarSurface()
-    .focusSection()
     .onAppear { store.settingsSearchFocusRequest = UUID() }
     .onDisappear { searchTabRequest = nil }
     .onChange(of: store.settingsSearchFocusRequest) { _, _ in
