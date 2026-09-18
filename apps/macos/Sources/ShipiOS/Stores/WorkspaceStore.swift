@@ -238,6 +238,8 @@ final class WorkspaceStore {
   var focusComposer = UUID()
   var blurComposer = UUID()
   @ObservationIgnored var libraryLoaded = false
+  var libraryLoading = false
+  var libraryReadError: String?
   @ObservationIgnored var scopeLoaded = false
   var project: URL? {
     didSet {
@@ -890,6 +892,10 @@ final class WorkspaceStore {
 
   private func loadLibrary() async -> Bool {
     if libraryLoaded { return true }
+    let previousReadError = libraryReadError
+    libraryReadError = nil
+    libraryLoading = true
+    defer { libraryLoading = false }
     do {
       let url = dataRoot.appendingPathComponent("workspace.json")
       busy = true
@@ -903,9 +909,12 @@ final class WorkspaceStore {
         library.appearance = appearance.normalized()
       }
       libraryLoaded = true
+      if error == previousReadError { error = nil }
       return true
     } catch {
-      self.error = "无法读取工作区记录：\(error.localizedDescription)"
+      let message = "无法读取工作区记录：\(error.localizedDescription)"
+      libraryReadError = message
+      self.error = message
       return false
     }
   }

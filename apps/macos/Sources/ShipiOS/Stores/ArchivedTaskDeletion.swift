@@ -2,9 +2,10 @@ import Foundation
 
 extension WorkspaceStore {
   var archiveActionsBusy: Bool { deletingArchive || !restoringArchivedTaskIDs.isEmpty }
+  var canMutateArchive: Bool { !archiveActionsBusy && !libraryLoading && libraryReadError == nil }
 
   func restoreArchivedTaskWithFeedback(_ taskID: String) async {
-    guard !archiveActionsBusy, !hasSettingsConfirmation else { return }
+    guard canMutateArchive, !hasSettingsConfirmation else { return }
     restoringArchivedTaskIDs.insert(taskID)
     defer { restoringArchivedTaskIDs.remove(taskID) }
     let noticeID = "restore-" + taskID
@@ -45,7 +46,7 @@ extension WorkspaceStore {
   }
 
   func requestArchiveDeletion(_ kind: ArchiveDeletionRequest.Kind, ids: Set<String>) {
-    guard !archiveActionsBusy, !hasSettingsConfirmation, presentedOverlay == nil, !ids.isEmpty else { return }
+    guard canMutateArchive, !hasSettingsConfirmation, presentedOverlay == nil, !ids.isEmpty else { return }
     archivedTaskDeletionError = nil
     archiveDeletion = .init(kind: kind, taskIDs: ids)
   }

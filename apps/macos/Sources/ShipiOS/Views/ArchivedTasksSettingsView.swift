@@ -19,29 +19,32 @@ struct ArchivedTasksSettingsView: View {
     let value = presentation
     let groups = value.groups(query: query, project: project, kind: kind, sort: sort)
     let grouped = value.effectiveFilter(project) == .all
-    SettingsScrollPage(title: SettingsPage.archived.title, pinsControls: !value.entries.isEmpty) {
-      Button(role: .destructive) {
-        requestDeletion(.all, ids: Set(value.entries.map(\.id)))
-      } label: {
-        Label("全部删除", systemImage: "trash")
-      }.buttonStyle(ArchiveActionButtonStyle(kind: .deleteAll))
-        .settingsActionFocus($deletionFocus, equals: .all,
-        activate: { requestDeletion(.all, ids: Set(value.entries.map(\.id))) })
-        .disabled(value.entries.isEmpty || store.archiveActionsBusy).settingsSearchTarget(.archivedDeleteAll)
+    let showsEntries = !store.libraryLoading && store.libraryReadError == nil && !value.entries.isEmpty
+    SettingsScrollPage(title: SettingsPage.archived.title, pinsControls: showsEntries) {
+      if showsEntries {
+        Button(role: .destructive) {
+          requestDeletion(.all, ids: Set(value.entries.map(\.id)))
+        } label: {
+          Label("全部删除", systemImage: "trash")
+        }.buttonStyle(ArchiveActionButtonStyle(kind: .deleteAll))
+          .settingsActionFocus($deletionFocus, equals: .all,
+            activate: { requestDeletion(.all, ids: Set(value.entries.map(\.id))) })
+          .disabled(store.archiveActionsBusy).settingsSearchTarget(.archivedDeleteAll)
+      }
     } controls: {
       ViewThatFits(in: .horizontal) {
         HStack(spacing: 8) { search; filters }
         VStack(spacing: 8) { search; HStack { filters; Spacer(minLength: 0) } }
       }
     } content: {
-      if value.entries.isEmpty {
-        ContentUnavailableView("暂无已归档任务", systemImage: "archivebox",
-          description: Text("归档的任务会保留在这里，恢复后重新显示在项目侧栏。"))
-          .frame(maxWidth: .infinity)
+      if store.libraryLoading {
+        ArchivedTasksStatusRow(kind: .loading)
+      } else if store.libraryReadError != nil {
+        ArchivedTasksStatusRow(kind: .failed)
+      } else if value.entries.isEmpty {
+        ArchivedTasksStatusRow(kind: .empty)
       } else if groups.isEmpty {
-        ContentUnavailableView("没有匹配的归档任务", systemImage: "magnifyingglass",
-          description: Text(kind == .cloud ? "尚无云端归档任务。" : "尝试其他搜索词、项目或任务类型。"))
-          .frame(maxWidth: .infinity)
+        ArchivedTasksStatusRow(kind: .noMatches)
       } else {
         ForEach(groups) { group in
           VStack(alignment: .leading, spacing: 8) {
