@@ -36,6 +36,7 @@ struct RuntimeSettingsView: View {
           }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
       }.frame(maxWidth: SettingsPageLayout.viewportWidth).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .focusSection()
     }.frame(maxWidth: .infinity, maxHeight: .infinity).appSurface()
       .onAppear { ComposerSendShortcut.migrate() }
       .onExitCommand { store.closeSettingsFromKeyboard() }

@@ -4,6 +4,77 @@ import XCTest
 @testable import ShipiOS
 
 final class SettingsInteractionTests: XCTestCase {
+  @MainActor func testUnhandledSearchTabLeavesNativeEditorForNormalTraversal() throws {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 300, height: 100),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let field = NSSearchField(frame: .init(x: 10, y: 10, width: 200, height: 24))
+    window.contentView?.addSubview(field)
+    window.makeFirstResponder(field)
+    let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
+    let view = SettingsSearchInput(query: .constant(""), focusRequest: UUID(), visible: true,
+      onMove: { _ in }, onSubmit: {}, onTab: { _ in false })
+    let coordinator = view.makeCoordinator()
+    XCTAssertFalse(coordinator.control(field, textView: editor,
+      doCommandBy: #selector(NSResponder.insertTab(_:))))
+    XCTAssertTrue(window.firstResponder === editor)
+  }
+
+  @MainActor func testSearchTabHandoffPreservesQueryAndRejectsCompositionOrInactiveControls() {
+    var query = "browser"
+    var directions: [Bool] = []
+    let view = SettingsSearchInput(query: Binding(get: { query }, set: { query = $0 }),
+      focusRequest: UUID(), visible: true, onMove: { _ in }, onSubmit: {},
+      onTab: { directions.append($0); return true })
+    let coordinator = view.makeCoordinator()
+    let field = NSSearchField()
+    let editor = NSTextView()
+    field.stringValue = query
+    let forward = #selector(NSResponder.insertTab(_:))
+    let backward = #selector(NSResponder.insertBacktab(_:))
+    XCTAssertTrue(coordinator.control(field, textView: editor, doCommandBy: forward))
+    XCTAssertTrue(coordinator.control(field, textView: editor, doCommandBy: backward))
+    XCTAssertEqual(directions, [false, true])
+    XCTAssertEqual(query, "browser")
+    XCTAssertEqual(field.stringValue, "browser")
+    editor.setMarkedText("pin", selectedRange: .init(location: 3, length: 0),
+      replacementRange: .init(location: NSNotFound, length: 0))
+    XCTAssertFalse(coordinator.control(field, textView: editor, doCommandBy: forward))
+    XCTAssertFalse(coordinator.control(field, textView: editor, doCommandBy: backward))
+    editor.unmarkText()
+    field.isEnabled = false
+    XCTAssertFalse(coordinator.control(field, textView: editor, doCommandBy: forward))
+    field.stringValue = "Disabled callback"
+    coordinator.searchChanged(field)
+    XCTAssertEqual(query, "browser")
+    field.isEnabled = true
+    SettingsSearchInput.dismantleNSView(field, coordinator: coordinator)
+    XCTAssertFalse(coordinator.control(field, textView: editor, doCommandBy: backward))
+    coordinator.searchChanged(field)
+    XCTAssertEqual(directions, [false, true])
+    XCTAssertEqual(query, "browser")
+  }
+
+  @MainActor func testHiddenSearchDoesNotMoveFocusOrPublishStaleInput() {
+    var query = "Original"
+    let hidden = SettingsSearchInput(query: Binding(get: { query }, set: { query = $0 }),
+      focusRequest: UUID(), visible: false, onMove: { _ in XCTFail("Hidden search") },
+      onSubmit: { XCTFail("Hidden search") }, onTab: { _ in XCTFail("Hidden search"); return true })
+    let coordinator = hidden.makeCoordinator()
+    let field = NSSearchField()
+    field.stringValue = "Stale input"
+    coordinator.searchChanged(field)
+    let editor = NSTextView()
+    for command in [#selector(NSResponder.insertTab(_:)), #selector(NSResponder.insertBacktab(_:)),
+      #selector(NSResponder.insertNewline(_:)), #selector(NSResponder.moveDown(_:)),
+      #selector(NSResponder.cancelOperation(_:))] {
+      XCTAssertFalse(coordinator.control(field, textView: editor, doCommandBy: command))
+    }
+    XCTAssertEqual(query, "Original")
+  }
+
   @MainActor func testPageEscapeRoutesOutsideEditorsAndPreservesModalGuards() {
     _ = NSApplication.shared
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 300, height: 200),
