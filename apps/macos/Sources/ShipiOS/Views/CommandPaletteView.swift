@@ -30,7 +30,7 @@ struct CommandPaletteView: View {
   private var taskResults: [TaskSearchResult] {
     guard CommandMenuSearch.searchesTasks(query), !catalog.searching,
       catalog.resultsQuery == searchQuery else { return [] }
-    return Array(catalog.results.prefix(9))
+    return Array(catalog.results.prefix(TaskSearchPresentation.limit))
   }
   private var groups: [ResultGroup] {
     var result: [ResultGroup] = []
@@ -105,7 +105,7 @@ struct CommandPaletteView: View {
         }.appFont(.caption).foregroundStyle(.secondary).padding(14)
       }
     }
-    .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey)
+    .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey, shortcuts: store.shortcuts)
       .frame(width: 0, height: 0))
     .task(id: reload) { await catalog.load(root: store.dataRoot, library: store.library) }
     .task(id: request) { await catalog.search(request) }
@@ -127,7 +127,8 @@ struct CommandPaletteView: View {
     let id = "task:" + result.id
     return Button { invoke(id) } label: {
       HStack {
-        TaskSearchResultRow(result: result, query: searchQuery)
+        TaskSearchResultRow(result: result, query: searchQuery, shortcut: taskResults.firstIndex(where: { $0.id == result.id })
+          .flatMap { TaskSearchPresentation.shortcutCommand($0) }.map { store.shortcuts.label($0) })
         if store.library.unreadTasks.contains(result.id) {
           Image(systemName: "circle.fill").font(.system(size: 7)).foregroundStyle(.blue)
             .accessibilityLabel("未读")
@@ -156,6 +157,9 @@ struct CommandPaletteView: View {
   }
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
     switch key {
+    case .taskSlot(let index):
+      guard taskResults.indices.contains(index) else { return }
+      invoke("task:" + taskResults[index].id)
     case .cancel: cancel()
     case .submit:
       if focus == .cancel { cancel() }

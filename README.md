@@ -206,6 +206,7 @@ python3 script/smoke_ipc.py
 | [命令菜单与任务搜索窗口内弹层](docs/149-command-and-task-search-dialogs.md) | 共用搜索弹层、即时命令执行、模式切换和原页面焦点恢复 |
 | [根命令菜单统一搜索](docs/150-unified-command-menu-search.md) | 最近任务持久化、命令与任务混合结果、查询门槛和跨项目打开 |
 | [浏览器标签统一搜索](docs/151-command-browser-search.md) | 当前窗口跨任务浏览器搜索、Tab 分组导航和选中行滚动 |
+| [任务搜索结果快捷键](docs/152-task-search-shortcuts.md) | 置顶/最近任务分组、9 条上限、可配置结果快捷键与输入法保护 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

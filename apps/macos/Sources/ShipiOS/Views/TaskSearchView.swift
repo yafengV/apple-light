@@ -15,13 +15,20 @@ struct TaskSearchView: View {
       runs: catalog.history + store.library.localRuns + store.runs)
   }
   private var selectable: [String] {
-    catalog.results.filter { store.canSelectTask($0.task) }.map(\.id)
+    results.filter { store.canSelectTask($0.task) }.map(\.id)
   }
+  private var groups: [TaskSearchGroup] {
+    TaskSearchPresentation.groups(catalog.results, query: text,
+      pinnedOrder: store.library.sidebarItems(in: SidebarLayout.pinned).compactMap {
+        if case .task(let id) = $0 { return id }; return nil
+      })
+  }
+  private var results: [TaskSearchResult] { groups.flatMap(\.results) }
   var body: some View {
     SearchDialog(identifier: "task-search-dialog", cancel: cancel) {
       panel
     }
-    .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey)
+    .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey, shortcuts: store.shortcuts)
       .frame(width: 0, height: 0))
     .task(id: reload) { await catalog.load(root: store.dataRoot, library: store.library) }
     .task(id: request) {
@@ -47,12 +54,20 @@ struct TaskSearchView: View {
       }.padding(18)
       Divider()
       ScrollViewReader { reader in
-        List(catalog.results) { result in
-          Button { choose(result.task) } label: {
-            TaskSearchResultRow(result: result, query: text)
-          }.buttonStyle(.plain).disabled(catalog.searching || catalog.resultsQuery != text || !store.canSelectTask(result.task))
-            .listRowBackground(selectedID == result.id ? Color.primary.opacity(0.07) : Color.clear)
-            .id(result.id)
+        List {
+          ForEach(groups) { group in
+            Section(group.title) {
+              ForEach(group.results) { result in
+                Button { choose(result.task) } label: {
+                  TaskSearchResultRow(result: result, query: text, shortcut: results.firstIndex(where: { $0.id == result.id })
+                    .flatMap { TaskSearchPresentation.shortcutCommand($0) }.map { store.shortcuts.label($0) })
+                }.buttonStyle(.plain).disabled(catalog.searching || catalog.resultsQuery != text || !store.canSelectTask(result.task))
+                  .listRowBackground(selectedID == result.id ? Color.primary.opacity(0.07) : Color.clear)
+                  .accessibilityAddTraits(selectedID == result.id ? .isSelected : [])
+                  .id(result.id)
+              }
+            }
+          }
         }.onChange(of: selectedID) { _, id in
           if let id { reader.scrollTo(id) }
         }.overlay {
@@ -80,11 +95,14 @@ struct TaskSearchView: View {
 
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
     switch key {
+    case .taskSlot(let index):
+      guard results.indices.contains(index) else { return }
+      choose(results[index].task)
     case .cancel: cancel()
     case .submit:
       if focus == .cancel { cancel() }
       else if focus == .retry { retry() }
-      else if let result = catalog.results.first(where: { $0.id == selectedID }) { choose(result.task) }
+      else if let result = results.first(where: { $0.id == selectedID }) { choose(result.task) }
     case .move(let delta): move(delta); focus = .query
     case .tab(let reverse):
       let fields: [Field] = !catalog.historyErrors.isEmpty && !catalog.loading

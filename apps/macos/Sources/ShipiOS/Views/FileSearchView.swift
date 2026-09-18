@@ -82,6 +82,7 @@ struct WorkspaceFileSearchView: View {
 
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
     switch key {
+    case .taskSlot: break // File search does not register task-result shortcuts.
     case .cancel: cancel()
     case .move(let delta):
       selected = min(max(0, selected + delta), max(0, results.count - 1))

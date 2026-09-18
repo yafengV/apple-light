@@ -3,6 +3,7 @@ import SwiftUI
 struct TaskSearchResultRow: View {
   let result: TaskSearchResult
   let query: String
+  var shortcut: String? = nil
   var body: some View {
     HStack(alignment: .top) {
       Image(systemName: result.task.archived ? "archivebox" : "text.bubble").foregroundStyle(.secondary)
@@ -18,6 +19,7 @@ struct TaskSearchResultRow: View {
       }
       Spacer()
       if result.task.archived { Text("已归档").appFont(.caption).foregroundStyle(.secondary) }
+      if let shortcut, !shortcut.isEmpty { Text(shortcut).appFont(.caption).foregroundStyle(.secondary) }
     }.padding(.vertical, 6).contentShape(Rectangle())
   }
   private func highlighted(_ text: String) -> Text {
