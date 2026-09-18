@@ -5,6 +5,7 @@ struct ArchivedTasksSettingsView: View {
   private enum DeletionFocus: Hashable { case all, project(String), single(String) }
   @FocusState private var deletionFocus: DeletionFocus?
   @State private var deletionOrigin: DeletionFocus?
+  @State private var projectMenuFocus: (id: String, request: UUID)?
   @State private var query = ""
   @State private var project = ArchivedProjectFilter.all
   @State private var kind = ArchivedTaskKind.all
@@ -49,13 +50,11 @@ struct ArchivedTasksSettingsView: View {
                 Spacer()
                 Text("\(group.entries.count) 个任务").foregroundStyle(.secondary)
                 if group.project != nil {
-                  Menu {
-                    Button("删除项目中的全部任务", role: .destructive) {
+                  SettingsActionMenu(title: "\(group.title)归档任务操作",
+                    actionTitle: "删除项目中的全部任务",
+                    focusRequest: projectMenuFocus?.id == group.id ? projectMenuFocus?.request : nil) {
                       requestDeletion(.project(group.id), ids: Set(group.entries.map(\.id)))
-                    }
-                  } label: { Image(systemName: "ellipsis") }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                    .accessibilityLabel("\(group.title)归档任务操作")
+                    }.frame(width: 24, height: 24)
                 }
               }.padding(.vertical, 8)
             }
@@ -75,9 +74,8 @@ struct ArchivedTasksSettingsView: View {
       case .all where !presentation.entries.isEmpty: deletionFocus = .all
       case .single(let id) where current.contains(where: { $0.entries.contains(where: { $0.id == id }) }):
         deletionFocus = .single(id)
-      // SwiftUI Menu does not reliably accept restored FocusState focus on macOS.
-      // Use the settings search until the action menu has a native focus bridge.
-      case .project: store.settingsSearchFocusRequest = UUID()
+      case .project(let id) where grouped && current.contains(where: { $0.id == id && $0.project != nil }):
+        projectMenuFocus = (id, UUID())
       default: store.settingsSearchFocusRequest = UUID()
       }
       deletionOrigin = nil
@@ -85,6 +83,7 @@ struct ArchivedTasksSettingsView: View {
   }
 
   private func requestDeletion(_ origin: DeletionFocus, ids: Set<String>) {
+    projectMenuFocus = nil
     deletionOrigin = origin
     let kind: ArchiveDeletionRequest.Kind
     switch origin {

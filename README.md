@@ -186,6 +186,7 @@ python3 script/smoke_ipc.py
 | [个性化编辑器加载与重试](docs/129-personalization-loading-and-retry.md) | 原位加载/错误提示、读取修复后重试、保存失败保留编辑器 |
 | [记忆删除确认与弹层焦点](docs/130-memory-deletion-dialog.md) | 主窗口确认、失败重试、记录快照保护、默认取消与键盘焦点 |
 | [确认弹层关闭后的焦点返回](docs/131-confirmation-return-focus.md) | 操作按钮焦点恢复、键盘重开、过期回调保护及项目菜单待对齐范围 |
+| [归档项目菜单原生焦点](docs/132-archive-menu-focus.md) | 取消后返回菜单、空格/Enter 重开、失效回调保护及原生验收 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
