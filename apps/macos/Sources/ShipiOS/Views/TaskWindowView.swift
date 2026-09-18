@@ -6,6 +6,7 @@ struct TaskWindowView: View {
   @Bindable var store: WorkspaceStore
   let taskID: String
   @Environment(\.openWindow) private var openWindow
+  @Environment(\.dismiss) private var dismiss
   @State private var mode = ChatMode.standard
   @State private var commandSelection = ComposerCommandSelection()
   @State private var pluginSelection = PluginMentionSelection()
@@ -21,6 +22,7 @@ struct TaskWindowView: View {
   @State private var findMatches: [ConversationMatch] = []
   @State private var findIndex = 0
   @State private var findRequest = UUID()
+  @State private var findFocusRequest = UUID()
   @State private var finding = false
   @State private var mountedTexts: Set<ConversationTextID> = []
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
@@ -78,6 +80,7 @@ struct TaskWindowView: View {
               if showingFind {
                 TaskWindowFindBar(
                   text: $findText, count: findMatches.count, index: findIndex, finding: finding,
+                  focusRequest: findFocusRequest, shortcuts: store.shortcuts,
                   previous: { moveFindMatch(-1) }, next: { moveFindMatch(1) },
                   close: { closeFind() })
                 Divider()
@@ -117,11 +120,12 @@ struct TaskWindowView: View {
           ToolbarItemGroup(placement: .primaryAction) {
             Button {
               showingFind = true
+              findFocusRequest = UUID()
             } label: {
               Image(systemName: "text.magnifyingglass")
             }
-            .help("在当前任务中查找 ⌘F")
-            .keyboardShortcut("f", modifiers: .command)
+            .help("在当前任务中查找 " + store.shortcuts.label("find"))
+
             if !task.project.isEmpty {
               Button {
                 showingReview = false
@@ -177,6 +181,9 @@ struct TaskWindowView: View {
       }
     }
     .frame(minWidth: 620, minHeight: 520)
+    .focusedSceneValue(\.taskWindowCommands, windowCommandContext)
+    .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
+      shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
       !showingFind && !showingGoalEditor && previewFile == nil && previewImage == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
@@ -237,6 +244,54 @@ struct TaskWindowView: View {
     .task(id: findRevision) {
       guard showingFind else { return }
       await refreshFindMatches()
+    }
+  }
+
+  private var windowCommandsBlocked: Bool {
+    previewImage != nil || previewFile != nil || showingGoalEditor || store.restoringLibrary
+  }
+
+  private var windowCommandContext: TaskWindowCommandContext {
+    var enabled: Set<String> = windowCommandsBlocked ? [] : ["tab-close"]
+    if !windowCommandsBlocked, let task {
+      enabled.formUnion(["find", "plan"])
+      if canSend { enabled.insert("send") }
+      if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
+      if !task.isPopoutDraft { enabled.formUnion(["pin", "unread"]) }
+      if !task.isPopoutDraft, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
+      if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
+      if !task.project.isEmpty { enabled.formUnion(["tree", "review", "review-open", "terminal", "bottom-panel"]) }
+      if showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
+        taskWorkspace.fileError == nil { enabled.insert("browser-address") }
+    }
+    return TaskWindowCommandContext(enabled: enabled, perform: performWindowCommand)
+  }
+
+  private func performWindowCommand(_ id: String) {
+    guard !windowCommandsBlocked else { return }
+    if id == "tab-close" { dismiss(); return }
+    guard let task else { return }
+    switch id {
+    case "send": if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode) } }
+    case "stop": Task { await store.cancel(taskID: taskID) }
+    case "find": showingFind = true; findFocusRequest = UUID()
+    case "find-next": moveFindMatch(1)
+    case "find-previous": moveFindMatch(-1)
+    case "pin": store.updateTask(taskID, pin: !task.pinned)
+    case "unread": store.setTaskUnread(taskID, unread: true)
+    case "archive":
+      store.updateTask(taskID, archive: true)
+      if store.library.tasks.first(where: { $0.id == taskID })?.archived == true { dismiss() }
+    case "plan":
+      if mode == .goal { store.pauseGoal(taskID) }
+      mode = .plan
+      composerFocused = true
+    case "tree": showingReview = false; showingFiles.toggle()
+    case "review": showingFiles = false; showingReview.toggle()
+    case "review-open": showingFiles = false; showingReview = true
+    case "terminal", "bottom-panel": toggleTerminal(task)
+    case "browser-address": taskWorkspace.showingFileLine = true
+    default: break
     }
   }
 
@@ -489,8 +544,8 @@ struct TaskWindowView: View {
               .foregroundStyle(Color(nsColor: .windowBackgroundColor))
               .frame(width: 28, height: 28).background(Color.primary, in: Circle())
           }
-          .buttonStyle(.plain).disabled(!canSend).help("发送消息 ⌘↵")
-          .keyboardShortcut(.return, modifiers: .command)
+          .buttonStyle(.plain).disabled(!canSend).help("发送消息 " + store.shortcuts.label("send"))
+
         }
       }
       .padding(14)
@@ -637,7 +692,7 @@ struct TaskWindowView: View {
       return true
     }
     }
-    if key == .enter, modifiers == .command {
+    if key == .enter, modifiers == .command, store.shortcuts.matches("send", ShortcutBinding("⌘↵")) {
       if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode) } }
       return true
     }
@@ -719,6 +774,8 @@ private struct TaskWindowFindBar: View {
   let count: Int
   let index: Int
   let finding: Bool
+  let focusRequest: UUID
+  let shortcuts: ShortcutPreferences
   let previous: () -> Void
   let next: () -> Void
   let close: () -> Void
@@ -733,16 +790,22 @@ private struct TaskWindowFindBar: View {
         .appFont(.caption).foregroundStyle(.secondary)
       if finding { ProgressView().controlSize(.mini).accessibilityLabel("正在查找") }
       Button(action: previous) { Image(systemName: "chevron.up") }
-        .buttonStyle(.plain).disabled(count == 0).help("上一个匹配 ⌘⇧G")
-        .accessibilityLabel("上一个匹配").keyboardShortcut("g", modifiers: [.command, .shift])
+        .buttonStyle(.plain).disabled(count == 0).help("上一个匹配 " + shortcuts.label("find-previous"))
+        .accessibilityLabel("上一个匹配")
       Button(action: next) { Image(systemName: "chevron.down") }
-        .buttonStyle(.plain).disabled(count == 0).help("下一个匹配 ⌘G")
-        .accessibilityLabel("下一个匹配").keyboardShortcut("g", modifiers: .command)
+        .buttonStyle(.plain).disabled(count == 0).help("下一个匹配 " + shortcuts.label("find-next"))
+        .accessibilityLabel("下一个匹配")
       Button(action: close) { Image(systemName: "xmark") }
         .buttonStyle(.plain).help("关闭查找").accessibilityLabel("关闭查找")
     }
     .padding(10)
-    .onAppear { focused = true }
+    .task(id: focusRequest) {
+      focused = false
+      await Task.yield()
+      guard !Task.isCancelled else { return }
+      focused = true
+    }
+    .onExitCommand(perform: close)
   }
 }
 

@@ -5,6 +5,7 @@ struct WorkspaceCommands: Commands {
   let store: WorkspaceStore
   @Environment(\.openWindow) private var openWindow
   @FocusedValue(\.mcpApprovalCommands) private var approvalCommands
+  @FocusedValue(\.taskWindowCommands) private var taskWindowCommands
   @FocusedValue(\.imagePreviewActive) private var imagePreviewActive
   var body: some Commands {
     CommandGroup(replacing: .appSettings) { command("settings") }
@@ -37,9 +38,9 @@ struct WorkspaceCommands: Commands {
       command("forward")
     }
     CommandMenu("标签页") {
-      Button("关闭当前标签") { if imagePreviewActive != true { store.executeCommand("tab-close") } }
+      Button(taskWindowCommands == nil ? "关闭当前标签" : "关闭任务窗口") { perform("tab-close") }
         .keyboardShortcut("w", modifiers: .command)
-        .disabled(imagePreviewActive == true || !store.commandEnabled("tab-close"))
+        .disabled(!commandEnabled("tab-close"))
       command("tab-close-others")
       Divider()
       command("previous-task")
@@ -90,11 +91,26 @@ struct WorkspaceCommands: Commands {
     let item = DesktopCommand.all.first { $0.id == id }!
     return Button(item.title) {
       guard imagePreviewActive != true else { return }
+      perform(id)
+    }
+      .keyboardShortcut(BrowserKeyboardBridge.contextualCommands.contains(id) ? nil : store.shortcuts.binding(id)?.keyboardShortcut)
+      .disabled(!commandEnabled(id))
+  }
+  private func commandEnabled(_ id: String) -> Bool {
+    guard imagePreviewActive != true else { return false }
+    if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
+      return taskWindowCommands.enabled.contains(id)
+    }
+    return store.commandEnabled(id)
+  }
+  private func perform(_ id: String) {
+    guard commandEnabled(id) else { return }
+    if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
+      taskWindowCommands.execute(id)
+    } else {
       store.executeCommand(id)
       if id == "settings" || id == "shortcuts" { openWindow(id: "main") }
     }
-      .keyboardShortcut(BrowserKeyboardBridge.contextualCommands.contains(id) ? nil : store.shortcuts.binding(id)?.keyboardShortcut)
-      .disabled(imagePreviewActive == true || !store.commandEnabled(id))
   }
   private func performApproval(_ action: () -> Void) {
     // Focused scene values may outlive the presentation of a sheet.
