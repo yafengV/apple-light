@@ -211,7 +211,9 @@ struct WorkspaceView: View {
       store.saveLibrary()
     }
     .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
-      for id in ids { openWindow(value: WorkspaceTabWindowRoute(tabID: id)) }
+      for id in ids {
+        if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
+      }
       if !ids.isEmpty { store.restoredDetachedWorkspaceTabIDs = [] }
     }
     .onDisappear { store.endWorkspaceTabDrag() }
@@ -234,7 +236,7 @@ struct WorkspaceView: View {
         VStack(spacing: 8) {
           WorkspaceTabNewWindowDropTarget(store: store) { id in
             store.moveWorkspaceTab(id, to: .detached)
-            openWindow(value: WorkspaceTabWindowRoute(tabID: id))
+            if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
           }
           if let cue = store.workspaceTabDropTarget?.cue(side: store.workspaceContentPaneSide), store.workspaceTabDropTarget != .newWindow {
             Label(cue.title, systemImage: cue.icon)

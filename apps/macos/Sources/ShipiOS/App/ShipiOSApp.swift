@@ -40,16 +40,14 @@ struct ShipiOSApp: App {
     .defaultSize(width: 760, height: 720)
     .windowResizability(.contentMinSize)
     WindowGroup("标签页", for: WorkspaceTabWindowRoute.self) { route in
-      if let route = route.wrappedValue {
-        WorkspaceTabWindowView(store: store, tabID: route.tabID)
-          .environment(\.appAppearance, store.appearance)
-          .transaction { $0.disablesAnimations = store.appearance.shouldReduceMotion }
-          .font(store.appearance.font(size: 13))
-          .foregroundStyle(store.appearance.foregroundColor)
-          .tint(store.appearance.accentColor)
-          .background(store.appearance.backgroundColor)
-          .preferredColorScheme(store.appearance.colorScheme)
-      }
+      WorkspaceTabWindowSceneView(store: store, route: route)
+        .environment(\.appAppearance, store.appearance)
+        .transaction { $0.disablesAnimations = store.appearance.shouldReduceMotion }
+        .font(store.appearance.font(size: 13))
+        .foregroundStyle(store.appearance.foregroundColor)
+        .tint(store.appearance.accentColor)
+        .background(store.appearance.backgroundColor)
+        .preferredColorScheme(store.appearance.colorScheme)
     }
     .defaultSize(width: 860, height: 680)
     .windowResizability(.contentMinSize)

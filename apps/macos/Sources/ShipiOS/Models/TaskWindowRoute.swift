@@ -20,5 +20,13 @@ struct TaskWindowRoute: Codable, Hashable, Identifiable {
 
 struct WorkspaceTabWindowRoute: Codable, Hashable, Identifiable {
   let tabID: String
+  let owner: String?
+  let dataRoot: String?
   var id: String { tabID }
+
+  init(tabID: String, owner: String? = nil, dataRoot: URL? = nil) {
+    self.tabID = tabID
+    self.owner = owner
+    self.dataRoot = dataRoot.map(TaskWindowRoute.workspacePath)
+  }
 }

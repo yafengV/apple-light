@@ -35,33 +35,7 @@ extension WorkspaceStore {
     if restoredWorkspaceTabOwners.insert(owner).inserted {
       var seen = Set<String>()
       for saved in layout.tabs where seen.insert(saved.id).inserted {
-        if workspaceTabs.contains(where: { $0.id == saved.id }) { continue }
-        let tab: WorkspaceContentTab
-        switch saved.kind {
-        case .browser:
-          guard saved.id.hasPrefix("browser:"), let id = UUID(uuidString: String(saved.id.dropFirst(8))) else { continue }
-          reopeningWorkspaceTabOwner = owner
-          let browser = workspace.browser.newTab(activate: false, id: id)
-          reopeningWorkspaceTabOwner = nil
-          if let raw = saved.committedURL, let url = URL(string: raw), BrowserAddress.permits(url) {
-            browser.address = raw
-            browser.navigate()
-          }
-          browser.address = saved.address ?? saved.committedURL ?? ""
-          browser.editingAddress = saved.address != nil && saved.address != saved.committedURL
-          tab = .browser(id, owner: owner)
-        case .review:
-          guard project != nil, saved.id == WorkspaceContentTab.review(owner: owner).id else { continue }
-          tab = .review(owner: owner)
-          workspaceTabs.append(tab)
-        case .terminal:
-          guard let scope = terminalScope,
-            saved.id.hasPrefix("terminal:"), let id = UUID(uuidString: String(saved.id.dropFirst(9))) else { continue }
-          _ = workspace.terminals.newSession(for: scope, id: id)
-          tab = .terminal(id, owner: owner)
-          workspaceTabs.append(tab)
-        }
-        workspaceTabPlacements[tab.id] = saved.placement == .bottom && tab.terminalID == nil ? .left : saved.placement
+        _ = materializeWorkspaceTab(saved, owner: owner)
       }
     }
     func selected(_ id: String?, in placement: WorkspaceTabPlacement) -> String? {
@@ -84,5 +58,39 @@ extension WorkspaceStore {
     workspaceContentPaneSide = layout.side
     workspace.reviewScope = layout.reviewScope
     restoredDetachedWorkspaceTabIDs = visibleWorkspaceContentTabs(in: .detached).map(\.id)
+  }
+
+  /// Creates only this owner’s resource; never changes the main selection or focus.
+  @discardableResult func materializeWorkspaceTab(_ saved: SavedWorkspaceTab, owner: String) -> WorkspaceContentTab? {
+    if let existing = workspaceTabs.first(where: { $0.id == saved.id }) {
+      return existing.owner == owner ? existing : nil
+    }
+    let tab: WorkspaceContentTab
+    switch saved.kind {
+    case .browser:
+      guard saved.id.hasPrefix("browser:"), let id = UUID(uuidString: String(saved.id.dropFirst(8))) else { return nil }
+      reopeningWorkspaceTabOwner = owner
+      let browser = workspace.browser.newTab(activate: false, id: id)
+      reopeningWorkspaceTabOwner = nil
+      if let raw = saved.committedURL, let url = URL(string: raw), BrowserAddress.permits(url) {
+        browser.address = raw
+        browser.navigate()
+      }
+      browser.address = saved.address ?? saved.committedURL ?? ""
+      browser.editingAddress = saved.address != nil && saved.address != saved.committedURL
+      tab = .browser(id, owner: owner)
+    case .review:
+      guard workspaceTabProject(owner: owner) != nil, saved.id == WorkspaceContentTab.review(owner: owner).id else { return nil }
+      tab = .review(owner: owner)
+      workspaceTabs.append(tab)
+    case .terminal:
+      guard let root = workspaceTabProject(owner: owner),
+        saved.id.hasPrefix("terminal:"), let id = UUID(uuidString: String(saved.id.dropFirst(9))) else { return nil }
+      _ = workspace.terminals.newSession(for: TerminalScope(root: root, conversation: owner), id: id)
+      tab = .terminal(id, owner: owner)
+      workspaceTabs.append(tab)
+    }
+    workspaceTabPlacements[tab.id] = saved.placement == .bottom && tab.terminalID == nil ? .left : saved.placement
+    return tab
   }
 }
