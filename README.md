@@ -228,6 +228,7 @@ python3 script/smoke_ipc.py
 | [网页恢复可见性复核](docs/171-browser-restoration-visibility-verification.md) | 前台原基线显示与输入通过，补真实 HTTP 冷启动回归；第二次原生重启被锁屏中断 |
 | [独立任务窗口标签恢复](docs/172-task-window-tab-restoration.md) | 窗口与任务分别保存布局，173 项回归通过；手动重开后网页、新 shell、尺寸及固定标签已原生验证 |
 | [系统窗口恢复验收](docs/173-system-window-restoration-verification.md) | 进程级允许恢复后，双窗口自动恢复、同任务布局隔离和跨任务固定网页按需恢复已原生验证 |
+| [分离标签关闭与聊天归属](docs/174-detached-tab-owner-routing.md) | 关闭回原任务、正确聊天跳转及最小化还原；123 项回归、终端同 PID 和网页表单保留已验证 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

@@ -19,7 +19,8 @@ struct TerminalTabPanel: View {
     VStack(spacing: 0) {
       HStack {
         Label("终端", systemImage: "terminal").appFont(.caption, weight: .medium)
-        Text(store.selectedTask?.title ?? "新任务").appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+        Text(store.library.tasks.first { $0.id == scope.conversation }?.title ?? "新任务")
+          .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
         Spacer()
         if let session {
           Text(session.title).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)

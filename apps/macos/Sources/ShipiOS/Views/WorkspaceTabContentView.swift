@@ -54,6 +54,7 @@ struct WorkspaceTabWindowView: View {
   let tabID: String
   @Environment(\.openWindow) private var openWindow
   @State private var pinnedToFront = false
+  @State private var focusingChat = false
 
   private var tab: WorkspaceContentTab? {
     store.workspaceTabs.first { $0.id == tabID }
@@ -67,11 +68,20 @@ struct WorkspaceTabWindowView: View {
             Label(store.workspaceTabTitle(tab), systemImage: tab.icon).lineLimit(1)
             Spacer()
             Button("聚焦聊天") {
-              store.activateChatTab()
-              openWindow(id: "main")
-              NSApp.activate(ignoringOtherApps: true)
+              focusingChat = true
+              Task {
+                defer { focusingChat = false }
+                guard await store.focusDetachedWorkspaceChat(tabID) else { return }
+                openWindow(id: "main")
+                if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
+                  if main.isMiniaturized { main.deminiaturize(nil) }
+                  main.makeKeyAndOrderFront(nil)
+                }
+                NSApp.activate(ignoringOtherApps: true)
+              }
             }
             .controlSize(.small)
+            .disabled(focusingChat || !store.canFocusDetachedWorkspaceChat(tabID))
             Toggle("置于顶层", isOn: $pinnedToFront)
               .toggleStyle(.button)
               .controlSize(.small)

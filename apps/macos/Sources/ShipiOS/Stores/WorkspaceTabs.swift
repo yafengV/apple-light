@@ -417,11 +417,6 @@ extension WorkspaceStore {
     }
   }
 
-  func restoreDetachedWorkspaceTab(_ id: String) {
-    guard workspaceTabPlacement(id) == .detached else { return }
-    moveWorkspaceTab(id, to: .left)
-  }
-
   private func workspaceTabDidDisappear(_ id: String) {
     if draggingWorkspaceTabID == id { endWorkspaceTabDrag() }
     workspaceTabPlacements[id] = nil
