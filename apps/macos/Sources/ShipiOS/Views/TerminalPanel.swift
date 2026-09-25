@@ -11,6 +11,7 @@ struct TerminalPanel: View {
 }
 
 struct TerminalTabPanel: View {
+  @Environment(\.isEnabled) private var isEnabled
   @Bindable var store: WorkspaceStore
   let scope: TerminalScope
   let terminalID: UUID
@@ -65,6 +66,7 @@ struct TerminalTabPanel: View {
     }
   }
   private func canFocus(_ request: TerminalFocusRequest) -> Bool {
+    guard isEnabled else { return false }
     if detached {
       return !store.shuttingDown && detachedFocus == request && request.scope == scope
         && request.sessionID == session?.id

@@ -2,9 +2,12 @@ import Foundation
 
 extension WorkspaceStore {
   var commandBrowserTabs: [CommandBrowserResult] {
+    allCommandBrowserTabs.filter { workspaceTabPlacement($0.id) != .detached }
+  }
+
+  var allCommandBrowserTabs: [CommandBrowserResult] {
     workspaceTabs.compactMap { tab in
-      guard workspaceTabPlacement(tab.id) != .detached,
-        let browserID = tab.browserID,
+      guard let browserID = tab.browserID,
         let browser = workspace.browser.tabs.first(where: { $0.id == browserID }), !browser.closed else { return nil }
       let task = library.tasks.first(where: { $0.id == tab.owner })
       guard task != nil || tab.owner.hasPrefix("new:") else { return nil }

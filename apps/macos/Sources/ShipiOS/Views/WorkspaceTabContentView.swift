@@ -56,6 +56,7 @@ struct WorkspaceTabWindowView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var pinnedToFront = false
   @State private var focusingChat = false
+  @State private var search = DetachedWindowSearch()
 
   private var tab: WorkspaceContentTab? {
     store.workspaceTabs.first { $0.id == tabID }
@@ -91,6 +92,10 @@ struct WorkspaceTabWindowView: View {
         ContentUnavailableView("标签页已关闭", systemImage: "xmark.square")
       }
     }
+    .disabled(search.mode != nil).allowsHitTesting(search.mode == nil).accessibilityHidden(search.mode != nil)
+    .overlay { searchOverlay }
+    .onChange(of: search.mode) { _, mode in if mode == nil { search.restoreFocus() } }
+    .focusedSceneValue(\.searchDialogActive, search.mode != nil)
     .onChange(of: store.restoredDetachedWorkspaceTabIDs, initial: true) { _, _ in
       for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
     }
@@ -101,18 +106,28 @@ struct WorkspaceTabWindowView: View {
     }
     .focusedSceneValue(\.taskWindowCommands, commands)
     .background(TaskWindowCommandKeyboardBridge(commands: commands, shortcuts: store.shortcuts,
-      blocked: store.restoringLibrary).frame(width: 0, height: 0))
+      blocked: store.restoringLibrary || search.mode != nil).frame(width: 0, height: 0))
     .navigationTitle(tab.map(store.workspaceTabTitle) ?? "标签页")
     .onDisappear { store.restoreDetachedWorkspaceTab(tabID) }
   }
 
   private var commands: TaskWindowCommandContext {
-    store.detachedWindowCommands(tabID, close: { dismiss() })
+    search.commands(store: store, tabID: tabID, closeWindow: { dismiss() })
+  }
+
+  @ViewBuilder private var searchOverlay: some View {
+    let context = search.context(store: store, tabID: tabID, closeWindow: { dismiss() },
+      showMain: showMainWindow, showDetached: { openWindow(value: $0) })
+    switch search.mode {
+    case .commands: CommandPaletteView(store: store, context: context)
+    case .tasks: TaskSearchView(store: store, context: context)
+    case .files, nil: EmptyView()
+    }
   }
 
   private func browserContext(_ tab: WorkspaceContentTab) -> BrowserPanelContext {
     BrowserPanelContext(taskID: tab.owner,
-      canFocus: { !store.shuttingDown && store.workspaceTabPlacement(tabID) == .detached },
+      canFocus: { search.mode == nil && !store.shuttingDown && store.workspaceTabPlacement(tabID) == .detached },
       newTab: { _ = commands.execute("browser-new") },
       closeTab: { store.closeBrowserTab($0); dismiss() },
       reopen: { openOwnerChat(command: "browser-reopen") },
