@@ -46,7 +46,7 @@ import XCTest
     XCTAssertFalse(a.closed); XCTAssertFalse(b.closed)
     XCTAssertEqual(store.workspaceTabLayoutSnapshot, layout)
     XCTAssertEqual(store.selection, "b")
-    for command in ["send", "stop", "archive", "pin", "rename", "browser-new", "tab-close-others", "focus-chat-1", "previous-task"] {
+    for command in ["send", "stop", "archive", "pin", "rename", "tab-close-others", "focus-chat-1", "previous-task"] {
       XCTAssertFalse(context.execute(command), command)
     }
     XCTAssertEqual(store.library.drafts["a"], "A draft"); XCTAssertEqual(store.library.drafts["b"], "B draft")

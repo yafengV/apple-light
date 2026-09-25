@@ -525,7 +525,12 @@ extension WorkspaceStore {
     trimClosedWorkspaceTabs()
     workspaceTabs.removeAll { $0.id == tab.id }
     workspaceTabDidDisappear(tab.id)
-    if destination == .workspace { focusComposer = UUID() }
+    if !shuttingDown {
+      library.workspaceTabLayouts[tab.owner]?.tabs.removeAll { $0.id == tab.id }
+      restoredDetachedWorkspaceTabIDs.removeAll { $0 == tab.id }
+      saveLibrary()
+    }
+    if destination == .workspace && tab.owner == currentWorkspaceTabOwner { focusComposer = UUID() }
   }
 
   func workspaceBrowserDidReorder(_ ids: [UUID]) {

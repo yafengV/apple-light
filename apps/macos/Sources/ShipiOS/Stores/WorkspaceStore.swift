@@ -361,6 +361,9 @@ final class WorkspaceStore {
     root = dataRoot ?? Self.defaultDataRoot
     self.agentExecutable = agentExecutable
     shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
+    workspace.browser.createChildTab = { [weak self] id, configuration in
+      self?.newBrowserChild(from: id, configuration: configuration)
+    }
     workspace.browser.onTabOpened = { [weak self] id in self?.workspaceBrowserDidOpen(id) }
     workspace.browser.onTabSelected = { [weak self] id in self?.workspaceBrowserDidSelect(id) }
     workspace.browser.onTabClosed = { [weak self] id in self?.workspaceBrowserDidClose(id) }

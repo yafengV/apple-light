@@ -211,10 +211,7 @@ struct WorkspaceView: View {
       store.saveLibrary()
     }
     .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
-      for id in ids {
-        if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
-      }
-      if !ids.isEmpty { store.restoredDetachedWorkspaceTabIDs = [] }
+      for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
     }
     .onDisappear { store.endWorkspaceTabDrag() }
     .disabled(store.renameTaskID != nil)

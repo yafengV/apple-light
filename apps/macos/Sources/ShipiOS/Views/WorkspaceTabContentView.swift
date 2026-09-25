@@ -91,6 +91,14 @@ struct WorkspaceTabWindowView: View {
         ContentUnavailableView("标签页已关闭", systemImage: "xmark.square")
       }
     }
+    .onChange(of: store.restoredDetachedWorkspaceTabIDs, initial: true) { _, _ in
+      for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
+    }
+    .task(id: store.savedBrowserTab(tabID)) {
+      guard store.savedBrowserTab(tabID) != nil else { return }
+      do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+      store.saveLibrary()
+    }
     .focusedSceneValue(\.taskWindowCommands, commands)
     .background(TaskWindowCommandKeyboardBridge(commands: commands, shortcuts: store.shortcuts,
       blocked: store.restoringLibrary).frame(width: 0, height: 0))
@@ -105,7 +113,7 @@ struct WorkspaceTabWindowView: View {
   private func browserContext(_ tab: WorkspaceContentTab) -> BrowserPanelContext {
     BrowserPanelContext(taskID: tab.owner,
       canFocus: { !store.shuttingDown && store.workspaceTabPlacement(tabID) == .detached },
-      newTab: { openOwnerChat(command: "browser-new") },
+      newTab: { _ = commands.execute("browser-new") },
       closeTab: { store.closeBrowserTab($0); dismiss() },
       reopen: { openOwnerChat(command: "browser-reopen") },
       openSettings: {

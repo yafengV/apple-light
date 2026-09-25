@@ -15,8 +15,9 @@ extension WorkspaceStore {
   }
 
   func captureWorkspaceTabLayout() {
-    guard libraryLoaded, !shuttingDown, !restoringWorkspaceTabLayout,
-      workspaceLayoutActiveOwner == currentWorkspaceTabOwner else { return }
+    guard libraryLoaded, !shuttingDown, !restoringWorkspaceTabLayout else { return }
+    captureBackgroundBrowserTabs()
+    guard workspaceLayoutActiveOwner == currentWorkspaceTabOwner else { return }
     guard currentWorkspaceTabOwner.hasPrefix("new:") || library.tasks.contains(where: { $0.id == currentWorkspaceTabOwner }) else { return }
     library.workspaceTabLayouts[currentWorkspaceTabOwner] = workspaceTabLayoutSnapshot
   }

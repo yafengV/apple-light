@@ -696,6 +696,46 @@ final class BrowserTests: XCTestCase {
     XCTAssertTrue(popup.closed)
     XCTAssertTrue(session.selected === source)
   }
+  @MainActor func testDetachedWebKitPopupKeepsSourceTaskWhileMainDisplaysAnotherPage() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("popup-owner-\(UUID())")
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown(); try? FileManager.default.removeItem(at: root) }
+    store.libraryLoaded = true; store.scopeLoaded = true
+    store.library.tasks = [.init(id: "a", project: "", title: "A", runIDs: []),
+      .init(id: "b", project: "", title: "B", runIDs: [])]
+    store.selection = "a"; store.restoreWorkspaceTabLayout()
+    let config = WKWebViewConfiguration()
+    config.websiteDataStore = .nonPersistent()
+    config.preferences.javaScriptCanOpenWindowsAutomatically = true
+    let source = store.workspace.browser.newTab(configuration: config)
+    store.workspaceTabPlacements["browser:\(source.id)"] = .detached
+    try await load(source, "/one", title: "One")
+    store.applyTaskSelection(store.library.tasks[1]); store.newBrowserTab()
+    let main = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(main, "/two", title: "Two")
+    let layout = store.workspaceTabLayoutSnapshot, focus = store.focusComposer
+    _ = try await source.view.evaluateJavaScript("window.open('/popup', '_blank'); undefined")
+    try await eventually("Source popup was not loaded") { store.workspace.browser.tabs.contains { $0.title == "Popup" } }
+    let popup = try XCTUnwrap(store.workspace.browser.tabs.first { $0.title == "Popup" })
+    let id = "browser:\(popup.id)"
+    XCTAssertEqual(store.workspaceTabs.first { $0.id == id }?.owner, "a")
+    XCTAssertEqual(store.workspaceTabPlacement(id), .detached)
+    XCTAssertEqual(store.takePendingDetachedWindowRoutes().map(\.tabID), [id])
+    XCTAssertEqual(store.selection, "b"); XCTAssertEqual(store.workspace.browser.selection, main.id)
+    XCTAssertEqual(store.workspaceTabLayoutSnapshot, layout); XCTAssertEqual(store.focusComposer, focus)
+    popup.address = "unfinished popup address"
+    store.saveLibrary()
+    let disk = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    let saved = try XCTUnwrap(disk.workspaceTabLayouts["a"]?.tabs.first { $0.id == id })
+    XCTAssertEqual(saved.committedURL, base + "/popup")
+    XCTAssertEqual(saved.address, "unfinished popup address")
+    _ = try await popup.view.evaluateJavaScript("window.close(); undefined")
+    try await eventually("Popup close did not remove owned tab") { popup.closed }
+    XCTAssertFalse(store.library.workspaceTabLayouts["a"]?.tabs.contains { $0.id == id } == true)
+    XCTAssertFalse(main.closed); XCTAssertFalse(source.closed)
+    XCTAssertEqual(store.workspace.browser.selection, main.id)
+    XCTAssertEqual(store.focusComposer, focus)
+  }
   @MainActor func testCopyUsesCurrentPageURLAndPrivatePasteboard() async throws {
     let store = WorkspaceStore()
     defer { store.workspace.browser.shutdown() }

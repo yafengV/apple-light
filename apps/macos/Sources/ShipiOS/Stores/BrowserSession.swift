@@ -17,6 +17,7 @@ final class BrowserSession {
   var contentFocusTarget: UUID?
   @ObservationIgnored weak var addressField: NSTextField?
   @ObservationIgnored var onEmpty: (() -> Void)?
+  @ObservationIgnored var createChildTab: ((UUID, WKWebViewConfiguration?) -> BrowserTab?)?
   @ObservationIgnored var onTabOpened: ((UUID) -> Void)?
   @ObservationIgnored var onTabSelected: ((UUID) -> Void)?
   @ObservationIgnored var onTabClosed: ((UUID) -> Void)?
@@ -36,10 +37,10 @@ final class BrowserSession {
     let configuration = configuration ?? makeConfiguration()
     let tab = BrowserTab(configuration: configuration, id: id)
     tab.openWindow = { [weak self] configuration in
-      self?.newTab(configuration: configuration)
+      self?.newChildTab(from: id, configuration: configuration)
     }
     tab.openURLInNewTab = { [weak self] url in
-      guard let tab = self?.newTab() else { return }
+      guard let tab = self?.newChildTab(from: id) else { return }
       tab.address = url.absoluteString
       tab.navigate()
     }
@@ -54,6 +55,11 @@ final class BrowserSession {
       focusAddress()
     }
     return tab
+  }
+  @discardableResult func newChildTab(from sourceID: UUID, configuration: WKWebViewConfiguration? = nil) -> BrowserTab? {
+    guard tabs.contains(where: { $0.id == sourceID && !$0.closed }) else { return nil }
+    if let createChildTab { return createChildTab(sourceID, configuration) }
+    return newTab(configuration: configuration)
   }
   private func configureDownloads(_ tab: BrowserTab) {
     tab.chooseDownloadDestination = { [weak self] source, filename, completion in
