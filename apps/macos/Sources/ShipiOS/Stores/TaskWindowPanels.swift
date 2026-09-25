@@ -77,9 +77,10 @@ import Observation
       scope: TerminalScope(root: terminal.root, conversation: taskID), sessionID: terminal.id)
   }
 
-  @discardableResult func newTerminal() -> TerminalSession? {
+  @discardableResult func newTerminal(id: UUID = UUID()) -> TerminalSession? {
+    if let existing = terminals.first(where: { $0.id == id }) { return existing }
     guard let root = workspace.root else { return nil }
-    let session = TerminalSession(root: root)
+    let session = TerminalSession(root: root, id: id)
     terminals.append(session)
     selectedTerminalID = session.id
     return session

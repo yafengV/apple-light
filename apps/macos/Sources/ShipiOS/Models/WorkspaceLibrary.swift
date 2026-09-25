@@ -161,6 +161,7 @@ struct WorkspaceLibrary: Codable {
   var pinnedProjects: Set<String> = []
   var pinnedContentTabs: [PinnedWorkspaceTab] = []
   var workspaceTabLayouts: [String: WorkspaceTabLayout] = [:]
+  var taskWindowTabLayouts: [String: [String: TaskWindowTabLayout]] = [:]
   var unreadTasks: Set<String> = []
   var recentTaskIDs: [String] = []
   var collapsedProjects: Set<String> = []
@@ -199,7 +200,7 @@ struct WorkspaceLibrary: Codable {
   init() {}
   enum CodingKeys: String, CodingKey {
     case tasks, projects, lastWorkspace, notes, runBranches, drafts, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
-      pinnedProjects, pinnedContentTabs, workspaceTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
+      pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
       browserDownloads,
@@ -234,6 +235,7 @@ struct WorkspaceLibrary: Codable {
       try c.decodeIfPresent([PinnedWorkspaceTab].self, forKey: .pinnedContentTabs) ?? []
     // Layout is a recoverable cache: malformed optional metadata must not block task loading.
     workspaceTabLayouts = (try? c.decode([String: WorkspaceTabLayout].self, forKey: .workspaceTabLayouts)) ?? [:]
+    taskWindowTabLayouts = (try? c.decode([String: [String: TaskWindowTabLayout]].self, forKey: .taskWindowTabLayouts)) ?? [:]
     unreadTasks = try c.decodeIfPresent(Set<String>.self, forKey: .unreadTasks) ?? []
     recentTaskIDs = try c.decodeIfPresent([String].self, forKey: .recentTaskIDs) ?? []
     collapsedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .collapsedProjects) ?? []
@@ -395,6 +397,10 @@ struct WorkspaceLibrary: Codable {
     }
     for id in deletedTaskIDs {
       workspaceTabLayouts[id] = nil
+      for windowID in Array(taskWindowTabLayouts.keys) {
+        taskWindowTabLayouts[windowID]?[id] = nil
+        if taskWindowTabLayouts[windowID]?.isEmpty == true { taskWindowTabLayouts[windowID] = nil }
+      }
       goalSessions[id] = nil
       projectlessTaskDirectories[id] = nil
       drafts[id] = nil

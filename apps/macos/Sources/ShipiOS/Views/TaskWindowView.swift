@@ -320,7 +320,13 @@ struct TaskWindowView: View {
     }
     .onDisappear {
       tabs.endDrag()
+      resources.captureLayouts()
+      store.saveLibrary()
       store.discardPopoutTaskIfEmpty(taskID)
+    }
+    .task(id: tabs.layoutSnapshot) {
+      do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+      store.saveLibrary()
     }
     .onChange(of: store.library.goalSessions[taskID]) { _, session in
       if session?.status == .active { mode = .goal }

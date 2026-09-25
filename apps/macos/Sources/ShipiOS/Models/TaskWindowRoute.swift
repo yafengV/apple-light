@@ -4,11 +4,13 @@ struct TaskWindowRoute: Codable, Hashable, Identifiable {
   let taskID: String
   /// Optional only for decoding windows saved by earlier application versions.
   let dataRoot: String?
-  var id: String { taskID }
+  let windowID: String?
+  var id: String { windowID ?? taskID }
 
-  init(taskID: String, dataRoot: URL) {
+  init(taskID: String, dataRoot: URL, windowID: String? = nil) {
     self.taskID = taskID
     self.dataRoot = Self.workspacePath(dataRoot)
+    self.windowID = windowID ?? taskID
   }
 
   static func workspacePath(_ url: URL) -> String {

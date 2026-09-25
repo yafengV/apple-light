@@ -969,6 +969,7 @@ final class WorkspaceStore {
   func saveLibrary() {
     guard libraryLoaded else { return }
     captureWorkspaceTabLayout()
+    autoreleasepool { taskWindowResources.allObjects.forEach { $0.captureLayouts() } }
     do { try library.save(to: dataRoot.appendingPathComponent("workspace.json")) } catch {
       self.error = "无法保存工作区记录：\(error.localizedDescription)"
     }

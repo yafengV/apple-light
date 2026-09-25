@@ -293,4 +293,76 @@ import Observation
     closed.removeAll { $0.tab.browserID == nil }
     repairSelection(.right); repairSelection(.bottom)
   }
+
+  var layoutSnapshot: TaskWindowTabLayout {
+    let saved = tabs.map { tab in
+      let page = tab.browserID.flatMap { id in browser.session.tabs.first { $0.id == id } }
+      return SavedWorkspaceTab(id: tab.id,
+        kind: tab.browserID != nil ? .browser : tab.terminalID != nil ? .terminal : .review,
+        placement: placement(tab.id), address: page?.address,
+        committedURL: page?.committedURL?.absoluteString)
+    }
+    return TaskWindowTabLayout(project: panels.workspace.root?.path,
+      content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
+        bottom: selections[.bottom], focused: focusedID, showingInspector: showingRight,
+        showingTerminal: showingBottom, showingTabs: showingTabs, side: primarySide,
+        reviewScope: panels.workspace.reviewScope),
+      panelSizes: panels.panelSizes, showingFiles: panels.showingFiles)
+  }
+
+  /// Runs once when a window materializes a task. It never replays commands or
+  /// steals focus from the window that is currently active.
+  func restoreLayout(_ saved: TaskWindowTabLayout) {
+    guard tabs.isEmpty else { return }
+    let layout = saved.content
+    let sameProject = saved.project == panels.workspace.root?.path
+    var seen = Set<String>()
+    for entry in layout.tabs where seen.insert(entry.id).inserted {
+      let tab: WorkspaceContentTab
+      switch entry.kind {
+      case .browser:
+        guard entry.id.hasPrefix("browser:"), let id = UUID(uuidString: String(entry.id.dropFirst(8))) else { continue }
+        let page = browser.session.newTab(activate: false, id: id)
+        if let raw = entry.committedURL, let url = URL(string: raw), BrowserAddress.permits(url) {
+          page.address = raw
+          page.navigate()
+        }
+        page.address = entry.address ?? entry.committedURL ?? ""
+        page.editingAddress = entry.address != nil && entry.address != entry.committedURL
+        tab = .browser(id, owner: taskID)
+      case .review:
+        guard sameProject, panels.workspace.root != nil,
+          entry.id == WorkspaceContentTab.review(owner: taskID).id else { continue }
+        tab = .review(owner: taskID)
+        tabs.append(tab)
+      case .terminal:
+        guard sameProject, entry.id.hasPrefix("terminal:"),
+          let id = UUID(uuidString: String(entry.id.dropFirst(9))), panels.newTerminal(id: id) != nil else { continue }
+        tab = .terminal(id, owner: taskID)
+        tabs.append(tab)
+      }
+      placements[tab.id] = entry.placement == .detached || (entry.placement == .bottom && tab.terminalID == nil)
+        ? .left : entry.placement
+    }
+    for (place, id) in [(WorkspaceTabPlacement.left, layout.active), (.right, layout.right), (.bottom, layout.bottom)] {
+      if let id, visibleTabs(place).contains(where: { $0.id == id }) { selections[place] = id }
+    }
+    showingRight = layout.showingInspector && !visibleTabs(.right).isEmpty
+    showingBottom = layout.showingTerminal && !visibleTabs(.bottom).isEmpty
+    showingTabs = layout.showingTabs
+    primarySide = layout.side
+    panels.panelSizes = saved.panelSizes
+    panels.showingFiles = sameProject && panels.workspace.root != nil && saved.showingFiles
+    if sameProject { panels.workspace.reviewScope = layout.reviewScope }
+    focusedID = tabs.first { $0.id == layout.focused && isVisible($0.id) }?.id
+    lastContentID = focusedID ?? selected(.left)?.id ?? selected(.right)?.id ?? selected(.bottom)?.id
+    synchronizingBrowser = true
+    if let id = [focused, selected(.left), selected(.right)].compactMap({ $0?.browserID }).first {
+      browser.session.select(id, focus: false)
+    }
+    synchronizingBrowser = false
+    if let id = [focused, selected(.bottom), selected(.right), selected(.left)].compactMap({ $0?.terminalID }).first {
+      panels.selectTerminal(id, focus: false)
+    }
+  }
 }

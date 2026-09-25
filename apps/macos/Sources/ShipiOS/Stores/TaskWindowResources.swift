@@ -2,7 +2,7 @@ import AppKit
 import Observation
 
 @MainActor @Observable final class TaskWindowResources {
-  let id = UUID().uuidString
+  @ObservationIgnored private(set) var id = UUID().uuidString
   @ObservationIgnored weak var window: NSWindow?
   @ObservationIgnored private weak var windowAttachment: NSView?
   @ObservationIgnored weak var store: WorkspaceStore?
@@ -21,10 +21,12 @@ import Observation
     }
   }
 
-  func prepare(_ taskID: String, store: WorkspaceStore) {
+  func prepare(_ taskID: String, store: WorkspaceStore, windowID: String? = nil) {
+    if tasks.isEmpty, let windowID { id = windowID }
     self.store = store
     store.taskWindowResources.add(self)
     capturePins()
+    captureLayouts()
     let project = store.library.tasks.first { $0.id == taskID }?.project ?? ""
     let oldRoot = panels.tasks[taskID]?.workspace.root
     let panel = panels.panels(for: taskID, project: project)
@@ -49,6 +51,15 @@ import Observation
         store?.recordBrowserVisit(url, title: title)
         self?.capturePins()
       }
+      if store.libraryLoaded, let layout = store.library.taskWindowTabLayouts[id]?[taskID] {
+        tasks[taskID]?.restoreLayout(layout)
+      }
+    }
+  }
+  func captureLayouts() {
+    guard let store, store.libraryLoaded else { return }
+    for (taskID, tabs) in tasks where store.library.tasks.contains(where: { $0.id == taskID }) {
+      store.library.taskWindowTabLayouts[id, default: [:]][taskID] = tabs.layoutSnapshot
     }
   }
   func retainTasks(_ available: Set<String>, displaying: String?) {
@@ -92,8 +103,13 @@ import Observation
     if changed { store.saveLibrary() }
   }
   @discardableResult func reveal(_ pin: PinnedWorkspaceTab) -> Bool {
-    guard contains(pin), let window, let navigate,
-      let tabs = tasks[pin.owner], store?.library.tasks.contains(where: { $0.id == pin.owner }) == true else { return false }
+    guard pin.sourceWindowID == id, let store, let window, let navigate,
+      store.library.tasks.contains(where: { $0.id == pin.owner }) else { return false }
+    if tasks[pin.owner] == nil,
+      store.library.taskWindowTabLayouts[id]?[pin.owner]?.content.tabs.contains(where: { $0.id == pin.sourceTabID }) == true {
+      prepare(pin.owner, store: store)
+    }
+    guard contains(pin), let tabs = tasks[pin.owner] else { return false }
     if window.isMiniaturized { window.deminiaturize(nil) }
     window.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
@@ -104,8 +120,15 @@ import Observation
     return true
   }
   func shutdown() {
-    capturePins()
-    browsers.shutdown(); panels.shutdown(); tasks.removeAll()
-    navigate = nil; window = nil; windowAttachment = nil
+    // Foundation's persistence/weak-registry bridging can autorelease references
+    // to this window. Drain them before returning from explicit window teardown.
+    autoreleasepool {
+      captureLayouts()
+      capturePins()
+      store?.taskWindowResources.remove(self)
+      browsers.shutdown(); panels.shutdown(); tasks.removeAll()
+      navigate = nil; window = nil; windowAttachment = nil
+      store?.saveLibrary()
+    }
   }
 }

@@ -47,10 +47,12 @@ struct TaskWindowSceneView: View {
       switch restoration {
       case .ready(let taskID):
         resources.retainTasks(availableTasks, displaying: taskID)
-        resources.prepare(taskID, store: store)
+        resources.prepare(taskID, store: store, windowID: route?.id)
         if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
         hasPresentedTask = true
-        if route?.dataRoot == nil { route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot) }
+        if route?.dataRoot == nil || route?.windowID == nil {
+          route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
+        }
       case .close: dismiss()
       case .loading, .failed: break
       }
@@ -75,13 +77,13 @@ struct TaskWindowSceneView: View {
 
   private func visit(_ taskID: String) {
     guard let route, navigation.visit(taskID, from: route.taskID, available: availableTasks) else { return }
-    self.route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot)
+    self.route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
   }
 
   private func move(_ backwards: Bool) {
     guard let route,
       let next = navigation.move(backwards: backwards, current: route.taskID, available: availableTasks) else { return }
-    self.route = TaskWindowRoute(taskID: next, dataRoot: store.dataRoot)
+    self.route = TaskWindowRoute(taskID: next, dataRoot: store.dataRoot, windowID: resources.id)
   }
 }
 
