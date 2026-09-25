@@ -14,7 +14,11 @@ struct TerminalTabPanel: View {
   @Bindable var store: WorkspaceStore
   let scope: TerminalScope
   let terminalID: UUID
-  @State private var session: TerminalSession?
+  @State private var detachedFocus: TerminalFocusRequest?
+  private var session: TerminalSession? { store.workspace.terminals.session(terminalID, for: scope) }
+  private var detached: Bool {
+    store.workspaceTabPlacement(WorkspaceContentTab.terminal(terminalID, owner: scope.conversation).id) == .detached
+  }
   var body: some View {
     VStack(spacing: 0) {
       HStack {
@@ -41,7 +45,8 @@ struct TerminalTabPanel: View {
         .contextMenu { Button("恢复默认终端高度") { store.resetTerminalSize() } }
       Divider()
       if let session {
-        TerminalHost(session: session, focus: store.terminalFocusRequest, canFocus: store.canFocusTerminal).id(session.id)
+        TerminalHost(session: session, focus: detached ? detachedFocus : store.terminalFocusRequest,
+          canFocus: canFocus).id(ObjectIdentifier(session))
         if session.status != .running {
           HStack {
             Text(session.status.label).appFont(.caption).foregroundStyle(.secondary)
@@ -50,13 +55,23 @@ struct TerminalTabPanel: View {
           }.padding(.horizontal, 10).padding(.vertical, 6)
         }
       } else { ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity) }
-    }.frame(maxHeight: .infinity).task {
-      session = store.workspace.terminals.session(terminalID, for: scope)
-      store.focusTerminal(terminalID)
+    }.frame(maxHeight: .infinity).task(id: session.map(ObjectIdentifier.init)) {
+      guard session != nil else { return }
+      if detached {
+        detachedFocus = TerminalFocusRequest(scope: scope, sessionID: terminalID)
+      } else {
+        store.focusTerminal(terminalID)
+      }
     }
   }
+  private func canFocus(_ request: TerminalFocusRequest) -> Bool {
+    if detached {
+      return !store.shuttingDown && detachedFocus == request && request.scope == scope
+        && request.sessionID == session?.id
+    }
+    return store.canFocusTerminal(request)
+  }
   private func restart() {
-    session = store.restartTerminalTab(terminalID)
-    store.focusTerminal(session?.id)
+    _ = store.restartTerminalTab(terminalID)
   }
 }

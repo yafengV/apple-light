@@ -1,7 +1,8 @@
 import Foundation
+import Observation
 
 /// Sessions survive hidden panels and navigation, but are not shared between conversations.
-@MainActor
+@MainActor @Observable
 final class TerminalSessions {
   private var sessions: [TerminalScope: [UUID: TerminalSession]] = [:]
   func session(for scope: TerminalScope) -> TerminalSession {
@@ -42,7 +43,8 @@ final class TerminalSessions {
   }
   func restart(_ id: UUID, for scope: TerminalScope) -> TerminalSession {
     close(id, for: scope)
-    return newSession(for: scope)
+    // The tab and any detached window keep their identity; only the shell changes.
+    return newSession(for: scope, id: id)
   }
   func close(_ id: UUID, for scope: TerminalScope) {
     sessions[scope]?.removeValue(forKey: id)?.stop()
@@ -155,24 +157,9 @@ extension WorkspaceStore {
     return workspace.terminals.session(id, for: scope)
   }
   @discardableResult func restartTerminalTab(_ id: UUID) -> TerminalSession? {
-    guard let index = workspaceTabs.firstIndex(where: { $0.terminalID == id }),
-      let scope = terminalScope(for: workspaceTabs[index]) else { return nil }
-    let oldTab = workspaceTabs[index]
-    let placement = workspaceTabPlacement(oldTab.id)
-    let session = workspace.terminals.restart(id, for: scope)
-    let newTab = WorkspaceContentTab.terminal(session.id, owner: oldTab.owner)
-    workspaceTabs[index] = newTab
-    workspaceTabPlacements[oldTab.id] = nil
-    workspaceTabPlacements[newTab.id] = placement
-    if activeWorkspaceTabID == oldTab.id { activeWorkspaceTabID = newTab.id }
-    if activeRightWorkspaceTabID == oldTab.id { activeRightWorkspaceTabID = newTab.id }
-    if activeBottomWorkspaceTabID == oldTab.id { activeBottomWorkspaceTabID = newTab.id }
-    if focusedWorkspaceTabID == oldTab.id { focusedWorkspaceTabID = newTab.id }
-    if let pin = library.pinnedContentTabs.firstIndex(where: { $0.sourceWindowID == nil && $0.sourceTabID == oldTab.id }) {
-      library.pinnedContentTabs[pin].sourceTabID = newTab.id
-      saveLibrary()
-    }
-    return session
+    guard !shuttingDown, let tab = workspaceTabs.first(where: { $0.terminalID == id }),
+      let scope = terminalScope(for: tab) else { return nil }
+    return workspace.terminals.restart(id, for: scope)
   }
   func adoptDraftTerminal(_ source: TerminalScope?, run: AgentRun) {
     guard let source, let task = library.task(containing: run.id), !run.project.isEmpty else { return }

@@ -412,7 +412,8 @@ import XCTest
     store.moveWorkspaceTab(secondTab.id, to: .right)
     let replacement = try XCTUnwrap(store.restartTerminalTab(secondID))
     XCTAssertEqual(second.status, .stopped)
-    XCTAssertNotEqual(replacement.id, secondID)
+    XCTAssertEqual(replacement.id, secondID, "Restart replaces the shell, not the tab identity")
+    XCTAssertFalse(replacement === second)
     XCTAssertEqual(store.activeRightWorkspaceContentTab?.terminalID, replacement.id)
     XCTAssertEqual(store.workspaceTabPlacement("terminal:\(replacement.id.uuidString)"), .right)
   }
