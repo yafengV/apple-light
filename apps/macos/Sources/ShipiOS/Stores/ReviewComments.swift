@@ -8,10 +8,11 @@ extension WorkspaceStore {
   }
 
   func beginReviewComment(_ anchor: ReviewAnchor, taskID: String? = nil) {
-    let expectedProject = taskID.flatMap { id in
-      library.tasks.first(where: { $0.id == id })?.project
-    } ?? project?.path
-    guard expectedProject == anchor.project else { return }
+    let expectedProject: URL?
+    if let taskID { expectedProject = workspaceTabProject(owner: taskID) }
+    else { expectedProject = project }
+    guard let expectedProject,
+      GitBranchService.canonicalRoot(expectedProject).path == anchor.project else { return }
     let key = reviewCommentKey(taskID)
     if let existing = reviewComments(taskID: taskID).first(where: { $0.anchor == anchor }) {
       editReviewComment(existing.id, taskID: taskID)

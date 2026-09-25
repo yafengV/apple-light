@@ -67,19 +67,7 @@ struct WorkspaceTabWindowView: View {
           HStack(spacing: 12) {
             Label(store.workspaceTabTitle(tab), systemImage: tab.icon).lineLimit(1)
             Spacer()
-            Button("聚焦聊天") {
-              focusingChat = true
-              Task {
-                defer { focusingChat = false }
-                guard await store.focusDetachedWorkspaceChat(tabID) else { return }
-                openWindow(id: "main")
-                if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
-                  if main.isMiniaturized { main.deminiaturize(nil) }
-                  main.makeKeyAndOrderFront(nil)
-                }
-                NSApp.activate(ignoringOtherApps: true)
-              }
-            }
+            Button("聚焦聊天", action: focusChat)
             .controlSize(.small)
             .disabled(focusingChat || !store.canFocusDetachedWorkspaceChat(tabID))
             Toggle("置于顶层", isOn: $pinnedToFront)
@@ -88,7 +76,11 @@ struct WorkspaceTabWindowView: View {
           }
           .padding(10)
           Divider()
-          WorkspaceTabContentView(store: store, tab: tab)
+          if case .review(let owner) = tab {
+            DetachedReviewView(store: store, owner: owner, focusComposer: focusChat)
+          } else {
+            WorkspaceTabContentView(store: store, tab: tab)
+          }
         }
         .background(WindowLevelReader(pinnedToFront: pinnedToFront).frame(width: 0, height: 0))
       } else {
@@ -97,6 +89,21 @@ struct WorkspaceTabWindowView: View {
     }
     .navigationTitle(tab.map(store.workspaceTabTitle) ?? "标签页")
     .onDisappear { store.restoreDetachedWorkspaceTab(tabID) }
+  }
+
+  private func focusChat() {
+    guard !focusingChat else { return }
+    focusingChat = true
+    Task {
+      defer { focusingChat = false }
+      guard await store.focusDetachedWorkspaceChat(tabID) else { return }
+      openWindow(id: "main")
+      if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
+        if main.isMiniaturized { main.deminiaturize(nil) }
+        main.makeKeyAndOrderFront(nil)
+      }
+      NSApp.activate(ignoringOtherApps: true)
+    }
   }
 }
 
