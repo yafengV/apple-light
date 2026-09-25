@@ -5,6 +5,7 @@ struct BrowserAddressField: NSViewRepresentable {
   let tab: BrowserTab
   let session: BrowserSession
   let canFocus: () -> Bool
+  var independentFocus = false
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> NSTextField {
     let field = NSTextField()
@@ -24,7 +25,7 @@ struct BrowserAddressField: NSViewRepresentable {
     if session.addressFocusTarget == tab.id, context.coordinator.handled != request {
       context.coordinator.handled = request
       DispatchQueue.main.async {
-        guard isEnabled, canFocus(), field.window?.isKeyWindow == true, session.selection == tab.id, session.addressFocusTarget == tab.id,
+        guard isEnabled, canFocus(), field.window?.isKeyWindow == true, (independentFocus || session.selection == tab.id), session.addressFocusTarget == tab.id,
           session.addressFocus == request, field.window?.attachedSheet == nil else { return }
         field.window?.makeFirstResponder(field)
         field.selectText(nil)
@@ -38,7 +39,7 @@ struct BrowserAddressField: NSViewRepresentable {
     func controlTextDidBeginEditing(_ notification: Notification) {
       parent.tab.editingAddress = true
       parent.session.addressField = notification.object as? NSTextField
-      parent.session.select(parent.tab.id, focus: false)
+      if !parent.independentFocus { parent.session.select(parent.tab.id, focus: false) }
     }
     func controlTextDidEndEditing(_ notification: Notification) { parent.tab.editingAddress = false }
     func controlTextDidChange(_ notification: Notification) {

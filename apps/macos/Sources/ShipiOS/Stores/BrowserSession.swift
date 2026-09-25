@@ -167,8 +167,12 @@ final class BrowserSession {
   }
   func focusAddress() {
     ensureTab()
+    if let selection { focusAddress(tabID: selection) }
+  }
+  func focusAddress(tabID: UUID) {
+    guard tabs.contains(where: { $0.id == tabID }) else { return }
     contentFocusTarget = nil
-    addressFocusTarget = selection
+    addressFocusTarget = tabID
     addressFocus = UUID()
   }
   func focusContent(_ id: UUID) {
@@ -178,13 +182,15 @@ final class BrowserSession {
     contentFocusTarget = id
     contentFocus = UUID()
   }
-  var hasNativeFocus: Bool {
-    guard let window = NSApp?.keyWindow, window.attachedSheet == nil,
-      let responder = window.firstResponder else { return false }
+  var hasNativeFocus: Bool { hasNativeFocus(tabID: selection) }
+  func hasNativeFocus(tabID: UUID?) -> Bool {
+    guard let tabID, let tab = tabs.first(where: { $0.id == tabID }),
+      let window = NSApp?.keyWindow, window.attachedSheet == nil,
+      tab.view.window === window, let responder = window.firstResponder else { return false }
     if let field = addressField, field.window === window,
       responder === field || responder === field.currentEditor() { return true }
-    if let view = responder as? NSView, let tab = selected,
-      tab.view.window === window, view === tab.view || view.isDescendant(of: tab.view) { return true }
+    if let view = responder as? NSView,
+      view === tab.view || view.isDescendant(of: tab.view) { return true }
     return false
   }
   func copyURL(tabID: UUID? = nil, to pasteboard: NSPasteboard = .general) {

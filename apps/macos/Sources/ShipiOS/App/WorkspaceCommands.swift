@@ -47,7 +47,7 @@ struct WorkspaceCommands: Commands {
       command("forward")
     }
     CommandMenu("标签页") {
-      Button(taskWindowCommands == nil ? "关闭当前标签" : "关闭任务窗口") { perform("tab-close") }
+      Button(taskWindowCommands?.closeTitle ?? "关闭当前标签") { perform("tab-close") }
         .keyboardShortcut("w", modifiers: .command)
         .disabled(!commandEnabled("tab-close"))
       command("tab-close-others")

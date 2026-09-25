@@ -232,6 +232,7 @@ python3 script/smoke_ipc.py
 | [分离终端重启](docs/175-detached-terminal-restart.md) | 重启保留标签与窗口身份，替换 shell 和原生视图；128 项回归及跨任务连续重启、直接输入已验证 |
 | [分离审查归属](docs/176-detached-review-ownership.md) | 审查项目、Git 操作、范围和评论绑定原任务；33 项回归及双仓库暂存隔离已验证 |
 | [分离窗口恢复](docs/177-detached-window-restoration.md) | 路由保存工作区与任务归属，后台标签按需恢复；39 项回归及系统恢复、跨目录隔离已验证 |
+| [分离窗口命令归属](docs/178-detached-window-command-ownership.md) | 关闭与网页快捷键作用于当前窗口，截图/评论归原任务；71 项回归及双网页原生验证通过 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

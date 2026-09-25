@@ -53,6 +53,7 @@ struct WorkspaceTabWindowView: View {
   @Bindable var store: WorkspaceStore
   let tabID: String
   @Environment(\.openWindow) private var openWindow
+  @Environment(\.dismiss) private var dismiss
   @State private var pinnedToFront = false
   @State private var focusingChat = false
 
@@ -78,6 +79,9 @@ struct WorkspaceTabWindowView: View {
           Divider()
           if case .review(let owner) = tab {
             DetachedReviewView(store: store, owner: owner, focusComposer: focusChat)
+          } else if let browserID = tab.browserID {
+            BrowserPanel(store: store, session: store.workspace.browser,
+              context: browserContext(tab), showsTabStrip: false, tabID: browserID)
           } else {
             WorkspaceTabContentView(store: store, tab: tab)
           }
@@ -87,22 +91,48 @@ struct WorkspaceTabWindowView: View {
         ContentUnavailableView("标签页已关闭", systemImage: "xmark.square")
       }
     }
+    .focusedSceneValue(\.taskWindowCommands, commands)
+    .background(TaskWindowCommandKeyboardBridge(commands: commands, shortcuts: store.shortcuts,
+      blocked: store.restoringLibrary).frame(width: 0, height: 0))
     .navigationTitle(tab.map(store.workspaceTabTitle) ?? "标签页")
     .onDisappear { store.restoreDetachedWorkspaceTab(tabID) }
   }
 
-  private func focusChat() {
+  private var commands: TaskWindowCommandContext {
+    store.detachedWindowCommands(tabID, close: { dismiss() })
+  }
+
+  private func browserContext(_ tab: WorkspaceContentTab) -> BrowserPanelContext {
+    BrowserPanelContext(taskID: tab.owner,
+      canFocus: { !store.shuttingDown && store.workspaceTabPlacement(tabID) == .detached },
+      newTab: { openOwnerChat(command: "browser-new") },
+      closeTab: { store.closeBrowserTab($0); dismiss() },
+      reopen: { openOwnerChat(command: "browser-reopen") },
+      openSettings: {
+        store.openSettings(.browser)
+        showMainWindow()
+      }, focusComposer: focusChat, independentFocus: true, canReopen: false)
+  }
+
+  private func showMainWindow() {
+    openWindow(id: "main")
+    if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
+      if main.isMiniaturized { main.deminiaturize(nil) }
+      main.makeKeyAndOrderFront(nil)
+    }
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  private func focusChat() { openOwnerChat() }
+
+  private func openOwnerChat(command: String? = nil) {
     guard !focusingChat else { return }
     focusingChat = true
     Task {
       defer { focusingChat = false }
       guard await store.focusDetachedWorkspaceChat(tabID) else { return }
-      openWindow(id: "main")
-      if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
-        if main.isMiniaturized { main.deminiaturize(nil) }
-        main.makeKeyAndOrderFront(nil)
-      }
-      NSApp.activate(ignoringOtherApps: true)
+      if let command { store.executeCommand(command) }
+      showMainWindow()
     }
   }
 }

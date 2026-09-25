@@ -4,6 +4,7 @@ import SwiftUI
 struct TaskWindowCommandContext {
   let enabled: Set<String>
   let perform: (String) -> Void
+  var closeTitle: String = "关闭任务窗口"
   var keyboardAllowed: (String) -> Bool = { _ in true }
 
   static func owns(_ id: String) -> Bool {

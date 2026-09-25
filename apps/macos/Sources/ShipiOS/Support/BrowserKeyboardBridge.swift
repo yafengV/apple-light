@@ -3,16 +3,21 @@ import SwiftUI
 /// Contextual browser shortcuts never consume editing keys outside this browser.
 struct BrowserKeyboardBridge: NSViewRepresentable {
   let store: WorkspaceStore
-  func makeCoordinator() -> Coordinator { Coordinator(store) }
-  func makeNSView(context: Context) -> NSView { NSView() }
+  func makeCoordinator() -> Coordinator { Coordinator() }
+  func makeNSView(context: Context) -> NSView {
+    let view = NSView()
+    context.coordinator.install(view, store: store)
+    return view
+  }
   func updateNSView(_ view: NSView, context: Context) {}
   static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.stop() }
   final class Coordinator {
     private var monitor: Any?
-    init(_ store: WorkspaceStore) {
-      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak store] event in
+    func install(_ view: NSView, store: WorkspaceStore) {
+      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak store, weak view] event in
         MainActor.assumeIsolated {
-        guard let store, event.window === NSApp?.keyWindow, store.browserFocused,
+        guard let store, let window = view?.window, window.isKeyWindow,
+          event.window === window, window.attachedSheet == nil, NSApp.modalWindow == nil, store.browserFocused,
           let binding = ShortcutBinding(event: event) else { return event }
         if binding == ShortcutBinding("⌘W") {
           store.closeActiveWorkspaceTab(); return nil

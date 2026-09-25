@@ -8,6 +8,8 @@ import SwiftUI
   let reopen: () -> Void
   let openSettings: () -> Void
   let focusComposer: () -> Void
+  var independentFocus = false
+  var canReopen: Bool? = nil
 }
 
 private struct MessageBrowserRouteKey: EnvironmentKey {

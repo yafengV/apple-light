@@ -33,9 +33,11 @@ extension WorkspaceStore {
   }
   func addBrowserElementToDraft(_ reference: BrowserElementReference, taskID: String? = nil) {
     if let taskID {
+      guard taskID.hasPrefix("new:") || library.tasks.contains(where: { $0.id == taskID }) else { return }
       let draft = taskWindowDraft(taskID)
-      setTaskWindowDraft(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        ? reference.promptContext : draft + "\n\n" + reference.promptContext, taskID: taskID)
+      library.drafts[taskID] = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        ? reference.promptContext : draft + "\n\n" + reference.promptContext
+      saveLibrary()
       return
     }
     let context = reference.promptContext

@@ -5,6 +5,7 @@ struct BrowserHost: NSViewRepresentable {
   let tab: BrowserTab
   let session: BrowserSession
   let canFocus: () -> Bool
+  var independentFocus = false
   func makeCoordinator() -> Coordinator { Coordinator() }
   func makeNSView(context: Context) -> WKWebView { tab.view }
   func updateNSView(_ view: WKWebView, context: Context) {
@@ -12,7 +13,7 @@ struct BrowserHost: NSViewRepresentable {
     guard session.contentFocusTarget == tab.id, context.coordinator.handled != request else { return }
     context.coordinator.handled = request
     DispatchQueue.main.async {
-      guard canFocus(), session.selection == tab.id, session.contentFocusTarget == tab.id,
+      guard canFocus(), (independentFocus || session.selection == tab.id), session.contentFocusTarget == tab.id,
         session.contentFocus == request, !tab.closed, let window = view.window,
         window.isKeyWindow, window.attachedSheet == nil else { return }
       window.makeFirstResponder(view)
@@ -66,7 +67,7 @@ struct BrowserPanel: View {
           Button { if tab.loading { tab.stop() } else { tab.reload() } } label: {
             Image(systemName: tab.loading ? "xmark" : "arrow.clockwise")
           }.help(tab.loading ? "停止加载" : "重新加载").accessibilityLabel(tab.loading ? "停止加载" : "重新加载网页")
-          BrowserAddressField(tab: tab, session: session, canFocus: canFocus)
+          BrowserAddressField(tab: tab, session: session, canFocus: canFocus, independentFocus: context?.independentFocus == true)
             .frame(minWidth: 90, minHeight: 24).id(tab.id)
           Button {
             Task { await store.captureBrowserSnapshot(tab, taskID: context?.taskID) }
@@ -104,7 +105,7 @@ struct BrowserPanel: View {
             Button("复制网址") { session.copyURL(tabID: tab.id) }.disabled(tab.committedURL == nil)
             Button("忽略缓存重新加载") { tab.reload(bypassCache: true) }
             Button("重新打开关闭的标签页") { if let context { context.reopen() } else { store.reopenClosedBrowserTab() } }
-              .disabled(!session.canReopenClosedTab)
+              .disabled(!(context?.canReopen ?? session.canReopenClosedTab))
             if let url = tab.committedURL {
               Button("在系统浏览器中打开") { NSWorkspace.shared.open(url) }
             }
@@ -156,7 +157,7 @@ struct BrowserPanel: View {
           }.background(Color.primary.opacity(0.035))
         }
         Divider()
-        BrowserHost(tab: tab, session: session, canFocus: canFocus).id(tab.id)
+        BrowserHost(tab: tab, session: session, canFocus: canFocus, independentFocus: context?.independentFocus == true).id(tab.id)
           .task(id: markerKey(tab: tab)) { await tab.renderCommentMarkers(comments) }
           .overlay {
           if tab.committedURL == nil && !tab.loading && tab.error == nil {
@@ -233,7 +234,7 @@ private struct BrowserTabChip: View {
         .disabled(!session.canCloseTabsToRight(of: tab.id))
       Divider()
       Button("重新打开关闭的标签页") { if let context { context.reopen() } else { store.reopenClosedBrowserTab() } }
-        .disabled(!session.canReopenClosedTab)
+        .disabled(!(context?.canReopen ?? session.canReopenClosedTab))
     }
   }
 }
