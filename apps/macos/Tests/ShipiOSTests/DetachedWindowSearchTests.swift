@@ -69,6 +69,45 @@ import XCTest
     XCTAssertEqual(store.library.drafts["a"], "A draft"); XCTAssertEqual(store.library.drafts["b"], "B draft")
   }
 
+  func testCrossProjectResultRevealsMainOnlyAfterScopeSelectionFinishes() async throws {
+    var repository = URL(fileURLWithPath: #filePath)
+    for _ in 0..<5 { repository.deleteLastPathComponent() }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("detached-search-projects-\(UUID())")
+    let projectA = root.appendingPathComponent("A")
+    let projectB = root.appendingPathComponent("B")
+    try FileManager.default.createDirectory(at: projectA, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: projectB, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"),
+      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    await store.restore()
+    await store.open(projectA)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    store.library.tasks = [.init(id: "a", project: projectA.path, title: "A", runIDs: []),
+      .init(id: "b", project: projectB.path, title: "B", runIDs: [])]
+    store.selection = "a"
+    store.restoreWorkspaceTabLayout()
+    store.newBrowserTab(in: .detached)
+    let source = try XCTUnwrap(store.workspace.browser.selected)
+    let id = "browser:\(source.id)"
+    await store.open(projectB)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    store.applyTaskSelection(store.library.tasks[1])
+    let search = DetachedWindowSearch()
+    search.open(.tasks, window: nil)
+    var revealedSelection: [String] = []
+    context(search, store: store, id: id, showMain: { revealedSelection.append(store.selection ?? "") })
+      .select(store.library.tasks[0])
+    for _ in 0..<100 {
+      if !revealedSelection.isEmpty { break }
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertEqual(revealedSelection, ["a"])
+    XCTAssertEqual(store.project?.path, projectA.path)
+    XCTAssertEqual(store.workspaceTabPlacement(id), .detached)
+    await store.shutdown()
+    try FileManager.default.removeItem(at: root)
+  }
+
   func testSettingsUsesMainAndSearchNeverAllowsUnrelatedTaskMutation() throws {
     let (store, id, _) = try fixture(), search = DetachedWindowSearch()
     var shown = 0

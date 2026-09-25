@@ -139,11 +139,13 @@ struct WorkspaceTabWindowView: View {
 
   private func showMainWindow() {
     openWindow(id: "main")
-    if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
-      if main.isMiniaturized { main.deminiaturize(nil) }
-      main.makeKeyAndOrderFront(nil)
+    DispatchQueue.main.async {
+      if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
+        if main.isMiniaturized { main.deminiaturize(nil) }
+        main.makeKeyAndOrderFront(nil)
+      }
+      NSApp.activate(ignoringOtherApps: true)
     }
-    NSApp.activate(ignoringOtherApps: true)
   }
 
   private func focusChat() { openOwnerChat() }

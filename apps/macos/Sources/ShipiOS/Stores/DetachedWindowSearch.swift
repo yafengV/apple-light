@@ -68,8 +68,12 @@ import Observation
       }, navigate: { [weak self] candidate in
         guard let current = store.library.tasks.first(where: { $0.id == candidate.id }) else { return }
         self?.close(restoreFocus: false)
-        store.selectTask(current)
-        showMain()
+        if store.currentProjectKey == current.project {
+          store.selectTask(current)
+          showMain()
+        } else {
+          Task { if await store.selectTaskAwaitingScope(current) { showMain() } }
+        }
       }, cancel: { [weak self] in self?.close() }, browserResults: store.allCommandBrowserTabs,
       canOpenBrowser: { [weak self] result in
         guard let self, self.mode == .commands, self.available(store, tabID: tabID),

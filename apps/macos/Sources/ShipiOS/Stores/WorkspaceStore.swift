@@ -765,17 +765,30 @@ final class WorkspaceStore {
 
   func selectTask(_ task: WorkspaceTask) {
     guard canSelectTask(task) else { return }
-    // Seed the restored current task too when migrating a library without visits.
-    if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
     guard currentProjectKey == task.project else {
-      Task {
-        recordNavigation()
-        if await openTaskScope(task.project) { applyTaskSelection(task) }
-      }
+      Task { _ = await selectTaskAwaitingScope(task) }
       return
     }
+    // Seed the restored current task too when migrating a library without visits.
+    if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
     recordNavigation()
     applyTaskSelection(task)
+  }
+
+  /// Window search must reveal the main window after a cross-project scope has
+  /// finished loading and its restored content windows have been scheduled.
+  @discardableResult func selectTaskAwaitingScope(_ task: WorkspaceTask) async -> Bool {
+    guard let current = library.tasks.first(where: { $0.id == task.id }), canSelectTask(current) else { return false }
+    if currentProjectKey == current.project {
+      selectTask(current)
+      return true
+    }
+    if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
+    recordNavigation()
+    guard await openTaskScope(current.project), !shuttingDown,
+      let refreshed = library.tasks.first(where: { $0.id == task.id }), canSelectTask(refreshed) else { return false }
+    applyTaskSelection(refreshed)
+    return true
   }
 
   func applyTaskSelection(_ task: WorkspaceTask) {
