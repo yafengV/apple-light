@@ -749,6 +749,7 @@ final class ModelTransportTests: XCTestCase {
     store.notificationPreferences = .init(timing: .never)
     await store.open(source)
     XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    try Data("local main edit\n".utf8).write(to: source.appendingPathComponent("README.md"))
     store.newTaskExecution = .worktree
     let snapshot = try await GitBranchService.snapshot(at: source)
     store.newTaskStartingBranch = try XCTUnwrap(snapshot.branches.first { $0.name == "feature" })
@@ -772,7 +773,7 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(store.library.drafts[task.id], "")
     XCTAssertNil(store.library.pendingManagedDraftTaskIDs[source.path])
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("README.md"),
-      encoding: .utf8), "original\n")
+      encoding: .utf8), "local main edit\n")
     let checkout = try await GitBranchService.snapshot(at: URL(fileURLWithPath: managed.path))
     XCTAssertNil(checkout.currentReference)
     XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: managed.path)
@@ -799,7 +800,7 @@ final class ModelTransportTests: XCTestCase {
     await restored.shutdown()
   }
 
-  @MainActor func testNewWorktreeTaskRejectsDirtySourceWithoutLosingDraft() async throws {
+  @MainActor func testNewWorktreeTaskCopiesStagedAndUnstagedChangesWithoutTouchingSource() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
       .deletingLastPathComponent()
@@ -815,10 +816,15 @@ final class ModelTransportTests: XCTestCase {
     try Data("original\n".utf8).write(to: file)
     _ = try await GitReviewService.checked(["add", "README.md"], at: source)
     _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    try Data("staged change\n".utf8).write(to: file)
+    _ = try await GitReviewService.checked(["add", "README.md"], at: source)
     try Data("local change\n".utf8).write(to: file)
+    let untracked = source.appendingPathComponent("untracked.txt")
+    try Data("keep\n".utf8).write(to: untracked)
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
       agentExecutable: binary)
     await store.restore()
+    store.notificationPreferences = .init(timing: .never)
     config.apiProtocol = .codexResponses
     try store.saveModelConfiguration(config)
     await store.open(source)
@@ -830,9 +836,42 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(store.library.managedWorktrees.isEmpty)
     XCTAssertTrue(store.library.pendingManagedDraftTaskIDs.isEmpty)
     XCTAssertTrue(store.library.chatRuns.isEmpty)
-    XCTAssertTrue(store.error?.contains("未提交修改") == true)
+    XCTAssertTrue(store.error?.contains("未跟踪文件") == true)
+    try FileManager.default.removeItem(at: untracked)
+    await store.sendDraft()
+    let managed = try XCTUnwrap(store.library.managedWorktrees.first, store.error ?? "")
+    let task = try XCTUnwrap(store.library.tasks.first { $0.id == managed.taskID })
+    let run = try XCTUnwrap(store.library.chatRuns.first { task.runIDs.contains($0.id) })
+    await store.modelTask(runID: run.id)?.value
+    XCTAssertEqual(managed.sourceStashCommit?.count, 40)
+    XCTAssertEqual(store.library.managedWorktrees.first?.sourceChangesApplied, true)
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: managed.path)
+      .appendingPathComponent("README.md"), encoding: .utf8), "local change\n")
+    let sourceStatus = try await GitReviewService.checked(["status", "--short"], at: source)
+    let checkoutStatus = try await GitReviewService.checked(["status", "--short"],
+      at: URL(fileURLWithPath: managed.path))
+    XCTAssertEqual(sourceStatus, "MM README.md\n")
+    XCTAssertEqual(checkoutStatus, "MM README.md\n")
     XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "local change\n")
+    // Simulate interruption after Git applied the snapshot but before the workspace flag saved.
+    store.library.managedWorktrees[0].sourceChangesApplied = nil
+    store.library.pendingManagedDraftTaskIDs[source.path] = task.id
+    XCTAssertTrue(store.saveLibrary())
     await store.shutdown()
+    let resumed = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: binary)
+    await resumed.restore()
+    resumed.notificationPreferences = .init(timing: .never)
+    await resumed.open(source)
+    resumed.selection = nil
+    resumed.draft = "retry-after-apply"
+    await resumed.sendDraft()
+    XCTAssertEqual(resumed.library.managedWorktrees.count, 1)
+    XCTAssertEqual(resumed.library.managedWorktrees.first?.sourceChangesApplied, true,
+      resumed.error ?? "")
+    XCTAssertEqual(resumed.library.tasks.first { $0.id == task.id }?.project, managed.path)
+    XCTAssertEqual(resumed.project?.path, managed.path)
+    await resumed.shutdown()
   }
 
   @MainActor func testCodexResponsesChatUsesAgentAndKeepsTaskReply() async throws {

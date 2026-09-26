@@ -39,7 +39,7 @@ python3 script/smoke_ipc.py
 
 桌面应用默认将数据存入 `~/Library/Application Support/ShipiOS/Desktop/Projects/<项目路径哈希>/`，每个项目独立保存；可通过 `./script/build_and_run.sh --app --data-root "$PWD/.shipios-local/desktop"` 选择开发数据目录。CLI 脚本数据存入忽略的 `.shipios-local/`。直接启动 Agent 默认使用 `~/Library/Application Support/ShipiOS`，可用 `--data-dir` 或 `SHIPIOS_HOME` 指定独立目录。不会读取个人 Codex 配置或认证，也不会使用 `OPENAI_API_KEY`。
 
-构建会执行所选项目的构建阶段，应针对自己信任的工程运行。Git 项目的新任务可选择托管工作树及起始分支；该流程目前要求来源目录干净，详见[验证与限制](docs/225-managed-worktree-new-task.md)。不会将构建成功标为 UI 验证通过。
+构建会执行所选项目的构建阶段，应针对自己信任的工程运行。Git 项目的新任务可选择托管工作树及起始分支；当前分支的已跟踪修改可传递，未跟踪文件仍有限制，详见[验证与限制](docs/225-managed-worktree-new-task.md)。不会将构建成功标为 UI 验证通过。
 
 桌面快捷键：`⌘N` 新任务、`⌘K` / `⌘⇧P` 命令菜单、`⌘O` 打开项目、`⌘↵` 发送、`⌘.` 停止、`⌘B` 侧栏、`⌘P` 文件搜索、`⌘J` 终端、`⌘⌥B` 审查、`⌘⇧B` 浏览器。全局“新任务”可不选文件夹直接对话；项目菜单中的“新任务”使用该项目。设置 → 模型与 API 可填写独立服务，密钥保存在 ShipiOS 专属 Keychain 中；设置 → 通用可选择模型运行时“引导当前运行”或“等待下一轮”。输入 `/chat`、`/doctor`、`/build`、`/plan` 或 `/goal` 选择会话、诊断、构建、计划或持久目标。Chat Completions 会话支持文字、图片和文本/PDF 文件附件，不自动读写项目；Codex Responses 当前支持项目内相同的输入类型，线程权限为只读。输入区加号可选择文件或图片；PDF 仅提取文字。图片需要所选模型与服务支持视觉输入。界面记录、队列与目标状态写入 `workspace.json`，非敏感模型配置写入 `model.json`，本地执行记录仍由 Agent 数据库保存。
 

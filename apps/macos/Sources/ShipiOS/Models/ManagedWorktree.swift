@@ -4,6 +4,9 @@ import Foundation
 struct ManagedWorktree: Codable, Identifiable, Equatable {
   let taskID: String
   var checkout: PermanentWorktree
+  /// A protected Git stash commit captured without changing the source checkout.
+  var sourceStashCommit: String? = nil
+  var sourceChangesApplied: Bool? = nil
 
   var id: UUID { checkout.id }
   var source: String { checkout.source }

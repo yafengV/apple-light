@@ -108,7 +108,10 @@ struct ComposerView: View {
                   Text("起始分支已更新；请刷新后重新选择。")
                     .appFont(.caption).foregroundStyle(.red)
                 } else {
-                  Text("从所选提交创建此任务专用的工作树")
+                  Text(store.newTaskStartingBranch == nil
+                    || store.newTaskStartingBranch?.reference == newTaskBranches.snapshot?.currentReference
+                    ? "从所选提交创建工作树；当前分支的已跟踪修改会复制过去"
+                    : "从所选分支创建工作树；当前检出的修改留在原项目")
                     .appFont(.caption).foregroundStyle(.secondary)
                 }
               }
