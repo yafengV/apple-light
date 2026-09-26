@@ -44,6 +44,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case agentModel
   case agentReasoning
   case agentSuggestions
+  case agentApproval
+  case agentSandbox
+  case agentNetwork
   case branchPrefix
   case commitInstructions
   case pullRequestInstructions
@@ -139,6 +142,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentModel: .agent
     case .agentReasoning: .agent
     case .agentSuggestions: .agent
+    case .agentApproval: .agent
+    case .agentSandbox: .agent
+    case .agentNetwork: .agent
     case .branchPrefix: .git
     case .commitInstructions: .git
     case .pullRequestInstructions: .git
@@ -213,6 +219,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentModel: "默认模型"
     case .agentReasoning: "推理强度"
     case .agentSuggestions: "显示建议提示"
+    case .agentApproval: "审批策略"
+    case .agentSandbox: "文件访问"
+    case .agentNetwork: "允许网络访问"
     case .branchPrefix: "分支前缀"
     case .commitInstructions: "提交指令"
     case .pullRequestInstructions: "PR 指令"
@@ -318,6 +327,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentModel: "配置"
     case .agentReasoning: "配置"
     case .agentSuggestions: "建议"
+    case .agentApproval: "批准 请求 永不"
+    case .agentSandbox: "沙箱 只读 工作区 完全访问"
+    case .agentNetwork: "命令 网络 工作区写入"
     case .branchPrefix: "branch"
     case .commitInstructions: "commit message instructions 提交说明 生成"
     case .pullRequestInstructions: "pull request instructions GitHub 描述 生成"
@@ -407,7 +419,8 @@ enum SettingsSearch {
   static func results(
     for query: String, hasProject: Bool = false,
     shortcutBindings: [String: [ShortcutBinding]]? = nil,
-    pluginSections: Set<PluginSettingsSection> = Set(PluginSettingsSection.allCases)
+    pluginSections: Set<PluginSettingsSection> = Set(PluginSettingsSection.allCases),
+    agentSandboxMode: AgentSandboxMode = .workspaceWrite
   ) -> [SettingsSearchResult] {
     let terms = query.split(whereSeparator: \.isWhitespace).map(String.init)
     guard !terms.isEmpty else { return [] }
@@ -418,6 +431,7 @@ enum SettingsSearch {
       let fields = SettingsSearchField.allCases.filter {
         $0.page == page && (!$0.requiresProject || hasProject)
           && ($0.pluginSection.map { pluginSections.contains($0) } ?? true)
+          && ($0 != .agentNetwork || agentSandboxMode == .workspaceWrite)
           && matches([page.title, $0.title, $0.aliases].joined(separator: " "))
       }.map { SettingsSearchResult(page: page, field: $0) }
       let commands = page == .shortcuts ? DesktopCommand.all.filter { command in

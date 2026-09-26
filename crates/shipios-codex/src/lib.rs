@@ -18,10 +18,11 @@ use codex_protocol::config_types::{
 };
 use codex_protocol::mcp::{ClientMcpExtensions, RequestId};
 use codex_protocol::openai_models::ReasoningEffort;
+use codex_protocol::protocol::NetworkSandboxPolicy;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::request_user_input::{RequestUserInputAnswer, RequestUserInputResponse};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::{HashMap, HashSet},
@@ -39,8 +40,67 @@ pub struct SessionOptions {
     pub model: String,
     pub api_key: Option<String>,
     pub read_only: bool,
+    pub permissions: SessionPermissions,
     pub mcp_servers: Vec<ShipMcpServer>,
     pub runtime_paths: ExecServerRuntimePaths,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionPermissions {
+    #[serde(default)]
+    pub approval_policy: SessionApprovalPolicy,
+    #[serde(default)]
+    pub sandbox_mode: SessionSandboxMode,
+    #[serde(default)]
+    pub network_access: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum SessionApprovalPolicy {
+    #[default]
+    OnRequest,
+    Never,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum SessionSandboxMode {
+    ReadOnly,
+    #[default]
+    WorkspaceWrite,
+    #[serde(rename = "danger-full-access")]
+    FullAccess,
+}
+
+fn configured_permissions(read_only: bool, settings: SessionPermissions) -> Result<Permissions> {
+    let approval = match settings.approval_policy {
+        SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
+        SessionApprovalPolicy::Never => AskForApproval::Never,
+    };
+    let profile = if read_only {
+        PermissionProfile::read_only()
+    } else {
+        match settings.sandbox_mode {
+            SessionSandboxMode::ReadOnly => PermissionProfile::read_only(),
+            SessionSandboxMode::WorkspaceWrite => PermissionProfile::workspace_write_with(
+                &[],
+                if settings.network_access {
+                    NetworkSandboxPolicy::Enabled
+                } else {
+                    NetworkSandboxPolicy::Restricted
+                },
+                false,
+                false,
+            ),
+            SessionSandboxMode::FullAccess => PermissionProfile::Disabled,
+        }
+    };
+    Ok(Permissions::from_approval_and_profile(
+        Constrained::allow_any(approval),
+        Constrained::allow_any(profile),
+    )?)
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,14 +310,7 @@ impl CodexSession {
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
-        config.permissions = Permissions::from_approval_and_profile(
-            Constrained::allow_any(AskForApproval::OnRequest),
-            Constrained::allow_any(if options.read_only {
-                PermissionProfile::read_only()
-            } else {
-                PermissionProfile::workspace_write()
-            }),
-        )?;
+        config.permissions = configured_permissions(options.read_only, options.permissions)?;
 
         let mut provider = config.model_provider.clone();
         provider.name = "ShipiOS API".to_owned();
@@ -600,5 +653,69 @@ mod tests {
             ReviewDecision::from(ApprovalDecision::Deny),
             ReviewDecision::Denied { .. }
         ));
+    }
+
+    #[test]
+    fn session_permissions_apply_approval_sandbox_and_network_without_weakening_read_only() {
+        let custom = SessionPermissions {
+            approval_policy: SessionApprovalPolicy::Never,
+            sandbox_mode: SessionSandboxMode::WorkspaceWrite,
+            network_access: true,
+        };
+        let configured = configured_permissions(false, custom).unwrap();
+        assert_eq!(configured.approval_policy.value(), AskForApproval::Never);
+        assert_eq!(
+            configured.network_sandbox_policy(),
+            NetworkSandboxPolicy::Enabled
+        );
+        assert!(matches!(
+            configured.permission_profile(),
+            PermissionProfile::Managed { .. }
+        ));
+
+        let full = configured_permissions(
+            false,
+            SessionPermissions {
+                sandbox_mode: SessionSandboxMode::FullAccess,
+                ..custom
+            },
+        )
+        .unwrap();
+        assert!(matches!(
+            full.permission_profile(),
+            PermissionProfile::Disabled
+        ));
+
+        let review = configured_permissions(
+            true,
+            SessionPermissions {
+                sandbox_mode: SessionSandboxMode::FullAccess,
+                ..custom
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            review.network_sandbox_policy(),
+            NetworkSandboxPolicy::Restricted
+        );
+        assert_eq!(*review.permission_profile(), PermissionProfile::read_only());
+    }
+
+    #[test]
+    fn session_permission_wire_values_match_agent_settings() {
+        let value = serde_json::json!({
+            "approvalPolicy": "never", "sandboxMode": "danger-full-access",
+            "networkAccess": true
+        });
+        let parsed: SessionPermissions = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(parsed.approval_policy, SessionApprovalPolicy::Never);
+        assert_eq!(parsed.sandbox_mode, SessionSandboxMode::FullAccess);
+        assert_eq!(serde_json::to_value(parsed).unwrap(), value);
+        assert!(
+            serde_json::from_value::<SessionPermissions>(serde_json::json!({
+                "sandboxMode": "unknown"
+            }))
+            .is_err()
+        );
     }
 }

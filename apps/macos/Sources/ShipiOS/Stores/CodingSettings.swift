@@ -1,6 +1,14 @@
 import Foundation
 
 extension WorkspaceStore {
+  @discardableResult func saveAgentRuntimePreferences(_ preferences: AgentRuntimePreferences) -> Bool {
+    let previous = library.agentRuntimePreferences
+    library.agentRuntimePreferences = preferences
+    if saveLibrary() { return true }
+    library.agentRuntimePreferences = previous
+    return false
+  }
+
   func gitCommitTaskTitle(taskID: String?) -> String? {
     if let taskID { return library.tasks.first { $0.id == taskID }?.title }
     return selectedTask?.title

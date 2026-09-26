@@ -1,7 +1,7 @@
 use anyhow::Result;
 use codex_core_api::{Arg0DispatchPaths, EventMsg, ExecServerRuntimePaths, arg0_dispatch_or_else};
 use serde_json::json;
-use shipios_codex::{CodexSession, SessionOptions};
+use shipios_codex::{CodexSession, SessionOptions, SessionPermissions};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -59,6 +59,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         model: "gpt-5.2".to_owned(),
         api_key: Some(token.to_owned()),
         read_only: false,
+        permissions: SessionPermissions::default(),
         mcp_servers: Vec::new(),
         runtime_paths: runtime_paths.clone(),
     })
@@ -70,6 +71,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         model: "gpt-5.2".to_owned(),
         api_key: None,
         read_only: false,
+        permissions: SessionPermissions::default(),
         mcp_servers: Vec::new(),
         runtime_paths,
     })

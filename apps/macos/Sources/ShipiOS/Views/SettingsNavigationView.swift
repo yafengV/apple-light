@@ -18,7 +18,8 @@ struct SettingsNavigationView: View {
     SettingsSearch.results(for: query, hasProject: store.project != nil,
       shortcutBindings: Dictionary(uniqueKeysWithValues: DesktopCommand.all.map {
         ($0.id, store.shortcuts.bindings($0.id))
-      }), pluginSections: Set(store.visiblePluginSettingsSections))
+      }), pluginSections: Set(store.visiblePluginSettingsSections),
+      agentSandboxMode: store.library.agentRuntimePreferences.sandboxMode)
   }
 
   var body: some View {

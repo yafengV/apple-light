@@ -3,6 +3,28 @@ import XCTest
 @testable import ShipiOS
 
 final class WorkspaceLibraryTests: XCTestCase {
+  @MainActor func testAgentRuntimePermissionsPersistAndRollBackOnSaveFailure() throws {
+    let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
+    XCTAssertEqual(legacy.agentRuntimePreferences, AgentRuntimePreferences())
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-permissions-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let selected = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .fullAccess, networkAccess: true)
+    XCTAssertTrue(store.saveAgentRuntimePreferences(selected))
+    XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .agentRuntimePreferences, selected)
+
+    let blockedRoot = root.appendingPathComponent("blocked")
+    let blocked = WorkspaceStore(dataRoot: blockedRoot)
+    blocked.libraryLoaded = true
+    try FileManager.default.createDirectory(at: blockedRoot.appendingPathComponent("workspace.json"),
+      withIntermediateDirectories: true)
+    XCTAssertFalse(blocked.saveAgentRuntimePreferences(selected))
+    XCTAssertEqual(blocked.library.agentRuntimePreferences, AgentRuntimePreferences())
+  }
+
   @MainActor func testArchiveTimestampMigrationAndRestoreKeepsSettingsOpen() throws {
     let legacy = Data(
       #"{"id":"old","project":"/project","title":"Old","runIDs":["old"],"pinned":false,"archived":true}"#

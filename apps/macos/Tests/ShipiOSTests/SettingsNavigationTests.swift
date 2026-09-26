@@ -100,6 +100,11 @@ final class SettingsNavigationTests: XCTestCase {
   func testEverySettingsPageHasTargetsAndResultsIncludeSecondaryPages() {
     XCTAssertEqual(Set(SettingsSearchField.allCases.map(\.page)), Set(SettingsNavigation.pages))
     XCTAssertEqual(SettingsSearch.results(for: "分支前缀").compactMap(\.field), [.branchPrefix])
+    XCTAssertEqual(SettingsSearch.results(for: "审批策略").compactMap(\.field), [.agentApproval])
+    XCTAssertEqual(SettingsSearch.results(for: "文件访问").compactMap(\.field), [.agentSandbox])
+    XCTAssertEqual(SettingsSearch.results(for: "允许网络访问").compactMap(\.field), [.agentNetwork])
+    XCTAssertFalse(SettingsSearch.results(for: "允许网络访问", agentSandboxMode: .readOnly)
+      .contains { $0.field == .agentNetwork })
     XCTAssertEqual(SettingsSearch.results(for: "浏览器 下载位置").compactMap(\.field), [.browserDownloadFolder])
     XCTAssertEqual(SettingsSearch.results(for: "自定义指令").compactMap(\.field), [.instructions])
     XCTAssertEqual(SettingsSearch.results(for: "屏幕录制").compactMap(\.field), [.screenRecording])

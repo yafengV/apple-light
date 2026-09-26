@@ -38,7 +38,8 @@ final class CodexChatTransport {
     taskID: String, config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
-    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration], compact: Bool = false
+    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
+    permissions: AgentRuntimePreferences, compact: Bool = false
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -75,6 +76,11 @@ final class CodexChatTransport {
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
           "resumeOnly": .bool(compact),
           "readOnly": .bool(readOnly),
+          "permissions": .object([
+            "approvalPolicy": .string(permissions.approvalPolicy.rawValue),
+            "sandboxMode": .string(permissions.sandboxMode.rawValue),
+            "networkAccess": .bool(permissions.networkAccess),
+          ]),
           "mcpServers": mcpValue,
         ])
         guard generation == token else { throw CancellationError() }

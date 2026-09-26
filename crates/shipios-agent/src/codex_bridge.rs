@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use shipios_codex::{
     ApprovalDecision, CodexSession, CodexTurnMode, ElicitationDecision, SessionOptions,
-    ShipMcpServer,
+    SessionPermissions, ShipMcpServer,
 };
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -25,6 +25,8 @@ pub struct StartThread {
     #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
+    pub permissions: SessionPermissions,
+    #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
 }
 
@@ -41,6 +43,8 @@ pub struct ThreadInfo {
 struct PersistedThread {
     thread_id: String,
     rollout_path: PathBuf,
+    #[serde(default)]
+    permissions: SessionPermissions,
 }
 
 #[derive(Deserialize)]
@@ -132,6 +136,7 @@ fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
     Ok(Some(PersistedThread {
         thread_id: thread.thread_id,
         rollout_path: rollout,
+        permissions: thread.permissions,
     }))
 }
 
@@ -226,6 +231,10 @@ impl CodexBridge {
             std::env::current_exe().context("resolve Agent executable")?,
             None,
         )?;
+        let permissions = previous
+            .as_ref()
+            .map(|thread| thread.permissions)
+            .unwrap_or(request.permissions);
         let options = SessionOptions {
             codex_home: home.clone(),
             project_root: self.project.clone(),
@@ -233,6 +242,7 @@ impl CodexBridge {
             model: request.model,
             api_key: request.api_key,
             read_only: request.read_only,
+            permissions,
             mcp_servers: request.mcp_servers,
             runtime_paths,
         };
@@ -252,6 +262,7 @@ impl CodexBridge {
         let saved = session.rollout_path().map(|rollout_path| PersistedThread {
             thread_id: thread_id.clone(),
             rollout_path,
+            permissions,
         });
         let save_result = saved
             .as_ref()
@@ -707,6 +718,7 @@ async fn run_thread(
 mod tests {
     use super::*;
     use serde_json::json;
+    use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -762,6 +774,11 @@ mod tests {
         let bridge = CodexBridge::new(data_dir.clone(), project);
         let mut events = bridge.subscribe();
         let task_id = Uuid::new_v4().to_string().to_uppercase();
+        let custom_permissions = SessionPermissions {
+            approval_policy: SessionApprovalPolicy::Never,
+            sandbox_mode: SessionSandboxMode::WorkspaceWrite,
+            network_access: true,
+        };
         assert!(
             bridge
                 .start(StartThread {
@@ -772,6 +789,7 @@ mod tests {
                     initial_context_bytes: Some(0),
                     resume_only: true,
                     read_only: false,
+                    permissions: SessionPermissions::default(),
                     mcp_servers: Vec::new(),
                 })
                 .await
@@ -794,6 +812,7 @@ mod tests {
                     initial_context_bytes: Some(48_001),
                     resume_only: false,
                     read_only: false,
+                    permissions: SessionPermissions::default(),
                     mcp_servers: Vec::new(),
                 })
                 .await
@@ -808,11 +827,13 @@ mod tests {
                 initial_context_bytes: Some(48_000),
                 resume_only: false,
                 read_only: false,
+                permissions: custom_permissions,
                 mcp_servers: Vec::new(),
             })
             .await?;
         assert_eq!(thread.task_id, task_id);
         assert!(!thread.resumed);
+        let task_home = data_dir.join("Codex/Tasks").join(task_id.to_lowercase());
         assert!(!bridge.submit(&task_id, " ".to_owned()).await.is_ok());
         assert!(
             !bridge
@@ -838,6 +859,10 @@ mod tests {
             }
         }
         assert_eq!(reply.as_deref(), Some("Agent bridge reply"));
+        assert_eq!(
+            saved_thread(&task_home)?.unwrap().permissions,
+            custom_permissions
+        );
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
         let restarted = CodexBridge::new(data_dir.clone(), temp.path().join("Project"));
@@ -851,9 +876,14 @@ mod tests {
                 initial_context_bytes: Some(48_001),
                 resume_only: false,
                 read_only: false,
+                permissions: SessionPermissions::default(),
                 mcp_servers: Vec::new(),
             })
             .await?;
+        assert_eq!(
+            saved_thread(&task_home)?.unwrap().permissions,
+            custom_permissions
+        );
         assert!(resumed.resumed);
         assert_eq!(resumed.thread_id, thread.thread_id);
         restarted.submit(&task_id, "Again".to_owned()).await?;

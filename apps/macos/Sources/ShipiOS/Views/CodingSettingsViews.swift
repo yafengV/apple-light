@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AgentSettingsView: View {
   @Bindable var store: WorkspaceStore
+  @State private var status = ""
 
   var body: some View {
     Form {
@@ -17,9 +18,27 @@ struct AgentSettingsView: View {
           set: { _ = store.saveSuggestedPrompts($0) }))
           .disabled(!store.personalizationLoaded).settingsSearchTarget(.agentSuggestions)
       }
-      Section("运行边界") {
-        Text("模型会话使用 ShipiOS 独立 API。自主编码工具循环、审批策略和沙箱策略将在 Codex Core 接入后出现在此页。")
-          .foregroundStyle(.secondary)
+      Section("Codex Core 权限") {
+        SettingsMenuPicker("审批策略", description: "按需请求批准，或让需要批准的操作直接失败。", selection: Binding(
+          get: { store.library.agentRuntimePreferences.approvalPolicy },
+          set: { value in updatePermissions { $0.approvalPolicy = value } }),
+          options: AgentApprovalPolicy.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentApproval)
+        SettingsMenuPicker("文件访问", description: "限制 Agent 可编辑的文件范围。", selection: Binding(
+          get: { store.library.agentRuntimePreferences.sandboxMode },
+          set: { value in updatePermissions { $0.sandboxMode = value } }),
+          options: AgentSandboxMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentSandbox)
+        if store.library.agentRuntimePreferences.sandboxMode == .workspaceWrite {
+          SettingsToggle(title: "允许网络访问",
+            description: "工作区写入沙箱中的命令可以访问网络。", isOn: Binding(
+              get: { store.library.agentRuntimePreferences.networkAccess },
+              set: { value in updatePermissions { $0.networkAccess = value } }))
+            .settingsSearchTarget(.agentNetwork)
+        }
+        Text("权限只用于新建的 Codex Core 会话；已有会话继续使用创建时的设置。")
+          .appFont(.caption).foregroundStyle(.secondary)
+        if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
       }
     }.settingsFormStyle().appSurface()
   }
@@ -32,6 +51,12 @@ struct AgentSettingsView: View {
     case let value where !value.isEmpty: value
     default: "服务默认"
     }
+  }
+
+  private func updatePermissions(_ change: (inout AgentRuntimePreferences) -> Void) {
+    var preferences = store.library.agentRuntimePreferences
+    change(&preferences)
+    status = store.saveAgentRuntimePreferences(preferences) ? "已保存。" : "保存失败，请重试。"
   }
 }
 
