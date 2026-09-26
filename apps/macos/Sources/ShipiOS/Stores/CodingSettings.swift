@@ -9,6 +9,14 @@ extension WorkspaceStore {
     return false
   }
 
+  @discardableResult func saveAgentResponsePreferences(_ preferences: AgentResponsePreferences) -> Bool {
+    let previous = library.agentResponsePreferences
+    library.agentResponsePreferences = preferences
+    if saveLibrary() { return true }
+    library.agentResponsePreferences = previous
+    return false
+  }
+
   func gitCommitTaskTitle(taskID: String?) -> String? {
     if let taskID { return library.tasks.first { $0.id == taskID }?.title }
     return selectedTask?.title

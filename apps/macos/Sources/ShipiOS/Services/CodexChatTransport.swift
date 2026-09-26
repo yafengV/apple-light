@@ -39,7 +39,8 @@ final class CodexChatTransport {
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
-    permissions: AgentRuntimePreferences, compact: Bool = false
+    permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
+    compact: Bool = false
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -80,6 +81,11 @@ final class CodexChatTransport {
             "approvalPolicy": .string(permissions.approvalPolicy.rawValue),
             "sandboxMode": .string(permissions.sandboxMode.rawValue),
             "networkAccess": .bool(permissions.networkAccess),
+          ]),
+          "responses": .object([
+            "verbosity": responses.verbosity == .modelDefault
+              ? .null : .string(responses.verbosity.rawValue),
+            "reasoningSummary": .string(responses.reasoningSummary.rawValue),
           ]),
           "mcpServers": mcpValue,
         ])

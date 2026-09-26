@@ -14,7 +14,7 @@ use codex_core_api::{
 use codex_login::{login_with_api_key, logout};
 use codex_protocol::approvals::ElicitationAction;
 use codex_protocol::config_types::{
-    CollaborationMode, ModeKind, Settings as CollaborationSettings,
+    CollaborationMode, ModeKind, ReasoningSummary, Settings as CollaborationSettings, Verbosity,
 };
 use codex_protocol::mcp::{ClientMcpExtensions, RequestId};
 use codex_protocol::openai_models::ReasoningEffort;
@@ -41,6 +41,7 @@ pub struct SessionOptions {
     pub api_key: Option<String>,
     pub read_only: bool,
     pub permissions: SessionPermissions,
+    pub responses: SessionResponsePreferences,
     pub mcp_servers: Vec<ShipMcpServer>,
     pub runtime_paths: ExecServerRuntimePaths,
 }
@@ -54,6 +55,15 @@ pub struct SessionPermissions {
     pub sandbox_mode: SessionSandboxMode,
     #[serde(default)]
     pub network_access: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionResponsePreferences {
+    #[serde(default)]
+    pub verbosity: Option<Verbosity>,
+    #[serde(default)]
+    pub reasoning_summary: Option<ReasoningSummary>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -74,12 +84,8 @@ pub enum SessionSandboxMode {
     FullAccess,
 }
 
-fn configured_permissions(read_only: bool, settings: SessionPermissions) -> Result<Permissions> {
-    let approval = match settings.approval_policy {
-        SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
-        SessionApprovalPolicy::Never => AskForApproval::Never,
-    };
-    let profile = if read_only {
+fn configured_profile(read_only: bool, settings: SessionPermissions) -> PermissionProfile {
+    if read_only {
         PermissionProfile::read_only()
     } else {
         match settings.sandbox_mode {
@@ -96,11 +102,27 @@ fn configured_permissions(read_only: bool, settings: SessionPermissions) -> Resu
             ),
             SessionSandboxMode::FullAccess => PermissionProfile::Disabled,
         }
+    }
+}
+
+fn configured_permissions(read_only: bool, settings: SessionPermissions) -> Result<Permissions> {
+    let approval = match settings.approval_policy {
+        SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
+        SessionApprovalPolicy::Never => AskForApproval::Never,
     };
+    let profile = configured_profile(read_only, settings);
     Ok(Permissions::from_approval_and_profile(
         Constrained::allow_any(approval),
         Constrained::allow_any(profile),
     )?)
+}
+
+fn turn_profile(
+    read_only: bool,
+    mode: &CodexTurnMode,
+    settings: SessionPermissions,
+) -> PermissionProfile {
+    configured_profile(read_only || *mode == CodexTurnMode::Plan, settings)
 }
 
 #[derive(Debug, Deserialize)]
@@ -262,6 +284,7 @@ pub struct CodexSession {
     thread: Arc<CodexThread>,
     model: String,
     read_only: bool,
+    permissions: SessionPermissions,
     _home_guard: SessionHomeGuard,
 }
 
@@ -311,6 +334,8 @@ impl CodexSession {
             .enable(Feature::DefaultModeRequestUserInput)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = configured_permissions(options.read_only, options.permissions)?;
+        config.model_verbosity = options.responses.verbosity;
+        config.model_reasoning_summary = options.responses.reasoning_summary;
 
         let mut provider = config.model_provider.clone();
         provider.name = "ShipiOS API".to_owned();
@@ -394,6 +419,7 @@ impl CodexSession {
             thread,
             model: options.model,
             read_only: options.read_only,
+            permissions: options.permissions,
             _home_guard: home_guard,
         })
     }
@@ -482,11 +508,7 @@ impl CodexSession {
         }
         let settings = ThreadSettingsOverrides {
             collaboration_mode: Some(collaboration_mode),
-            permission_profile: Some(if self.read_only || mode == CodexTurnMode::Plan {
-                PermissionProfile::read_only()
-            } else {
-                PermissionProfile::workspace_write()
-            }),
+            permission_profile: Some(turn_profile(self.read_only, &mode, self.permissions)),
             ..Default::default()
         };
         let result = self
@@ -699,6 +721,28 @@ mod tests {
             NetworkSandboxPolicy::Restricted
         );
         assert_eq!(*review.permission_profile(), PermissionProfile::read_only());
+
+        // The same profile must be applied again when each turn starts; a
+        // thread-settings override used to silently reset it to workspace-write.
+        assert!(matches!(
+            turn_profile(
+                false,
+                &CodexTurnMode::Default,
+                SessionPermissions {
+                    sandbox_mode: SessionSandboxMode::FullAccess,
+                    ..custom
+                }
+            ),
+            PermissionProfile::Disabled
+        ));
+        assert_eq!(
+            turn_profile(false, &CodexTurnMode::Plan, custom),
+            PermissionProfile::read_only()
+        );
+        assert_eq!(
+            turn_profile(true, &CodexTurnMode::Default, custom),
+            PermissionProfile::read_only()
+        );
     }
 
     #[test]
@@ -717,5 +761,22 @@ mod tests {
             }))
             .is_err()
         );
+    }
+
+    #[test]
+    fn session_response_wire_values_match_agent_settings() {
+        let value = serde_json::json!({
+            "verbosity": "high", "reasoningSummary": "concise"
+        });
+        let parsed: SessionResponsePreferences = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(parsed.verbosity, Some(Verbosity::High));
+        assert_eq!(parsed.reasoning_summary, Some(ReasoningSummary::Concise));
+        assert_eq!(serde_json::to_value(parsed).unwrap(), value);
+        let defaults: SessionResponsePreferences = serde_json::from_value(serde_json::json!({
+            "verbosity": null, "reasoningSummary": "auto"
+        }))
+        .unwrap();
+        assert_eq!(defaults.verbosity, None);
+        assert_eq!(defaults.reasoning_summary, Some(ReasoningSummary::Auto));
     }
 }

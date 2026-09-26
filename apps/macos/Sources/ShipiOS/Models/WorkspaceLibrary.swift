@@ -340,6 +340,7 @@ struct WorkspaceLibrary: Codable {
   var defaultTerminalLocation = WorkspaceTabPlacement.bottom
   var gitPreferences = GitPreferences()
   var agentRuntimePreferences = AgentRuntimePreferences()
+  var agentResponsePreferences = AgentResponsePreferences()
   var worktreeRoot: String?
   var automaticallyDeleteManagedWorktrees = true
   var managedWorktreeLimit = 15
@@ -363,7 +364,7 @@ struct WorkspaceLibrary: Codable {
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
-      defaultTerminalLocation, gitPreferences, agentRuntimePreferences,
+      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, agentResponsePreferences,
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
       newTaskExecutions, newTaskEnvironmentSelections,
@@ -451,6 +452,8 @@ struct WorkspaceLibrary: Codable {
     gitPreferences.normalize()
     agentRuntimePreferences = try c.decodeIfPresent(AgentRuntimePreferences.self,
       forKey: .agentRuntimePreferences) ?? AgentRuntimePreferences()
+    agentResponsePreferences = try c.decodeIfPresent(AgentResponsePreferences.self,
+      forKey: .agentResponsePreferences) ?? AgentResponsePreferences()
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
     automaticallyDeleteManagedWorktrees = try c.decodeIfPresent(Bool.self,
       forKey: .automaticallyDeleteManagedWorktrees) ?? true

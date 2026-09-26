@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use shipios_codex::{
     ApprovalDecision, CodexSession, CodexTurnMode, ElicitationDecision, SessionOptions,
-    SessionPermissions, ShipMcpServer,
+    SessionPermissions, SessionResponsePreferences, ShipMcpServer,
 };
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -27,6 +27,8 @@ pub struct StartThread {
     #[serde(default)]
     pub permissions: SessionPermissions,
     #[serde(default)]
+    pub responses: SessionResponsePreferences,
+    #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
 }
 
@@ -45,6 +47,8 @@ struct PersistedThread {
     rollout_path: PathBuf,
     #[serde(default)]
     permissions: SessionPermissions,
+    #[serde(default)]
+    responses: SessionResponsePreferences,
 }
 
 #[derive(Deserialize)]
@@ -137,6 +141,7 @@ fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
         thread_id: thread.thread_id,
         rollout_path: rollout,
         permissions: thread.permissions,
+        responses: thread.responses,
     }))
 }
 
@@ -235,6 +240,10 @@ impl CodexBridge {
             .as_ref()
             .map(|thread| thread.permissions)
             .unwrap_or(request.permissions);
+        let responses = previous
+            .as_ref()
+            .map(|thread| thread.responses)
+            .unwrap_or(request.responses);
         let options = SessionOptions {
             codex_home: home.clone(),
             project_root: self.project.clone(),
@@ -243,6 +252,7 @@ impl CodexBridge {
             api_key: request.api_key,
             read_only: request.read_only,
             permissions,
+            responses,
             mcp_servers: request.mcp_servers,
             runtime_paths,
         };
@@ -263,6 +273,7 @@ impl CodexBridge {
             thread_id: thread_id.clone(),
             rollout_path,
             permissions,
+            responses,
         });
         let save_result = saved
             .as_ref()
@@ -717,6 +728,7 @@ async fn run_thread(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use codex_protocol::config_types::{ReasoningSummary, Verbosity};
     use serde_json::json;
     use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
     use wiremock::matchers::{method, path};
@@ -779,17 +791,22 @@ mod tests {
             sandbox_mode: SessionSandboxMode::WorkspaceWrite,
             network_access: true,
         };
+        let custom_responses = SessionResponsePreferences {
+            verbosity: Some(Verbosity::High),
+            reasoning_summary: Some(ReasoningSummary::Concise),
+        };
         assert!(
             bridge
                 .start(StartThread {
                     task_id: task_id.clone(),
                     base_url: format!("{}/v1", server.uri()),
-                    model: "gpt-5.2".to_owned(),
+                    model: "gpt-5.4".to_owned(),
                     api_key: None,
                     initial_context_bytes: Some(0),
                     resume_only: true,
                     read_only: false,
                     permissions: SessionPermissions::default(),
+                    responses: SessionResponsePreferences::default(),
                     mcp_servers: Vec::new(),
                 })
                 .await
@@ -807,12 +824,13 @@ mod tests {
                 .start(StartThread {
                     task_id: task_id.clone(),
                     base_url: format!("{}/v1", server.uri()),
-                    model: "gpt-5.2".to_owned(),
+                    model: "gpt-5.4".to_owned(),
                     api_key: None,
                     initial_context_bytes: Some(48_001),
                     resume_only: false,
                     read_only: false,
                     permissions: SessionPermissions::default(),
+                    responses: SessionResponsePreferences::default(),
                     mcp_servers: Vec::new(),
                 })
                 .await
@@ -822,12 +840,13 @@ mod tests {
             .start(StartThread {
                 task_id: task_id.clone(),
                 base_url: format!("{}/v1", server.uri()),
-                model: "gpt-5.2".to_owned(),
+                model: "gpt-5.4".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_000),
                 resume_only: false,
                 read_only: false,
                 permissions: custom_permissions,
+                responses: custom_responses,
                 mcp_servers: Vec::new(),
             })
             .await?;
@@ -863,6 +882,10 @@ mod tests {
             saved_thread(&task_home)?.unwrap().permissions,
             custom_permissions
         );
+        assert_eq!(
+            saved_thread(&task_home)?.unwrap().responses,
+            custom_responses
+        );
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
         let restarted = CodexBridge::new(data_dir.clone(), temp.path().join("Project"));
@@ -871,18 +894,23 @@ mod tests {
             .start(StartThread {
                 task_id: task_id.clone(),
                 base_url: format!("{}/v1", server.uri()),
-                model: "gpt-5.2".to_owned(),
+                model: "gpt-5.4".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_001),
                 resume_only: false,
                 read_only: false,
                 permissions: SessionPermissions::default(),
+                responses: SessionResponsePreferences::default(),
                 mcp_servers: Vec::new(),
             })
             .await?;
         assert_eq!(
             saved_thread(&task_home)?.unwrap().permissions,
             custom_permissions
+        );
+        assert_eq!(
+            saved_thread(&task_home)?.unwrap().responses,
+            custom_responses
         );
         assert!(resumed.resumed);
         assert_eq!(resumed.thread_id, thread.thread_id);
@@ -984,6 +1012,11 @@ mod tests {
         assert!(!home.join("auth.json").exists());
         let requests = server.received_requests().await.expect("mock requests");
         assert_eq!(requests.len(), 4);
+        for request in requests.iter().take(2) {
+            let body: serde_json::Value = serde_json::from_slice(&request.body)?;
+            assert_eq!(body["text"]["verbosity"], "high");
+            assert_eq!(body["reasoning"]["summary"], "concise");
+        }
         let image_request: serde_json::Value = serde_json::from_slice(&requests[2].body)?;
         assert!(
             image_request["input"]

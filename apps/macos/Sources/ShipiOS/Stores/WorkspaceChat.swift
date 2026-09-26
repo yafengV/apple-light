@@ -326,7 +326,8 @@ extension WorkspaceStore {
       initialText: initialText, continuationText: continuationText, images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil,
       planMode: mode == .plan, goalInstructions: goalInstructions,
-      mcpServers: mcpServers, permissions: library.agentRuntimePreferences, compact: compact)
+      mcpServers: mcpServers, permissions: library.agentRuntimePreferences,
+      responses: library.agentResponsePreferences, compact: compact)
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""

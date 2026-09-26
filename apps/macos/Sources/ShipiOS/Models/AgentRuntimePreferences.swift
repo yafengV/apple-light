@@ -31,3 +31,35 @@ struct AgentRuntimePreferences: Codable, Equatable {
   var sandboxMode = AgentSandboxMode.workspaceWrite
   var networkAccess = false
 }
+
+enum AgentResponseVerbosity: String, Codable, CaseIterable {
+  case modelDefault = "default"
+  case low, medium, high
+
+  var title: String {
+    switch self {
+    case .modelDefault: "模型默认"
+    case .low: "简洁"
+    case .medium: "适中"
+    case .high: "详细"
+    }
+  }
+}
+
+enum AgentReasoningSummary: String, Codable, CaseIterable {
+  case auto, concise, detailed, none
+
+  var title: String {
+    switch self {
+    case .auto: "自动"
+    case .concise: "简要"
+    case .detailed: "详细"
+    case .none: "关闭"
+    }
+  }
+}
+
+struct AgentResponsePreferences: Codable, Equatable {
+  var verbosity = AgentResponseVerbosity.modelDefault
+  var reasoningSummary = AgentReasoningSummary.auto
+}

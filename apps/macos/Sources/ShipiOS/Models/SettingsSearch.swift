@@ -47,6 +47,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case agentApproval
   case agentSandbox
   case agentNetwork
+  case agentVerbosity
+  case agentReasoningSummary
   case branchPrefix
   case commitInstructions
   case pullRequestInstructions
@@ -145,6 +147,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentApproval: .agent
     case .agentSandbox: .agent
     case .agentNetwork: .agent
+    case .agentVerbosity: .agent
+    case .agentReasoningSummary: .agent
     case .branchPrefix: .git
     case .commitInstructions: .git
     case .pullRequestInstructions: .git
@@ -222,6 +226,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentApproval: "审批策略"
     case .agentSandbox: "文件访问"
     case .agentNetwork: "允许网络访问"
+    case .agentVerbosity: "回复详细度"
+    case .agentReasoningSummary: "推理摘要"
     case .branchPrefix: "分支前缀"
     case .commitInstructions: "提交指令"
     case .pullRequestInstructions: "PR 指令"
@@ -330,6 +336,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentApproval: "批准 请求 永不"
     case .agentSandbox: "沙箱 只读 工作区 完全访问"
     case .agentNetwork: "命令 网络 工作区写入"
+    case .agentVerbosity: "verbosity 简洁 适中 详细 模型默认"
+    case .agentReasoningSummary: "reasoning summary 自动 简要 详细 关闭"
     case .branchPrefix: "branch"
     case .commitInstructions: "commit message instructions 提交说明 生成"
     case .pullRequestInstructions: "pull request instructions GitHub 描述 生成"

@@ -4,6 +4,7 @@ import SwiftUI
 struct AgentSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var status = ""
+  @State private var responseStatus = ""
 
   var body: some View {
     Form {
@@ -40,6 +41,21 @@ struct AgentSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
         if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
       }
+      Section("回复") {
+        SettingsMenuPicker("回复详细度", description: "仅支持此参数的模型会应用该设置。", selection: Binding(
+          get: { store.library.agentResponsePreferences.verbosity },
+          set: { value in updateResponses { $0.verbosity = value } }),
+          options: AgentResponseVerbosity.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentVerbosity)
+        SettingsMenuPicker("推理摘要", description: "决定模型返回的推理摘要详细程度。", selection: Binding(
+          get: { store.library.agentResponsePreferences.reasoningSummary },
+          set: { value in updateResponses { $0.reasoningSummary = value } }),
+          options: AgentReasoningSummary.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentReasoningSummary)
+        Text("回复设置只用于新建的 Codex Core 会话。独立 API 服务或模型可能不支持这些参数。")
+          .appFont(.caption).foregroundStyle(.secondary)
+        if !responseStatus.isEmpty { Text(responseStatus).appFont(.caption).foregroundStyle(.secondary) }
+      }
     }.settingsFormStyle().appSurface()
   }
 
@@ -57,6 +73,12 @@ struct AgentSettingsView: View {
     var preferences = store.library.agentRuntimePreferences
     change(&preferences)
     status = store.saveAgentRuntimePreferences(preferences) ? "已保存。" : "保存失败，请重试。"
+  }
+
+  private func updateResponses(_ change: (inout AgentResponsePreferences) -> Void) {
+    var preferences = store.library.agentResponsePreferences
+    change(&preferences)
+    responseStatus = store.saveAgentResponsePreferences(preferences) ? "已保存。" : "保存失败，请重试。"
   }
 }
 

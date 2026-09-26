@@ -25,6 +25,19 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertEqual(blocked.library.agentRuntimePreferences, AgentRuntimePreferences())
   }
 
+  @MainActor func testAgentResponsePreferencesPersistAndMigrate() throws {
+    let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
+    XCTAssertEqual(legacy.agentResponsePreferences, AgentResponsePreferences())
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-responses-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let selected = AgentResponsePreferences(verbosity: .high, reasoningSummary: .concise)
+    XCTAssertTrue(store.saveAgentResponsePreferences(selected))
+    XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .agentResponsePreferences, selected)
+  }
+
   @MainActor func testArchiveTimestampMigrationAndRestoreKeepsSettingsOpen() throws {
     let legacy = Data(
       #"{"id":"old","project":"/project","title":"Old","runIDs":["old"],"pinned":false,"archived":true}"#

@@ -105,6 +105,8 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "允许网络访问").compactMap(\.field), [.agentNetwork])
     XCTAssertFalse(SettingsSearch.results(for: "允许网络访问", agentSandboxMode: .readOnly)
       .contains { $0.field == .agentNetwork })
+    XCTAssertEqual(SettingsSearch.results(for: "回复详细度").compactMap(\.field), [.agentVerbosity])
+    XCTAssertEqual(SettingsSearch.results(for: "推理摘要").compactMap(\.field), [.agentReasoningSummary])
     XCTAssertEqual(SettingsSearch.results(for: "浏览器 下载位置").compactMap(\.field), [.browserDownloadFolder])
     XCTAssertEqual(SettingsSearch.results(for: "自定义指令").compactMap(\.field), [.instructions])
     XCTAssertEqual(SettingsSearch.results(for: "屏幕录制").compactMap(\.field), [.screenRecording])
