@@ -12,6 +12,8 @@ final class TerminalSessionTests: XCTestCase {
     let action = EnvironmentAction(title: "Build", symbol: "hammer",
       script: "printf '%s\\n' 'first' > action-result\nprintf '%s\\n' 'second' >> action-result\nprint -r -- ACTION_DONE")
     store.library.profiles[root.path] = BuildProfile(actions: [action])
+    store.library.profiles[root.path]?.actions.append(
+      EnvironmentAction(title: "Linux only", script: "exit 7", platform: .linux))
     XCTAssertEqual(store.availableEnvironmentActions, [action])
     store.runEnvironmentAction(action)
     let tab = try XCTUnwrap(store.focusedWorkspaceContentTab)

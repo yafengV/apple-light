@@ -6,11 +6,11 @@ struct EnvironmentActionsMenu: View {
 
   var body: some View {
     Menu {
-      ForEach(actions.filter(\.isRunnable)) { action in
+      ForEach(actions.filter(\.isRunnableOnMac)) { action in
         Button {
           run(action)
         } label: {
-          Label(action.title, systemImage: action.symbol)
+          Label(action.title, systemImage: action.systemImage)
         }
       }
     } label: {

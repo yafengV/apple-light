@@ -141,6 +141,22 @@ struct CodeReviewSettingsView: View {
 
 struct LocalEnvironmentSettingsView: View {
   @Bindable var store: WorkspaceStore
+  @State private var setupPlatform = EnvironmentPlatform.all
+  @State private var showingSetupVariables = false
+
+  private var setupScript: Binding<String> {
+    Binding(get: {
+      setupPlatform == .all ? store.worktreeSetupScript
+        : store.setupPlatformScripts.script(for: setupPlatform)
+    }, set: { value in
+      if setupPlatform == .all { store.worktreeSetupScript = value }
+      else {
+        var scripts = store.setupPlatformScripts
+        scripts.set(value, for: setupPlatform)
+        store.setupPlatformScripts = scripts
+      }
+    })
+  }
 
   var body: some View {
     Form {
@@ -164,10 +180,23 @@ struct LocalEnvironmentSettingsView: View {
         Section("工作树初始化") {
           Text("创建托管工作树后、首次发送任务前运行。命令在新工作树目录中执行。")
             .appFont(.caption).foregroundStyle(.secondary)
-          TextEditor(text: $store.worktreeSetupScript)
+          Picker("平台", selection: $setupPlatform) {
+            ForEach(EnvironmentPlatform.allCases) { platform in
+              Text(platform.title).tag(platform)
+            }
+          }.pickerStyle(.segmented)
+          TextEditor(text: setupScript)
             .font(.system(.body, design: .monospaced))
             .frame(minHeight: 100)
-            .accessibilityLabel("工作树初始化脚本")
+            .accessibilityLabel("\(setupPlatform.title) 工作树初始化脚本")
+          Button("变量") { showingSetupVariables.toggle() }
+            .popover(isPresented: $showingSetupVariables) {
+              VStack(alignment: .leading, spacing: 8) {
+                Text("初始化脚本环境变量").fontWeight(.semibold)
+                LabeledContent("来源目录", value: "CODEX_SOURCE_TREE_PATH")
+                LabeledContent("工作树目录", value: "CODEX_WORKTREE_PATH")
+              }.padding(16).frame(minWidth: 330).textSelection(.enabled)
+            }
           Button("保存初始化脚本") { store.saveProfile() }
         }
         Section("快捷操作") {
@@ -178,10 +207,10 @@ struct LocalEnvironmentSettingsView: View {
               HStack {
                 TextField("操作名称", text: $action.title)
                 Picker("图标", selection: $action.symbol) {
-                  Label("运行", systemImage: "play.fill").tag("play.fill")
-                  Label("构建", systemImage: "hammer").tag("hammer")
-                  Label("测试", systemImage: "checkmark.circle").tag("checkmark.circle")
-                  Label("终端", systemImage: "terminal").tag("terminal")
+                  Label("工具", systemImage: "hammer").tag("tool")
+                  Label("运行", systemImage: "play.fill").tag("run")
+                  Label("调试", systemImage: "ladybug").tag("debug")
+                  Label("测试", systemImage: "checkmark.circle").tag("test")
                 }.frame(width: 135)
                 Button(role: .destructive) {
                   store.environmentActions.removeAll { $0.id == action.id }
@@ -189,6 +218,11 @@ struct LocalEnvironmentSettingsView: View {
                 } label: { Image(systemName: "trash") }
                 .accessibilityLabel("删除操作 \(action.title)")
               }
+              Picker("运行平台", selection: $action.platform) {
+                ForEach(EnvironmentPlatform.allCases) { platform in
+                  Text(platform == .all ? "全部平台" : platform.title).tag(platform)
+                }
+              }.frame(maxWidth: 240)
               TextEditor(text: $action.script)
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 72)
@@ -203,7 +237,7 @@ struct LocalEnvironmentSettingsView: View {
       }
       Section("工作树环境") {
         Button("查看工作树设置…") { store.settingsPage = .worktrees }
-        Text("工作树会继承来源项目的容器、Scheme 和构建配置。")
+        Text("工作树会继承来源项目的构建配置、初始化脚本和快捷操作。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
     }.settingsFormStyle().appSurface()

@@ -1,9 +1,9 @@
 import Foundation
 
 enum WorktreeSetupService {
-  static func run(_ script: String, at root: URL) async throws {
+  static func run(_ script: String, source: URL, at root: URL) async throws {
     let task = Task.detached(priority: .userInitiated) {
-      try runProcess(script, at: root)
+      try runProcess(script, source: source, at: root)
     }
     try await withTaskCancellationHandler {
       try await task.value
@@ -12,7 +12,7 @@ enum WorktreeSetupService {
     }
   }
 
-  private static func runProcess(_ script: String, at root: URL) throws {
+  private static func runProcess(_ script: String, source: URL, at root: URL) throws {
     try Task<Never, Never>.checkCancellation()
     let output = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     guard FileManager.default.createFile(atPath: output.path, contents: nil,
@@ -26,6 +26,10 @@ enum WorktreeSetupService {
     process.executableURL = URL(fileURLWithPath: "/bin/zsh")
     process.arguments = ["-l", "-c", script]
     process.currentDirectoryURL = root
+    var environment = ProcessInfo.processInfo.environment
+    environment["CODEX_SOURCE_TREE_PATH"] = source.path
+    environment["CODEX_WORKTREE_PATH"] = root.path
+    process.environment = environment
     process.standardInput = FileHandle.nullDevice
     process.standardOutput = handle
     process.standardError = handle

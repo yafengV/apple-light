@@ -133,9 +133,13 @@ final class WorkspaceLibraryTests: XCTestCase {
     library.tasks[0].pinned = true
     library.tasks[0].archived = true
     library.drafts["one"] = "尚未发送的说明"
+    var scripts = EnvironmentPlatformScripts()
+    scripts.darwin = "swift package resolve"
     library.profiles["/project"] = BuildProfile(
       container: "Demo.xcodeproj", scheme: "Demo", configuration: "Release",
-      actions: [EnvironmentAction(title: "Build", symbol: "hammer", script: "swift build")])
+      worktreeSetupScript: "echo default", setupPlatformScripts: scripts,
+      actions: [EnvironmentAction(title: "Build", symbol: "tool", script: "swift build",
+        platform: .darwin)])
     let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: temp) }
     let file = temp.appendingPathComponent("workspace.json")
@@ -146,8 +150,11 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertTrue(restored.visible(project: "/another", query: "发布", archived: true).isEmpty)
     XCTAssertEqual(restored.drafts["one"], "尚未发送的说明")
     XCTAssertEqual(restored.profiles["/project"]?.configuration, "Release")
-    XCTAssertEqual(restored.profiles["/project"]?.worktreeSetupScript, "")
+    XCTAssertEqual(restored.profiles["/project"]?.worktreeSetupScript, "echo default")
+    XCTAssertEqual(restored.profiles["/project"]?.setupPlatformScripts, scripts)
+    XCTAssertEqual(restored.profiles["/project"]?.macOSSetupScript, "swift package resolve")
     XCTAssertEqual(restored.profiles["/project"]?.actions.first?.title, "Build")
+    XCTAssertEqual(restored.profiles["/project"]?.actions.first?.platform, .darwin)
     XCTAssertTrue(restored.tasks[0].pinned)
   }
 
@@ -155,7 +162,18 @@ final class WorkspaceLibraryTests: XCTestCase {
     let profile = try JSONDecoder().decode(BuildProfile.self,
       from: Data(#"{"container":"Demo.xcodeproj","scheme":"Demo","configuration":"Debug"}"#.utf8))
     XCTAssertEqual(profile.worktreeSetupScript, "")
+    XCTAssertEqual(profile.setupPlatformScripts, .init())
     XCTAssertEqual(profile.actions, [])
+  }
+
+  func testLegacyActionIconAndMissingPlatformMigrate() throws {
+    var action = try JSONDecoder().decode(EnvironmentAction.self,
+      from: Data(#"{"title":"Build","symbol":"hammer","script":"swift build"}"#.utf8))
+    XCTAssertEqual(action.symbol, "tool")
+    XCTAssertEqual(action.platform, .all)
+    XCTAssertTrue(action.isRunnableOnMac)
+    action.platform = .linux
+    XCTAssertFalse(action.isRunnableOnMac)
   }
 
   func testSlashActionsAreExplicitAndNeverTreatNotesAsModelPrompts() throws {

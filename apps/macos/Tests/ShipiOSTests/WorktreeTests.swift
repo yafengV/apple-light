@@ -22,13 +22,16 @@ final class WorktreeTests: XCTestCase {
       XCTAssertTrue(error.localizedDescription.contains("退出码 7"))
     }
     XCTAssertNil(store.library.managedWorktrees.first?.setupCompleted)
-    store.library.profiles[source.path]?.worktreeSetupScript =
-      "printf 'ready' >> setup-marker"
+    store.library.profiles[source.path]?.worktreeSetupScript = "exit 8"
+    store.library.profiles[source.path]?.setupPlatformScripts.darwin =
+      "printf 'ready' >> setup-marker\nprintf '%s\\n%s\\n' \"$CODEX_SOURCE_TREE_PATH\" \"$CODEX_WORKTREE_PATH\" > setup-context"
     XCTAssertTrue(store.saveLibrary())
     try await store.runManagedWorktreeSetup(record)
     try await store.runManagedWorktreeSetup(record)
     XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
       .appendingPathComponent("setup-marker")), "ready")
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
+      .appendingPathComponent("setup-context")), "\(source.path)\n\(record.path)\n")
     let saved = try WorkspaceLibrary.load(from: data.appendingPathComponent("workspace.json"))
     XCTAssertEqual(saved.managedWorktrees.first?.setupCompleted, true)
     await store.shutdown()

@@ -161,7 +161,7 @@ import Observation
   }
   @discardableResult func runEnvironmentAction(_ action: EnvironmentAction,
     in place: WorkspaceTabPlacement) -> Bool {
-    guard action.isRunnable, panels.workspace.root != nil else { return false }
+    guard action.isRunnableOnMac, panels.workspace.root != nil else { return false }
     newTerminal(in: place)
     return panels.terminal?.run(action) == true
   }

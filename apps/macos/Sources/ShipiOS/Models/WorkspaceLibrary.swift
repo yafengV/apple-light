@@ -35,19 +35,22 @@ struct BuildProfile: Codable {
   var scheme = ""
   var configuration = "Debug"
   var worktreeSetupScript = ""
+  var setupPlatformScripts = EnvironmentPlatformScripts()
   var actions: [EnvironmentAction] = []
 
   init(container: String = "", scheme: String = "", configuration: String = "Debug",
-    worktreeSetupScript: String = "", actions: [EnvironmentAction] = []) {
+    worktreeSetupScript: String = "", setupPlatformScripts: EnvironmentPlatformScripts = .init(),
+    actions: [EnvironmentAction] = []) {
     self.container = container
     self.scheme = scheme
     self.configuration = configuration
     self.worktreeSetupScript = worktreeSetupScript
+    self.setupPlatformScripts = setupPlatformScripts
     self.actions = actions
   }
 
   enum CodingKeys: String, CodingKey {
-    case container, scheme, configuration, worktreeSetupScript, actions
+    case container, scheme, configuration, worktreeSetupScript, setupPlatformScripts, actions
   }
 
   init(from decoder: Decoder) throws {
@@ -56,26 +59,102 @@ struct BuildProfile: Codable {
     scheme = try values.decodeIfPresent(String.self, forKey: .scheme) ?? ""
     configuration = try values.decodeIfPresent(String.self, forKey: .configuration) ?? "Debug"
     worktreeSetupScript = try values.decodeIfPresent(String.self, forKey: .worktreeSetupScript) ?? ""
+    setupPlatformScripts = try values.decodeIfPresent(EnvironmentPlatformScripts.self,
+      forKey: .setupPlatformScripts) ?? .init()
     actions = try values.decodeIfPresent([EnvironmentAction].self, forKey: .actions) ?? []
+  }
+
+  var macOSSetupScript: String {
+    let override = setupPlatformScripts.darwin
+    return override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      ? worktreeSetupScript : override
+  }
+}
+
+enum EnvironmentPlatform: String, Codable, CaseIterable, Identifiable {
+  case all, darwin, linux, win32
+
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .all: "默认"
+    case .darwin: "macOS"
+    case .linux: "Linux"
+    case .win32: "Windows"
+    }
+  }
+}
+
+struct EnvironmentPlatformScripts: Codable, Equatable {
+  var darwin = ""
+  var linux = ""
+  var win32 = ""
+
+  func script(for platform: EnvironmentPlatform) -> String {
+    switch platform {
+    case .all: ""
+    case .darwin: darwin
+    case .linux: linux
+    case .win32: win32
+    }
+  }
+
+  mutating func set(_ script: String, for platform: EnvironmentPlatform) {
+    switch platform {
+    case .all: break
+    case .darwin: darwin = script
+    case .linux: linux = script
+    case .win32: win32 = script
+    }
   }
 }
 
 struct EnvironmentAction: Codable, Equatable, Identifiable {
   var id = UUID()
   var title = ""
-  var symbol = "play.fill"
+  var symbol = "tool"
   var script = ""
+  var platform = EnvironmentPlatform.all
 
-  init(id: UUID = UUID(), title: String = "", symbol: String = "play.fill", script: String = "") {
+  init(id: UUID = UUID(), title: String = "", symbol: String = "tool", script: String = "",
+    platform: EnvironmentPlatform = .all) {
     self.id = id
     self.title = title
     self.symbol = symbol
     self.script = script
+    self.platform = platform
+  }
+
+  enum CodingKeys: String, CodingKey { case id, title, symbol, script, platform }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+    title = try values.decodeIfPresent(String.self, forKey: .title) ?? ""
+    let savedSymbol = try values.decodeIfPresent(String.self, forKey: .symbol) ?? "tool"
+    symbol = switch savedSymbol {
+    case "play.fill": "run"
+    case "hammer": "tool"
+    case "checkmark.circle": "test"
+    case "terminal": "debug"
+    default: savedSymbol
+    }
+    script = try values.decodeIfPresent(String.self, forKey: .script) ?? ""
+    platform = try values.decodeIfPresent(EnvironmentPlatform.self, forKey: .platform) ?? .all
   }
 
   var isRunnable: Bool {
     !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+  var isRunnableOnMac: Bool { isRunnable && (platform == .all || platform == .darwin) }
+  var systemImage: String {
+    switch symbol {
+    case "run": "play.fill"
+    case "debug": "ladybug"
+    case "test": "checkmark.circle"
+    default: "hammer"
+    }
   }
 }
 

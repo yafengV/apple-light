@@ -186,7 +186,7 @@ struct TaskWindowView: View {
               }
               .help("显示或隐藏任务终端")
               .accessibilityLabel("任务终端")
-              let actions = (store.library.profiles[task.project]?.actions ?? []).filter(\.isRunnable)
+              let actions = (store.library.profiles[task.project]?.actions ?? []).filter(\.isRunnableOnMac)
               if !actions.isEmpty {
                 EnvironmentActionsMenu(actions: actions) { action in
                   runEnvironmentAction(action, task: task)
@@ -636,7 +636,7 @@ struct TaskWindowView: View {
   private func runEnvironmentAction(_ action: EnvironmentAction, task: WorkspaceTask) {
     guard !task.project.isEmpty,
       store.library.profiles[task.project]?.actions.contains(action) == true,
-      action.isRunnable else { return }
+      action.isRunnableOnMac else { return }
     guard tabs.runEnvironmentAction(action, in: store.library.defaultTerminalLocation) else {
       actionError = "无法在终端启动操作：\(action.title)"
       return

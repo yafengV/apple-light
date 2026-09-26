@@ -32,7 +32,7 @@ final class TerminalSession {
   }
 
   @discardableResult func run(_ action: EnvironmentAction) -> Bool {
-    guard status == .running, view.process.running, action.isRunnable else { return false }
+    guard status == .running, view.process.running, action.isRunnableOnMac else { return false }
     // Only base64 alphabet enters the interactive shell; the script can contain newlines,
     // quotes and control characters without becoming multiple terminal submissions.
     let payload = Data(action.script.utf8).base64EncodedString()
