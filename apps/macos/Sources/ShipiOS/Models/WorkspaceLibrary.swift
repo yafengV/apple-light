@@ -342,6 +342,7 @@ struct WorkspaceLibrary: Codable {
   var agentRuntimePreferences = AgentRuntimePreferences()
   var agentResponsePreferences = AgentResponsePreferences()
   var agentWebSearchMode = AgentWebSearchMode.disabled
+  var enabledAdvancedReasoningEfforts: Set<AgentAdvancedReasoningEffort> = []
   var worktreeRoot: String?
   var automaticallyDeleteManagedWorktrees = true
   var managedWorktreeLimit = 15
@@ -366,7 +367,7 @@ struct WorkspaceLibrary: Codable {
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
       defaultTerminalLocation, gitPreferences, agentRuntimePreferences, agentResponsePreferences,
-      agentWebSearchMode,
+      agentWebSearchMode, enabledAdvancedReasoningEfforts,
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
       newTaskExecutions, newTaskEnvironmentSelections,
@@ -458,6 +459,8 @@ struct WorkspaceLibrary: Codable {
       forKey: .agentResponsePreferences) ?? AgentResponsePreferences()
     agentWebSearchMode = try c.decodeIfPresent(AgentWebSearchMode.self,
       forKey: .agentWebSearchMode) ?? .disabled
+    enabledAdvancedReasoningEfforts = try c.decodeIfPresent(Set<AgentAdvancedReasoningEffort>.self,
+      forKey: .enabledAdvancedReasoningEfforts) ?? []
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
     automaticallyDeleteManagedWorktrees = try c.decodeIfPresent(Bool.self,
       forKey: .automaticallyDeleteManagedWorktrees) ?? true

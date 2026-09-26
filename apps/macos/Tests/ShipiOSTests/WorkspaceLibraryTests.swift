@@ -50,6 +50,22 @@ final class WorkspaceLibraryTests: XCTestCase {
       .agentWebSearchMode, .indexed)
   }
 
+  @MainActor func testAdvancedReasoningEffortsPersistAndKeepStableOrder() throws {
+    let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
+    XCTAssertTrue(legacy.enabledAdvancedReasoningEfforts.isEmpty)
+    XCTAssertEqual(AgentReasoningEfforts.available(advanced: []),
+      ["", "none", "minimal", "low", "medium", "high", "xhigh"])
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-efforts-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    XCTAssertTrue(store.saveAdvancedReasoningEfforts([.ultra, .max]))
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(restored.enabledAdvancedReasoningEfforts, [.max, .ultra])
+    XCTAssertEqual(Array(AgentReasoningEfforts.available(advanced: restored.enabledAdvancedReasoningEfforts).suffix(2)),
+      ["max", "ultra"])
+  }
+
   @MainActor func testArchiveTimestampMigrationAndRestoreKeepsSettingsOpen() throws {
     let legacy = Data(
       #"{"id":"old","project":"/project","title":"Old","runIDs":["old"],"pinned":false,"archived":true}"#

@@ -6,6 +6,7 @@ struct AgentSettingsView: View {
   @State private var status = ""
   @State private var responseStatus = ""
   @State private var searchStatus = ""
+  @State private var featureStatus = ""
 
   var body: some View {
     Form {
@@ -13,6 +14,21 @@ struct AgentSettingsView: View {
         LabeledContent("模型", value: store.modelConfiguration.model.isEmpty ? "尚未配置" : store.modelConfiguration.model).settingsSearchTarget(.agentModel)
         LabeledContent("推理强度", value: reasoningTitle).settingsSearchTarget(.agentReasoning)
         Button("配置模型与 API…") { store.settingsPage = .model }
+      }
+      Section("模型功能") {
+        LabeledContent {
+          SettingsDropdownMenu(title: "\(AgentReasoningEfforts.available(advanced: store.library.enabledAdvancedReasoningEfforts).count - 1) 项已显示",
+            accessibilityLabel: "可用推理强度", systemImage: "chevron.down",
+            items: reasoningEffortItems) { effort in
+              var selected = store.library.enabledAdvancedReasoningEfforts
+              if selected.contains(effort) { selected.remove(effort) } else { selected.insert(effort) }
+              featureStatus = store.saveAdvancedReasoningEfforts(selected) ? "已保存。" : "保存失败，请重试。"
+            }.fixedSize(horizontal: true, vertical: true)
+        } label: {
+          SettingsControlLabel(title: "可用推理强度",
+            description: "选择在模型控件中显示的高级等级；实际可用性取决于模型。")
+        }.settingsSearchTarget(.agentAvailableReasoning)
+        if !featureStatus.isEmpty { Text(featureStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
       Section("建议") {
         SettingsToggle(title: "显示建议提示", description: "在空白任务中根据当前项目提供可直接执行的建议。", isOn: Binding(
@@ -80,12 +96,17 @@ struct AgentSettingsView: View {
   }
 
   private var reasoningTitle: String {
-    switch store.modelConfiguration.reasoning {
-    case "low": "低"
-    case "medium": "中"
-    case "high": "高"
-    case let value where !value.isEmpty: value
-    default: "服务默认"
+    AgentReasoningEfforts.titles[store.modelConfiguration.reasoning]
+      ?? store.modelConfiguration.reasoning
+  }
+
+  private var reasoningEffortItems: [SettingsDropdownItem<AgentAdvancedReasoningEffort>] {
+    [
+      .section("始终显示：无、最少、低、中、高、极高"),
+      .separator,
+    ] + AgentAdvancedReasoningEffort.allCases.map { effort in
+      .option(SettingsDropdownOption(value: effort, title: effort.title,
+        selected: store.library.enabledAdvancedReasoningEfforts.contains(effort)))
     }
   }
 

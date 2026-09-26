@@ -76,3 +76,21 @@ enum AgentWebSearchMode: String, Codable, CaseIterable {
     }
   }
 }
+
+enum AgentAdvancedReasoningEffort: String, Codable, CaseIterable, Hashable {
+  case max, ultra
+
+  var title: String { rawValue == "max" ? "Max" : "Ultra" }
+}
+
+enum AgentReasoningEfforts {
+  static let standard = ["", "none", "minimal", "low", "medium", "high", "xhigh"]
+  static let titles = [
+    "": "服务默认", "none": "无", "minimal": "最少", "low": "低", "medium": "中",
+    "high": "高", "xhigh": "极高", "max": "Max", "ultra": "Ultra",
+  ]
+
+  static func available(advanced: Set<AgentAdvancedReasoningEffort>) -> [String] {
+    standard + AgentAdvancedReasoningEffort.allCases.filter { advanced.contains($0) }.map(\.rawValue)
+  }
+}

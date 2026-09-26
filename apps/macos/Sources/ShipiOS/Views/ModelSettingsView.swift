@@ -20,12 +20,11 @@ struct ModelSettingsView: View {
         SecureField("API Key", text: $key, prompt: Text("留空保留此地址已保存的密钥"))
           .settingsSearchTarget(.apiKey)
         if draft.apiProtocol == .chatCompletions {
-          SettingsMenuPicker("推理强度", selection: $draft.reasoning, options: [
-            SettingsMenuOption(value: "", title: "服务默认"),
-            SettingsMenuOption(value: "low", title: "低"),
-            SettingsMenuOption(value: "medium", title: "中"),
-            SettingsMenuOption(value: "high", title: "高")
-          ]).settingsSearchTarget(.reasoning)
+          SettingsMenuPicker("推理强度", selection: $draft.reasoning,
+            options: reasoningOptions.map {
+              SettingsMenuOption(value: $0, title: AgentReasoningEfforts.titles[$0] ?? $0)
+            })
+            .settingsSearchTarget(.reasoning)
           SettingsToggle(title: "记录服务返回的 token 用量",
             description: "开启后请求流式接口返回权威 token 统计。若兼容服务不支持 stream_options，请关闭此项。",
             isOn: $draft.includeUsage)
@@ -81,5 +80,11 @@ struct ModelSettingsView: View {
       status = error.localizedDescription
       return false
     }
+  }
+
+  private var reasoningOptions: [String] {
+    var options = AgentReasoningEfforts.available(advanced: store.library.enabledAdvancedReasoningEfforts)
+    if !options.contains(draft.reasoning) { options.append(draft.reasoning) }
+    return options
   }
 }

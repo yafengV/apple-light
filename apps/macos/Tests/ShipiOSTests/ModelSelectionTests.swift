@@ -28,6 +28,11 @@ final class ModelSelectionTests: XCTestCase {
     let payload = Data(#"{"data":[{"id":"z"},{"id":"Model/A"},{"id":"model/a"},{"id":"z"},{"id":" "}]}"#.utf8)
     XCTAssertEqual(try ModelCatalog.decode(payload), ["Model/A", "model/a", "z"])
     XCTAssertEqual(try ModelCatalog.decode(Data(#"{"data":[]}"#.utf8)), [])
+    let detailed = Data(#"{"data":[{"id":"gpt-a","supported_reasoning_efforts":[{"reasoning_effort":"low"},{"reasoning_effort":"max"}]},{"id":"gpt-b","supportedReasoningEfforts":["medium","ultra"]}]}"#.utf8)
+    XCTAssertEqual(try ModelCatalog.decodeDetails(detailed), [
+      ModelCatalogEntry(id: "gpt-a", supportedReasoningEfforts: ["low", "max"]),
+      ModelCatalogEntry(id: "gpt-b", supportedReasoningEfforts: ["medium", "ultra"]),
+    ])
     for bad in [#"{"error":{"message":"private-server-detail"}}"#, #"{"data":[{}]}"#, "[]"] {
       XCTAssertThrowsError(try ModelCatalog.decode(Data(bad.utf8))) { error in
         XCTAssertFalse(error.localizedDescription.contains("private-server-detail"))
@@ -44,15 +49,31 @@ final class ModelSelectionTests: XCTestCase {
     XCTAssertFalse(catalog.loading)
     XCTAssertEqual(catalog.choices(current: "private-model", query: "PRIVATE"), ["private-model"])
     XCTAssertEqual(catalog.choices(current: "private-model", query: "missing"), [])
-    await catalog.load(config: ModelConfiguration()) { _ in ["a", "private-model", "z"] }
+    await catalog.load(config: ModelConfiguration()) { _ in
+      ["a", "private-model", "z"].map { ModelCatalogEntry(id: $0) }
+    }
     XCTAssertNil(catalog.error)
     XCTAssertEqual(catalog.choices(current: "private-model", query: ""), ["private-model", "a", "z"])
+  }
+
+  @MainActor func testModelReasoningOptionsUseOptionalProviderCapabilities() async {
+    let catalog = ModelCatalog()
+    await catalog.load(config: ModelConfiguration()) { _ in [
+      ModelCatalogEntry(id: "known", supportedReasoningEfforts: ["low", "max"]),
+      ModelCatalogEntry(id: "unknown"),
+    ] }
+    XCTAssertEqual(catalog.availableReasoning(for: "known", advanced: [.max, .ultra]),
+      ["", "low", "max"])
+    XCTAssertEqual(catalog.availableReasoning(for: "unknown", advanced: [.max]),
+      ["", "none", "minimal", "low", "medium", "high", "xhigh", "max"])
+    XCTAssertEqual(catalog.availableReasoning(for: "missing", advanced: []),
+      AgentReasoningEfforts.standard)
   }
 
   @MainActor func testOldProviderResponseCannotReplaceNewProviderList() async {
     let catalog = ModelCatalog()
     let started = expectation(description: "first request started")
-    var completion: CheckedContinuation<[String], Error>?
+    var completion: CheckedContinuation<[ModelCatalogEntry], Error>?
     let first = Task {
       await catalog.load(config: ModelConfiguration()) { _ in
         try await withCheckedThrowingContinuation {
@@ -62,10 +83,15 @@ final class ModelSelectionTests: XCTestCase {
       }
     }
     await fulfillment(of: [started], timeout: 2)
-    await catalog.load(config: ModelConfiguration()) { _ in ["new-provider-model"] }
-    completion?.resume(returning: ["old-provider-model"])
+    await catalog.load(config: ModelConfiguration()) { _ in
+      [ModelCatalogEntry(id: "new-provider-model", supportedReasoningEfforts: ["low"])]
+    }
+    completion?.resume(returning: [ModelCatalogEntry(id: "old-provider-model",
+      supportedReasoningEfforts: ["ultra"])])
     await first.value
     XCTAssertEqual(catalog.models, ["new-provider-model"])
+    XCTAssertEqual(catalog.supportedReasoningEfforts["new-provider-model"], ["low"])
+    XCTAssertNil(catalog.supportedReasoningEfforts["old-provider-model"])
     XCTAssertFalse(catalog.loading)
   }
 
@@ -74,7 +100,7 @@ final class ModelSelectionTests: XCTestCase {
     let task = Task {
       await catalog.load(config: ModelConfiguration()) { _ in
         withUnsafeCurrentTask { $0?.cancel() }
-        return ["cancelled-model"]
+        return [ModelCatalogEntry(id: "cancelled-model")]
       }
     }
     await task.value

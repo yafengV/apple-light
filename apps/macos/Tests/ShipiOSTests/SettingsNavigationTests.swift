@@ -109,6 +109,7 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "推理摘要").compactMap(\.field), [.agentReasoningSummary])
     XCTAssertEqual(SettingsSearch.results(for: "搜索模式").compactMap(\.field), [.agentWebSearch])
     XCTAssertEqual(SettingsSearch.results(for: "服务支持托管网页搜索").compactMap(\.field), [.hostedWebSearch])
+    XCTAssertEqual(SettingsSearch.results(for: "可用推理强度").compactMap(\.field), [.agentAvailableReasoning])
     XCTAssertEqual(SettingsSearch.results(for: "浏览器 下载位置").compactMap(\.field), [.browserDownloadFolder])
     XCTAssertEqual(SettingsSearch.results(for: "自定义指令").compactMap(\.field), [.instructions])
     XCTAssertEqual(SettingsSearch.results(for: "屏幕录制").compactMap(\.field), [.screenRecording])

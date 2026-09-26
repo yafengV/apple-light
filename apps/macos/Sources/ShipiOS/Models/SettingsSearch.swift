@@ -50,6 +50,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case agentVerbosity
   case agentReasoningSummary
   case agentWebSearch
+  case agentAvailableReasoning
   case hostedWebSearch
   case branchPrefix
   case commitInstructions
@@ -152,6 +153,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentVerbosity: .agent
     case .agentReasoningSummary: .agent
     case .agentWebSearch: .agent
+    case .agentAvailableReasoning: .agent
     case .hostedWebSearch: .model
     case .branchPrefix: .git
     case .commitInstructions: .git
@@ -233,6 +235,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentVerbosity: "回复详细度"
     case .agentReasoningSummary: "推理摘要"
     case .agentWebSearch: "搜索模式"
+    case .agentAvailableReasoning: "可用推理强度"
     case .hostedWebSearch: "服务支持托管网页搜索"
     case .branchPrefix: "分支前缀"
     case .commitInstructions: "提交指令"
@@ -345,6 +348,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentVerbosity: "verbosity 简洁 适中 详细 模型默认"
     case .agentReasoningSummary: "reasoning summary 自动 简要 详细 关闭"
     case .agentWebSearch: "web search 网页搜索 缓存 索引 实时 关闭"
+    case .agentAvailableReasoning: "available reasoning efforts max ultra 模型功能 极高"
     case .hostedWebSearch: "web_search hosted Responses 服务能力"
     case .branchPrefix: "branch"
     case .commitInstructions: "commit message instructions 提交说明 生成"

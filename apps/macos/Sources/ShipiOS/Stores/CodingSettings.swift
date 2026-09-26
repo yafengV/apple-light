@@ -25,6 +25,14 @@ extension WorkspaceStore {
     return false
   }
 
+  @discardableResult func saveAdvancedReasoningEfforts(_ efforts: Set<AgentAdvancedReasoningEffort>) -> Bool {
+    let previous = library.enabledAdvancedReasoningEfforts
+    library.enabledAdvancedReasoningEfforts = efforts
+    if saveLibrary() { return true }
+    library.enabledAdvancedReasoningEfforts = previous
+    return false
+  }
+
   func gitCommitTaskTitle(taskID: String?) -> String? {
     if let taskID { return library.tasks.first { $0.id == taskID }?.title }
     return selectedTask?.title

@@ -121,6 +121,10 @@ struct ModelAPIClient {
     try await models(config: config, key: key).count
   }
   func models(config: ModelConfiguration, key: String?) async throws -> [String] {
+    try await modelDetails(config: config, key: key).map(\.id)
+  }
+
+  func modelDetails(config: ModelConfiguration, key: String?) async throws -> [ModelCatalogEntry] {
     var request = URLRequest(url: try config.endpoint("models"))
     request.timeoutInterval = 20
     if let key, !key.isEmpty {
@@ -142,6 +146,6 @@ struct ModelAPIClient {
       data.append(byte)
       guard data.count <= 1_048_576 else { throw AgentFailure(message: "模型列表过大。") }
     }
-    return try ModelCatalog.decode(data)
+    return try ModelCatalog.decodeDetails(data)
   }
 }

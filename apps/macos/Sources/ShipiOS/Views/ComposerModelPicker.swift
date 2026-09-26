@@ -16,8 +16,10 @@ struct ComposerModelPicker: View {
   private var choices: [String] {
     catalog.choices(current: configuration.model, query: query)
   }
-  private let efforts = ["", "low", "medium", "high"]
-  private let effortNames = ["": "服务默认", "low": "低", "medium": "中", "high": "高"]
+  private var efforts: [String] {
+    catalog.availableReasoning(for: configuration.model,
+      advanced: store.library.enabledAdvancedReasoningEfforts)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -86,7 +88,9 @@ struct ComposerModelPicker: View {
           get: { configuration.reasoning },
           set: { selectReasoning($0) })
       ) {
-        ForEach(efforts, id: \.self) { effort in Text(effortNames[effort]!).tag(effort) }
+        ForEach(efforts, id: \.self) { effort in
+          Text(AgentReasoningEfforts.titles[effort] ?? effort).tag(effort)
+        }
         if !efforts.contains(configuration.reasoning) {
           Text(configuration.reasoning).tag(configuration.reasoning)
         }
