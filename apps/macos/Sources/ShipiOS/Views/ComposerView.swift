@@ -110,7 +110,7 @@ struct ComposerView: View {
                 } else {
                   Text(store.newTaskStartingBranch == nil
                     || store.newTaskStartingBranch?.reference == newTaskBranches.snapshot?.currentReference
-                    ? "从所选提交创建工作树；当前分支的已跟踪修改会复制过去"
+                    ? "从所选提交创建工作树；未提交文件会复制过去"
                     : "从所选分支创建工作树；当前检出的修改留在原项目")
                     .appFont(.caption).foregroundStyle(.secondary)
                 }

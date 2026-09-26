@@ -76,6 +76,69 @@ final class WorktreeTests: XCTestCase {
     XCTAssertEqual(after.changedFiles, 2)
   }
 
+  func testManagedSourceFilesCopyOnlyUntrackedIncludedIgnoredAndOverrideIdempotently() async throws {
+    let (base, source) = try await fixture()
+    try write(".env\nskip.env\nignored-link\nAGENTS.override.md\n", source.appendingPathComponent(".gitignore"))
+    try write(".env\nignored-link\n", source.appendingPathComponent(".worktreeinclude"))
+    _ = try await git(["add", ".gitignore", ".worktreeinclude"], source)
+    _ = try await git(["commit", "-qm", "Ignore configuration"], source)
+    try write("included\n", source.appendingPathComponent(".env"))
+    try write("excluded\n", source.appendingPathComponent("skip.env"))
+    try write("override\n", source.appendingPathComponent("AGENTS.override.md"))
+    try FileManager.default.createSymbolicLink(at: source.appendingPathComponent("ignored-link"),
+      withDestinationURL: source.appendingPathComponent("file"))
+    let script = source.appendingPathComponent("new-script")
+    try write("#!/bin/sh\n", script)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+    let embeddedData = source.appendingPathComponent("private-data", isDirectory: true)
+    try FileManager.default.createDirectory(at: embeddedData, withIntermediateDirectories: true)
+    try write("internal\n", embeddedData.appendingPathComponent("workspace.json"))
+    let paths = try await ManagedSourceFiles.discover(at: source, excluding: embeddedData)
+    XCTAssertEqual(paths, [".env", "AGENTS.override.md", "new-script"])
+    let taskID = UUID().uuidString
+    let data = base.appendingPathComponent("data")
+    let files = try ManagedSourceFiles.capture(paths, from: source, dataRoot: data, taskID: taskID)
+    XCTAssertEqual(files.count, 3)
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let plan = try await WorktreeService.plan(snapshot: snapshot, branch: nil,
+      title: "Managed", parent: base.appendingPathComponent("worktrees"))
+    try await WorktreeService.createOrRecover(plan)
+    let target = URL(fileURLWithPath: plan.path)
+    try ManagedSourceFiles.install(files, dataRoot: data, taskID: taskID, target: target)
+    try ManagedSourceFiles.install(files, dataRoot: data, taskID: taskID, target: target)
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent(".env")), "included\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("AGENTS.override.md")), "override\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: target.appendingPathComponent("skip.env").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: target.appendingPathComponent("ignored-link").path))
+    let attributes = try FileManager.default.attributesOfItem(atPath:
+      target.appendingPathComponent("new-script").path)
+    XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o755)
+    try write("other\n", target.appendingPathComponent(".env"))
+    do {
+      try ManagedSourceFiles.install(files, dataRoot: data, taskID: taskID, target: target)
+      XCTFail("Existing different file was overwritten")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("未覆盖")) }
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent(".env")), "other\n")
+    ManagedSourceFiles.removeSnapshot(dataRoot: data, taskID: taskID)
+  }
+
+  func testManagedSourceFileSnapshotRejectsSymlinksAndTraversal() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let taskID = UUID().uuidString
+    try FileManager.default.createSymbolicLink(at: source.appendingPathComponent("link"),
+      withDestinationURL: source.appendingPathComponent("file"))
+    do {
+      _ = try ManagedSourceFiles.capture(["link"], from: source, dataRoot: data, taskID: taskID)
+      XCTFail("Symlink was copied")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("符号链接")) }
+    do {
+      _ = try ManagedSourceFiles.capture(["../file"], from: source, dataRoot: data,
+        taskID: taskID)
+      XCTFail("Traversal was copied")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("路径无效")) }
+  }
+
   func testSelectedBranchAndStaleBranchValidation() async throws {
     let (base, source) = try await fixture()
     _ = try await git(["switch", "-c", "feature"], source)

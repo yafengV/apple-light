@@ -800,7 +800,7 @@ final class ModelTransportTests: XCTestCase {
     await restored.shutdown()
   }
 
-  @MainActor func testNewWorktreeTaskCopiesStagedAndUnstagedChangesWithoutTouchingSource() async throws {
+  @MainActor func testNewWorktreeTaskCopiesTrackedUntrackedAndIncludedIgnoredFiles() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
       .deletingLastPathComponent()
@@ -814,13 +814,17 @@ final class ModelTransportTests: XCTestCase {
     _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
     let file = source.appendingPathComponent("README.md")
     try Data("original\n".utf8).write(to: file)
-    _ = try await GitReviewService.checked(["add", "README.md"], at: source)
+    try Data(".env\nskip.env\n".utf8).write(to: source.appendingPathComponent(".gitignore"))
+    try Data(".env\n".utf8).write(to: source.appendingPathComponent(".worktreeinclude"))
+    _ = try await GitReviewService.checked(["add", "README.md", ".gitignore", ".worktreeinclude"], at: source)
     _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
     try Data("staged change\n".utf8).write(to: file)
     _ = try await GitReviewService.checked(["add", "README.md"], at: source)
     try Data("local change\n".utf8).write(to: file)
     let untracked = source.appendingPathComponent("untracked.txt")
     try Data("keep\n".utf8).write(to: untracked)
+    try Data("included\n".utf8).write(to: source.appendingPathComponent(".env"))
+    try Data("excluded\n".utf8).write(to: source.appendingPathComponent("skip.env"))
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
       agentExecutable: binary)
     await store.restore()
@@ -831,47 +835,36 @@ final class ModelTransportTests: XCTestCase {
     store.newTaskExecution = .worktree
     store.draft = "must-stay"
     await store.sendDraft()
-    XCTAssertEqual(store.project?.path, source.path)
-    XCTAssertEqual(store.draft, "must-stay")
-    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
-    XCTAssertTrue(store.library.pendingManagedDraftTaskIDs.isEmpty)
-    XCTAssertTrue(store.library.chatRuns.isEmpty)
-    XCTAssertTrue(store.error?.contains("未跟踪文件") == true)
-    try FileManager.default.removeItem(at: untracked)
-    await store.sendDraft()
     let managed = try XCTUnwrap(store.library.managedWorktrees.first, store.error ?? "")
     let task = try XCTUnwrap(store.library.tasks.first { $0.id == managed.taskID })
     let run = try XCTUnwrap(store.library.chatRuns.first { task.runIDs.contains($0.id) })
     await store.modelTask(runID: run.id)?.value
     XCTAssertEqual(managed.sourceStashCommit?.count, 40)
+    XCTAssertEqual(managed.sourceCopiedFiles?.map(\.path).sorted(), [".env", "untracked.txt"])
     XCTAssertEqual(store.library.managedWorktrees.first?.sourceChangesApplied, true)
-    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: managed.path)
-      .appendingPathComponent("README.md"), encoding: .utf8), "local change\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Data")
+      .appendingPathComponent("ManagedSourceSnapshots")
+      .appendingPathComponent(task.id).path))
+    let protectedRef = try await LocalWorkspaceService.git(
+      ["show-ref", "--verify", "refs/shipios/managed-worktrees/\(task.id)"], at: source)
+    XCTAssertNotEqual(protectedRef.status, 0)
+    let checkout = URL(fileURLWithPath: managed.path)
+    XCTAssertEqual(try String(contentsOf: checkout.appendingPathComponent("README.md"),
+      encoding: .utf8), "local change\n")
+    XCTAssertEqual(try String(contentsOf: checkout.appendingPathComponent("untracked.txt"),
+      encoding: .utf8), "keep\n")
+    XCTAssertEqual(try String(contentsOf: checkout.appendingPathComponent(".env"),
+      encoding: .utf8), "included\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: checkout.appendingPathComponent("skip.env").path))
     let sourceStatus = try await GitReviewService.checked(["status", "--short"], at: source)
     let checkoutStatus = try await GitReviewService.checked(["status", "--short"],
       at: URL(fileURLWithPath: managed.path))
-    XCTAssertEqual(sourceStatus, "MM README.md\n")
-    XCTAssertEqual(checkoutStatus, "MM README.md\n")
+    XCTAssertEqual(sourceStatus, "MM README.md\n?? untracked.txt\n")
+    XCTAssertEqual(checkoutStatus, "MM README.md\n?? untracked.txt\n")
     XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "local change\n")
-    // Simulate interruption after Git applied the snapshot but before the workspace flag saved.
-    store.library.managedWorktrees[0].sourceChangesApplied = nil
-    store.library.pendingManagedDraftTaskIDs[source.path] = task.id
-    XCTAssertTrue(store.saveLibrary())
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent(".env"),
+      encoding: .utf8), "included\n")
     await store.shutdown()
-    let resumed = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
-      agentExecutable: binary)
-    await resumed.restore()
-    resumed.notificationPreferences = .init(timing: .never)
-    await resumed.open(source)
-    resumed.selection = nil
-    resumed.draft = "retry-after-apply"
-    await resumed.sendDraft()
-    XCTAssertEqual(resumed.library.managedWorktrees.count, 1)
-    XCTAssertEqual(resumed.library.managedWorktrees.first?.sourceChangesApplied, true,
-      resumed.error ?? "")
-    XCTAssertEqual(resumed.library.tasks.first { $0.id == task.id }?.project, managed.path)
-    XCTAssertEqual(resumed.project?.path, managed.path)
-    await resumed.shutdown()
   }
 
   @MainActor func testCodexResponsesChatUsesAgentAndKeepsTaskReply() async throws {

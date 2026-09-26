@@ -114,7 +114,8 @@ extension WorkspaceStore {
   /// Reserve one detached checkout for a task. The pending record is durable before Git runs.
   @discardableResult func createManagedWorktree(snapshot: GitBranchSnapshot,
     branch: GitBranchChoice?, taskID: String,
-    sourceStashCommit: String? = nil) async -> ManagedWorktree? {
+    sourceStashCommit: String? = nil,
+    sourceCopiedFiles: [ManagedSourceFile] = []) async -> ManagedWorktree? {
     guard libraryLoaded, !busy, activeLocalRun == nil,
       UUID(uuidString: taskID) != nil,
       !library.managedWorktrees.contains(where: { $0.path == snapshot.root.path }),
@@ -138,6 +139,7 @@ extension WorkspaceStore {
         title: "托管任务", parent: worktreeRoot)
       var record = ManagedWorktree(taskID: taskID, checkout: checkout)
       record.sourceStashCommit = sourceStashCommit
+      record.sourceCopiedFiles = sourceCopiedFiles.isEmpty ? nil : sourceCopiedFiles
       var candidate = library
       candidate.managedWorktrees.append(record)
       try commitLibrary(candidate)
@@ -182,37 +184,45 @@ extension WorkspaceStore {
   /// Replaying an already-applied stash is unsafe. Compare both the worktree and index with
   /// the captured stash trees so a crash after Git succeeds can be resumed without rewriting.
   private func applyManagedSourceChanges(_ record: ManagedWorktree) async throws {
-    guard let commit = record.sourceStashCommit,
-      commit.range(of: "^[0-9a-f]{40,64}$", options: .regularExpression) != nil else { return }
     let target = URL(fileURLWithPath: record.path)
-    let worktreeMatches = try await LocalWorkspaceService.git(
-      ["diff", "--quiet", commit, "--"], at: target).status == 0
-    let indexMatches = try await LocalWorkspaceService.git(
-      ["diff", "--quiet", "--cached", commit + "^2", "--"], at: target).status == 0
-    if !worktreeMatches || !indexMatches {
-      let status = try await GitReviewService.checked(
-        ["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: target)
-      guard status.isEmpty else {
-        throw AgentFailure(message: "工作树已有修改，无法安全地重复传递来源修改。请在终端检查：\(record.path)")
+    if let commit = record.sourceStashCommit {
+      guard commit.range(of: "^[0-9a-f]{40,64}$", options: .regularExpression) != nil else {
+        throw AgentFailure(message: "工作树修改快照 ID 无效。")
       }
-      _ = try await GitReviewService.checked(["stash", "apply", "--index", commit], at: target)
-      let finalWorktree = try await LocalWorkspaceService.git(
+      let worktreeMatches = try await LocalWorkspaceService.git(
         ["diff", "--quiet", commit, "--"], at: target).status == 0
-      let finalIndex = try await LocalWorkspaceService.git(
+      let indexMatches = try await LocalWorkspaceService.git(
         ["diff", "--quiet", "--cached", commit + "^2", "--"], at: target).status == 0
-      guard finalWorktree, finalIndex else {
-        throw AgentFailure(message: "来源修改已应用，但 Git 状态校验失败。请在终端检查：\(record.path)")
+      if !worktreeMatches || !indexMatches {
+        let status = try await GitReviewService.checked(
+          ["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: target)
+        guard status.isEmpty else {
+          throw AgentFailure(message: "工作树已有修改，无法安全地重复传递来源修改。请在终端检查：\(record.path)")
+        }
+        _ = try await GitReviewService.checked(["stash", "apply", "--index", commit], at: target)
+        let finalWorktree = try await LocalWorkspaceService.git(
+          ["diff", "--quiet", commit, "--"], at: target).status == 0
+        let finalIndex = try await LocalWorkspaceService.git(
+          ["diff", "--quiet", "--cached", commit + "^2", "--"], at: target).status == 0
+        guard finalWorktree, finalIndex else {
+          throw AgentFailure(message: "来源修改已应用，但 Git 状态校验失败。请在终端检查：\(record.path)")
+        }
       }
     }
+    try ManagedSourceFiles.install(record.sourceCopiedFiles ?? [], dataRoot: dataRoot,
+      taskID: record.taskID, target: target)
     var candidate = library
     guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == record.taskID }) else {
       throw AgentFailure(message: "工作树任务记录已丢失，请在终端检查：\(record.path)")
     }
     candidate.managedWorktrees[index].sourceChangesApplied = true
     try commitLibrary(candidate)
-    _ = try? await GitReviewService.checked(
-      ["update-ref", "-d", "refs/shipios/managed-worktrees/\(record.taskID)", commit],
-      at: URL(fileURLWithPath: record.source))
+    if let commit = record.sourceStashCommit {
+      _ = try? await GitReviewService.checked(
+        ["update-ref", "-d", "refs/shipios/managed-worktrees/\(record.taskID)", commit],
+        at: URL(fileURLWithPath: record.source))
+    }
+    ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: record.taskID)
   }
 
   /// Convert a new-project draft to a one-task checkout before its first model turn.
@@ -224,6 +234,8 @@ extension WorkspaceStore {
     let sourcePath = source.path
     let sourceDraftKey = draftKey
     let submittedMode = chatMode
+    var preparedTaskID: String?
+    var protectedStashCommit: String?
     do {
       let config = modelConfiguration(for: nil)
       guard config.apiProtocol == .codexResponses else {
@@ -249,26 +261,35 @@ extension WorkspaceStore {
         throw AgentFailure(message: "起始分支已更新或被删除，请刷新分支列表后重试。")
       }
       let taskID = library.pendingManagedDraftTaskIDs[sourcePath] ?? UUID().uuidString
+      preparedTaskID = taskID
       let existing = library.managedWorktrees.first(where: { $0.taskID == taskID })
       let copiesCurrentBranch = startingBranch == nil
         || (startingBranch?.reference == snapshot.currentReference
           && startingBranch?.commit == snapshot.currentCommit)
       var sourceStashCommit: String?
+      var sourceCopiedFiles: [ManagedSourceFile] = []
+      if existing == nil, copiesCurrentBranch {
+        let paths = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
+        sourceCopiedFiles = try ManagedSourceFiles.capture(paths, from: source,
+          dataRoot: dataRoot, taskID: taskID)
+      }
       if existing == nil, snapshot.changedFiles > 0, copiesCurrentBranch {
-        let untracked = try await GitReviewService.checked(
-          ["ls-files", "--others", "--exclude-standard", "-z"], at: source)
-        guard untracked.isEmpty else {
-          throw AgentFailure(message: "当前项目有未跟踪文件。工作树传递尚未支持这些文件；请先提交或选择本地任务。")
-        }
         let captured = try await GitReviewService.checked(
           ["stash", "create", "shipios-managed-\(taskID)"], at: source)
           .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard captured.range(of: "^[0-9a-f]{40,64}$", options: .regularExpression) != nil else {
+        guard captured.isEmpty || captured.range(of: "^[0-9a-f]{40,64}$",
+          options: .regularExpression) != nil else {
           throw AgentFailure(message: "无法保存来源项目的未提交修改，请在终端检查 Git 状态。")
         }
-        let reference = "refs/shipios/managed-worktrees/\(taskID)"
-        _ = try await GitReviewService.checked(["update-ref", reference, captured], at: source)
-        sourceStashCommit = captured
+        if !captured.isEmpty {
+          let reference = "refs/shipios/managed-worktrees/\(taskID)"
+          _ = try await GitReviewService.checked(["update-ref", reference, captured], at: source)
+          sourceStashCommit = captured
+          protectedStashCommit = captured
+        }
+        guard sourceStashCommit != nil || !sourceCopiedFiles.isEmpty else {
+          throw AgentFailure(message: "无法保存来源项目的未提交修改，请刷新项目后重试。")
+        }
       }
       if library.pendingManagedDraftTaskIDs[sourcePath] == nil {
         var pending = library
@@ -276,10 +297,12 @@ extension WorkspaceStore {
         try commitLibrary(pending)
       }
       guard let record = await createManagedWorktree(snapshot: snapshot, branch: startingBranch,
-        taskID: taskID, sourceStashCommit: sourceStashCommit) else {
+        taskID: taskID, sourceStashCommit: sourceStashCommit,
+        sourceCopiedFiles: sourceCopiedFiles) else {
         throw AgentFailure(message: worktreeError ?? "无法创建托管工作树。")
       }
-      if record.sourceStashCommit != nil, record.sourceChangesApplied != true {
+      if (record.sourceStashCommit != nil || !(record.sourceCopiedFiles ?? []).isEmpty),
+        record.sourceChangesApplied != true {
         try await applyManagedSourceChanges(record)
       }
       guard project?.path == sourcePath else {
@@ -309,6 +332,15 @@ extension WorkspaceStore {
       error = nil
       return true
     } catch {
+      if let preparedTaskID,
+        !library.managedWorktrees.contains(where: { $0.taskID == preparedTaskID }) {
+        ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: preparedTaskID)
+        if let protectedStashCommit {
+          _ = try? await GitReviewService.checked(
+            ["update-ref", "-d", "refs/shipios/managed-worktrees/\(preparedTaskID)",
+              protectedStashCommit], at: source)
+        }
+      }
       self.error = error.localizedDescription
       return false
     }
