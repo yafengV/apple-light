@@ -1,4 +1,5 @@
 /target/
+/experiments/codex-core-embed/Cargo.lock
 /.cache/
 /.shipios-local/
 /.build/
