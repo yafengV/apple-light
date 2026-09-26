@@ -191,6 +191,11 @@ async fn dispatch(
                 let p: CodexSubmit = serde_json::from_value(params).map_err(|_| invalid())?;
                 Ok(json!({"turnId":codex.submit_with_attachments(&p.task_id,p.text,p.images,p.text_attachment,p.plan_mode,p.goal_instructions,p.model,p.reasoning_effort).await.map_err(failed)?}))
             }
+            "codex.turn.compact" => {
+                let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.compact(&p.task_id).await.map_err(failed)?;
+                Ok(json!({"submitted":true}))
+            }
             "codex.turn.steer" => {
                 let p: CodexSteer = serde_json::from_value(params).map_err(|_| invalid())?;
                 let steered = codex.steer_with_attachments(&p.task_id, p.expected_turn_id,

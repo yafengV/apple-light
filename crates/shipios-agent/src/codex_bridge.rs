@@ -21,6 +21,8 @@ pub struct StartThread {
     pub api_key: Option<String>,
     pub initial_context_bytes: Option<usize>,
     #[serde(default)]
+    pub resume_only: bool,
+    #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
@@ -156,6 +158,7 @@ enum Command {
         reasoning_effort: Option<String>,
         reply: oneshot::Sender<Result<String>>,
     },
+    Compact(oneshot::Sender<Result<()>>),
     Steer(Vec<UserInput>, String, oneshot::Sender<Result<bool>>),
     Approve(CodexApproval, oneshot::Sender<Result<()>>),
     ResolveElicitation(CodexElicitation, oneshot::Sender<Result<()>>),
@@ -207,6 +210,10 @@ impl CodexBridge {
             .canonicalize()
             .context("resolve private Codex home")?;
         let previous = saved_thread(&home)?;
+        ensure!(
+            !request.resume_only || previous.is_some(),
+            "Codex thread history is unavailable"
+        );
         if previous.is_none() {
             ensure!(
                 request
@@ -424,6 +431,16 @@ impl CodexBridge {
         result.await.context("Codex thread stopped")?
     }
 
+    pub async fn compact(&self, task_id: &str) -> Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender(task_id)
+            .await?
+            .send(Command::Compact(reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
     pub async fn steer_with_attachments(
         &self,
         task_id: &str,
@@ -610,6 +627,9 @@ async fn run_thread(
                 Some(Command::Submit { inputs, mode, model, reasoning_effort, reply }) => {
                     let _ = reply.send(live.submit_inputs_in_mode(inputs, mode, model, reasoning_effort).await);
                 }
+                Some(Command::Compact(reply)) => {
+                    let _ = reply.send(live.compact().await);
+                }
                 Some(Command::Steer(inputs, expected_turn_id, reply)) => {
                     let _ = reply.send(live.steer_inputs(inputs, expected_turn_id).await);
                 }
@@ -749,7 +769,30 @@ mod tests {
                     base_url: format!("{}/v1", server.uri()),
                     model: "gpt-5.2".to_owned(),
                     api_key: None,
+                    initial_context_bytes: Some(0),
+                    resume_only: true,
+                    read_only: false,
+                    mcp_servers: Vec::new(),
+                })
+                .await
+                .is_err()
+        );
+        assert!(
+            !data_dir
+                .join("Codex/Tasks")
+                .join(task_id.to_lowercase())
+                .join("thread.json")
+                .exists()
+        );
+        assert!(
+            bridge
+                .start(StartThread {
+                    task_id: task_id.clone(),
+                    base_url: format!("{}/v1", server.uri()),
+                    model: "gpt-5.2".to_owned(),
+                    api_key: None,
                     initial_context_bytes: Some(48_001),
+                    resume_only: false,
                     read_only: false,
                     mcp_servers: Vec::new(),
                 })
@@ -763,6 +806,7 @@ mod tests {
                 model: "gpt-5.2".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_000),
+                resume_only: false,
                 read_only: false,
                 mcp_servers: Vec::new(),
             })
@@ -805,6 +849,7 @@ mod tests {
                 model: "gpt-5.2".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_001),
+                resume_only: false,
                 read_only: false,
                 mcp_servers: Vec::new(),
             })

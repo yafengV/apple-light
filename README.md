@@ -2,7 +2,7 @@
 
 ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工具：复用成熟 Coding Agent，连接代码修改、Xcode 构建、Simulator 验证、TestFlight 和 App Store 发布准备。
 
-当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。Codex Core 已通过独立的 Responses RPC 通道接入 Rust Agent；Swift 设置可显式选择 Responses，已连接项目中的文字、图片和文本/PDF 附件会话可使用这条通道并在应用重启后继续原线程。任务模式、现有 MCP 工具、写入审批和完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
+当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。Codex Core 已通过独立的 Responses RPC 通道接入 Rust Agent；Swift 设置可显式选择 Responses，已连接项目中的文字、图片和文本/PDF 附件会话可使用这条通道并在应用重启后继续原线程。原生计划模式、写入审批、MCP 工具与手动上下文整理已有自动化验证；完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
 
 固定上游版本的 `codex-core-api` 已完成配置隔离、本地假服务回合、Agent RPC、Swift 文字/图片/文本文件会话与重启续接验证，见[最新验证记录](docs/194-codex-file-input.md)。
 
@@ -243,6 +243,7 @@ python3 script/smoke_ipc.py
 | [终端文本与字号操作](docs/183-terminal-editing-and-font.md) | 右键提供复制、粘贴、全选及字体缩放，⌘+/⌘−/⌘0 仅在终端聚焦时作用；25 项相关回归及底部终端原生检查通过 |
 | [文件搜索结果归属](docs/184-file-search-result-identity.md) | 新查询未返回时不显示或打开旧查询候选；12 项相关回归通过，原生超时与锁屏后的界面复核待完成 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
+| [Codex 会话手动整理上下文](docs/215-codex-manual-compaction.md) | `/compact` 接入 Core 原生操作，覆盖双窗口、下一轮与重启续接；原生 UI 配对待验收 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
 ## 当前基线

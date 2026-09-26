@@ -149,6 +149,14 @@ class Handler(BaseHTTPRequestHandler):
                     'content': [{'type': 'output_text', 'text': self.path +
                         ('|history' if 'codex-service-switch original' in request_text else '|new')}],
                 }
+            elif 'codex-compact-probe' in request_text and 'CONTEXT CHECKPOINT COMPACTION' in request_text:
+                item = {'type': 'message', 'role': 'assistant', 'id': 'compact-summary',
+                    'content': [{'type': 'output_text', 'text': 'Compact fixture summary'}]}
+            elif 'codex-after-compact' in request_text:
+                item = {'type': 'message', 'role': 'assistant', 'id': 'compact-followup',
+                    'content': [{'type': 'output_text', 'text':
+                        'Compacted context resumed' if 'Compact fixture summary' in request_text
+                        else 'Compacted context missing'}]}
             elif 'codex-mcp-disabled' in request_text:
                 search = next((entry for entry in body.get('tools', [])
                     if isinstance(entry, dict) and entry.get('type') == 'tool_search'), None)

@@ -75,6 +75,9 @@ struct TaskWindowView: View {
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token {
       return store.canForkTaskWindow(taskID)
     }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.compact.token {
+      return mode == .standard && store.canCompactConversation(taskID: taskID)
+    }
     return (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
@@ -365,6 +368,8 @@ struct TaskWindowView: View {
       selectTaskWindowCommand(.files)
     } else if command == ComposerCommand.fork.token {
       forkTask(consumeCommand: true)
+    } else if command == ComposerCommand.compact.token {
+      Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     } else {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     }
@@ -962,6 +967,7 @@ struct TaskWindowView: View {
     guard let task else { return [] }
     return Set(ComposerCommand.allCases.filter { command in
       if command == .fork { return store.canForkTaskWindow(taskID) }
+      if command == .compact { return mode == .standard && store.canCompactConversation(taskID: taskID) }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -1005,6 +1011,9 @@ struct TaskWindowView: View {
     case .goal:
       setDraft("")
       showingGoalEditor = true
+    case .compact:
+      setDraft(command.token)
+      Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     case .model, .reasoning:
       setDraft("")
       openTaskModelPicker()
@@ -1021,7 +1030,7 @@ struct TaskWindowView: View {
         openWindow(id: "main")
       }
     }
-    composerFocused = command == .chat || command == .plan || command == .goal
+    composerFocused = command == .chat || command == .plan || command == .goal || command == .compact
   }
 
   private func handleCandidateKey(

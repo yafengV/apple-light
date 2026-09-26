@@ -481,6 +481,11 @@ impl CodexSession {
         Ok(())
     }
 
+    pub async fn compact(&self) -> Result<()> {
+        self.thread.submit(Op::Compact).await?;
+        Ok(())
+    }
+
     pub async fn approve_exec(
         &self,
         id: String,

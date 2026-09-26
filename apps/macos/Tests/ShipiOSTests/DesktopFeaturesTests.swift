@@ -461,6 +461,72 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(restored.library.runImages[imageRun.id], [image])
     await restored.shutdown()
   }
+
+  @MainActor func testCodexCompactCommandUsesCoreAndKeepsNextTurnContext() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertFalse(store.canCompactConversation)
+    await store.startChat("codex-compact-probe")
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: first.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first.id }?.status, "succeeded")
+    XCTAssertTrue(store.canCompactConversation)
+    XCTAssertTrue(store.enabledComposerCommands.contains(.compact))
+
+    store.draft = "/compact"
+    await store.sendDraft()
+    for _ in 0..<100 where store.library.chatRuns.count < 2 {
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let compact = try XCTUnwrap(store.library.chatRuns.last)
+    XCTAssertNotEqual(compact.id, first.id)
+    XCTAssertEqual(compact.request["conversation_kind"].text, "compact")
+    await store.modelTask(runID: compact.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == compact.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "上下文已整理。")
+    XCTAssertFalse(store.library.chatContext(taskID: first.id).contains { $0.content == "整理上下文" })
+    XCTAssertEqual(store.draft, "")
+
+    await store.startChat("codex-after-compact", taskID: first.id)
+    let followUp = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: followUp.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == followUp.id }?.result?["response"].text,
+      "Compacted context resumed")
+
+    store.setTaskWindowDraft("/compact", taskID: first.id)
+    await store.sendTaskWindowDraft(first.id, mode: .standard)
+    let detachedCompact = try XCTUnwrap(store.library.chatRuns.last)
+    XCTAssertEqual(detachedCompact.request["conversation_kind"].text, "compact")
+    await store.modelTask(runID: detachedCompact.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == detachedCompact.id }?.status, "succeeded")
+    XCTAssertEqual(store.taskWindowDraft(first.id), "")
+    await store.shutdown()
+
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    restored.notificationPreferences = .init(timing: .never)
+    await restored.restore()
+    await restored.open(project)
+    XCTAssertTrue(restored.canCompactConversation(taskID: first.id))
+    await restored.startChat("整理上下文", taskID: first.id, compact: true)
+    let resumedCompact = try XCTUnwrap(restored.library.chatRuns.last)
+    await restored.modelTask(runID: resumedCompact.id)?.value
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == resumedCompact.id }?.status,
+      "succeeded")
+    await restored.shutdown()
+  }
   @MainActor func testCodexApprovalCardResumesCommandAndPersistsTimeline() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

@@ -147,6 +147,7 @@ extension WorkspaceStore {
         let task = numberedSidebarTask(at: slot.index) else { return false }
       return canSelectTask(task)
     case "plan": return destination == .workspace && canStartChat
+    case "compact": return destination == .workspace && canCompactConversation
     case "find-next", "find-previous":
       return destination == .workspace && indexedFindText == findText
         && indexedFindTask == selectedTask?.id && !findMatches.isEmpty

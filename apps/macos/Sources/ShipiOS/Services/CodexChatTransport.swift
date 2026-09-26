@@ -38,7 +38,7 @@ final class CodexChatTransport {
     taskID: String, config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
-    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration]
+    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration], compact: Bool = false
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -72,7 +72,8 @@ final class CodexChatTransport {
         let thread = try await client.request("codex.thread.start", [
           "taskId": .string(taskID), "baseUrl": .string(config.baseURL),
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
-          "initialContextBytes": .number(Double(initialText.utf8.count)),
+          "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
+          "resumeOnly": .bool(compact),
           "readOnly": .bool(readOnly),
           "mcpServers": mcpValue,
         ])
@@ -80,6 +81,15 @@ final class CodexChatTransport {
         sendFullContext = thread["resumed"].boolean != true
         activeThreads.insert(taskID)
         serviceIdentities[taskID] = service
+        if compact && sendFullContext {
+          throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")
+        }
+      }
+      if compact {
+        _ = try await client.request("codex.turn.compact", ["taskId": .string(taskID)])
+        guard generation == token else { throw CancellationError() }
+        try Task.checkCancellation()
+        return stream
       }
       let wireImages: [JSONValue] = images.map { image in .object([
         "id": .string(image.id.uuidString),

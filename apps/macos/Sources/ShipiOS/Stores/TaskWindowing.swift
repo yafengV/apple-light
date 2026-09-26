@@ -34,6 +34,14 @@ extension WorkspaceStore {
       error = "这个任务已经不存在。"
       return
     }
+    if taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == "/compact" {
+      guard mode == .standard, canCompactConversation(taskID: taskID) else {
+        error = "只有已有的空闲 Codex 会话可以整理上下文；请先移除草稿附件或结束当前回合。"
+        return
+      }
+      await startChat("整理上下文", taskID: taskID, consumeDraft: true, compact: true)
+      return
+    }
     let comments = reviewComments(taskID: taskID)
     let pageComments = browserComments(taskID: taskID)
     let prompt: String

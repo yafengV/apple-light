@@ -79,7 +79,8 @@ extension WorkspaceLibrary {
     let ids = tasks.first(where: { $0.id == taskID })?.runIDs ?? []
     let stored = Dictionary(localRuns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     return ids.flatMap { id -> [ChatMessage] in
-      guard let run = stored[id], run.kind == "chat" else { return [] }
+      guard let run = stored[id], run.kind == "chat",
+        run.request["conversation_kind"].text != "compact" else { return [] }
       var messages = [ChatMessage(role: "user", content: notes[id] ?? "", images: runImages[id] ?? [], files: runFiles[id] ?? [])]
       if !run.codexSteeredMessages.isEmpty, let items = run.responseItems {
         for item in items {

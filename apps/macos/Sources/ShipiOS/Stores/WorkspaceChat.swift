@@ -62,12 +62,16 @@ extension WorkspaceStore {
     _ prompt: String, taskID explicitTaskID: String? = nil, consumeDraft: Bool = false,
     images: [ImageAttachment] = [], files: [FileAttachment] = [],
     queuedMessageID: UUID? = nil, mode: ChatMode = .standard,
-    review: ModelCodeReviewContext? = nil
+    review: ModelCodeReviewContext? = nil, compact: Bool = false
   )
     async
   {
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
     guard canStartChat(taskID: requestedTaskID) else { return }
+    if compact, !canCompactConversation(taskID: requestedTaskID) {
+      error = "只有已有的空闲 Codex 会话可以整理上下文。"
+      return
+    }
     let goalDefinition = mode == .goal
       ? (requestedTaskID.flatMap { library.goalSessions[$0]?.definition } ?? pendingGoal)?.normalized
       : nil
@@ -85,6 +89,12 @@ extension WorkspaceStore {
     do {
       let config = modelConfiguration(for: requestedTaskID)
       let usesCodex = config.apiProtocol == .codexResponses
+      if compact {
+        guard usesCodex, requestedTaskID != nil, mode == .standard, review == nil,
+          images.isEmpty, files.isEmpty else {
+          throw AgentFailure(message: "只有已有的空闲 Codex 会话可以整理上下文。")
+        }
+      }
       let initialModelSelection = requestedTaskID.flatMap { id in
         library.tasks.first(where: { $0.id == id })?.modelSelection
       }
@@ -161,6 +171,7 @@ extension WorkspaceStore {
           request["review_selection"] = .string(selection)
         }
       }
+      if compact { request["conversation_kind"] = .string("compact") }
       if !pluginContext.ids.isEmpty {
         request["plugins"] = .array(pluginContext.ids.map(JSONValue.string))
       }
@@ -239,7 +250,8 @@ extension WorkspaceStore {
             usage = try await streamCodexChat(runID: run.id,
               taskID: review == nil ? (taskID ?? run.id) : run.id,
               config: config, key: key, messages: messages, mode: mode,
-              goalInstructions: mode == .goal ? modeInstructions : nil, review: review)
+              goalInstructions: mode == .goal ? modeInstructions : nil, review: review,
+              compact: compact)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
               messages: messages, bindings: tools)
@@ -289,7 +301,7 @@ extension WorkspaceStore {
   }
   private func streamCodexChat(
     runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage],
-    mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?
+    mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?, compact: Bool = false
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
@@ -309,15 +321,22 @@ extension WorkspaceStore {
       initialText: initialText, continuationText: continuationText, images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil,
       planMode: mode == .plan, goalInstructions: goalInstructions,
-      mcpServers: mcpServers)
+      mcpServers: mcpServers, compact: compact)
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""
       var completed = false
+      var contextCompacted = false
       do {
         for try await event in stream {
           try Task.checkCancellation()
           switch event["type"].text {
+          case "context_compacted", "item_completed":
+            if compact && !contextCompacted && (event["type"].text == "context_compacted"
+              || event["item"]["type"].text == "context_compaction") {
+              contextCompacted = true
+              appendChat(runID, delta: "上下文已整理。")
+            }
           case "exec_command_begin", "exec_command_end", "patch_apply_begin", "patch_apply_end":
             if event["type"].text?.hasSuffix("_begin") == true {
               recordCodexRuntimeStatus(runID: runID, message: nil)
@@ -379,6 +398,9 @@ extension WorkspaceStore {
               !message.isEmpty { appendChat(runID, delta: message) }
             if let message = event["error"]["message"].text, !message.isEmpty {
               throw AgentFailure(message: message)
+            }
+            if compact && !contextCompacted {
+              throw AgentFailure(message: "Codex 未确认上下文整理完成。")
             }
             completed = true
           case "turn_aborted":
@@ -764,8 +786,43 @@ extension WorkspaceStore {
     library.queuedMessages.swapAt(a, b)
     saveLibrary()
   }
+  var canCompactConversation: Bool {
+    chatMode == .standard && canCompactConversation(taskID: selectedTask?.id)
+  }
+
+  func canCompactConversation(taskID: String?) -> Bool {
+    guard let taskID, let task = library.tasks.first(where: { $0.id == taskID }),
+      let project, connected,
+      task.project == project.path, canStartChat(taskID: task.id),
+      taskWindowImages(taskID).isEmpty, taskWindowFiles(taskID).isEmpty,
+      reviewComments(taskID: taskID).isEmpty, browserComments(taskID: taskID).isEmpty,
+      library.goalSessions[taskID]?.status != .active,
+      !importingImages, !importingFiles,
+      modelConfiguration(for: task.id).apiProtocol == .codexResponses else { return false }
+    let runs = Dictionary(library.chatRuns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    guard let latest = task.runIDs.reversed().compactMap({ runs[$0] }).first(where: {
+      $0.kind == "chat" && $0.request["conversation_kind"].text != "compact"
+    }), latest.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue,
+      latest.request["conversation_kind"].text != "review" else { return false }
+    return task.runIDs.contains { id in
+      guard let run = runs[id] else { return false }
+      return run.status == "succeeded"
+        && run.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue
+        && run.request["conversation_kind"].text != "review"
+        && run.request["conversation_kind"].text != "compact"
+    }
+  }
+
   func handleComposerCommand() -> Bool {
     let command = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    if command == "/compact" {
+      guard canCompactConversation else {
+        error = "只有已有的空闲 Codex 会话可以整理上下文；请先移除草稿附件或结束当前回合。"
+        return true
+      }
+      Task { await startChat("整理上下文", consumeDraft: true, compact: true) }
+      return true
+    }
     if command == "/review" {
       guard commandEnabled("review") else {
         error = "当前无法执行此操作，请先打开项目或返回任务页面。"
