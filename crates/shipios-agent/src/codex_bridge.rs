@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, anyhow, ensure};
+use codex_core_api::UserInput;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use shipios_codex::{CodexSession, SessionOptions};
@@ -30,6 +31,14 @@ pub struct ThreadInfo {
 struct PersistedThread {
     thread_id: String,
     rollout_path: PathBuf,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexImage {
+    id: String,
+    file_extension: String,
+    byte_count: u64,
 }
 
 fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
@@ -72,7 +81,7 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
 }
 
 enum Command {
-    Submit(String, oneshot::Sender<Result<String>>),
+    Submit(Vec<UserInput>, oneshot::Sender<Result<String>>),
     Interrupt(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
 }
@@ -204,14 +213,87 @@ impl CodexBridge {
             .ok_or_else(|| anyhow!("Codex thread is not active"))
     }
 
+    #[cfg(test)]
     pub async fn submit(&self, task_id: &str, text: String) -> Result<String> {
+        self.submit_with_images(task_id, text, Vec::new()).await
+    }
+
+    pub async fn submit_with_images(
+        &self,
+        task_id: &str,
+        text: String,
+        images: Vec<CodexImage>,
+    ) -> Result<String> {
+        ensure!(
+            !text.trim().is_empty() || !images.is_empty(),
+            "message is empty"
+        );
+        ensure!(images.len() <= 8, "too many images in one message");
+        let mut inputs = vec![UserInput::Text {
+            text,
+            text_elements: Vec::new(),
+        }];
+        for image in images {
+            inputs.push(UserInput::LocalImage {
+                path: self.attachment_path(image)?,
+                detail: None,
+            });
+        }
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
-            .send(Command::Submit(text, reply))
+            .send(Command::Submit(inputs, reply))
             .await
             .context("Codex thread stopped")?;
         result.await.context("Codex thread stopped")?
+    }
+
+    fn attachment_path(&self, image: CodexImage) -> Result<PathBuf> {
+        Uuid::parse_str(&image.id).context("image ID must be a UUID")?;
+        ensure!(
+            matches!(
+                image.file_extension.as_str(),
+                "png" | "jpg" | "webp" | "gif"
+            ),
+            "unsupported image format"
+        );
+        ensure!(
+            image.byte_count > 0 && image.byte_count <= 10 * 1024 * 1024,
+            "image exceeds the 10 MiB limit"
+        );
+        let root = self
+            .data_dir
+            .parent()
+            .and_then(std::path::Path::parent)
+            .context("project data directory has no attachment root")?
+            .canonicalize()
+            .context("resolve attachment root")?;
+        let attachments = root
+            .join("Attachments")
+            .canonicalize()
+            .context("resolve attachments")?;
+        ensure!(
+            attachments.starts_with(&root),
+            "attachments escaped data root"
+        );
+        let file = attachments.join(format!("{}.{}", image.id, image.file_extension));
+        let metadata = file
+            .symlink_metadata()
+            .context("inspect image attachment")?;
+        ensure!(
+            metadata.file_type().is_file(),
+            "image attachment is not a regular file"
+        );
+        ensure!(
+            metadata.len() == image.byte_count,
+            "image attachment size changed"
+        );
+        let resolved = file.canonicalize().context("resolve image attachment")?;
+        ensure!(
+            resolved.parent() == Some(attachments.as_path()),
+            "image attachment escaped its directory"
+        );
+        Ok(resolved)
     }
 
     pub async fn interrupt(&self, task_id: &str) -> Result<()> {
@@ -263,8 +345,8 @@ async fn run_thread(
         tokio::select! {
             biased;
             command = receiver.recv() => match command {
-                Some(Command::Submit(text, reply)) => {
-                    let _ = reply.send(live.submit_text(text).await);
+                Some(Command::Submit(inputs, reply)) => {
+                    let _ = reply.send(live.submit_inputs(inputs).await);
                 }
                 Some(Command::Interrupt(reply)) => {
                     let _ = reply.send(live.interrupt_turn().await);
@@ -353,13 +435,15 @@ mod tests {
                     .insert_header("content-type", "text/event-stream")
                     .set_body_string(response),
             )
-            .expect(2)
+            .expect(3)
             .mount(&server)
             .await;
         let temp = tempfile::tempdir()?;
         let project = temp.path().join("Project");
         std::fs::create_dir_all(&project)?;
-        let bridge = CodexBridge::new(temp.path().join("Data"), project);
+        let data_dir = temp.path().join("Data/Projects/fixture");
+        std::fs::create_dir_all(&data_dir)?;
+        let bridge = CodexBridge::new(data_dir.clone(), project);
         let mut events = bridge.subscribe();
         let task_id = Uuid::new_v4().to_string().to_uppercase();
         assert!(
@@ -412,7 +496,7 @@ mod tests {
         assert_eq!(reply.as_deref(), Some("Agent bridge reply"));
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
-        let restarted = CodexBridge::new(temp.path().join("Data"), temp.path().join("Project"));
+        let restarted = CodexBridge::new(data_dir.clone(), temp.path().join("Project"));
         let mut resumed_events = restarted.subscribe();
         let resumed = restarted
             .start(StartThread {
@@ -441,14 +525,61 @@ mod tests {
             }
         }
         assert_eq!(resumed_reply.as_deref(), Some("Agent bridge reply"));
+        let image_id = Uuid::new_v4().to_string().to_uppercase();
+        let image_bytes: &[u8] = &[
+            137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 2, 0, 0, 0, 2,
+            8, 2, 0, 0, 0, 253, 212, 154, 115, 0, 0, 0, 18, 73, 68, 65, 84, 120, 156, 99, 84, 104,
+            120, 192, 192, 192, 192, 196, 0, 6, 0, 17, 106, 1, 132, 39, 161, 5, 66, 0, 0, 0, 0, 73,
+            69, 78, 68, 174, 66, 96, 130,
+        ];
+        let attachments = temp.path().join("Data/Attachments");
+        std::fs::create_dir_all(&attachments)?;
+        std::fs::write(attachments.join(format!("{image_id}.png")), image_bytes)?;
+        let image = CodexImage {
+            id: image_id,
+            file_extension: "png".to_owned(),
+            byte_count: image_bytes.len() as u64,
+        };
+        assert!(
+            restarted
+                .submit_with_images(
+                    &task_id,
+                    String::new(),
+                    vec![CodexImage {
+                        id: Uuid::new_v4().to_string(),
+                        file_extension: "png".to_owned(),
+                        byte_count: image_bytes.len() as u64,
+                    }],
+                )
+                .await
+                .is_err()
+        );
+        restarted
+            .submit_with_images(&task_id, String::new(), vec![image])
+            .await?;
+        loop {
+            let event =
+                tokio::time::timeout(std::time::Duration::from_secs(10), resumed_events.recv())
+                    .await??;
+            match event["event"]["type"].as_str() {
+                Some("task_complete") => break,
+                Some("error") => anyhow::bail!("Codex image error: {}", event["event"]),
+                _ => {}
+            }
+        }
         restarted.stop(&task_id).await?;
-        let home = temp
-            .path()
-            .join("Data/Codex/Tasks")
-            .join(task_id.to_lowercase());
+        let home = data_dir.join("Codex/Tasks").join(task_id.to_lowercase());
         assert!(!home.join("auth.json").exists());
         let requests = server.received_requests().await.expect("mock requests");
-        assert_eq!(requests.len(), 2);
+        assert_eq!(requests.len(), 3);
+        let image_request: serde_json::Value = serde_json::from_slice(&requests[2].body)?;
+        assert!(
+            image_request["input"]
+                .as_array()
+                .and_then(|items| items.last())
+                .is_some_and(|last| last.to_string().contains("data:image/png;base64,")),
+            "the third model request did not contain the local image"
+        );
         assert_eq!(
             requests[0]
                 .headers

@@ -1,5 +1,5 @@
 use crate::{
-    codex_bridge::{CodexBridge, StartThread},
+    codex_bridge::{CodexBridge, CodexImage, StartThread},
     service::{RunRequest, Service},
 };
 use anyhow::Result;
@@ -45,6 +45,8 @@ struct CodexTask {
 struct CodexSubmit {
     task_id: String,
     text: String,
+    #[serde(default)]
+    images: Vec<CodexImage>,
 }
 
 fn error(id: Value, code: i32, message: &str) -> Value {
@@ -167,7 +169,7 @@ async fn dispatch(
             }
             "codex.turn.submit" => {
                 let p: CodexSubmit = serde_json::from_value(params).map_err(|_| invalid())?;
-                Ok(json!({"turnId":codex.submit(&p.task_id,p.text).await.map_err(failed)?}))
+                Ok(json!({"turnId":codex.submit_with_images(&p.task_id,p.text,p.images).await.map_err(failed)?}))
             }
             "codex.turn.interrupt" => {
                 let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;

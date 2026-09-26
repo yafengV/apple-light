@@ -143,6 +143,12 @@ actor StreamCollector {
 final class ModelTransportTests: XCTestCase {
   private var server: Process!
   private var config = ModelConfiguration()
+  private static let pixelData = Data([
+    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 2, 0, 0,
+    0, 2, 8, 2, 0, 0, 0, 253, 212, 154, 115, 0, 0, 0, 18, 73, 68, 65, 84, 120, 156,
+    99, 84, 104, 120, 192, 192, 192, 192, 196, 0, 6, 0, 17, 106, 1, 132, 39,
+    161, 5, 66, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+  ])
   override func setUpWithError() throws {
     server = Process()
     server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
@@ -214,7 +220,41 @@ final class ModelTransportTests: XCTestCase {
     let resumed = try XCTUnwrap(restored.library.chatRuns.first { $0.id == resumedRun.id })
     XCTAssertEqual(resumed.status, "succeeded", resumed.result?["message"].text ?? "")
     XCTAssertEqual(resumed.result?["response"].text, "Codex fixture reply")
+    let image = try ImageAttachmentStorage.importData(Self.pixelData, name: "pixel.png",
+      root: root.appendingPathComponent("Data"))
+    await restored.startChat("", taskID: run.id, images: [image])
+    let imageRun = try XCTUnwrap(restored.library.chatRuns.last)
+    await restored.modelTask(runID: imageRun.id)?.value
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == imageRun.id }?.status, "succeeded")
+    XCTAssertEqual(restored.library.runImages[imageRun.id], [image])
     await restored.shutdown()
+  }
+  @MainActor func testCodexResponsesImageOnlyStartsProjectTask() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    let image = try ImageAttachmentStorage.importData(Self.pixelData, name: "pixel.png",
+      root: root.appendingPathComponent("Data"))
+    await store.startChat("", images: [image])
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Codex fixture reply")
+    XCTAssertEqual(store.library.runImages[run.id], [image])
+    await store.shutdown()
   }
   @MainActor func testTaskModelOverrideReachesRequestAndChangingItDoesNotRewriteInflightRun() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

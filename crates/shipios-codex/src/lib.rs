@@ -211,13 +211,25 @@ impl CodexSession {
     }
 
     pub async fn submit_text(&self, text: String) -> Result<String> {
-        ensure!(!text.trim().is_empty(), "message is empty");
+        self.submit_inputs(vec![UserInput::Text {
+            text,
+            text_elements: Vec::new(),
+        }])
+        .await
+    }
+
+    pub async fn submit_inputs(&self, inputs: Vec<UserInput>) -> Result<String> {
+        ensure!(
+            inputs.iter().any(|input| match input {
+                UserInput::Text { text, .. } => !text.trim().is_empty(),
+                UserInput::LocalImage { .. } | UserInput::Image { .. } => true,
+                _ => false,
+            }),
+            "message is empty"
+        );
         let result = self
             .thread
-            .start_turn_if_idle(TurnInputRequest::user_input(vec![UserInput::Text {
-                text,
-                text_elements: Vec::new(),
-            }]))
+            .start_turn_if_idle(TurnInputRequest::user_input(inputs))
             .await?;
         match result {
             StartIfIdleSubmission::Started { turn_id } => Ok(turn_id),
