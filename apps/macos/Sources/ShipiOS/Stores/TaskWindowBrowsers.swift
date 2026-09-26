@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import WebKit
 
 /// Owned by the scene so navigating between tasks does not destroy their pages.
 @MainActor @Observable final class TaskWindowBrowsers {
@@ -7,7 +8,7 @@ import Observation
 
   func browser(for taskID: String, store: WorkspaceStore) -> TaskWindowBrowser {
     if let existing = tasks[taskID] { return existing }
-    let browser = TaskWindowBrowser()
+    let browser = TaskWindowBrowser(dataStore: store.browserDataStore)
     store.registerBrowserSession(browser.session)
     tasks[taskID] = browser
     return browser
@@ -36,11 +37,12 @@ import Observation
 }
 
 @MainActor @Observable final class TaskWindowBrowser {
-  let session = BrowserSession()
+  let session: BrowserSession
   var visible = false
   var fullWidth = false
 
-  init() {
+  init(dataStore: WKWebsiteDataStore? = nil) {
+    session = BrowserSession(dataStore: dataStore)
     session.onEmpty = { [weak self] in self?.visible = false }
   }
 

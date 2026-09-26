@@ -91,7 +91,10 @@ extension WorkspaceStore {
 
   func clearBrowserData(includeHistory: Bool) async {
     await workspace.browser.clearWebsiteData()
-    for session in additionalBrowserSessions.allObjects { await session.clearWebsiteData() }
+    for session in additionalBrowserSessions.allObjects
+      where session.dataStore !== workspace.browser.dataStore {
+      await session.clearWebsiteData()
+    }
     if includeHistory { clearBrowserHistory() }
   }
 }

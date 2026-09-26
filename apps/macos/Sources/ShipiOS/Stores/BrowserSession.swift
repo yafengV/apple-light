@@ -28,9 +28,13 @@ final class BrowserSession {
   @ObservationIgnored var chooseDownloadDestination:
     ((URL, String, @escaping (BrowserDownloadDestination) -> Void) -> Void)?
   @ObservationIgnored var onDownloadEvent: ((BrowserDownloadEvent) -> Void)?
-  @ObservationIgnored private lazy var dataStore = WKWebsiteDataStore.nonPersistent()
+  @ObservationIgnored let dataStore: WKWebsiteDataStore
   @ObservationIgnored private var linkDownloadWorker: BrowserTab?
   var selected: BrowserTab? { tabs.first { $0.id == selection } }
+
+  init(dataStore: WKWebsiteDataStore? = nil) {
+    self.dataStore = dataStore ?? .nonPersistent()
+  }
 
   @discardableResult func newTab(configuration: WKWebViewConfiguration? = nil, activate: Bool = true, id: UUID = UUID()) -> BrowserTab {
     if let existing = tabs.first(where: { $0.id == id }) { return existing }

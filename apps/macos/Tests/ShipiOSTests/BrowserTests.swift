@@ -1060,6 +1060,38 @@ final class BrowserTests: XCTestCase {
       try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
         .browserHistory.isEmpty)
   }
+  @MainActor func testMainAndTaskBrowsersShareAnIsolatedProfileAndClearItTogether() async throws {
+    let shared = WKWebsiteDataStore.nonPersistent()
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root, browserDataStore: shared)
+    let taskBrowser = TaskWindowBrowser(dataStore: store.browserDataStore)
+    store.registerBrowserSession(taskBrowser.session)
+    defer {
+      store.workspace.browser.shutdown()
+      taskBrowser.session.shutdown()
+    }
+    XCTAssertTrue(store.workspace.browser.dataStore === taskBrowser.session.dataStore)
+    let main = store.workspace.browser.newTab()
+    try await load(main, "/cookie", title: "/cookie")
+    let task = taskBrowser.session.newTab()
+    try await load(task, "/one", title: "One")
+    let sharedCookie = try await task.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(sharedCookie, "fixture=yes")
+
+    let isolated = BrowserSession()
+    defer { isolated.shutdown() }
+    let privateTab = isolated.newTab()
+    try await load(privateTab, "/one", title: "One")
+    let privateCookie = try await privateTab.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(privateCookie, "")
+
+    await store.clearBrowserData(includeHistory: false)
+    let mainAfterClear = try await main.view.evaluateJavaScript("document.cookie") as? String
+    let taskAfterClear = try await task.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(mainAfterClear, "")
+    XCTAssertEqual(taskAfterClear, "")
+  }
   func testArrowShortcutsMatchNativeKeyEvents() throws {
     let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
       modifierFlags: [.command], timestamp: 0, windowNumber: 0, context: nil,

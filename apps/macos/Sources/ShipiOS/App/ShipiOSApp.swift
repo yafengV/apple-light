@@ -1,11 +1,13 @@
 import AppKit
 import SwiftUI
 import UserNotifications
+import WebKit
 
 @main
 struct ShipiOSApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-  @State private var store = WorkspaceStore()
+  @State private var store = WorkspaceStore(browserDataStore:
+    CommandLine.arguments.contains("--data-root") ? nil : WKWebsiteDataStore.default())
 
   var body: some Scene {
     Window("ShipiOS", id: "main") {

@@ -77,7 +77,9 @@ struct BrowserSettingsView: View {
         }
       }
       Section("浏览数据") {
-        Text("内置浏览器使用与系统浏览器分开的临时资料。Cookie、缓存和网站存储只在本次 App 运行期间保留；历史记录保存在 ShipiOS 独立数据目录。")
+        Text(store.workspace.browser.dataStore.isPersistent
+          ? "内置浏览器使用与系统浏览器分开的 ShipiOS 资料。Cookie、缓存和网站存储会在应用重启后保留；历史记录保存在 ShipiOS 独立数据目录。"
+          : "此隔离实例使用临时浏览资料。Cookie、缓存和网站存储只在本次 App 运行期间保留；历史记录保存在当前实例的数据目录。")
           .foregroundStyle(.secondary)
         Toggle("同时清除浏览历史", isOn: $includeHistory)
         Button("清除浏览数据…", role: .destructive) { showingClearConfirmation = true }.settingsSearchTarget(.browserClear)
@@ -88,7 +90,7 @@ struct BrowserSettingsView: View {
         }
       }
       Section("当前能力") {
-        Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论，以及真实文件下载。站点工具、页面样式调整、持久浏览资料与完整 CDP 访问仍需浏览器 Agent 控制层。")
+        Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论，以及真实文件下载。站点工具、页面样式调整与完整 CDP 访问仍需浏览器 Agent 控制层。")
           .foregroundStyle(.secondary)
       }
   }

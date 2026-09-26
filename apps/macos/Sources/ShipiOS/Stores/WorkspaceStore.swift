@@ -2,6 +2,7 @@ import AppKit
 import CryptoKit
 import Observation
 import UniformTypeIdentifiers
+import WebKit
 
 @MainActor @Observable
 final class WorkspaceStore {
@@ -10,6 +11,7 @@ final class WorkspaceStore {
   @ObservationIgnored var shortcutCaptureCount = 0
   @ObservationIgnored private let root: URL
   @ObservationIgnored private let agentExecutable: URL?
+  @ObservationIgnored let browserDataStore: WKWebsiteDataStore?
   var query = ""
   var presentedOverlay: WorkspaceOverlay?
   @ObservationIgnored var searchDialogReturnFocus: SearchDialogReturnFocus?
@@ -412,13 +414,16 @@ final class WorkspaceStore {
 
   func modelTask(runID: String) -> Task<Void, Never>? { modelTasks[runID] }
 
-  init(dataRoot: URL? = nil, agentExecutable: URL? = nil) {
+  init(dataRoot: URL? = nil, agentExecutable: URL? = nil,
+    browserDataStore: WKWebsiteDataStore? = nil) {
     root = dataRoot ?? Self.defaultDataRoot
     self.agentExecutable = agentExecutable
+    self.browserDataStore = browserDataStore
     shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
     let agentClient = AgentClient()
     client = agentClient
     codexTransport = CodexChatTransport(client: agentClient, dataRoot: root)
+    workspace.browser = BrowserSession(dataStore: browserDataStore)
     workspace.browser.createChildTab = { [weak self] id, configuration in
       self?.newBrowserChild(from: id, configuration: configuration)
     }
