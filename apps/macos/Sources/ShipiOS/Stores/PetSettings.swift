@@ -3,6 +3,9 @@ import Foundation
 
 extension WorkspaceStore {
   var petActivityStatus: PetActivityStatus {
+    if attentionTasks.contains(where: { taskAttentionKind(for: $0)?.requiresAction == true }) {
+      return .needsInput
+    }
     if activeRun != nil || hasLiveModelRequests { return .running }
     if let selectedRun, selectedRun.status == "failed" { return .blocked }
     if !library.unreadTasks.isEmpty { return .ready }

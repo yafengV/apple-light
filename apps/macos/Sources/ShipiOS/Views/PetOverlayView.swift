@@ -55,17 +55,20 @@ struct PetOverlayView: View {
           .buttonStyle(.borderless).disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       }
       Menu {
-        if store.library.unreadTasks.isEmpty, store.activeRun == nil, !store.hasLiveModelRequests {
+        if store.attentionTasks.isEmpty, store.activeRun == nil, !store.hasLiveModelRequests {
           Text("没有待处理活动")
         }
-        if let task = store.selectedTask, store.selectedActiveRun != nil {
+        if let task = store.selectedTask, store.selectedActiveRun != nil,
+          store.taskAttentionKind(for: task) == nil {
           Button("运行中：" + task.title) { store.selectTask(task); NSApp.activate(ignoringOtherApps: true) }
         }
-        ForEach(store.library.unreadTasks.compactMap({ id in store.library.tasks.first { $0.id == id } })) { task in
-          Button(task.title) { store.selectTask(task); NSApp.activate(ignoringOtherApps: true) }
+        ForEach(store.attentionTasks) { task in
+          Button("\(store.taskAttentionKind(for: task)?.title ?? "需关注")：\(task.title)") {
+            store.selectTask(task); NSApp.activate(ignoringOtherApps: true)
+          }
         }
       } label: {
-        Image(systemName: store.library.unreadTasks.isEmpty ? "bell" : "bell.badge.fill")
+        Image(systemName: store.attentionTasks.isEmpty ? "bell" : "bell.badge.fill")
       }.menuStyle(.borderlessButton).fixedSize().help("任务活动")
       Button { _ = store.setPetVisible(false) } label: { Image(systemName: "xmark") }
         .buttonStyle(.borderless).help("隐藏宠物")
@@ -104,7 +107,8 @@ private struct CodeyPetAnimation: View {
             }.offset(y: -7)
           }
           .overlay(alignment: .bottom) {
-            Capsule().fill(.white.opacity(0.86)).frame(width: status == .blocked ? 32 : 42, height: 8)
+            Capsule().fill(.white.opacity(0.86)).frame(
+              width: status == .blocked || status == .needsInput ? 32 : 42, height: 8)
               .padding(.bottom, 25)
           }
           .rotationEffect(.degrees(status == .ready ? sin(phase * 4) * 4 : 0))

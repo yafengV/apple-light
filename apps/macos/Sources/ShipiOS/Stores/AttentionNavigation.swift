@@ -1,13 +1,49 @@
 import Foundation
 
+enum TaskAttentionKind: Equatable {
+  case approval, question, elicitation, unread
+
+  var requiresAction: Bool { self != .unread }
+  var title: String {
+    switch self {
+    case .approval: "等待工具批准"
+    case .question: "等待回答问题"
+    case .elicitation: "等待完成 MCP 请求"
+    case .unread: "未读活动"
+    }
+  }
+}
+
 extension WorkspaceStore {
+  var attentionTasks: [WorkspaceTask] {
+    guard libraryLoaded else { return [] }
+    return library.tasks.filter {
+      !$0.archived && !$0.runIDs.isEmpty && taskAttentionKind(for: $0) != nil
+    }
+  }
+
+  func taskAttentionKind(for task: WorkspaceTask) -> TaskAttentionKind? {
+    guard !task.archived, !task.runIDs.isEmpty else { return nil }
+    let runIDs = Set(task.runIDs)
+    if mcpPendingApprovals.values.contains(where: { runIDs.contains($0.runID) }) {
+      return .approval
+    }
+    if codexPendingQuestions.values.contains(where: { runIDs.contains($0.runID) }) {
+      return .question
+    }
+    if codexPendingElicitations.values.contains(where: { runIDs.contains($0.runID) }) {
+      return .elicitation
+    }
+    return library.unreadTasks.contains(task.id) ? .unread : nil
+  }
+
   var nextAttentionTask: WorkspaceTask? {
     guard libraryLoaded, !restoringLibrary, !busy else { return nil }
     let tasks = library.tasks
     guard !tasks.isEmpty else { return nil }
     let start = tasks.firstIndex(where: { $0.id == selectedTask?.id }).map { ($0 + 1) % tasks.count } ?? 0
     return (0..<tasks.count).lazy.map { tasks[(start + $0) % tasks.count] }.first {
-      !$0.archived && !$0.runIDs.isEmpty && taskNeedsAttention($0) && canSelectTask($0)
+      taskAttentionKind(for: $0) != nil && canSelectTask($0)
     }
   }
 
@@ -17,7 +53,7 @@ extension WorkspaceStore {
     recordNavigation()
     guard await openTaskScope(target.project),
       let current = library.tasks.first(where: { $0.id == target.id }),
-      !current.archived, taskNeedsAttention(current), canSelectTask(current)
+      taskAttentionKind(for: current) != nil, canSelectTask(current)
     else { return false }
     presentedOverlay = nil
     showingBranchPicker = false
@@ -44,12 +80,5 @@ extension WorkspaceStore {
       candidate.unreadTasks = []
       try commitLibrary(candidate)
     } catch { self.error = error.localizedDescription }
-  }
-
-  private func taskNeedsAttention(_ task: WorkspaceTask) -> Bool {
-    library.unreadTasks.contains(task.id)
-      || mcpPendingApprovals.values.contains { task.runIDs.contains($0.runID) }
-      || codexPendingQuestions.values.contains { task.runIDs.contains($0.runID) }
-      || codexPendingElicitations.values.contains { task.runIDs.contains($0.runID) }
   }
 }

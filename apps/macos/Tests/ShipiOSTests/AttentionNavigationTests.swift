@@ -50,6 +50,45 @@ import XCTest
     await store.shutdown()
   }
 
+  func testPendingRequestsAppearAcrossAttentionNavigationAndPetActivity() async throws {
+    let store = await store()
+    install(["approval", "question", "elicitation", "unread"], store: store)
+    let execution = MCPToolExecution(callID: "call", serverID: UUID(),
+      serverName: "fixture", toolName: "first", arguments: "{}")
+    store.mcpPendingApprovals[execution.id] = MCPApprovalContext(
+      runID: "approval", execution: execution)
+    let prompt = try JSONDecoder().decode(CodexQuestion.self, from: Data(
+      #"{"id":"name","header":"Name","question":"Your name?"}"#.utf8))
+    let question = CodexQuestionRequest(callID: "call", turnID: "turn", questions: [prompt],
+      isBlocking: true)
+    store.codexPendingQuestions[question.id] = CodexQuestionContext(
+      runID: "question", taskID: "question", request: question)
+    let elicitation = CodexElicitationRequest(serverName: "fixture", requestID: .string("form"),
+      message: "Confirm", schema: .object(["type": .string("object"),
+        "properties": .object([:])]))
+    store.codexPendingElicitations[elicitation.id] = CodexElicitationContext(
+      runID: "elicitation", taskID: "elicitation", request: elicitation, verificationURL: nil)
+    store.library.unreadTasks = ["unread"]
+
+    XCTAssertEqual(store.attentionTasks.map(\.id), ["approval", "question", "elicitation", "unread"])
+    XCTAssertEqual(store.taskAttentionKind(for: store.library.tasks[0]), .approval)
+    XCTAssertEqual(store.taskAttentionKind(for: store.library.tasks[1]), .question)
+    XCTAssertEqual(store.taskAttentionKind(for: store.library.tasks[2]), .elicitation)
+    XCTAssertEqual(store.taskAttentionKind(for: store.library.tasks[3]), .unread)
+    XCTAssertEqual(store.petActivityStatus, .needsInput)
+    store.selection = "approval"
+    XCTAssertEqual(store.nextAttentionTask?.id, "question")
+
+    store.clearUnreadTasks()
+    XCTAssertEqual(store.attentionTasks.map(\.id), ["approval", "question", "elicitation"])
+    store.mcpPendingApprovals = [:]
+    store.codexPendingQuestions = [:]
+    store.codexPendingElicitations = [:]
+    XCTAssertTrue(store.attentionTasks.isEmpty)
+    XCTAssertEqual(store.petActivityStatus, .idle)
+    await store.shutdown()
+  }
+
   func testOnlyLocalExecutionBlocksCrossProjectAttention() async {
     let store = await store()
     install(["active", "local"], store: store)

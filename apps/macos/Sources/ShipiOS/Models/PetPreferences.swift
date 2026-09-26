@@ -70,12 +70,13 @@ struct PetPreferences: Codable, Equatable {
 }
 
 enum PetActivityStatus: String, Equatable {
-  case idle, running, ready, blocked
+  case idle, running, ready, needsInput, blocked
   var title: String {
     switch self {
     case .idle: "空闲"
     case .running: "正在运行"
     case .ready: "有未读活动"
+    case .needsInput: "等待操作"
     case .blocked: "任务失败"
     }
   }
@@ -84,6 +85,7 @@ enum PetActivityStatus: String, Equatable {
     case .idle: .secondaryLabelColor
     case .running: .systemBlue
     case .ready: .systemGreen
+    case .needsInput: .systemOrange
     case .blocked: .systemOrange
     }
   }
@@ -92,6 +94,7 @@ enum PetActivityStatus: String, Equatable {
     case .idle: 0
     case .running: 7
     case .ready: 3
+    case .needsInput: 5
     case .blocked: 5
     }
   }

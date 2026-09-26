@@ -10,16 +10,20 @@ struct SidebarTaskRow: View {
     }
   }
   var body: some View {
+    let attention = store.taskAttentionKind(for: task)
     Button {
       store.selectTask(task)
     } label: {
       HStack(spacing: 8) {
-        if store.mcpPendingApprovals.values.contains(where: { task.runIDs.contains($0.runID) }) {
+        if attention == .approval {
           Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
             .accessibilityLabel("等待工具批准")
-        } else if store.codexPendingQuestions.values.contains(where: { task.runIDs.contains($0.runID) }) {
+        } else if attention == .question {
           Image(systemName: "questionmark.bubble.fill").foregroundStyle(.orange)
             .accessibilityLabel("等待回答问题")
+        } else if attention == .elicitation {
+          Image(systemName: "rectangle.and.pencil.and.ellipsis").foregroundStyle(.orange)
+            .accessibilityLabel("等待完成 MCP 请求")
         } else if let run, run.isActive {
           ProgressView().controlSize(.mini).frame(width: 12)
         } else {
