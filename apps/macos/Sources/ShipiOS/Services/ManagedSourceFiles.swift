@@ -55,6 +55,59 @@ enum ManagedSourceFiles {
     return true
   }
 
+  static func snapshotExists(dataRoot: URL, taskID: String) -> Bool {
+    guard UUID(uuidString: taskID) != nil else { return false }
+    return type(at: directory(dataRoot: dataRoot, taskID: taskID)) != nil
+  }
+
+  /// Check all paths before writing any copied file into a destination checkout.
+  static func canInstall(_ files: [ManagedSourceFile], dataRoot: URL,
+    taskID: String, target: URL) throws -> Bool {
+    guard files.isEmpty || type(at: directory(dataRoot: dataRoot, taskID: taskID)) == mode_t(S_IFDIR)
+    else { return false }
+    let snapshotRoot = directory(dataRoot: dataRoot, taskID: taskID)
+    for entry in files {
+      let parts = try components(entry.path)
+      let saved = try regularFile(root: snapshotRoot, parts: parts)
+      guard try matches(saved, entry) else { return false }
+      var current = target
+      for part in parts.dropLast() {
+        current.appendPathComponent(part, isDirectory: true)
+        guard let existing = type(at: current) else { break }
+        guard existing == mode_t(S_IFDIR) else { return false }
+      }
+      let output = target.appendingPathComponent(entry.path)
+      if let existing = type(at: output) {
+        guard existing == mode_t(S_IFREG), try matches(output, entry) else { return false }
+      }
+    }
+    return true
+  }
+
+  /// A partially completed move may already have removed some files. Never remove a file
+  /// that changed after capture or a newly appeared included/untracked path.
+  static func removeCaptured(_ files: [ManagedSourceFile], from source: URL,
+    excluding dataRoot: URL) async throws {
+    let expected = Set(files.map(\.path))
+    let discovered = Set(try await discover(at: source, excluding: dataRoot))
+    guard discovered.isSubset(of: expected) else {
+      throw AgentFailure(message: "来源检出出现新的未跟踪或包含文件，未清理原目录。")
+    }
+    for entry in files where discovered.contains(entry.path) {
+      let current = try regularFile(root: source, parts: components(entry.path))
+      guard try matches(current, entry) else {
+        throw AgentFailure(message: "来源文件在移交期间改变，未清理：\(entry.path)")
+      }
+    }
+    for entry in files where discovered.contains(entry.path) {
+      let current = try regularFile(root: source, parts: components(entry.path))
+      guard try matches(current, entry) else {
+        throw AgentFailure(message: "来源文件在清理前改变，未删除：\(entry.path)")
+      }
+      try FileManager.default.removeItem(at: current)
+    }
+  }
+
   static func archiveSnapshotMatches(_ files: [ManagedSourceFile], source: URL,
     dataRoot: URL, taskID: String) async throws -> Bool {
     guard try await discoverAll(at: source, excluding: dataRoot) == files.map(\.path).sorted() else {
@@ -257,6 +310,12 @@ enum ManagedSourceFiles {
       hasher.update(data: chunk)
     }
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+  }
+
+  private static func matches(_ file: URL, _ entry: ManagedSourceFile) throws -> Bool {
+    guard try hash(file) == entry.sha256 else { return false }
+    let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+    return (attributes[.posixPermissions] as? NSNumber)?.intValue == entry.permissions
   }
 
   private static func type(at url: URL) -> mode_t? {

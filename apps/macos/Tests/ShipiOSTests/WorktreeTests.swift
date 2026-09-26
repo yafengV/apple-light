@@ -139,6 +139,59 @@ final class WorktreeTests: XCTestCase {
     } catch { XCTAssertTrue(error.localizedDescription.contains("路径无效")) }
   }
 
+  func testHandoffLocalFilesPreflightAndRemoveOnlyCapturedUnchangedFiles() async throws {
+    let (base, source) = try await fixture()
+    try write(".env\n", source.appendingPathComponent(".gitignore"))
+    try write(".env\n", source.appendingPathComponent(".worktreeinclude"))
+    _ = try await git(["add", ".gitignore", ".worktreeinclude"], source)
+    _ = try await git(["commit", "-qm", "Local file policy"], source)
+    try write("private\n", source.appendingPathComponent(".env"))
+    try write("draft\n", source.appendingPathComponent("note"))
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let plan = try await WorktreeService.plan(snapshot: snapshot, branch: nil,
+      title: "Move local files", parent: base.appendingPathComponent("worktrees"))
+    try await WorktreeService.createOrRecover(plan)
+    let target = URL(fileURLWithPath: plan.path)
+    let data = base.appendingPathComponent("data")
+    let taskID = UUID().uuidString
+    let paths = try await ManagedSourceFiles.discover(at: source, excluding: data)
+    XCTAssertEqual(paths, [".env", "note"])
+    let files = try ManagedSourceFiles.capture(paths, from: source, dataRoot: data,
+      taskID: taskID)
+    XCTAssertTrue(ManagedSourceFiles.snapshotExists(dataRoot: data, taskID: taskID))
+
+    try write("different\n", target.appendingPathComponent(".env"))
+    XCTAssertFalse(try ManagedSourceFiles.canInstall(files, dataRoot: data,
+      taskID: taskID, target: target))
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("note")), "draft\n")
+    try FileManager.default.removeItem(at: target.appendingPathComponent(".env"))
+    XCTAssertTrue(try ManagedSourceFiles.canInstall(files, dataRoot: data,
+      taskID: taskID, target: target))
+    try ManagedSourceFiles.install(files, dataRoot: data, taskID: taskID, target: target)
+
+    try write("changed after capture\n", source.appendingPathComponent("note"))
+    do {
+      try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
+      XCTFail("Modified source file was removed")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("改变")) }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: source.appendingPathComponent(".env").path))
+    try write("draft\n", source.appendingPathComponent("note"))
+    try write("new\n", source.appendingPathComponent("late"))
+    do {
+      try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
+      XCTFail("New source file was ignored")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("新的未跟踪")) }
+    try FileManager.default.removeItem(at: source.appendingPathComponent("late"))
+    try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
+    try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent(".env").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("note").path))
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent(".env")), "private\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("note")), "draft\n")
+    try ManagedSourceFiles.removeSnapshotChecked(dataRoot: data, taskID: taskID)
+    XCTAssertFalse(ManagedSourceFiles.snapshotExists(dataRoot: data, taskID: taskID))
+  }
+
   func testSelectedBranchAndStaleBranchValidation() async throws {
     let (base, source) = try await fixture()
     _ = try await git(["switch", "-c", "feature"], source)
