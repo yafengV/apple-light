@@ -5,7 +5,7 @@ extension WorkspaceStore {
     WorkspaceTabLayout(tabs: visibleWorkspaceContentTabs.map { tab in
       let browser = tab.browserID.flatMap { id in workspace.browser.tabs.first { $0.id == id } }
       return SavedWorkspaceTab(id: tab.id,
-        kind: tab.browserID != nil ? .browser : tab.terminalID != nil ? .terminal : .review,
+        kind: tab.kind,
         placement: workspaceTabPlacement(tab.id), address: browser?.address,
         committedURL: browser?.committedURL?.absoluteString)
     }, active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
@@ -83,6 +83,14 @@ extension WorkspaceStore {
     case .review:
       guard workspaceTabProject(owner: owner) != nil, saved.id == WorkspaceContentTab.review(owner: owner).id else { return nil }
       tab = .review(owner: owner)
+      workspaceTabs.append(tab)
+    case .plan:
+      guard saved.id.hasPrefix("plan:") else { return nil }
+      let runID = String(saved.id.dropFirst(5))
+      guard !runID.isEmpty,
+        library.tasks.first(where: { $0.id == owner })?.runIDs.contains(runID) == true,
+        taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument != nil else { return nil }
+      tab = .plan(runID, owner: owner)
       workspaceTabs.append(tab)
     case .terminal:
       guard let root = workspaceTabProject(owner: owner),

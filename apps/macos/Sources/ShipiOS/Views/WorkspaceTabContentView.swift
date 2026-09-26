@@ -12,6 +12,13 @@ struct WorkspaceTabContentView: View {
         store: store, session: store.workspace.browser, showsTabStrip: false, tabID: id)
     case .review:
       GitReviewView(store: store, workspace: store.workspace)
+    case .plan(let runID, let owner):
+      if let document = store.taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument {
+        CodexPlanDocumentView(document: document, runID: runID)
+      } else {
+        ContentUnavailableView("计划不可用", systemImage: "text.document",
+          description: Text("此计划可能已从任务中移除。"))
+      }
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)

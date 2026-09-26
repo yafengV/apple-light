@@ -33,6 +33,38 @@ import XCTest
     resources.prepare("popup", store: store)
     return (store, resources, try XCTUnwrap(resources.tasks["popup"]))
   }
+
+  func testPlanDocumentTabRemainsInDetachedTaskAndRestores() throws {
+    let (store, resources, tabs) = try fixture()
+    defer { resources.shutdown() }
+    let document = CodexPlanDocument(id: "plan-1", text: "# Detached plan\nDetails")
+    let value = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(document))
+    let run = AgentRun(id: "plan-run", kind: "chat", project: store.library.tasks[0].project,
+      status: "succeeded", createdAt: 0, updatedAt: 0, request: .null,
+      result: .object(["codex_plan_document": value]))
+    store.library.tasks[0].runIDs = [run.id]
+    store.library.chatRuns = [run]
+    store.runs = [run]
+    tabs.openPlan(runID: run.id)
+    let tab = try XCTUnwrap(tabs.selected(.left))
+    XCTAssertEqual(tab, .plan(run.id, owner: "popup"))
+    XCTAssertEqual(tabs.title(tab), "Detached plan")
+    XCTAssertEqual(tabs.layoutSnapshot.content.tabs.first?.kind, .plan)
+    XCTAssertEqual(store.selection, "main", "The main window stays on its own task")
+    let saved = tabs.layoutSnapshot
+    tabs.close(tab.id)
+    tabs.reopen()
+    XCTAssertEqual(tabs.selected(.left), tab)
+
+    let restoredResources = TaskWindowResources()
+    defer { restoredResources.shutdown() }
+    restoredResources.prepare("popup", store: store)
+    let restored = try XCTUnwrap(restoredResources.tasks["popup"])
+    restored.restoreLayout(saved)
+    XCTAssertEqual(restored.selected(.left), tab)
+    restored.resetProjectTabs()
+    XCTAssertEqual(restored.selected(.left), tab, "A plan document survives a worktree project change")
+  }
   private func output(_ session: TerminalSession) -> String {
     String(decoding: session.view.getTerminal().getBufferAsData(), as: UTF8.self)
   }

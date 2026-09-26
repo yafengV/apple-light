@@ -6,10 +6,13 @@ struct TaskSummaryView: View {
   let task: WorkspaceTask
   let runs: [AgentRun]
   let library: WorkspaceLibrary
+  let openPlan: (String) -> Void
   let close: () -> Void
 
-  private var latestPlan: CodexPlan? {
-    runs.reversed().compactMap(\.codexPlan).first
+  private var latestPlanDocument: (runID: String, document: CodexPlanDocument)? {
+    runs.reversed().compactMap { run in
+      run.codexPlanDocument.map { (run.id, $0) }
+    }.first
   }
 
   private var usage: TaskModelUsage? {
@@ -39,7 +42,21 @@ struct TaskSummaryView: View {
                 .appFont(.caption).foregroundStyle(.secondary)
             }
           }
-          if let latestPlan { CodexPlanView(plan: latestPlan) }
+          if let latestPlanDocument {
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+              Label("计划", systemImage: "text.document").appFont(.headline)
+              Button { openPlan(latestPlanDocument.runID) } label: {
+                HStack {
+                  Text(latestPlanDocument.document.title).lineLimit(2)
+                  Spacer()
+                  Image(systemName: "arrow.up.right")
+                }.frame(maxWidth: .infinity)
+              }
+              .buttonStyle(.plain)
+              .help("打开计划文档")
+            }
+          }
           if !runs.summaryArtifacts.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 8) {

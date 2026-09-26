@@ -8,6 +8,7 @@ import Observation
   let panels: TaskWindowPanels
   @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
   @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
+  @ObservationIgnored var planDocument: ((String) -> CodexPlanDocument?)?
   private(set) var tabs: [WorkspaceContentTab] = []
   private var placements: [String: WorkspaceTabPlacement] = [:]
   private var selections: [WorkspaceTabPlacement: String] = [:]
@@ -98,6 +99,7 @@ import Observation
     switch tab {
     case .browser(let id, _): browser.session.tabs.first { $0.id == id }?.title ?? "浏览器"
     case .review: "审查"
+    case .plan(let runID, _): planDocument?(runID)?.title ?? "计划"
     case .terminal(let id, _): panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
     }
   }
@@ -153,6 +155,12 @@ import Observation
     if !tabs.contains(tab) { tabs.append(tab); panels.workspace.reviewScope = defaultScope }
     move(tab.id, to: place)
     Task { await panels.workspace.refreshGit() }
+  }
+  func openPlan(runID: String) {
+    guard planDocument?(runID) != nil else { return }
+    let tab = WorkspaceContentTab.plan(runID, owner: taskID)
+    if !tabs.contains(tab) { tabs.append(tab) }
+    move(tab.id, to: .left)
   }
   func newTerminal(in place: WorkspaceTabPlacement = .bottom) {
     guard place != .detached, let terminal = panels.newTerminal() else { return }
@@ -267,6 +275,7 @@ import Observation
       browser.reopen()
       openingPlacement = .left
     case .review: openReview(in: state.placement, defaultScope: panels.workspace.reviewScope)
+    case .plan(let runID, _): openPlan(runID: runID)
     case .terminal: newTerminal(in: state.placement)
     }
   }
@@ -294,9 +303,11 @@ import Observation
   }
   func resetProjectTabs() {
     endDrag()
-    for tab in tabs where tab.browserID == nil { clearSelection(tab.id); placements[tab.id] = nil }
-    tabs.removeAll { $0.browserID == nil }
-    closed.removeAll { $0.tab.browserID == nil }
+    for tab in tabs where tab.kind == .review || tab.kind == .terminal {
+      clearSelection(tab.id); placements[tab.id] = nil
+    }
+    tabs.removeAll { $0.kind == .review || $0.kind == .terminal }
+    closed.removeAll { $0.tab.kind == .review || $0.tab.kind == .terminal }
     repairSelection(.right); repairSelection(.bottom)
   }
 
@@ -304,7 +315,7 @@ import Observation
     let saved = tabs.map { tab in
       let page = tab.browserID.flatMap { id in browser.session.tabs.first { $0.id == id } }
       return SavedWorkspaceTab(id: tab.id,
-        kind: tab.browserID != nil ? .browser : tab.terminalID != nil ? .terminal : .review,
+        kind: tab.kind,
         placement: placement(tab.id), address: page?.address,
         committedURL: page?.committedURL?.absoluteString)
     }
@@ -340,6 +351,12 @@ import Observation
         guard sameProject, panels.workspace.root != nil,
           entry.id == WorkspaceContentTab.review(owner: taskID).id else { continue }
         tab = .review(owner: taskID)
+        tabs.append(tab)
+      case .plan:
+        guard entry.id.hasPrefix("plan:"), entry.id.count > 5 else { continue }
+        let runID = String(entry.id.dropFirst(5))
+        guard planDocument?(runID) != nil else { continue }
+        tab = .plan(runID, owner: taskID)
         tabs.append(tab)
       case .terminal:
         guard sameProject, entry.id.hasPrefix("terminal:"),

@@ -376,6 +376,8 @@ extension WorkspaceStore {
           case "plan_update":
             recordCodexRuntimeStatus(runID: runID, message: nil)
             try recordCodexPlan(runID: runID, event: event)
+          case "item_completed":
+            recordCodexPlanDocument(runID: runID, event: event)
           case "reasoning_content_delta", "agent_reasoning_section_break":
             recordCodexReasoning(runID: runID, event: event)
           case "warning", "guardian_warning", "deprecation_notice", "model_reroute":
@@ -626,6 +628,13 @@ extension WorkspaceStore {
       responseItems: items, codexPlan: plan)
     saveLibrary()
   }
+  private func recordCodexPlanDocument(runID: String, event: JSONValue) {
+    guard let document = CodexPlanDocument.completed(event),
+      let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      codexPlanDocument: document)
+    saveLibrary()
+  }
   private func recordCodexReasoning(runID: String, event: JSONValue) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
     var items = current.responseItems ?? []
@@ -772,6 +781,7 @@ extension WorkspaceStore {
     toolExecutions: [MCPToolExecution]? = nil,
     codexQuestions: [CodexQuestionRequest]? = nil,
     codexElicitations: [CodexElicitationRequest]? = nil, codexPlan: CodexPlan? = nil,
+    codexPlanDocument: CodexPlanDocument? = nil,
     codexTurnDiff: CodexTurnDiff? = nil, clearCodexTurnDiff: Bool = false
   ) {
     var result: [String: JSONValue] = [:]
@@ -795,6 +805,10 @@ extension WorkspaceStore {
     if let codexPlan,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexPlan)) {
       result["codex_plan"] = value
+    }
+    if let codexPlanDocument,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexPlanDocument)) {
+      result["codex_plan_document"] = value
     }
     if clearCodexTurnDiff { result["codex_turn_diff"] = .null }
     else if let codexTurnDiff,

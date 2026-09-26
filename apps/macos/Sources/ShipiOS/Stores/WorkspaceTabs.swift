@@ -43,6 +43,8 @@ extension WorkspaceStore {
     case .browser(let id, _):
       return workspace.browser.tabs.first(where: { $0.id == id })?.title ?? "浏览器"
     case .review: return "审查"
+    case .plan(let runID, let owner):
+      return taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument?.title ?? "计划"
     case .terminal(let id, _):
       return terminalSession(id)?.displayTitle ?? "终端"
     }
@@ -67,6 +69,10 @@ extension WorkspaceStore {
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .review,
         title: "审查", restoreURL: nil)
+    case .plan(_, let owner):
+      reference = PinnedWorkspaceTab(
+        id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .plan,
+        title: workspaceTabTitle(tab), restoreURL: nil)
     case .terminal(_, let owner):
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .terminal,
@@ -172,6 +178,17 @@ extension WorkspaceStore {
         library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
         saveLibrary()
       }
+    case .plan:
+      guard pin.sourceTabID.hasPrefix("plan:") else { return }
+      let runID = String(pin.sourceTabID.dropFirst(5))
+      guard openPlanDocument(runID: runID) else {
+        error = "此计划文档不可用。可以保留固定项或取消固定。"
+        return
+      }
+      if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
+        library.pinnedContentTabs[index].sourceWindowID = nil
+        saveLibrary()
+      }
     case .terminal:
       guard project != nil else {
         error = "此终端标签的项目不可用。可以保留固定项或取消固定。"
@@ -222,6 +239,7 @@ extension WorkspaceStore {
       if workspace.browser.selection != browserID { workspace.browser.select(browserID) }
     case .review:
       Task { await workspace.refreshGit() }
+    case .plan: break
     case .terminal:
       focusTerminal()
     }
@@ -255,6 +273,16 @@ extension WorkspaceStore {
     activateWorkspaceTab(tab.id)
   }
 
+  @discardableResult func openPlanDocument(runID: String) -> Bool {
+    guard let task = selectedTask, task.runIDs.contains(runID),
+      taskWindowRuns(task.id).first(where: { $0.id == runID })?.codexPlanDocument != nil else { return false }
+    let tab = WorkspaceContentTab.plan(runID, owner: task.id)
+    if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
+    moveWorkspaceTab(tab.id, to: .left)
+    activateWorkspaceTab(tab.id)
+    return true
+  }
+
   func closeActiveWorkspaceTab() {
     guard let tab = focusedWorkspaceContentTab ?? activeWorkspaceContentTab else { return }
     closeWorkspaceTab(tab.id)
@@ -264,7 +292,7 @@ extension WorkspaceStore {
     guard let tab = workspaceTabs.first(where: { $0.id == id }) else { return }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
-    case .review:
+    case .review, .plan:
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
       workspaceTabs.removeAll { $0.id == id }
@@ -356,6 +384,9 @@ extension WorkspaceStore {
     switch source {
     case .browser(let browserID, _): migrated = .browser(browserID, owner: newOwner)
     case .review: migrated = .review(owner: newOwner)
+    case .plan:
+      error = "计划文档属于原任务，不能移到其他任务。"
+      return nil
     case .terminal(let terminalID, _): migrated = .terminal(terminalID, owner: newOwner)
     }
     guard !workspaceTabs.contains(where: { $0.id == migrated.id && $0.id != source.id }) else {
@@ -486,6 +517,8 @@ extension WorkspaceStore {
     case .review:
       if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
       if tab.owner == currentWorkspaceTabOwner { activateWorkspaceTab(tab.id) }
+    case .plan(let runID, let owner):
+      if owner == currentWorkspaceTabOwner { _ = openPlanDocument(runID: runID) }
     case .browser(_, let owner):
       reopeningWorkspaceTabOwner = owner
       _ = workspace.browser.reopenClosedTab()
@@ -561,6 +594,7 @@ extension WorkspaceStore {
       switch tab {
       case .browser(let id, _): migrated = .browser(id, owner: newOwner)
       case .review: migrated = .review(owner: newOwner)
+      case .plan(let runID, _): migrated = .plan(runID, owner: newOwner)
       case .terminal(let id, _): migrated = .terminal(id, owner: newOwner)
       }
       migratedIDs[tab.id] = migrated.id

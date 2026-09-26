@@ -121,7 +121,8 @@ struct TaskWindowView: View {
               }
               if summaryInline {
                 Divider()
-                TaskSummaryView(task: task, runs: taskRuns, library: store.library) {
+                TaskSummaryView(task: task, runs: taskRuns, library: store.library,
+                  openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) }) {
                   taskSummary.close()
                 }
               }
@@ -179,7 +180,8 @@ struct TaskWindowView: View {
             .popover(isPresented: Binding(
               get: { taskSummary.showsPopover },
               set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
-              TaskSummaryView(task: task, runs: taskRuns, library: store.library) {
+              TaskSummaryView(task: task, runs: taskRuns, library: store.library,
+                openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) }) {
                 taskSummary.close()
               }
               .frame(height: 480)
@@ -773,6 +775,13 @@ struct TaskWindowView: View {
         BrowserPanel(store: store, session: browser.session, context: browserPanelContext(tab), showsTabStrip: false, tabID: id)
       case .review:
         GitReviewView(store: store, workspace: taskWorkspace, taskID: taskID, focusComposer: { tabs.revealChat() })
+      case .plan(let runID, _):
+        if let document = taskRuns.first(where: { $0.id == runID })?.codexPlanDocument {
+          CodexPlanDocumentView(document: document, runID: runID)
+        } else {
+          ContentUnavailableView("计划不可用", systemImage: "text.document",
+            description: Text("此计划可能已从任务中移除。"))
+        }
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

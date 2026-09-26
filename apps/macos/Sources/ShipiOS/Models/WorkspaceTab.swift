@@ -48,19 +48,21 @@ enum WorkspaceTabDragToken {
 enum WorkspaceContentTab: Hashable, Identifiable {
   case browser(UUID, owner: String)
   case review(owner: String)
+  case plan(String, owner: String)
   case terminal(UUID, owner: String)
 
   var id: String {
     switch self {
     case .browser(let id, _): "browser:\(id.uuidString)"
     case .review(let owner): "review:\(owner)"
+    case .plan(let runID, _): "plan:\(runID)"
     case .terminal(let id, _): "terminal:\(id.uuidString)"
     }
   }
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .review(let owner), .terminal(_, let owner): owner
+    case .browser(_, let owner), .review(let owner), .plan(_, let owner), .terminal(_, let owner): owner
     }
   }
 
@@ -78,7 +80,17 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     switch self {
     case .browser: "globe"
     case .review: "square.stack.3d.up"
+    case .plan: "text.document"
     case .terminal: "terminal"
+    }
+  }
+
+  var kind: PinnedWorkspaceTabKind {
+    switch self {
+    case .browser: .browser
+    case .review: .review
+    case .plan: .plan
+    case .terminal: .terminal
     }
   }
 }
@@ -86,6 +98,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
 enum PinnedWorkspaceTabKind: String, Codable {
   case browser
   case review
+  case plan
   case terminal
 }
 
