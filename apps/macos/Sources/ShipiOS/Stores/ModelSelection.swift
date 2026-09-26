@@ -23,7 +23,8 @@ extension WorkspaceStore {
         throw AgentFailure(message: "这个任务已经不存在，无法更改模型。")
       }
       candidate.tasks[index].modelSelection = TaskModelSelection(model: model, reasoning: reasoning,
-        providerAccount: modelConfiguration.credentialAccount)
+        providerAccount: modelConfiguration.credentialAccount,
+        apiProtocol: modelConfiguration.apiProtocol)
       try commitLibrary(candidate)
       return
     }
@@ -39,6 +40,7 @@ extension WorkspaceStore {
       selection.providerAccount == config.credentialAccount {
       config.model = selection.model
       config.reasoning = selection.reasoning
+      config.apiProtocol = selection.apiProtocol ?? .chatCompletions
     }
     return config
   }

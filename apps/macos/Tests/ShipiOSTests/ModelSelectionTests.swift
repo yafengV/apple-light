@@ -3,6 +3,24 @@ import XCTest
 @testable import ShipiOS
 
 final class ModelSelectionTests: XCTestCase {
+  @MainActor func testProtocolChoicePersistsAndLegacyTasksKeepChatCompletions() throws {
+    let legacyConfig = try JSONDecoder().decode(ModelConfiguration.self,
+      from: Data(#"{"baseURL":"https://example.com/v1","model":"old"}"#.utf8))
+    XCTAssertEqual(legacyConfig.apiProtocol, .chatCompletions)
+    var responses = legacyConfig
+    responses.apiProtocol = .codexResponses
+    let encoded = try JSONEncoder().encode(responses)
+    XCTAssertEqual(try JSONDecoder().decode(ModelConfiguration.self, from: encoded).apiProtocol,
+      .codexResponses)
+    let legacyChoice = try JSONDecoder().decode(TaskModelSelection.self,
+      from: Data(#"{"model":"old","reasoning":"","providerAccount":"https://example.com/v1"}"#.utf8))
+    let store = WorkspaceStore()
+    store.modelConfiguration = responses
+    store.library.tasks = [WorkspaceTask(id: "old-task", project: "", title: "Old", runIDs: [],
+      modelSelection: legacyChoice)]
+    XCTAssertEqual(store.modelConfiguration(for: "old-task").apiProtocol, .chatCompletions)
+    XCTAssertEqual(store.modelConfiguration(for: nil).apiProtocol, .codexResponses)
+  }
   func testCatalogRequiresValidShapeAndKeepsLiteralDistinctIDs() throws {
     let payload = Data(#"{"data":[{"id":"z"},{"id":"Model/A"},{"id":"model/a"},{"id":"z"},{"id":" "}]}"#.utf8)
     XCTAssertEqual(try ModelCatalog.decode(payload), ["Model/A", "model/a", "z"])

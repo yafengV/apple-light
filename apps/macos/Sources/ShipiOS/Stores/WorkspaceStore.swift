@@ -282,7 +282,8 @@ final class WorkspaceStore {
   var logName = "stdout.log"
   var config: JSONValue = .null
   var dataDirectory: URL?
-  @ObservationIgnored private let client = AgentClient()
+  @ObservationIgnored let client: AgentClient
+  @ObservationIgnored let codexTransport: CodexChatTransport
   @ObservationIgnored private var session = UUID()
   @ObservationIgnored private var detailVersion = UUID()
 
@@ -361,6 +362,9 @@ final class WorkspaceStore {
     root = dataRoot ?? Self.defaultDataRoot
     self.agentExecutable = agentExecutable
     shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
+    let agentClient = AgentClient()
+    client = agentClient
+    codexTransport = CodexChatTransport(client: agentClient)
     workspace.browser.createChildTab = { [weak self] id, configuration in
       self?.newBrowserChild(from: id, configuration: configuration)
     }
@@ -394,6 +398,7 @@ final class WorkspaceStore {
     client.onDisconnect = { [weak self] message in
       self?.connected = false
       self?.error = message
+      self?.codexTransport.reset(AgentFailure(message: message))
     }
   }
 
@@ -527,6 +532,7 @@ final class WorkspaceStore {
     error = nil
     session = UUID()
     let token = session
+    codexTransport.reset(AgentFailure(message: "项目已切换，Codex 回合已中断。"))
     await client.stop()
     project = canonical
     runs = library.localRuns.filter { $0.project == canonical.path }
@@ -1009,6 +1015,7 @@ final class WorkspaceStore {
     saveLibrary()
     connected = false
     session = UUID()
+    codexTransport.reset(CancellationError())
     await client.stop()
   }
 }

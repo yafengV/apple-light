@@ -165,6 +165,45 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testCodexResponsesChatUsesAgentAndKeepsTaskReply() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    store.modelConfiguration = config
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("Codex fixture request")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    XCTAssertEqual(run.request["api_protocol"].text, "codexResponses")
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Codex fixture reply")
+    store.modelConfiguration.apiProtocol = .chatCompletions
+    XCTAssertEqual(store.modelConfiguration(for: run.id).apiProtocol, .codexResponses)
+    await store.startChat("Follow-up", taskID: run.id)
+    let followUp = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: followUp.id)?.value
+    let next = try XCTUnwrap(store.library.chatRuns.first { $0.id == followUp.id })
+    XCTAssertEqual(next.status, "succeeded", next.result?["message"].text ?? "")
+    XCTAssertEqual(next.result?["response"].text, "Codex fixture reply")
+    await store.startChat("slow-codex", taskID: run.id)
+    let interrupted = try XCTUnwrap(store.library.chatRuns.last)
+    let running = try XCTUnwrap(store.modelTask(runID: interrupted.id))
+    await store.cancel(taskID: run.id)
+    await running.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == interrupted.id }?.status, "cancelled")
+    await store.shutdown()
+  }
   @MainActor func testTaskModelOverrideReachesRequestAndChangingItDoesNotRewriteInflightRun() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

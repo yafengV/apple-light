@@ -1,28 +1,40 @@
 import Foundation
 
+enum ModelAPIProtocol: String, Codable, CaseIterable {
+  case chatCompletions
+  case codexResponses
+}
+
 struct TaskModelSelection: Codable, Equatable {
   let model: String
   let reasoning: String
   /// Model IDs are local to the configured service, not portable across providers.
   let providerAccount: String
+  /// Legacy selections predate protocol choice and always used Chat Completions.
+  var apiProtocol: ModelAPIProtocol? = nil
 }
 
 struct ModelConfiguration: Codable, Equatable {
   var baseURL = ""
   var model = ""
   var reasoning = ""
+  var apiProtocol: ModelAPIProtocol = .chatCompletions
   /// New configurations request authoritative usage. Legacy providers stay unchanged until enabled.
   var includeUsage = true
   /// Retained only for migration from model.json to the independent AGENTS.md.
   var instructions = Personalization.baseInstructions
 
   init() {}
-  enum CodingKeys: String, CodingKey { case baseURL, model, reasoning, includeUsage, instructions }
+  enum CodingKeys: String, CodingKey {
+    case baseURL, model, reasoning, apiProtocol, includeUsage, instructions
+  }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     baseURL = try c.decodeIfPresent(String.self, forKey: .baseURL) ?? ""
     model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
     reasoning = try c.decodeIfPresent(String.self, forKey: .reasoning) ?? ""
+    apiProtocol = try c.decodeIfPresent(ModelAPIProtocol.self, forKey: .apiProtocol)
+      ?? .chatCompletions
     includeUsage = try c.decodeIfPresent(Bool.self, forKey: .includeUsage) ?? false
     instructions = try c.decodeIfPresent(String.self, forKey: .instructions)
       ?? Personalization.baseInstructions
@@ -39,6 +51,9 @@ struct ModelConfiguration: Codable, Equatable {
         message: "API 地址须使用 HTTPS；本机 localhost 可使用 HTTP。请填写包含 /v1 的基础地址，不要在地址中包含密钥。")
     }
     return url.appendingPathComponent(path)
+  }
+  func validateEndpoint() throws {
+    _ = try endpoint(apiProtocol == .codexResponses ? "responses" : "chat/completions")
   }
   var credentialAccount: String {
     baseURL.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(

@@ -12,7 +12,7 @@ extension WorkspaceStore {
     } catch { self.error = "无法读取模型配置：\(error.localizedDescription)" }
   }
   func saveModelConfiguration(_ config: ModelConfiguration) throws {
-    _ = try config.endpoint("chat/completions")
+    try config.validateEndpoint()
     try FileManager.default.createDirectory(at: dataRoot, withIntermediateDirectories: true)
     let url = dataRoot.appendingPathComponent("model.json")
     try JSONEncoder().encode(config).write(to: url, options: .atomic)
@@ -74,11 +74,12 @@ extension WorkspaceStore {
     defer { busy = false }
     do {
       let config = modelConfiguration(for: requestedTaskID)
+      let usesCodex = config.apiProtocol == .codexResponses
       let initialModelSelection = requestedTaskID.flatMap { id in
         library.tasks.first(where: { $0.id == id })?.modelSelection
       }
-      let tools = mode == .plan || review != nil ? [] : try availableMCPTools()
-      _ = try config.endpoint("chat/completions")
+      let tools = usesCodex || mode == .plan || review != nil ? [] : try availableMCPTools()
+      try config.validateEndpoint()
       guard !config.model.isEmpty else { throw AgentFailure(message: "请在设置 → 模型与 API 中配置独立服务。") }
       guard personalizationLoaded else {
         throw AgentFailure(message: "个人指令尚未成功加载，请在设置 → 个性化中检查并重新加载。")
@@ -89,6 +90,14 @@ extension WorkspaceStore {
       let key = try ModelKeychain.read(account: config.credentialAccount)
       let taskID = requestedTaskID
       let taskProject = taskID.flatMap { id in library.tasks.first(where: { $0.id == id })?.project }
+      if usesCodex {
+        guard mode == .standard, review == nil, images.isEmpty, files.isEmpty else {
+          throw AgentFailure(message: "Codex Responses 当前仅支持普通文字会话；图片、文件、代码审查和任务模式仍待接入。")
+        }
+        guard connected, let project, (taskProject ?? currentProjectKey) == project.path else {
+          throw AgentFailure(message: "Codex Responses 当前仅支持已连接项目中的任务，请先打开对应项目。")
+        }
+      }
       let submittedTerminal = taskID == nil ? terminalScope : nil
       let branch = taskProject == nil || taskProject == currentProjectKey
         ? await branchForTaskHistory() : nil
@@ -128,6 +137,7 @@ extension WorkspaceStore {
       var request: [String: JSONValue] = [
         "kind": .string("chat"), "model": .string(config.model),
         "mode": .string(mode.rawValue),
+        "api_protocol": .string(config.apiProtocol.rawValue),
       ]
       if !config.reasoning.isEmpty { request["reasoning_effort"] = .string(config.reasoning) }
       if let review {
@@ -178,7 +188,7 @@ extension WorkspaceStore {
       if let owner = candidate.tasks.firstIndex(where: { $0.runIDs.contains(run.id) }),
         candidate.tasks[owner].modelSelection == initialModelSelection {
         candidate.tasks[owner].modelSelection = TaskModelSelection(model: config.model, reasoning: config.reasoning,
-          providerAccount: config.credentialAccount)
+          providerAccount: config.credentialAccount, apiProtocol: config.apiProtocol)
       }
       if let goalDefinition, let owner = candidate.task(containing: run.id) {
         var session = candidate.goalSessions[owner.id] ?? GoalSession(definition: goalDefinition)
@@ -207,8 +217,14 @@ extension WorkspaceStore {
       let requestTask = Task { [weak self] in
         guard let self else { return }
         do {
-          let usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
-            messages: messages, bindings: tools)
+          let usage: ModelTokenUsage?
+          if usesCodex {
+            usage = try await streamCodexChat(runID: run.id, taskID: taskID ?? run.id,
+              config: config, key: key, messages: messages)
+          } else {
+            usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
+              messages: messages, bindings: tools)
+          }
           let continueGoal = finishChat(run.id, status: "succeeded", usage: usage)
           removeModelTask(runID: run.id)
           if let owner = library.task(containing: run.id),
@@ -243,6 +259,56 @@ extension WorkspaceStore {
     if Date().timeIntervalSince(lastChatSave) > 1 {
       lastChatSave = Date()
       saveLibrary()
+    }
+  }
+  private func streamCodexChat(
+    runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage]
+  ) async throws -> ModelTokenUsage? {
+    let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
+    guard initialText.utf8.count <= 48_000 else {
+      throw AgentFailure(message: "会话上下文超过当前 Codex 通道的 48 KiB 上限，请新建任务。")
+    }
+    guard let continuationText = messages.last?.content, !continuationText.isEmpty else {
+      throw AgentFailure(message: "Codex 回合缺少文字输入。")
+    }
+    let stream = try await codexTransport.startTurn(
+      taskID: taskID, config: config, key: key,
+      initialText: initialText, continuationText: continuationText)
+    return try await withTaskCancellationHandler {
+      var rendered = ""
+      var completed = false
+      for try await event in stream {
+        try Task.checkCancellation()
+        switch event["type"].text {
+        case "agent_message_delta":
+          if let delta = event["delta"].text, !delta.isEmpty {
+            appendChat(runID, delta: delta)
+            rendered += delta
+          }
+        case "agent_message":
+          if let message = event["message"].text, !message.isEmpty {
+            if message.hasPrefix(rendered) {
+              let suffix = String(message.dropFirst(rendered.count))
+              if !suffix.isEmpty { appendChat(runID, delta: suffix) }
+            } else if let current = library.chatRuns.first(where: { $0.id == runID }) {
+              replaceChat(current, status: current.status, response: message,
+                responseItems: [.message(id: UUID(), text: message)])
+            }
+            rendered = message
+          }
+        case "task_complete":
+          if rendered.isEmpty, let message = event["last_agent_message"].text,
+            !message.isEmpty { appendChat(runID, delta: message) }
+          completed = true
+        case "error":
+          throw AgentFailure(message: event["message"].text ?? "Codex 回合失败。")
+        default: break
+        }
+      }
+      guard completed else { throw AgentFailure(message: "Codex 事件流提前结束，已保留收到的内容。") }
+      return nil
+    } onCancel: {
+      Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
     }
   }
   private func finishChat(

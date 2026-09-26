@@ -19,6 +19,35 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({'data': [{'id': 'fixture-model'}]}).encode())
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        if self.path == '/v1/responses':
+            slow = 'slow-codex' in json.dumps(body)
+            events = [
+                {'type': 'response.created', 'response': {'id': 'resp-1'}},
+                {'type': 'response.output_item.done', 'item': {
+                    'type': 'message', 'role': 'assistant', 'id': 'msg-1',
+                    'content': [{'type': 'output_text', 'text': 'Codex fixture reply'}],
+                }},
+                {'type': 'response.completed', 'response': {
+                    'id': 'resp-1', 'usage': {
+                        'input_tokens': 0, 'input_tokens_details': None,
+                        'output_tokens': 0, 'output_tokens_details': None,
+                        'total_tokens': 0,
+                    },
+                }},
+            ]
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.end_headers()
+            try:
+                for event in events:
+                    if slow and event['type'] == 'response.output_item.done':
+                        time.sleep(5)
+                    self.wfile.write(('event: ' + event['type'] + '\ndata: '
+                        + json.dumps(event) + '\n\n').encode())
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         system_text = '\n'.join(m.get('content', '') for m in body['messages'] if m['role'] == 'system' and isinstance(m.get('content'), str))
         content = body['messages'][-1]['content']
         prompt = ''.join(part.get('text', '') for part in content if part.get('type') == 'text') if isinstance(content, list) else content

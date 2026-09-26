@@ -2,9 +2,9 @@
 
 ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工具：复用成熟 Coding Agent，连接代码修改、Xcode 构建、Simulator 验证、TestFlight 和 App Store 发布准备。
 
-当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。Codex Core 已通过独立的 Responses RPC 通道接入 Rust Agent，但 Swift 聊天尚未使用该通道；自主编码和完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
+当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。Codex Core 已通过独立的 Responses RPC 通道接入 Rust Agent；Swift 设置可显式选择 Responses，已连接项目中的普通文字会话可使用这条通道。附件、任务模式、现有 MCP 工具、写入审批和完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
 
-固定上游版本的 `codex-core-api` 已完成配置隔离、本地假服务回合与 Agent RPC 验证，见[验证记录](docs/190-codex-agent-rpc.md)。
+固定上游版本的 `codex-core-api` 已完成配置隔离、本地假服务回合、Agent RPC 及 Swift 文字会话验证，见[验证记录](docs/191-codex-responses-ui-text-session.md)。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 
@@ -52,7 +52,7 @@ python3 script/smoke_ipc.py
 | `crates/shipios-core` | 显式配置、来源追踪、SQLite 运行与事件存储、实例锁 |
 | `crates/shipios-tools` | 有界项目扫描、参数化 Xcode 命令、进程组取消、日志与诊断 |
 | `crates/shipios-agent` | CLI、JSON-RPC、任务调度、状态查询与事件重放 |
-| `crates/shipios-codex` | 固定上游版本的独立配置、内存认证与线程适配；通过 Agent RPC 暴露，尚未接入 Swift 聊天 |
+| `crates/shipios-codex` | 固定上游版本的独立配置、内存认证与线程适配；通过 Agent RPC 支持 Swift 文字会话，完整工具与 UI 流程待接入 |
 | `apps/macos` | SwiftUI/AppKit 原生工作台、Agent 生命周期、Swift 测试 |
 | `clients/swift` | 可运行的 Foundation IPC 客户端探针 |
 | `fixtures/HelloShipiOS` | 无外部依赖的 iOS 构建 fixture |
@@ -256,4 +256,4 @@ python3 script/smoke_ipc.py
 
 文档区分“用户明确偏好”“讨论建议”“整理建议”“已核对事实”和“待验证”。未标为已确认的设计均可调整。接口名、目录结构和指标是开发草案，不代表已有功能、上游稳定 API 或对外承诺。
 
-下一步让 Swift 会话在明确验证 Responses 服务能力后使用 Codex Agent RPC，并继续完成工具审批、事件重放与运行环境隔离；现有兼容 API 文本会话仍可使用，真实用户服务验证等待用户填写设置。路线图中的未来能力不代表当前二进制已经支持。
+下一步完成 Codex Core 的附件、工具审批、事件重放与恢复，以及全部页面和交互配对；现有 Chat Completions 会话仍可使用，真实用户服务验证等待用户填写设置。路线图中的未来能力不代表当前二进制已经支持。

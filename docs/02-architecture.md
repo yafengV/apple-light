@@ -49,7 +49,7 @@ flowchart TB
 
 主路线：在 `shipios-agent` 内经适配层复用 Codex Core；若所选源码版本提供合适扩展点，则以扩展注册 iOS 工具和领域上下文。避免把大量产品逻辑直接改入上游核心。
 
-后续本地源码审计确认 `core-api` 导出 `ThreadManager` 和 `ExtensionRegistryBuilder`，扩展 API 位于 `codex-rs/ext/extension-api`。固定版本的产品适配库和 Agent RPC 已加入 Rust 工作区并用本地假服务验证真实回合；Swift 聊天尚未接入，见 [Agent RPC 验证](190-codex-agent-rpc.md)。[固定版本源码](https://github.com/openai/codex/blob/50d77959bf927293c4b5ddcca81d05331ae582ea/codex-rs/core-api/src/lib.rs)
+后续本地源码审计确认 `core-api` 导出 `ThreadManager` 和 `ExtensionRegistryBuilder`，扩展 API 位于 `codex-rs/ext/extension-api`。固定版本的产品适配库和 Agent RPC 已加入 Rust 工作区，Swift 已通过显式 Responses 选项接入已连接项目的普通文字会话；其余 Codex 交互尚未接入，见 [Swift 会话验证](191-codex-responses-ui-text-session.md)。[固定版本源码](https://github.com/openai/codex/blob/50d77959bf927293c4b5ddcca81d05331ae582ea/codex-rs/core-api/src/lib.rs)
 
 P0 必须验证：编译与分发依赖、创建/恢复会话、注册一个结构化工具、流式事件、取消、权限决策、配置注入、凭据注入和持久化。记录 commit SHA 与所有补丁。
 
