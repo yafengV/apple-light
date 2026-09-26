@@ -33,6 +33,40 @@ final class BrowserTests: XCTestCase {
     tab.address = base + path; tab.navigate()
     try await eventually("Page did not finish: \(path)") { !tab.loading && tab.title == title && tab.error == nil }
   }
+  @MainActor func testPageFindSearchesLoadedWebContentAndKeepsTabState() async throws {
+    let session = BrowserSession()
+    defer { session.shutdown() }
+    let first = session.newTab()
+    try await load(first, "/one", title: "One")
+    first.openPageFind()
+    first.pageFindQuery = "Fixture page"
+    first.findInPage()
+    try await eventually("WebKit did not find visible page text") { first.pageFindMatch == true }
+
+    let second = session.newTab()
+    try await load(second, "/two", title: "Two")
+    XCTAssertFalse(second.showingPageFind)
+    XCTAssertEqual(first.pageFindQuery, "Fixture page")
+    first.pageFindQuery = "not-present-in-fixture"
+    first.findInPage()
+    try await eventually("WebKit did not report an absent match") { first.pageFindMatch == false }
+    first.closePageFind()
+    XCTAssertFalse(first.showingPageFind)
+    XCTAssertNil(first.pageFindMatch)
+  }
+  @MainActor func testFindCommandTargetsActiveBrowserWithoutOpeningConversationFind() throws {
+    let store = WorkspaceStore()
+    defer { store.workspace.browser.shutdown() }
+    store.newBrowserTab()
+    let page = try XCTUnwrap(store.workspace.browser.selected)
+    store.executeCommand("find")
+    XCTAssertTrue(page.showingPageFind)
+    XCTAssertFalse(store.showingFind)
+    page.pageFindQuery = "sample"
+    XCTAssertTrue(store.commandEnabled("find-next"))
+    page.closePageFind()
+    XCTAssertFalse(store.commandEnabled("find-next"))
+  }
   @MainActor func testPageEditableFocusReportsInputsAndClearsOnBlurAndNavigation() async throws {
     let session = BrowserSession()
     defer { session.shutdown() }

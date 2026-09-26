@@ -8,6 +8,14 @@ extension WorkspaceStore {
   }
   var browserFocused: Bool { browserVisible && presentedOverlay == nil && !showingModelPicker
     && !showingBranchPicker && workspace.browser.hasNativeFocus }
+  var pageFindTab: BrowserTab? {
+    guard browserVisible else { return nil }
+    let id: UUID?
+    if let focusedWorkspaceContentTab { id = focusedWorkspaceContentTab.browserID }
+    else if browserFocused { id = workspace.browser.selection }
+    else { id = activeWorkspaceContentTab?.browserID }
+    return workspace.browser.tabs.first { $0.id == id }
+  }
   func newBrowserTab() {
     newBrowserTab(in: .left)
   }

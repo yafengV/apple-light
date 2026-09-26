@@ -179,6 +179,10 @@ struct BrowserPanel: View {
             Button("关闭") { tab.clearSnapshotError() }.controlSize(.small)
           }.padding(10)
         }
+        if tab.showingPageFind {
+          BrowserPageFindBar(tab: tab)
+          Divider()
+        }
         if let reference = tab.selectedElement {
           BrowserElementReferenceView(store: store, tab: tab, reference: reference, context: context)
             .id(reference.url + reference.selector + reference.selectionKind)

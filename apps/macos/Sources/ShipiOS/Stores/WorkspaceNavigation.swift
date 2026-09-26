@@ -24,8 +24,12 @@ extension WorkspaceStore {
       focusComposer = UUID()
     case "sidebar": NotificationCenter.default.post(name: .toggleShipiOSSidebar, object: nil)
     case "send": Task { await sendDraft() }
-    case "find-next": moveFindMatch(1)
-    case "find-previous": moveFindMatch(-1)
+    case "find-next":
+      if let tab = pageFindTab, tab.showingPageFind { tab.findInPage() }
+      else { moveFindMatch(1) }
+    case "find-previous":
+      if let tab = pageFindTab, tab.showingPageFind { tab.findInPage(backwards: true) }
+      else { moveFindMatch(-1) }
     case "previous-task": adjacentTaskOrTab(-1)
     case "next-task": adjacentTaskOrTab(1)
     case "next-attention": Task { await openNextAttentionTask() }
@@ -77,6 +81,8 @@ extension WorkspaceStore {
     case "find":
       if destination == .settings {
         settingsSearchFocusRequest = UUID()
+      } else if let tab = pageFindTab {
+        tab.openPageFind()
       } else {
         destination = .workspace
         showingFind = true
@@ -158,6 +164,7 @@ extension WorkspaceStore {
     case "plan": return destination == .workspace && canStartChat
     case "compact": return destination == .workspace && canCompactConversation
     case "find-next", "find-previous":
+      if let tab = pageFindTab, tab.showingPageFind { return !tab.pageFindQuery.isEmpty }
       return destination == .workspace && indexedFindText == findText
         && indexedFindTask == selectedTask?.id && !findMatches.isEmpty
     case "previous-task", "next-task": return filePreviewFocused || browserFocused

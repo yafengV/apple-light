@@ -624,6 +624,11 @@ struct TaskWindowView: View {
       if !task.isPopoutDraft { enabled.formUnion(["pin", "unread", "rename"]) }
       if !task.isPopoutDraft, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
+      if let id = tabs.focused?.browserID,
+        let page = browser.session.tabs.first(where: { $0.id == id }),
+        page.showingPageFind, !page.pageFindQuery.isEmpty {
+        enabled.formUnion(["find-next", "find-previous"])
+      }
       if !task.project.isEmpty { enabled.formUnion(["files", "tree", "review", "review-open", "terminal", "bottom-panel"]) }
       for command in DesktopCommand.all where tabs.commandEnabled(command.id) {
         enabled.insert(command.id)
@@ -671,15 +676,25 @@ struct TaskWindowView: View {
     case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
     case "stop": Task { await store.cancel(taskID: taskID) }
-    case "find": tabs.revealChat(); showingFind = true; findFocusRequest = UUID()
+    case "find":
+      if let id = tabs.focused?.browserID,
+        let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
+      else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
     case "model": openTaskModelPicker()
     case "fork": forkTask()
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
     case "task-summary": taskSummary.toggle()
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
-    case "find-next": moveFindMatch(1)
-    case "find-previous": moveFindMatch(-1)
+    case "find-next":
+      if let id = tabs.focused?.browserID,
+        let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind { page.findInPage() }
+      else { moveFindMatch(1) }
+    case "find-previous":
+      if let id = tabs.focused?.browserID,
+        let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind {
+        page.findInPage(backwards: true)
+      } else { moveFindMatch(-1) }
     case "pin": store.updateTask(taskID, pin: !task.pinned)
     case "unread": store.setTaskUnread(taskID, unread: true)
     case "archive":

@@ -72,6 +72,11 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored var nativeInspectTarget: AnyObject?
   @ObservationIgnored var nativeInspectAction: Selector?
   private(set) var pageEditingText = false
+  var showingPageFind = false
+  var pageFindQuery = ""
+  private(set) var pageFindMatch: Bool?
+  var pageFindFocusRequest = UUID()
+  @ObservationIgnored private var pageFindRevision = UUID()
   @ObservationIgnored private var editingFrames: Set<String> = []
 
   init(configuration: WKWebViewConfiguration, id: UUID = UUID()) {
@@ -117,11 +122,36 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     else { activeNavigation = bypassCache ? view.reloadFromOrigin() : view.reload() }
   }
   func stop() { view.stopLoading(); loading = false }
+  func openPageFind() {
+    guard !closed else { return }
+    showingPageFind = true
+    pageFindFocusRequest = UUID()
+  }
+  func closePageFind() {
+    showingPageFind = false
+    pageFindMatch = nil
+    pageFindRevision = UUID()
+  }
+  func findInPage(backwards: Bool = false) {
+    guard !closed, !pageFindQuery.isEmpty else { pageFindMatch = nil; return }
+    let query = pageFindQuery
+    let revision = UUID()
+    pageFindRevision = revision
+    let configuration = WKFindConfiguration()
+    configuration.backwards = backwards
+    configuration.wraps = true
+    view.find(query, configuration: configuration) { [weak self] result in
+      guard let self, !self.closed, self.showingPageFind,
+        self.pageFindQuery == query, self.pageFindRevision == revision else { return }
+      self.pageFindMatch = result.matchFound
+    }
+  }
   func restoreAddress() { editingAddress = false; address = committedURL?.absoluteString ?? "" }
   func close() {
     guard !closed else { return }
     cancelElementSelection()
     closed = true
+    closePageFind()
     resetPageEditableFocus()
     view.stopLoading()
     for id in Array(downloads.keys) + Array(pendingDownloads) { _ = cancelDownload(id) }
@@ -439,6 +469,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     selectedElement = nil
     elementSelectionError = nil
     snapshotError = nil
+    pageFindMatch = nil
+    pageFindRevision = UUID()
     activeNavigation = navigation; error = nil; sync()
   }
   func setPageEditableFocus(frame: String, editable: Bool) {

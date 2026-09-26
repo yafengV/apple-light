@@ -23,6 +23,18 @@ import XCTest
   }
   private func id(_ page: BrowserTab) -> String { "browser:\(page.id)" }
 
+  func testDetachedFindCommandStaysWithItsOwnBrowserPage() throws {
+    let (store, source, main) = try fixture()
+    let commands = store.detachedWindowCommands(id(source), close: {})
+    XCTAssertTrue(commands.execute("find"))
+    XCTAssertTrue(source.showingPageFind)
+    XCTAssertFalse(main.showingPageFind)
+    XCTAssertFalse(store.showingFind)
+    source.pageFindQuery = "query"
+    let updated = store.detachedWindowCommands(id(source), close: {})
+    XCTAssertTrue(updated.enabled.contains("find-next"))
+  }
+
   func testNewCommandCreatesOwnedDetachedPageWithoutChangingMainTaskOrSelection() throws {
     let (store, source, main) = try fixture()
     let focus = store.focusComposer, layout = store.workspaceTabLayoutSnapshot

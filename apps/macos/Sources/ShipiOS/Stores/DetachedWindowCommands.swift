@@ -7,7 +7,10 @@ extension WorkspaceStore {
       workspaceTabPlacement(tabID) == .detached {
       enabled.insert("tab-close")
       if let id = tab.browserID, let page = workspace.browser.tabs.first(where: { $0.id == id }) {
-        enabled.formUnion(["browser-address", "browser-reload", "browser-reload-origin", "browser-close", "browser-new"])
+        enabled.formUnion(["browser-address", "browser-reload", "browser-reload-origin", "browser-close", "browser-new", "find"])
+        if page.showingPageFind, !page.pageFindQuery.isEmpty {
+          enabled.formUnion(["find-next", "find-previous"])
+        }
         if page.canGoBack { enabled.formUnion(["browser-back", "back"]) }
         if page.canGoForward { enabled.formUnion(["browser-forward", "forward"]) }
         if page.committedURL != nil { enabled.insert("browser-copy") }
@@ -21,6 +24,9 @@ extension WorkspaceStore {
       guard let browserID = tab.browserID,
         let page = self.workspace.browser.tabs.first(where: { $0.id == browserID }) else { return }
       switch id {
+      case "find": page.openPageFind()
+      case "find-next": page.findInPage()
+      case "find-previous": page.findInPage(backwards: true)
       case "browser-new": _ = self.workspace.browser.newChildTab(from: browserID)
       case "browser-address": self.workspace.browser.focusAddress(tabID: browserID)
       case "browser-back", "back": page.back()
