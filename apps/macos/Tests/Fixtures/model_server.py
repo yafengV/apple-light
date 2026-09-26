@@ -160,25 +160,28 @@ class Handler(BaseHTTPRequestHandler):
                         else 'MCP still advertised'}],
                 }
             elif 'codex-mcp-probe' in request_text:
+                repeat = 'codex-mcp-probe-repeat' in request_text
+                search_call_id = 'fixture-mcp-search-repeat' if repeat else 'fixture-mcp-search'
+                tool_call_id = 'fixture-mcp-call-repeat' if repeat else 'fixture-mcp-call'
                 search_output = next((entry for entry in body.get('input', [])
                     if isinstance(entry, dict) and entry.get('type') == 'tool_search_output'
-                    and entry.get('call_id') == 'fixture-mcp-search'), None)
+                    and entry.get('call_id') == search_call_id), None)
                 namespace = next((entry.get('name') for entry in (search_output or {}).get('tools', [])
                     if isinstance(entry, dict) and entry.get('type') == 'namespace'
                     and entry.get('name') == 'mcp__shipios_fixture'
                     and any(tool.get('name') == 'first' for tool in entry.get('tools', []))), None)
                 call_output = next((entry.get('output', '') for entry in body.get('input', [])
                     if isinstance(entry, dict) and entry.get('type') == 'function_call_output'
-                    and entry.get('call_id') == 'fixture-mcp-call'), '')
+                    and entry.get('call_id') == tool_call_id), '')
                 if search_output is None:
                     item = {
-                        'type': 'tool_search_call', 'call_id': 'fixture-mcp-search',
+                        'type': 'tool_search_call', 'call_id': search_call_id,
                         'execution': 'client',
                         'arguments': {'query': 'shipios_fixture first MCP tool', 'limit': 8},
                     }
-                elif namespace and 'function_call_output' not in request_text:
+                elif namespace and not call_output:
                     item = {
-                        'type': 'function_call', 'call_id': 'fixture-mcp-call',
+                        'type': 'function_call', 'call_id': tool_call_id,
                         'namespace': namespace, 'name': 'first', 'arguments': '{}',
                     }
                 else:

@@ -906,24 +906,61 @@ final class ModelTransportTests: XCTestCase {
     await store.startChat("codex-mcp-probe")
     let run = try XCTUnwrap(store.library.chatRuns.last)
     let deadline = Date().addingTimeInterval(15)
-    var request: CodexQuestionRequest?
+    var approvalID: UUID?
     while Date() < deadline {
-      request = store.library.chatRuns.first(where: { $0.id == run.id })?.codexQuestions.last
-      if request != nil { break }
+      approvalID = store.mcpPendingApprovals.first(where: { $0.value.runID == run.id })?.key
+      if approvalID != nil { break }
       try await Task.sleep(for: .milliseconds(50))
     }
-    let approval = try XCTUnwrap(request, "Codex MCP approval did not reach the task timeline")
-    let question = try XCTUnwrap(approval.questions.first)
-    XCTAssertTrue(question.options?.contains(where: { $0.label == "Allow" }) == true)
+    let id = try XCTUnwrap(approvalID, "Codex MCP approval did not reach the tool card")
+    XCTAssertEqual(store.mcpPendingApprovals[id]?.execution.status, .awaitingApproval)
+    XCTAssertEqual(store.mcpPendingApprovals[id]?.allowsTask, true)
+    XCTAssertEqual(store.library.chatRuns.first(where: { $0.id == run.id })?.codexQuestions.count, 0)
     XCTAssertFalse(FileManager.default.fileExists(atPath: callLog.path),
       "MCP tool ran before approval")
-    await store.answerCodexQuestion(approval.id, answers: [question.id: ["Allow"]])
+    store.resolveMCPApproval(id, decision: .allowTask)
     await store.modelTask(runID: run.id)?.value
     let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
     XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
     XCTAssertEqual(finished.result?["response"].text, "MCP fixture reply")
     XCTAssertEqual(finished.toolExecutions.first(where: { $0.toolName == "first" })?.status, .succeeded)
-    XCTAssertTrue(try String(contentsOf: callLog, encoding: .utf8).contains("\"name\": \"first\""))
+    let firstCalls = try String(contentsOf: callLog, encoding: .utf8)
+    XCTAssertTrue(firstCalls.contains("\"name\": \"first\""))
+
+    let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
+    await store.startChat("codex-mcp-probe-repeat", taskID: taskID)
+    let repeatRun = try XCTUnwrap(store.library.chatRuns.last)
+    let repeatDeadline = Date().addingTimeInterval(15)
+    while Date() < repeatDeadline {
+      if store.library.chatRuns.first(where: { $0.id == repeatRun.id })?.status != "running"
+        || store.mcpPendingApprovals.values.contains(where: { $0.runID == repeatRun.id }) { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let unexpectedApproval = store.mcpPendingApprovals.first(where: { $0.value.runID == repeatRun.id })?.key
+    if let unexpectedApproval { store.resolveMCPApproval(unexpectedApproval, decision: .deny) }
+    XCTAssertNil(unexpectedApproval, "Task-scoped grant should not request approval again")
+    let repeated = try XCTUnwrap(store.library.chatRuns.first { $0.id == repeatRun.id })
+    XCTAssertEqual(repeated.status, "succeeded", repeated.result?["message"].text ?? "")
+    XCTAssertEqual(repeated.result?["response"].text, "MCP fixture reply")
+    let repeatCalls = try String(contentsOf: callLog, encoding: .utf8)
+    XCTAssertEqual(repeatCalls.split(separator: "\n").count, 2)
+
+    store.newTask()
+    await store.startChat("codex-mcp-probe")
+    let deniedRun = try XCTUnwrap(store.library.chatRuns.last)
+    let deniedDeadline = Date().addingTimeInterval(15)
+    var deniedApprovalID: UUID?
+    while Date() < deniedDeadline {
+      deniedApprovalID = store.mcpPendingApprovals.first(where: { $0.value.runID == deniedRun.id })?.key
+      if deniedApprovalID != nil { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    store.resolveMCPApproval(try XCTUnwrap(deniedApprovalID), decision: .deny)
+    await store.modelTask(runID: deniedRun.id)?.value
+    let denied = try XCTUnwrap(store.library.chatRuns.first { $0.id == deniedRun.id })
+    XCTAssertEqual(denied.status, "succeeded", denied.result?["message"].text ?? "")
+    XCTAssertEqual(denied.toolExecutions.first(where: { $0.toolName == "first" })?.status, .denied)
+    XCTAssertEqual(try String(contentsOf: callLog, encoding: .utf8), repeatCalls)
     await store.shutdown()
   }
   @MainActor func testCodexResponsesUsesHTTPMCPTool() async throws {

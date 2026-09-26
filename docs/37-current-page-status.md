@@ -4,6 +4,8 @@
 
 “已实现”仅表示有实际功能，不表示布局、操作细节和所有边界与 Codex 相同。各页原生检查及自动化证据以对应文档为准；锁屏后新增功能不冒用早期截图作为验收。
 
+Codex MCP 审批已改用 Core 默认的 `elicitation_request`，在同一工具卡中提供拒绝、本次允许和本任务允许，本地集成测试验证本任务授权后的再次调用不重复提问，见[第 210 篇](210-codex-mcp-approval-card.md)。当前 Codex Mac 的审批卡视觉与原生交互仍待配对。
+
 Codex Responses 现使用 ShipiOS 私有 MCP 设置调用 STDIO 和 Streamable HTTP 工具，审批与结果进入任务时间线，配置变更在同任务下一回合生效，见[第 209 篇](209-codex-mcp-tools.md)。本地集成测试已覆盖调用、审批及禁用；当前 Codex Mac 的 MCP 设置与会话卡片仍待原生配对。
 
 Codex Responses 的独立 API 地址或 Key 改变后，已有任务下一回合会重连新服务并保留原会话历史，见[第 208 篇](208-codex-service-switch.md)。本地假服务已验证地址切换；Keychain 轮换和当前 Codex Mac 设置页的原生交互仍待验收。

@@ -12,10 +12,11 @@ use codex_core_api::{
     passthrough_image_store, resolve_installation_id, thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
+use codex_protocol::approvals::ElicitationAction;
 use codex_protocol::config_types::{
     CollaborationMode, ModeKind, Settings as CollaborationSettings,
 };
-use codex_protocol::mcp::ClientMcpExtensions;
+use codex_protocol::mcp::{ClientMcpExtensions, RequestId};
 use codex_protocol::openai_models::ReasoningEffort;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
@@ -240,9 +241,6 @@ impl CodexSession {
         config
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;
-        // ShipiOS currently answers Codex's structured questions through the
-        // task timeline; route MCP approvals through that supported channel.
-        config.features.disable(Feature::ToolCallMcpElicitation)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = Permissions::from_approval_and_profile(
             Constrained::allow_any(AskForApproval::OnRequest),
@@ -516,6 +514,33 @@ impl CodexSession {
             .submit(Op::UserInputAnswer {
                 id: turn_id,
                 response,
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn resolve_mcp_elicitation(
+        &self,
+        server_name: String,
+        request_id: RequestId,
+        decision: ApprovalDecision,
+    ) -> Result<()> {
+        let (action, content, meta) = match decision {
+            ApprovalDecision::Allow => (ElicitationAction::Accept, Some(json!({})), None),
+            ApprovalDecision::AllowForSession => (
+                ElicitationAction::Accept,
+                Some(json!({})),
+                Some(json!({"persist": "session"})),
+            ),
+            ApprovalDecision::Deny => (ElicitationAction::Decline, None, None),
+        };
+        self.thread
+            .submit(Op::ResolveElicitation {
+                server_name,
+                request_id,
+                decision: action,
+                content,
+                meta,
             })
             .await?;
         Ok(())

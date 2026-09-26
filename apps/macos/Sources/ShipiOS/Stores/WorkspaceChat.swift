@@ -328,6 +328,10 @@ extension WorkspaceStore {
             }
           case "mcp_tool_call_begin", "mcp_tool_call_end":
             recordCodexMCPCall(runID: runID, event: event)
+          case "elicitation_request":
+            try await resolveCodexMCPElicitation(runID: runID, taskID: taskID, event: event,
+              readOnlyReason: review != nil ? "代码审查为只读，已拒绝 MCP 工具调用。"
+                : mode == .plan ? "计划模式为只读，已拒绝 MCP 工具调用。" : nil)
           case "exec_approval_request", "apply_patch_approval_request":
             try await resolveCodexApproval(runID: runID, taskID: taskID, event: event,
               readOnlyReason: review != nil ? "代码审查为只读，已拒绝写入操作。"
@@ -445,7 +449,7 @@ extension WorkspaceStore {
       callID: callID, serverID: serverID, serverName: serverName, toolName: toolName,
       arguments: arguments == .null ? "{}" : String(arguments.pretty.prefix(65_536)),
       status: .running)
-    if event["type"].text == "mcp_tool_call_end" {
+    if event["type"].text == "mcp_tool_call_end" && execution.status != .denied {
       let result = event["result"]
       if let error = result["Err"].text {
         execution.status = .failed
@@ -467,6 +471,66 @@ extension WorkspaceStore {
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions)
     saveLibrary()
+  }
+  private func resolveCodexMCPElicitation(runID: String, taskID: String, event: JSONValue,
+    readOnlyReason: String?) async throws {
+    let request = event["request"]
+    let meta = request["_meta"]
+    let prefix = "mcp_tool_call_approval_"
+    guard request["mode"].text == "form",
+      meta["codex_approval_kind"].text == "mcp_tool_call",
+      let serverName = event["server_name"].text,
+      let requestID = event["id"].text, requestID.hasPrefix(prefix),
+      let current = library.chatRuns.first(where: { $0.id == runID }) else {
+      throw AgentFailure(message: "当前版本尚未支持此 Codex MCP 请求，已停止回合。")
+    }
+    let callID = String(requestID.dropFirst(prefix.count))
+    var executions = current.toolExecutions
+    guard let index = executions.firstIndex(where: {
+      $0.callID == callID && $0.serverName == serverName && $0.status == .running
+    }) else {
+      throw AgentFailure(message: "Codex MCP 审批缺少对应的工具调用。")
+    }
+    executions[index].status = .awaitingApproval
+    let execution = executions[index]
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      toolExecutions: executions)
+    saveLibrary()
+    let persist = meta["persist"]
+    let allowsTask = persist.text == "session"
+      || persist.items.contains(.string("session"))
+    let decision: MCPApprovalDecision = readOnlyReason != nil ? .deny
+      : await requestMCPApproval(execution, runID: runID,
+        allowsOnce: true, allowsTask: allowsTask)
+    do {
+      try Task.checkCancellation()
+      try await codexTransport.resolveMCPElicitation(taskID: taskID, serverName: serverName,
+        requestID: .string(requestID), decision: decision)
+    } catch {
+      if let current = library.chatRuns.first(where: { $0.id == runID }),
+        let index = current.toolExecutions.firstIndex(where: {
+          $0.callID == callID && $0.serverName == serverName
+        }) {
+        var records = current.toolExecutions
+        records[index].status = Task.isCancelled ? .cancelled : .failed
+        records[index].output = error.localizedDescription
+        replaceChat(current, status: current.status,
+          response: current.result?["response"].text ?? "", toolExecutions: records)
+        saveLibrary()
+      }
+      throw error
+    }
+    if let current = library.chatRuns.first(where: { $0.id == runID }),
+      let index = current.toolExecutions.firstIndex(where: {
+        $0.callID == callID && $0.serverName == serverName
+      }) {
+      var records = current.toolExecutions
+      records[index].status = decision == .deny ? .denied : .running
+      if let readOnlyReason { records[index].output = readOnlyReason }
+      replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+        toolExecutions: records)
+      saveLibrary()
+    }
   }
   private func recordCodexPlan(runID: String, event: JSONValue) throws {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }

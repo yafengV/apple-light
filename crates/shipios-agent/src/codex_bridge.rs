@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, anyhow, ensure};
 use codex_core_api::UserInput;
+use codex_protocol::mcp::RequestId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use shipios_codex::{ApprovalDecision, CodexSession, CodexTurnMode, SessionOptions, ShipMcpServer};
@@ -79,6 +80,15 @@ pub struct CodexApproval {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexElicitation {
+    pub task_id: String,
+    pub server_name: String,
+    pub request_id: RequestId,
+    pub decision: CodexApprovalChoice,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CodexUserInputAnswer {
     pub task_id: String,
     pub turn_id: String,
@@ -134,6 +144,7 @@ enum Command {
     },
     Steer(Vec<UserInput>, String, oneshot::Sender<Result<bool>>),
     Approve(CodexApproval, oneshot::Sender<Result<()>>),
+    ResolveElicitation(CodexElicitation, oneshot::Sender<Result<()>>),
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
@@ -282,6 +293,23 @@ impl CodexBridge {
         let (reply, result) = oneshot::channel();
         sender
             .send(Command::Approve(approval, reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
+    pub async fn resolve_elicitation(&self, response: CodexElicitation) -> Result<()> {
+        ensure!(
+            !response.server_name.is_empty() && response.server_name.len() <= 64,
+            "invalid MCP server name"
+        );
+        if let RequestId::String(id) = &response.request_id {
+            ensure!(!id.is_empty() && id.len() <= 256, "invalid elicitation ID");
+        }
+        let sender = self.sender(&response.task_id).await?;
+        let (reply, result) = oneshot::channel();
+        sender
+            .send(Command::ResolveElicitation(response, reply))
             .await
             .context("Codex thread stopped")?;
         result.await.context("Codex thread stopped")?
@@ -571,6 +599,16 @@ async fn run_thread(
                         CodexApprovalKind::Exec => live.approve_exec(approval.id, approval.turn_id, decision).await,
                         CodexApprovalKind::Patch => live.approve_patch(approval.id, decision).await,
                     };
+                    let _ = reply.send(result);
+                }
+                Some(Command::ResolveElicitation(response, reply)) => {
+                    let decision = match response.decision {
+                        CodexApprovalChoice::Allow => ApprovalDecision::Allow,
+                        CodexApprovalChoice::AllowForSession => ApprovalDecision::AllowForSession,
+                        CodexApprovalChoice::Deny => ApprovalDecision::Deny,
+                    };
+                    let result = live.resolve_mcp_elicitation(
+                        response.server_name, response.request_id, decision).await;
                     let _ = reply.send(result);
                 }
                 Some(Command::Answer(answer, reply)) => {
