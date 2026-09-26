@@ -52,6 +52,9 @@ struct TaskSearchRequest: Equatable {
         guard includeContentResults else { continue }
         if let note = notes[id], let hit = content(note, source: "消息") { return hit }
         guard let run = records[id], run.project == task.project else { continue }
+        for message in run.codexSteeredMessages {
+          if let hit = content(message.text, source: "消息") { return hit }
+        }
         if run.kind == "chat", let response = run.result?["response"].text {
           for (_, text) in ConversationSearch.segments(MessageDocument.parse(response)) {
             if let hit = content(text, source: "回答") { return hit }

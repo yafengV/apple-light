@@ -36,6 +36,9 @@ enum ConversationSearch {
         }
         plain["diagnostic"] = run.result?["command"]["diagnostics"].items.first?["message"].text
       } else {
+        for message in run.codexSteeredMessages {
+          plain["steer." + message.id.uuidString] = message.text
+        }
         plain["error"] = run.result?["message"].text
         if ["cancelled", "interrupted"].contains(run.status) {
           plain["stopped"] = "回复已停止，已保留收到的内容。"
@@ -77,7 +80,7 @@ enum ConversationSearch {
       } else if let source = input.markdown {
         texts += segments(MessageDocument.parse(source))
       }
-      for part in ["operation", "summary", "output", "diagnostic", "error", "stopped"] {
+      for part in input.plain.keys.sorted() {
         if let text = input.plain[part] { texts.append((part, text)) }
       }
       return texts.flatMap { part, text in

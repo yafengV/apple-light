@@ -81,6 +81,21 @@ extension WorkspaceLibrary {
     return ids.flatMap { id -> [ChatMessage] in
       guard let run = stored[id], run.kind == "chat" else { return [] }
       var messages = [ChatMessage(role: "user", content: notes[id] ?? "", images: runImages[id] ?? [], files: runFiles[id] ?? [])]
+      if !run.codexSteeredMessages.isEmpty, let items = run.responseItems {
+        for item in items {
+          switch item {
+          case .message(_, let text) where !text.isEmpty:
+            messages.append(ChatMessage(role: "assistant", content: text))
+          case .user(let messageID):
+            if let message = run.codexSteeredMessages.first(where: { $0.id == messageID }) {
+              messages.append(ChatMessage(role: "user", content: message.text,
+                images: message.images, files: message.files))
+            }
+          default: break
+          }
+        }
+        return messages
+      }
       if let transcript = try? run.result?["tool_messages"].decode([ChatMessage].self), !transcript.isEmpty {
         messages.append(contentsOf: transcript)
       } else if let response = run.result?["response"].text, !response.isEmpty {

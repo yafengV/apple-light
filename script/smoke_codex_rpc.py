@@ -6,6 +6,7 @@ import queue
 import subprocess
 import tempfile
 import threading
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -74,6 +75,8 @@ class Responses(BaseHTTPRequestHandler):
         payload = "".join(
             f"event: {event['type']}\ndata: {json.dumps(event)}\n\n" for event in events
         ).encode()
+        if request_number == 14:
+            time.sleep(4)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Content-Length", str(len(payload)))
@@ -330,8 +333,33 @@ def main():
                     raise AssertionError(event)
             assert saw_question, [event for event in question_events if event["type"] in
                 ("warning", "raw_response_item", "agent_message", "task_complete")]
+            eighth = client.request("codex.turn.submit", {
+                "taskId": task_id, "text": "Wait for a live steering message",
+            })
+            assert eighth["turnId"]
+            rejected = client.request("codex.turn.steer", {
+                "taskId": task_id, "expectedTurnId": "wrong-turn",
+                "text": "do-not-accept-this-message",
+            })
+            assert rejected["steered"] is False, rejected
+            accepted = client.request("codex.turn.steer", {
+                "taskId": task_id, "expectedTurnId": eighth["turnId"],
+                "text": "steered-rpc-proof",
+            })
+            assert accepted["steered"] is True, accepted
+            while True:
+                message = client.next_event()
+                if message.get("method") != "codex.event":
+                    continue
+                event = message["params"]["event"]
+                if event["type"] == "task_complete":
+                    break
+                if event["type"] == "error":
+                    raise AssertionError(event)
             assert client.request("codex.thread.stop", {"taskId": task_id})["stopped"]
-            assert len(Responses.requests) == 13, Responses.requests
+            assert len(Responses.requests) == 15, len(Responses.requests)
+            assert b"steered-rpc-proof" in Responses.requests[-1][2]
+            assert b"do-not-accept-this-message" not in Responses.requests[-1][2]
             assert Responses.requests[0][:2] == ("/v1/responses", "Bearer fixture-token")
             assert b"Hi" in Responses.requests[0][2]
         finally:
@@ -345,7 +373,7 @@ def main():
                 contents = item.read_bytes()
                 assert b"fixture-token" not in contents, item
                 assert b"environment-poison-token" not in contents, item
-    print("PASS: bundled Codex RPC approvals, structured question, workspace writes, isolation, and credential cleanup")
+    print("PASS: bundled Codex RPC approvals, questions, steering, workspace writes, isolation, and credential cleanup")
 
 
 if __name__ == "__main__":

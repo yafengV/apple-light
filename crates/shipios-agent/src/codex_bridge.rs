@@ -122,6 +122,7 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
 
 enum Command {
     Submit(Vec<UserInput>, oneshot::Sender<Result<String>>),
+    Steer(Vec<UserInput>, String, oneshot::Sender<Result<bool>>),
     Approve(CodexApproval, oneshot::Sender<Result<()>>),
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
@@ -325,10 +326,48 @@ impl CodexBridge {
     pub async fn submit_with_attachments(
         &self,
         task_id: &str,
-        mut text: String,
+        text: String,
         images: Vec<CodexImage>,
         text_attachment: Option<CodexTextAttachment>,
     ) -> Result<String> {
+        let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
+        let (reply, result) = oneshot::channel();
+        self.sender(task_id)
+            .await?
+            .send(Command::Submit(inputs, reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
+    pub async fn steer_with_attachments(
+        &self,
+        task_id: &str,
+        expected_turn_id: String,
+        text: String,
+        images: Vec<CodexImage>,
+        text_attachment: Option<CodexTextAttachment>,
+    ) -> Result<bool> {
+        ensure!(
+            !expected_turn_id.is_empty() && expected_turn_id.len() <= 256,
+            "invalid expected turn ID"
+        );
+        let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
+        let (reply, result) = oneshot::channel();
+        self.sender(task_id)
+            .await?
+            .send(Command::Steer(inputs, expected_turn_id, reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
+    fn inputs_with_attachments(
+        &self,
+        mut text: String,
+        images: Vec<CodexImage>,
+        text_attachment: Option<CodexTextAttachment>,
+    ) -> Result<Vec<UserInput>> {
         if let Some(attachment) = text_attachment {
             text.push_str(&self.read_staged_text(attachment)?);
         }
@@ -348,13 +387,7 @@ impl CodexBridge {
                 detail: None,
             });
         }
-        let (reply, result) = oneshot::channel();
-        self.sender(task_id)
-            .await?
-            .send(Command::Submit(inputs, reply))
-            .await
-            .context("Codex thread stopped")?;
-        result.await.context("Codex thread stopped")?
+        Ok(inputs)
     }
 
     fn attachment_path(&self, image: CodexImage) -> Result<PathBuf> {
@@ -492,6 +525,9 @@ async fn run_thread(
             command = receiver.recv() => match command {
                 Some(Command::Submit(inputs, reply)) => {
                     let _ = reply.send(live.submit_inputs(inputs).await);
+                }
+                Some(Command::Steer(inputs, expected_turn_id, reply)) => {
+                    let _ = reply.send(live.steer_inputs(inputs, expected_turn_id).await);
                 }
                 Some(Command::Approve(approval, reply)) => {
                     let decision = match approval.decision {

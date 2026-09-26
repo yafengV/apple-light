@@ -5,6 +5,31 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  @MainActor func testCodexRejectedSteeringKeepsQueuedMessage() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "running", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string(ModelAPIProtocol.codexResponses.rawValue)]),
+      result: .object(["response": .string("")]))
+    store.library.chatRuns = [run]
+    store.library.tasks = [WorkspaceTask(id: "task", project: "/project",
+      title: "Task", runIDs: [run.id])]
+    let message = QueuedMessage(taskID: "task", text: "Keep me queued")
+    store.library.queuedMessages = [message]
+    await store.steerActiveChat(with: message)
+    XCTAssertEqual(store.library.queuedMessages, [message])
+    XCTAssertEqual(store.library.chatRuns, [run])
+    XCTAssertTrue(store.codexSteeringMessages.isEmpty)
+    store.setTaskWindowDraft("Plan this", taskID: "task")
+    await store.sendTaskWindowDraft("task", mode: .plan)
+    XCTAssertEqual(store.taskWindowDraft("task"), "Plan this")
+    XCTAssertEqual(store.library.queuedMessages, [message])
+    XCTAssertNotNil(store.error)
+  }
+
   func testCodexPlanUpdateKeepsTimelineIdentityAndStatuses() throws {
     let first: JSONValue = .object([
       "type": .string("plan_update"), "explanation": .string("Inspect then verify"),
@@ -551,6 +576,102 @@ final class ModelTransportTests: XCTestCase {
     let restored = try JSONDecoder().decode(AgentRun.self, from: JSONEncoder().encode(finished))
     XCTAssertEqual(restored.codexPlan, finished.codexPlan)
     XCTAssertEqual(restored.responseItems, finished.responseItems)
+    await store.shutdown()
+  }
+  @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    store.followUpBehavior = .steer
+    await store.startChat("slow-codex")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
+    for _ in 0..<150 {
+      if store.codexTransport.canSteer(taskID: taskID) { break }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    XCTAssertTrue(store.codexTransport.canSteer(taskID: taskID))
+    let source = root.appendingPathComponent("steering.txt")
+    try Data("STEER_FILE_PROOF".utf8).write(to: source)
+    let file = try FileAttachmentStorage.importFile(source, root: root.appendingPathComponent("Data"))
+    store.draft = "steered-inflight-proof"
+    store.library.draftFiles[store.draftKey] = [file]
+    await store.sendDraft()
+    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertTrue(store.library.queuedMessages.isEmpty, store.error ?? "Steering stayed queued")
+    XCTAssertEqual(store.library.chatRuns[0].codexSteeredMessages.map(\.text),
+      ["steered-inflight-proof"])
+    XCTAssertEqual(store.library.chatRuns[0].codexSteeredMessages.first?.files, [file])
+    XCTAssertEqual(store.library.fileReferences[file.id], file)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first)
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertTrue(finished.result?["response"].text?.contains("Steered fixture reply") == true)
+    XCTAssertEqual(finished.responseItems?.filter({
+      if case .user = $0 { return true }
+      return false
+    }).count, 1)
+    XCTAssertTrue(store.library.chatContext(taskID: taskID).contains {
+      $0.role == "user" && $0.content == "steered-inflight-proof" && $0.files == [file]
+    })
+    XCTAssertFalse(ConversationSearch.find(
+      ConversationSearch.inputs([finished], library: store.library),
+      query: "steered-inflight-proof").isEmpty)
+    let task = try XCTUnwrap(store.library.task(containing: run.id))
+    let results = TaskSearchRequest(query: "steered-inflight-proof", tasks: [task],
+      names: [:], notes: store.library.notes, branches: [:], runs: [finished]).search()
+    XCTAssertEqual(results.first?.task.id, taskID)
+    XCTAssertTrue((try FileManager.default.contentsOfDirectory(atPath:
+      root.appendingPathComponent("Data/CodexStaging").path)).isEmpty)
+    await store.shutdown()
+  }
+  @MainActor func testDetachedTaskDraftCanSteerActiveCodexRun() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    store.followUpBehavior = .steer
+    await store.startChat("slow-codex")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
+    for _ in 0..<150 {
+      if store.codexTransport.canSteer(taskID: taskID) { break }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    XCTAssertTrue(store.codexTransport.canSteer(taskID: taskID))
+    store.setTaskWindowDraft("steered-inflight-proof", taskID: taskID)
+    await store.sendTaskWindowDraft(taskID, mode: .standard)
+    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertTrue(store.library.queuedMessages.isEmpty, store.error ?? "Window steering stayed queued")
+    XCTAssertTrue(store.taskWindowDraft(taskID).isEmpty)
+    XCTAssertEqual(store.library.chatRuns[0].codexSteeredMessages.map(\.text),
+      ["steered-inflight-proof"])
+    await store.modelTask(runID: run.id)?.value
+    XCTAssertEqual(store.library.chatRuns[0].status, "succeeded")
     await store.shutdown()
   }
   @MainActor func testCodexResponsesImageOnlyStartsProjectTask() async throws {

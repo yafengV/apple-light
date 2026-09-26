@@ -46,6 +46,37 @@ extension WorkspaceStore {
       self.error = error.localizedDescription
       return
     }
+    guard !prompt.isEmpty || !taskWindowImages(taskID).isEmpty || !taskWindowFiles(taskID).isEmpty else {
+      return
+    }
+    if let active = activeChatRun(taskID: taskID) {
+      if active.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue,
+        mode != .standard {
+        error = "Codex Responses 的运行中追加消息当前仅支持普通模式。"
+        return
+      }
+      let message = QueuedMessage(taskID: taskID, text: prompt,
+        images: taskWindowImages(taskID), files: taskWindowFiles(taskID), mode: mode)
+      var candidate = library
+      if followUpBehavior == .steer,
+        let first = candidate.queuedMessages.firstIndex(where: { $0.taskID == taskID }) {
+        candidate.queuedMessages.insert(message, at: first)
+      } else {
+        candidate.queuedMessages.append(message)
+      }
+      candidate.drafts[taskID] = ""
+      candidate.draftImages[taskID] = nil
+      candidate.draftFiles[taskID] = nil
+      let commentIDs = Set(comments.map(\.id))
+      let pageCommentIDs = Set(pageComments.map(\.id))
+      candidate.reviewComments[taskID]?.removeAll { commentIDs.contains($0.id) }
+      candidate.browserComments[taskID]?.removeAll { pageCommentIDs.contains($0.id) }
+      do {
+        try commitLibrary(candidate)
+        if followUpBehavior == .steer { await steerActiveChat(with: message) }
+      } catch { self.error = error.localizedDescription }
+      return
+    }
     let previousRuns = Set(task.runIDs)
     await startChat(
       prompt, taskID: taskID, consumeDraft: true,

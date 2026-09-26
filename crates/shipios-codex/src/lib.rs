@@ -6,9 +6,9 @@ use codex_core_api::{
     CodexAppsToolsCache, CodexHomeUserInstructionsProvider, CodexThread, Config, Constrained,
     EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, Feature,
     NewThread, Op, PermissionProfile, Permissions, SessionSource, StartIfIdleSubmission,
-    StartThreadOptions, ThreadId, ThreadManager, TurnInputRequest, UserInput, build_models_manager,
-    init_state_db, local_agent_graph_store_from_state_db, passthrough_image_store,
-    resolve_installation_id, thread_store_from_config,
+    StartThreadOptions, SteerSubmission, ThreadId, ThreadManager, TurnInputRequest, UserInput,
+    build_models_manager, init_state_db, local_agent_graph_store_from_state_db,
+    passthrough_image_store, resolve_installation_id, thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
 use codex_protocol::mcp::ClientMcpExtensions;
@@ -261,6 +261,30 @@ impl CodexSession {
             StartIfIdleSubmission::NotSubmitted { reason } => {
                 bail!("turn was not submitted: {reason:?}")
             }
+        }
+    }
+
+    pub async fn steer_inputs(
+        &self,
+        inputs: Vec<UserInput>,
+        expected_turn_id: String,
+    ) -> Result<bool> {
+        ensure!(!expected_turn_id.is_empty(), "expected turn ID is empty");
+        ensure!(
+            inputs.iter().any(|input| match input {
+                UserInput::Text { text, .. } => !text.trim().is_empty(),
+                UserInput::LocalImage { .. } | UserInput::Image { .. } => true,
+                _ => false,
+            }),
+            "message is empty"
+        );
+        match self
+            .thread
+            .steer_turn(TurnInputRequest::user_input(inputs), expected_turn_id)
+            .await?
+        {
+            SteerSubmission::Steered { .. } => Ok(true),
+            SteerSubmission::NotSubmitted { .. } => Ok(false),
         }
     }
 

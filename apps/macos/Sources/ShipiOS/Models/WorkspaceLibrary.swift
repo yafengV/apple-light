@@ -149,12 +149,18 @@ struct WorkspaceLibrary: Codable {
   var draftFiles: [String: [FileAttachment]] = [:]
   var runFiles: [String: [FileAttachment]] = [:]
   var fileReferences: [UUID: FileAttachment] {
-    Dictionary((Array(draftFiles.values).flatMap { $0 } + Array(runFiles.values).flatMap { $0 }
-      + queuedMessages.flatMap(\.files)).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    var files = Array(draftFiles.values).flatMap { $0 }
+    files += Array(runFiles.values).flatMap { $0 }
+    files += queuedMessages.flatMap(\.files)
+    for run in chatRuns { files += run.codexSteeredMessages.flatMap(\.files) }
+    return Dictionary(files.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
   var imageReferences: [UUID: ImageAttachment] {
-    Dictionary((Array(draftImages.values).flatMap { $0 } + Array(runImages.values).flatMap { $0 }
-      + queuedMessages.flatMap(\.images)).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    var images = Array(draftImages.values).flatMap { $0 }
+    images += Array(runImages.values).flatMap { $0 }
+    images += queuedMessages.flatMap(\.images)
+    for run in chatRuns { images += run.codexSteeredMessages.flatMap(\.images) }
+    return Dictionary(images.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
   var profiles: [String: BuildProfile] = [:]
   var projectNames: [String: String] = [:]

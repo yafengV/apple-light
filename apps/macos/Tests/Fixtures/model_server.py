@@ -21,7 +21,7 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         if self.path == '/v1/responses':
             request_text = json.dumps(body)
-            slow = 'slow-codex' in request_text
+            slow = 'slow-codex' in request_text and 'steered-inflight-proof' not in request_text
             if 'codex-plan' in request_text and 'swift-plan-call' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-plan-call',
@@ -69,7 +69,9 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 item = {
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',
-                    'content': [{'type': 'output_text', 'text': 'Codex fixture reply'}],
+                    'content': [{'type': 'output_text', 'text':
+                        'Steered fixture reply' if 'steered-inflight-proof' in request_text
+                        else 'Codex fixture reply'}],
                 }
             events = [
                 {'type': 'response.created', 'response': {'id': 'resp-1'}},

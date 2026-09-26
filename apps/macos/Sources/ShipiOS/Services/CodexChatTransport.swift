@@ -8,6 +8,7 @@ final class CodexChatTransport {
   private var generation = UUID()
   private var activeThreads: Set<String> = []
   private var streams: [String: AsyncThrowingStream<JSONValue, Error>.Continuation] = [:]
+  private var activeTurnIDs: [String: String] = [:]
 
   init(client: AgentClient, dataRoot: URL) {
     self.client = client
@@ -62,8 +63,9 @@ final class CodexChatTransport {
           "id": .string(staged.id.uuidString), "byteCount": .number(Double(staged.byteCount)),
         ])
       }
-      _ = try await client.request("codex.turn.submit", request)
+      let submitted = try await client.request("codex.turn.submit", request)
       guard generation == token else { throw CancellationError() }
+      if streams[taskID] != nil { activeTurnIDs[taskID] = submitted["turnId"].text }
       try Task.checkCancellation()
       return stream
     } catch {
@@ -71,6 +73,39 @@ final class CodexChatTransport {
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
       throw error
     }
+  }
+
+  func steer(taskID: String, text: String, images: [ImageAttachment],
+    fileAppendix: String?) async throws -> Bool {
+    guard activeThreads.contains(taskID), streams[taskID] != nil,
+      let expectedTurnID = activeTurnIDs[taskID] else { return false }
+    guard text.utf8.count <= 48_000 else {
+      throw AgentFailure(message: "追加文字超过 Codex 通道的 48 KiB 上限，请缩短后重试。")
+    }
+    let token = generation
+    let staged = try fileAppendix.map(stageText)
+    defer { if let staged { try? FileManager.default.removeItem(at: staged.url) } }
+    var request: [String: JSONValue] = [
+      "taskId": .string(taskID), "expectedTurnId": .string(expectedTurnID),
+      "text": .string(text),
+      "images": .array(images.map { image in .object([
+        "id": .string(image.id.uuidString),
+        "fileExtension": .string(image.fileExtension),
+        "byteCount": .number(Double(image.byteCount)),
+      ]) }),
+    ]
+    if let staged {
+      request["textAttachment"] = .object([
+        "id": .string(staged.id.uuidString), "byteCount": .number(Double(staged.byteCount)),
+      ])
+    }
+    let result = try await client.request("codex.turn.steer", request)
+    guard generation == token else { throw CancellationError() }
+    return result["steered"].boolean == true
+  }
+
+  func canSteer(taskID: String) -> Bool {
+    streams[taskID] != nil && activeTurnIDs[taskID] != nil
   }
 
   func interrupt(taskID: String) async {
@@ -133,6 +168,7 @@ final class CodexChatTransport {
   func reset(_ error: Error) {
     generation = UUID()
     activeThreads.removeAll()
+    activeTurnIDs.removeAll()
     let pending = Array(streams.values)
     streams.removeAll()
     for stream in pending { stream.finish(throwing: error) }
@@ -144,6 +180,7 @@ final class CodexChatTransport {
     continuation.yield(event)
     switch event["type"].text {
     case "task_complete", "error":
+      activeTurnIDs.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish()
     default: break
     }

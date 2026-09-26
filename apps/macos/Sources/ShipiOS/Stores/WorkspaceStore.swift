@@ -165,6 +165,7 @@ final class WorkspaceStore {
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
   var codexPendingQuestions: [UUID: CodexQuestionContext] = [:]
   @ObservationIgnored var codexQuestionContinuations: [UUID: CheckedContinuation<[String: [String]]?, Never>] = [:]
+  @ObservationIgnored var codexSteeringMessages: Set<UUID> = []
   @ObservationIgnored var mcpTaskGrants: Set<String> = []
   @ObservationIgnored var mcpConnections: [UUID: MCPConnection] = [:]
   @ObservationIgnored var mcpConnectionTokens: [UUID: UUID] = [:]
@@ -855,6 +856,11 @@ final class WorkspaceStore {
       let commentIDs = Set(comments.map(\.id))
       let pageCommentIDs = Set(pageComments.map(\.id))
       if selectedActiveRun?.kind == "chat", chosen == .chat, !note.isEmpty || !images.isEmpty || !files.isEmpty {
+        if selectedActiveRun?.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue,
+          chatMode != .standard {
+          error = "Codex Responses 的运行中追加消息当前仅支持普通模式。"
+          return
+        }
         guard let task = selectedTask else {
           error = "请在运行中的任务内追加消息。"
           return

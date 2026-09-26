@@ -238,6 +238,9 @@ extension WorkspaceStore {
           let continueGoal = finishChat(run.id, status: "succeeded", usage: usage)
           removeModelTask(runID: run.id)
           if let owner = library.task(containing: run.id),
+            !library.queuedMessages.contains(where: {
+              $0.taskID == owner.id && self.codexSteeringMessages.contains($0.id)
+            }),
             let next = library.queuedMessages.first(where: { $0.taskID == owner.id }),
             canStartChat(taskID: owner.id)
           {
@@ -483,13 +486,66 @@ extension WorkspaceStore {
   }
   func steerActiveChat(with message: QueuedMessage) async {
     guard library.queuedMessages.contains(message) else { return }
-    let running = activeChatRun(taskID: message.taskID).flatMap { modelTask(runID: $0.id) }
+    guard let active = activeChatRun(taskID: message.taskID) else {
+      await sendQueuedMessage(message)
+      return
+    }
+    if active.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue,
+      message.mode == .standard {
+      guard codexSteeringMessages.insert(message.id).inserted else { return }
+      do {
+        for image in message.images { _ = try ImageAttachmentStorage.data(image, root: dataRoot) }
+        var fileTextBytes = 0
+        let fileAppendix = message.files.isEmpty ? nil : try FileAttachmentStorage.content(
+          ChatMessage(role: "user", content: "", files: message.files), root: dataRoot,
+          total: &fileTextBytes)
+        let steered = try await codexTransport.steer(taskID: message.taskID,
+          text: message.text, images: message.images, fileAppendix: fileAppendix)
+        codexSteeringMessages.remove(message.id)
+        if steered { try recordCodexSteeredMessage(message, runID: active.id) }
+        if activeChatRun(taskID: message.taskID) == nil,
+          let next = library.queuedMessages.first(where: { $0.taskID == message.taskID }) {
+          await sendQueuedMessage(next)
+        }
+      } catch {
+        codexSteeringMessages.remove(message.id)
+        self.error = error.localizedDescription
+      }
+      return
+    }
+    let running = modelTask(runID: active.id)
     running?.cancel()
     await running?.value
     guard library.queuedMessages.contains(message) else { return }
     await sendQueuedMessage(message)
   }
+  private func recordCodexSteeredMessage(_ message: QueuedMessage, runID: String) throws {
+    guard let index = library.chatRuns.firstIndex(where: { $0.id == runID }) else {
+      throw AgentFailure(message: "Codex 会话记录已不存在，追加消息未保存。")
+    }
+    let current = library.chatRuns[index]
+    var fields: [String: JSONValue] = [:]
+    if case .object(let value) = current.result { fields = value }
+    let messages = current.codexSteeredMessages + [message]
+    var items = current.responseItems ?? []
+    items.append(.user(message.id))
+    fields["codex_steered_messages"] = try JSONDecoder().decode(JSONValue.self,
+      from: JSONEncoder().encode(messages))
+    fields["response_items"] = try ChatResponseItem.json(items)
+    let updated = AgentRun(id: current.id, kind: current.kind, project: current.project,
+      status: current.status, createdAt: current.createdAt,
+      updatedAt: Date().timeIntervalSince1970 * 1000,
+      request: current.request, result: .object(fields))
+    var candidate = library
+    candidate.chatRuns[index] = updated
+    candidate.queuedMessages.removeAll { $0.id == message.id }
+    try commitLibrary(candidate)
+    if let displayIndex = runs.firstIndex(where: { $0.id == runID }) {
+      runs[displayIndex] = updated
+    }
+  }
   func removeQueuedMessage(_ id: UUID) {
+    guard !codexSteeringMessages.contains(id) else { return }
     do {
       var candidate = library
       candidate.queuedMessages.removeAll { $0.id == id }
@@ -497,6 +553,7 @@ extension WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
   func editQueuedMessage(_ message: QueuedMessage) {
+    guard !codexSteeringMessages.contains(message.id) else { return }
     guard selectedTask?.id == message.taskID else { return }
     guard draft.isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !importingImages, !importingFiles else {
       error = "请先发送或清空现有草稿，再编辑队列消息。"
@@ -515,6 +572,7 @@ extension WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
   func moveQueuedMessage(_ message: QueuedMessage, offset: Int) {
+    guard !codexSteeringMessages.contains(message.id) else { return }
     let ids = library.queuedMessages.filter { $0.taskID == message.taskID }.map(\.id)
     guard let i = ids.firstIndex(of: message.id), ids.indices.contains(i + offset),
       let a = library.queuedMessages.firstIndex(where: { $0.id == message.id }),

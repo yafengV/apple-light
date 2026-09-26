@@ -75,7 +75,7 @@ struct TaskWindowView: View {
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token {
       return store.canForkTaskWindow(taskID)
     }
-    return store.canStartChat(taskID: taskID)
+    return (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
   }
@@ -905,17 +905,17 @@ struct TaskWindowView: View {
             Image(systemName: "stop.fill").frame(width: 28, height: 28)
           }
           .buttonStyle(.bordered).clipShape(Circle()).help("停止任务")
-        } else {
-          Button {
-            submitTaskDraft()
-          } label: {
-            Image(systemName: "arrow.up")
-              .foregroundStyle(Color(nsColor: .windowBackgroundColor))
-              .frame(width: 28, height: 28).background(Color.primary, in: Circle())
-          }
-          .buttonStyle(.plain).disabled(!canSend).help("发送消息 " + store.shortcuts.label("send"))
-
         }
+        Button {
+          submitTaskDraft()
+        } label: {
+          Image(systemName: "arrow.up")
+            .foregroundStyle(Color(nsColor: .windowBackgroundColor))
+            .frame(width: 28, height: 28).background(Color.primary, in: Circle())
+        }
+        .buttonStyle(.plain).disabled(!canSend)
+        .help((store.activeChatRun(taskID: taskID) == nil
+          ? "发送消息" : store.followUpBehavior.composerLabel) + " " + store.shortcuts.label("send"))
       }
       .padding(14)
       .background(.background, in: RoundedRectangle(cornerRadius: 16))

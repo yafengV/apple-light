@@ -53,6 +53,17 @@ struct CodexSubmit {
     text_attachment: Option<CodexTextAttachment>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CodexSteer {
+    task_id: String,
+    expected_turn_id: String,
+    text: String,
+    #[serde(default)]
+    images: Vec<CodexImage>,
+    text_attachment: Option<CodexTextAttachment>,
+}
+
 fn error(id: Value, code: i32, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
 }
@@ -174,6 +185,12 @@ async fn dispatch(
             "codex.turn.submit" => {
                 let p: CodexSubmit = serde_json::from_value(params).map_err(|_| invalid())?;
                 Ok(json!({"turnId":codex.submit_with_attachments(&p.task_id,p.text,p.images,p.text_attachment).await.map_err(failed)?}))
+            }
+            "codex.turn.steer" => {
+                let p: CodexSteer = serde_json::from_value(params).map_err(|_| invalid())?;
+                let steered = codex.steer_with_attachments(&p.task_id, p.expected_turn_id,
+                    p.text, p.images, p.text_attachment).await.map_err(failed)?;
+                Ok(json!({"steered":steered}))
             }
             "codex.turn.interrupt" => {
                 let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
