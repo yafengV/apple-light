@@ -33,7 +33,7 @@ struct ModelSettingsView: View {
           Text("使用 OpenAI 兼容 Chat Completions 流式接口。发送图片需要服务和模型支持图片输入。")
             .appFont(.caption).foregroundStyle(.secondary)
         } else {
-          Text("Codex Core 使用 /responses 流式接口。当前支持已连接项目的文字和图片会话；文件、现有 MCP 工具和任务模式仍待接入。连接测试只检查 /models，首条消息才会验证 /responses。")
+          Text("Codex Core 使用 /responses 流式接口。当前支持已连接项目的文字、图片及文本/PDF 附件会话；现有 MCP 工具和任务模式仍待接入。连接测试只检查 /models，首条消息才会验证 /responses。")
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Text("地址与模型保存在 ShipiOS，密钥保存在 macOS Keychain，并按服务地址隔离。")

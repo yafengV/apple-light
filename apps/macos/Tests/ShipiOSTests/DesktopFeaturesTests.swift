@@ -1,3 +1,5 @@
+import AppKit
+import CoreText
 import XCTest
 
 @testable import ShipiOS
@@ -254,6 +256,55 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
     XCTAssertEqual(finished.result?["response"].text, "Codex fixture reply")
     XCTAssertEqual(store.library.runImages[run.id], [image])
+    await store.shutdown()
+  }
+  @MainActor func testCodexResponsesLargeFileStartsProjectTaskWithoutLargeRPCFrame() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    let source = root.appendingPathComponent("long.txt")
+    try Data((String(repeating: "x", count: 80_000) + "\nFILE_MARKER_END").utf8)
+      .write(to: source)
+    let file = try FileAttachmentStorage.importFile(source, root: root.appendingPathComponent("Data"))
+    await store.startChat("", files: [file])
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Codex fixture reply")
+    XCTAssertEqual(store.library.runFiles[run.id], [file])
+    let staged = root.appendingPathComponent("Data/CodexStaging")
+    XCTAssertTrue((try FileManager.default.contentsOfDirectory(atPath: staged.path)).isEmpty)
+    let pdfData = NSMutableData()
+    let consumer = try XCTUnwrap(CGDataConsumer(data: pdfData))
+    var page = CGRect(x: 0, y: 0, width: 300, height: 200)
+    let context = try XCTUnwrap(CGContext(consumer: consumer, mediaBox: &page, nil))
+    context.beginPDFPage(nil)
+    context.textPosition = CGPoint(x: 20, y: 100)
+    CTLineDraw(CTLineCreateWithAttributedString(NSAttributedString(string: "PDF context text")), context)
+    context.endPDFPage(); context.closePDF()
+    let pdf = root.appendingPathComponent("document.pdf")
+    try (pdfData as Data).write(to: pdf)
+    let pdfAttachment = try FileAttachmentStorage.importFile(pdf, root: root.appendingPathComponent("Data"))
+    XCTAssertTrue(pdfAttachment.isPDF)
+    await store.startChat("", taskID: run.id, files: [pdfAttachment])
+    let pdfRun = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: pdfRun.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == pdfRun.id }?.status, "succeeded")
+    XCTAssertEqual(store.library.runFiles[pdfRun.id], [pdfAttachment])
+    XCTAssertTrue((try FileManager.default.contentsOfDirectory(atPath: staged.path)).isEmpty)
     await store.shutdown()
   }
   @MainActor func testTaskModelOverrideReachesRequestAndChangingItDoesNotRewriteInflightRun() async throws {

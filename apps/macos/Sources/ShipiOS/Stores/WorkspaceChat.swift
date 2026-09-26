@@ -91,8 +91,8 @@ extension WorkspaceStore {
       let taskID = requestedTaskID
       let taskProject = taskID.flatMap { id in library.tasks.first(where: { $0.id == id })?.project }
       if usesCodex {
-        guard mode == .standard, review == nil, files.isEmpty else {
-          throw AgentFailure(message: "Codex Responses 当前支持普通文字与图片会话；文件、代码审查和任务模式仍待接入。")
+        guard mode == .standard, review == nil else {
+          throw AgentFailure(message: "Codex Responses 当前支持普通文字、图片及文本/PDF 附件；代码审查和任务模式仍待接入。")
         }
         guard connected, let project, (taskProject ?? currentProjectKey) == project.path else {
           throw AgentFailure(message: "Codex Responses 当前仅支持已连接项目中的任务，请先打开对应项目。")
@@ -267,13 +267,19 @@ extension WorkspaceStore {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
     for image in images { _ = try ImageAttachmentStorage.data(image, root: dataRoot) }
+    let files = messages.last?.files ?? []
+    var fileTextBytes = 0
+    let fileAppendix = files.isEmpty ? nil : try FileAttachmentStorage.content(
+      ChatMessage(role: "user", content: "", files: files), root: dataRoot,
+      total: &fileTextBytes)
     guard let continuationText = messages.last?.content,
-      !continuationText.isEmpty || !images.isEmpty else {
+      !continuationText.isEmpty || !images.isEmpty || !files.isEmpty else {
       throw AgentFailure(message: "Codex 回合缺少输入。")
     }
     let stream = try await codexTransport.startTurn(
       taskID: taskID, config: config, key: key,
-      initialText: initialText, continuationText: continuationText, images: images)
+      initialText: initialText, continuationText: continuationText, images: images,
+      fileAppendix: fileAppendix)
     return try await withTaskCancellationHandler {
       var rendered = ""
       var completed = false

@@ -2,7 +2,7 @@
   "repository": "https://github.com/openai/codex.git",
   "revision": "50d77959bf927293c4b5ddcca81d05331ae582ea",
   "inspectedAt": "2026-09-16",
-  "integrationStatus": "swift-image-session-resume-partial-ui",
+  "integrationStatus": "swift-file-session-resume-partial-ui",
   "rustToolchain": "1.95.0",
   "paths": {
     "coreFacade": "codex-rs/core-api/src/lib.rs",

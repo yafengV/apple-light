@@ -41,6 +41,13 @@ pub struct CodexImage {
     byte_count: u64,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexTextAttachment {
+    id: String,
+    byte_count: u64,
+}
+
 fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
     let path = home.join("thread.json");
     let data = match std::fs::read(&path) {
@@ -215,19 +222,36 @@ impl CodexBridge {
 
     #[cfg(test)]
     pub async fn submit(&self, task_id: &str, text: String) -> Result<String> {
-        self.submit_with_images(task_id, text, Vec::new()).await
+        self.submit_with_attachments(task_id, text, Vec::new(), None)
+            .await
     }
 
+    #[cfg(test)]
     pub async fn submit_with_images(
         &self,
         task_id: &str,
         text: String,
         images: Vec<CodexImage>,
     ) -> Result<String> {
+        self.submit_with_attachments(task_id, text, images, None)
+            .await
+    }
+
+    pub async fn submit_with_attachments(
+        &self,
+        task_id: &str,
+        mut text: String,
+        images: Vec<CodexImage>,
+        text_attachment: Option<CodexTextAttachment>,
+    ) -> Result<String> {
+        if let Some(attachment) = text_attachment {
+            text.push_str(&self.read_staged_text(attachment)?);
+        }
         ensure!(
             !text.trim().is_empty() || !images.is_empty(),
             "message is empty"
         );
+        ensure!(text.chars().count() <= 1 << 20, "message text is too large");
         ensure!(images.len() <= 8, "too many images in one message");
         let mut inputs = vec![UserInput::Text {
             text,
@@ -294,6 +318,42 @@ impl CodexBridge {
             "image attachment escaped its directory"
         );
         Ok(resolved)
+    }
+
+    fn read_staged_text(&self, attachment: CodexTextAttachment) -> Result<String> {
+        Uuid::parse_str(&attachment.id).context("text attachment ID must be a UUID")?;
+        ensure!(
+            attachment.byte_count > 0 && attachment.byte_count <= 1_000_000,
+            "text attachment exceeds the 1 MB limit"
+        );
+        let root = self
+            .data_dir
+            .parent()
+            .and_then(std::path::Path::parent)
+            .context("project data directory has no attachment root")?
+            .canonicalize()
+            .context("resolve attachment root")?;
+        let directory = root
+            .join("CodexStaging")
+            .canonicalize()
+            .context("resolve text staging directory")?;
+        ensure!(
+            directory.starts_with(&root),
+            "text staging escaped data root"
+        );
+        let file = directory.join(format!("{}.txt", attachment.id));
+        let metadata = file.symlink_metadata().context("inspect staged text")?;
+        ensure!(
+            metadata.file_type().is_file(),
+            "staged text is not a regular file"
+        );
+        ensure!(
+            metadata.len() == attachment.byte_count,
+            "staged text size changed"
+        );
+        let text = std::fs::read_to_string(&file).context("read staged text")?;
+        std::fs::remove_file(&file).context("remove staged text")?;
+        Ok(text)
     }
 
     pub async fn interrupt(&self, task_id: &str) -> Result<()> {
@@ -435,7 +495,7 @@ mod tests {
                     .insert_header("content-type", "text/event-stream")
                     .set_body_string(response),
             )
-            .expect(3)
+            .expect(4)
             .mount(&server)
             .await;
         let temp = tempfile::tempdir()?;
@@ -567,11 +627,42 @@ mod tests {
                 _ => {}
             }
         }
+        let staging = temp.path().join("Data/CodexStaging");
+        std::fs::create_dir_all(&staging)?;
+        let text_id = Uuid::new_v4().to_string().to_uppercase();
+        let text_path = staging.join(format!("{text_id}.txt"));
+        let text_appendix = format!(
+            "\nFILE_MARKER_START\n{}\nFILE_MARKER_END",
+            "x".repeat(80_000)
+        );
+        std::fs::write(&text_path, &text_appendix)?;
+        restarted
+            .submit_with_attachments(
+                &task_id,
+                "Read the attached file".to_owned(),
+                Vec::new(),
+                Some(CodexTextAttachment {
+                    id: text_id,
+                    byte_count: text_appendix.len() as u64,
+                }),
+            )
+            .await?;
+        loop {
+            let event =
+                tokio::time::timeout(std::time::Duration::from_secs(10), resumed_events.recv())
+                    .await??;
+            match event["event"]["type"].as_str() {
+                Some("task_complete") => break,
+                Some("error") => anyhow::bail!("Codex file error: {}", event["event"]),
+                _ => {}
+            }
+        }
+        assert!(!text_path.exists(), "the Agent did not remove staged text");
         restarted.stop(&task_id).await?;
         let home = data_dir.join("Codex/Tasks").join(task_id.to_lowercase());
         assert!(!home.join("auth.json").exists());
         let requests = server.received_requests().await.expect("mock requests");
-        assert_eq!(requests.len(), 3);
+        assert_eq!(requests.len(), 4);
         let image_request: serde_json::Value = serde_json::from_slice(&requests[2].body)?;
         assert!(
             image_request["input"]
@@ -579,6 +670,14 @@ mod tests {
                 .and_then(|items| items.last())
                 .is_some_and(|last| last.to_string().contains("data:image/png;base64,")),
             "the third model request did not contain the local image"
+        );
+        let file_request: serde_json::Value = serde_json::from_slice(&requests[3].body)?;
+        assert!(
+            file_request["input"]
+                .as_array()
+                .and_then(|items| items.last())
+                .is_some_and(|last| last.to_string().contains("FILE_MARKER_END")),
+            "the fourth model request did not contain the staged file text"
         );
         assert_eq!(
             requests[0]

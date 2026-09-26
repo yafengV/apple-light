@@ -364,7 +364,7 @@ final class WorkspaceStore {
     shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
     let agentClient = AgentClient()
     client = agentClient
-    codexTransport = CodexChatTransport(client: agentClient)
+    codexTransport = CodexChatTransport(client: agentClient, dataRoot: root)
     workspace.browser.createChildTab = { [weak self] id, configuration in
       self?.newBrowserChild(from: id, configuration: configuration)
     }
