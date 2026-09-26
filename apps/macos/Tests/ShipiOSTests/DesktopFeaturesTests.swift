@@ -722,6 +722,60 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testCodexResumedTaskUsesNewWorktreeAsCommandDirectory() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let source = root.appendingPathComponent("Source", isDirectory: true)
+    let target = root.appendingPathComponent("Worktree", isDirectory: true)
+    let data = root.appendingPathComponent("Data")
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
+    try Data("initial\n".utf8).write(to: source.appendingPathComponent("file"))
+    _ = try await GitReviewService.checked(["add", "file"], at: source)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    _ = try await GitReviewService.checked(
+      ["worktree", "add", "--detach", "--", target.path, "HEAD"], at: source)
+
+    var store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(source)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    await store.startChat("Initial handoff turn")
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: first.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first.id }?.status, "succeeded")
+    let taskID = try XCTUnwrap(store.library.tasks.first { $0.runIDs.contains(first.id) }?.id)
+    await store.shutdown()
+
+    store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
+    await store.restore()
+    let index = try XCTUnwrap(store.library.tasks.firstIndex { $0.id == taskID })
+    store.library.tasks[index].project = GitBranchService.canonicalRoot(target).path
+    XCTAssertTrue(store.saveLibrary())
+    await store.open(target)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    await store.startChat("codex-handoff-cwd-probe", taskID: taskID)
+    let second = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: second.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == second.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    let command = try XCTUnwrap(finished.toolExecutions.first { $0.toolName == "命令" })
+    let executedDirectory = try XCTUnwrap(command.output?.trimmingCharacters(in: .whitespacesAndNewlines))
+    XCTAssertEqual(URL(fileURLWithPath: executedDirectory).resolvingSymlinksInPath().path,
+      target.resolvingSymlinksInPath().path)
+    await store.shutdown()
+  }
+
   @MainActor func testNewWorktreeTaskRunsCodexInDetachedCheckoutAndKeepsSourceDraftIdentity() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

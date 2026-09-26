@@ -100,6 +100,12 @@ class Handler(BaseHTTPRequestHandler):
                     'name': 'apply_patch',
                     'input': '*** Begin Patch\n*** Add File: patch-proof.txt\n+patched\n*** End Patch',
                 }
+            elif 'codex-handoff-cwd-probe' in request_text and 'swift-handoff-cwd-call' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-handoff-cwd-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({'cmd': 'pwd', 'yield_time_ms': 10000}),
+                }
             elif 'codex-live-output-probe' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-live-output-call',
