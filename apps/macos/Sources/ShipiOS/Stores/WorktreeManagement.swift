@@ -93,4 +93,68 @@ extension WorkspaceStore {
     recordNavigation()
     await open(URL(fileURLWithPath: record.path))
   }
+
+  /// Reserve one detached checkout for a task. The pending record is durable before Git runs.
+  @discardableResult func createManagedWorktree(snapshot: GitBranchSnapshot,
+    branch: GitBranchChoice?, taskID: String) async -> ManagedWorktree? {
+    guard libraryLoaded, !busy, activeLocalRun == nil,
+      UUID(uuidString: taskID) != nil,
+      library.projects.contains(where: {
+        GitBranchService.canonicalRoot(URL(fileURLWithPath: $0)) == snapshot.root
+      }) else {
+      worktreeError = "请从已添加的 Git 项目创建托管工作树任务。"
+      return nil
+    }
+    if let existing = library.managedWorktrees.first(where: { $0.taskID == taskID }) {
+      guard existing.source == snapshot.root.path else {
+        worktreeError = "此任务已关联其他项目的工作树。"
+        return nil
+      }
+      return existing.ready ? existing : await recoverManagedWorktree(taskID: taskID)
+    }
+    busy = true; worktreeError = nil
+    defer { busy = false }
+    do {
+      let checkout = try await WorktreeService.plan(snapshot: snapshot, branch: branch,
+        title: "托管任务", parent: worktreeRoot)
+      let record = ManagedWorktree(taskID: taskID, checkout: checkout)
+      var candidate = library
+      candidate.managedWorktrees.append(record)
+      try commitLibrary(candidate)
+      return try await finishManagedWorktree(record)
+    } catch {
+      worktreeError = error.localizedDescription
+      return nil
+    }
+  }
+
+  @discardableResult func recoverManagedWorktree(taskID: String) async -> ManagedWorktree? {
+    guard libraryLoaded, !busy, activeLocalRun == nil,
+      let record = library.managedWorktrees.first(where: { $0.taskID == taskID }) else { return nil }
+    if record.ready { return record }
+    busy = true; worktreeError = nil
+    defer { busy = false }
+    do { return try await finishManagedWorktree(record) }
+    catch { worktreeError = error.localizedDescription; return nil }
+  }
+
+  private func finishManagedWorktree(_ record: ManagedWorktree) async throws -> ManagedWorktree {
+    try await WorktreeService.createOrRecover(record.checkout)
+    let checkout = record.checkout
+    var readyCheckout = PermanentWorktree(id: checkout.id, source: checkout.source,
+      path: GitBranchService.canonicalRoot(URL(fileURLWithPath: checkout.path)).path,
+      commonDirectory: GitBranchService.canonicalRoot(URL(fileURLWithPath: checkout.commonDirectory)).path,
+      startingCommit: checkout.startingCommit, startingName: checkout.startingName,
+      createdAt: checkout.createdAt, title: checkout.title)
+    readyCheckout.ready = true
+    let ready = ManagedWorktree(taskID: record.taskID, checkout: readyCheckout)
+    var candidate = library
+    candidate.managedWorktrees.removeAll { $0.taskID == ready.taskID }
+    candidate.managedWorktrees.append(ready)
+    do { try commitLibrary(candidate) }
+    catch {
+      throw AgentFailure(message: "托管工作树已创建，但状态尚未保存。请重试恢复。路径：\(ready.path)\n\(error.localizedDescription)")
+    }
+    return ready
+  }
 }

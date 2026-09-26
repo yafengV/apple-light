@@ -236,6 +236,82 @@ final class WorktreeTests: XCTestCase {
     let old = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertNil(old.worktreeRoot)
     XCTAssertTrue(old.permanentWorktrees.isEmpty)
+    XCTAssertTrue(old.managedWorktrees.isEmpty)
+  }
+
+  @MainActor func testManagedWorktreeReservesOneCheckoutWithoutBecomingPermanentProject() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let result = await store.createManagedWorktree(snapshot: snapshot, branch: nil, taskID: taskID)
+    let created = try XCTUnwrap(result, store.worktreeError ?? "")
+    XCTAssertTrue(created.ready)
+    XCTAssertEqual(created.taskID, taskID)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: created.path))
+    XCTAssertTrue(store.library.permanentWorktrees.isEmpty)
+    XCTAssertFalse(store.library.projects.contains(created.path))
+    let checkout = try await GitBranchService.snapshot(at: URL(fileURLWithPath: created.path))
+    XCTAssertNil(checkout.currentReference)
+    XCTAssertEqual(checkout.currentCommit, snapshot.currentCommit)
+    let repeated = await store.createManagedWorktree(snapshot: snapshot, branch: nil, taskID: taskID)
+    XCTAssertEqual(repeated?.id, created.id)
+    XCTAssertEqual(store.library.managedWorktrees.count, 1)
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: data)
+    await restored.restore()
+    XCTAssertEqual(restored.library.managedWorktrees.first, created)
+    await restored.shutdown()
+  }
+
+  @MainActor func testManagedWorktreeRecoveryKeepsWorkAndOriginalCheckoutIdentity() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let checkout = try await WorktreeService.plan(snapshot: snapshot, branch: nil,
+      title: "托管任务", parent: base.appendingPathComponent("worktrees"))
+    let taskID = UUID().uuidString
+    var library = WorkspaceLibrary()
+    library.visit(source.path)
+    library.managedWorktrees = [ManagedWorktree(taskID: taskID, checkout: checkout)]
+    try library.save(to: data.appendingPathComponent("workspace.json"))
+    try await WorktreeService.createOrRecover(checkout)
+    let file = URL(fileURLWithPath: checkout.path).appendingPathComponent("file")
+    try write("unfinished work\n", file)
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    let result = await store.recoverManagedWorktree(taskID: taskID)
+    let recovered = try XCTUnwrap(result, store.worktreeError ?? "")
+    XCTAssertEqual(recovered.id, checkout.id)
+    XCTAssertTrue(recovered.ready)
+    XCTAssertEqual(try String(contentsOf: file), "unfinished work\n")
+    XCTAssertEqual(store.library.managedWorktrees.count, 1)
+    await store.shutdown()
+  }
+
+  @MainActor func testManagedWorktreeSaveFailureDoesNotCreateUnrecordedCheckout() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let recordFile = data.appendingPathComponent("workspace.json")
+    try FileManager.default.removeItem(at: recordFile)
+    try FileManager.default.createDirectory(at: recordFile, withIntermediateDirectories: true)
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let result = await store.createManagedWorktree(snapshot: snapshot, branch: nil,
+      taskID: UUID().uuidString)
+    XCTAssertNil(result)
+    XCTAssertNotNil(store.worktreeError)
+    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: store.worktreeRoot.path))
+    try FileManager.default.removeItem(at: recordFile)
+    await store.shutdown()
   }
 
   func testUnbornRepositoryCanUseCachedRemoteBranch() async throws {

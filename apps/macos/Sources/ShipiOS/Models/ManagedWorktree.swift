@@ -1,0 +1,12 @@
+import Foundation
+
+/// A checkout reserved for one task, separate from a permanent worktree project.
+struct ManagedWorktree: Codable, Identifiable, Equatable {
+  let taskID: String
+  var checkout: PermanentWorktree
+
+  var id: UUID { checkout.id }
+  var source: String { checkout.source }
+  var path: String { checkout.path }
+  var ready: Bool { checkout.ready }
+}

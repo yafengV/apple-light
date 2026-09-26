@@ -201,6 +201,7 @@ struct WorkspaceLibrary: Codable {
   var gitPreferences = GitPreferences()
   var worktreeRoot: String?
   var permanentWorktrees: [PermanentWorktree] = []
+  var managedWorktrees: [ManagedWorktree] = []
   var goalSessions: [String: GoalSession] = [:]
 
   init() {}
@@ -215,7 +216,7 @@ struct WorkspaceLibrary: Codable {
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
       defaultTerminalLocation, gitPreferences,
-      worktreeRoot, permanentWorktrees, goalSessions
+      worktreeRoot, permanentWorktrees, managedWorktrees, goalSessions
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -299,6 +300,7 @@ struct WorkspaceLibrary: Codable {
     gitPreferences.normalize()
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
     permanentWorktrees = try c.decodeIfPresent([PermanentWorktree].self, forKey: .permanentWorktrees) ?? []
+    managedWorktrees = try c.decodeIfPresent([ManagedWorktree].self, forKey: .managedWorktrees) ?? []
     goalSessions = try c.decodeIfPresent([String: GoalSession].self, forKey: .goalSessions) ?? [:]
   }
   func projectTitle(_ path: String) -> String {

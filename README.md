@@ -252,6 +252,7 @@ python3 script/smoke_ipc.py
 | [Codex 回合差异时间线](docs/221-codex-turn-diff-timeline.md) | 真实 Core 补丁后的累计差异卡可展开、复制并恢复；精确视觉与导航待验收 |
 | [Codex 完整差异快照](docs/222-codex-full-diff-snapshots.md) | 长差异私有保存，时间线可查看或复制完整内容；原生视觉与导航待验收 |
 | [Codex 差异按文件浏览](docs/223-codex-diff-file-navigation.md) | 多文件差异可逐文件选择与复制；文件打开及原生配对待验收 |
+| [托管工作树基础](docs/224-managed-worktree-foundation.md) | 一任务一工作树的独立记录和安全恢复基础；新任务入口与完整生命周期待接通 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
 ## 当前基线
