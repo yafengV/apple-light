@@ -5,6 +5,32 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  @MainActor func testCodexCompactionKeepsOrderedTimelineAndAssistantText() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "running", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object(["response": .string("Before"),
+        "response_items": try ChatResponseItem.json([.message(id: UUID(), text: "Before")])]))
+    store.library.chatRuns = [run]
+    store.runs = [run]
+    store.recordCodexCompaction(runID: run.id, manual: false)
+    store.appendChat(run.id, delta: "After")
+    store.recordCodexCompaction(runID: run.id, manual: false)
+    let updated = try XCTUnwrap(store.library.chatRuns.first)
+    XCTAssertEqual(updated.result?["response"].text, "BeforeAfter")
+    let items = try XCTUnwrap(updated.responseItems)
+    XCTAssertEqual(items.count, 4)
+    XCTAssertEqual(items[0].text, "Before")
+    if case .compaction = items[1] {} else { XCTFail("Missing first compaction marker") }
+    XCTAssertEqual(items[2].text, "After")
+    if case .compaction = items[3] {} else { XCTFail("Missing second compaction marker") }
+    XCTAssertEqual(try ChatResponseItem.json(items).decode([ChatResponseItem].self), items)
+  }
+
   @MainActor func testLegacyReviewRetryDoesNotBecomeOrdinaryChat() async {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -497,6 +523,10 @@ final class ModelTransportTests: XCTestCase {
     let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == compact.id })
     XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
     XCTAssertEqual(finished.result?["response"].text, "上下文已整理。")
+    XCTAssertEqual(finished.responseItems?.count, 1)
+    if case .compaction = finished.responseItems?.first {} else {
+      XCTFail("Manual compaction must appear as an event marker")
+    }
     XCTAssertFalse(store.library.chatContext(taskID: first.id).contains { $0.content == "整理上下文" })
     XCTAssertEqual(store.draft, "")
 

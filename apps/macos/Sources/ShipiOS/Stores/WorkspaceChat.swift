@@ -331,12 +331,9 @@ extension WorkspaceStore {
         for try await event in stream {
           try Task.checkCancellation()
           switch event["type"].text {
-          case "context_compacted", "item_completed":
-            if compact && !contextCompacted && (event["type"].text == "context_compacted"
-              || event["item"]["type"].text == "context_compaction") {
-              contextCompacted = true
-              appendChat(runID, delta: "上下文已整理。")
-            }
+          case "context_compacted":
+            contextCompacted = true
+            recordCodexCompaction(runID: runID, manual: compact)
           case "exec_command_begin", "exec_command_end", "patch_apply_begin", "patch_apply_end":
             if event["type"].text?.hasSuffix("_begin") == true {
               recordCodexRuntimeStatus(runID: runID, message: nil)
@@ -567,6 +564,15 @@ extension WorkspaceStore {
     if current.codexPlan == nil { items.append(.plan(plan.id)) }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, codexPlan: plan)
+    saveLibrary()
+  }
+  func recordCodexCompaction(runID: String, manual: Bool) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var items = current.responseItems ?? []
+    items.append(.compaction(UUID()))
+    replaceChat(current, status: current.status,
+      response: manual ? "上下文已整理。" : (current.result?["response"].text ?? ""),
+      responseItems: items)
     saveLibrary()
   }
   private func resolveCodexApproval(runID: String, taskID: String, event: JSONValue,

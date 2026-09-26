@@ -41,6 +41,10 @@ struct ChatResponseView: View {
         if let plan = run.codexPlan, plan.id == id {
           CodexPlanView(plan: plan)
         }
+      case .compaction:
+        Label("上下文已整理", systemImage: "text.badge.checkmark")
+          .appFont(.caption).foregroundStyle(.secondary)
+          .accessibilityLabel("Codex 已整理会话上下文")
       case .user(let id):
         if let message = run.codexSteeredMessages.first(where: { $0.id == id }) {
           CodexSteeredMessageView(store: store, runID: run.id, message: message)
