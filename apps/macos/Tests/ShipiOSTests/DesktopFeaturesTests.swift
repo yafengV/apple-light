@@ -5,6 +5,37 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexReasoningSectionsKeepOneOrderedSummaryWithoutRawContent() throws {
+    var items: [ChatResponseItem] = [.message(id: UUID(), text: "先检查。")]
+    XCTAssertFalse(CodexReasoningTimeline.apply(.object([
+      "type": .string("agent_reasoning_section_break"), "item_id": .string("reason-1"),
+      "summary_index": .number(1),
+    ]), items: &items))
+    let first: JSONValue = .object([
+      "type": .string("reasoning_content_delta"), "item_id": .string("reason-1"),
+      "summary_index": .number(0), "delta": .string("检查项目。"),
+    ])
+    XCTAssertTrue(CodexReasoningTimeline.apply(first, items: &items))
+    XCTAssertTrue(CodexReasoningTimeline.apply(.object([
+      "type": .string("agent_reasoning_section_break"), "item_id": .string("reason-1"),
+      "summary_index": .number(1),
+    ]), items: &items))
+    XCTAssertTrue(CodexReasoningTimeline.apply(.object([
+      "type": .string("reasoning_content_delta"), "item_id": .string("reason-1"),
+      "summary_index": .number(1), "delta": .string("运行测试。"),
+    ]), items: &items))
+    XCTAssertFalse(CodexReasoningTimeline.apply(.object([
+      "type": .string("reasoning_raw_content_delta"), "item_id": .string("reason-1"),
+      "delta": .string("private raw reasoning"),
+    ]), items: &items))
+    XCTAssertEqual(items.count, 2)
+    if case .reasoning(let id, let sections) = items[1] {
+      XCTAssertEqual(id, "reason-1")
+      XCTAssertEqual(sections, ["检查项目。", "运行测试。"])
+    } else { XCTFail("Missing reasoning summary") }
+    XCTAssertEqual(try ChatResponseItem.json(items).decode([ChatResponseItem].self), items)
+  }
+
   func testCodexWebSearchEndWithoutBeginShowsActionAndResults() {
     let event: JSONValue = .object([
       "type": .string("web_search_end"), "call_id": .string("open-1"),
@@ -627,6 +658,42 @@ final class ModelTransportTests: XCTestCase {
     await restored.modelTask(runID: resumedCompact.id)?.value
     XCTAssertEqual(restored.library.chatRuns.first { $0.id == resumedCompact.id }?.status,
       "succeeded")
+    await restored.shutdown()
+  }
+
+  @MainActor func testCodexReasoningAppearsBeforeReplyAndPersists() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    await store.startChat("codex-reasoning-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    let items = try XCTUnwrap(finished.responseItems)
+    XCTAssertEqual(items.count, 2)
+    if case .reasoning(let itemID, let sections) = items[0] {
+      XCTAssertEqual(itemID, "fixture-reasoning-1")
+      XCTAssertEqual(sections, ["Inspecting the project.", "Checking the tests."])
+    } else { XCTFail("Core reasoning was not placed before the reply") }
+    XCTAssertEqual(items[1].text, "Codex fixture reply")
+    await store.shutdown()
+
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == run.id }?.responseItems, items)
     await restored.shutdown()
   }
 

@@ -41,6 +41,8 @@ struct ChatResponseView: View {
         if let plan = run.codexPlan, plan.id == id {
           CodexPlanView(plan: plan)
         }
+      case .reasoning(_, let sections):
+        CodexReasoningView(sections: sections)
       case .compaction:
         Label("上下文已整理", systemImage: "text.badge.checkmark")
           .appFont(.caption).foregroundStyle(.secondary)

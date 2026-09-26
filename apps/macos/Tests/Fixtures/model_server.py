@@ -271,6 +271,21 @@ class Handler(BaseHTTPRequestHandler):
                 events.insert(-1, {'type': 'response.output_item.done', 'item': {
                     'type': 'message', 'role': 'assistant', 'id': 'web-search-reply',
                     'content': [{'type': 'output_text', 'text': 'Web search fixture reply'}]}})
+            if 'codex-reasoning-probe' in request_text:
+                reasoning_id = 'fixture-reasoning-1'
+                summary = ['Inspecting the project.', 'Checking the tests.']
+                events[1:1] = [
+                    {'type': 'response.output_item.added', 'item': {
+                        'type': 'reasoning', 'id': reasoning_id, 'summary': []}},
+                    {'type': 'response.reasoning_summary_text.delta',
+                        'delta': summary[0], 'summary_index': 0},
+                    {'type': 'response.reasoning_summary_part.added', 'summary_index': 1},
+                    {'type': 'response.reasoning_summary_text.delta',
+                        'delta': summary[1], 'summary_index': 1},
+                    {'type': 'response.output_item.done', 'item': {
+                        'type': 'reasoning', 'id': reasoning_id,
+                        'summary': [{'type': 'summary_text', 'text': text} for text in summary]}},
+                ]
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
             self.end_headers()

@@ -369,6 +369,8 @@ extension WorkspaceStore {
           case "plan_update":
             recordCodexRuntimeStatus(runID: runID, message: nil)
             try recordCodexPlan(runID: runID, event: event)
+          case "reasoning_content_delta", "agent_reasoning_section_break":
+            recordCodexReasoning(runID: runID, event: event)
           case "stream_error", "stream_info", "auth_recovery_started", "auth_recovery_completed":
             recordCodexRuntimeStatus(runID: runID,
               message: event["message"].text ?? "Codex 正在恢复连接…")
@@ -612,6 +614,17 @@ extension WorkspaceStore {
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, codexPlan: plan)
     saveLibrary()
+  }
+  private func recordCodexReasoning(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var items = current.responseItems ?? []
+    guard CodexReasoningTimeline.apply(event, items: &items) else { return }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items)
+    if Date().timeIntervalSince(lastChatSave) > 1 {
+      lastChatSave = Date()
+      saveLibrary()
+    }
   }
   func recordCodexCompaction(runID: String, manual: Bool) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }

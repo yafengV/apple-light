@@ -8,6 +8,7 @@ enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
   case question(UUID)
   case elicitation(UUID)
   case plan(UUID)
+  case reasoning(itemID: String, sections: [String])
   case compaction(UUID)
   case user(UUID)
 
@@ -18,6 +19,7 @@ enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
     case .question(let id): "question." + id.uuidString
     case .elicitation(let id): "elicitation." + id.uuidString
     case .plan(let id): "plan." + id.uuidString
+    case .reasoning(let itemID, _): "reasoning." + itemID
     case .compaction(let id): "compaction." + id.uuidString
     case .user(let id): "user." + id.uuidString
     }
