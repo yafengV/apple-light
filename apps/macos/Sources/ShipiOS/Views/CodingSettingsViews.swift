@@ -142,6 +142,7 @@ struct CodeReviewSettingsView: View {
 struct LocalEnvironmentSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var setupPlatform = EnvironmentPlatform.all
+  @State private var cleanupPlatform = EnvironmentPlatform.all
   @State private var showingSetupVariables = false
 
   private var setupScript: Binding<String> {
@@ -154,6 +155,20 @@ struct LocalEnvironmentSettingsView: View {
         var scripts = store.setupPlatformScripts
         scripts.set(value, for: setupPlatform)
         store.setupPlatformScripts = scripts
+      }
+    })
+  }
+
+  private var cleanupScript: Binding<String> {
+    Binding(get: {
+      cleanupPlatform == .all ? store.worktreeCleanupScript
+        : store.cleanupPlatformScripts.script(for: cleanupPlatform)
+    }, set: { value in
+      if cleanupPlatform == .all { store.worktreeCleanupScript = value }
+      else {
+        var scripts = store.cleanupPlatformScripts
+        scripts.set(value, for: cleanupPlatform)
+        store.cleanupPlatformScripts = scripts
       }
     })
   }
@@ -199,6 +214,20 @@ struct LocalEnvironmentSettingsView: View {
             }
           Button("保存初始化脚本") { store.saveProfile() }
         }
+        Section("工作树清理") {
+          Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          Picker("平台", selection: $cleanupPlatform) {
+            ForEach(EnvironmentPlatform.allCases) { platform in
+              Text(platform.title).tag(platform)
+            }
+          }.pickerStyle(.segmented)
+          TextEditor(text: cleanupScript)
+            .font(.system(.body, design: .monospaced))
+            .frame(minHeight: 100)
+            .accessibilityLabel("\(cleanupPlatform.title) 工作树清理脚本")
+          Button("保存清理脚本") { store.saveProfile() }
+        }
         Section("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
             .appFont(.caption).foregroundStyle(.secondary)
@@ -237,7 +266,7 @@ struct LocalEnvironmentSettingsView: View {
       }
       Section("工作树环境") {
         Button("查看工作树设置…") { store.settingsPage = .worktrees }
-        Text("工作树会继承来源项目的构建配置、初始化脚本和快捷操作。")
+        Text("工作树会继承来源项目的构建配置、初始化与清理脚本、快捷操作。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
     }.settingsFormStyle().appSurface()

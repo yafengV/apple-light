@@ -138,6 +138,7 @@ final class WorkspaceLibraryTests: XCTestCase {
     library.profiles["/project"] = BuildProfile(
       container: "Demo.xcodeproj", scheme: "Demo", configuration: "Release",
       worktreeSetupScript: "echo default", setupPlatformScripts: scripts,
+      worktreeCleanupScript: "echo cleanup", cleanupPlatformScripts: scripts,
       actions: [EnvironmentAction(title: "Build", symbol: "tool", script: "swift build",
         platform: .darwin)])
     let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -153,6 +154,8 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertEqual(restored.profiles["/project"]?.worktreeSetupScript, "echo default")
     XCTAssertEqual(restored.profiles["/project"]?.setupPlatformScripts, scripts)
     XCTAssertEqual(restored.profiles["/project"]?.macOSSetupScript, "swift package resolve")
+    XCTAssertEqual(restored.profiles["/project"]?.worktreeCleanupScript, "echo cleanup")
+    XCTAssertEqual(restored.profiles["/project"]?.macOSCleanupScript, "swift package resolve")
     XCTAssertEqual(restored.profiles["/project"]?.actions.first?.title, "Build")
     XCTAssertEqual(restored.profiles["/project"]?.actions.first?.platform, .darwin)
     XCTAssertTrue(restored.tasks[0].pinned)
@@ -163,6 +166,8 @@ final class WorkspaceLibraryTests: XCTestCase {
       from: Data(#"{"container":"Demo.xcodeproj","scheme":"Demo","configuration":"Debug"}"#.utf8))
     XCTAssertEqual(profile.worktreeSetupScript, "")
     XCTAssertEqual(profile.setupPlatformScripts, .init())
+    XCTAssertEqual(profile.worktreeCleanupScript, "")
+    XCTAssertEqual(profile.cleanupPlatformScripts, .init())
     XCTAssertEqual(profile.actions, [])
   }
 

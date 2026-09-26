@@ -1,6 +1,24 @@
 import Foundation
 
 extension WorkspaceStore {
+  func runManagedWorktreeCleanup(_ record: ManagedWorktree) async throws {
+    guard let current = library.managedWorktrees.first(where: { $0.taskID == record.taskID }),
+      current.ready, FileManager.default.fileExists(atPath: current.path) else {
+      throw AgentFailure(message: "托管工作树已改变，无法运行清理脚本。")
+    }
+    guard current.cleanupCompleted != true else { return }
+    let script = library.profiles[current.source]?.macOSCleanupScript ?? ""
+    guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    try await LocalEnvironmentScriptService.run(script, phase: .cleanup,
+      source: URL(fileURLWithPath: current.source), worktree: URL(fileURLWithPath: current.path))
+    var candidate = library
+    guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == current.taskID }) else {
+      throw AgentFailure(message: "清理脚本已执行，但工作树记录已丢失；请检查项目。")
+    }
+    candidate.managedWorktrees[index].cleanupCompleted = true
+    try commitLibrary(candidate)
+  }
+
   func scheduleManagedArchiveCleanup(_ taskID: String) {
     let previous = managedArchiveCleanupTask
     managedArchiveCleanupTask = Task { @MainActor in
@@ -55,6 +73,20 @@ extension WorkspaceStore {
         return
       }
       let checkout = URL(fileURLWithPath: record.path)
+      let source = URL(fileURLWithPath: record.source)
+      let common = GitBranchService.canonicalRoot(
+        URL(fileURLWithPath: record.checkout.commonDirectory))
+      guard GitBranchService.canonicalRoot(source).path == record.source,
+        GitBranchService.canonicalRoot(checkout).path == record.path,
+        try await WorktreeService.commonDirectory(at: source) == common,
+        try await WorktreeService.commonDirectory(at: checkout) == common else {
+        throw AgentFailure(message: "工作树或来源仓库已改变，未运行清理脚本。")
+      }
+      try await runManagedWorktreeCleanup(record)
+      guard let currentTask = library.tasks.first(where: { $0.id == taskID }),
+        currentTask.archived || dueToLimit,
+        !currentTask.pinned, activeRun(taskID: taskID) == nil,
+        project?.path != record.path else { return }
       let status = try await GitReviewService.checked(
         ["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: checkout)
       let ignored = try await GitReviewService.checked(
@@ -167,6 +199,7 @@ extension WorkspaceStore {
       candidate.managedWorktrees[index].archivedStashCommit = nil
       candidate.managedWorktrees[index].archivedCopiedFiles = nil
       candidate.managedWorktrees[index].archivedPruned = false
+      candidate.managedWorktrees[index].cleanupCompleted = nil
       try commitLibrary(candidate)
       _ = try? await GitReviewService.checked(
         ["update-ref", "-d", "refs/shipios/managed-archive/\(taskID)", head],

@@ -235,8 +235,8 @@ extension WorkspaceStore {
     guard current.setupCompleted != true else { return }
     let script = library.profiles[record.source]?.macOSSetupScript ?? ""
     if !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      try await WorktreeSetupService.run(script, source: URL(fileURLWithPath: record.source),
-        at: URL(fileURLWithPath: record.path))
+      try await LocalEnvironmentScriptService.run(script, phase: .setup,
+        source: URL(fileURLWithPath: record.source), worktree: URL(fileURLWithPath: record.path))
     }
     var candidate = library
     guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == record.taskID }) else {

@@ -212,7 +212,7 @@ enum WorktreeService {
     return false
   }
 
-  private static func commonDirectory(at root: URL) async throws -> URL {
+  static func commonDirectory(at root: URL) async throws -> URL {
     let value = try await GitReviewService.checked(["rev-parse", "--path-format=absolute", "--git-common-dir"], at: root)
     let path = value.hasSuffix("\n") ? String(value.dropLast()) : value
     return GitBranchService.canonicalRoot(URL(fileURLWithPath: path))

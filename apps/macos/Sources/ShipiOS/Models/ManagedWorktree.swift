@@ -30,6 +30,8 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var sourceChangesApplied: Bool? = nil
   /// A successful setup is durable so retries never repeat a completed script.
   var setupCompleted: Bool? = nil
+  /// Set after a configured cleanup script succeeds, before taking the archive snapshot.
+  var cleanupCompleted: Bool? = nil
   /// Reserved before switching the local checkout during Worktree → Local handoff.
   var handoffBranch: String? = nil
   /// Persisted before touching the target; retained until both checkouts and the task move agree.

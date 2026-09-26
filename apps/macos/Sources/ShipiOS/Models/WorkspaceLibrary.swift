@@ -36,21 +36,27 @@ struct BuildProfile: Codable {
   var configuration = "Debug"
   var worktreeSetupScript = ""
   var setupPlatformScripts = EnvironmentPlatformScripts()
+  var worktreeCleanupScript = ""
+  var cleanupPlatformScripts = EnvironmentPlatformScripts()
   var actions: [EnvironmentAction] = []
 
   init(container: String = "", scheme: String = "", configuration: String = "Debug",
     worktreeSetupScript: String = "", setupPlatformScripts: EnvironmentPlatformScripts = .init(),
+    worktreeCleanupScript: String = "", cleanupPlatformScripts: EnvironmentPlatformScripts = .init(),
     actions: [EnvironmentAction] = []) {
     self.container = container
     self.scheme = scheme
     self.configuration = configuration
     self.worktreeSetupScript = worktreeSetupScript
     self.setupPlatformScripts = setupPlatformScripts
+    self.worktreeCleanupScript = worktreeCleanupScript
+    self.cleanupPlatformScripts = cleanupPlatformScripts
     self.actions = actions
   }
 
   enum CodingKeys: String, CodingKey {
-    case container, scheme, configuration, worktreeSetupScript, setupPlatformScripts, actions
+    case container, scheme, configuration, worktreeSetupScript, setupPlatformScripts
+    case worktreeCleanupScript, cleanupPlatformScripts, actions
   }
 
   init(from decoder: Decoder) throws {
@@ -61,6 +67,9 @@ struct BuildProfile: Codable {
     worktreeSetupScript = try values.decodeIfPresent(String.self, forKey: .worktreeSetupScript) ?? ""
     setupPlatformScripts = try values.decodeIfPresent(EnvironmentPlatformScripts.self,
       forKey: .setupPlatformScripts) ?? .init()
+    worktreeCleanupScript = try values.decodeIfPresent(String.self, forKey: .worktreeCleanupScript) ?? ""
+    cleanupPlatformScripts = try values.decodeIfPresent(EnvironmentPlatformScripts.self,
+      forKey: .cleanupPlatformScripts) ?? .init()
     actions = try values.decodeIfPresent([EnvironmentAction].self, forKey: .actions) ?? []
   }
 
@@ -68,6 +77,12 @@ struct BuildProfile: Codable {
     let override = setupPlatformScripts.darwin
     return override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       ? worktreeSetupScript : override
+  }
+
+  var macOSCleanupScript: String {
+    let override = cleanupPlatformScripts.darwin
+    return override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      ? worktreeCleanupScript : override
   }
 }
 

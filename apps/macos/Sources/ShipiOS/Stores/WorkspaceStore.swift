@@ -282,6 +282,8 @@ final class WorkspaceStore {
   var configuration = "Debug"
   var worktreeSetupScript = ""
   var setupPlatformScripts = EnvironmentPlatformScripts()
+  var worktreeCleanupScript = ""
+  var cleanupPlatformScripts = EnvironmentPlatformScripts()
   var environmentActions: [EnvironmentAction] = []
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
@@ -488,6 +490,8 @@ final class WorkspaceStore {
     configuration = "Debug"
     worktreeSetupScript = ""
     setupPlatformScripts = .init()
+    worktreeCleanupScript = ""
+    cleanupPlatformScripts = .init()
     environmentActions = []
     action = .chat
     events = []
@@ -625,6 +629,8 @@ final class WorkspaceStore {
         configuration = profile.configuration
         worktreeSetupScript = profile.worktreeSetupScript
         setupPlatformScripts = profile.setupPlatformScripts
+        worktreeCleanupScript = profile.worktreeCleanupScript
+        cleanupPlatformScripts = profile.cleanupPlatformScripts
         environmentActions = profile.actions
       }
       action = .chat
@@ -1046,6 +1052,7 @@ final class WorkspaceStore {
     library.profiles[project.path] = BuildProfile(
       container: container, scheme: scheme, configuration: configuration,
       worktreeSetupScript: worktreeSetupScript, setupPlatformScripts: setupPlatformScripts,
+      worktreeCleanupScript: worktreeCleanupScript, cleanupPlatformScripts: cleanupPlatformScripts,
       actions: environmentActions)
     saveLibrary()
   }

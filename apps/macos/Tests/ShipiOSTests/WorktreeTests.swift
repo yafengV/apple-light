@@ -3,6 +3,53 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testCleanupFailurePreservesWorktreeAndSuccessfulCleanupRunsAgainAfterRestore() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.profiles[source.path] = BuildProfile(worktreeCleanupScript: "exit 7")
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot, branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    var task = WorkspaceTask(id: taskID, project: record.path, title: "Cleanup", runIDs: [])
+    task.archived = true
+    store.library.tasks.append(task)
+    XCTAssertTrue(store.saveLibrary())
+
+    await store.pruneManagedWorktreeIfEligible(taskID)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: record.path))
+    XCTAssertNil(store.library.managedWorktrees.first?.cleanupCompleted)
+    XCTAssertNil(store.library.managedWorktrees.first?.archivedHead)
+
+    store.library.profiles[source.path]?.worktreeCleanupScript = "exit 8"
+    store.library.profiles[source.path]?.cleanupPlatformScripts.darwin =
+      "printf 'done' >> cleanup-marker\nprintf '%s\\n%s\\n' \"$PWD\" \"$CODEX_WORKTREE_PATH\" > cleanup-context"
+    XCTAssertTrue(store.saveLibrary())
+    await store.pruneManagedWorktreeIfEligible(taskID)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: record.path))
+    XCTAssertEqual(store.library.managedWorktrees.first?.cleanupCompleted, true)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("cleanup-marker")), "done")
+    let context = try String(contentsOf: source.appendingPathComponent("cleanup-context"))
+      .split(separator: "\n").map(String.init)
+    XCTAssertEqual(context.count, 2)
+    if context.count == 2 {
+      XCTAssertEqual(GitBranchService.canonicalRoot(URL(fileURLWithPath: context[0])), source)
+      XCTAssertEqual(context[1], record.path)
+    }
+
+    let restored = await store.restoreManagedArchiveIfNeeded(taskID)
+    XCTAssertTrue(restored)
+    XCTAssertNil(store.library.managedWorktrees.first?.cleanupCompleted)
+    await store.pruneManagedWorktreeIfEligible(taskID)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: record.path))
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("cleanup-marker")), "donedone")
+    await store.shutdown()
+  }
+
   @MainActor func testManagedSetupRunsOnceAndRetriesAfterFailure() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
