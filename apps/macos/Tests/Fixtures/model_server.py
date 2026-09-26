@@ -152,6 +152,10 @@ class Handler(BaseHTTPRequestHandler):
             elif 'codex-compact-probe' in request_text and 'CONTEXT CHECKPOINT COMPACTION' in request_text:
                 item = {'type': 'message', 'role': 'assistant', 'id': 'compact-summary',
                     'content': [{'type': 'output_text', 'text': 'Compact fixture summary'}]}
+            elif 'codex-web-search-probe' in request_text and 'web_search_call' not in request_text:
+                item = {'type': 'web_search_call', 'id': 'swift-web-search',
+                    'status': 'completed',
+                    'action': {'type': 'search', 'query': 'ShipiOS integration query'}}
             elif 'codex-after-compact' in request_text:
                 item = {'type': 'message', 'role': 'assistant', 'id': 'compact-followup',
                     'content': [{'type': 'output_text', 'text':
@@ -251,6 +255,12 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 }},
             ]
+            if item['type'] == 'web_search_call':
+                events.insert(1, {'type': 'response.output_item.added', 'item': {
+                    'type': 'web_search_call', 'id': item['id'], 'status': 'in_progress'}})
+                events.insert(-1, {'type': 'response.output_item.done', 'item': {
+                    'type': 'message', 'role': 'assistant', 'id': 'web-search-reply',
+                    'content': [{'type': 'output_text', 'text': 'Web search fixture reply'}]}})
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
             self.end_headers()

@@ -342,6 +342,9 @@ extension WorkspaceStore {
             if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
               rendered = ""
             }
+          case "web_search_begin", "web_search_end":
+            recordCodexRuntimeStatus(runID: runID, message: nil)
+            recordCodexWebSearch(runID: runID, event: event)
           case "mcp_tool_call_begin", "mcp_tool_call_end":
             recordCodexMCPCall(runID: runID, event: event)
           case "elicitation_request":
@@ -458,6 +461,15 @@ extension WorkspaceStore {
       $0.serverID == CodexCommandTimeline.serverID && $0.callID == event["call_id"].text
         && $0.toolName == (patch ? "补丁" : "命令")
     }
+  }
+  private func recordCodexWebSearch(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var executions = current.toolExecutions
+    var items = current.responseItems ?? []
+    guard CodexWebSearchTimeline.apply(event, executions: &executions, items: &items) else { return }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items, toolExecutions: executions)
+    saveLibrary()
   }
   private func recordCodexMCPCall(runID: String, event: JSONValue) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }),
@@ -613,6 +625,17 @@ extension WorkspaceStore {
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return nil }
     var response = current.result?["response"].text ?? ""
     var items = current.responseItems
+    var executions = current.toolExecutions
+    var finalizedTools = false
+    for index in executions.indices where executions[index].status == .running
+      || executions[index].status == .awaitingApproval {
+      finalizedTools = true
+      executions[index].status = status == "cancelled" ? .cancelled : .failed
+      if executions[index].output == nil {
+        executions[index].output = status == "cancelled"
+          ? "回合已取消，未收到工具完成事件。" : "回合结束，未收到工具完成事件。"
+      }
+    }
     var continueTaskID: String?
     if current.request["mode"].text == ChatMode.goal.rawValue,
       let owner = library.task(containing: id), var session = library.goalSessions[owner.id]
@@ -641,7 +664,7 @@ extension WorkspaceStore {
     }
     replaceChat(
       current, status: status, response: response, message: message,
-      usage: usage, responseItems: items)
+      usage: usage, responseItems: items, toolExecutions: finalizedTools ? executions : nil)
     saveLibrary()
     if let finished = runs.first(where: { $0.id == id }) { observeCompletions([finished]) }
     return continueTaskID

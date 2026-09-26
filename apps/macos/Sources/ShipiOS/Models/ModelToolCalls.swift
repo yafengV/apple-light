@@ -59,7 +59,7 @@ struct MCPToolExecution: Codable, Equatable, Identifiable {
   let serverID: UUID
   let serverName: String
   let toolName: String
-  let arguments: String
+  var arguments: String
   var status: Status = .awaitingApproval
   var output: String?
   var label: String {
@@ -179,5 +179,48 @@ enum CodexCommandTimeline {
     }) else { return }
     executions[index].status = allowed ? .running : .denied
     if !allowed { executions[index].output = "用户拒绝了本次操作。" }
+  }
+}
+
+/// Keeps one visible row for a Core web-search item from begin through completion.
+enum CodexWebSearchTimeline {
+  static let serverID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+
+  static func apply(
+    _ event: JSONValue, executions: inout [MCPToolExecution], items: inout [ChatResponseItem]
+  ) -> Bool {
+    guard let type = event["type"].text,
+      type == "web_search_begin" || type == "web_search_end",
+      let callID = event["call_id"].text, !callID.isEmpty else { return false }
+    let index = executions.firstIndex { $0.serverID == serverID && $0.callID == callID }
+    var execution = index.map { executions[$0] } ?? MCPToolExecution(
+      callID: callID, serverID: serverID, serverName: "Codex", toolName: "网页",
+      arguments: "正在获取网页信息…", status: .running)
+    if type == "web_search_end" {
+      let action = event["action"]
+      let details: String
+      switch action["type"].text {
+      case "search":
+        let queries = action["queries"].items.compactMap(\.text)
+        details = "搜索：" + (event["query"].text ?? action["query"].text
+          ?? queries.joined(separator: "、"))
+      case "open_page": details = "打开网页：" + (action["url"].text ?? "")
+      case "find_in_page":
+        details = "页内查找：" + (action["pattern"].text ?? "")
+          + "\n" + (action["url"].text ?? "")
+      default: details = event["query"].text ?? "网页操作"
+      }
+      execution.arguments = String(details.prefix(4096))
+      if event["results"] != .null {
+        execution.output = String(event["results"].pretty.prefix(65_536))
+      }
+      execution.status = .succeeded
+    }
+    if let index { executions[index] = execution }
+    else {
+      executions.append(execution)
+      items.append(.tool(execution.id))
+    }
+    return true
   }
 }

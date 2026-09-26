@@ -23,15 +23,18 @@ struct MCPToolExecutionView: View {
           if let output = execution.output {
             MCPResultView(output: output)
               .environment(\.mcpApprovalSurfaceVisible, approvalSurfaceVisible && (expanded || awaiting))
-            Button(execution.serverID == CodexCommandTimeline.serverID ? "查看工具输出" : "查看完整工具输出") {
+            Button(execution.serverID == CodexWebSearchTimeline.serverID ? "查看网页结果"
+              : execution.serverID == CodexCommandTimeline.serverID ? "查看工具输出" : "查看完整工具输出") {
               showingRaw = true
             }
           }
         }.padding(.top, 8)
       } label: {
         HStack {
-          Image(systemName: awaiting ? "hand.raised" : "wrench.and.screwdriver")
-          Text(execution.serverName + "." + execution.toolName).lineLimit(1)
+          Image(systemName: awaiting ? "hand.raised"
+            : execution.serverID == CodexWebSearchTimeline.serverID ? "globe" : "wrench.and.screwdriver")
+          Text(execution.serverID == CodexWebSearchTimeline.serverID
+            ? execution.arguments : execution.serverName + "." + execution.toolName).lineLimit(1)
           Spacer()
           Text(execution.label).foregroundStyle(.secondary)
         }.appFont(.caption)

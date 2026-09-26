@@ -245,6 +245,7 @@ python3 script/smoke_ipc.py
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [Codex 会话手动整理上下文](docs/215-codex-manual-compaction.md) | `/compact` 接入 Core 原生操作，覆盖双窗口、下一轮与重启续接；原生 UI 配对待验收 |
 | [Codex 上下文整理时间线标记](docs/216-codex-compaction-timeline.md) | 手动与自动整理进入有序时间线，前后回复保持独立；原生视觉配对待验收 |
+| [Codex 网页工具时间线](docs/217-codex-web-search-timeline.md) | 真实 Core 网页搜索事件合并为工具卡，顺序与持久化已验证；原生配对待验收 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
 ## 当前基线

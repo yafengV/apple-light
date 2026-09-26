@@ -5,6 +5,27 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexWebSearchEndWithoutBeginShowsActionAndResults() {
+    let event: JSONValue = .object([
+      "type": .string("web_search_end"), "call_id": .string("open-1"),
+      "query": .string("ShipiOS docs"),
+      "action": .object(["type": .string("open_page"),
+        "url": .string("https://example.test/docs")]),
+      "results": .array([.object(["title": .string("Docs"),
+        "url": .string("https://example.test/docs")])]),
+    ])
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexWebSearchTimeline.apply(event, executions: &executions, items: &items))
+    XCTAssertEqual(executions.count, 1)
+    XCTAssertEqual(items, [.tool(executions[0].id)])
+    XCTAssertEqual(executions[0].status, .succeeded)
+    XCTAssertEqual(executions[0].arguments, "打开网页：https://example.test/docs")
+    XCTAssertTrue(executions[0].output?.contains("Docs") == true)
+    XCTAssertTrue(CodexWebSearchTimeline.apply(event, executions: &executions, items: &items))
+    XCTAssertEqual(items.count, 1)
+  }
+
   @MainActor func testCodexCompactionKeepsOrderedTimelineAndAssistantText() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -556,6 +577,78 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(restored.library.chatRuns.first { $0.id == resumedCompact.id }?.status,
       "succeeded")
     await restored.shutdown()
+  }
+
+  @MainActor func testCodexWebSearchAppearsBeforeReplyAndPersists() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    await store.startChat("codex-web-search-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Web search fixture reply")
+    let search = try XCTUnwrap(finished.toolExecutions.first)
+    XCTAssertEqual(finished.toolExecutions.count, 1)
+    XCTAssertEqual(search.serverID, CodexWebSearchTimeline.serverID)
+    XCTAssertEqual(search.status, .succeeded)
+    XCTAssertEqual(search.arguments, "搜索：ShipiOS integration query")
+    XCTAssertEqual(finished.responseItems?.first, .tool(search.id))
+    XCTAssertEqual(finished.responseItems?.last?.text, "Web search fixture reply")
+    await store.shutdown()
+
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await restored.restore()
+    let history = try XCTUnwrap(restored.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(history.toolExecutions.first, search)
+    XCTAssertEqual(history.responseItems, finished.responseItems)
+    await restored.shutdown()
+  }
+
+  @MainActor func testInterruptedCodexWebSearchDoesNotLeaveRunningTool() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    await store.startChat("codex-web-search-probe slow-codex")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    let deadline = Date().addingTimeInterval(10)
+    while Date() < deadline {
+      if store.library.chatRuns.first(where: { $0.id == run.id })?.toolExecutions.first?.status == .running {
+        break
+      }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(store.library.chatRuns.first(where: { $0.id == run.id })?.toolExecutions.first?.status,
+      .running)
+    await store.cancel(taskID: run.id)
+    await store.modelTask(runID: run.id)?.value
+    let stopped = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(stopped.status, "cancelled")
+    XCTAssertEqual(stopped.toolExecutions.first?.status, .cancelled)
+    await store.shutdown()
   }
   @MainActor func testCodexApprovalCardResumesCommandAndPersistsTimeline() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
