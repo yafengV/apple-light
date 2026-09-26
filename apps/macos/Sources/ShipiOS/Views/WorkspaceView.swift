@@ -213,7 +213,13 @@ struct WorkspaceView: View {
                     } else { store.activateWorkspaceTab(id) }
                   }, rootForRun: { store.workspaceRoot(for: $0) },
                   openOutputFile: { file in
-                    store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
+                    if store.selectedTask?.runIDs.contains(file.runID) != true {
+                      store.error = "输出所属的任务已不可用。"
+                      return true
+                    }
+                    let revealed = store.revealTaskSummaryFile(file)
+                    if revealed { taskSummary.dismissPopover() }
+                    return revealed
                   }) {
                   taskSummary.close()
                 }
@@ -352,7 +358,13 @@ struct WorkspaceView: View {
                   } else { store.activateWorkspaceTab(id) }
                 }, rootForRun: { store.workspaceRoot(for: $0) },
                 openOutputFile: { file in
-                  store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
+                  if store.selectedTask?.runIDs.contains(file.runID) != true {
+                    store.error = "输出所属的任务已不可用。"
+                    return true
+                  }
+                  let revealed = store.revealTaskSummaryFile(file)
+                  if revealed { taskSummary.dismissPopover() }
+                  return revealed
                 }) {
                 taskSummary.close()
               }

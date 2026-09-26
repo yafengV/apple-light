@@ -3,7 +3,17 @@ import SwiftUI
 
 /// A task-local summary assembled only from records ShipiOS actually owns.
 struct TaskSummaryView: View {
-  @State private var outputPreview: TaskSummaryOutputFile?
+  private enum Preview: Identifiable {
+    case log(TaskSummaryOutputFile)
+    case file(TaskSummaryLinkedFile)
+    var id: String {
+      switch self {
+      case .log(let output): "log:" + output.id
+      case .file(let file): "file:" + file.id
+      }
+    }
+  }
+  @State private var preview: Preview?
   @State private var selectedPullRequest: (taskID: String, request: GitHubPullRequest)?
   @State private var showingOutputs = false
   @State private var linkedFiles: [TaskSummaryLinkedFile] = []
@@ -23,7 +33,8 @@ struct TaskSummaryView: View {
   let browserTabs: [TaskSummaryBrowserTab]
   let focusBrowserTab: (UUID) -> Void
   let rootForRun: (AgentRun) -> URL?
-  let openOutputFile: (TaskSummaryLinkedFile) -> Void
+  /// Return true when the owning window revealed the file in its workspace pane.
+  let openOutputFile: (TaskSummaryLinkedFile) -> Bool
   let close: () -> Void
 
   private var latestPlanDocument: (runID: String, document: CodexPlanDocument)? {
@@ -47,7 +58,7 @@ struct TaskSummaryView: View {
           close: { selectedPullRequest = nil; close() })
       } else if showingOutputs {
         TaskSummaryOutputsView(artifacts: runs.summaryArtifacts, linkedFiles: linkedFiles,
-          previewLog: { outputPreview = $0 }, openFile: openOutputFile,
+          previewLog: { preview = .log($0) }, openFile: openLinkedFile,
           refresh: refreshLinkedFiles,
           back: { showingOutputs = false }, close: close)
       } else {
@@ -58,6 +69,16 @@ struct TaskSummaryView: View {
     .onChange(of: runs, initial: true) { _, current in
       linkedFiles = TaskSummaryLinkedFiles.collect(current, rootForRun: rootForRun)
     }
+    .sheet(item: $preview) { selection in
+      switch selection {
+      case .log(let output): TaskSummaryOutputPreview(output: output)
+      case .file(let file): TaskSummaryLinkedFilePreview(file: file)
+      }
+    }
+  }
+
+  private func openLinkedFile(_ file: TaskSummaryLinkedFile) {
+    if !openOutputFile(file) { preview = .file(file) }
   }
 
   private func refreshLinkedFiles() {
@@ -225,7 +246,7 @@ struct TaskSummaryView: View {
                   .disabled(!FileManager.default.fileExists(atPath: artifact.directory.path))
                   ForEach(artifact.outputs) { output in
                     Button {
-                      if output.kind == .log { outputPreview = output }
+                      if output.kind == .log { preview = .log(output) }
                       else { NSWorkspace.shared.open(output.url) }
                     } label: {
                       Label(output.title, systemImage: output.kind == .log ? "doc.text" : "shippingbox")
@@ -239,7 +260,7 @@ struct TaskSummaryView: View {
                 }
               }
               ForEach(linkedFiles.prefix(3)) { file in
-                Button { openOutputFile(file) } label: {
+                Button { openLinkedFile(file) } label: {
                   Label(file.title, systemImage: "doc")
                     .appFont(.callout).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -268,8 +289,5 @@ struct TaskSummaryView: View {
     }
     .frame(width: 316)
     .background(.regularMaterial)
-    .sheet(item: $outputPreview) { output in
-      TaskSummaryOutputPreview(output: output)
-    }
   }
 }

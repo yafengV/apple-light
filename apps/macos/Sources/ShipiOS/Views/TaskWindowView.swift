@@ -148,9 +148,7 @@ struct TaskWindowView: View {
                     taskSummary.dismissPopover()
                     tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
                   }, rootForRun: { store.workspaceRoot(for: $0) },
-                  openOutputFile: { file in
-                    store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
-                  }) {
+                  openOutputFile: openTaskOutputFile) {
                   taskSummary.close()
                 }
               }
@@ -235,9 +233,7 @@ struct TaskWindowView: View {
                   taskSummary.dismissPopover()
                   tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
                 }, rootForRun: { store.workspaceRoot(for: $0) },
-                openOutputFile: { file in
-                  store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
-                }) {
+                openOutputFile: openTaskOutputFile) {
                 taskSummary.close()
               }
               .frame(height: 480)
@@ -713,6 +709,20 @@ struct TaskWindowView: View {
   }
 
   private func configureTaskWorkspace() { resources.prepare(taskID, store: store) }
+
+  private func openTaskOutputFile(_ file: TaskSummaryLinkedFile) -> Bool {
+    guard task?.runIDs.contains(file.runID) == true else {
+      store.error = "输出所属的任务已不可用。"
+      return true
+    }
+    if let root = taskWorkspace.root, let path = file.previewPath(in: root) {
+      panels.showingFiles = true
+      taskWorkspace.selectFile(path)
+      taskSummary.dismissPopover()
+      return true
+    }
+    return false
+  }
 
   private func toggleTerminal(_ task: WorkspaceTask) {
     guard !task.project.isEmpty else { return }

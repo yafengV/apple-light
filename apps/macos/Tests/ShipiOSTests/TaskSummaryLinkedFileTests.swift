@@ -2,7 +2,7 @@ import XCTest
 
 @testable import ShipiOS
 
-final class TaskSummaryLinkedFileTests: XCTestCase {
+@MainActor final class TaskSummaryLinkedFileTests: XCTestCase {
   func testAssistantLinkedFilesMustExistInsideRunWorkspace() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -55,5 +55,31 @@ final class TaskSummaryLinkedFileTests: XCTestCase {
 
     XCTAssertEqual(TaskSummaryLinkedFiles.collect([run], rootForRun: { _ in root })
       .map(\.title), ["result.md"])
+  }
+
+  func testTaskOutputOpensInItsWorkspaceFilePreview() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let url = root.appendingPathComponent("result.md")
+    try Data("result".utf8).write(to: url)
+    let file = TaskSummaryLinkedFile(runID: "run", root: root, path: "result.md", url: url)
+    let store = WorkspaceStore()
+    store.project = root
+    store.workspace.setProject(root)
+    store.library.tasks = [.init(id: "task", project: root.path, title: "Task", runIDs: ["run"])]
+    store.selection = "run"
+    defer { store.workspace.setProject(nil) }
+
+    XCTAssertTrue(store.revealTaskSummaryFile(file))
+    XCTAssertTrue(store.showingInspector)
+    XCTAssertEqual(store.pane, "files")
+    XCTAssertEqual(store.workspace.selectedFile, "result.md")
+
+    let foreign = TaskSummaryLinkedFile(runID: "other", root: root, path: "result.md", url: url)
+    XCTAssertFalse(store.revealTaskSummaryFile(foreign))
+    XCTAssertNil(file.previewPath(in: FileManager.default.temporaryDirectory))
+    try FileManager.default.removeItem(at: url)
+    XCTAssertNil(file.previewPath(in: root))
   }
 }

@@ -11,6 +11,17 @@ struct TaskSummaryLinkedFile: Identifiable, Equatable {
   var id: String { url.path }
   var title: String { url.lastPathComponent }
   var searchableText: String { path }
+
+  /// Recheck containment at click time before revealing a workspace preview.
+  func previewPath(in workspaceRoot: URL) -> String? {
+    guard root.resolvingSymlinksInPath().standardizedFileURL
+      == workspaceRoot.resolvingSymlinksInPath().standardizedFileURL,
+      case .file(let path, _) = try? MessageLink.target(url, root: workspaceRoot) else { return nil }
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+      !isDirectory.boolValue else { return nil }
+    return path
+  }
 }
 
 enum TaskSummaryLinkedFiles {
