@@ -1216,6 +1216,45 @@ final class BrowserTests: XCTestCase {
     XCTAssertGreaterThan(image.size.height, 0)
     XCTAssertNil(tab.snapshotError)
   }
+
+  @MainActor func testCodexBrowserScreenshotStagesOwnedAllowedViewportWithoutDraftAttachment() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-agent-shot-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [
+      .init(id: "owner", project: "/project", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "/project", title: "Other", runIDs: ["run-other"]),
+    ]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    tab.view.frame = NSRect(x: 0, y: 0, width: 480, height: 320)
+    try await load(tab, "/one", title: "One")
+    let requestID = UUID().uuidString
+    let file = root.appendingPathComponent("CodexBrowserStaging/\(requestID).png")
+
+    store.library.browserPermissions.defaultDecision = .block
+    let blocked = await store.codexBrowserResult(taskID: "owner", action: "screenshot",
+      tabID: tab.id.uuidString, requestID: requestID)
+    XCTAssertEqual(blocked["status"].text, "denied")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    store.library.browserPermissions.defaultDecision = .allow
+    let foreign = await store.codexBrowserResult(taskID: "other", action: "screenshot",
+      tabID: tab.id.uuidString, requestID: requestID)
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+
+    let result = await store.codexBrowserResult(taskID: "owner", action: "screenshot",
+      tabID: tab.id.uuidString, requestID: requestID)
+    XCTAssertEqual(result["status"].text, "ok")
+    XCTAssertEqual(result["tab_id"].text, tab.id.uuidString)
+    let data = try Data(contentsOf: file)
+    XCTAssertEqual(Array(data.prefix(8)), [137, 80, 78, 71, 13, 10, 26, 10])
+    XCTAssertGreaterThan(data.count, 100)
+    XCTAssertTrue(store.library.draftImages["owner"]?.isEmpty ?? true)
+  }
   @MainActor func testFullPageSnapshotIncludesContentBelowViewportAndRestoresScroll() async throws {
     XCTAssertEqual(BrowserTab.pageTileOffsets(total: 2400, viewport: 320),
       [0, 320, 640, 960, 1280, 1600, 1920, 2080])

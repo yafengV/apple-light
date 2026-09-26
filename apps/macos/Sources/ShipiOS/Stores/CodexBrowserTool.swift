@@ -8,15 +8,22 @@ extension WorkspaceStore {
     let result = await codexBrowserResult(
       taskID: taskID, action: request["action"].text ?? "", tabID: request["tabId"].text,
       requestedURL: request["url"].text, handle: request["handle"].text,
-      text: request["text"].text, token: token)
-    guard codexBrowserRequestCurrent(taskID: taskID, token: token) else { return }
+      text: request["text"].text, requestID: requestID, token: token)
+    guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
+      removeCodexBrowserScreenshot(requestID: requestID)
+      return
+    }
     codexTransport.publishBrowserResult(taskID: taskID, requestID: requestID, result: result)
-    try? await codexTransport.resolveBrowserRequest(taskID: taskID, requestID: requestID, result: result)
+    do {
+      try await codexTransport.resolveBrowserRequest(taskID: taskID, requestID: requestID, result: result)
+    } catch {
+      removeCodexBrowserScreenshot(requestID: requestID)
+    }
   }
 
   func codexBrowserResult(taskID: String, action: String, tabID: String?,
     requestedURL: String? = nil, handle: String? = nil, text: String? = nil,
-    token: UUID? = nil) async -> JSONValue {
+    requestID: String? = nil, token: UUID? = nil) async -> JSONValue {
     guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
       return .object(["status": .string("cancelled")])
     }
@@ -65,7 +72,7 @@ extension WorkspaceStore {
         "tab_id": .string(tab.id.uuidString), "url": .string(tab.committedURL?.absoluteString ?? url.absoluteString),
         "title": .string(tab.title)])
     }
-    guard ["read", "inspect", "click", "fill"].contains(action),
+    guard ["read", "screenshot", "inspect", "click", "fill"].contains(action),
       let tabID, let id = UUID(uuidString: tabID),
       let tab = tabs.first(where: { $0.id == id }),
       !tab.closed, !tab.loading, let url = tab.committedURL,
@@ -83,6 +90,33 @@ extension WorkspaceStore {
       codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }) else {
       return .object(["status": .string("unavailable"),
         "message": .string("授权期间网页已变化，请重新列出标签。")])
+    }
+    if action == "screenshot" {
+      guard let requestID, UUID(uuidString: requestID) != nil else {
+        return .object(["status": .string("error"), "message": .string("截图请求无效。")])
+      }
+      guard let data = await tab.snapshotPNG() else {
+        return .object(["status": .string("error"),
+          "message": .string(tab.snapshotError ?? "无法获取网页截图。")])
+      }
+      guard codexBrowserRequestCurrent(taskID: taskID, token: token),
+        codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }),
+        !tab.closed, !tab.loading, tab.committedURL == url else {
+        return .object(["status": .string("unavailable"),
+          "message": .string("截图期间网页或任务归属已变化。")])
+      }
+      guard !data.isEmpty, data.count <= 10 * 1024 * 1024 else {
+        return .object(["status": .string("error"),
+          "message": .string("网页截图超过 10 MiB 限制。")])
+      }
+      do {
+        try stageCodexBrowserScreenshot(data, requestID: requestID)
+        return .object(["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
+          "url": .string(url.absoluteString), "title": .string(tab.title),
+          "byte_count": .number(Double(data.count))])
+      } catch {
+        return .object(["status": .string("error"), "message": .string(error.localizedDescription)])
+      }
     }
     if action != "read" {
       return await interactWithCodexBrowser(tab: tab, taskID: taskID, action: action,
@@ -102,6 +136,30 @@ extension WorkspaceStore {
     } catch {
       return .object(["status": .string("error"), "message": .string(error.localizedDescription)])
     }
+  }
+
+  private var codexBrowserScreenshotDirectory: URL {
+    dataRoot.appendingPathComponent("CodexBrowserStaging", isDirectory: true)
+  }
+
+  private func removeCodexBrowserScreenshot(requestID: String) {
+    guard UUID(uuidString: requestID) != nil else { return }
+    try? FileManager.default.removeItem(at: codexBrowserScreenshotDirectory
+      .appendingPathComponent("\(requestID).png"))
+  }
+
+  private func stageCodexBrowserScreenshot(_ data: Data, requestID: String) throws {
+    let directory = codexBrowserScreenshotDirectory
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+      attributes: [.posixPermissions: 0o700])
+    let values = try directory.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+    guard values.isSymbolicLink != true, values.isDirectory == true else {
+      throw AgentFailure(message: "截图暂存目录无效。")
+    }
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+    let file = directory.appendingPathComponent("\(requestID).png")
+    try data.write(to: file, options: .atomic)
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
   }
 
   private func codexBrowserTabs(taskID: String) -> [BrowserTab] {

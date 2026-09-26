@@ -222,7 +222,12 @@ pub struct CodexBridge {
 impl CodexBridge {
     pub fn new(data_dir: PathBuf, project: PathBuf) -> Self {
         let (events, _) = broadcast::channel(256);
-        let browser = BrowserToolBridge::new(events.clone());
+        let screenshot_root = data_dir
+            .parent()
+            .and_then(std::path::Path::parent)
+            .unwrap_or(&data_dir)
+            .join("CodexBrowserStaging");
+        let browser = BrowserToolBridge::new(events.clone(), screenshot_root);
         Self {
             data_dir,
             project,
@@ -833,26 +838,34 @@ mod tests {
                         "content":[{"type":"output_text","text":"Found the page"}]}}),
                     completed("browser-2"),
                 ]);
+                let screenshot_call = sse(vec![
+                    json!({"type":"response.created","response":{"id":"browser-shot"}}),
+                    json!({"type":"response.output_item.done","item":{
+                        "type":"function_call","call_id":"browser-call-shot",
+                        "name":"shipios_browser","arguments":format!(
+                            "{{\"action\":\"screenshot\",\"tab_id\":\"{}\"}}", Uuid::nil())}}),
+                    completed("browser-shot"),
+                ]);
+                let request_count = std::sync::atomic::AtomicUsize::new(0);
                 Mock::given(method("POST"))
                     .and(path("/v1/responses"))
-                    .respond_with(move |request: &wiremock::Request| {
-                        let body = String::from_utf8_lossy(&request.body);
-                        let response = if body.contains("function_call_output") {
-                            &done
-                        } else {
-                            &call
-                        };
+                    .respond_with(move |_request: &wiremock::Request| {
+                        let number = request_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        let response = match number { 0 => &call, 1 => &screenshot_call, _ => &done };
                         ResponseTemplate::new(200)
                             .insert_header("content-type", "text/event-stream")
                             .set_body_string(response.clone())
                     })
-                    .expect(2)
+                    .expect(3)
                     .mount(&server)
                     .await;
                 let temp = tempfile::tempdir()?;
                 let project = temp.path().join("Project");
                 std::fs::create_dir_all(&project)?;
-                let bridge = CodexBridge::new(temp.path().join("Data"), project);
+                let data_root = temp.path().join("Data");
+                let project_data = data_root.join("Projects/fixture");
+                std::fs::create_dir_all(&project_data)?;
+                let bridge = CodexBridge::new(project_data, project);
                 let mut events = bridge.subscribe();
                 let task_id = Uuid::new_v4().to_string();
                 bridge
@@ -874,6 +887,7 @@ mod tests {
                     .submit(&task_id, "Fill the browser form".to_owned())
                     .await?;
                 let mut saw_request = false;
+                let mut saw_screenshot = false;
                 let mut saw_reply = false;
                 loop {
                     let payload =
@@ -883,20 +897,26 @@ mod tests {
                     match event["type"].as_str() {
                         Some("browser_request") => {
                             assert_eq!(payload["taskId"], task_id);
-                            assert_eq!(event["action"], "fill");
                             assert_eq!(event["tabId"], Uuid::nil().to_string());
-                            assert_eq!(event["handle"], "scan:1");
-                            assert_eq!(event["text"], "sample");
-                            assert!(
-                                bridge
-                                    .resolve_browser(CodexBrowserResolution {
-                                        task_id: task_id.clone(),
-                                        request_id: event["requestId"].as_str().unwrap().to_owned(),
-                                        result: json!({"status":"ok","action":"filled"}),
-                                    })
-                                    .is_ok()
-                            );
-                            saw_request = true;
+                            let request_id = event["requestId"].as_str().unwrap().to_owned();
+                            let result = if event["action"] == "screenshot" {
+                                let staging = data_root.join("CodexBrowserStaging");
+                                std::fs::create_dir_all(&staging)?;
+                                let png = include_bytes!("../tests/fixtures/one-pixel.png");
+                                std::fs::write(staging.join(format!("{request_id}.png")), png)?;
+                                saw_screenshot = true;
+                                json!({"status":"ok","tab_id":Uuid::nil().to_string(),
+                                    "byte_count":png.len()})
+                            } else {
+                                assert_eq!(event["action"], "fill");
+                                assert_eq!(event["handle"], "scan:1");
+                                assert_eq!(event["text"], "sample");
+                                saw_request = true;
+                                json!({"status":"ok","action":"filled"})
+                            };
+                            bridge.resolve_browser(CodexBrowserResolution {
+                                task_id: task_id.clone(), request_id, result,
+                            })?;
                         }
                         Some("agent_message") => {
                             saw_reply |= event["message"] == "Found the page";
@@ -906,10 +926,13 @@ mod tests {
                         _ => {}
                     }
                 }
-                assert!(saw_request && saw_reply);
+                assert!(saw_request && saw_screenshot && saw_reply);
                 let requests = server.received_requests().await.unwrap();
                 assert!(String::from_utf8_lossy(&requests[0].body).contains("shipios_browser"));
                 assert!(String::from_utf8_lossy(&requests[1].body).contains("filled"));
+                assert!(String::from_utf8_lossy(&requests[2].body).contains("input_image"));
+                assert!(String::from_utf8_lossy(&requests[2].body).contains("data:image/png;base64,"));
+                assert_eq!(std::fs::read_dir(data_root.join("CodexBrowserStaging"))?.count(), 0);
                 Ok::<_, anyhow::Error>(())
             })
             .await

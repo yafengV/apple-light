@@ -15,6 +15,7 @@ enum CodexBrowserTimeline {
     let name: String = switch action {
     case "open": "打开网页"
     case "read": "读取网页"
+    case "screenshot": "截取网页"
     case "inspect": "检查网页控件"
     case "click": "点击网页控件"
     case "fill": "填写网页控件"
