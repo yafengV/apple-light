@@ -11,6 +11,10 @@ extension WorkspaceStore {
     let noticeID = "restore-" + taskID
     notices.show(id: noticeID, title: "正在恢复任务…", level: .pending)
     await Task.yield()
+    guard await restoreManagedArchiveIfNeeded(taskID) else {
+      notices.show(id: noticeID, title: archivedTaskDeletionError ?? "无法恢复工作树", level: .error)
+      return
+    }
     if restoreArchivedTask(taskID) {
       notices.show(id: noticeID, title: "已恢复任务", level: .info, taskID: taskID)
     } else {
@@ -78,6 +82,11 @@ extension WorkspaceStore {
 
   @discardableResult func restoreArchivedTask(_ taskID: String) -> Bool {
     guard let index = library.tasks.firstIndex(where: { $0.id == taskID && $0.archived && !$0.isPopoutDraft }) else { return false }
+    if let managed = library.managedWorktrees.first(where: { $0.taskID == taskID }),
+      managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
+      archivedTaskDeletionError = "请先恢复此任务的托管工作树。"
+      return false
+    }
     do {
       var candidate = library
       candidate.tasks[index].archived = false

@@ -72,6 +72,42 @@ enum WorktreeService {
     }
   }
 
+  /// Only remove a managed checkout when no tracked, untracked, or ignored content would be lost.
+  /// A protected HEAD ref must already exist before this call.
+  static func removeCleanManaged(_ record: ManagedWorktree) async throws -> Bool {
+    let source = URL(fileURLWithPath: record.source)
+    let target = URL(fileURLWithPath: record.path)
+    let targetPath = GitBranchService.canonicalRoot(target).path
+    guard targetPath != GitBranchService.canonicalRoot(source).path,
+      (try? FileManager.default.attributesOfItem(atPath: target.path)[.type]) as? FileAttributeType
+        != .typeSymbolicLink else {
+      throw AgentFailure(message: "托管工作树路径无效，未移除目录。")
+    }
+    let registered = try await registeredPaths(at: source)
+    if !registered.contains(targetPath), !FileManager.default.fileExists(atPath: target.path) {
+      return true
+    }
+    guard registered.contains(targetPath), FileManager.default.fileExists(atPath: target.path) else {
+      throw AgentFailure(message: "托管工作树目录或 Git 登记已改变，未移除目录。")
+    }
+    let targetCommon = try await commonDirectory(at: target)
+    let sourceCommon = try await commonDirectory(at: source)
+    guard targetCommon.path == sourceCommon.path else {
+      throw AgentFailure(message: "托管工作树目录或 Git 登记已改变，未移除目录。")
+    }
+    let status = try await GitReviewService.checked(
+      ["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: target)
+    let ignored = try await GitReviewService.checked(
+      ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], at: target)
+    guard status.isEmpty, ignored.isEmpty else { return false }
+    _ = try await GitReviewService.checked(["worktree", "remove", "--", target.path], at: source)
+    let remaining = try await registeredPaths(at: source)
+    guard !FileManager.default.fileExists(atPath: target.path), !remaining.contains(targetPath) else {
+      throw AgentFailure(message: "Git 工作树移除后校验失败，请在终端检查：\(record.path)")
+    }
+    return true
+  }
+
   private static func registeredPaths(at source: URL) async throws -> Set<String> {
     let output = try await GitReviewService.checked(["worktree", "list", "--porcelain", "-z"], at: source)
     return Set(output.split(separator: "\0").filter { $0.hasPrefix("worktree ") }.map {

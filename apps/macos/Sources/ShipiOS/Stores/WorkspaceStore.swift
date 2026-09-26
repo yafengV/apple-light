@@ -283,6 +283,7 @@ final class WorkspaceStore {
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
+  @ObservationIgnored var managedArchiveCleanupTask: Task<Void, Never>?
   var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
   var error: String?
@@ -949,6 +950,12 @@ final class WorkspaceStore {
 
   func updateTask(_ id: String, title: String? = nil, pin: Bool? = nil, archive: Bool? = nil) {
     guard let index = library.tasks.firstIndex(where: { $0.id == id }) else { return }
+    if archive == false,
+      let managed = library.managedWorktrees.first(where: { $0.taskID == id }),
+      managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
+      Task { await restoreArchivedTaskWithFeedback(id) }
+      return
+    }
     if let archive, archive, activeRun(taskID: id) != nil {
       return
     }
@@ -972,7 +979,11 @@ final class WorkspaceStore {
       library.tasks[index].archived = archive
       if archive && selectedTask?.id == id { newTask() }
     }
-    saveLibrary()
+    let saved = saveLibrary()
+    if saved, archive == true,
+      library.managedWorktrees.contains(where: { $0.taskID == id }) {
+      scheduleManagedArchiveCleanup(id)
+    }
   }
 
   func showDetails(_ tab: String, run: AgentRun? = nil) {
@@ -1049,6 +1060,7 @@ final class WorkspaceStore {
   }
 
   func shutdown() async {
+    await managedArchiveCleanupTask?.value
     captureWorkspaceTabLayout()
     shuttingDown = true
     await shutdownMCPConnections()
