@@ -145,4 +145,57 @@ import XCTest
     XCTAssertNil(view.focusCoordinator)
     XCTAssertFalse(window.firstResponder === view)
   }
+
+  func testTerminalContextMenuExposesEditingAndFontControls() {
+    let (window, view, coordinator) = fixture()
+    defer { coordinator.detach(); window.close() }
+    window.contentView?.addSubview(view)
+    let event = NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [],
+      timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+      clickCount: 1, pressure: 1)!
+    let menu = view.menu(for: event)
+    XCTAssertEqual(menu?.items.filter { !$0.isSeparatorItem }.map(\.title),
+      ["复制", "粘贴", "全选", "放大字体", "缩小字体", "恢复默认字号"])
+    XCTAssertFalse(menu?.item(withTitle: "复制")?.isEnabled ?? true)
+    XCTAssertTrue(menu?.item(withTitle: "粘贴")?.isEnabled == true)
+    for title in ["放大字体", "缩小字体", "恢复默认字号"] {
+      guard let item = menu?.item(withTitle: title) else { return XCTFail("Missing \(title)") }
+      XCTAssertTrue(view.validateUserInterfaceItem(item), title)
+    }
+  }
+
+  func testTerminalFontZoomFollowsPreferenceAndFocusedShortcut() {
+    let (window, view, coordinator) = fixture()
+    defer { coordinator.detach(); window.close() }
+    window.contentView?.addSubview(view)
+    view.applyBaseFont(.monospacedSystemFont(ofSize: 14, weight: .regular))
+    XCTAssertEqual(view.font.pointSize, 14)
+    view.zoomFont(by: 2)
+    XCTAssertEqual(view.font.pointSize, 16)
+    view.applyBaseFont(.monospacedSystemFont(ofSize: 18, weight: .regular))
+    XCTAssertEqual(view.font.pointSize, 20)
+    XCTAssertTrue(window.makeFirstResponder(view))
+
+    func key(_ value: String, modifiers: NSEvent.ModifierFlags = .command) -> NSEvent {
+      NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+        windowNumber: window.windowNumber, context: nil, characters: value,
+        charactersIgnoringModifiers: value, isARepeat: false, keyCode: 0)!
+    }
+    XCTAssertTrue(view.performKeyEquivalent(with: key("=")))
+    XCTAssertEqual(view.font.pointSize, 21)
+    XCTAssertTrue(view.performKeyEquivalent(with: key("-")))
+    XCTAssertEqual(view.font.pointSize, 20)
+    XCTAssertTrue(view.performKeyEquivalent(with: key("0")))
+    XCTAssertEqual(view.font.pointSize, 18)
+
+    let input = NSTextView(frame: .init(x: 0, y: 260, width: 300, height: 30))
+    window.contentView?.addSubview(input)
+    XCTAssertTrue(window.makeFirstResponder(input))
+    _ = view.performKeyEquivalent(with: key("="))
+    XCTAssertEqual(view.font.pointSize, 18)
+    view.zoomFont(by: 100)
+    XCTAssertEqual(view.font.pointSize, 32)
+    view.zoomFont(by: -100)
+    XCTAssertEqual(view.font.pointSize, 8)
+  }
 }
