@@ -14,6 +14,7 @@ enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
   case plan(UUID)
   case reasoning(itemID: String, sections: [String])
   case notice(id: UUID, kind: CodexNoticeKind, message: String)
+  case diff(UUID)
   case compaction(UUID)
   case user(UUID)
 
@@ -26,6 +27,7 @@ enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
     case .plan(let id): "plan." + id.uuidString
     case .reasoning(let itemID, _): "reasoning." + itemID
     case .notice(let id, _, _): "notice." + id.uuidString
+    case .diff(let id): "diff." + id.uuidString
     case .compaction(let id): "compaction." + id.uuidString
     case .user(let id): "user." + id.uuidString
     }
@@ -68,6 +70,10 @@ extension AgentRun {
       if case .plan(let id) = item { return id }
       return nil
     }
+    let diffs = items.compactMap { item -> UUID? in
+      if case .diff(let id) = item { return id }
+      return nil
+    }
     let users = items.compactMap { item -> UUID? in
       if case .user(let id) = item { return id }
       return nil
@@ -76,6 +82,7 @@ extension AgentRun {
     guard Set(questions) == Set(codexQuestions.map(\.id)) else { return nil }
     guard Set(elicitations) == Set(codexElicitations.map(\.id)) else { return nil }
     guard Set(plans) == Set(codexPlan.map { [$0.id] } ?? []) else { return nil }
+    guard Set(diffs) == Set(codexTurnDiff.map { [$0.id] } ?? []) else { return nil }
     guard Set(users) == Set(codexSteeredMessages.map(\.id)) else { return nil }
     return items
   }

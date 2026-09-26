@@ -249,6 +249,7 @@ python3 script/smoke_ipc.py
 | [Codex 命令实时输出](docs/218-codex-live-command-output.md) | 真实 Core 命令运行中输出与首段结果合并，折叠卡可看最新行；原生配对待验收 |
 | [Codex 思考摘要时间线](docs/219-codex-reasoning-summary-timeline.md) | 真实 Core 摘要分段进入可展开的有序卡片并持久化；原生配对待验收 |
 | [Codex 会话提示时间线](docs/220-codex-notices-timeline.md) | 真实 Core 警告独立呈现并保留成功状态，弃用及模型切换也有提示；原生配对待验收 |
+| [Codex 回合差异时间线](docs/221-codex-turn-diff-timeline.md) | 真实 Core 补丁后的累计差异卡可展开、复制并恢复；精确视觉与导航待验收 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
 ## 当前基线

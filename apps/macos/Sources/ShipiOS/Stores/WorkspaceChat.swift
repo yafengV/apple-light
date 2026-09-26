@@ -373,6 +373,8 @@ extension WorkspaceStore {
             recordCodexReasoning(runID: runID, event: event)
           case "warning", "guardian_warning", "deprecation_notice", "model_reroute":
             recordCodexNotice(runID: runID, event: event)
+          case "turn_diff":
+            recordCodexTurnDiff(runID: runID, event: event)
           case "stream_error", "stream_info", "auth_recovery_started", "auth_recovery_completed":
             recordCodexRuntimeStatus(runID: runID,
               message: event["message"].text ?? "Codex 正在恢复连接…")
@@ -637,6 +639,15 @@ extension WorkspaceStore {
       responseItems: items)
     saveLibrary()
   }
+  func recordCodexTurnDiff(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var diff = current.codexTurnDiff
+    var items = current.responseItems ?? []
+    guard CodexTurnDiffTimeline.apply(event, diff: &diff, items: &items) else { return }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items, codexTurnDiff: diff, clearCodexTurnDiff: diff == nil)
+    saveLibrary()
+  }
   func recordCodexCompaction(runID: String, manual: Bool) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
     var items = current.responseItems ?? []
@@ -734,7 +745,8 @@ extension WorkspaceStore {
     usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil,
     toolExecutions: [MCPToolExecution]? = nil,
     codexQuestions: [CodexQuestionRequest]? = nil,
-    codexElicitations: [CodexElicitationRequest]? = nil, codexPlan: CodexPlan? = nil
+    codexElicitations: [CodexElicitationRequest]? = nil, codexPlan: CodexPlan? = nil,
+    codexTurnDiff: CodexTurnDiff? = nil, clearCodexTurnDiff: Bool = false
   ) {
     var result: [String: JSONValue] = [:]
     if case .object(let fields) = current.result { result = fields }
@@ -757,6 +769,11 @@ extension WorkspaceStore {
     if let codexPlan,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexPlan)) {
       result["codex_plan"] = value
+    }
+    if clearCodexTurnDiff { result["codex_turn_diff"] = .null }
+    else if let codexTurnDiff,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexTurnDiff)) {
+      result["codex_turn_diff"] = value
     }
     if let message { result["message"] = .string(message) }
     if let usage { result["usage"] = usage.jsonValue }

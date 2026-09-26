@@ -5,6 +5,71 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexTurnDiffUpdatesOneCardAndClearsWhenCoreClearsDiff() throws {
+    var diff: CodexTurnDiff?
+    var items: [ChatResponseItem] = [.message(id: UUID(), text: "修改开始")]
+    let first: JSONValue = .object([
+      "type": .string("turn_diff"), "unified_diff": .string(
+        "diff --git a/one.swift b/one.swift\n+first\n"),
+    ])
+    XCTAssertTrue(CodexTurnDiffTimeline.apply(first, diff: &diff, items: &items))
+    let id = try XCTUnwrap(diff?.id)
+    XCTAssertEqual(items.last, .diff(id))
+    XCTAssertEqual(diff?.changedFileCount, 1)
+    XCTAssertFalse(CodexTurnDiffTimeline.apply(first, diff: &diff, items: &items))
+    XCTAssertTrue(CodexTurnDiffTimeline.apply(.object([
+      "type": .string("turn_diff"), "unified_diff": .string(
+        "diff --git a/one.swift b/one.swift\n+first\n"
+          + "diff --git a/two.swift b/two.swift\n+second\n"),
+    ]), diff: &diff, items: &items))
+    XCTAssertEqual(diff?.id, id)
+    XCTAssertEqual(diff?.changedFileCount, 2)
+    XCTAssertEqual(items.count, 2)
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "succeeded", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object([
+        "response": .string("修改完成"),
+        "response_items": try ChatResponseItem.json(items),
+        "codex_turn_diff": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(try XCTUnwrap(diff))),
+      ]))
+    let restored = try JSONDecoder().decode(AgentRun.self, from: JSONEncoder().encode(run))
+    XCTAssertEqual(restored.responseItems, items)
+    XCTAssertEqual(restored.codexTurnDiff, diff)
+    XCTAssertTrue(CodexTurnDiffTimeline.apply(.object([
+      "type": .string("turn_diff"), "unified_diff": .string(""),
+    ]), diff: &diff, items: &items))
+    XCTAssertNil(diff)
+    XCTAssertEqual(items.count, 1)
+  }
+
+  @MainActor func testCodexTurnDiffClearRemovesPersistedCard() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "running", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object(["response": .string("Before")]))
+    store.library.chatRuns = [run]
+    store.runs = [run]
+    store.recordCodexTurnDiff(runID: run.id, event: .object([
+      "type": .string("turn_diff"),
+      "unified_diff": .string("diff --git a/a.swift b/a.swift\n+new\n"),
+    ]))
+    XCTAssertNotNil(store.library.chatRuns.first?.codexTurnDiff)
+    XCTAssertEqual(store.library.chatRuns.first?.responseItems?.count, 1)
+    store.recordCodexTurnDiff(runID: run.id, event: .object([
+      "type": .string("turn_diff"), "unified_diff": .string(""),
+    ]))
+    let cleared = try XCTUnwrap(store.library.chatRuns.first)
+    XCTAssertNil(cleared.codexTurnDiff)
+    XCTAssertEqual(cleared.responseItems, [])
+    XCTAssertEqual(cleared.result?["response"].text, "Before")
+  }
+
   @MainActor func testCodexWarningsStayBetweenMessagesWithoutFailingTheTurn() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -942,10 +1007,23 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.toolExecutions.count, 1)
     XCTAssertEqual(finished.toolExecutions[0].toolName, "补丁")
     XCTAssertEqual(finished.toolExecutions[0].status, .succeeded)
-    XCTAssertEqual(finished.responseItems?.count, 2)
+    let diff = try XCTUnwrap(finished.codexTurnDiff)
+    XCTAssertEqual(diff.changedFileCount, 1)
+    XCTAssertTrue(diff.unifiedDiff.contains("patch-proof.txt"))
+    XCTAssertTrue(diff.unifiedDiff.contains("+patched"))
+    XCTAssertEqual(finished.responseItems?.count, 3)
+    XCTAssertEqual(finished.responseItems?[0], .tool(finished.toolExecutions[0].id))
+    XCTAssertEqual(finished.responseItems?[1], .diff(diff.id))
+    XCTAssertEqual(finished.responseItems?[2].text, "Codex fixture reply")
     XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("patch-proof.txt"),
       encoding: .utf8), "patched\n")
     await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == run.id }?.codexTurnDiff, diff)
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == run.id }?.responseItems,
+      finished.responseItems)
+    await restored.shutdown()
   }
   @MainActor func testCodexStructuredQuestionResumesAndPersistsWithoutAnswer() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
