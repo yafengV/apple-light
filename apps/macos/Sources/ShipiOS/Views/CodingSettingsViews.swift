@@ -249,9 +249,16 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private func saveEnvironment(returnToOverview: Bool = false) async {
+    let created = !environment.exists
+    let selected = environment.fileName
+    let path = environment.projectPath
     guard await environment.save() else { return }
-    if store.project?.path == environment.projectPath && store.connected {
-      await store.refreshSharedEnvironments()
+    if let path {
+      let selectedSuccessfully = await store.environmentSettingsDidSave(projectPath: path,
+        fileName: selected, created: created)
+      if !selectedSuccessfully {
+        environment.status = "环境文件已保存，但无法选中它。请重新载入项目环境后重试。"
+      }
     }
     if returnToOverview && store.destination == .settings && store.settingsPage == .environments {
       page = .overview

@@ -374,6 +374,33 @@ final class AgentTests: XCTestCase {
     await editor.load()
     XCTAssertFalse(editor.readError, editor.status)
     XCTAssertFalse(editor.canSave)
+    editor.create()
+    let newOtherEnvironment = editor.fileName
+    editor.name = "New other environment"
+    let otherSaved = await editor.save()
+    XCTAssertTrue(otherSaved, editor.status)
+    let otherSelected = await store.environmentSettingsDidSave(projectPath: other.path,
+      fileName: newOtherEnvironment, created: true)
+    XCTAssertTrue(otherSelected)
+    XCTAssertEqual(store.library.profiles[other.path]?.environmentFileName, newOtherEnvironment)
+    XCTAssertEqual(store.library.newTaskEnvironmentSelections[other.path], newOtherEnvironment)
+    XCTAssertEqual(store.project?.path, active.path)
+    XCTAssertEqual(store.selection, originalSelection)
+    XCTAssertEqual(store.draft, "Keep this draft")
+    await editor.open(active.path, title: "Active", executable: binary)
+    XCTAssertTrue(editor.connected, editor.status)
+    editor.create()
+    let newActiveEnvironment = editor.fileName
+    editor.name = "New active environment"
+    let activeSaved = await editor.save()
+    XCTAssertTrue(activeSaved, editor.status)
+    let activeSelected = await store.environmentSettingsDidSave(projectPath: active.path,
+      fileName: newActiveEnvironment, created: true)
+    XCTAssertTrue(activeSelected)
+    XCTAssertEqual(store.environmentFileName, newActiveEnvironment)
+    XCTAssertEqual(store.newTaskEnvironmentSelection, newActiveEnvironment)
+    XCTAssertEqual(store.selection, originalSelection)
+    XCTAssertEqual(store.draft, "Keep this draft")
     await editor.close()
     await store.shutdown()
   }

@@ -274,6 +274,26 @@ struct LocalEnvironmentFormState: Equatable {
 
 @MainActor
 extension WorkspaceStore {
+  func environmentSettingsDidSave(projectPath path: String, fileName: String,
+    created: Bool) async -> Bool {
+    if project?.path == path && connected {
+      await refreshSharedEnvironments()
+      guard created else { return true }
+      guard environmentFiles.contains(where: { $0.id == fileName && $0.error == nil }) else {
+        return false
+      }
+      await selectSharedEnvironment(fileName)
+      guard environmentFileName == fileName, environmentExists else { return false }
+    } else if created {
+      var profile = library.profiles[path] ?? BuildProfile()
+      profile.environmentFileName = fileName
+      library.profiles[path] = profile
+    }
+    guard created else { return true }
+    library.newTaskEnvironmentSelections[path] = fileName
+    return saveLibrary()
+  }
+
   func refreshEnvironmentCatalog() async {
     guard !environmentCatalogLoading else { return }
     let paths = library.orderedProjects
