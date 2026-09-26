@@ -112,7 +112,7 @@ fn stdio_frames_are_valid_and_personal_codex_settings_are_ignored() {
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
     assert_eq!(frames[0]["error"]["code"], -32700);
-    assert_eq!(frames[1]["result"]["capabilities"]["codexEmbedded"], false);
+    assert_eq!(frames[1]["result"]["capabilities"]["codexEmbedded"], true);
     assert_eq!(frames[2]["result"]["model"], Value::Null);
     assert_eq!(frames[3]["result"], json!([]));
     assert_eq!(frames[4]["error"]["code"], -32602);

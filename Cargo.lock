@@ -10611,13 +10611,18 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "codex-core-api",
+ "codex-exec-server",
  "serde",
  "serde_json",
+ "shipios-codex",
  "shipios-core",
  "shipios-tools",
  "tempfile",
  "tokio",
  "tokio-util",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]

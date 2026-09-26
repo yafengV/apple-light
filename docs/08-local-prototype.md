@@ -27,7 +27,7 @@ Rust workspace 分成三个 crate：配置与持久化、iOS 工具、Agent 进�
 | 直接组装配置、建立线程的样例 | `codex-rs/thread-manager-sample/src/main.rs` |
 | 配置层仍涉及系统、项目和管理来源 | `codex-rs/config/src/loader/README.md` |
 
-`python3 script/audit_codex.py` 可按锁定版本复查这些符号。它是源码结构检查，**不是 Rust 编译或内嵌运行验证**。另外已在缓存源码执行 `cargo check -p codex-extension-api --locked`，该 crate 及其依赖编译通过（日志 `.cache/codex-extension-check.log`，约 8 分 46 秒）；这不等于 ShipiOS 已链接上游。当前产品二进制没有依赖或启动 Codex；初始化能力返回 `codexEmbedded: false` 和 `modelCalls: false`。
+`python3 script/audit_codex.py` 可按锁定版本复查这些符号。它是源码结构检查，**不是 Rust 编译或内嵌运行验证**。另外已在缓存源码执行 `cargo check -p codex-extension-api --locked`，该 crate 及其依赖编译通过（日志 `.cache/codex-extension-check.log`，约 8 分 46 秒）；这在本报告当时不等于 ShipiOS 已链接上游。此段是早期状态快照；当前产品已接入 Codex Agent RPC，见[第 190 篇](190-codex-agent-rpc.md)。
 
 ## 已运行的验证
 

@@ -1,3 +1,4 @@
+mod codex_bridge;
 mod rpc;
 mod service;
 
@@ -10,7 +11,7 @@ use std::{path::PathBuf, sync::Arc};
 #[derive(Parser)]
 #[command(
     version,
-    about = "ShipiOS local agent — isolated project diagnostics and iOS Simulator builds. No model calls."
+    about = "ShipiOS local agent — project diagnostics, iOS Simulator builds and isolated Codex threads."
 )]
 struct Args {
     #[arg(long, global = true)]
@@ -56,8 +57,20 @@ enum Action {
 }
 
 fn main() -> Result<()> {
+    // Dispatch only the helper modes required by Codex tools. The upstream
+    // arg0 wrapper also reads ~/.codex/.env; this host must not do that.
+    match std::env::args_os().nth(1).as_deref() {
+        Some(arg) if arg == codex_exec_server::CODEX_ARG0_EXEC_HELPER_ARG1 => {
+            codex_exec_server::run_arg0_exec_helper_main()
+        }
+        Some(arg) if arg == codex_exec_server::CODEX_FS_HELPER_ARG1 => {
+            codex_exec_server::run_fs_helper_main()
+        }
+        _ => {}
+    }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        .thread_stack_size(16 * 1024 * 1024)
         .build()?;
     let result = runtime.block_on(run());
     // Tokio's stdin uses a blocking read that cannot be aborted while the client keeps

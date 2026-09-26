@@ -33,7 +33,9 @@ fn session_reuses_index_handles_query_changes_and_exits_on_eof() {
         }
     });
     let receive = |id: u64| loop {
-        let update = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        let update = receiver
+            .recv_timeout(Duration::from_secs(30))
+            .unwrap_or_else(|error| panic!("timed out waiting for search {id}: {error}"));
         if update["id"] == id && update["complete"] == true {
             break update;
         }

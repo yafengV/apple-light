@@ -11,9 +11,14 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 shipios-core = { path = "../shipios-core" }
+shipios-codex = { path = "../shipios-codex" }
 shipios-tools = { path = "../shipios-tools" }
 tokio.workspace = true
 tokio-util.workspace = true
+uuid.workspace = true
+codex-core-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-exec-server = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 
 [dev-dependencies]
 tempfile.workspace = true
+wiremock = "0.6"

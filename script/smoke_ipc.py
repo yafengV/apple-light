@@ -68,7 +68,9 @@ with tempfile.TemporaryDirectory(prefix="shipios-ipc-") as data:
     client = Client(data)
     try:
         capabilities = client.request("initialize", {"protocolVersion": 1})["capabilities"]
-        assert capabilities["modelCalls"] is False
+        assert capabilities["modelCalls"] is True
+        assert capabilities["codexEmbedded"] is True
+        assert capabilities["codexResponses"] is True
         inspected = client.request("project.inspect")
         assert inspected["containers"] == ["HelloShipiOS.xcodeproj"]
         run = client.request("run.start", {"kind": "doctor"})

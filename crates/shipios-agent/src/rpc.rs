@@ -1,4 +1,7 @@
-use crate::service::{RunRequest, Service};
+use crate::{
+    codex_bridge::{CodexBridge, StartThread},
+    service::{RunRequest, Service},
+};
 use anyhow::Result;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -32,6 +35,17 @@ struct Artifact {
     run_id: String,
     name: String,
 }
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CodexTask {
+    task_id: String,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CodexSubmit {
+    task_id: String,
+    text: String,
+}
 
 fn error(id: Value, code: i32, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
@@ -40,7 +54,12 @@ fn response(id: Value, result: Value) -> Value {
     json!({"jsonrpc":"2.0","id":id,"result":result})
 }
 
-fn dispatch(service: &Arc<Service>, input: Value, initialized: &mut bool) -> Option<Value> {
+async fn dispatch(
+    service: &Arc<Service>,
+    codex: &Arc<CodexBridge>,
+    input: Value,
+    initialized: &mut bool,
+) -> Option<Value> {
     let object = match input.as_object() {
         Some(x) => x,
         None => return Some(error(Value::Null, -32600, "expected a JSON-RPC object")),
@@ -69,7 +88,8 @@ fn dispatch(service: &Arc<Service>, input: Value, initialized: &mut bool) -> Opt
                     id,
                     json!({"protocolVersion":PROTOCOL_VERSION,"serverVersion":env!("CARGO_PKG_VERSION"),
                     "capabilities":{"runKinds":["doctor","build"],"cancellation":true,"eventReplay":true,
-                        "modelCalls":false,"codexEmbedded":false,"uiVerification":false,"release":false,"reportExport":true,"artifactRead":true},
+                        "modelCalls":true,"codexEmbedded":true,"codexResponses":true,"codexEventReplay":false,
+                        "uiVerification":false,"release":false,"reportExport":true,"artifactRead":true},
                     "project":service.config.project,"dataDirectory":service.config.data_dir}),
                 ));
             }
@@ -80,7 +100,7 @@ fn dispatch(service: &Arc<Service>, input: Value, initialized: &mut bool) -> Opt
     if !*initialized {
         return Some(error(id, -32001, "initialize first"));
     }
-    let result: std::result::Result<Value, (i32, String)> = (|| {
+    let result: std::result::Result<Value, (i32, String)> = async {
         let invalid = || (-32602, "invalid method parameters".to_string());
         let failed = |e: anyhow::Error| (-32010, e.to_string());
         match method {
@@ -136,9 +156,33 @@ fn dispatch(service: &Arc<Service>, input: Value, initialized: &mut bool) -> Opt
                     .unwrap_or(p.after_sequence);
                 Ok(json!({"events":events,"nextSequence":cursor}))
             }
+            "codex.thread.start" => {
+                let p: StartThread = serde_json::from_value(params).map_err(|_| invalid())?;
+                let codex = Arc::clone(codex);
+                let thread = tokio::spawn(async move { codex.start(p).await })
+                    .await
+                    .map_err(|error| failed(error.into()))?
+                    .map_err(failed)?;
+                Ok(serde_json::to_value(thread).unwrap())
+            }
+            "codex.turn.submit" => {
+                let p: CodexSubmit = serde_json::from_value(params).map_err(|_| invalid())?;
+                Ok(json!({"turnId":codex.submit(&p.task_id,p.text).await.map_err(failed)?}))
+            }
+            "codex.turn.interrupt" => {
+                let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.interrupt(&p.task_id).await.map_err(failed)?;
+                Ok(json!({"interrupted":true}))
+            }
+            "codex.thread.stop" => {
+                let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.stop(&p.task_id).await.map_err(failed)?;
+                Ok(json!({"stopped":true}))
+            }
             _ => Err((-32601, "method not found".into())),
         }
-    })();
+    }
+    .await;
     Some(match result {
         Ok(value) => response(id, value),
         Err((code, message)) => error(id, code, &message),
@@ -146,6 +190,10 @@ fn dispatch(service: &Arc<Service>, input: Value, initialized: &mut bool) -> Opt
 }
 
 pub async fn serve(service: Arc<Service>) -> Result<()> {
+    let codex = Arc::new(CodexBridge::new(
+        service.config.data_dir.clone(),
+        service.config.project.clone(),
+    ));
     let (sender, mut receiver) = mpsc::channel::<Value>(128);
     let writer = tokio::spawn(async move {
         let mut stdout = tokio::io::stdout();
@@ -169,6 +217,21 @@ pub async fn serve(service: Arc<Service>) -> Result<()> {
             }
             Err(_)=>break,
         }
+        }
+    });
+    let mut codex_events = codex.subscribe();
+    let codex_outgoing = sender.clone();
+    let codex_event_task = tokio::spawn(async move {
+        loop {
+            match codex_events.recv().await {
+                Ok(event) => {
+                    if codex_outgoing.send(json!({"jsonrpc":"2.0","method":"codex.event","params":event})).await.is_err() { break; }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    if codex_outgoing.send(json!({"jsonrpc":"2.0","method":"events.gap","params":{"source":"codex","message":"Codex event stream lagged."}})).await.is_err() { break; }
+                }
+                Err(_) => break,
+            }
         }
     });
     let mut initialized = false;
@@ -198,7 +261,7 @@ pub async fn serve(service: Arc<Service>) -> Result<()> {
             }
         }
         let reply = match serde_json::from_slice::<Value>(&frame) {
-            Ok(value) => dispatch(&service, value, &mut initialized),
+            Ok(value) => dispatch(&service, &codex, value, &mut initialized).await,
             Err(_) => Some(error(Value::Null, -32700, "parse error")),
         };
         if let Some(reply) = reply
@@ -208,8 +271,11 @@ pub async fn serve(service: Arc<Service>) -> Result<()> {
         }
     }
     service.shutdown().await;
+    codex.shutdown().await;
     event_task.abort();
     let _ = event_task.await;
+    codex_event_task.abort();
+    let _ = codex_event_task.await;
     drop(sender);
     // A client that stops reading must not keep the agent alive forever.
     let mut writer = writer;
@@ -224,8 +290,8 @@ pub async fn serve(service: Arc<Service>) -> Result<()> {
 mod tests {
     use super::*;
     use shipios_core::config::{Config, Layer};
-    #[test]
-    fn handshake_rejects_wrong_versions_and_invalid_requests() -> Result<()> {
+    #[tokio::test]
+    async fn handshake_rejects_wrong_versions_and_invalid_requests() -> Result<()> {
         let temp = tempfile::tempdir()?;
         let service = Arc::new(Service::new(Config::load(
             &temp.path().join("data"),
@@ -233,36 +299,48 @@ mod tests {
             false,
             Layer::default(),
         )?)?);
+        let codex = Arc::new(CodexBridge::new(
+            service.config.data_dir.clone(),
+            service.config.project.clone(),
+        ));
         let mut ready = false;
         let reply = dispatch(
             &service,
+            &codex,
             json!({"jsonrpc":"2.0","id":1,"method":"run.list"}),
             &mut ready,
         )
+        .await
         .unwrap();
         assert_eq!(reply["error"]["code"], -32001);
         let reply = dispatch(
             &service,
+            &codex,
             json!({"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":99}}),
             &mut ready,
         )
+        .await
         .unwrap();
         assert_eq!(reply["error"]["code"], -32003);
         assert!(!ready);
         let reply = dispatch(
             &service,
+            &codex,
             json!({"jsonrpc":"2.0","id":3,"method":"initialize","params":{"protocolVersion":1}}),
             &mut ready,
         )
+        .await
         .unwrap();
-        assert_eq!(reply["result"]["capabilities"]["modelCalls"], false);
+        assert_eq!(reply["result"]["capabilities"]["modelCalls"], true);
         assert!(ready);
         assert!(
             dispatch(
                 &service,
+                &codex,
                 json!({"jsonrpc":"2.0","method":"run.start","params":{"kind":"doctor"}}),
                 &mut ready
             )
+            .await
             .is_none()
         );
         assert!(service.list()?.is_empty());

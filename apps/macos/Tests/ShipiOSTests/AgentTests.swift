@@ -54,7 +54,9 @@ final class AgentTests: XCTestCase {
       try client.start(
         executable: binary, project: root, dataDirectory: root.appendingPathComponent("data"))
       let hello = try await client.request("initialize", ["protocolVersion": .number(1)])
-      XCTAssertEqual(hello["capabilities"]["modelCalls"].boolean, false)
+      XCTAssertEqual(hello["capabilities"]["modelCalls"].boolean, true)
+      XCTAssertEqual(hello["capabilities"]["codexResponses"].boolean, true)
+      XCTAssertEqual(hello["capabilities"]["codexEventReplay"].boolean, false)
       let inspection = try await client.request("project.inspect").decode(ProjectInspection.self)
       XCTAssertEqual(inspection.containers, ["Sample.xcodeproj"])
       do {

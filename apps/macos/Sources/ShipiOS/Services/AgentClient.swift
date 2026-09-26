@@ -3,6 +3,8 @@ import Foundation
 @MainActor
 final class AgentClient {
   var onEvent: ((AgentEvent) -> Void)?
+  var onCodexEvent: ((JSONValue) -> Void)?
+  var onCodexGap: (() -> Void)?
   var onDisconnect: ((String) -> Void)?
   var onGap: (() -> Void)?
   private var process: Process?
@@ -26,6 +28,7 @@ final class AgentClient {
     child.environment = [
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory(),
       "TMPDIR": NSTemporaryDirectory(), "LANG": "en_US.UTF-8",
+      "CODEX_HOME": dataDirectory.appendingPathComponent("Codex").path,
     ]
     child.standardInput = stdin
     child.standardOutput = stdout
@@ -131,8 +134,11 @@ final class AgentClient {
           }
         } else if frame["method"].text == "run.event" {
           onEvent?(try frame["params"].decode(AgentEvent.self))
+        } else if frame["method"].text == "codex.event" {
+          onCodexEvent?(frame["params"])
         } else if frame["method"].text == "events.gap" {
-          onGap?()
+          if frame["params"]["source"].text == "codex" { onCodexGap?() }
+          else { onGap?() }
         }
       }
     } catch {

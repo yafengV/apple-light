@@ -5,7 +5,7 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_core_api::{
     AbsolutePathBuf, AskForApproval, AuthCredentialsStoreMode, AuthKeyringBackendKind, AuthManager,
     CodexAppsToolsCache, CodexHomeUserInstructionsProvider, CodexThread, Config, Constrained,
-    EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, NewThread,
+    EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, NewThread, Op,
     PermissionProfile, Permissions, SessionSource, StartIfIdleSubmission, StartThreadOptions,
     ThreadId, ThreadManager, TurnInputRequest, UserInput, build_models_manager, init_state_db,
     local_agent_graph_store_from_state_db, passthrough_image_store, resolve_installation_id,
@@ -206,6 +206,11 @@ impl CodexSession {
 
     pub async fn next_event(&self) -> Result<EventMsg> {
         Ok(self.thread.next_event().await?.msg)
+    }
+
+    pub async fn interrupt_turn(&self) -> Result<()> {
+        self.thread.submit(Op::Interrupt).await?;
+        Ok(())
     }
 
     pub async fn shutdown(mut self) -> Result<()> {
