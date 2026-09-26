@@ -211,6 +211,9 @@ struct WorkspaceView: View {
                       if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
                       else { store.moveWorkspaceTab(id, to: .left) }
                     } else { store.activateWorkspaceTab(id) }
+                  }, rootForRun: { store.workspaceRoot(for: $0) },
+                  openOutputFile: { file in
+                    store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
                   }) {
                   taskSummary.close()
                 }
@@ -347,6 +350,9 @@ struct WorkspaceView: View {
                     if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
                     else { store.moveWorkspaceTab(id, to: .left) }
                   } else { store.activateWorkspaceTab(id) }
+                }, rootForRun: { store.workspaceRoot(for: $0) },
+                openOutputFile: { file in
+                  store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
                 }) {
                 taskSummary.close()
               }

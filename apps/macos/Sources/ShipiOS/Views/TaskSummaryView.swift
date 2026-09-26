@@ -5,6 +5,8 @@ import SwiftUI
 struct TaskSummaryView: View {
   @State private var outputPreview: TaskSummaryOutputFile?
   @State private var selectedPullRequest: (taskID: String, request: GitHubPullRequest)?
+  @State private var showingOutputs = false
+  @State private var linkedFiles: [TaskSummaryLinkedFile] = []
   let task: WorkspaceTask
   let runs: [AgentRun]
   let library: WorkspaceLibrary
@@ -20,6 +22,8 @@ struct TaskSummaryView: View {
   let onPullRequestUpdated: (GitHubPullRequest) -> Void
   let browserTabs: [TaskSummaryBrowserTab]
   let focusBrowserTab: (UUID) -> Void
+  let rootForRun: (AgentRun) -> URL?
+  let openOutputFile: (TaskSummaryLinkedFile) -> Void
   let close: () -> Void
 
   private var latestPlanDocument: (runID: String, document: CodexPlanDocument)? {
@@ -41,11 +45,23 @@ struct TaskSummaryView: View {
           onRefresh: onPullRequestUpdated,
           back: { selectedPullRequest = nil },
           close: { selectedPullRequest = nil; close() })
+      } else if showingOutputs {
+        TaskSummaryOutputsView(artifacts: runs.summaryArtifacts, linkedFiles: linkedFiles,
+          previewLog: { outputPreview = $0 }, openFile: openOutputFile,
+          refresh: refreshLinkedFiles,
+          back: { showingOutputs = false }, close: close)
       } else {
         summaryContent
       }
     }
-    .onChange(of: task.id) { _, _ in selectedPullRequest = nil }
+    .onChange(of: task.id) { _, _ in selectedPullRequest = nil; showingOutputs = false }
+    .onChange(of: runs, initial: true) { _, current in
+      linkedFiles = TaskSummaryLinkedFiles.collect(current, rootForRun: rootForRun)
+    }
+  }
+
+  private func refreshLinkedFiles() {
+    linkedFiles = TaskSummaryLinkedFiles.collect(runs, rootForRun: rootForRun)
   }
 
   @ViewBuilder private var summaryContent: some View {
@@ -184,10 +200,17 @@ struct TaskSummaryView: View {
               }
             }.appFont(.callout)
           }
-          if !artifacts.isEmpty {
+          if !artifacts.isEmpty || !linkedFiles.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 8) {
-              Label("输出", systemImage: "shippingbox").appFont(.headline)
+              HStack {
+                Label("输出", systemImage: "shippingbox").appFont(.headline)
+                Text((artifacts.reduce(0) { $0 + 1 + $1.outputs.count } + linkedFiles.count).formatted())
+                  .appFont(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("查看全部") { refreshLinkedFiles(); showingOutputs = true }
+                  .buttonStyle(.plain).foregroundStyle(.tint)
+              }
               ForEach(artifacts) { artifact in
                 VStack(alignment: .leading, spacing: 6) {
                   Button {
@@ -214,6 +237,14 @@ struct TaskSummaryView: View {
                     .help(output.name)
                   }
                 }
+              }
+              ForEach(linkedFiles.prefix(3)) { file in
+                Button { openOutputFile(file) } label: {
+                  Label(file.title, systemImage: "doc")
+                    .appFont(.callout).lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain).help(file.path)
               }
             }
           }

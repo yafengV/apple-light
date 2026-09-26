@@ -147,6 +147,9 @@ struct TaskWindowView: View {
                   focusBrowserTab: { id in
                     taskSummary.dismissPopover()
                     tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
+                  }, rootForRun: { store.workspaceRoot(for: $0) },
+                  openOutputFile: { file in
+                    store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
                   }) {
                   taskSummary.close()
                 }
@@ -231,6 +234,9 @@ struct TaskWindowView: View {
                 focusBrowserTab: { id in
                   taskSummary.dismissPopover()
                   tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
+                }, rootForRun: { store.workspaceRoot(for: $0) },
+                openOutputFile: { file in
+                  store.openMessageLink(file.url, project: file.root, ownerRunID: file.runID)
                 }) {
                 taskSummary.close()
               }
