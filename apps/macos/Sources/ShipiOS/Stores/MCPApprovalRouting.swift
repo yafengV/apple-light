@@ -58,10 +58,32 @@ extension WorkspaceStore {
     resolveMCPApproval(id, decision: decision)
   }
 
+  private func preferredApprovalDecision(_ id: UUID) -> MCPApprovalDecision? {
+    guard let context = mcpPendingApprovals[id] else { return nil }
+    if context.allowsOnce { return .allowOnce }
+    if context.allowsTask { return .allowTask }
+    return nil
+  }
+
+  func approveActiveMCPApproval(taskID: String?) {
+    guard let id = activeMCPApproval(taskID: taskID),
+      let decision = preferredApprovalDecision(id) else { return }
+    resolveMCPApproval(id, decision: decision)
+  }
+
+  func canApproveMCPApproval(taskID: String?) -> Bool {
+    guard let id = activeMCPApproval(taskID: taskID) else { return false }
+    return preferredApprovalDecision(id) != nil
+  }
+
   func mcpApprovalCommands(taskID: String?, visible: Bool) -> MCPApprovalCommands? {
     guard visible, activeMCPApproval(taskID: taskID) != nil else { return nil }
     return MCPApprovalCommands(
-      approve: { [weak self] in self?.resolveActiveMCPApproval(taskID: taskID, decision: .allowOnce) },
+      approve: { [weak self] in
+        guard let self, let id = self.activeMCPApproval(taskID: taskID),
+          let decision = self.preferredApprovalDecision(id) else { return }
+        self.resolveMCPApproval(id, decision: decision)
+      },
       decline: { [weak self] in self?.resolveActiveMCPApproval(taskID: taskID, decision: .deny) })
   }
 
@@ -72,7 +94,9 @@ extension WorkspaceStore {
       !context.ownsPanelInput, shortcutCaptureCount == 0, !restoringLibrary else { return false }
     let plainKey = !binding.command && !binding.control && !binding.option && !binding.shift
     guard !(plainKey && context.editingText), let id = activeMCPApproval(taskID: taskID) else { return false }
-    if shortcuts.matches("approval-approve", binding) { resolveMCPApproval(id, decision: .allowOnce); return true }
+    if shortcuts.matches("approval-approve", binding), let decision = preferredApprovalDecision(id) {
+      resolveMCPApproval(id, decision: decision); return true
+    }
     if shortcuts.matches("approval-decline", binding) { resolveMCPApproval(id, decision: .deny); return true }
     return false
   }

@@ -47,6 +47,15 @@ final class DesktopFeaturesTests: XCTestCase {
   }
 
   func testCodexApprovalAndPatchEventsStayInOneToolRow() {
+    let choices = CodexCommandTimeline.approvalChoices(.object([
+      "available_decisions": .array([.string("approved_for_session"),
+        .object(["network_policy_amendment": .object([:])])]),
+    ]))
+    XCTAssertFalse(choices.once)
+    XCTAssertTrue(choices.task)
+    let defaults = CodexCommandTimeline.approvalChoices(.object([:]))
+    XCTAssertTrue(defaults.once)
+    XCTAssertFalse(defaults.task)
     var executions: [MCPToolExecution] = []
     var items: [ChatResponseItem] = []
     let approval: JSONValue = .object([

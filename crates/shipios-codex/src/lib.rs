@@ -34,6 +34,7 @@ pub struct SessionOptions {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApprovalDecision {
     Allow,
+    AllowForSession,
     Deny,
 }
 
@@ -41,6 +42,7 @@ impl From<ApprovalDecision> for ReviewDecision {
     fn from(value: ApprovalDecision) -> Self {
         match value {
             ApprovalDecision::Allow => Self::Approved,
+            ApprovalDecision::AllowForSession => Self::ApprovedForSession,
             ApprovalDecision::Deny => Self::Denied {
                 rejection: "User denied this action in ShipiOS".to_owned(),
             },
@@ -306,5 +308,26 @@ impl CodexSession {
             self._home_guard.has_auth = false;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn approval_choices_match_pinned_codex_protocol() {
+        assert_eq!(
+            serde_json::to_value(ReviewDecision::from(ApprovalDecision::Allow)).unwrap(),
+            serde_json::json!("approved")
+        );
+        assert_eq!(
+            serde_json::to_value(ReviewDecision::from(ApprovalDecision::AllowForSession)).unwrap(),
+            serde_json::json!("approved_for_session")
+        );
+        assert!(matches!(
+            ReviewDecision::from(ApprovalDecision::Deny),
+            ReviewDecision::Denied { .. }
+        ));
     }
 }

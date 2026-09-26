@@ -5,7 +5,7 @@ extension WorkspaceStore {
     guard commandEnabled(id) else { return }
     showingCommands = false
     switch id {
-    case "approval-approve": resolveActiveMCPApproval(taskID: selectedTask?.id, decision: .allowOnce)
+    case "approval-approve": approveActiveMCPApproval(taskID: selectedTask?.id)
     case "approval-decline": resolveActiveMCPApproval(taskID: selectedTask?.id, decision: .deny)
     case "new", "new-alternate": Task { await newProjectlessTask() }
     case "palette", "palette-alternate": showingCommands = true
@@ -113,7 +113,10 @@ extension WorkspaceStore {
   private func commandAvailable(_ id: String) -> Bool {
     guard renameTaskID == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
     switch id {
-    case "approval-approve", "approval-decline":
+    case "approval-approve":
+      return destination == .workspace && activeWorkspaceContentTab == nil
+        && canApproveMCPApproval(taskID: selectedTask?.id)
+    case "approval-decline":
       return destination == .workspace && activeWorkspaceContentTab == nil
         && activeMCPApproval(taskID: selectedTask?.id) != nil
     case "next-attention": return nextAttentionTask != nil

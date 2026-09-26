@@ -8,8 +8,9 @@ struct MCPToolExecutionView: View {
   @State private var showingRaw = false
   @FocusState private var approveFocused: Bool
   @Environment(\.mcpApprovalSurfaceVisible) private var approvalSurfaceVisible
+  private var approvalContext: MCPApprovalContext? { store.mcpPendingApprovals[execution.id] }
   private var awaiting: Bool {
-    run.isActive && execution.status == .awaitingApproval && store.mcpPendingApprovals[execution.id] != nil
+    run.isActive && execution.status == .awaitingApproval && approvalContext != nil
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -41,15 +42,21 @@ struct MCPToolExecutionView: View {
           Button("拒绝") { store.resolveMCPApproval(execution.id, decision: .deny) }
             .help("拒绝当前请求 " + store.shortcuts.label("approval-decline"))
           Spacer()
-          if execution.serverID != CodexCommandTimeline.serverID {
+          if approvalContext?.allowsTask == true {
             Menu("允许…") {
               Button("在本任务中允许此工具") { store.resolveMCPApproval(execution.id, decision: .allowTask) }
             }
           }
-          Button("允许本次") { store.resolveMCPApproval(execution.id, decision: .allowOnce) }
-            .buttonStyle(.borderedProminent)
-            .focused($approveFocused)
-            .help("批准当前请求 " + store.shortcuts.label("approval-approve"))
+          if approvalContext?.allowsOnce == true {
+            Button("允许本次") { store.resolveMCPApproval(execution.id, decision: .allowOnce) }
+              .buttonStyle(.borderedProminent)
+              .focused($approveFocused)
+              .help("批准当前请求 " + store.shortcuts.label("approval-approve"))
+          }
+        }
+        if approvalContext?.allowsOnce == false && approvalContext?.allowsTask == false {
+          Text("此请求仅提供当前版本尚未支持的批准方式。")
+            .appFont(.caption).foregroundStyle(.secondary)
         }
       }
     }.background(MCPApprovalFocusBridge(pending: awaiting && approvalSurfaceVisible) {

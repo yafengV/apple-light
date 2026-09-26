@@ -2,6 +2,27 @@ import XCTest
 @testable import ShipiOS
 
 final class MCPApprovalRoutingTests: XCTestCase {
+  @MainActor func testCodexOfferedDecisionsGuardButtonsAndShortcuts() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let (store, first, _) = try fixture(root)
+    let execution = try XCTUnwrap(store.mcpPendingApprovals[first]?.execution)
+    store.mcpPendingApprovals[first] = MCPApprovalContext(runID: "run-1", execution: execution,
+      allowsOnce: false, allowsTask: true)
+    store.resolveMCPApproval(first, decision: .allowOnce)
+    XCTAssertNotNil(store.mcpPendingApprovals[first])
+    XCTAssertTrue(store.handleMCPApprovalShortcut(ShortcutBinding("↵"), taskID: "task-1", context: .init()))
+    XCTAssertNil(store.mcpPendingApprovals[first])
+    store.mcpPendingApprovals[first] = MCPApprovalContext(runID: "run-1", execution: execution,
+      allowsOnce: false, allowsTask: false)
+    XCTAssertFalse(store.commandEnabled("approval-approve"))
+    XCTAssertTrue(store.commandEnabled("approval-decline"))
+    XCTAssertFalse(store.handleMCPApprovalShortcut(ShortcutBinding("↵"), taskID: "task-1", context: .init()))
+    XCTAssertNotNil(store.mcpPendingApprovals[first])
+    store.resolveMCPApproval(first, decision: .deny)
+    XCTAssertNil(store.mcpPendingApprovals[first])
+  }
+
   @MainActor private func fixture(_ root: URL) throws -> (WorkspaceStore, UUID, UUID) {
     let store = WorkspaceStore(dataRoot: root)
     store.libraryLoaded = true

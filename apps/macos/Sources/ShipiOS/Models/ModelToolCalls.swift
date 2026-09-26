@@ -90,6 +90,15 @@ struct MCPToolBinding {
 struct MCPApprovalContext {
   let runID: String
   let execution: MCPToolExecution
+  let allowsOnce: Bool
+  let allowsTask: Bool
+
+  init(runID: String, execution: MCPToolExecution, allowsOnce: Bool = true, allowsTask: Bool = true) {
+    self.runID = runID
+    self.execution = execution
+    self.allowsOnce = allowsOnce
+    self.allowsTask = allowsTask
+  }
 }
 
 extension AgentRun {
@@ -102,6 +111,14 @@ extension AgentRun {
 /// Events are paired by call_id and tool kind; approval and completion update one row.
 enum CodexCommandTimeline {
   static let serverID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+
+  static func approvalChoices(_ event: JSONValue) -> (once: Bool, task: Bool) {
+    guard case .array(let decisions) = event["available_decisions"] else {
+      return (true, false)
+    }
+    let values = Set(decisions.compactMap(\.text))
+    return (values.contains("approved"), values.contains("approved_for_session"))
+  }
 
   static func apply(
     _ event: JSONValue, executions: inout [MCPToolExecution], items: inout [ChatResponseItem]

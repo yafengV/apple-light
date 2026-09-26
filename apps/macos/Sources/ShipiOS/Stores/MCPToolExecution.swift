@@ -129,11 +129,15 @@ extension WorkspaceStore {
     }
   }
 
-  func requestMCPApproval(_ execution: MCPToolExecution, runID: String) async -> MCPApprovalDecision {
+  func requestMCPApproval(
+    _ execution: MCPToolExecution, runID: String,
+    allowsOnce: Bool = true, allowsTask: Bool = true
+  ) async -> MCPApprovalDecision {
     await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: .deny); return }
-        mcpPendingApprovals[execution.id] = MCPApprovalContext(runID: runID, execution: execution)
+        mcpPendingApprovals[execution.id] = MCPApprovalContext(runID: runID, execution: execution,
+          allowsOnce: allowsOnce, allowsTask: allowsTask)
         mcpApprovalContinuations[execution.id] = continuation
       }
     } onCancel: {
@@ -142,6 +146,9 @@ extension WorkspaceStore {
   }
 
   func resolveMCPApproval(_ id: UUID, decision: MCPApprovalDecision) {
+    guard let context = mcpPendingApprovals[id] else { return }
+    if decision == .allowOnce && !context.allowsOnce { return }
+    if decision == .allowTask && !context.allowsTask { return }
     guard mcpPendingApprovals.removeValue(forKey: id) != nil else { return }
     mcpApprovalContinuations.removeValue(forKey: id)?.resume(returning: decision)
   }

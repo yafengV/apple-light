@@ -78,15 +78,22 @@ final class CodexChatTransport {
     _ = try? await client.request("codex.turn.interrupt", ["taskId": .string(taskID)])
   }
 
-  func approve(taskID: String, id: String, turnID: String?, patch: Bool, allowed: Bool) async throws {
+  func approve(taskID: String, id: String, turnID: String?, patch: Bool,
+    decision: MCPApprovalDecision) async throws {
     guard activeThreads.contains(taskID), !id.isEmpty else {
       throw AgentFailure(message: "Codex 审批所属任务已断开。")
+    }
+    let choice: String
+    switch decision {
+    case .allowOnce: choice = "allow"
+    case .allowTask: choice = "allow_for_session"
+    case .deny: choice = "deny"
     }
     _ = try await client.request("codex.turn.approve", [
       "taskId": .string(taskID), "id": .string(id),
       "turnId": turnID.map(JSONValue.string) ?? .null,
       "kind": .string(patch ? "patch" : "exec"),
-      "decision": .string(allowed ? "allow" : "deny"),
+      "decision": .string(choice),
     ])
   }
 

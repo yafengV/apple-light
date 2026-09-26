@@ -351,12 +351,14 @@ extension WorkspaceStore {
       throw AgentFailure(message: "Codex 审批事件缺少工具标识。")
     }
     let patch = event["type"].text == "apply_patch_approval_request"
-    let decision = await requestMCPApproval(execution, runID: runID)
+    let choices = patch ? (once: true, task: false) : CodexCommandTimeline.approvalChoices(event)
+    let decision = await requestMCPApproval(execution, runID: runID,
+      allowsOnce: choices.once, allowsTask: choices.task)
     try Task.checkCancellation()
     let allowed = decision != .deny
     let id = patch ? callID : (event["approval_id"].text ?? callID)
     try await codexTransport.approve(taskID: taskID, id: id,
-      turnID: patch ? nil : event["turn_id"].text, patch: patch, allowed: allowed)
+      turnID: patch ? nil : event["turn_id"].text, patch: patch, decision: decision)
     if let current = library.chatRuns.first(where: { $0.id == runID }) {
       var executions = current.toolExecutions
       CodexCommandTimeline.resolve(callID: callID, patch: patch, allowed: allowed,

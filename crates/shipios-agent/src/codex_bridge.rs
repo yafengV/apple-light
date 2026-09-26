@@ -59,6 +59,7 @@ pub enum CodexApprovalKind {
 #[serde(rename_all = "snake_case")]
 pub enum CodexApprovalChoice {
     Allow,
+    AllowForSession,
     Deny,
 }
 
@@ -249,6 +250,11 @@ impl CodexBridge {
         ensure!(
             !approval.id.is_empty() && approval.id.len() <= 256,
             "invalid approval ID"
+        );
+        ensure!(
+            !matches!(approval.kind, CodexApprovalKind::Patch)
+                || !matches!(approval.decision, CodexApprovalChoice::AllowForSession),
+            "patch approval does not support session grant"
         );
         let sender = self.sender(&approval.task_id).await?;
         let (reply, result) = oneshot::channel();
@@ -450,6 +456,7 @@ async fn run_thread(
                 Some(Command::Approve(approval, reply)) => {
                     let decision = match approval.decision {
                         CodexApprovalChoice::Allow => ApprovalDecision::Allow,
+                        CodexApprovalChoice::AllowForSession => ApprovalDecision::AllowForSession,
                         CodexApprovalChoice::Deny => ApprovalDecision::Deny,
                     };
                     let result = match approval.kind {

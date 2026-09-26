@@ -22,9 +22,10 @@ class Responses(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         self.requests.append((self.path, self.headers.get("Authorization"), body))
         request_number = len(self.requests)
-        if request_number in (2, 4, 6):
+        if request_number in (2, 4, 6, 8):
             proof = {
                 2: "approval-proof.txt", 4: "denied-proof.txt", 6: "workspace-proof.txt",
+                8: "session-proof.txt",
             }[request_number]
             arguments = {"cmd": f"printf approved > {proof}"}
             if request_number != 6:
@@ -235,8 +236,34 @@ def main():
                     raise AssertionError(event)
             assert saw_workspace_write
             assert (project / "workspace-proof.txt").read_text() == "approved"
+            fifth = client.request("codex.turn.submit", {
+                "taskId": task_id, "text": "Run the session approval fixture command",
+            })
+            assert fifth["turnId"]
+            saw_session_approval = False
+            while True:
+                message = client.next_event()
+                if message.get("method") != "codex.event":
+                    continue
+                event = message["params"]["event"]
+                if event["type"] == "exec_approval_request":
+                    assert "session-proof.txt" in " ".join(event["command"]), event
+                    result = client.request("codex.turn.approve", {
+                        "taskId": task_id,
+                        "id": event.get("approval_id") or event["call_id"],
+                        "turnId": event.get("turn_id"), "kind": "exec",
+                        "decision": "allow_for_session",
+                    })
+                    assert result["resolved"]
+                    saw_session_approval = True
+                elif event["type"] == "task_complete":
+                    break
+                elif event["type"] == "error":
+                    raise AssertionError(event)
+            assert saw_session_approval
+            assert (project / "session-proof.txt").read_text() == "approved"
             assert client.request("codex.thread.stop", {"taskId": task_id})["stopped"]
-            assert len(Responses.requests) == 7, Responses.requests
+            assert len(Responses.requests) == 9, Responses.requests
             assert Responses.requests[0][:2] == ("/v1/responses", "Bearer fixture-token")
             assert b"Hi" in Responses.requests[0][2]
         finally:
@@ -250,7 +277,7 @@ def main():
                 contents = item.read_bytes()
                 assert b"fixture-token" not in contents, item
                 assert b"environment-poison-token" not in contents, item
-    print("PASS: bundled Codex RPC approval, denial, workspace write, isolation, and credential cleanup")
+    print("PASS: bundled Codex RPC approval, session grant, denial, workspace write, isolation, and credential cleanup")
 
 
 if __name__ == "__main__":
