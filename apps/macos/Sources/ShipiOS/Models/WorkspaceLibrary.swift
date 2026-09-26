@@ -39,11 +39,12 @@ struct BuildProfile: Codable {
   var worktreeCleanupScript = ""
   var cleanupPlatformScripts = EnvironmentPlatformScripts()
   var actions: [EnvironmentAction] = []
+  var environmentFileName: String?
 
   init(container: String = "", scheme: String = "", configuration: String = "Debug",
     worktreeSetupScript: String = "", setupPlatformScripts: EnvironmentPlatformScripts = .init(),
     worktreeCleanupScript: String = "", cleanupPlatformScripts: EnvironmentPlatformScripts = .init(),
-    actions: [EnvironmentAction] = []) {
+    actions: [EnvironmentAction] = [], environmentFileName: String? = nil) {
     self.container = container
     self.scheme = scheme
     self.configuration = configuration
@@ -52,11 +53,12 @@ struct BuildProfile: Codable {
     self.worktreeCleanupScript = worktreeCleanupScript
     self.cleanupPlatformScripts = cleanupPlatformScripts
     self.actions = actions
+    self.environmentFileName = environmentFileName
   }
 
   enum CodingKeys: String, CodingKey {
     case container, scheme, configuration, worktreeSetupScript, setupPlatformScripts
-    case worktreeCleanupScript, cleanupPlatformScripts, actions
+    case worktreeCleanupScript, cleanupPlatformScripts, actions, environmentFileName
   }
 
   init(from decoder: Decoder) throws {
@@ -71,6 +73,7 @@ struct BuildProfile: Codable {
     cleanupPlatformScripts = try values.decodeIfPresent(EnvironmentPlatformScripts.self,
       forKey: .cleanupPlatformScripts) ?? .init()
     actions = try values.decodeIfPresent([EnvironmentAction].self, forKey: .actions) ?? []
+    environmentFileName = try values.decodeIfPresent(String.self, forKey: .environmentFileName)
   }
 
   var macOSSetupScript: String {

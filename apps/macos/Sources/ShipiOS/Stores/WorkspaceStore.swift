@@ -285,11 +285,14 @@ final class WorkspaceStore {
   var worktreeCleanupScript = ""
   var cleanupPlatformScripts = EnvironmentPlatformScripts()
   var environmentActions: [EnvironmentAction] = []
+  var environmentFiles: [LocalEnvironmentEntry] = []
+  var environmentFileName = "environment.toml"
   var environmentName = ""
   var environmentRevision: String?
   var environmentExists = false
   var environmentStatus = ""
   var environmentSaving = false
+  var environmentLoadedState: LocalEnvironmentFormState?
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
@@ -498,10 +501,13 @@ final class WorkspaceStore {
     worktreeCleanupScript = ""
     cleanupPlatformScripts = .init()
     environmentActions = []
+    environmentFiles = []
+    environmentFileName = "environment.toml"
     environmentName = ""
     environmentRevision = nil
     environmentExists = false
     environmentStatus = ""
+    environmentLoadedState = nil
     action = .chat
     events = []
     logText = ""
@@ -613,10 +619,13 @@ final class WorkspaceStore {
     worktreeCleanupScript = ""
     cleanupPlatformScripts = .init()
     environmentActions = []
+    environmentFiles = []
+    environmentFileName = "environment.toml"
     environmentName = library.projectTitle(canonical.path)
     environmentRevision = nil
     environmentExists = false
     environmentStatus = ""
+    environmentLoadedState = nil
     defer { busy = false }
     do {
       let digest = SHA256.hash(data: Data(project!.path.utf8)).map { String(format: "%02x", $0) }
@@ -650,8 +659,9 @@ final class WorkspaceStore {
         worktreeCleanupScript = profile.worktreeCleanupScript
         cleanupPlatformScripts = profile.cleanupPlatformScripts
         environmentActions = profile.actions
+        environmentFileName = profile.environmentFileName ?? "environment.toml"
       }
-      await loadSharedEnvironment()
+      await refreshSharedEnvironments()
       action = .chat
       library.lastWorkspace = project!.path
       library.visit(project!.path)
@@ -1072,7 +1082,7 @@ final class WorkspaceStore {
       container: container, scheme: scheme, configuration: configuration,
       worktreeSetupScript: worktreeSetupScript, setupPlatformScripts: setupPlatformScripts,
       worktreeCleanupScript: worktreeCleanupScript, cleanupPlatformScripts: cleanupPlatformScripts,
-      actions: environmentActions)
+      actions: environmentActions, environmentFileName: environmentFileName)
     saveLibrary()
   }
 

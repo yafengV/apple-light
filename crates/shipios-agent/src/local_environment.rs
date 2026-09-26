@@ -62,8 +62,17 @@ pub struct Loaded {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SaveRequest {
+    pub file_name: String,
     pub expected_revision: Option<String>,
     pub config: Environment,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Entry {
+    pub file_name: String,
+    pub name: Option<String>,
+    pub error: Option<String>,
 }
 
 fn directory(project: &Path) -> PathBuf {
@@ -82,11 +91,26 @@ fn check_component(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn checked_path(project: &Path) -> Result<PathBuf> {
+fn validate_file_name(file_name: &str) -> Result<()> {
+    ensure!(
+        !file_name.starts_with('.')
+            && file_name.ends_with(".toml")
+            && file_name.len() > 5
+            && Path::new(file_name)
+                .file_name()
+                .and_then(|name| name.to_str())
+                == Some(file_name),
+        "invalid environment file name"
+    );
+    Ok(())
+}
+
+fn checked_path(project: &Path, file_name: &str) -> Result<PathBuf> {
+    validate_file_name(file_name)?;
     check_component(&project.join(".codex"))?;
     let directory = directory(project);
     check_component(&directory)?;
-    let path = directory.join("environment.toml");
+    let path = directory.join(file_name);
     match fs::symlink_metadata(&path) {
         Ok(metadata) => ensure!(
             metadata.file_type().is_file(),
@@ -98,8 +122,8 @@ fn checked_path(project: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
-fn read_raw(project: &Path) -> Result<Option<Vec<u8>>> {
-    let path = checked_path(project)?;
+fn read_raw(project: &Path, file_name: &str) -> Result<Option<Vec<u8>>> {
+    let path = checked_path(project, file_name)?;
     match fs::metadata(&path) {
         Ok(metadata) => {
             ensure!(
@@ -150,8 +174,8 @@ fn validate(config: &Environment) -> Result<()> {
     Ok(())
 }
 
-pub fn load(project: &Path) -> Result<Loaded> {
-    let Some(bytes) = read_raw(project)? else {
+pub fn load(project: &Path, file_name: &str) -> Result<Loaded> {
+    let Some(bytes) = read_raw(project, file_name)? else {
         return Ok(Loaded {
             exists: false,
             revision: None,
@@ -172,7 +196,8 @@ pub fn load(project: &Path) -> Result<Loaded> {
 
 pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
     validate(&request.config)?;
-    let previous = read_raw(project)?;
+    validate_file_name(&request.file_name)?;
+    let previous = read_raw(project, &request.file_name)?;
     let current_revision = previous.as_deref().map(revision);
     ensure!(
         current_revision == request.expected_revision,
@@ -191,8 +216,8 @@ pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
         }
         fs::create_dir(&directory)?;
     }
-    checked_path(project)?;
-    let path = directory.join("environment.toml");
+    checked_path(project, &request.file_name)?;
+    let path = directory.join(&request.file_name);
     let temporary = directory.join(format!(".environment-{}.tmp", uuid::Uuid::new_v4()));
     let result = (|| -> Result<()> {
         let mut file = OpenOptions::new()
@@ -203,7 +228,10 @@ pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
         file.sync_all()?;
         // Recheck just before replacement; a concurrent external edit must survive.
         ensure!(
-            read_raw(project)?.as_deref().map(revision) == current_revision,
+            read_raw(project, &request.file_name)?
+                .as_deref()
+                .map(revision)
+                == current_revision,
             "environment file changed outside ShipiOS; reload before saving"
         );
         fs::rename(&temporary, &path)?;
@@ -214,7 +242,45 @@ pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
         let _ = fs::remove_file(&temporary);
     }
     result?;
-    load(project)
+    load(project, &request.file_name)
+}
+
+pub fn list(project: &Path) -> Result<Vec<Entry>> {
+    check_component(&project.join(".codex"))?;
+    let directory = directory(project);
+    check_component(&directory)?;
+    let files = match fs::read_dir(&directory) {
+        Ok(files) => files,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut names = Vec::new();
+    for file in files {
+        let file = file?;
+        let Some(name) = file.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        if validate_file_name(&name).is_ok() {
+            names.push(name);
+        }
+    }
+    ensure!(names.len() <= 64, "too many environment files");
+    names.sort();
+    Ok(names
+        .into_iter()
+        .map(|file_name| match load(project, &file_name) {
+            Ok(loaded) => Entry {
+                file_name,
+                name: loaded.config.map(|config| config.name),
+                error: None,
+            },
+            Err(_) => Entry {
+                file_name,
+                name: None,
+                error: Some("This environment file needs attention".into()),
+            },
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -248,11 +314,12 @@ mod tests {
     #[test]
     fn load_save_roundtrip_and_conflict() -> Result<()> {
         let project = tempfile::tempdir()?;
-        let empty = load(project.path())?;
+        let empty = load(project.path(), "environment.toml")?;
         assert!(!empty.exists);
         let saved = save(
             project.path(),
             SaveRequest {
+                file_name: "environment.toml".into(),
                 expected_revision: None,
                 config: example(),
             },
@@ -262,6 +329,7 @@ mod tests {
             save(
                 project.path(),
                 SaveRequest {
+                    file_name: "environment.toml".into(),
                     expected_revision: None,
                     config: example()
                 }
@@ -273,6 +341,7 @@ mod tests {
         let updated = save(
             project.path(),
             SaveRequest {
+                file_name: "environment.toml".into(),
                 expected_revision: saved.revision,
                 config: changed.clone(),
             },
@@ -289,14 +358,63 @@ mod tests {
             directory(project.path()).join("environment.toml"),
             "version = 1\nname = 'Example'\n[setup]\nscript = ''\n[[actions]]\nname = 'Run'\nicon = 'run'\ncommand = './run.sh'\n",
         )?;
-        assert_eq!(load(project.path())?.config.unwrap().actions[0].name, "Run");
+        assert_eq!(
+            load(project.path(), "environment.toml")?
+                .config
+                .unwrap()
+                .actions[0]
+                .name,
+            "Run"
+        );
         let outside = tempfile::tempdir()?;
         fs::remove_file(directory(project.path()).join("environment.toml"))?;
         std::os::unix::fs::symlink(
             outside.path().join("missing"),
             directory(project.path()).join("environment.toml"),
         )?;
-        assert!(load(project.path()).is_err());
+        assert!(load(project.path(), "environment.toml").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn lists_multiple_files_and_reports_invalid_without_unsafe_paths() -> Result<()> {
+        let project = tempfile::tempdir()?;
+        let first = save(
+            project.path(),
+            SaveRequest {
+                file_name: "environment.toml".into(),
+                expected_revision: None,
+                config: example(),
+            },
+        )?;
+        assert!(first.exists);
+        let mut second = example();
+        second.name = "Second".into();
+        save(
+            project.path(),
+            SaveRequest {
+                file_name: "environment-2.toml".into(),
+                expected_revision: None,
+                config: second,
+            },
+        )?;
+        fs::write(directory(project.path()).join("broken.toml"), "[setup\n")?;
+        let entries = list(project.path())?;
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[1].name.as_deref(), Some("Second"));
+        assert!(entries[0].error.is_some());
+        assert!(load(project.path(), "../outside.toml").is_err());
+        assert!(
+            save(
+                project.path(),
+                SaveRequest {
+                    file_name: "../outside.toml".into(),
+                    expected_revision: None,
+                    config: example()
+                }
+            )
+            .is_err()
+        );
         Ok(())
     }
 }

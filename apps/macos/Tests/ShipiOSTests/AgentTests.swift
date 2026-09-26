@@ -139,4 +139,56 @@ final class AgentTests: XCTestCase {
     XCTAssertEqual(store.worktreeSetupScript, "echo private")
     await store.shutdown()
   }
+
+  @MainActor func testMultipleCodexEnvironmentsCanBeSelectedAndCreated() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-envs-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("project")
+    let directory = project.appendingPathComponent(".codex/environments")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    for (fileName, name, script) in [
+      ("environment.toml", "Default", "echo default"),
+      ("environment-2.toml", "Second", "echo second"),
+    ] {
+      try "version = 1\nname = '\(name)'\n[setup]\nscript = '\(script)'\n"
+        .write(to: directory.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
+    }
+    try "[setup\n".write(to: directory.appendingPathComponent("broken.toml"),
+      atomically: true, encoding: .utf8)
+    let data = root.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    XCTAssertEqual(store.environmentFileName, "environment.toml")
+    XCTAssertEqual(store.environmentFiles.count, 3)
+    XCTAssertEqual(store.environmentFiles.first(where: { $0.fileName == "broken.toml" })?.error,
+      "This environment file needs attention")
+    await store.selectSharedEnvironment("environment-2.toml")
+    XCTAssertEqual(store.environmentName, "Second")
+    XCTAssertEqual(store.worktreeSetupScript, "echo second")
+    XCTAssertEqual(store.library.profiles[project.path]?.worktreeSetupScript, "echo second")
+    store.createSharedEnvironment()
+    XCTAssertEqual(store.environmentFileName, "environment-3.toml")
+    store.worktreeSetupScript = "echo third"
+    store.environmentActions = [EnvironmentAction(title: "Incomplete")]
+    await store.saveSharedEnvironment()
+    XCTAssertTrue(store.environmentStatus.contains("名称和命令"), store.environmentStatus)
+    XCTAssertFalse(FileManager.default.fileExists(
+      atPath: directory.appendingPathComponent("environment-3.toml").path))
+    store.environmentActions = []
+    await store.saveSharedEnvironment()
+    XCTAssertTrue(store.environmentStatus.contains("已保存"), store.environmentStatus)
+    XCTAssertTrue(FileManager.default.fileExists(
+      atPath: directory.appendingPathComponent("environment-3.toml").path))
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: data, agentExecutable: binary)
+    await restored.restore()
+    XCTAssertEqual(restored.environmentFileName, "environment-3.toml")
+    XCTAssertEqual(restored.worktreeSetupScript, "echo third")
+    await restored.shutdown()
+  }
 }

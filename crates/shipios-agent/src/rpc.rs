@@ -41,6 +41,11 @@ struct Artifact {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EnvironmentFile {
+    file_name: String,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CodexTask {
     task_id: String,
 }
@@ -127,12 +132,21 @@ async fn dispatch(
         let invalid = || (-32602, "invalid method parameters".to_string());
         let failed = |e: anyhow::Error| (-32010, e.to_string());
         match method {
-            "environment.load" => {
+            "environment.list" => {
                 if params != json!({}) {
                     return Err(invalid());
                 }
                 Ok(serde_json::to_value(
-                    local_environment::load(&service.config.project).map_err(failed)?,
+                    local_environment::list(&service.config.project).map_err(failed)?,
+                )
+                .unwrap())
+            }
+            "environment.load" => {
+                let request: EnvironmentFile =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
+                Ok(serde_json::to_value(
+                    local_environment::load(&service.config.project, &request.file_name)
+                        .map_err(failed)?,
                 )
                 .unwrap())
             }

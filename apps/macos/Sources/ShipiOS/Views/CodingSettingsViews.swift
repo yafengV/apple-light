@@ -144,6 +144,10 @@ struct LocalEnvironmentSettingsView: View {
   @State private var setupPlatform = EnvironmentPlatform.all
   @State private var cleanupPlatform = EnvironmentPlatform.all
   @State private var showingSetupVariables = false
+  @State private var pendingEnvironmentFile: String?
+  @State private var creatingEnvironment = false
+  @State private var reloadingEnvironment = false
+  @State private var showingDiscardConfirmation = false
 
   private var setupScript: Binding<String> {
     Binding(get: {
@@ -181,14 +185,52 @@ struct LocalEnvironmentSettingsView: View {
           Text(project.path).appFont(.caption).textSelection(.enabled)
         }
         Section("本地环境") {
+          Picker("环境", selection: Binding(
+            get: { store.environmentFileName },
+            set: { fileName in
+              guard fileName != store.environmentFileName else { return }
+              if store.environmentHasUnsavedChanges {
+                pendingEnvironmentFile = fileName
+                creatingEnvironment = false
+                reloadingEnvironment = false
+                showingDiscardConfirmation = true
+              } else { Task { await store.selectSharedEnvironment(fileName) } }
+            })) {
+              if !store.environmentFiles.contains(where: { $0.fileName == store.environmentFileName }) {
+                Text(store.environmentFileName).tag(store.environmentFileName)
+              }
+              ForEach(store.environmentFiles.filter { $0.error == nil }) { entry in
+                Text(entry.title).tag(entry.fileName)
+              }
+            }
+            .disabled(!store.connected || store.environmentSaving)
           TextField("环境名称", text: $store.environmentName)
-          Text(".codex/environments/environment.toml")
+          Text(".codex/environments/\(store.environmentFileName)")
             .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
           HStack {
             Button("保存共享环境") { Task { await store.saveSharedEnvironment() } }
               .disabled(!store.connected || store.environmentSaving)
-            Button("重新载入文件") { Task { await store.loadSharedEnvironment() } }
+            Button("重新载入环境") {
+              if store.environmentHasUnsavedChanges {
+                pendingEnvironmentFile = nil
+                creatingEnvironment = false
+                reloadingEnvironment = true
+                showingDiscardConfirmation = true
+              } else { Task { await store.refreshSharedEnvironments() } }
+            }
               .disabled(!store.connected || store.environmentSaving)
+            Button("新建环境") {
+              if store.environmentHasUnsavedChanges {
+                pendingEnvironmentFile = nil
+                creatingEnvironment = true
+                reloadingEnvironment = false
+                showingDiscardConfirmation = true
+              } else { store.createSharedEnvironment() }
+            }.disabled(!store.connected || store.environmentSaving)
+          }
+          ForEach(store.environmentFiles.filter { $0.error != nil }) { entry in
+            Label("\(entry.fileName)：需要修复后才能选择", systemImage: "exclamationmark.triangle")
+              .appFont(.caption).foregroundStyle(.secondary)
           }
           if !store.environmentStatus.isEmpty {
             Text(store.environmentStatus).appFont(.caption).foregroundStyle(.secondary)
@@ -283,5 +325,22 @@ struct LocalEnvironmentSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
     }.settingsFormStyle().appSurface()
+      .confirmationDialog("放弃未保存的环境修改？", isPresented: $showingDiscardConfirmation) {
+        Button("放弃修改并继续", role: .destructive) {
+          if creatingEnvironment { store.createSharedEnvironment() }
+          else if reloadingEnvironment { Task { await store.refreshSharedEnvironments() } }
+          else if let fileName = pendingEnvironmentFile {
+            Task { await store.selectSharedEnvironment(fileName) }
+          }
+          pendingEnvironmentFile = nil
+          creatingEnvironment = false
+          reloadingEnvironment = false
+        }
+        Button("取消", role: .cancel) {
+          pendingEnvironmentFile = nil
+          creatingEnvironment = false
+          reloadingEnvironment = false
+        }
+      }
   }
 }
