@@ -18,6 +18,8 @@ struct TaskSummaryView: View {
   let canAddFile: Bool
   let canAddImage: Bool
   let onPullRequestUpdated: (GitHubPullRequest) -> Void
+  let browserTabs: [TaskSummaryBrowserTab]
+  let focusBrowserTab: (UUID) -> Void
   let close: () -> Void
 
   private var latestPlanDocument: (runID: String, document: CodexPlanDocument)? {
@@ -156,6 +158,31 @@ struct TaskSummaryView: View {
               }
             }
             .appFont(.callout)
+          }
+          if !browserTabs.isEmpty {
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                Label("浏览器标签", systemImage: "globe").appFont(.headline)
+                Text(browserTabs.count.formatted()).appFont(.caption).foregroundStyle(.secondary)
+              }
+              ForEach(browserTabs) { tab in
+                Button { focusBrowserTab(tab.id) } label: {
+                  HStack(spacing: 8) {
+                    Image(systemName: "globe").foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                      Text(tab.title).lineLimit(1)
+                      Text(tab.subtitle).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right").foregroundStyle(.secondary)
+                  }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help("聚焦浏览器标签")
+                .accessibilityLabel("聚焦浏览器标签：\(tab.title)")
+              }
+            }.appFont(.callout)
           }
           if !artifacts.isEmpty {
             Divider()

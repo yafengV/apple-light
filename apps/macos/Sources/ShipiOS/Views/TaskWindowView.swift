@@ -141,7 +141,13 @@ struct TaskWindowView: View {
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                   canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
                   canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount,
-                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) }) {
+                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) },
+                  browserTabs: TaskSummaryBrowserTabs.collect(owner: taskID,
+                    contentTabs: tabs.tabs, browserTabs: browser.session.tabs),
+                  focusBrowserTab: { id in
+                    taskSummary.dismissPopover()
+                    tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
+                  }) {
                   taskSummary.close()
                 }
               }
@@ -219,7 +225,13 @@ struct TaskWindowView: View {
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                 canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
                 canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount,
-                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) }) {
+                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) },
+                browserTabs: TaskSummaryBrowserTabs.collect(owner: taskID,
+                  contentTabs: tabs.tabs, browserTabs: browser.session.tabs),
+                focusBrowserTab: { id in
+                  taskSummary.dismissPopover()
+                  tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
+                }) {
                 taskSummary.close()
               }
               .frame(height: 480)

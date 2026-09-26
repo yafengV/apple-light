@@ -201,7 +201,17 @@ struct WorkspaceView: View {
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                   canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
                   canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount,
-                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) }) {
+                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) },
+                  browserTabs: TaskSummaryBrowserTabs.collect(owner: task.id,
+                    contentTabs: store.workspaceTabs, browserTabs: store.workspace.browser.tabs),
+                  focusBrowserTab: { browserID in
+                    taskSummary.dismissPopover()
+                    let id = WorkspaceContentTab.browser(browserID, owner: task.id).id
+                    if store.workspaceTabPlacement(id) == .detached {
+                      if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
+                      else { store.moveWorkspaceTab(id, to: .left) }
+                    } else { store.activateWorkspaceTab(id) }
+                  }) {
                   taskSummary.close()
                 }
                 .frame(height: 480)
@@ -327,7 +337,17 @@ struct WorkspaceView: View {
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                 canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
                 canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount,
-                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) }) {
+                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) },
+                browserTabs: TaskSummaryBrowserTabs.collect(owner: task.id,
+                  contentTabs: store.workspaceTabs, browserTabs: store.workspace.browser.tabs),
+                focusBrowserTab: { browserID in
+                  taskSummary.dismissPopover()
+                  let id = WorkspaceContentTab.browser(browserID, owner: task.id).id
+                  if store.workspaceTabPlacement(id) == .detached {
+                    if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
+                    else { store.moveWorkspaceTab(id, to: .left) }
+                  } else { store.activateWorkspaceTab(id) }
+                }) {
                 taskSummary.close()
               }
             }
