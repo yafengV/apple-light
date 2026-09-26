@@ -3,6 +3,7 @@ import SwiftUI
 
 /// A task-local summary assembled only from records ShipiOS actually owns.
 struct TaskSummaryView: View {
+  @State private var outputPreview: TaskSummaryOutputFile?
   let task: WorkspaceTask
   let runs: [AgentRun]
   let library: WorkspaceLibrary
@@ -30,6 +31,7 @@ struct TaskSummaryView: View {
   var body: some View {
     let sources = runs.summarySources(in: library)
     let pullRequests = (library.taskPullRequests[task.id] ?? []).filter { $0.validatedURL != nil }
+    let artifacts = runs.summaryArtifacts
     let sourceImages = sources.compactMap { source -> ImageAttachment? in
       if case .image(let image) = source { return image }
       return nil
@@ -137,21 +139,36 @@ struct TaskSummaryView: View {
             }
             .appFont(.callout)
           }
-          if !runs.summaryArtifacts.isEmpty {
+          if !artifacts.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 8) {
-              Label("产物", systemImage: "shippingbox").appFont(.headline)
-              ForEach(runs.summaryArtifacts) { artifact in
-                Button {
-                  NSWorkspace.shared.activateFileViewerSelecting([artifact.directory])
-                } label: {
-                  Label(artifact.title, systemImage: "folder")
-                    .appFont(.callout).lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+              Label("输出", systemImage: "shippingbox").appFont(.headline)
+              ForEach(artifacts) { artifact in
+                VStack(alignment: .leading, spacing: 6) {
+                  Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([artifact.directory])
+                  } label: {
+                    Label(artifact.title, systemImage: "folder")
+                      .appFont(.callout).lineLimit(2)
+                      .frame(maxWidth: .infinity, alignment: .leading)
+                  }
+                  .buttonStyle(.plain)
+                  .help("在 Finder 中显示运行目录")
+                  .disabled(!FileManager.default.fileExists(atPath: artifact.directory.path))
+                  ForEach(artifact.outputs) { output in
+                    Button {
+                      if output.kind == .log { outputPreview = output }
+                      else { NSWorkspace.shared.open(output.url) }
+                    } label: {
+                      Label(output.title, systemImage: output.kind == .log ? "doc.text" : "shippingbox")
+                        .appFont(.callout).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 16)
+                    }
+                    .buttonStyle(.plain)
+                    .help(output.name)
+                  }
                 }
-                .buttonStyle(.plain)
-                .help("在 Finder 中显示产物")
-                .disabled(!FileManager.default.fileExists(atPath: artifact.directory.path))
               }
             }
           }
@@ -175,5 +192,8 @@ struct TaskSummaryView: View {
     }
     .frame(width: 316)
     .background(.regularMaterial)
+    .sheet(item: $outputPreview) { output in
+      TaskSummaryOutputPreview(output: output)
+    }
   }
 }
