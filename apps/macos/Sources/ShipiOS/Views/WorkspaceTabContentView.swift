@@ -13,8 +13,9 @@ struct WorkspaceTabContentView: View {
     case .review:
       GitReviewView(store: store, workspace: store.workspace)
     case .plan(let runID, let owner):
-      if let document = store.taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument {
-        CodexPlanDocumentView(document: document, runID: runID)
+      if let run = store.taskWindowRuns(owner).first(where: { $0.id == runID }),
+        let document = run.codexPlanDocument {
+        CodexPlanDocumentView(store: store, run: run, document: document)
       } else {
         ContentUnavailableView("计划不可用", systemImage: "text.document",
           description: Text("此计划可能已从任务中移除。"))
