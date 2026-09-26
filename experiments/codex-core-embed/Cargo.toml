@@ -10,9 +10,11 @@ publish = false
 anyhow = "1"
 codex-core-api = { path = "../../.cache/codex-upstream/codex-rs/core-api" }
 codex-extension-api = { path = "../../.cache/codex-upstream/codex-rs/ext/extension-api" }
+serde_json = "1"
 tempfile = "3"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 toml = "0.9"
+wiremock = "0.6"
 
 # The pinned Codex workspace uses these forks. A standalone host must carry
 # the same patches; path dependencies do not inherit their workspace's patches.
