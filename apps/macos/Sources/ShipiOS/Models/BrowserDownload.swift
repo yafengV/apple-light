@@ -28,6 +28,7 @@ enum BrowserDownloadStatus: String, Codable, Sendable {
 struct BrowserDownloadRecord: Codable, Equatable, Identifiable, Sendable {
   let id: UUID
   let sourceURL: String
+  var agentTaskID: String? = nil
   var filename: String
   var destinationPath: String?
   var status: BrowserDownloadStatus

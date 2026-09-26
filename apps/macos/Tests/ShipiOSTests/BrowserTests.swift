@@ -254,6 +254,97 @@ final class BrowserTests: XCTestCase {
     XCTAssertTrue(redirected["message"].text?.contains("重新授权") == true)
     XCTAssertFalse(store.workspace.browser.tabs.contains { $0.committedURL?.host == "localhost" })
   }
+  @MainActor func testCodexBrowserAgentDownloadsOnlyOwnedSameSiteLinksAndTracksProgress() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-agent-download-\(UUID())")
+    let downloads = root.appendingPathComponent("Downloads")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    defer { store.workspace.browser.shutdown() }
+    XCTAssertTrue(store.setBrowserDownloadFolder(downloads))
+    store.library.tasks = [
+      .init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "", title: "Other", runIDs: ["run-other"]),
+    ]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/one", title: "One")
+    store.library.browserPermissions.defaultDecision = .allow
+
+    let inspected = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let handle = try XCTUnwrap(inspected["elements"].items.first {
+      $0["label"].text == "Download"
+    }?["handle"].text)
+    store.library.browserPermissions.defaultDecision = .block
+    let denied = await store.codexBrowserResult(taskID: "owner", action: "download",
+      tabID: tab.id.uuidString, handle: handle)
+    XCTAssertEqual(denied["status"].text, "denied")
+    XCTAssertTrue(store.browserDownloads.isEmpty)
+    store.library.browserPermissions.defaultDecision = .allow
+    let started = await store.codexBrowserResult(taskID: "owner", action: "download",
+      tabID: tab.id.uuidString, handle: handle)
+    XCTAssertEqual(started["status"].text, "ok")
+    let downloadID = try XCTUnwrap(UUID(uuidString: started["download_id"].text ?? ""))
+    try await eventually("Agent download did not finish") {
+      store.browserDownloads.first(where: { $0.id == downloadID })?.status == .finished
+    }
+    let status = await store.codexBrowserResult(taskID: "owner", action: "download_status",
+      tabID: nil, downloadID: downloadID.uuidString)
+    XCTAssertEqual(status["download_status"].text, "finished")
+    XCTAssertEqual(status["path"].text, downloads.appendingPathComponent("fixture.txt").path)
+    XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("fixture.txt")),
+      "shipios browser download\n")
+    let persisted = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(persisted.browserDownloads.first(where: { $0.id == downloadID })?.agentTaskID, "owner")
+    let foreign = await store.codexBrowserResult(taskID: "other", action: "download_status",
+      tabID: nil, downloadID: downloadID.uuidString)
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+
+    _ = try await tab.view.evaluateJavaScript("""
+      const foreign = document.createElement('a');
+      foreign.href = 'http://localhost:' + location.port + '/download';
+      foreign.textContent = 'Other host download'; document.body.appendChild(foreign);
+      const redirect = document.createElement('a');
+      redirect.href = '/redirect-download-other-host';
+      redirect.textContent = 'Redirect download'; document.body.appendChild(redirect);
+      undefined;
+      """)
+    let links = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let foreignHandle = try XCTUnwrap(links["elements"].items.first {
+      $0["label"].text == "Other host download"
+    }?["handle"].text)
+    let blocked = await store.codexBrowserResult(taskID: "owner", action: "download",
+      tabID: tab.id.uuidString, handle: foreignHandle)
+    XCTAssertEqual(blocked["status"].text, "denied")
+    let redirectHandle = try XCTUnwrap(links["elements"].items.first {
+      $0["label"].text == "Redirect download"
+    }?["handle"].text)
+    let redirected = await store.codexBrowserResult(taskID: "owner", action: "download",
+      tabID: tab.id.uuidString, handle: redirectHandle)
+    XCTAssertEqual(redirected["status"].text, "ok")
+    let redirectID = try XCTUnwrap(UUID(uuidString: redirected["download_id"].text ?? ""))
+    try await eventually("Cross-host download was not stopped") {
+      store.browserDownloads.first(where: { $0.id == redirectID })?.status == .failed
+    }
+    XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: downloads.path), ["fixture.txt"])
+
+    let refreshed = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let slowHandle = try XCTUnwrap(refreshed["elements"].items.first {
+      $0["label"].text == "Slow download"
+    }?["handle"].text)
+    let slow = await store.codexBrowserResult(taskID: "owner", action: "download",
+      tabID: tab.id.uuidString, handle: slowHandle)
+    let slowID = try XCTUnwrap(UUID(uuidString: slow["download_id"].text ?? ""))
+    try await eventually("Slow Agent download did not start") {
+      store.browserDownloads.first(where: { $0.id == slowID })?.status == .downloading
+    }
+    let cancelled = await store.codexBrowserResult(taskID: "owner", action: "cancel_download",
+      tabID: nil, downloadID: slowID.uuidString)
+    XCTAssertEqual(cancelled["download_status"].text, "cancelled")
+  }
+
   @MainActor func testPageEditableFocusReportsInputsAndClearsOnBlurAndNavigation() async throws {
     let session = BrowserSession()
     defer { session.shutdown() }

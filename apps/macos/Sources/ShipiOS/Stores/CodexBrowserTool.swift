@@ -8,7 +8,8 @@ extension WorkspaceStore {
     let result = await codexBrowserResult(
       taskID: taskID, action: request["action"].text ?? "", tabID: request["tabId"].text,
       requestedURL: request["url"].text, handle: request["handle"].text,
-      text: request["text"].text, requestID: requestID, token: token)
+      text: request["text"].text, downloadID: request["downloadId"].text,
+      requestID: requestID, token: token)
     guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
       removeCodexBrowserScreenshot(requestID: requestID)
       return
@@ -23,12 +24,39 @@ extension WorkspaceStore {
 
   func codexBrowserResult(taskID: String, action: String, tabID: String?,
     requestedURL: String? = nil, handle: String? = nil, text: String? = nil,
-    requestID: String? = nil, token: UUID? = nil) async -> JSONValue {
+    downloadID: String? = nil, requestID: String? = nil, token: UUID? = nil) async -> JSONValue {
     guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
       return .object(["status": .string("cancelled")])
     }
     guard library.tasks.contains(where: { $0.id == taskID && !$0.archived }) else {
       return .object(["status": .string("unavailable"), "message": .string("任务已不可用。")])
+    }
+    if action == "download_status" || action == "cancel_download" {
+      guard let downloadID, let id = UUID(uuidString: downloadID),
+        let record = library.browserDownloads.first(where: { $0.id == id && $0.agentTaskID == taskID }) else {
+        return .object(["status": .string("unavailable"), "message": .string("下载记录不属于当前任务。")])
+      }
+      if action == "cancel_download" {
+        guard record.status == .preparing || record.status == .downloading else {
+          return .object(["status": .string("error"), "message": .string("下载已结束。")])
+        }
+        cancelBrowserDownload(id)
+      }
+      guard let current = library.browserDownloads.first(where: { $0.id == id }) else {
+        return .object(["status": .string("unavailable")])
+      }
+      var fields: [String: JSONValue] = [
+        "status": .string("ok"), "download_id": .string(id.uuidString),
+        "download_status": .string(current.status.rawValue),
+        "filename": .string(current.filename),
+      ]
+      if let count = current.byteCount { fields["byte_count"] = .number(Double(count)) }
+      if let message = current.message { fields["message"] = .string(message) }
+      if current.status == .finished, let path = current.destinationPath,
+        FileManager.default.fileExists(atPath: path) {
+        fields["path"] = .string(path)
+      }
+      return .object(fields)
     }
     let tabs = codexBrowserTabs(taskID: taskID)
     if action == "list" {
@@ -72,7 +100,7 @@ extension WorkspaceStore {
         "tab_id": .string(tab.id.uuidString), "url": .string(tab.committedURL?.absoluteString ?? url.absoluteString),
         "title": .string(tab.title)])
     }
-    guard ["read", "screenshot", "inspect", "click", "fill"].contains(action),
+    guard ["read", "screenshot", "inspect", "click", "fill", "download"].contains(action),
       let tabID, let id = UUID(uuidString: tabID),
       let tab = tabs.first(where: { $0.id == id }),
       !tab.closed, !tab.loading, let url = tab.committedURL,
@@ -199,6 +227,34 @@ extension WorkspaceStore {
       }
       if target["disabled"].boolean == true {
         return .object(["status": .string("error"), "message": .string("元素已禁用。")])
+      }
+      if action == "download" {
+        guard target["tag"].text == "a", let href = target["href"].text,
+          let link = try? BrowserAddress.url(href) else {
+          return .object(["status": .string("error"),
+            "message": .string("请检查网页并选择有效的下载链接。")])
+        }
+        let host = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let linkHost = link.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        guard let host, linkHost == host else {
+          return .object(["status": .string("denied"), "host": .string(link.host ?? ""),
+            "message": .string("下载链接属于其他网站，请先单独打开并授权。")])
+        }
+        guard codexBrowserRequestCurrent(taskID: taskID, token: token),
+          codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }),
+          !tab.closed, !tab.loading, tab.committedURL == url,
+          browserPermissionPreferences.decision(for: url) != .block else {
+          return .object(["status": .string("unavailable"), "message": .string("网页或权限已变化。")])
+        }
+        guard let id = tab.downloadURL(link, allowedHost: host) else {
+          return .object(["status": .string("error"), "message": .string("无法开始下载。")])
+        }
+        if let index = library.browserDownloads.firstIndex(where: { $0.id == id }) {
+          library.browserDownloads[index].agentTaskID = taskID
+          saveLibrary()
+        }
+        return .object(["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
+          "download_id": .string(id.uuidString), "url": .string(link.absoluteString)])
       }
       if action == "click" {
         if let href = target["href"].text, !href.isEmpty {

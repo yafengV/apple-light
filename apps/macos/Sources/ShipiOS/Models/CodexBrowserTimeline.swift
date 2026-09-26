@@ -19,6 +19,9 @@ enum CodexBrowserTimeline {
     case "inspect": "检查网页控件"
     case "click": "点击网页控件"
     case "fill": "填写网页控件"
+    case "download": "下载网页文件"
+    case "download_status": "查看下载进度"
+    case "cancel_download": "取消网页下载"
     default: "列出网页标签"
     }
     var execution = index.map { executions[$0] } ?? MCPToolExecution(

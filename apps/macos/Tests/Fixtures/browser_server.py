@@ -52,6 +52,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Location', f'http://localhost:{self.server.server_address[1]}/two')
             self.end_headers()
             return
+        if path == '/redirect-download-other-host':
+            self.send_response(302)
+            self.send_header('Location', f'http://localhost:{self.server.server_address[1]}/download')
+            self.end_headers()
+            return
         if path == '/slow':
             time.sleep(0.6)
         counts[path] = counts.get(path, 0) + 1

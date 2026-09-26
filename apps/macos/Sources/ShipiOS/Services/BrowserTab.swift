@@ -65,6 +65,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored private var downloads: [UUID: WKDownload] = [:]
   @ObservationIgnored private var pendingDownloads = Set<UUID>()
   @ObservationIgnored private var downloadDestinationOverrides: [UUID: BrowserDownloadDestinationChooser] = [:]
+  @ObservationIgnored private var agentDownloadHosts: [UUID: String] = [:]
   @ObservationIgnored private var downloadIDs: [ObjectIdentifier: UUID] = [:]
   @ObservationIgnored private var downloadSources: [ObjectIdentifier: URL] = [:]
   @ObservationIgnored private var downloadProgress: [ObjectIdentifier: NSKeyValueObservation] = [:]
@@ -165,6 +166,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @discardableResult func cancelDownload(_ id: UUID) -> Bool {
     if pendingDownloads.remove(id) != nil {
       downloadDestinationOverrides[id] = nil
+      agentDownloadHosts[id] = nil
       didUpdateDownload?(.cancelled(id: id))
       return true
     }
@@ -175,11 +177,14 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     return true
   }
   @discardableResult func downloadURL(_ url: URL,
-    chooseDestination: BrowserDownloadDestinationChooser? = nil) -> UUID? {
-    guard !closed, BrowserAddress.permits(url) else { return nil }
+    chooseDestination: BrowserDownloadDestinationChooser? = nil,
+    allowedHost: String? = nil) -> UUID? {
+    guard !closed, BrowserAddress.permits(url),
+      allowedHost == nil || Self.agentHost(url) == allowedHost else { return nil }
     let id = UUID()
     pendingDownloads.insert(id)
     downloadDestinationOverrides[id] = chooseDestination
+    agentDownloadHosts[id] = allowedHost
     didUpdateDownload?(.started(id: id, sourceURL: url.absoluteString,
       filename: url.lastPathComponent.isEmpty ? "download" : url.lastPathComponent))
     view.startDownload(using: URLRequest(url: url)) { [weak self] download in
@@ -548,6 +553,13 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       completionHandler(nil)
       return
     }
+    if let allowedHost = agentDownloadHosts[id],
+      response.url.map(Self.agentHost) != allowedHost {
+      didUpdateDownload?(.failed(id: id, message: "下载重定向到了未授权网站。"))
+      cleanup(download)
+      completionHandler(nil)
+      return
+    }
     let filename = suggestedFilename.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       ? "download" : suggestedFilename
     didUpdateDownload?(.started(
@@ -582,6 +594,19 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     guard let id = downloadIDs[ObjectIdentifier(download)] else { return }
     didUpdateDownload?(.finished(id: id))
     cleanup(download)
+  }
+  func download(_ download: WKDownload, willPerformHTTPRedirection response: HTTPURLResponse,
+    newRequest request: URLRequest,
+    decisionHandler: @escaping (WKDownload.RedirectPolicy) -> Void) {
+    let id = downloadIDs[ObjectIdentifier(download)]
+    if let id, let allowedHost = agentDownloadHosts[id],
+      request.url.map(Self.agentHost) != allowedHost {
+      didUpdateDownload?(.failed(id: id, message: "下载重定向到了未授权网站。"))
+      decisionHandler(.cancel)
+      cleanup(download)
+      return
+    }
+    decisionHandler(.allow)
   }
   func download(_ download: WKDownload, didFailWithError error: Error,
     resumeData: Data?) {
@@ -627,11 +652,17 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     if let id = downloadIDs.removeValue(forKey: key) {
       downloads[id] = nil
       downloadDestinationOverrides[id] = nil
+      agentDownloadHosts[id] = nil
     }
     downloadSources[key] = nil
     downloadProgress[key]?.invalidate()
     downloadProgress[key] = nil
     download.delegate = nil
+  }
+
+  private static func agentHost(_ url: URL) -> String? {
+    guard url.user == nil, url.password == nil, BrowserAddress.permits(url) else { return nil }
+    return url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
   }
 
   private static let stylePreviewWorld = WKContentWorld.world(name: "ShipiOSStylePreview")

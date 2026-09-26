@@ -846,17 +846,27 @@ mod tests {
                             "{{\"action\":\"screenshot\",\"tab_id\":\"{}\"}}", Uuid::nil())}}),
                     completed("browser-shot"),
                 ]);
+                let download_call = sse(vec![
+                    json!({"type":"response.created","response":{"id":"browser-download"}}),
+                    json!({"type":"response.output_item.done","item":{
+                        "type":"function_call","call_id":"browser-call-download",
+                        "name":"shipios_browser","arguments":format!(
+                            "{{\"action\":\"download\",\"tab_id\":\"{}\",\"handle\":\"scan:2\"}}", Uuid::nil())}}),
+                    completed("browser-download"),
+                ]);
                 let request_count = std::sync::atomic::AtomicUsize::new(0);
                 Mock::given(method("POST"))
                     .and(path("/v1/responses"))
                     .respond_with(move |_request: &wiremock::Request| {
                         let number = request_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                        let response = match number { 0 => &call, 1 => &screenshot_call, _ => &done };
+                        let response = match number {
+                            0 => &call, 1 => &screenshot_call, 2 => &download_call, _ => &done,
+                        };
                         ResponseTemplate::new(200)
                             .insert_header("content-type", "text/event-stream")
                             .set_body_string(response.clone())
                     })
-                    .expect(3)
+                    .expect(4)
                     .mount(&server)
                     .await;
                 let temp = tempfile::tempdir()?;
@@ -888,6 +898,7 @@ mod tests {
                     .await?;
                 let mut saw_request = false;
                 let mut saw_screenshot = false;
+                let mut saw_download = false;
                 let mut saw_reply = false;
                 loop {
                     let payload =
@@ -907,6 +918,10 @@ mod tests {
                                 saw_screenshot = true;
                                 json!({"status":"ok","tab_id":Uuid::nil().to_string(),
                                     "byte_count":png.len()})
+                            } else if event["action"] == "download" {
+                                assert_eq!(event["handle"], "scan:2");
+                                saw_download = true;
+                                json!({"status":"ok","download_id":Uuid::nil().to_string()})
                             } else {
                                 assert_eq!(event["action"], "fill");
                                 assert_eq!(event["handle"], "scan:1");
@@ -926,12 +941,13 @@ mod tests {
                         _ => {}
                     }
                 }
-                assert!(saw_request && saw_screenshot && saw_reply);
+                assert!(saw_request && saw_screenshot && saw_download && saw_reply);
                 let requests = server.received_requests().await.unwrap();
                 assert!(String::from_utf8_lossy(&requests[0].body).contains("shipios_browser"));
                 assert!(String::from_utf8_lossy(&requests[1].body).contains("filled"));
                 assert!(String::from_utf8_lossy(&requests[2].body).contains("input_image"));
                 assert!(String::from_utf8_lossy(&requests[2].body).contains("data:image/png;base64,"));
+                assert!(String::from_utf8_lossy(&requests[3].body).contains("download_id"));
                 assert_eq!(std::fs::read_dir(data_root.join("CodexBrowserStaging"))?.count(), 0);
                 Ok::<_, anyhow::Error>(())
             })

@@ -78,6 +78,7 @@ impl BrowserToolBridge {
         url: Option<String>,
         handle: Option<String>,
         text: Option<String>,
+        download_id: Option<String>,
     ) -> Result<(String, Value), String> {
         let request_id = Uuid::new_v4().to_string();
         let (reply, receiver) = oneshot::channel();
@@ -89,7 +90,7 @@ impl BrowserToolBridge {
             "taskId": self.task_id,
             "event": {"type": "browser_request", "requestId": request_id,
                 "action": action, "tabId": tab_id, "url": url,
-                "handle": handle, "text": text}
+                "handle": handle, "text": text, "downloadId": download_id}
         });
         if self.events.send(event).is_err() {
             self.pending
@@ -119,6 +120,7 @@ struct BrowserArgs {
     url: Option<String>,
     handle: Option<String>,
     text: Option<String>,
+    download_id: Option<String>,
 }
 
 struct BrowserScreenshotOutput {
@@ -245,16 +247,17 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
     fn spec(&self) -> ToolSpec {
         ToolSpec::Function(ResponsesApiTool {
             name: "shipios_browser".to_owned(),
-            description: "Use the task's ShipiOS browser. list returns tab IDs; open navigates to an http/https URL; read returns visible page text; screenshot returns the current viewport as an image; inspect returns live interactive element handles; click activates a handle; fill enters text in a text field. Inspect again after navigation or page changes. ShipiOS checks website access and may ask the user.".to_owned(),
+            description: "Use the task's ShipiOS browser. list returns tab IDs; open navigates to an http/https URL; read returns visible page text; screenshot returns the viewport as an image; inspect returns live element handles; click activates a handle; fill enters text; download starts a same-website download from an inspected link; download_status checks its progress; cancel_download stops it. Inspect again after navigation or page changes. ShipiOS checks website access and may ask the user where to save.".to_owned(),
             strict: false,
             parameters: parse_tool_input_schema(&json!({
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "read", "open", "screenshot", "inspect", "click", "fill"]},
+                    "action": {"type": "string", "enum": ["list", "read", "open", "screenshot", "inspect", "click", "fill", "download", "download_status", "cancel_download"]},
                     "tab_id": {"type": "string", "description": "Required for read, screenshot and inspect; use an ID returned by list."},
                     "url": {"type": "string", "description": "Required for open; absolute http/https URL."},
-                    "handle": {"type": "string", "description": "Required for click and fill; use a handle returned by inspect."},
-                    "text": {"type": "string", "description": "Required for fill; text to enter, at most 4000 characters."}
+                    "handle": {"type": "string", "description": "Required for click, fill and download; use a handle returned by inspect."},
+                    "text": {"type": "string", "description": "Required for fill; text to enter, at most 4000 characters."},
+                    "download_id": {"type": "string", "description": "Required for download_status and cancel_download; use the ID returned by download."}
                 },
                 "required": ["action"],
                 "additionalProperties": false
@@ -274,10 +277,19 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
                 .map_err(|error| FunctionCallError::RespondToModel(error.to_string()))?;
             if !matches!(
                 args.action.as_str(),
-                "list" | "read" | "open" | "screenshot" | "inspect" | "click" | "fill"
+                "list"
+                    | "read"
+                    | "open"
+                    | "screenshot"
+                    | "inspect"
+                    | "click"
+                    | "fill"
+                    | "download"
+                    | "download_status"
+                    | "cancel_download"
             ) || (matches!(
                 args.action.as_str(),
-                "read" | "screenshot" | "inspect" | "click" | "fill"
+                "read" | "screenshot" | "inspect" | "click" | "fill" | "download"
             ) && args
                 .tab_id
                 .as_ref()
@@ -287,7 +299,7 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
                         .url
                         .as_ref()
                         .is_none_or(|value| !valid_browser_url(value)))
-                || (matches!(args.action.as_str(), "click" | "fill")
+                || (matches!(args.action.as_str(), "click" | "fill" | "download")
                     && args.handle.as_ref().is_none_or(|value| {
                         value.len() > 100 || !value.is_ascii() || !value.contains(':')
                     }))
@@ -296,9 +308,14 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
                         .text
                         .as_ref()
                         .is_none_or(|value| value.chars().count() > 4_000))
+                || (matches!(args.action.as_str(), "download_status" | "cancel_download")
+                    && args
+                        .download_id
+                        .as_ref()
+                        .is_none_or(|id| Uuid::parse_str(id).is_err()))
             {
                 return Err(FunctionCallError::RespondToModel(
-                    "Use list, open with an http/https URL, read/screenshot/inspect with a tab_id, or click/fill with a tab_id and inspected handle (plus text for fill).".to_owned(),
+                    "Use list, open with an http/https URL, read/screenshot/inspect with a tab_id, click/fill/download with a tab_id and inspected handle, or download_status/cancel_download with a download_id.".to_owned(),
                 ));
             }
             let (request_id, result) = self
@@ -309,6 +326,7 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
                     args.url,
                     args.handle,
                     args.text,
+                    args.download_id,
                 )
                 .await
                 .map_err(FunctionCallError::RespondToModel)?;
@@ -347,7 +365,7 @@ mod tests {
         let bridge = BrowserToolBridge::new(events, PathBuf::new());
         let task = bridge.for_task("task-a".to_owned());
         let pending =
-            tokio::spawn(async move { task.request("list", None, None, None, None).await });
+            tokio::spawn(async move { task.request("list", None, None, None, None, None).await });
         let event = receiver.recv().await.expect("request event");
         let id = event["event"]["requestId"].as_str().unwrap();
         assert_eq!(event["taskId"], "task-a");
@@ -363,8 +381,15 @@ mod tests {
         let bridge = BrowserToolBridge::new(events, PathBuf::new());
         let task = bridge.for_task("task-a".to_owned());
         let pending = tokio::spawn(async move {
-            task.request("read", Some(Uuid::new_v4().to_string()), None, None, None)
-                .await
+            task.request(
+                "read",
+                Some(Uuid::new_v4().to_string()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
         });
         let event = receiver.recv().await.expect("request event");
         bridge.cancel_task("task-a");
@@ -374,6 +399,26 @@ mod tests {
             event["event"]["requestId"].as_str().unwrap(),
             json!({})
         ));
+    }
+
+    #[tokio::test]
+    async fn download_status_forwards_only_the_requested_id_to_its_owner() {
+        let (events, mut receiver) = broadcast::channel(8);
+        let bridge = BrowserToolBridge::new(events, PathBuf::new());
+        let id = Uuid::new_v4().to_string();
+        let task = bridge.for_task("task-a".to_owned());
+        let expected = id.clone();
+        let pending = tokio::spawn(async move {
+            task.request("download_status", None, None, None, None, Some(expected))
+                .await
+        });
+        let event = receiver.recv().await.expect("download status request");
+        assert_eq!(event["event"]["action"], "download_status");
+        assert_eq!(event["event"]["downloadId"], id);
+        let request_id = event["event"]["requestId"].as_str().unwrap();
+        assert!(!bridge.resolve("task-b", request_id, json!({"status":"ok"})));
+        assert!(bridge.resolve("task-a", request_id, json!({"status":"ok"})));
+        assert_eq!(pending.await.unwrap().unwrap().1["status"], "ok");
     }
 
     #[test]
