@@ -7,6 +7,7 @@ struct CodexElicitationView: View {
   @State private var drafts: [String: String] = [:]
   @State private var toggles: [String: Bool] = [:]
   @State private var selections: [String: Int] = [:]
+  @State private var multiSelections: [String: Set<Int>] = [:]
 
   private enum FieldValue { case omitted, value(JSONValue), invalid }
   private var pending: Bool {
@@ -14,8 +15,26 @@ struct CodexElicitationView: View {
       && store.codexPendingElicitations[request.id] != nil
   }
 
+  private func draftValue(_ field: CodexElicitationField) -> String {
+    if let value = drafts[field.id] { return value }
+    if let text = field.defaultValue?.text { return text }
+    if case .number(let number) = field.defaultValue {
+      return number.rounded() == number ? String(format: "%.0f", number) : String(number)
+    }
+    return field.defaultValue?.pretty ?? ""
+  }
+
+  private func selectedIndex(_ field: CodexElicitationField) -> Int {
+    selections[field.id] ?? field.defaultChoiceIndex ?? -1
+  }
+
+  private func selectedIndices(_ field: CodexElicitationField) -> Set<Int> {
+    if let selected = multiSelections[field.id] { return selected }
+    return Set(field.choices.indices.filter { field.defaultValue?.items.contains(field.choices[$0]) == true })
+  }
+
   private func fieldValue(_ field: CodexElicitationField) -> FieldValue {
-    let raw = drafts[field.id] ?? ""
+    let raw = draftValue(field)
     switch field.kind {
     case .text:
       return raw.isEmpty && !field.required ? .omitted : .value(.string(raw))
@@ -28,11 +47,16 @@ struct CodexElicitationView: View {
       guard let value = Double(raw), value.isFinite else { return .invalid }
       return .value(.number(value))
     case .boolean:
-      return .value(.bool(toggles[field.id] ?? false))
+      return .value(.bool(toggles[field.id] ?? field.defaultValue?.boolean ?? false))
     case .choice:
-      let index = selections[field.id] ?? 0
+      let index = selectedIndex(field)
+      if index == -1 { return field.required ? .invalid : .omitted }
       guard field.choices.indices.contains(index) else { return .invalid }
       return .value(field.choices[index])
+    case .multiChoice:
+      let selected = selectedIndices(field)
+      if selected.isEmpty && !field.required { return .omitted }
+      return .value(.array(field.choices.indices.filter(selected.contains).map { field.choices[$0] }))
     case .json:
       if raw.isEmpty && !field.required { return .omitted }
       guard let value = try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8))
@@ -92,16 +116,27 @@ struct CodexElicitationView: View {
               switch field.kind {
               case .boolean:
                 Toggle(field.title, isOn: Binding(
-                  get: { toggles[field.id] ?? false },
+                  get: { toggles[field.id] ?? field.defaultValue?.boolean ?? false },
                   set: { toggles[field.id] = $0 }))
               case .choice:
                 Picker(field.title, selection: Binding(
-                  get: { selections[field.id] ?? 0 },
+                  get: { selectedIndex(field) },
                   set: { selections[field.id] = $0 })) {
+                  Text("请选择…").tag(-1)
                   ForEach(field.choices.indices, id: \.self) { index in
-                    Text(field.choices[index].text ?? field.choices[index].pretty).tag(index)
+                    Text(field.choiceTitles[index]).tag(index)
                   }
                 }.labelsHidden()
+              case .multiChoice:
+                ForEach(field.choices.indices, id: \.self) { index in
+                  Toggle(field.choiceTitles[index], isOn: Binding(
+                    get: { selectedIndices(field).contains(index) },
+                    set: { selected in
+                      var indices = selectedIndices(field)
+                      if selected { indices.insert(index) } else { indices.remove(index) }
+                      multiSelections[field.id] = indices
+                    }))
+                }
               case .json:
                 TextEditor(text: binding(for: field.id))
                   .font(.system(.body, design: .monospaced))
@@ -148,6 +183,9 @@ struct CodexElicitationView: View {
   }
 
   private func binding(for id: String) -> Binding<String> {
-    Binding(get: { drafts[id] ?? "" }, set: { drafts[id] = $0 })
+    Binding(get: {
+      guard let field = request.fields.first(where: { $0.id == id }) else { return drafts[id] ?? "" }
+      return draftValue(field)
+    }, set: { drafts[id] = $0 })
   }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
 struct CodexElicitationField: Identifiable {
-  enum Kind: Equatable { case text, integer, number, boolean, choice, json }
+  enum Kind: Equatable { case text, integer, number, boolean, choice, multiChoice, json }
   let id: String
   let title: String
   let description: String
@@ -9,6 +9,12 @@ struct CodexElicitationField: Identifiable {
   let required: Bool
   let secret: Bool
   let choices: [JSONValue]
+  let choiceTitles: [String]
+  let defaultValue: JSONValue?
+
+  var defaultChoiceIndex: Int? {
+    defaultValue.flatMap(choices.firstIndex(of:))
+  }
 
   init(name: String, schema: JSONValue, required: Bool) {
     id = name
@@ -16,9 +22,26 @@ struct CodexElicitationField: Identifiable {
     description = schema["description"].text ?? ""
     self.required = required
     secret = schema["format"].text == "password" || schema["writeOnly"].boolean == true
-    choices = schema["enum"].items
-    if !choices.isEmpty { kind = .choice }
-    else {
+    defaultValue = schema["default"] == .null ? nil : schema["default"]
+    let titled = schema["oneOf"].items
+    let itemSchema = schema["items"]
+    let multiTitled = itemSchema["anyOf"].items.isEmpty
+      ? itemSchema["oneOf"].items : itemSchema["anyOf"].items
+    if schema["type"].text == "array" && (!multiTitled.isEmpty || !itemSchema["enum"].items.isEmpty) {
+      kind = .multiChoice
+      choices = multiTitled.isEmpty ? itemSchema["enum"].items : multiTitled.map { $0["const"] }
+      choiceTitles = multiTitled.isEmpty ? choices.map { $0.text ?? $0.pretty }
+        : multiTitled.map { $0["title"].text ?? $0["const"].text ?? "" }
+    } else if !titled.isEmpty || !schema["enum"].items.isEmpty {
+      kind = .choice
+      choices = titled.isEmpty ? schema["enum"].items : titled.map { $0["const"] }
+      let legacyNames = schema["enumNames"].items.compactMap(\.text)
+      choiceTitles = titled.isEmpty
+        ? (legacyNames.count == choices.count ? legacyNames : choices.map { $0.text ?? $0.pretty })
+        : titled.map { $0["title"].text ?? $0["const"].text ?? "" }
+    } else {
+      choices = []
+      choiceTitles = []
       switch schema["type"].text {
       case "string": kind = .text
       case "integer": kind = .integer
@@ -119,12 +142,35 @@ struct CodexElicitationRequest: Codable, Equatable, Identifiable, Sendable {
 
   private static func matches(_ value: JSONValue, rule: JSONValue, depth: Int) -> Bool {
     guard depth < 8 else { return false }
-    if !rule["enum"].items.isEmpty && !rule["enum"].items.contains(value) { return false }
+    let enumValues = rule["oneOf"].items.isEmpty
+      ? rule["enum"].items : rule["oneOf"].items.map { $0["const"] }
+    if !enumValues.isEmpty && !enumValues.contains(value) { return false }
     switch rule["type"].text {
     case "string":
       guard let text = value.text else { return false }
       if let min = rule["minLength"].int, text.count < min { return false }
       if let max = rule["maxLength"].int, text.count > max { return false }
+      switch rule["format"].text {
+      case "email":
+        if text.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) == nil {
+          return false
+        }
+      case "uri":
+        guard let parts = URLComponents(string: text), parts.scheme != nil,
+          parts.url != nil else { return false }
+      case "date":
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate]
+        guard let date = formatter.date(from: text), formatter.string(from: date) == text else { return false }
+      case "date-time":
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if formatter.date(from: text) == nil {
+          formatter.formatOptions = [.withInternetDateTime]
+          guard formatter.date(from: text) != nil else { return false }
+        }
+      default: break
+      }
     case "integer":
       guard case .number(let number) = value, number.isFinite,
         number.rounded() == number, abs(number) <= 9_007_199_254_740_991 else { return false }
@@ -140,8 +186,20 @@ struct CodexElicitationRequest: Codable, Equatable, Identifiable, Sendable {
       guard case .array(let items) = value else { return false }
       if let minimum = rule["minItems"].int, items.count < minimum { return false }
       if let maximum = rule["maxItems"].int, items.count > maximum { return false }
-      if case .object = rule["items"],
-        !items.allSatisfy({ matches($0, rule: rule["items"], depth: depth + 1) }) { return false }
+      if case .object = rule["items"] {
+        let itemRule = rule["items"]
+        let titled = itemRule["anyOf"].items.isEmpty
+          ? itemRule["oneOf"].items : itemRule["anyOf"].items
+        let allowed = titled.isEmpty ? itemRule["enum"].items : titled.map { $0["const"] }
+        if !allowed.isEmpty {
+          guard items.allSatisfy({ allowed.contains($0) }),
+            items.enumerated().allSatisfy({ index, item in
+              !items.prefix(index).contains(item)
+            }) else { return false }
+        } else if !items.allSatisfy({ matches($0, rule: itemRule, depth: depth + 1) }) {
+          return false
+        }
+      }
     case "object":
       guard case .object(let values) = value else { return false }
       if case .object(let properties) = rule["properties"] {
