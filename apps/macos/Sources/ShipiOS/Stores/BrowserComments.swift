@@ -8,12 +8,13 @@ extension WorkspaceStore {
   }
 
   func addBrowserComment(
-    _ reference: BrowserElementReference, body: String, taskID: String? = nil
+    _ reference: BrowserElementReference, body: String,
+    styleFeedback: BrowserStyleFeedback? = nil, taskID: String? = nil
   ) {
     let body = body.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !body.isEmpty else { return }
     library.browserComments[taskID ?? draftKey, default: []].append(
-      BrowserComment(reference: reference, body: body))
+      BrowserComment(reference: reference, body: body, styleFeedback: styleFeedback))
     saveLibrary()
   }
 

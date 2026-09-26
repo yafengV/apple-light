@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WebKit
 
@@ -176,6 +177,7 @@ struct BrowserPanel: View {
         }
         if let reference = tab.selectedElement {
           BrowserElementReferenceView(store: store, tab: tab, reference: reference, context: context)
+            .id(reference.url + reference.selector + reference.selectionKind)
         } else if tab.selectingElement {
           Label("单击元素或拖动选择区域，按 Esc 取消", systemImage: "scope")
             .appFont(.caption).foregroundStyle(.secondary).padding(10)
@@ -330,6 +332,39 @@ private struct BrowserElementReferenceView: View {
   let reference: BrowserElementReference
   var context: BrowserPanelContext? = nil
   @State private var comment = ""
+  @State private var adjusting = false
+  @State private var replacementText = ""
+  @State private var fontFamily = ""
+  @State private var useFontSize = false
+  @State private var fontSize = 16
+  @State private var usePadding = false
+  @State private var padding = 8
+  @State private var useLetterSpacing = false
+  @State private var letterSpacing = 0
+  @State private var useTextColor = false
+  @State private var textColor = Color.black
+  @State private var useBackgroundColor = false
+  @State private var backgroundColor = Color.white
+  @State private var styleError: String?
+  @State private var previewing = false
+
+  private var styleFeedback: BrowserStyleFeedback {
+    BrowserStyleFeedback(
+      replacementText: replacementText.isEmpty ? nil : replacementText,
+      fontFamily: fontFamily.isEmpty ? nil : fontFamily,
+      fontSize: useFontSize ? fontSize : nil,
+      padding: usePadding ? padding : nil,
+      letterSpacing: useLetterSpacing ? letterSpacing : nil,
+      textColor: useTextColor ? Self.hex(textColor) : nil,
+      backgroundColor: useBackgroundColor ? Self.hex(backgroundColor) : nil)
+  }
+
+  private static func hex(_ color: Color) -> String {
+    let converted = NSColor(color).usingColorSpace(.deviceRGB) ?? .black
+    func byte(_ value: CGFloat) -> Int { min(255, max(0, Int((value * 255).rounded()))) }
+    return String(format: "#%02X%02X%02X",
+      byte(converted.redComponent), byte(converted.greenComponent), byte(converted.blueComponent))
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -345,18 +380,87 @@ private struct BrowserElementReferenceView: View {
         Spacer(minLength: 8)
         Button { tab.clearSelectedElement() } label: { Image(systemName: "xmark") }
           .buttonStyle(.plain).help("取消网页批注").accessibilityLabel("取消网页批注")
+          .disabled(previewing)
       }
-      TextField("描述需要修改的内容…", text: $comment, axis: .vertical)
-        .textFieldStyle(.roundedBorder).lineLimit(2...5).accessibilityLabel("浏览器评论")
+      HStack(alignment: .top) {
+        TextField("描述需要修改的内容…", text: $comment, axis: .vertical)
+          .textFieldStyle(.roundedBorder).lineLimit(2...5).accessibilityLabel("浏览器评论")
+        if reference.selectionKind == "element" {
+          Button(adjusting ? "收起调整" : "调整样式") {
+            adjusting.toggle()
+            styleError = nil
+            if !adjusting { tab.clearStylePreview() }
+          }.accessibilityLabel("调整网页元素样式").disabled(previewing)
+        }
+      }
+      if adjusting && reference.selectionKind == "element" {
+        VStack(alignment: .leading, spacing: 8) {
+          TextField("替换文字（可选）", text: $replacementText)
+            .accessibilityLabel("预览替换文字")
+            .onChange(of: replacementText) { _, value in
+              if value.count > 500 { replacementText = String(value.prefix(500)) }
+            }
+          Picker("字体", selection: $fontFamily) {
+            Text("保持原样").tag("")
+            Text("系统无衬线").tag("system-ui")
+            Text("衬线").tag("serif")
+            Text("等宽").tag("monospace")
+          }
+          HStack {
+            Toggle("字号", isOn: $useFontSize)
+            Spacer()
+            if useFontSize { Stepper("\(fontSize) px", value: $fontSize, in: 8...96) }
+          }
+          HStack {
+            Toggle("内边距", isOn: $usePadding)
+            Spacer()
+            if usePadding { Stepper("\(padding) px", value: $padding, in: 0...96) }
+          }
+          HStack {
+            Toggle("字距", isOn: $useLetterSpacing)
+            Spacer()
+            if useLetterSpacing { Stepper("\(letterSpacing) px", value: $letterSpacing, in: -8...24) }
+          }
+          HStack {
+            Toggle("文字颜色", isOn: $useTextColor)
+            Spacer()
+            if useTextColor { ColorPicker("文字颜色", selection: $textColor).labelsHidden() }
+          }
+          HStack {
+            Toggle("背景颜色", isOn: $useBackgroundColor)
+            Spacer()
+            if useBackgroundColor { ColorPicker("背景颜色", selection: $backgroundColor).labelsHidden() }
+          }
+          HStack {
+            Button("在网页中预览") {
+              let style = styleFeedback
+              styleError = nil
+              previewing = true
+              Task {
+                do { try await tab.previewStyle(style, for: reference) }
+                catch { styleError = error.localizedDescription }
+                previewing = false
+              }
+            }.disabled(styleFeedback.isEmpty || previewing)
+            Button("恢复网页原样") { tab.clearStylePreview(); styleError = nil }
+              .disabled(previewing)
+          }
+          if let styleError { Text(styleError).foregroundStyle(.red).textSelection(.enabled) }
+          Text("预览仅临时改变当前网页；保存评论后网页会恢复，调整目标将随消息发送。")
+            .appFont(.caption).foregroundStyle(.secondary)
+        }.appFont(.caption)
+      }
       HStack {
         Button("添加为引用") { store.addBrowserElementToDraft(reference, taskID: context?.taskID); context?.focusComposer() }
         Spacer()
         Button("保存评论") {
-          store.addBrowserComment(reference, body: comment, taskID: context?.taskID)
+          store.addBrowserComment(reference, body: comment,
+            styleFeedback: styleFeedback.isEmpty ? nil : styleFeedback,
+            taskID: context?.taskID)
           tab.clearSelectedElement()
         }
         .buttonStyle(.borderedProminent)
-        .disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || previewing)
       }.controlSize(.small)
     }
     .padding(10).background(Color.accentColor.opacity(0.06))
@@ -378,6 +482,9 @@ private struct BrowserCommentsPanel: View {
             .background(Color.accentColor, in: Circle())
           VStack(alignment: .leading, spacing: 2) {
             Text(comment.body).appFont(.caption).lineLimit(3).textSelection(.enabled)
+            if let style = comment.styleFeedback, !style.isEmpty {
+              Text(style.summary).appFont(size: 10).foregroundStyle(.secondary).lineLimit(2)
+            }
             Text(comment.reference.pageTitle.isEmpty ? comment.reference.url : comment.reference.pageTitle)
               .appFont(size: 10).foregroundStyle(.secondary).lineLimit(1)
           }

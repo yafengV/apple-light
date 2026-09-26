@@ -48,6 +48,10 @@ private struct BrowserCommentComposerSummary: View {
                     .background(Color.accentColor, in: Circle())
                   VStack(alignment: .leading, spacing: 3) {
                     Text(comment.body).appFont(.callout).textSelection(.enabled)
+                    if let style = comment.styleFeedback, !style.isEmpty {
+                      Text(style.summary).appFont(.caption2).foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    }
                     Text(comment.reference.pageTitle.isEmpty
                       ? comment.reference.url : comment.reference.pageTitle)
                       .appFont(.caption2).foregroundStyle(.secondary).lineLimit(1)

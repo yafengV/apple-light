@@ -98,7 +98,7 @@ struct BrowserSettingsView: View {
         }
       }
       Section("当前能力") {
-        Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论，以及真实文件下载。站点工具、页面样式调整与完整 CDP 访问仍需浏览器 Agent 控制层。")
+        Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论、元素样式调整的临时预览，以及真实文件下载。站点工具与完整 CDP 访问仍需浏览器 Agent 控制层。")
           .foregroundStyle(.secondary)
       }
   }

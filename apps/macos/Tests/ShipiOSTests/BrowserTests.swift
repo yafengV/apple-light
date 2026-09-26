@@ -1127,6 +1127,57 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(store.library.browserHistory.map(\.id), [older.id])
     XCTAssertNotEqual(recent.id, older.id)
   }
+  @MainActor func testStyleFeedbackPreviewsAndRestoresTheSelectedPageElement() async throws {
+    let session = BrowserSession()
+    defer { session.shutdown() }
+    let tab = session.newTab()
+    try await load(tab, "/one", title: "One")
+    let reference = BrowserElementReference(url: base + "/one", pageTitle: "One", selector: "h1",
+      tag: "H1", text: "Fixture page", accessibilityLabel: "", role: "", rect: nil)
+    let style = BrowserStyleFeedback(replacementText: "New heading", fontFamily: "serif",
+      fontSize: 27, padding: 12, letterSpacing: 2, textColor: "#123456",
+      backgroundColor: "#EEDDCC")
+    try await tab.previewStyle(style, for: reference)
+    let preview = try await tab.view.evaluateJavaScript("""
+      [document.querySelector('h1').textContent, document.querySelector('h1').style.fontSize,
+       document.querySelector('h1').style.padding, document.querySelector('h1').style.color]
+      """) as? [String]
+    XCTAssertEqual(preview, ["New heading", "27px", "12px", "rgb(18, 52, 86)"])
+    await tab.restoreStylePreview()
+    let restored = try await tab.view.evaluateJavaScript("""
+      [document.querySelector('h1').textContent, document.querySelector('h1').style.fontSize,
+       document.querySelector('h1').style.padding, document.querySelector('h1').style.color]
+      """) as? [String]
+    XCTAssertEqual(restored, ["Fixture page", "", "", ""])
+
+    let saved = BrowserComment(reference: reference, body: "Make the heading clearer", styleFeedback: style)
+    XCTAssertEqual(try JSONDecoder().decode(BrowserComment.self, from: JSONEncoder().encode(saved)), saved)
+    let originalComment = BrowserComment(reference: reference, body: "Keep the old format readable")
+    XCTAssertNil(try JSONDecoder().decode(BrowserComment.self,
+      from: JSONEncoder().encode(originalComment)).styleFeedback)
+    let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    let prompt = try store.promptWithBrowserComments("Update this page", comments: [saved])
+    XCTAssertTrue(prompt.contains("New heading"))
+    XCTAssertTrue(prompt.contains("#123456"))
+    try await tab.previewStyle(style, for: reference)
+    tab.clearSelectedElement()
+    var cleared = false
+    for _ in 0..<20 {
+      let text = try await tab.view.evaluateJavaScript("document.querySelector('h1').textContent") as? String
+      cleared = text == "Fixture page"
+      if cleared { break }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertTrue(cleared, "Finishing an annotation must restore the preview")
+    let differentPage = BrowserElementReference(url: base + "/two", pageTitle: "Two", selector: "h1",
+      tag: "H1", text: "Fixture page", accessibilityLabel: "", role: "", rect: nil)
+    do {
+      try await tab.previewStyle(style, for: differentPage)
+      XCTFail("A stale page reference must not change the current page")
+    } catch {
+      XCTAssertTrue(error.localizedDescription.contains("网页已变化"))
+    }
+  }
   @MainActor func testMainAndTaskBrowsersShareAnIsolatedProfileAndClearItTogether() async throws {
     let shared = WKWebsiteDataStore.nonPersistent()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

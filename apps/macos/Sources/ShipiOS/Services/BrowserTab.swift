@@ -161,6 +161,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
   @discardableResult func selectElement() async -> BrowserElementReference? {
     guard !closed, committedURL != nil, !loading, !selectingElement else { return nil }
+    clearStylePreview()
     selectingElement = true
     selectedElement = nil
     elementSelectionError = nil
@@ -195,8 +196,37 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     view.evaluateJavaScript("window.__shipiosElementPicker?.cancel?.(); undefined")
   }
   func clearSelectedElement() {
+    clearStylePreview()
     selectedElement = nil
     elementSelectionError = nil
+  }
+  func previewStyle(_ style: BrowserStyleFeedback, for reference: BrowserElementReference) async throws {
+    guard !closed, !loading, reference.selectionKind == "element",
+      reference.url == committedURL?.absoluteString else {
+      throw AgentFailure(message: "网页已变化，请重新选择元素。")
+    }
+    guard style.replacementText.map({ $0.count <= 500 }) ?? true,
+      style.fontFamily.map({ ["system-ui", "serif", "monospace"].contains($0) }) ?? true,
+      style.fontSize.map({ (8...96).contains($0) }) ?? true,
+      style.padding.map({ (0...96).contains($0) }) ?? true,
+      style.letterSpacing.map({ (-8...24).contains($0) }) ?? true,
+      [style.textColor, style.backgroundColor].allSatisfy({ value in
+        value.map { $0.range(of: "^#[0-9A-Fa-f]{6}$", options: .regularExpression) != nil } ?? true
+      }) else {
+      throw AgentFailure(message: "样式值无效，请检查调整范围。")
+    }
+    _ = try await view.callAsyncJavaScript(Self.stylePreviewScript,
+      arguments: ["selector": reference.selector, "changes": style.previewValues],
+      in: nil, contentWorld: Self.stylePreviewWorld)
+  }
+  func clearStylePreview() {
+    Task { await restoreStylePreview() }
+  }
+  func restoreStylePreview() async {
+    guard !closed else { return }
+    _ = try? await view.callAsyncJavaScript(
+      "globalThis.__shipiosStylePreview?.restore?.(); globalThis.__shipiosStylePreview = null;",
+      arguments: [:], in: nil, contentWorld: Self.stylePreviewWorld)
   }
   @discardableResult func snapshotPNG() async -> Data? {
     guard !closed, let expectedURL = committedURL, !loading, !selectingElement,
@@ -431,6 +461,41 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     download.delegate = nil
   }
 
+  private static let stylePreviewWorld = WKContentWorld.world(name: "ShipiOSStylePreview")
+  private static let stylePreviewScript = #"""
+    globalThis.__shipiosStylePreview?.restore?.();
+    globalThis.__shipiosStylePreview = null;
+    const element = document.querySelector(selector);
+    if (!element) throw new Error('选中的网页元素已不存在，请重新选择。');
+    const textNode = changes.text === undefined ? null : Array.from(element.childNodes)
+      .find(node => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+    if (changes.text !== undefined && !textNode) {
+      throw new Error('此元素没有可直接预览的文字；仍可保存文字修改建议。');
+    }
+    const originalText = textNode?.nodeValue;
+    const properties = {
+      fontFamily: 'font-family', fontSize: 'font-size', padding: 'padding',
+      letterSpacing: 'letter-spacing', textColor: 'color', backgroundColor: 'background-color'
+    };
+    const originals = {};
+    for (const [key, property] of Object.entries(properties)) {
+      if (changes[key] !== undefined) {
+        originals[property] = [element.style.getPropertyValue(property), element.style.getPropertyPriority(property)];
+        element.style.setProperty(property, changes[key], 'important');
+      }
+    }
+    if (textNode) textNode.nodeValue = changes.text;
+    globalThis.__shipiosStylePreview = {
+      restore() {
+        for (const [property, [value, priority]] of Object.entries(originals)) {
+          if (value) element.style.setProperty(property, value, priority);
+          else element.style.removeProperty(property);
+        }
+        if (textNode) textNode.nodeValue = originalText;
+      }
+    };
+    return true;
+  """#
   private static let elementPickerScript = #"""
     return await new Promise((resolve) => {
       const key = "__shipiosElementPicker";
