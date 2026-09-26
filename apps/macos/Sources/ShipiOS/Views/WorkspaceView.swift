@@ -172,7 +172,7 @@ struct WorkspaceView: View {
             Menu {
               Button("在新窗口中新建任务") {
                 if let task = store.createPopoutTask() {
-                  openWindow(value: TaskWindowRoute(taskID: task.id, dataRoot: store.dataRoot))
+                  openWindow(value: TaskWindowRoute.newWindow(taskID: task.id, dataRoot: store.dataRoot))
                 }
               }
               Divider()
@@ -182,7 +182,7 @@ struct WorkspaceView: View {
                 store.selectedRun == nil || store.selectedRun?.isActive == true || (store.selectedRun?.kind != "chat" && !store.connected))
               if let task = store.selectedTask {
                 Button("在新窗口中打开") {
-                  openWindow(value: TaskWindowRoute(taskID: task.id, dataRoot: store.dataRoot))
+                  openWindow(value: TaskWindowRoute.newWindow(taskID: task.id, dataRoot: store.dataRoot))
                 }
                 ShareLink(item: store.taskShareText(task)) {
                   Label("共享任务…", systemImage: "square.and.arrow.up")

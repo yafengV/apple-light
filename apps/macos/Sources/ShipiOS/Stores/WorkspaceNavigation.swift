@@ -15,7 +15,7 @@ extension WorkspaceStore {
     case "fork": forkConversation()
     case "open-task-window":
       if let task = selectedTask {
-        taskWindowOpenRequest = TaskWindowRoute(taskID: task.id, dataRoot: dataRoot)
+        taskWindowOpenRequest = .newWindow(taskID: task.id, dataRoot: dataRoot)
       }
     case "plan":
       action = .chat

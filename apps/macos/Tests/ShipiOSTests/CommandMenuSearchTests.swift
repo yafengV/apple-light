@@ -73,8 +73,12 @@ final class CommandMenuSearchTests: XCTestCase {
     store.selectTask(task)
     XCTAssertTrue(store.commandEnabled("open-task-window"))
     store.executeCommand("open-task-window")
-    XCTAssertEqual(store.taskWindowOpenRequest,
-      TaskWindowRoute(taskID: task.id, dataRoot: root))
+    let first = try XCTUnwrap(store.taskWindowOpenRequest)
+    XCTAssertEqual(first.taskID, task.id)
+    XCTAssertEqual(first.dataRoot, TaskWindowRoute.workspacePath(root))
+    store.executeCommand("open-task-window")
+    let second = try XCTUnwrap(store.taskWindowOpenRequest)
+    XCTAssertNotEqual(first.id, second.id, "Each command opens another window for the same task")
     store.taskWindowOpenRequest = nil
     store.openSettings()
     XCTAssertFalse(store.commandEnabled("open-task-window"))

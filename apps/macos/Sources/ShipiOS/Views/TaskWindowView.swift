@@ -595,7 +595,7 @@ struct TaskWindowView: View {
     case "find": tabs.revealChat(); showingFind = true; findFocusRequest = UUID()
     case "model": openTaskModelPicker()
     case "fork": forkTask()
-    case "open-task-window": openWindow(value: TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot))
+    case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)

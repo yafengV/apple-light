@@ -13,6 +13,11 @@ struct TaskWindowRoute: Codable, Hashable, Identifiable {
     self.windowID = windowID ?? taskID
   }
 
+  /// A new route identity creates another WindowGroup instance for the same task.
+  static func newWindow(taskID: String, dataRoot: URL) -> Self {
+    Self(taskID: taskID, dataRoot: dataRoot, windowID: UUID().uuidString)
+  }
+
   static func workspacePath(_ url: URL) -> String {
     url.standardizedFileURL.resolvingSymlinksInPath().path
   }

@@ -13,6 +13,17 @@ final class TaskWindowRestorationTests: XCTestCase {
     XCTAssertEqual(legacy.taskID, "old-task")
   }
 
+  func testNewWindowRoutesKeepIndependentIdentitiesAcrossRestoration() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let first = TaskWindowRoute.newWindow(taskID: "same-task", dataRoot: root)
+    let second = TaskWindowRoute.newWindow(taskID: "same-task", dataRoot: root)
+    XCTAssertNotEqual(first.id, second.id)
+    XCTAssertEqual(first.taskID, second.taskID)
+    XCTAssertEqual(first.dataRoot, second.dataRoot)
+    XCTAssertEqual(try JSONDecoder().decode(TaskWindowRoute.self, from: JSONEncoder().encode(first)), first)
+    XCTAssertEqual(try JSONDecoder().decode(TaskWindowRoute.self, from: JSONEncoder().encode(second)), second)
+  }
+
   func testSymlinkedWorkspaceUsesTheSameWindowIdentity() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

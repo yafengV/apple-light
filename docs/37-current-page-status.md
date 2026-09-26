@@ -4,6 +4,8 @@
 
 命令菜单新增“在新窗口中打开任务”，主窗口按当前所选任务打开，独立任务窗口按本窗口任务打开，见[第 255 篇](255-command-open-task-window.md)。当前 Codex 根菜单的常态分区为置顶与最近；“最近访问”字样虽存在于客户端资源中，不能据此推断根菜单另有独立分区。两端原生交互仍待验收。
 
+同一任务的“在新窗口中打开”现在每次生成独立窗口标识，修正重复调用可能只激活已有窗口的问题；各窗口仍各自保存标签与恢复状态，见[第 256 篇](256-independent-task-window-instances.md)。多窗口实际创建和焦点仍待解锁后原生验收。
+
 Agent 设置现可为新 Codex Core 会话选择审批策略、文件沙箱及工作区沙箱网络访问；线程重启沿用创建时的权限，代码审查保持只读，见[第 246 篇](246-agent-runtime-permissions.md)。回复详细度和推理摘要现可设置并传入支持这些参数的模型；同时修正普通回合错误地覆盖所选文件权限的问题，见[第 247 篇](247-agent-response-controls-and-turn-permissions.md)。网页搜索的关闭、缓存、索引、实时模式已接入支持托管 `web_search` 的独立服务，见[第 248 篇](248-agent-hosted-web-search.md)。Agent 页新增高级推理强度显示控制，模型选择器可读取服务提供的推理等级能力并过滤，见[第 249 篇](249-model-reasoning-effort-visibility.md)；当前 Codex Mac 原生交互仍待验收。
 
 环境设置可独立查看和编辑其他项目，不切换主工作区，见[第 242 篇](242-independent-environment-editor.md)；保存期间的外部文件修改现有明确冲突状态与放弃草稿后重载入口，见[第 243 篇](243-local-environment-save-conflict.md)；无改动、无效字段和读取失败的保存禁用及损坏文件修复见[第 244 篇](244-local-environment-save-eligibility.md)；新建环境首次保存后会选为对应项目的当前及新任务默认环境，见[第 245 篇](245-new-local-environment-selection.md)。环境项目列表直接显示各项目的本地与继承环境，见[第 241 篇](241-cross-project-environment-catalog.md)。环境设置按项目列表、环境概览、编辑器导航，损坏文件可显式修复，见[第 240 篇](240-local-environment-navigation-and-repair.md)。项目新任务的工作树入口可单次选择本地环境或“无环境”；所选配置固定在任务记录中供 setup、cleanup、重试和顶部 Actions 使用，见[第 238 篇](238-worktree-task-environment-selection.md)。环境页列出项目 `.codex/environments` 中的多个 TOML 环境，支持选择、新建、保存和重启恢复，见[第 237 篇](237-local-environment-catalog.md)；默认共享文件读写和外部修改冲突保护见[第 236 篇](236-shared-local-environment.md)。父目录环境的发现、编辑与新任务选择见[第 239 篇](239-inherited-local-environments.md)；云环境及原生页面配对仍缺。默认及分平台 cleanup 脚本会在托管工作树归档或超额清理前于来源项目运行，失败保留目录，成功记录执行状态并在恢复后重置，见[第 235 篇](235-managed-worktree-cleanup.md)。
