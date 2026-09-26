@@ -33,6 +33,8 @@ final class EnvironmentSettingsSession {
   var loading = false
   var saving = false
   var saveConflict = false
+  var readError = false
+  var parseError = false
   var loadedState: LocalEnvironmentFormState?
   @ObservationIgnored private var client: AgentClient?
   @ObservationIgnored private var temporary: URL?
@@ -43,6 +45,12 @@ final class EnvironmentSettingsSession {
       cleanup: cleanupScript, cleanupPlatforms: cleanupPlatforms, actions: actions)
   }
   var hasUnsavedChanges: Bool { loadedState.map { $0 != formState } ?? false }
+  var hasValidName: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  var hasValidActions: Bool { actions.allSatisfy(\.isRunnable) }
+  var canSave: Bool {
+    connected && !saving && !saveConflict && !readError && hasValidName && hasValidActions
+      && (!exists || parseError || hasUnsavedChanges)
+  }
 
   func open(_ path: String, title: String, executable: URL) async {
     let token = UUID()
@@ -113,7 +121,10 @@ final class EnvironmentSettingsSession {
       }
       await load()
     } catch {
-      if generation == token { status = "环境目录读取失败：\(error.localizedDescription)" }
+      if generation == token {
+        readError = true
+        status = "环境目录读取失败：\(error.localizedDescription)"
+      }
     }
   }
 
@@ -139,6 +150,8 @@ final class EnvironmentSettingsSession {
 
   private func clearForm() {
     saveConflict = false
+    readError = false
+    parseError = false
     name = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
     setupScript = ""
     setupPlatforms = .init()
@@ -174,18 +187,20 @@ final class EnvironmentSettingsSession {
         }
         status = "已载入 \(selected)。"
       } else if exists {
+        parseError = true
         status = "环境文件无法解析。编辑并保存可替换该文件。"
       } else { status = "\(selected) 尚未创建。" }
       loadedState = formState
     } catch {
       if generation == token, fileName == selected {
+        readError = true
         status = "环境文件读取失败：\(error.localizedDescription)"
       }
     }
   }
 
   @discardableResult func save() async -> Bool {
-    guard let client, !saving, !saveConflict else { return false }
+    guard let client, canSave else { return false }
     let token = generation
     let selected = fileName
     let validName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -222,6 +237,7 @@ final class EnvironmentSettingsSession {
       revision = result["revision"].text
       exists = result["exists"].boolean == true
       saveConflict = false
+      parseError = false
       loadedState = formState
       status = "已保存至项目共享环境文件。"
       if let entries = try? await client.request("environment.list")

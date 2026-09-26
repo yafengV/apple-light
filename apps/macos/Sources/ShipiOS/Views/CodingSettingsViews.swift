@@ -518,6 +518,10 @@ struct LocalEnvironmentSettingsView: View {
         }
         Section("本地环境") {
           TextField("环境名称", text: $environment.name)
+          if !environment.hasValidName {
+            Text("请填写环境名称。")
+              .appFont(.caption).foregroundStyle(.red)
+          }
           Text(environment.fileName.hasPrefix("/")
             ? environment.fileName : ".codex/environments/\(environment.fileName)")
             .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
@@ -526,7 +530,7 @@ struct LocalEnvironmentSettingsView: View {
               if environment.saveConflict { Task { await environment.refresh() } }
               else { Task { await saveEnvironment(returnToOverview: true) } }
             }
-              .disabled(!environment.connected || environment.saving)
+              .disabled(environment.saving || (!environment.saveConflict && !environment.canSave))
             Button("重新载入环境") {
               if environment.hasUnsavedChanges {
                 reloadingEnvironment = true
@@ -537,7 +541,8 @@ struct LocalEnvironmentSettingsView: View {
           }
           if !environment.status.isEmpty {
             Text(environment.status).appFont(.caption)
-              .foregroundStyle(environment.saveConflict ? .red : .secondary)
+              .foregroundStyle(environment.saveConflict || environment.readError || environment.parseError
+                ? .red : .secondary)
           }
         }.disabled(managedSnapshot != nil)
         if store.project?.path == path {
@@ -575,7 +580,7 @@ struct LocalEnvironmentSettingsView: View {
               }.padding(16).frame(minWidth: 330).textSelection(.enabled)
             }
           Button("保存初始化脚本") { Task { await saveEnvironment() } }
-            .disabled(environment.saveConflict)
+            .disabled(!environment.canSave)
         }.disabled(managedSnapshot != nil)
         Section("工作树清理") {
           Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
@@ -590,7 +595,7 @@ struct LocalEnvironmentSettingsView: View {
             .frame(minHeight: 100)
             .accessibilityLabel("\(cleanupPlatform.title) 工作树清理脚本")
           Button("保存清理脚本") { Task { await saveEnvironment() } }
-            .disabled(environment.saveConflict)
+            .disabled(!environment.canSave)
         }.disabled(managedSnapshot != nil)
         Section("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
@@ -619,11 +624,19 @@ struct LocalEnvironmentSettingsView: View {
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 72)
                 .accessibilityLabel("\(action.title) 脚本")
+              if action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("请填写操作名称。")
+                  .appFont(.caption).foregroundStyle(.red)
+              }
+              if action.script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("请填写操作命令。")
+                  .appFont(.caption).foregroundStyle(.red)
+              }
             }
           }
           Button("添加操作") { environment.actions.append(EnvironmentAction()) }
           Button("保存快捷操作") { Task { await saveEnvironment() } }
-            .disabled(environment.saveConflict)
+            .disabled(!environment.canSave)
         }.disabled(managedSnapshot != nil)
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))

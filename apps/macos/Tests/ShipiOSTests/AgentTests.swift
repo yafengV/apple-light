@@ -313,9 +313,17 @@ final class AgentTests: XCTestCase {
     await editor.open(other.path, title: "Other", executable: binary)
     XCTAssertTrue(editor.connected, editor.status)
     XCTAssertEqual(editor.name, "Other")
+    XCTAssertFalse(editor.canSave)
+    editor.name = "  "
+    XCTAssertFalse(editor.canSave)
     editor.name = "Edited other"
+    editor.actions = [EnvironmentAction(title: "Incomplete")]
+    XCTAssertFalse(editor.canSave)
+    editor.actions = []
+    XCTAssertTrue(editor.canSave)
     let saved = await editor.save()
     XCTAssertTrue(saved, editor.status)
+    XCTAssertFalse(editor.canSave)
     let otherFile = other.appendingPathComponent(".codex/environments/environment.toml")
     let externallyEdited = try String(contentsOf: otherFile, encoding: .utf8) + "\n# outside edit\n"
     try externallyEdited.write(to: otherFile, atomically: true, encoding: .utf8)
@@ -323,6 +331,7 @@ final class AgentTests: XCTestCase {
     let conflictSave = await editor.save()
     XCTAssertFalse(conflictSave)
     XCTAssertTrue(editor.saveConflict)
+    XCTAssertFalse(editor.canSave)
     XCTAssertEqual(editor.name, "Draft after external edit")
     XCTAssertEqual(try String(contentsOf: otherFile, encoding: .utf8), externallyEdited)
     let repeatedSave = await editor.save()
@@ -330,6 +339,7 @@ final class AgentTests: XCTestCase {
     await editor.refresh()
     XCTAssertFalse(editor.saveConflict)
     XCTAssertFalse(editor.hasUnsavedChanges)
+    XCTAssertFalse(editor.canSave)
     XCTAssertEqual(editor.name, "Edited other")
     editor.name = "Unsaved draft"
     XCTAssertTrue(editor.hasUnsavedChanges)
@@ -344,6 +354,26 @@ final class AgentTests: XCTestCase {
       ".codex/environments/environment.toml"), encoding: .utf8).contains("Edited other"))
     XCTAssertFalse(try String(contentsOf: active.appendingPathComponent(
       ".codex/environments/environment.toml"), encoding: .utf8).contains("Edited other"))
+    try "[invalid TOML".write(to: otherFile, atomically: true, encoding: .utf8)
+    await editor.refresh()
+    XCTAssertTrue(editor.parseError)
+    XCTAssertTrue(editor.canSave)
+    editor.name = "Repaired"
+    let repaired = await editor.save()
+    XCTAssertTrue(repaired, editor.status)
+    XCTAssertFalse(editor.parseError)
+    XCTAssertFalse(editor.canSave)
+    try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: otherFile.path)
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: otherFile.path)
+    }
+    await editor.load()
+    XCTAssertTrue(editor.readError, editor.status)
+    XCTAssertFalse(editor.canSave)
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: otherFile.path)
+    await editor.load()
+    XCTAssertFalse(editor.readError, editor.status)
+    XCTAssertFalse(editor.canSave)
     await editor.close()
     await store.shutdown()
   }
