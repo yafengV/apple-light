@@ -67,6 +67,76 @@ final class BrowserTests: XCTestCase {
     page.closePageFind()
     XCTAssertFalse(store.commandEnabled("find-next"))
   }
+  @MainActor func testCodexBrowserToolReadsOnlyOwnedAllowedWebKitTab() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-tool-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [
+      .init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "", title: "Other", runIDs: ["run-other"]),
+    ]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/one", title: "One")
+
+    let listed = await store.codexBrowserResult(taskID: "owner", action: "list", tabID: nil)
+    XCTAssertEqual(listed["status"].text, "ok")
+    XCTAssertEqual(listed["tabs"].items.first?["tab_id"].text, tab.id.uuidString)
+    XCTAssertEqual(listed["tabs"].items.first?["host"].text, "127.0.0.1")
+    XCTAssertEqual(listed["tabs"].items.first?["url"], .null,
+      "Listing tabs must not reveal a blocked website's path or query")
+    let otherTabs = await store.codexBrowserResult(taskID: "other", action: "list", tabID: nil)
+    XCTAssertTrue(otherTabs["tabs"].items.isEmpty)
+    let foreign = await store.codexBrowserResult(taskID: "other", action: "read", tabID: tab.id.uuidString)
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+
+    store.library.browserPermissions.defaultDecision = .block
+    let blocked = await store.codexBrowserResult(taskID: "owner", action: "read", tabID: tab.id.uuidString)
+    XCTAssertEqual(blocked["status"].text, "denied")
+    XCTAssertEqual(blocked["url"], .null, "Denied reads must not expose the page path")
+    store.library.browserPermissions.defaultDecision = .allow
+    let allowed = await store.codexBrowserResult(taskID: "owner", action: "read", tabID: tab.id.uuidString)
+    XCTAssertEqual(allowed["status"].text, "ok")
+    XCTAssertTrue(allowed["text"].text?.contains("Fixture page") == true)
+    XCTAssertEqual(allowed["url"].text, tab.committedURL?.absoluteString)
+  }
+  @MainActor func testCodexBrowserOpenPreservesBackgroundTaskOwnershipAndRespectsBlock() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-open-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [
+      .init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "", title: "Other", runIDs: ["run-other"]),
+    ]
+    store.selection = "run-owner"
+    store.library.browserPermissions.defaultDecision = .block
+    let blocked = await store.codexBrowserResult(taskID: "other", action: "open", tabID: nil,
+      requestedURL: base + "/one")
+    XCTAssertEqual(blocked["status"].text, "denied")
+    XCTAssertTrue(store.workspace.browser.tabs.isEmpty)
+
+    store.library.browserPermissions.defaultDecision = .allow
+    let opened = await store.codexBrowserResult(taskID: "other", action: "open", tabID: nil,
+      requestedURL: base + "/one")
+    XCTAssertEqual(opened["status"].text, "ok")
+    let openedID = try XCTUnwrap(UUID(uuidString: opened["tab_id"].text ?? ""))
+    XCTAssertEqual(store.selection, "run-owner")
+    XCTAssertEqual(store.workspaceTabs.first(where: { $0.browserID == openedID })?.owner, "other")
+    XCTAssertEqual(store.library.workspaceTabLayouts["other"]?.right, "browser:\(openedID)")
+    let read = await store.codexBrowserResult(taskID: "other", action: "read", tabID: openedID.uuidString)
+    XCTAssertTrue(read["text"].text?.contains("Fixture page") == true)
+    let foreign = await store.codexBrowserResult(taskID: "owner", action: "read", tabID: openedID.uuidString)
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+
+    let redirected = await store.codexBrowserResult(taskID: "other", action: "open", tabID: nil,
+      requestedURL: base + "/redirect-other-host")
+    XCTAssertEqual(redirected["status"].text, "error")
+    XCTAssertTrue(redirected["message"].text?.contains("重新授权") == true)
+    XCTAssertFalse(store.workspace.browser.tabs.contains { $0.committedURL?.host == "localhost" })
+  }
   @MainActor func testPageEditableFocusReportsInputsAndClearsOnBlurAndNavigation() async throws {
     let session = BrowserSession()
     defer { session.shutdown() }

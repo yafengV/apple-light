@@ -4,8 +4,9 @@ use codex_protocol::mcp::RequestId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use shipios_codex::{
-    ApprovalDecision, CodexSession, CodexTurnMode, ElicitationDecision, SessionOptions,
-    SessionPermissions, SessionResponsePreferences, SessionWebSearch, ShipMcpServer,
+    ApprovalDecision, BrowserToolBridge, CodexSession, CodexTurnMode, ElicitationDecision,
+    SessionOptions, SessionPermissions, SessionResponsePreferences, SessionWebSearch,
+    ShipMcpServer,
 };
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -70,6 +71,21 @@ pub struct CodexTextAttachment {
     byte_count: u64,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexSubmit {
+    pub task_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub images: Vec<CodexImage>,
+    pub text_attachment: Option<CodexTextAttachment>,
+    #[serde(default)]
+    pub plan_mode: bool,
+    pub goal_instructions: Option<String>,
+    pub model: Option<String>,
+    pub reasoning_effort: Option<String>,
+}
+
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CodexApprovalKind {
@@ -121,6 +137,14 @@ pub struct CodexUserInputAnswer {
     pub task_id: String,
     pub turn_id: String,
     pub answers: HashMap<String, Vec<String>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexBrowserResolution {
+    pub task_id: String,
+    pub request_id: String,
+    pub result: Value,
 }
 
 fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
@@ -192,17 +216,29 @@ pub struct CodexBridge {
     project: PathBuf,
     sessions: Arc<Mutex<HashMap<String, ThreadHandle>>>,
     events: broadcast::Sender<Value>,
+    browser: BrowserToolBridge,
 }
 
 impl CodexBridge {
     pub fn new(data_dir: PathBuf, project: PathBuf) -> Self {
         let (events, _) = broadcast::channel(256);
+        let browser = BrowserToolBridge::new(events.clone());
         Self {
             data_dir,
             project,
             sessions: Arc::new(Mutex::new(HashMap::new())),
             events,
+            browser,
         }
+    }
+
+    pub fn resolve_browser(&self, response: CodexBrowserResolution) -> Result<()> {
+        ensure!(
+            self.browser
+                .resolve(&response.task_id, &response.request_id, response.result),
+            "browser request is no longer pending for this task"
+        );
+        Ok(())
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<Value> {
@@ -264,6 +300,7 @@ impl CodexBridge {
             responses,
             web_search,
             mcp_servers: request.mcp_servers,
+            browser_bridge: Some(self.browser.for_task(task_id.clone())),
             runtime_paths,
         };
         let resumed = previous.is_some();
@@ -273,11 +310,11 @@ impl CodexBridge {
             CodexSession::start(options).await?
         };
         let thread_id = session.thread_id();
-        if let Some(ref previous) = previous {
-            if previous.thread_id != thread_id {
-                let _ = session.shutdown().await;
-                return Err(anyhow!("resumed Codex thread identity changed"));
-            }
+        if let Some(ref previous) = previous
+            && previous.thread_id != thread_id
+        {
+            let _ = session.shutdown().await;
+            return Err(anyhow!("resumed Codex thread identity changed"));
         }
         let saved = session.rollout_path().map(|rollout_path| PersistedThread {
             thread_id: thread_id.clone(),
@@ -412,8 +449,7 @@ impl CodexBridge {
 
     #[cfg(test)]
     pub async fn submit(&self, task_id: &str, text: String) -> Result<String> {
-        self.submit_with_attachments(task_id, text, Vec::new(), None, false, None, None, None)
-            .await
+        self.submit_with_images(task_id, text, Vec::new()).await
     }
 
     #[cfg(test)]
@@ -423,28 +459,37 @@ impl CodexBridge {
         text: String,
         images: Vec<CodexImage>,
     ) -> Result<String> {
-        self.submit_with_attachments(task_id, text, images, None, false, None, None, None)
-            .await
+        self.submit_with_attachments(CodexSubmit {
+            task_id: task_id.to_owned(),
+            text,
+            images,
+            text_attachment: None,
+            plan_mode: false,
+            goal_instructions: None,
+            model: None,
+            reasoning_effort: None,
+        })
+        .await
     }
 
-    pub async fn submit_with_attachments(
-        &self,
-        task_id: &str,
-        text: String,
-        images: Vec<CodexImage>,
-        text_attachment: Option<CodexTextAttachment>,
-        plan_mode: bool,
-        goal_instructions: Option<String>,
-        model: Option<String>,
-        reasoning_effort: Option<String>,
-    ) -> Result<String> {
+    pub async fn submit_with_attachments(&self, request: CodexSubmit) -> Result<String> {
+        let CodexSubmit {
+            task_id,
+            text,
+            images,
+            text_attachment,
+            plan_mode,
+            goal_instructions,
+            model,
+            reasoning_effort,
+        } = request;
         ensure!(
             !plan_mode || goal_instructions.is_none(),
             "plan and goal modes cannot be combined"
         );
         let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
         let (reply, result) = oneshot::channel();
-        self.sender(task_id)
+        self.sender(&task_id)
             .await?
             .send(Command::Submit {
                 inputs,
@@ -609,6 +654,7 @@ impl CodexBridge {
     }
 
     pub async fn interrupt(&self, task_id: &str) -> Result<()> {
+        self.browser.cancel_task(task_id);
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
@@ -619,6 +665,7 @@ impl CodexBridge {
     }
 
     pub async fn stop(&self, task_id: &str) -> Result<()> {
+        self.browser.cancel_task(task_id);
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
@@ -744,6 +791,126 @@ mod tests {
     use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[test]
+    fn model_browser_call_roundtrips_through_host_resolution() -> Result<()> {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_stack_size(16 * 1024 * 1024)
+            .build()?;
+        runtime.block_on(async {
+            tokio::spawn(async move {
+                let server = MockServer::start().await;
+                let sse = |events: Vec<Value>| {
+                    events
+                        .into_iter()
+                        .map(|event| {
+                            format!(
+                                "event: {}\ndata: {event}\n\n",
+                                event["type"].as_str().unwrap()
+                            )
+                        })
+                        .collect::<String>()
+                };
+                let completed = |id: &str| {
+                    json!({"type":"response.completed","response":{
+                    "id":id,"usage":{"input_tokens":0,"input_tokens_details":null,
+                    "output_tokens":0,"output_tokens_details":null,"total_tokens":0}}})
+                };
+                let call = sse(vec![
+                    json!({"type":"response.created","response":{"id":"browser-1"}}),
+                    json!({"type":"response.output_item.done","item":{
+                        "type":"function_call","call_id":"browser-call-1",
+                        "name":"shipios_browser","arguments":"{\"action\":\"list\"}"}}),
+                    completed("browser-1"),
+                ]);
+                let done = sse(vec![
+                    json!({"type":"response.created","response":{"id":"browser-2"}}),
+                    json!({"type":"response.output_item.done","item":{
+                        "type":"message","role":"assistant","id":"browser-answer",
+                        "content":[{"type":"output_text","text":"Found the page"}]}}),
+                    completed("browser-2"),
+                ]);
+                Mock::given(method("POST"))
+                    .and(path("/v1/responses"))
+                    .respond_with(move |request: &wiremock::Request| {
+                        let body = String::from_utf8_lossy(&request.body);
+                        let response = if body.contains("function_call_output") {
+                            &done
+                        } else {
+                            &call
+                        };
+                        ResponseTemplate::new(200)
+                            .insert_header("content-type", "text/event-stream")
+                            .set_body_string(response.clone())
+                    })
+                    .expect(2)
+                    .mount(&server)
+                    .await;
+                let temp = tempfile::tempdir()?;
+                let project = temp.path().join("Project");
+                std::fs::create_dir_all(&project)?;
+                let bridge = CodexBridge::new(temp.path().join("Data"), project);
+                let mut events = bridge.subscribe();
+                let task_id = Uuid::new_v4().to_string();
+                bridge
+                    .start(StartThread {
+                        task_id: task_id.clone(),
+                        base_url: format!("{}/v1", server.uri()),
+                        model: "gpt-5.4".to_owned(),
+                        api_key: None,
+                        initial_context_bytes: Some(0),
+                        resume_only: false,
+                        read_only: false,
+                        permissions: SessionPermissions::default(),
+                        responses: SessionResponsePreferences::default(),
+                        web_search: SessionWebSearch::default(),
+                        mcp_servers: Vec::new(),
+                    })
+                    .await?;
+                bridge
+                    .submit(&task_id, "List my browser tabs".to_owned())
+                    .await?;
+                let mut saw_request = false;
+                let mut saw_reply = false;
+                loop {
+                    let payload =
+                        tokio::time::timeout(std::time::Duration::from_secs(15), events.recv())
+                            .await??;
+                    let event = &payload["event"];
+                    match event["type"].as_str() {
+                        Some("browser_request") => {
+                            assert_eq!(payload["taskId"], task_id);
+                            assert_eq!(event["action"], "list");
+                            assert!(
+                                bridge
+                                    .resolve_browser(CodexBrowserResolution {
+                                        task_id: task_id.clone(),
+                                        request_id: event["requestId"].as_str().unwrap().to_owned(),
+                                        result: json!({"status":"ok","tabs":[{"title":"Fixture"}]}),
+                                    })
+                                    .is_ok()
+                            );
+                            saw_request = true;
+                        }
+                        Some("agent_message") => {
+                            saw_reply |= event["message"] == "Found the page";
+                        }
+                        Some("task_complete") => break,
+                        Some("error") => anyhow::bail!("Codex browser tool error: {event}"),
+                        _ => {}
+                    }
+                }
+                assert!(saw_request && saw_reply);
+                let requests = server.received_requests().await.unwrap();
+                assert!(String::from_utf8_lossy(&requests[0].body).contains("shipios_browser"));
+                assert!(String::from_utf8_lossy(&requests[1].body).contains("Fixture"));
+                Ok::<_, anyhow::Error>(())
+            })
+            .await
+            .context("Codex browser worker failed")?
+        })
+    }
 
     #[test]
     fn task_thread_streams_reply_and_clears_ephemeral_auth() -> Result<()> {
@@ -1009,19 +1176,19 @@ mod tests {
         );
         std::fs::write(&text_path, &text_appendix)?;
         restarted
-            .submit_with_attachments(
-                &task_id,
-                "Read the attached file".to_owned(),
-                Vec::new(),
-                Some(CodexTextAttachment {
+            .submit_with_attachments(CodexSubmit {
+                task_id: task_id.clone(),
+                text: "Read the attached file".to_owned(),
+                images: Vec::new(),
+                text_attachment: Some(CodexTextAttachment {
                     id: text_id,
                     byte_count: text_appendix.len() as u64,
                 }),
-                false,
-                None,
-                None,
-                None,
-            )
+                plan_mode: false,
+                goal_instructions: None,
+                model: None,
+                reasoning_effort: None,
+            })
             .await?;
         loop {
             let event =

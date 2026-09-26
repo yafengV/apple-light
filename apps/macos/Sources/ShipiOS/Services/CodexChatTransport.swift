@@ -4,6 +4,7 @@ import CryptoKit
 /// Routes one live Codex turn per task through the project Agent's private stdio channel.
 @MainActor
 final class CodexChatTransport {
+  var onBrowserRequest: ((String, JSONValue) -> Void)?
   private struct ServiceIdentity: Equatable {
     let endpoint: String
     let keyDigest: Data?
@@ -261,9 +262,27 @@ final class CodexChatTransport {
     for stream in pending { stream.finish(throwing: error) }
   }
 
+  func resolveBrowserRequest(taskID: String, requestID: String, result: JSONValue) async throws {
+    _ = try await client.request("codex.browser.resolve", [
+      "taskId": .string(taskID), "requestId": .string(requestID), "result": result,
+    ])
+  }
+
+  func publishBrowserResult(taskID: String, requestID: String, result: JSONValue) {
+    streams[taskID]?.yield(.object([
+      "type": .string("browser_result"), "requestId": .string(requestID), "result": result,
+    ]))
+  }
+
   private func receive(_ payload: JSONValue) {
-    guard let taskID = payload["taskId"].text, let continuation = streams[taskID] else { return }
+    guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
+    if event["type"].text == "browser_request" {
+      streams[taskID]?.yield(event)
+      onBrowserRequest?(taskID, event)
+      return
+    }
+    guard let continuation = streams[taskID] else { return }
     if ["task_complete", "turn_aborted"].contains(event["type"].text ?? ""),
       let eventTurnID = event["turn_id"].text,
       let activeTurnID = activeTurnIDs[taskID], eventTurnID != activeTurnID {

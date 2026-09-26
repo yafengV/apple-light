@@ -358,6 +358,8 @@ extension WorkspaceStore {
             recordCodexWebSearch(runID: runID, event: event)
           case "mcp_tool_call_begin", "mcp_tool_call_end":
             recordCodexMCPCall(runID: runID, event: event)
+          case "browser_request", "browser_result":
+            recordCodexBrowserCall(runID: runID, event: event)
           case "elicitation_request":
             if event["request"]["_meta"]["codex_approval_kind"].text == "mcp_tool_call",
               event["id"].text?.hasPrefix("mcp_tool_call_approval_") == true {
@@ -563,6 +565,19 @@ extension WorkspaceStore {
     }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions)
+    saveLibrary()
+  }
+  private func recordCodexBrowserCall(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var executions = current.toolExecutions
+    var items = current.responseItems ?? []
+    guard CodexBrowserTimeline.apply(event, executions: &executions, items: &items) else { return }
+    var sources = current.codexWebSources
+    if let source = CodexBrowserTimeline.source(event), !sources.contains(where: { $0.url == source.url }) {
+      sources.append(source)
+    }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items, toolExecutions: executions, codexWebSources: sources)
     saveLibrary()
   }
   private func resolveCodexMCPElicitation(runID: String, taskID: String, event: JSONValue,

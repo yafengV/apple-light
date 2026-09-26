@@ -58,7 +58,8 @@ extension Collection where Element == AgentRun {
       for execution in run.toolExecutions {
         if execution.serverID == CodexWebSearchTimeline.serverID {
           hasWebSearch = true
-        } else if execution.serverID != CodexCommandTimeline.serverID,
+        } else if execution.serverID != CodexCommandTimeline.serverID
+          && execution.serverID != CodexBrowserTimeline.serverID,
           !execution.serverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
           let source = TaskSummarySource.tool(id: execution.serverID, name: execution.serverName)
           if seen.insert(source.id).inserted { tools.append(source) }

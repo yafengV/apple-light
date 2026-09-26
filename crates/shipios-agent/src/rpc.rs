@@ -1,7 +1,7 @@
 use crate::{
     codex_bridge::{
-        CodexApproval, CodexBridge, CodexElicitation, CodexImage, CodexTextAttachment,
-        CodexUserInputAnswer, StartThread,
+        CodexApproval, CodexBridge, CodexBrowserResolution, CodexElicitation, CodexImage,
+        CodexSubmit, CodexTextAttachment, CodexUserInputAnswer, StartThread,
     },
     local_environment,
     service::{RunRequest, Service},
@@ -55,21 +55,6 @@ struct EnvironmentList {
 struct CodexTask {
     task_id: String,
 }
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct CodexSubmit {
-    task_id: String,
-    text: String,
-    #[serde(default)]
-    images: Vec<CodexImage>,
-    text_attachment: Option<CodexTextAttachment>,
-    #[serde(default)]
-    plan_mode: bool,
-    goal_instructions: Option<String>,
-    model: Option<String>,
-    reasoning_effort: Option<String>,
-}
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CodexSteer {
@@ -141,13 +126,17 @@ async fn dispatch(
             "environment.list" => {
                 let request: EnvironmentList =
                     serde_json::from_value(params).map_err(|_| invalid())?;
-                let project = request.project_path.as_deref()
+                let project = request
+                    .project_path
+                    .as_deref()
                     .unwrap_or(&service.config.project);
-                if !project.is_absolute() { return Err(invalid()); }
-                Ok(serde_json::to_value(
-                    local_environment::list(project).map_err(failed)?,
+                if !project.is_absolute() {
+                    return Err(invalid());
+                }
+                Ok(
+                    serde_json::to_value(local_environment::list(project).map_err(failed)?)
+                        .unwrap(),
                 )
-                .unwrap())
             }
             "environment.load" => {
                 let request: EnvironmentFile =
@@ -229,7 +218,7 @@ async fn dispatch(
             }
             "codex.turn.submit" => {
                 let p: CodexSubmit = serde_json::from_value(params).map_err(|_| invalid())?;
-                Ok(json!({"turnId":codex.submit_with_attachments(&p.task_id,p.text,p.images,p.text_attachment,p.plan_mode,p.goal_instructions,p.model,p.reasoning_effort).await.map_err(failed)?}))
+                Ok(json!({"turnId":codex.submit_with_attachments(p).await.map_err(failed)?}))
             }
             "codex.turn.compact" => {
                 let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
@@ -238,8 +227,16 @@ async fn dispatch(
             }
             "codex.turn.steer" => {
                 let p: CodexSteer = serde_json::from_value(params).map_err(|_| invalid())?;
-                let steered = codex.steer_with_attachments(&p.task_id, p.expected_turn_id,
-                    p.text, p.images, p.text_attachment).await.map_err(failed)?;
+                let steered = codex
+                    .steer_with_attachments(
+                        &p.task_id,
+                        p.expected_turn_id,
+                        p.text,
+                        p.images,
+                        p.text_attachment,
+                    )
+                    .await
+                    .map_err(failed)?;
                 Ok(json!({"steered":steered}))
             }
             "codex.turn.interrupt" => {
@@ -257,8 +254,15 @@ async fn dispatch(
                 codex.resolve_elicitation(p).await.map_err(failed)?;
                 Ok(json!({"resolved":true}))
             }
+            "codex.browser.resolve" => {
+                let p: CodexBrowserResolution =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.resolve_browser(p).map_err(failed)?;
+                Ok(json!({"resolved":true}))
+            }
             "codex.turn.answer" => {
-                let p: CodexUserInputAnswer = serde_json::from_value(params).map_err(|_| invalid())?;
+                let p: CodexUserInputAnswer =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.answer_user_input(p).await.map_err(failed)?;
                 Ok(json!({"answered":true}))
             }

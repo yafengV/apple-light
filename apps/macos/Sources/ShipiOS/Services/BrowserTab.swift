@@ -71,6 +71,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored var contextTarget: BrowserContextTarget?
   @ObservationIgnored var nativeInspectTarget: AnyObject?
   @ObservationIgnored var nativeInspectAction: Selector?
+  @ObservationIgnored var agentNavigationHost: String?
   private(set) var pageEditingText = false
   var showingPageFind = false
   var pageFindQuery = ""
@@ -157,6 +158,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     for id in Array(downloads.keys) + Array(pendingDownloads) { _ = cancelDownload(id) }
     view.navigationDelegate = nil; view.uiDelegate = nil
     contextTarget = nil; nativeInspectTarget = nil; nativeInspectAction = nil
+    agentNavigationHost = nil
     observations = []; openWindow = nil; openURLInNewTab = nil; closeWindow = nil; didVisit = nil
     chooseDownloadDestination = nil; didUpdateDownload = nil
   }
@@ -507,6 +509,11 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
     guard !closed, let url = navigationAction.request.url, BrowserAddress.permits(url) else {
       error = "此浏览器面板只支持 http 和 https 网页。"
+      decisionHandler(.cancel); return
+    }
+    if let agentNavigationHost, navigationAction.targetFrame?.isMainFrame != false,
+      url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) != agentNavigationHost {
+      error = "Agent 网页跳转到其他网站，需重新授权该网站。"
       decisionHandler(.cancel); return
     }
     decisionHandler(.allow)

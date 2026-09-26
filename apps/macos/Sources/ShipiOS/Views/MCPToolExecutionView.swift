@@ -40,7 +40,8 @@ struct MCPToolExecutionView: View {
         VStack(alignment: .leading, spacing: 4) {
           HStack {
             Image(systemName: awaiting ? "hand.raised"
-              : execution.serverID == CodexWebSearchTimeline.serverID ? "globe" : "wrench.and.screwdriver")
+              : [CodexWebSearchTimeline.serverID, CodexBrowserTimeline.serverID].contains(execution.serverID)
+                ? "globe" : "wrench.and.screwdriver")
             Text(execution.serverID == CodexWebSearchTimeline.serverID
               ? execution.arguments : execution.serverName + "." + execution.toolName).lineLimit(1)
             Spacer()

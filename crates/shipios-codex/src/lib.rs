@@ -1,5 +1,9 @@
 //! Host adapter for the pinned Codex Core runtime.
 
+mod browser_tool;
+pub use browser_tool::BrowserToolBridge;
+use browser_tool::BrowserToolContributor;
+
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_config::{McpServerConfig, RawMcpServerConfig};
 use codex_core_api::{
@@ -45,6 +49,7 @@ pub struct SessionOptions {
     pub responses: SessionResponsePreferences,
     pub web_search: SessionWebSearch,
     pub mcp_servers: Vec<ShipMcpServer>,
+    pub browser_bridge: Option<BrowserToolBridge>,
     pub runtime_paths: ExecServerRuntimePaths,
 }
 
@@ -403,6 +408,10 @@ impl CodexSession {
             .await?,
         );
         let installation_id = resolve_installation_id(&config.codex_home).await?;
+        let mut extensions = ExtensionRegistryBuilder::<Config>::new();
+        if let Some(browser) = options.browser_bridge {
+            extensions.tool_contributor(Arc::new(BrowserToolContributor::new(browser)));
+        }
         let manager = ThreadManager::new(
             &config,
             Arc::clone(&auth_manager),
@@ -410,7 +419,7 @@ impl CodexSession {
             CodexAppsToolsCache::default(),
             SessionSource::Exec,
             environment_manager,
-            Arc::new(ExtensionRegistryBuilder::<Config>::new().build()),
+            Arc::new(extensions.build()),
             Arc::new(CodexHomeUserInstructionsProvider::new(
                 config.codex_home.clone(),
             )),
