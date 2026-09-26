@@ -33,6 +33,10 @@ struct ChatResponseView: View {
         if let question = run.codexQuestions.first(where: { $0.id == id }) {
           CodexQuestionView(store: store, run: run, request: question)
         }
+      case .plan(let id):
+        if let plan = run.codexPlan, plan.id == id {
+          CodexPlanView(plan: plan)
+        }
       }
     }
   }

@@ -22,7 +22,25 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/v1/responses':
             request_text = json.dumps(body)
             slow = 'slow-codex' in request_text
-            if 'codex-question' in request_text and 'function_call_output' not in request_text:
+            if 'codex-plan' in request_text and 'swift-plan-call' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-plan-call',
+                    'name': 'update_plan',
+                    'arguments': json.dumps({'explanation': 'Inspect then verify', 'plan': [
+                        {'step': 'Inspect the project', 'status': 'completed'},
+                        {'step': 'Verify behavior', 'status': 'in_progress'},
+                    ]}),
+                }
+            elif 'codex-plan' in request_text and 'swift-plan-done-call' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-plan-done-call',
+                    'name': 'update_plan',
+                    'arguments': json.dumps({'plan': [
+                        {'step': 'Inspect the project', 'status': 'completed'},
+                        {'step': 'Verify behavior', 'status': 'completed'},
+                    ]}),
+                }
+            elif 'codex-question' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-question-call',
                     'name': 'request_user_input',

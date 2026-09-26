@@ -133,6 +133,7 @@ impl CodexSession {
         config.workspace_roots = vec![config.cwd.clone()];
         config.workspace_roots_explicit = true;
         config.model = Some(options.model);
+        config.update_plan_enabled = true;
         config
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;

@@ -5,6 +5,35 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexPlanUpdateKeepsTimelineIdentityAndStatuses() throws {
+    let first: JSONValue = .object([
+      "type": .string("plan_update"), "explanation": .string("Inspect then verify"),
+      "plan": .array([.object(["step": .string("Inspect"), "status": .string("in_progress")])]),
+    ])
+    let initial = try CodexPlan.update(first, existing: nil)
+    let next = try CodexPlan.update(.object([
+      "type": .string("plan_update"), "plan": .array([
+        .object(["step": .string("Inspect"), "status": .string("completed")]),
+        .object(["step": .string("Verify"), "status": .string("in_progress")]),
+      ]),
+    ]), existing: initial)
+    XCTAssertEqual(next.id, initial.id)
+    XCTAssertEqual(next.steps.map(\.status), [.completed, .inProgress])
+    let items: [ChatResponseItem] = [.message(id: UUID(), text: "Starting"), .plan(next.id),
+      .message(id: UUID(), text: "Done")]
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "succeeded", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object([
+        "response": .string("StartingDone"), "response_items": try ChatResponseItem.json(items),
+        "codex_plan": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(next)),
+      ]))
+    let restored = try JSONDecoder().decode(AgentRun.self, from: JSONEncoder().encode(run))
+    XCTAssertEqual(restored.responseItems, items)
+    XCTAssertEqual(restored.codexPlan, next)
+  }
+
   func testCodexQuestionValidationAndTimelineRoundTrip() throws {
     let event: JSONValue = .object([
       "type": .string("request_user_input"), "call_id": .string("question-1"),
@@ -490,6 +519,38 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.responseItems?.count, 2)
     XCTAssertFalse(try String(contentsOf: root.appendingPathComponent("Data/workspace.json"),
       encoding: .utf8).contains("private-fixture-answer-6db5"))
+    await store.shutdown()
+  }
+  @MainActor func testCodexPlanToolAppearsInTimelineAndPersists() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("codex-plan")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.codexPlan?.steps.map(\.status), [.completed, .completed])
+    XCTAssertEqual(finished.responseItems?.filter({
+      if case .plan = $0 { return true }
+      return false
+    }).count, 1)
+    let restored = try JSONDecoder().decode(AgentRun.self, from: JSONEncoder().encode(finished))
+    XCTAssertEqual(restored.codexPlan, finished.codexPlan)
+    XCTAssertEqual(restored.responseItems, finished.responseItems)
     await store.shutdown()
   }
   @MainActor func testCodexResponsesImageOnlyStartsProjectTask() async throws {

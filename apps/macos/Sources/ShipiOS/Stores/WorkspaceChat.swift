@@ -309,6 +309,8 @@ extension WorkspaceStore {
             try await resolveCodexApproval(runID: runID, taskID: taskID, event: event)
           case "request_user_input":
             try await handleCodexQuestion(runID: runID, taskID: taskID, event: event)
+          case "plan_update":
+            try recordCodexPlan(runID: runID, event: event)
           case "agent_message_delta":
             if let delta = event["delta"].text, !delta.isEmpty {
               appendChat(runID, delta: delta)
@@ -362,6 +364,15 @@ extension WorkspaceStore {
       $0.serverID == CodexCommandTimeline.serverID && $0.callID == event["call_id"].text
         && $0.toolName == (patch ? "补丁" : "命令")
     }
+  }
+  private func recordCodexPlan(runID: String, event: JSONValue) throws {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    let plan = try CodexPlan.update(event, existing: current.codexPlan)
+    var items = current.responseItems ?? []
+    if current.codexPlan == nil { items.append(.plan(plan.id)) }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items, codexPlan: plan)
+    saveLibrary()
   }
   private func resolveCodexApproval(runID: String, taskID: String, event: JSONValue) async throws {
     guard let callID = event["call_id"].text,
@@ -430,7 +441,7 @@ extension WorkspaceStore {
     _ current: AgentRun, status: String, response: String, message: String? = nil,
     usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil,
     toolExecutions: [MCPToolExecution]? = nil,
-    codexQuestions: [CodexQuestionRequest]? = nil
+    codexQuestions: [CodexQuestionRequest]? = nil, codexPlan: CodexPlan? = nil
   ) {
     var result: [String: JSONValue] = [:]
     if case .object(let fields) = current.result { result = fields }
@@ -445,6 +456,10 @@ extension WorkspaceStore {
     if let codexQuestions,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexQuestions)) {
       result["codex_questions"] = value
+    }
+    if let codexPlan,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexPlan)) {
+      result["codex_plan"] = value
     }
     if let message { result["message"] = .string(message) }
     if let usage { result["usage"] = usage.jsonValue }
