@@ -249,6 +249,9 @@ extension WorkspaceStore {
   func appendChat(_ id: String, delta: String) {
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return }
     var items = current.responseItems
+    if items == nil, current.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue {
+      items = []
+    }
     if var existing = items {
       ChatResponseItem.append(delta, to: &existing)
       items = existing
@@ -286,6 +289,9 @@ extension WorkspaceStore {
       for try await event in stream {
         try Task.checkCancellation()
         switch event["type"].text {
+        case "exec_command_begin", "exec_command_end":
+          recordCodexCommand(runID: runID, event: event)
+          if event["type"].text == "exec_command_begin" { rendered = "" }
         case "agent_message_delta":
           if let delta = event["delta"].text, !delta.isEmpty {
             appendChat(runID, delta: delta)
@@ -297,13 +303,17 @@ extension WorkspaceStore {
               let suffix = String(message.dropFirst(rendered.count))
               if !suffix.isEmpty { appendChat(runID, delta: suffix) }
             } else if let current = library.chatRuns.first(where: { $0.id == runID }) {
-              replaceChat(current, status: current.status, response: message,
-                responseItems: [.message(id: UUID(), text: message)])
+              var items = current.responseItems ?? []
+              items.append(.message(id: UUID(), text: message))
+              replaceChat(current, status: current.status,
+                response: (current.result?["response"].text ?? "") + message,
+                responseItems: items)
             }
             rendered = message
           }
         case "task_complete":
-          if rendered.isEmpty, let message = event["last_agent_message"].text,
+          if library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false,
+            let message = event["last_agent_message"].text,
             !message.isEmpty { appendChat(runID, delta: message) }
           completed = true
         case "error":
@@ -316,6 +326,15 @@ extension WorkspaceStore {
     } onCancel: {
       Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
     }
+  }
+  private func recordCodexCommand(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var executions = current.toolExecutions
+    var items = current.responseItems ?? []
+    guard CodexCommandTimeline.apply(event, executions: &executions, items: &items) else { return }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items, toolExecutions: executions)
+    saveLibrary()
   }
   private func finishChat(
     _ id: String, status: String, message: String? = nil, usage: ModelTokenUsage? = nil
@@ -358,13 +377,18 @@ extension WorkspaceStore {
   }
   private func replaceChat(
     _ current: AgentRun, status: String, response: String, message: String? = nil,
-    usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil
+    usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil,
+    toolExecutions: [MCPToolExecution]? = nil
   ) {
     var result: [String: JSONValue] = [:]
     if case .object(let fields) = current.result { result = fields }
     result["response"] = .string(response)
     if let responseItems, let value = try? ChatResponseItem.json(responseItems) {
       result["response_items"] = value
+    }
+    if let toolExecutions,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(toolExecutions)) {
+      result["tool_executions"] = value
     }
     if let message { result["message"] = .string(message) }
     if let usage { result["usage"] = usage.jsonValue }

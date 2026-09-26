@@ -5,6 +5,47 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexCommandEventsKeepOneOrderedToolRowAndOutput() throws {
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = [.message(id: UUID(), text: "先检查项目。")]
+    let begin: JSONValue = .object([
+      "type": .string("exec_command_begin"), "call_id": .string("call-1"),
+      "command": .array([.string("rg"), .string("--files")]),
+      "cwd": .string("/project"),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(begin, executions: &executions, items: &items))
+    XCTAssertEqual(executions.count, 1)
+    XCTAssertEqual(executions[0].status, .running)
+    XCTAssertEqual(executions[0].arguments, "/project\n$ rg --files")
+    XCTAssertEqual(items.count, 2)
+    let end: JSONValue = .object([
+      "type": .string("exec_command_end"), "call_id": .string("call-1"),
+      "status": .string("completed"), "exit_code": .number(0),
+      "aggregated_output": .string("Package.swift\n"),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(end, executions: &executions, items: &items))
+    XCTAssertEqual(executions.count, 1)
+    XCTAssertEqual(items.count, 2)
+    XCTAssertEqual(executions[0].status, .succeeded)
+    XCTAssertEqual(executions[0].output, "Package.swift\n")
+    XCTAssertEqual(items[1], .tool(executions[0].id))
+    XCTAssertFalse(CodexCommandTimeline.apply(.object(["type": .string("exec_command_output_delta")]),
+      executions: &executions, items: &items))
+    XCTAssertEqual(try ChatResponseItem.json(items).decode([ChatResponseItem].self), items)
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "succeeded", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object([
+        "response": .string("先检查项目。"),
+        "response_items": try ChatResponseItem.json(items),
+        "tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(executions)),
+      ]))
+    let restored = try JSONDecoder().decode(AgentRun.self, from: JSONEncoder().encode(run))
+    XCTAssertEqual(restored.responseItems, items)
+    XCTAssertEqual(restored.toolExecutions, executions)
+  }
+
   func testCommandWarningsDoNotCorruptStructuredOutput() async throws {
     let result = try await LocalWorkspaceService.command(
       "/bin/sh", ["-c", "printf 'warning' >&2; printf 'valid'"],

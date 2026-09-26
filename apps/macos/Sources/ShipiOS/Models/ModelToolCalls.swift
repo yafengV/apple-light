@@ -97,3 +97,40 @@ extension AgentRun {
     (try? result?["tool_executions"].decode([MCPToolExecution].self)) ?? []
   }
 }
+
+/// Projects the pinned Codex Core command lifecycle onto the shared chat timeline.
+/// The events are paired by call_id; repeated begin/end events update the same row.
+enum CodexCommandTimeline {
+  static let serverID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+
+  static func apply(
+    _ event: JSONValue, executions: inout [MCPToolExecution], items: inout [ChatResponseItem]
+  ) -> Bool {
+    guard let type = event["type"].text,
+      type == "exec_command_begin" || type == "exec_command_end",
+      let callID = event["call_id"].text, !callID.isEmpty else { return false }
+    let command = event["command"].items.compactMap(\.text).joined(separator: " ")
+    let cwd = event["cwd"].text ?? ""
+    let arguments = cwd.isEmpty ? command : "\(cwd)\n$ \(command)"
+    let index = executions.firstIndex { $0.serverID == serverID && $0.callID == callID }
+    var execution = index.map { executions[$0] } ?? MCPToolExecution(
+      callID: callID, serverID: serverID, serverName: "Codex", toolName: "命令",
+      arguments: arguments, status: .running)
+    if type == "exec_command_end" {
+      let output = event["aggregated_output"].text.flatMap { $0.isEmpty ? nil : $0 }
+        ?? [event["stdout"].text, event["stderr"].text].compactMap { $0 }.joined()
+      execution.output = output.isEmpty ? nil : String(output.prefix(65_536))
+      switch event["status"].text {
+      case "declined": execution.status = .denied
+      case "failed": execution.status = .failed
+      default: execution.status = event["exit_code"].int == 0 ? .succeeded : .failed
+      }
+    }
+    if let index { executions[index] = execution }
+    else {
+      executions.append(execution)
+      items.append(.tool(execution.id))
+    }
+    return true
+  }
+}
