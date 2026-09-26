@@ -39,6 +39,12 @@ final class ModelSelectionTests: XCTestCase {
       ModelCatalogEntry(id: "gpt-codex", supportedReasoningEfforts: ["medium", "high"],
         displayName: "Codex", description: "Coding model", defaultReasoningEffort: "medium"),
     ])
+    let priorities = Data(#"{"models":[{"slug":"low-priority","priority":1,"visibility":"list"},{"slug":"hidden","priority":20,"visibility":"hide"},{"slug":"high-priority","priority":10,"show_in_picker":true}]}"#.utf8)
+    XCTAssertEqual(try ModelCatalog.decodeDetails(priorities), [
+      ModelCatalogEntry(id: "hidden", priority: 20, showInPicker: false),
+      ModelCatalogEntry(id: "high-priority", priority: 10, showInPicker: true),
+      ModelCatalogEntry(id: "low-priority", priority: 1, showInPicker: true),
+    ])
     for bad in [#"{"error":{"message":"private-server-detail"}}"#, #"{"data":[{}]}"#, "[]"] {
       XCTAssertThrowsError(try ModelCatalog.decode(Data(bad.utf8))) { error in
         XCTAssertFalse(error.localizedDescription.contains("private-server-detail"))
@@ -119,6 +125,17 @@ final class ModelSelectionTests: XCTestCase {
     XCTAssertEqual(catalog.title(for: "new-provider-model"), "New model")
     XCTAssertNil(catalog.details["old-provider-model"])
     XCTAssertFalse(catalog.loading)
+  }
+
+  @MainActor func testPickerHidesCatalogEntriesWithoutLosingCurrentSelection() async {
+    let catalog = ModelCatalog()
+    await catalog.load(config: ModelConfiguration()) { _ in [
+      ModelCatalogEntry(id: "visible", priority: 10, showInPicker: true),
+      ModelCatalogEntry(id: "hidden", priority: 20, showInPicker: false),
+    ] }
+    XCTAssertEqual(catalog.models, ["visible"])
+    XCTAssertEqual(catalog.choices(current: "hidden", query: ""), ["hidden", "visible"])
+    XCTAssertEqual(catalog.choices(current: "visible", query: ""), ["visible"])
   }
 
   @MainActor func testCancelledCatalogDoesNotApplyResultsOrLeaveSpinner() async {

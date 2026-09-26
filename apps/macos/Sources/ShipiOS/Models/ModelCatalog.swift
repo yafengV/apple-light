@@ -7,15 +7,20 @@ struct ModelCatalogEntry: Equatable {
   let displayName: String?
   let description: String?
   let defaultReasoningEffort: String?
+  let priority: Int?
+  let showInPicker: Bool?
 
   init(id: String, supportedReasoningEfforts: Set<String>? = nil,
     displayName: String? = nil, description: String? = nil,
-    defaultReasoningEffort: String? = nil) {
+    defaultReasoningEffort: String? = nil, priority: Int? = nil,
+    showInPicker: Bool? = nil) {
     self.id = id
     self.supportedReasoningEfforts = supportedReasoningEfforts
     self.displayName = displayName
     self.description = description
     self.defaultReasoningEffort = defaultReasoningEffort
+    self.priority = priority
+    self.showInPicker = showInPicker
   }
 }
 
@@ -54,6 +59,7 @@ final class ModelCatalog {
           return nil
         }()
         let previous = entries[id]
+        let visibility = row["visibility"] as? String
         entries[id] = ModelCatalogEntry(
           id: id,
           supportedReasoningEfforts: efforts ?? previous?.supportedReasoningEfforts,
@@ -62,9 +68,15 @@ final class ModelCatalog {
           description: row["description"] as? String ?? previous?.description,
           defaultReasoningEffort: (row["default_reasoning_level"]
             ?? row["default_reasoning_effort"] ?? row["defaultReasoningEffort"]) as? String
-            ?? previous?.defaultReasoningEffort)
+            ?? previous?.defaultReasoningEffort,
+          priority: row["priority"] as? Int ?? previous?.priority,
+          showInPicker: (row["show_in_picker"] ?? row["showInPicker"]) as? Bool
+            ?? (visibility.map { $0 == "list" }) ?? previous?.showInPicker)
       }
-      return entries.values.sorted { $0.id < $1.id }
+      return entries.values.sorted {
+        if $0.priority != $1.priority { return ($0.priority ?? Int.min) > ($1.priority ?? Int.min) }
+        return $0.id < $1.id
+      }
     } catch {
       throw AgentFailure(message: "服务返回的模型列表格式无效。仍可手动填写模型 ID。")
     }
@@ -88,7 +100,7 @@ final class ModelCatalog {
     do {
       let result = try await fetch(config)
       guard !Task.isCancelled, generation == token else { return }
-      models = result.map(\.id)
+      models = result.filter { $0.showInPicker != false }.map(\.id)
       details = Dictionary(result.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
       supportedReasoningEfforts = result.reduce(into: [:]) { values, entry in
         if let efforts = entry.supportedReasoningEfforts { values[entry.id] = efforts }
