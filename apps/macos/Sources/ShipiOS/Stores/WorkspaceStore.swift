@@ -286,6 +286,8 @@ final class WorkspaceStore {
   @ObservationIgnored var managedArchiveCleanupTask: Task<Void, Never>?
   @ObservationIgnored var managedLimitCleanupTask: Task<Void, Never>?
   @ObservationIgnored var managedDeletionCleanupTask: Task<Void, Never>?
+  @ObservationIgnored var pendingHandoffRecoveryTask: Task<Void, Never>?
+  var recoveringHandoffTaskIDs: Set<String> = []
   var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
   var error: String?
@@ -325,11 +327,7 @@ final class WorkspaceStore {
   var canStartChat: Bool { canStartChat(taskID: selectedTask?.id) }
   var canStart: Bool {
     project != nil && connected && !busy && !managedTaskPreparing
-      && (selectedTask.map { task in
-        !library.managedWorktrees.contains(where: {
-          $0.taskID == task.id && $0.pendingHandoff != nil
-        })
-      } ?? true)
+      && !handoffBlocksProject(currentProjectKey)
       && activeLocalRun == nil && !shuttingDown
   }
   var canBuild: Bool {
@@ -362,11 +360,21 @@ final class WorkspaceStore {
 
   func canStartChat(taskID: String?) -> Bool {
     guard !busy, !managedTaskPreparing, !shuttingDown else { return false }
+    let requestedProject = taskID.flatMap { id in
+      library.tasks.first(where: { $0.id == id })?.project
+    } ?? currentProjectKey
+    guard !handoffBlocksProject(requestedProject) else { return false }
     return taskID.map { taskID in
-      activeRun(taskID: taskID) == nil && !library.managedWorktrees.contains(where: {
-        $0.taskID == taskID && $0.pendingHandoff != nil
-      })
+      activeRun(taskID: taskID) == nil
     } ?? true
+  }
+
+  func handoffBlocksProject(_ path: String) -> Bool {
+    guard !path.isEmpty else { return false }
+    return library.managedWorktrees.contains { record in
+      guard let snapshot = record.pendingHandoff?.snapshot else { return false }
+      return snapshot.sourcePath == path || snapshot.targetPath == path
+    }
   }
 
   func installModelTask(_ task: Task<Void, Never>, runID: String) {
@@ -431,7 +439,6 @@ final class WorkspaceStore {
     defer { restoringLibrary = false }
     guard await loadLibrary() else { return }
     await cleanupPendingManagedWorktreeDeletions()
-    await restorePendingHandoffs()
     await loadModelConfiguration()
     await loadPersonalization()
     await loadMemories()
@@ -451,6 +458,7 @@ final class WorkspaceStore {
       await openProjectless()
     }
     scheduleManagedLimitCleanup()
+    schedulePendingHandoffRecovery()
   }
 
   /// Switches to a scope with no filesystem root and no local Agent connection.
@@ -1090,6 +1098,7 @@ final class WorkspaceStore {
   }
 
   func shutdown() async {
+    await pendingHandoffRecoveryTask?.value
     await managedArchiveCleanupTask?.value
     await managedLimitCleanupTask?.value
     await managedDeletionCleanupTask?.value

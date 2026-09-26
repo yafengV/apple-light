@@ -85,17 +85,30 @@ extension WorkspaceStore {
     throw AgentFailure(message: "任务移交尚未完成，请重试。")
   }
 
-  func restorePendingHandoffs() async {
+  func schedulePendingHandoffRecovery() {
     let pendingIDs = library.managedWorktrees.compactMap { record in
       record.pendingHandoff == nil ? nil : record.taskID
     }
+    guard !pendingIDs.isEmpty, pendingHandoffRecoveryTask == nil else { return }
+    recoveringHandoffTaskIDs.formUnion(pendingIDs)
+    pendingHandoffRecoveryTask = Task { @MainActor in
+      await restorePendingHandoffs(pendingIDs)
+    }
+  }
+
+  private func restorePendingHandoffs(_ pendingIDs: [String]) async {
     for taskID in pendingIDs {
+      let noticeID = "handoff-resume-" + taskID
+      notices.show(id: noticeID, title: "正在继续任务移交…", level: .pending)
       do {
         try await finishPendingHandoff(taskID: taskID, openMovedTask: false)
+        notices.show(id: noticeID, title: "任务移交已恢复", level: .success,
+          taskID: taskID)
       } catch {
-        notices.show(id: "handoff-resume-" + taskID,
+        notices.show(id: noticeID,
           title: "任务移交待恢复：\(error.localizedDescription)", level: .error)
       }
+      recoveringHandoffTaskIDs.remove(taskID)
     }
   }
 

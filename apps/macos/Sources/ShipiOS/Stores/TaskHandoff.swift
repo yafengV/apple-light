@@ -2,7 +2,8 @@ import Foundation
 
 extension WorkspaceStore {
   func canHandOffToWorktree(_ task: WorkspaceTask) -> Bool {
-    libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil
+    libraryLoaded && !busy && !managedTaskPreparing && recoveringHandoffTaskIDs.isEmpty
+      && activeLocalRun == nil
       && activeRun(taskID: task.id) == nil && !task.archived && !task.isPopoutDraft
       && !task.project.isEmpty && library.projects.contains(task.project)
       && !library.isPermanentWorktree(task.project)
@@ -10,7 +11,8 @@ extension WorkspaceStore {
   }
 
   func canHandOffToLocal(_ task: WorkspaceTask) -> Bool {
-    guard libraryLoaded, !busy, !managedTaskPreparing, activeLocalRun == nil,
+    guard libraryLoaded, !busy, !managedTaskPreparing,
+      recoveringHandoffTaskIDs.isEmpty, activeLocalRun == nil,
       activeRun(taskID: task.id) == nil, !task.archived, !task.isPopoutDraft,
       let record = library.managedWorktrees.first(where: { $0.taskID == task.id }) else {
       return false
@@ -21,7 +23,7 @@ extension WorkspaceStore {
   /// Keep the task and its private Codex rollout, then reopen it from a detached checkout.
   @discardableResult func handOffTaskToWorktree(_ taskID: String) async -> Bool {
     if library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff != nil {
-      guard !managedTaskPreparing else {
+      guard !managedTaskPreparing, recoveringHandoffTaskIDs.isEmpty else {
         worktreeError = "上一次任务移交仍待完成。"
         return false
       }
@@ -175,7 +177,7 @@ extension WorkspaceStore {
   /// associated with the task, so another handoff returns to the same detached checkout.
   @discardableResult func handOffTaskToLocal(_ taskID: String) async -> Bool {
     if library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff != nil {
-      guard !managedTaskPreparing else {
+      guard !managedTaskPreparing, recoveringHandoffTaskIDs.isEmpty else {
         worktreeError = "上一次任务移交仍待完成。"
         return false
       }

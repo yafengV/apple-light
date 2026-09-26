@@ -1060,11 +1060,21 @@ final class WorktreeTests: XCTestCase {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
     let taskID = UUID().uuidString
+    let siblingID = UUID().uuidString
+    let unrelatedID = UUID().uuidString
+    let unrelated = base.appendingPathComponent("unrelated")
+    try FileManager.default.createDirectory(at: unrelated, withIntermediateDirectories: true)
     let store = WorkspaceStore(dataRoot: data)
     await store.restore()
     store.library.visit(source.path)
-    store.library.tasks = [WorkspaceTask(id: taskID, project: source.path,
-      title: "Interrupted transfer", runIDs: [])]
+    store.library.tasks = [
+      WorkspaceTask(id: taskID, project: source.path,
+        title: "Interrupted transfer", runIDs: []),
+      WorkspaceTask(id: siblingID, project: source.path,
+        title: "Sibling task", runIDs: []),
+      WorkspaceTask(id: unrelatedID, project: unrelated.path,
+        title: "Unrelated task", runIDs: []),
+    ]
     XCTAssertTrue(store.saveLibrary())
     let movedToWorktree = await store.handOffTaskToWorktree(taskID)
     XCTAssertTrue(movedToWorktree, store.worktreeError ?? "")
@@ -1084,14 +1094,24 @@ final class WorktreeTests: XCTestCase {
       direction: .toWorktree, snapshot: snapshot, phase: .clearing)
     XCTAssertTrue(store.saveLibrary())
     XCTAssertFalse(store.canStartChat(taskID: taskID))
+    XCTAssertFalse(store.canStartChat(taskID: siblingID))
+    XCTAssertTrue(store.canStartChat(taskID: unrelatedID))
     store.updateTask(taskID, archive: true)
     XCTAssertFalse(store.library.tasks.first?.archived ?? true)
     await store.shutdown()
 
     let resumed = WorkspaceStore(dataRoot: data)
     await resumed.restore()
+    XCTAssertTrue(resumed.scopeLoaded)
+    XCTAssertFalse(resumed.restoringLibrary)
+    XCTAssertNotNil(resumed.pendingHandoffRecoveryTask)
+    await resumed.pendingHandoffRecoveryTask?.value
+    XCTAssertTrue(resumed.notices.items.contains(where: {
+      $0.id == "handoff-resume-" + taskID && $0.level == .success && $0.taskID == taskID
+    }))
     XCTAssertEqual(resumed.library.tasks.first?.project, targetPath)
     XCTAssertNil(resumed.library.managedWorktrees.first?.pendingHandoff)
+    XCTAssertTrue(resumed.canStartChat(taskID: siblingID))
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "initial\n")
     XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("note").path))
     XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "unstaged\n")
@@ -1132,6 +1152,55 @@ final class WorktreeTests: XCTestCase {
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent(".env")), "third\n")
     XCTAssertFalse(FileManager.default.fileExists(atPath: target.appendingPathComponent(".env").path))
     await store.shutdown()
+  }
+
+  @MainActor func testFailedBackgroundHandoffRecoveryKeepsWorkspaceOpenAndCanRetry() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let taskID = UUID().uuidString
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.tasks = [WorkspaceTask(id: taskID, project: source.path,
+      title: "Recover conflict", runIDs: [])]
+    XCTAssertTrue(store.saveLibrary())
+    let firstMove = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(firstMove, store.worktreeError ?? "")
+    let targetPath = try XCTUnwrap(store.library.managedWorktrees.first?.path)
+    let target = URL(fileURLWithPath: targetPath)
+    let back = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(back, store.worktreeError ?? "")
+    try write("captured\n", source.appendingPathComponent("file"))
+    let snapshot = try await HandoffGitState.capture(taskID: taskID,
+      source: source, target: target, dataRoot: data)
+    try await HandoffGitState.apply(snapshot, dataRoot: data)
+    let recordIndex = try XCTUnwrap(store.library.managedWorktrees.firstIndex(where: { $0.taskID == taskID }))
+    store.library.managedWorktrees[recordIndex].pendingHandoff = PendingHandoff(
+      direction: .toWorktree, snapshot: snapshot, phase: .clearing)
+    XCTAssertTrue(store.saveLibrary())
+    try write("changed later\n", source.appendingPathComponent("file"))
+    await store.shutdown()
+
+    let resumed = WorkspaceStore(dataRoot: data)
+    await resumed.restore()
+    XCTAssertTrue(resumed.scopeLoaded)
+    XCTAssertFalse(resumed.restoringLibrary)
+    await resumed.pendingHandoffRecoveryTask?.value
+    XCTAssertEqual(resumed.library.tasks.first?.project, source.path)
+    XCTAssertNotNil(resumed.library.managedWorktrees.first?.pendingHandoff)
+    XCTAssertTrue(resumed.notices.items.contains(where: {
+      $0.id == "handoff-resume-" + taskID && $0.level == .error
+    }))
+    XCTAssertFalse(resumed.canStartChat(taskID: taskID))
+    let pendingTask = try XCTUnwrap(resumed.library.tasks.first(where: { $0.id == taskID }))
+    XCTAssertTrue(resumed.canHandOffToWorktree(pendingTask))
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "changed later\n")
+    try write("captured\n", source.appendingPathComponent("file"))
+    let retried = await resumed.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(retried, resumed.worktreeError ?? "")
+    XCTAssertNil(resumed.library.managedWorktrees.first?.pendingHandoff)
+    XCTAssertEqual(resumed.library.tasks.first?.project, targetPath)
+    await resumed.shutdown()
   }
 
   @MainActor func testManagedWorktreeRecoveryKeepsWorkAndOriginalCheckoutIdentity() async throws {

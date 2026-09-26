@@ -2,7 +2,7 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
-托管工作树现在已接入 Git 项目新任务的输入区和首轮 Codex Core 会话，支持从当前提交或所选分支创建，任务按来源项目展示，见[第 225 篇](225-managed-worktree-new-task.md)。当前分支的已跟踪、未跟踪及 `.worktreeinclude` 指定的忽略文件可传递并保持来源原样；干净及可完整快照的脏检出归档后可清理并在恢复任务时重建，见[第 226 篇](226-clean-managed-worktree-archive.md)和[第 227 篇](227-dirty-managed-worktree-archive.md)。删除归档任务时清理私有快照及 Git 引用，仍在磁盘的工作树转为永久项目，见[第 228 篇](228-managed-worktree-archive-deletion.md)。托管工作树的默认 15 个上限、自动清理开关和重新打开任务时的快照恢复见[第 229 篇](229-managed-worktree-retention-limit.md)。已有任务可从标题栏或菜单在[本地与托管工作树之间往返](231-worktree-local-handoff.md)，保留会话并复用原工作树；同一提交上的已暂存、未暂存及本地文件可双向移交，并有持久化中断恢复。完整工作树环境及当前 Codex Mac 原生交互配对仍缺。自动化通过不代表已完成原生界面对照。
+托管工作树现在已接入 Git 项目新任务的输入区和首轮 Codex Core 会话，支持从当前提交或所选分支创建，任务按来源项目展示，见[第 225 篇](225-managed-worktree-new-task.md)。当前分支的已跟踪、未跟踪及 `.worktreeinclude` 指定的忽略文件可传递并保持来源原样；干净及可完整快照的脏检出归档后可清理并在恢复任务时重建，见[第 226 篇](226-clean-managed-worktree-archive.md)和[第 227 篇](227-dirty-managed-worktree-archive.md)。删除归档任务时清理私有快照及 Git 引用，仍在磁盘的工作树转为永久项目，见[第 228 篇](228-managed-worktree-archive-deletion.md)。托管工作树的默认 15 个上限、自动清理开关和重新打开任务时的快照恢复见[第 229 篇](229-managed-worktree-retention-limit.md)。已有任务可从标题栏或菜单在[本地与托管工作树之间往返](231-worktree-local-handoff.md)，保留会话并复用原工作树；同一提交上的已暂存、未暂存及本地文件可双向移交。中断后的 Git 恢复在工作区加载完成后继续，失败可从任务入口重试。完整工作树环境及当前 Codex Mac 原生交互配对仍缺。自动化通过不代表已完成原生界面对照。
 
 Codex Core 的长差异现在额外保存为 ShipiOS 私有完整快照，时间线保留轻量预览，并可查看或复制完整内容；多文件差异可在查看窗口逐文件选择与复制，见[第 222 篇](222-codex-full-diff-snapshots.md)和[第 223 篇](223-codex-diff-file-navigation.md)。差异卡的当前 Codex Mac 视觉、键盘和文件打开行为仍未原生配对。
 
