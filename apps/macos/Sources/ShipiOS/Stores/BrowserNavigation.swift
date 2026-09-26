@@ -45,13 +45,16 @@ extension WorkspaceStore {
       ? context : draft + "\n\n" + context
     focusComposer = UUID()
   }
-  @discardableResult func captureBrowserSnapshot(_ tab: BrowserTab, taskID: String? = nil) async -> Bool {
+  @discardableResult func captureBrowserSnapshot(
+    _ tab: BrowserTab, taskID: String? = nil, fullPage: Bool = false
+  ) async -> Bool {
     // Capture ownership before WebKit performs its asynchronous snapshot.
     let key = taskID ?? draftKey
-    guard let data = await tab.snapshotPNG() else { return false }
+    guard let data = await tab.snapshotPNG(fullPage: fullPage) else { return false }
     let host = tab.committedURL?.host?.replacingOccurrences(
       of: "[^A-Za-z0-9.-]", with: "-", options: .regularExpression) ?? "webpage"
-    return await importImages([.bytes(data, name: "网页截图-\(host).png")], draft: key)
+    let prefix = fullPage ? "整页截图" : "网页截图"
+    return await importImages([.bytes(data, name: "\(prefix)-\(host).png")], draft: key)
   }
   func performBrowserCommand(_ id: String) {
     let browser = workspace.browser

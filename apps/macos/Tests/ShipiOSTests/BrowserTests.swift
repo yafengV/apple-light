@@ -995,6 +995,46 @@ final class BrowserTests: XCTestCase {
     XCTAssertGreaterThan(image.size.height, 0)
     XCTAssertNil(tab.snapshotError)
   }
+  @MainActor func testFullPageSnapshotIncludesContentBelowViewportAndRestoresScroll() async throws {
+    XCTAssertEqual(BrowserTab.pageTileOffsets(total: 2400, viewport: 320),
+      [0, 320, 640, 960, 1280, 1600, 1920, 2080])
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [
+      .init(id: "task", project: "/project", title: "Task", runIDs: ["run"]),
+      .init(id: "other", project: "/project", title: "Other", runIDs: ["other-run"]),
+    ]
+    store.selection = "run"
+    let tab = store.workspace.browser.newTab()
+    tab.view.frame = NSRect(x: 0, y: 0, width: 480, height: 320)
+    try await load(tab, "/tall", title: "Tall")
+    _ = try await tab.view.evaluateJavaScript("window.scrollTo(0, 200)")
+    let initialScroll = try await tab.view.evaluateJavaScript("window.scrollY") as? Double ?? 0
+    XCTAssertGreaterThan(initialScroll, 100)
+
+    let captured = await store.captureBrowserSnapshot(tab, fullPage: true)
+    XCTAssertTrue(captured, tab.snapshotError ?? store.error ?? "整页截图失败")
+    let attachment = try XCTUnwrap(store.library.draftImages["task"]?.first)
+    XCTAssertTrue(attachment.name.hasPrefix("整页截图-"))
+    XCTAssertTrue(store.library.draftImages["other"]?.isEmpty ?? true)
+    let data = try ImageAttachmentStorage.data(attachment, root: root)
+    let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data))
+    XCTAssertGreaterThan(bitmap.pixelsHigh, 320 * 4)
+    let top = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: 100)?.usingColorSpace(.deviceRGB))
+    let bottom = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2,
+      y: bitmap.pixelsHigh - 100)?.usingColorSpace(.deviceRGB))
+    XCTAssertGreaterThan(top.greenComponent, top.redComponent)
+    XCTAssertGreaterThan(bottom.redComponent, bottom.greenComponent)
+    let restoredScroll = try await tab.view.evaluateJavaScript("window.scrollY") as? Double ?? 0
+    XCTAssertEqual(restoredScroll, initialScroll, accuracy: 2)
+    let taskWindowCapture = await store.captureBrowserSnapshot(tab, taskID: "other", fullPage: true)
+    XCTAssertTrue(taskWindowCapture, tab.snapshotError ?? store.error ?? "独立任务整页截图失败")
+    XCTAssertEqual(store.library.draftImages["task"]?.count, 1)
+    XCTAssertEqual(store.library.draftImages["other"]?.count, 1)
+  }
   @MainActor func testSnapshotRejectsUnreadyWebViewWithoutChangingAttachments() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

@@ -228,7 +228,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       "globalThis.__shipiosStylePreview?.restore?.(); globalThis.__shipiosStylePreview = null;",
       arguments: [:], in: nil, contentWorld: Self.stylePreviewWorld)
   }
-  @discardableResult func snapshotPNG() async -> Data? {
+  @discardableResult func snapshotPNG(fullPage: Bool = false) async -> Data? {
     guard !closed, let expectedURL = committedURL, !loading, !selectingElement,
       !capturingSnapshot else { return nil }
     let bounds = view.bounds
@@ -240,6 +240,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     snapshotError = nil
     defer { capturingSnapshot = false }
     do {
+      if fullPage { return try await fullPageSnapshotPNG(expectedURL: expectedURL) }
       let configuration = WKSnapshotConfiguration()
       configuration.rect = bounds
       configuration.afterScreenUpdates = true
@@ -255,6 +256,137 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       guard !closed else { return nil }
       snapshotError = error.localizedDescription
       return nil
+    }
+  }
+  private func fullPageSnapshotPNG(expectedURL: URL) async throws -> Data {
+    let result = try await view.callAsyncJavaScript("""
+      return {
+        width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth || 0, innerWidth),
+        height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0, innerHeight),
+        viewportWidth: innerWidth, viewportHeight: innerHeight,
+        scrollX: scrollX, scrollY: scrollY
+      };
+      """, arguments: [:], in: nil, contentWorld: .page)
+    guard let metrics = result as? [String: Any],
+      let width = (metrics["width"] as? NSNumber)?.doubleValue,
+      let height = (metrics["height"] as? NSNumber)?.doubleValue,
+      let viewportWidth = (metrics["viewportWidth"] as? NSNumber)?.doubleValue,
+      let viewportHeight = (metrics["viewportHeight"] as? NSNumber)?.doubleValue,
+      let originalX = (metrics["scrollX"] as? NSNumber)?.doubleValue,
+      let originalY = (metrics["scrollY"] as? NSNumber)?.doubleValue,
+      width.isFinite, height.isFinite, viewportWidth.isFinite, viewportHeight.isFinite,
+      width > 0, height > 0, viewportWidth > 0, viewportHeight > 0 else {
+      throw AgentFailure(message: "无法读取网页完整尺寸。")
+    }
+    do {
+      let data = try await capturePageTiles(width: width, height: height,
+        viewportWidth: viewportWidth, viewportHeight: viewportHeight, expectedURL: expectedURL)
+      _ = try? await scrollPage(toX: originalX, y: originalY)
+      return data
+    } catch {
+      _ = try? await scrollPage(toX: originalX, y: originalY)
+      throw error
+    }
+  }
+  private func capturePageTiles(width: Double, height: Double,
+    viewportWidth: Double, viewportHeight: Double, expectedURL: URL) async throws -> Data {
+    guard width <= 20_000, height <= 20_000, width * height <= 40_000_000 else {
+      throw AgentFailure(message: "网页过大，整页截图不能超过 4000 万像素或单边 20000 像素。")
+    }
+    let xOffsets = Self.pageTileOffsets(total: width, viewport: viewportWidth)
+    let yOffsets = Self.pageTileOffsets(total: height, viewport: viewportHeight)
+    guard xOffsets.count * yOffsets.count <= 400 else {
+      throw AgentFailure(message: "网页需要截取的区域过多，无法生成整页截图。")
+    }
+    var context: CGContext?
+    var pixelWidth = 0, pixelHeight = 0
+    var scaleX = 1.0, scaleY = 1.0
+    for y in yOffsets {
+      for x in xOffsets {
+        guard !closed, !loading, committedURL == expectedURL else {
+          throw AgentFailure(message: "网页已变化，请重新截图。")
+        }
+        let position = try await scrollPage(toX: x, y: y)
+        guard abs(position.x - x) < 2, abs(position.y - y) < 2 else {
+          throw AgentFailure(message: "网页无法滚动到完整截图区域。")
+        }
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = view.bounds
+        configuration.afterScreenUpdates = true
+        let image = try await view.takeSnapshot(configuration: configuration)
+        guard let tile = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+          throw AgentFailure(message: "无法生成网页截图。")
+        }
+        if context == nil {
+          scaleX = Double(tile.width) / viewportWidth
+          scaleY = Double(tile.height) / viewportHeight
+          let requestedWidth = ceil(width * scaleX), requestedHeight = ceil(height * scaleY)
+          guard requestedWidth.isFinite, requestedHeight.isFinite,
+            requestedWidth <= 20_000, requestedHeight <= 20_000,
+            requestedWidth * requestedHeight <= 40_000_000 else {
+            throw AgentFailure(message: "网页过大，整页截图不能超过 4000 万像素或单边 20000 像素。")
+          }
+          pixelWidth = Int(requestedWidth); pixelHeight = Int(requestedHeight)
+          context = CGContext(data: nil, width: pixelWidth, height: pixelHeight,
+            bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue)
+          guard let context else { throw AgentFailure(message: "无法创建整页截图画布。") }
+          context.setFillColor(CGColor(gray: 1, alpha: 1))
+          context.fill(CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
+        }
+        guard tile.width == Int((viewportWidth * scaleX).rounded()),
+          tile.height == Int((viewportHeight * scaleY).rounded()) else {
+          throw AgentFailure(message: "网页截图尺寸在滚动时发生变化。")
+        }
+        context?.draw(tile, in: CGRect(
+          x: (position.x * scaleX).rounded(),
+          y: Double(pixelHeight) - ((position.y + viewportHeight) * scaleY).rounded(),
+          width: Double(tile.width), height: Double(tile.height)))
+      }
+    }
+    guard !closed, !loading, committedURL == expectedURL else {
+      throw AgentFailure(message: "网页已变化，请重新截图。")
+    }
+    let finalSize = try await view.callAsyncJavaScript("""
+      return {
+        width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth || 0, innerWidth),
+        height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0, innerHeight)
+      };
+      """, arguments: [:], in: nil, contentWorld: .page)
+    guard let dimensions = finalSize as? [String: Any],
+      let finalWidth = (dimensions["width"] as? NSNumber)?.doubleValue,
+      let finalHeight = (dimensions["height"] as? NSNumber)?.doubleValue,
+      abs(finalWidth - width) < 2, abs(finalHeight - height) < 2 else {
+      throw AgentFailure(message: "网页内容在截图时改变，请重试整页截图。")
+    }
+    guard let cgImage = context?.makeImage(),
+      let data = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:]) else {
+      throw AgentFailure(message: "无法生成整页 PNG 截图。")
+    }
+    return data
+  }
+  private func scrollPage(toX x: Double, y: Double) async throws -> (x: Double, y: Double) {
+    let result = try await view.callAsyncJavaScript("""
+      window.scrollTo({left: x, top: y, behavior: 'instant'});
+      await Promise.race([
+        new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        new Promise(resolve => setTimeout(resolve, 100))
+      ]);
+      return {x: scrollX, y: scrollY};
+      """, arguments: ["x": x, "y": y], in: nil, contentWorld: .page)
+    guard let value = result as? [String: Any],
+      let actualX = (value["x"] as? NSNumber)?.doubleValue,
+      let actualY = (value["y"] as? NSNumber)?.doubleValue else {
+      throw AgentFailure(message: "无法滚动网页以生成整页截图。")
+    }
+    return (actualX, actualY)
+  }
+  static func pageTileOffsets(total: Double, viewport: Double) -> [Double] {
+    guard total.isFinite, viewport.isFinite, total > viewport, viewport > 0 else { return [0] }
+    let last = total - viewport
+    let count = Int(ceil(total / viewport))
+    return (0..<count).map { min(Double($0) * viewport, last) }.reduce(into: [Double]()) { result, offset in
+      if result.last != offset { result.append(offset) }
     }
   }
   func clearSnapshotError() { snapshotError = nil }

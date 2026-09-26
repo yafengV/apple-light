@@ -146,6 +146,10 @@ struct BrowserPanel: View {
           }
           Menu {
             Button("复制网址") { session.copyURL(tabID: tab.id) }.disabled(tab.committedURL == nil)
+            Button("添加整页截图到输入区") {
+              Task { await store.captureBrowserSnapshot(tab, taskID: context?.taskID, fullPage: true) }
+            }.disabled(tab.committedURL == nil || tab.loading || tab.selectingElement
+              || tab.capturingSnapshot || store.importingImages || store.importingFiles)
             Button("忽略缓存重新加载") { tab.reload(bypassCache: true) }
             Button("重新打开关闭的标签页") { if let context { context.reopen() } else { store.reopenClosedBrowserTab() } }
               .disabled(!(context?.canReopen ?? session.canReopenClosedTab))

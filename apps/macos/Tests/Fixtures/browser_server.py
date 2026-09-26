@@ -50,15 +50,20 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/slow':
             time.sleep(0.6)
         counts[path] = counts.get(path, 0) + 1
-        title = {'/one': 'One', '/two': 'Two', '/popup': 'Popup'}.get(path, path)
+        title = {'/one': 'One', '/two': 'Two', '/popup': 'Popup', '/tall': 'Tall'}.get(path, path)
         if path == '/cache':
             title = 'Cache ' + str(counts[path])
-        body = (f'<!doctype html><html><head><title>{title}</title></head>'
-                '<body><h1>Fixture page</h1><a id="next" href="/two">Next</a>'
-                '<a id="download" href="/download">Download</a>'
-                '<a id="download-slow" href="/download-slow">Slow download</a>'
-                '<a id="popup" href="/popup" target="_blank">Popup</a>'
-                '<input id="draft" value="original"></body></html>').encode()
+        if path == '/tall':
+            body = (f'<!doctype html><html><head><title>{title}</title></head>'
+                    '<body style="margin:0"><div style="height:1200px;background:#00aa00">Top</div>'
+                    '<div style="height:1200px;background:#aa0000">Bottom</div></body></html>').encode()
+        else:
+            body = (f'<!doctype html><html><head><title>{title}</title></head>'
+                    '<body><h1>Fixture page</h1><a id="next" href="/two">Next</a>'
+                    '<a id="download" href="/download">Download</a>'
+                    '<a id="download-slow" href="/download-slow">Slow download</a>'
+                    '<a id="popup" href="/popup" target="_blank">Popup</a>'
+                    '<input id="draft" value="original"></body></html>').encode()
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         if path == '/cookie':
