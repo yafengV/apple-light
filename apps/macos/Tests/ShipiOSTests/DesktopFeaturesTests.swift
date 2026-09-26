@@ -1198,6 +1198,7 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(search.serverID, CodexWebSearchTimeline.serverID)
     XCTAssertEqual(search.status, .succeeded)
     XCTAssertEqual(search.arguments, "搜索：ShipiOS integration query")
+    XCTAssertTrue(finished.codexWebSources.isEmpty, "A search action without result URLs is not an external source")
     XCTAssertTrue(finished.responseItems?.contains(.tool(search.id)) == true)
     XCTAssertTrue(finished.responseItems?.contains(where: {
       if case .notice(_, .warning, let message) = $0 {
@@ -1212,6 +1213,7 @@ final class ModelTransportTests: XCTestCase {
     await restored.restore()
     let history = try XCTUnwrap(restored.library.chatRuns.first { $0.id == run.id })
     XCTAssertEqual(history.toolExecutions.first, search)
+    XCTAssertTrue(history.codexWebSources.isEmpty)
     XCTAssertEqual(history.responseItems, finished.responseItems)
     await restored.shutdown()
   }

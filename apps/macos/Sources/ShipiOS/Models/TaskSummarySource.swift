@@ -3,6 +3,7 @@ import Foundation
 enum TaskSummarySource: Identifiable, Equatable {
   case file(FileAttachment)
   case image(ImageAttachment)
+  case external(CodexWebSource)
   case tool(id: UUID, name: String)
   case webSearch
 
@@ -10,6 +11,7 @@ enum TaskSummarySource: Identifiable, Equatable {
     switch self {
     case .file(let file): "file:\(file.id.uuidString)"
     case .image(let image): "image:\(image.id.uuidString)"
+    case .external(let source): "external:\(source.url)"
     case .tool(let id, _): "tool:\(id.uuidString)"
     case .webSearch: "web-search"
     }
@@ -19,6 +21,7 @@ enum TaskSummarySource: Identifiable, Equatable {
 extension Collection where Element == AgentRun {
   func summarySources(in library: WorkspaceLibrary) -> [TaskSummarySource] {
     var files: [TaskSummarySource] = []
+    var external: [TaskSummarySource] = []
     var tools: [TaskSummarySource] = []
     var seen = Set<String>()
     var hasWebSearch = false
@@ -31,6 +34,12 @@ extension Collection where Element == AgentRun {
         let source = TaskSummarySource.image(image)
         if seen.insert(source.id).inserted { files.append(source) }
       }
+      for webSource in run.codexWebSources {
+        guard (webSource.url.hasPrefix("https://") || webSource.url.hasPrefix("http://")),
+          (try? BrowserAddress.url(webSource.url)) != nil else { continue }
+        let source = TaskSummarySource.external(webSource)
+        if seen.insert(source.id).inserted { external.append(source) }
+      }
       for execution in run.toolExecutions {
         if execution.serverID == CodexWebSearchTimeline.serverID {
           hasWebSearch = true
@@ -41,6 +50,6 @@ extension Collection where Element == AgentRun {
         }
       }
     }
-    return files + tools + (hasWebSearch ? [.webSearch] : [])
+    return files + external + tools + (hasWebSearch ? [.webSearch] : [])
   }
 }

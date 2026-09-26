@@ -517,8 +517,14 @@ extension WorkspaceStore {
     var executions = current.toolExecutions
     var items = current.responseItems ?? []
     guard CodexWebSearchTimeline.apply(event, executions: &executions, items: &items) else { return }
+    var sources = current.codexWebSources
+    var seen = Set(sources.map(\.id))
+    for source in CodexWebSource.completed(event) where seen.insert(source.id).inserted {
+      if sources.count >= 200 { break }
+      sources.append(source)
+    }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
-      responseItems: items, toolExecutions: executions)
+      responseItems: items, toolExecutions: executions, codexWebSources: sources)
     saveLibrary()
   }
   private func recordCodexMCPCall(runID: String, event: JSONValue) {
@@ -778,7 +784,7 @@ extension WorkspaceStore {
   func replaceChat(
     _ current: AgentRun, status: String, response: String, message: String? = nil,
     usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil,
-    toolExecutions: [MCPToolExecution]? = nil,
+    toolExecutions: [MCPToolExecution]? = nil, codexWebSources: [CodexWebSource]? = nil,
     codexQuestions: [CodexQuestionRequest]? = nil,
     codexElicitations: [CodexElicitationRequest]? = nil, codexPlan: CodexPlan? = nil,
     codexPlanDocument: CodexPlanDocument? = nil,
@@ -793,6 +799,10 @@ extension WorkspaceStore {
     if let toolExecutions,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(toolExecutions)) {
       result["tool_executions"] = value
+    }
+    if let codexWebSources,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexWebSources)) {
+      result["codex_web_sources"] = value
     }
     if let codexQuestions,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexQuestions)) {

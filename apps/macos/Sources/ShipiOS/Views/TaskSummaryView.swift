@@ -9,6 +9,7 @@ struct TaskSummaryView: View {
   let openPlan: (String) -> Void
   let openFile: (FileAttachment) -> Void
   let openImage: (ImageAttachment, [ImageAttachment]) -> Void
+  let openExternal: (URL) -> Void
   let addFile: () -> Void
   let addImage: () -> Void
   let canAddFile: Bool
@@ -103,6 +104,14 @@ struct TaskSummaryView: View {
                       .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
                   }
                   .buttonStyle(.plain).help("预览图片：\(image.name)")
+                case .external(let source):
+                  if let url = try? BrowserAddress.url(source.url) {
+                    Button { openExternal(url) } label: {
+                      Label(source.title, systemImage: "link")
+                        .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                    }
+                    .buttonStyle(.plain).help(source.url)
+                  }
                 case .tool(_, let name):
                   Label(name, systemImage: "puzzlepiece.extension")
                     .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)

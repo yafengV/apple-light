@@ -130,6 +130,12 @@ struct TaskWindowView: View {
                     previewImages = images.map(ImagePreviewItem.init)
                     imagePreviewReturnFocus = nil
                   },
+                  openExternal: { url in
+                    taskSummary.dismissPopover()
+                    store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+                      click: WebLinkClick(event: NSApp.currentEvent),
+                      openInApp: { tabs.openBrowser($0, presentation: $1) })
+                  },
                   addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles(draft: taskID) } },
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                   canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
@@ -199,6 +205,12 @@ struct TaskWindowView: View {
                   previewImage = ImagePreviewItem(image)
                   previewImages = images.map(ImagePreviewItem.init)
                   imagePreviewReturnFocus = nil
+                },
+                openExternal: { url in
+                  taskSummary.dismissPopover()
+                  store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+                    click: WebLinkClick(event: NSApp.currentEvent),
+                    openInApp: { tabs.openBrowser($0, presentation: $1) })
                 },
                 addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles(draft: taskID) } },
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },

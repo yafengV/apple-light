@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct WorkspaceView: View {
@@ -190,6 +191,11 @@ struct WorkspaceView: View {
                   openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                   openFile: { taskSummary.dismissPopover(); store.preview($0) },
                   openImage: { image, images in taskSummary.dismissPopover(); store.preview(image, images: images) },
+                  openExternal: { url in
+                    taskSummary.dismissPopover()
+                    store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+                      click: WebLinkClick(event: NSApp.currentEvent))
+                  },
                   addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles() } },
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                   canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
@@ -309,6 +315,11 @@ struct WorkspaceView: View {
                 openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                 openFile: { taskSummary.dismissPopover(); store.preview($0) },
                 openImage: { image, images in taskSummary.dismissPopover(); store.preview(image, images: images) },
+                openExternal: { url in
+                  taskSummary.dismissPopover()
+                  store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+                    click: WebLinkClick(event: NSApp.currentEvent))
+                },
                 addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles() } },
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                 canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,

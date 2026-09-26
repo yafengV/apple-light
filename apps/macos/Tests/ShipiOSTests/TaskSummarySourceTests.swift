@@ -19,9 +19,11 @@ final class TaskSummarySourceTests: XCTestCase {
         serverName: "Codex", toolName: "网页", arguments: "{}", status: .succeeded),
     ]
     let value = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(executions))
+    let external = CodexWebSource(title: "Reference docs", url: "https://example.test/docs")
+    let webSources = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode([external]))
     let first = AgentRun(id: "first", kind: "chat", project: "", status: "succeeded",
       createdAt: 0, updatedAt: 0, request: .null,
-      result: .object(["tool_executions": value]))
+      result: .object(["tool_executions": value, "codex_web_sources": webSources]))
     let second = AgentRun(id: "second", kind: "chat", project: "", status: "succeeded",
       createdAt: 1, updatedAt: 1, request: .null, result: nil)
     let foreign = AgentRun(id: "foreign", kind: "chat", project: "", status: "succeeded",
@@ -34,7 +36,8 @@ final class TaskSummarySourceTests: XCTestCase {
     library.runImages = ["first": [image], "second": [image]]
 
     XCTAssertEqual([first, second].summarySources(in: library), [
-      .file(file), .image(image), .tool(id: serverID, name: "Files"), .webSearch,
+      .file(file), .image(image), .external(external),
+      .tool(id: serverID, name: "Files"), .webSearch,
     ])
     XCTAssertTrue([foreign].summarySources(in: WorkspaceLibrary()).isEmpty)
   }
