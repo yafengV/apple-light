@@ -146,6 +146,12 @@ struct WorkspaceView: View {
               } label: {
                 Label("移交", systemImage: "arrow.left.arrow.right")
               }.help("将任务移交到工作树")
+            } else if let task = store.selectedTask, store.canHandOffToLocal(task) {
+              Button {
+                Task { await store.handOffTaskToLocal(task.id) }
+              } label: {
+                Label("移交", systemImage: "arrow.left.arrow.right")
+              }.help("将任务移交到本地检出")
             }
             Menu {
               Button("在新窗口中新建任务") {

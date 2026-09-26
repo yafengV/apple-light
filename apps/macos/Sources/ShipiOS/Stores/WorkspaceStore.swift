@@ -323,7 +323,10 @@ final class WorkspaceStore {
   }
   var currentProjectKey: String { project?.path ?? "" }
   var canStartChat: Bool { canStartChat(taskID: selectedTask?.id) }
-  var canStart: Bool { project != nil && connected && !busy && activeLocalRun == nil && !shuttingDown }
+  var canStart: Bool {
+    project != nil && connected && !busy && !managedTaskPreparing
+      && activeLocalRun == nil && !shuttingDown
+  }
   var canBuild: Bool {
     canStart && !container.isEmpty
       && !scheme.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -353,7 +356,7 @@ final class WorkspaceStore {
   }
 
   func canStartChat(taskID: String?) -> Bool {
-    guard !busy, !shuttingDown else { return false }
+    guard !busy, !managedTaskPreparing, !shuttingDown else { return false }
     return taskID.map { activeRun(taskID: $0) == nil } ?? true
   }
 

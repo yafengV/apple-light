@@ -61,8 +61,16 @@ struct SidebarTaskRow: View {
         }
         Button(task.pinned ? "取消置顶" : "置顶任务") { store.updateTask(task.id, pin: !task.pinned) }
         SidebarPlacementMenu(store: store, item: .task(task.id))
-        Button("移交到工作树") { Task { await store.handOffTaskToWorktree(task.id) } }
-          .disabled(!store.canHandOffToWorktree(task))
+        if store.library.managedWorktrees.contains(where: {
+          $0.taskID == task.id && $0.path == task.project
+        }) {
+          Button("移交到本地") { Task { await store.handOffTaskToLocal(task.id) } }
+            .disabled(!store.canHandOffToLocal(task))
+        } else if store.library.projects.contains(task.project),
+          !store.library.isPermanentWorktree(task.project) {
+          Button("移交到工作树") { Task { await store.handOffTaskToWorktree(task.id) } }
+            .disabled(!store.canHandOffToWorktree(task))
+        }
         Button(task.archived ? "恢复任务" : "归档任务") {
           store.updateTask(task.id, archive: !task.archived)
         }

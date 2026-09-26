@@ -41,6 +41,20 @@ enum ManagedSourceFiles {
       dataRoot: dataRoot).sorted()
   }
 
+  /// Compare included local-only files without following symlinks outside either checkout.
+  static func matchExisting(_ paths: [String], between first: URL, and second: URL) throws -> Bool {
+    for path in paths {
+      let parts = try components(path)
+      let a = try regularFile(root: first, parts: parts)
+      let b = try regularFile(root: second, parts: parts)
+      guard try hash(a) == hash(b) else { return false }
+      let aMode = try FileManager.default.attributesOfItem(atPath: a.path)[.posixPermissions]
+      let bMode = try FileManager.default.attributesOfItem(atPath: b.path)[.posixPermissions]
+      guard (aMode as? NSNumber)?.intValue == (bMode as? NSNumber)?.intValue else { return false }
+    }
+    return true
+  }
+
   static func archiveSnapshotMatches(_ files: [ManagedSourceFile], source: URL,
     dataRoot: URL, taskID: String) async throws -> Bool {
     guard try await discoverAll(at: source, excluding: dataRoot) == files.map(\.path).sorted() else {

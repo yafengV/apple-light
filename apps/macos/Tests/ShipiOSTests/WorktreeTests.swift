@@ -866,6 +866,53 @@ final class WorktreeTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testWorktreeHandoffRejectsDirtyCheckoutAndDivergedCommits() async throws {
+    let (base, source) = try await fixture()
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
+    await store.restore()
+    let taskID = UUID().uuidString
+    store.library.visit(source.path)
+    store.library.tasks = [WorkspaceTask(id: taskID, project: source.path,
+      title: "Round trip", runIDs: [])]
+    XCTAssertTrue(store.saveLibrary())
+    let movedToWorktree = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(movedToWorktree, store.worktreeError ?? "")
+    let targetPath = try XCTUnwrap(store.library.managedWorktrees.first?.path)
+    let target = URL(fileURLWithPath: targetPath)
+
+    try write("unfinished\n", target.appendingPathComponent("file"))
+    let rejectedDirty = await store.handOffTaskToLocal(taskID)
+    XCTAssertFalse(rejectedDirty)
+    XCTAssertEqual(store.library.tasks.first?.project, targetPath)
+    let sourceAfterRejection = try await GitBranchService.snapshot(at: source)
+    XCTAssertEqual(sourceAfterRejection.currentReference, "refs/heads/main")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "unfinished\n")
+
+    _ = try await git(["commit", "-qam", "Worktree commit"], target)
+    let movedToLocal = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(movedToLocal, store.worktreeError ?? "")
+    let branch = try XCTUnwrap(store.library.managedWorktrees.first?.handoffBranch)
+    XCTAssertEqual(store.library.tasks.first?.project, source.path)
+    try write("local diverged\n", source.appendingPathComponent("file"))
+    _ = try await git(["commit", "-qam", "Local divergence"], source)
+    try write("worktree diverged\n", target.appendingPathComponent("file"))
+    _ = try await git(["commit", "-qam", "Worktree divergence"], target)
+    let localBefore = try await GitBranchService.snapshot(at: source)
+    let targetBefore = try await GitBranchService.snapshot(at: target)
+    let rejectedDivergence = await store.handOffTaskToWorktree(taskID)
+    XCTAssertFalse(rejectedDivergence)
+    XCTAssertTrue(store.worktreeError?.contains("分叉") == true)
+    XCTAssertEqual(store.library.tasks.first?.project, source.path)
+    let localAfter = try await GitBranchService.snapshot(at: source)
+    let targetAfter = try await GitBranchService.snapshot(at: target)
+    XCTAssertEqual(localAfter.currentCommit, localBefore.currentCommit)
+    XCTAssertEqual(localAfter.currentReference, "refs/heads/" + branch)
+    XCTAssertEqual(targetAfter.currentCommit, targetBefore.currentCommit)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "local diverged\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "worktree diverged\n")
+    await store.shutdown()
+  }
+
   @MainActor func testManagedWorktreeRecoveryKeepsWorkAndOriginalCheckoutIdentity() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")

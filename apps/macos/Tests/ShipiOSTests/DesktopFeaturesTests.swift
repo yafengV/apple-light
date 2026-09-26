@@ -781,6 +781,54 @@ final class ModelTransportTests: XCTestCase {
     let executedDirectory = try XCTUnwrap(command.output?.trimmingCharacters(in: .whitespacesAndNewlines))
     XCTAssertEqual(URL(fileURLWithPath: executedDirectory).resolvingSymlinksInPath().path,
       target.resolvingSymlinksInPath().path)
+
+    let movedLocal = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(movedLocal, store.worktreeError ?? "")
+    XCTAssertEqual(store.library.tasks.first { $0.id == taskID }?.project,
+      GitBranchService.canonicalRoot(source).path)
+    XCTAssertEqual(store.project?.path, GitBranchService.canonicalRoot(source).path)
+    XCTAssertEqual(store.conversationRuns.map(\.id), [first.id, second.id])
+    let branch = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == taskID }?.handoffBranch)
+    let localSnapshot = try await GitBranchService.snapshot(at: source)
+    XCTAssertEqual(localSnapshot.currentReference, "refs/heads/" + branch)
+    await store.startChat("codex-handoff-cwd-probe-local", taskID: taskID)
+    let third = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: third.id)?.value
+    let localRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == third.id })
+    XCTAssertEqual(localRun.status, "succeeded")
+    let localCommand = try XCTUnwrap(localRun.toolExecutions.first { $0.toolName == "命令" })
+    let localDirectory = try XCTUnwrap(localCommand.output?.trimmingCharacters(in: .whitespacesAndNewlines))
+    XCTAssertEqual(URL(fileURLWithPath: localDirectory).resolvingSymlinksInPath().path,
+      source.resolvingSymlinksInPath().path)
+
+    try Data("committed locally\n".utf8).write(to: source.appendingPathComponent("file"))
+    _ = try await GitReviewService.checked(["commit", "-qam", "Local progress"], at: source)
+    let movedBack = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(movedBack, store.worktreeError ?? "")
+    XCTAssertEqual(store.library.managedWorktrees.first { $0.taskID == taskID }?.path, target.path)
+    let returned = try await GitBranchService.snapshot(at: target)
+    let sourceAfterReturn = try await GitBranchService.snapshot(at: source)
+    XCTAssertEqual(returned.currentCommit, sourceAfterReturn.currentCommit)
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "committed locally\n")
+    await store.startChat("codex-handoff-cwd-probe-return", taskID: taskID)
+    let fourth = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: fourth.id)?.value
+    let returnRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == fourth.id })
+    XCTAssertEqual(returnRun.status, "succeeded")
+    let returnCommand = try XCTUnwrap(returnRun.toolExecutions.first { $0.toolName == "命令" })
+    let returnDirectory = try XCTUnwrap(returnCommand.output?.trimmingCharacters(in: .whitespacesAndNewlines))
+    XCTAssertEqual(URL(fileURLWithPath: returnDirectory).resolvingSymlinksInPath().path,
+      target.resolvingSymlinksInPath().path)
+    try Data("committed in worktree\n".utf8).write(to: target.appendingPathComponent("file"))
+    _ = try await GitReviewService.checked(["commit", "-qam", "Worktree progress"], at: target)
+    let returnedLocal = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(returnedLocal, store.worktreeError ?? "")
+    let fastForwarded = try await GitBranchService.snapshot(at: source)
+    let worktreeAfterFastForward = try await GitBranchService.snapshot(at: target)
+    XCTAssertEqual(fastForwarded.currentCommit, worktreeAfterFastForward.currentCommit)
+    XCTAssertEqual(fastForwarded.currentReference, "refs/heads/" + branch)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")),
+      "committed in worktree\n")
     await store.shutdown()
   }
 

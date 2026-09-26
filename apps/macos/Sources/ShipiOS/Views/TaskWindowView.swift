@@ -203,7 +203,16 @@ struct TaskWindowView: View {
                   }
                 } label: {
                   Label("移交", systemImage: "arrow.left.arrow.right")
-                }.help("将任务移交到工作树")
+                }.help("将任务移交到工作树").disabled(windowCommandsBlocked)
+              } else if store.canHandOffToLocal(task) {
+                Button {
+                  Task {
+                    if await store.handOffTaskToLocal(taskID) { handoffError = nil }
+                    else { handoffError = store.worktreeError }
+                  }
+                } label: {
+                  Label("移交", systemImage: "arrow.left.arrow.right")
+                }.help("将任务移交到本地检出").disabled(windowCommandsBlocked)
               }
               Menu {
                 Button("分叉到新任务") { forkTask() }
