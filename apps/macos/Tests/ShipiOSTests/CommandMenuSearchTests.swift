@@ -53,6 +53,7 @@ final class CommandMenuSearchTests: XCTestCase {
   func testCommandGroupsFollowCurrentCodexMenuCategories() {
     let groups = Dictionary(uniqueKeysWithValues: DesktopCommand.all.map { ($0.id, $0.group) })
     XCTAssertEqual(groups["archive"], .chat)
+    XCTAssertEqual(groups["open-task-window"], .chat)
     XCTAssertEqual(groups["next-task"], .navigation)
     XCTAssertEqual(groups["focus-chat-1"], .navigation)
     XCTAssertEqual(groups["browser-new"], .panels)
@@ -60,6 +61,26 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(groups["branch"], .project)
     XCTAssertEqual(groups["settings"], .configure)
     XCTAssertEqual(groups["pet"], .app)
+  }
+
+  @MainActor func testOpenTaskWindowCommandUsesSelectedTaskAndWorkspaceRoot() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let task = task("current")
+    store.library.tasks = [task]
+    store.selectTask(task)
+    XCTAssertTrue(store.commandEnabled("open-task-window"))
+    store.executeCommand("open-task-window")
+    XCTAssertEqual(store.taskWindowOpenRequest,
+      TaskWindowRoute(taskID: task.id, dataRoot: root))
+    store.taskWindowOpenRequest = nil
+    store.openSettings()
+    XCTAssertFalse(store.commandEnabled("open-task-window"))
+    store.executeCommand("open-task-window")
+    XCTAssertNil(store.taskWindowOpenRequest)
+    await store.shutdown()
   }
 
   func testVisitOrderMigratesPersistsAndPrunesDeletedTasks() throws {

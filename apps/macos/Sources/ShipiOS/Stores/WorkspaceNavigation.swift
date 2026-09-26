@@ -13,6 +13,10 @@ extension WorkspaceStore {
     case "model": openModelPicker()
     case "branch": openBranchPicker()
     case "fork": forkConversation()
+    case "open-task-window":
+      if let task = selectedTask {
+        taskWindowOpenRequest = TaskWindowRoute(taskID: task.id, dataRoot: dataRoot)
+      }
     case "plan":
       action = .chat
       chatMode = .plan
@@ -133,6 +137,7 @@ extension WorkspaceStore {
     case "browser-reload", "browser-reload-origin": return browserVisible && workspace.browser.selected != nil
     case "browser-copy": return browserVisible && workspace.browser.selected?.committedURL != nil
     case "fork": return destination == .workspace && canForkConversation
+    case "open-task-window": return destination == .workspace && selectedTask != nil
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty

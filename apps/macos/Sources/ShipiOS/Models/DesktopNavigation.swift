@@ -40,6 +40,7 @@ struct DesktopCommand: Identifiable {
       shortcut: "⌘J"),
     .init(id: "model", title: "选择模型与推理强度", icon: "cpu", shortcut: "⌃⇧M"),
     .init(id: "fork", title: "分叉到新任务", icon: "arrow.triangle.branch", shortcut: ""),
+    .init(id: "open-task-window", title: "在新窗口中打开任务", icon: "macwindow.on.rectangle", shortcut: ""),
     .init(id: "branch", title: "切换或创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "settings", title: "设置", icon: "gearshape", shortcut: "⌘,"),
     .init(id: "pet", title: "显示或隐藏宠物", icon: "pawprint", shortcut: "⌥Space"),
@@ -121,7 +122,7 @@ extension DesktopCommand {
     if id.hasPrefix("focus-chat-") { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
-    case "new", "new-alternate", "send", "model", "fork", "find", "find-next", "find-previous",
+    case "new", "new-alternate", "send", "model", "fork", "open-task-window", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation

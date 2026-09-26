@@ -210,6 +210,11 @@ struct WorkspaceView: View {
         Task { await store.loadDetails() }
       }
       .onChange(of: store.destination) { _, _ in store.endWorkspaceTabDrag() }
+      .onChange(of: store.taskWindowOpenRequest) { _, route in
+        guard let route else { return }
+        store.taskWindowOpenRequest = nil
+        openWindow(value: route)
+      }
       .onChange(of: store.project) { _, _ in store.showingBranchPicker = false }
       .onChange(of: store.logName) { _, _ in Task { await store.loadDetails() } }
       .alert("重命名项目", isPresented: Binding(

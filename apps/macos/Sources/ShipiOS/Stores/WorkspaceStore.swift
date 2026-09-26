@@ -23,6 +23,7 @@ final class WorkspaceStore {
     set { setOverlay(.commands, presented: newValue) }
   }
   var destination: AppDestination = .workspace
+  var taskWindowOpenRequest: TaskWindowRoute?
   var settingsReturnDestination: AppDestination = .workspace
   var showingFileSearch: Bool {
     get { presentedOverlay == .fileSearch }

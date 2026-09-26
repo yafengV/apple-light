@@ -498,7 +498,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "rename", "fork", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -538,7 +538,7 @@ struct TaskWindowView: View {
       if canGoForward { enabled.insert("forward") }
     }
     if !otherWindowModalActive, let task {
-      enabled.formUnion(["find", "plan", "model"])
+      enabled.formUnion(["find", "plan", "model", "open-task-window"])
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
@@ -595,6 +595,7 @@ struct TaskWindowView: View {
     case "find": tabs.revealChat(); showingFind = true; findFocusRequest = UUID()
     case "model": openTaskModelPicker()
     case "fork": forkTask()
+    case "open-task-window": openWindow(value: TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot))
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)
