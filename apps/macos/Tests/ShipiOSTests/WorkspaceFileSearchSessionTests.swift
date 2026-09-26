@@ -20,6 +20,7 @@ import XCTest
     session.emit([first], complete: false)
     await fulfillment(of: [partial], timeout: 1)
     XCTAssertEqual(catalog.results, [first])
+    XCTAssertEqual(catalog.results(for: request("ab")), [first])
     XCTAssertTrue(catalog.searching)
     session.emit([first, second], complete: true)
     await search.value
@@ -27,12 +28,15 @@ import XCTest
     XCTAssertEqual(catalog.results.count, 2)
     let next = Task { await catalog.search(request("bravo")) }
     await session.started("bravo")
-    XCTAssertEqual(catalog.results.count, 2, "Existing results remain visible during same-project query updates")
+    XCTAssertEqual(catalog.results.count, 2, "Keep the old candidates internally while the next query loads")
+    XCTAssertTrue(catalog.results(for: request("bravo")).isEmpty,
+      "The visible list must not offer stale files for Return during a replacement query")
     XCTAssertTrue(catalog.searching)
     session.emit([second], complete: true)
     await next.value
     XCTAssertEqual(creations, 1)
     XCTAssertEqual(catalog.results, [second])
+    XCTAssertEqual(catalog.results(for: request("bravo")), [second])
     await catalog.search(request(" "))
     XCTAssertTrue(catalog.results.isEmpty)
     XCTAssertEqual(session.cancellations, 1)

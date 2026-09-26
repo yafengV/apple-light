@@ -31,9 +31,7 @@ struct WorkspaceFileSearchView: View {
     .init(root: workspace.root, query: query, executable: executable, retry: retries)
   }
   private var results: [WorkspaceFileSearchResult] {
-    guard catalog.request?.root == workspace.root, catalog.request?.executable == executable,
-      catalog.request?.retry == retries, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
-    return catalog.results
+    catalog.results(for: request)
   }
   private var selection: String? {
     if let selectedPath, results.contains(where: { $0.path == selectedPath }) { return selectedPath }

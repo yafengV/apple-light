@@ -238,6 +238,7 @@ python3 script/smoke_ipc.py
 | [分离窗口跨项目搜索导航](docs/181-detached-search-cross-project-navigation.md) | 等项目切换完成后置前主窗口；26 项回归及任务、附着/分离网页结果原生检查通过 |
 | [网页编辑快捷键](docs/182-browser-editing-shortcuts.md) | 网页输入和地址栏保留 ⌘←/⌘→ 文本编辑，正文仍可历史导航；20 项回归及主/分离窗口原生检查通过 |
 | [终端文本与字号操作](docs/183-terminal-editing-and-font.md) | 右键提供复制、粘贴、全选及字体缩放，⌘+/⌘−/⌘0 仅在终端聚焦时作用；25 项相关回归及底部终端原生检查通过 |
+| [文件搜索结果归属](docs/184-file-search-result-identity.md) | 新查询未返回时不显示或打开旧查询候选；12 项相关回归通过，原生超时与锁屏后的界面复核待完成 |
 | [Codex 逐页交互差异审计](docs/11-codex-ui-parity-audit.md) | 官方行为与 ShipiOS 逐项对照、缺失页面、快捷键差异和待核验项；尚未完全对齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 

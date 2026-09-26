@@ -45,6 +45,8 @@ import XCTest
     await gate.finish("old", result: [result("old.swift")])
     await old.value
     XCTAssertEqual(catalog.results, [current])
+    XCTAssertEqual(catalog.results(for: newRequest), [current])
+    XCTAssertTrue(catalog.results(for: oldRequest).isEmpty)
     XCTAssertEqual(catalog.request, newRequest)
     let cancelled = Task { await catalog.search(oldRequest) { _ in try await gate.load("cancelled") } }
     await gate.started("cancelled")
@@ -54,6 +56,25 @@ import XCTest
     XCTAssertEqual(catalog.results, [current], "Keep the last displayed results while replacing a query; ignore late cancelled output")
     XCTAssertNil(catalog.error)
     XCTAssertFalse(catalog.searching)
+  }
+
+  func testChangingQueryHidesOldResultsUntilNewCandidatesArrive() async {
+    let catalog = WorkspaceFileSearchCatalog(), gate = FileSearchGate()
+    let oldRequest = request("old"), newRequest = request("new")
+    let oldResult = result("old.swift"), newResult = result("new.swift")
+    await catalog.search(oldRequest) { _ in [oldResult] }
+    XCTAssertEqual(catalog.results(for: oldRequest), [oldResult])
+    XCTAssertTrue(catalog.results(for: newRequest).isEmpty,
+      "The input changes before the replacement task starts; Return must not open the old file")
+    let new = Task { await catalog.search(newRequest) { try await gate.load($0.query) } }
+    await gate.started("new")
+    XCTAssertEqual(catalog.results, [oldResult], "Keep cached results internally while replacement search loads")
+    XCTAssertTrue(catalog.results(for: newRequest).isEmpty,
+      "The search task started, but no candidates belong to the new query yet")
+    await gate.finish("new", result: [newResult])
+    await new.value
+    XCTAssertEqual(catalog.results(for: newRequest), [newResult])
+    XCTAssertTrue(catalog.results(for: oldRequest).isEmpty)
   }
 
   func testErrorCanBeRetriedAndDirectoryDestinationIsValidated() async throws {

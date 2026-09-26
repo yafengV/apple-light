@@ -44,6 +44,7 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
 @MainActor @Observable final class WorkspaceFileSearchCatalog {
   typealias Loader = @Sendable (WorkspaceFileSearchRequest) async throws -> [WorkspaceFileSearchResult]
   private(set) var results: [WorkspaceFileSearchResult] = []
+  private(set) var resultsRequest: WorkspaceFileSearchRequest?
   private(set) var searching = false
   private(set) var error: String?
   private(set) var request: WorkspaceFileSearchRequest?
@@ -58,18 +59,24 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
     self.sessionFactory = sessionFactory
   }
 
+  func results(for request: WorkspaceFileSearchRequest) -> [WorkspaceFileSearchResult] {
+    guard resultsRequest == request,
+      !request.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+    return results
+  }
+
   func search(_ request: WorkspaceFileSearchRequest,
     loader: Loader? = nil) async {
     let token = UUID()
     version = token
     if self.request?.root != request.root || self.request?.executable != request.executable || self.request?.retry != request.retry {
       session?.close(); session = nil
-      results = []
+      results = []; resultsRequest = nil
     }
     self.request = request
     error = nil; searching = false
     guard request.root != nil, !request.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      results = []; session?.cancelQuery(); return
+      results = []; resultsRequest = nil; session?.cancelQuery(); return
     }
     searching = true
     defer { if version == token { searching = false } }
@@ -79,6 +86,7 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
         let candidates = try await loader(request)
         guard !Task.isCancelled, version == token else { return }
         results = WorkspaceFileSearchResult.ranked(candidates, query: request.query)
+        resultsRequest = request
       } else {
         try await Task.sleep(for: .milliseconds(75))
         guard !Task.isCancelled, version == token else { return }
@@ -88,6 +96,7 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
         for try await update in updates {
           guard !Task.isCancelled, version == token else { return }
           results = WorkspaceFileSearchResult.ranked(update.files, query: request.query)
+          resultsRequest = request
           searching = !update.complete
         }
       }
@@ -101,6 +110,6 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
   func close() {
     version = UUID()
     session?.close(); session = nil
-    request = nil; results = []; searching = false; error = nil
+    request = nil; results = []; resultsRequest = nil; searching = false; error = nil
   }
 }
