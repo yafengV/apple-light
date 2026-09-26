@@ -5,8 +5,22 @@ enum CommandMenuSearch {
   static func searchesTasks(_ query: String) -> Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= 2 }
   static func searchesContent(_ query: String) -> Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= 3 }
 
+  static func pinned(library: WorkspaceLibrary, currentID: String?) -> [TaskSearchResult] {
+    let byID = Dictionary(library.tasks.filter {
+      $0.pinned && !$0.archived && !$0.isPopoutDraft && $0.id != currentID
+    }.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    return library.sidebarItems(in: SidebarLayout.pinned).compactMap { item -> TaskSearchResult? in
+      guard case .task(let id) = item, let task = byID[id] else { return nil }
+      return TaskSearchResult(task: task,
+        projectTitle: task.project.isEmpty ? "无项目" : library.projectTitle(task.project),
+        source: nil, snippet: nil)
+    }.prefix(7).map { $0 }
+  }
+
   static func recent(library: WorkspaceLibrary, currentID: String?) -> [TaskSearchResult] {
-    let eligible = library.tasks.filter { !$0.archived && !$0.isPopoutDraft && $0.id != currentID }
+    let eligible = library.tasks.filter {
+      !$0.archived && !$0.isPopoutDraft && !$0.pinned && $0.id != currentID
+    }
     let byID = Dictionary(eligible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let chronological = eligible.enumerated().sorted {
       let left = $0.element.updatedAt ?? $0.element.createdAt ?? .distantPast

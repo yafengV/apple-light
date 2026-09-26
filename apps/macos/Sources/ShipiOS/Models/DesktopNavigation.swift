@@ -101,6 +101,39 @@ struct DesktopCommand: Identifiable {
   ]
 }
 
+enum DesktopCommandGroup: String, CaseIterable {
+  case chat, navigation, panels, project, configure, app
+
+  var title: String {
+    switch self {
+    case .chat: "会话"
+    case .navigation: "导航"
+    case .panels: "面板"
+    case .project: "项目"
+    case .configure: "配置"
+    case .app: "应用"
+    }
+  }
+}
+
+extension DesktopCommand {
+  var group: DesktopCommandGroup {
+    if id.hasPrefix("focus-chat-") { return .navigation }
+    if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
+    return switch id {
+    case "new", "new-alternate", "send", "model", "fork", "find", "find-next", "find-previous",
+      "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
+    case "previous-task", "next-task", "next-attention", "clear-unread", "back", "forward",
+      "search", "sidebar": .navigation
+    case "bottom-panel", "files", "tree", "terminal", "review", "review-open", "browser",
+      "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
+    case "projects", "open", "branch", "doctor", "build": .project
+    case "settings", "shortcuts", "plugins", "automations": .configure
+    default: .app
+    }
+  }
+}
+
 enum SettingsPage: String, CaseIterable, Identifiable {
   case general, profile, appearance, pets, personalization, memories, model, agent, git, codeReview, environments, usage, shortcuts, notifications, browser, computerUse, connections, mcpServers, hooks, plugins, skills, worktrees, archived, runtime
   var id: String { rawValue }

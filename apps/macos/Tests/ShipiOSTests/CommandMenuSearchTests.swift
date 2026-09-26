@@ -38,6 +38,30 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(CommandMenuSearch.recent(library: library, currentID: "current").count, 7)
   }
 
+  func testPinnedTasksUseSidebarOrderAndStayOutOfRecents() {
+    var library = WorkspaceLibrary()
+    library.tasks = [task("a"), task("b"), task("current"), task("archived"), task("recent")]
+    for index in 0...3 { library.tasks[index].pinned = true }
+    library.tasks[3].archived = true
+    library.sidebar.order[SidebarLayout.pinned] = ["t:b", "t:a", "t:current"]
+    XCTAssertEqual(CommandMenuSearch.pinned(library: library, currentID: "current").map(\.id),
+      ["b", "a"])
+    XCTAssertEqual(CommandMenuSearch.recent(library: library, currentID: "current").map(\.id),
+      ["recent"])
+  }
+
+  func testCommandGroupsFollowCurrentCodexMenuCategories() {
+    let groups = Dictionary(uniqueKeysWithValues: DesktopCommand.all.map { ($0.id, $0.group) })
+    XCTAssertEqual(groups["archive"], .chat)
+    XCTAssertEqual(groups["next-task"], .navigation)
+    XCTAssertEqual(groups["focus-chat-1"], .navigation)
+    XCTAssertEqual(groups["browser-new"], .panels)
+    XCTAssertEqual(groups["focus-tab-1"], .panels)
+    XCTAssertEqual(groups["branch"], .project)
+    XCTAssertEqual(groups["settings"], .configure)
+    XCTAssertEqual(groups["pet"], .app)
+  }
+
   func testVisitOrderMigratesPersistsAndPrunesDeletedTasks() throws {
     var library = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertTrue(library.recentTaskIDs.isEmpty)

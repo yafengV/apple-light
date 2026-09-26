@@ -37,17 +37,26 @@ struct CommandPaletteView: View {
   private var groups: [ResultGroup] {
     var result: [ResultGroup] = []
     if searchQuery.isEmpty {
+      let pinned = CommandMenuSearch.pinned(library: store.library,
+        currentID: context?.currentTaskID ?? store.selectedTask?.id)
+      if !pinned.isEmpty { result.append(.init(id: "pinned", title: "已置顶任务", tasks: pinned)) }
       let recent = CommandMenuSearch.recent(library: store.library, currentID: context?.currentTaskID ?? store.selectedTask?.id)
       if !recent.isEmpty { result.append(.init(id: "recent", title: "最近任务", tasks: recent)) }
       result.append(.init(id: "quick", title: "快捷操作", commands: matches.filter { ["new", "open"].contains($0.id) }))
-      result.append(.init(id: "commands", title: "命令", commands: matches.filter { !["new", "open"].contains($0.id) }))
+      result += commandGroups(matches.filter { !["new", "open"].contains($0.id) })
     } else {
-      if !matches.isEmpty { result.append(.init(id: "commands", title: "命令", commands: matches)) }
+      result += commandGroups(matches)
       let browsers = CommandBrowserResult.search(context?.browserResults ?? store.commandBrowserTabs, query: query)
       if !browsers.isEmpty { result.append(.init(id: "browsers", title: "浏览器标签", browsers: browsers)) }
       if !taskResults.isEmpty { result.append(.init(id: "tasks", title: "任务", tasks: taskResults)) }
     }
     return result
+  }
+  private func commandGroups(_ commands: [DesktopCommand]) -> [ResultGroup] {
+    DesktopCommandGroup.allCases.compactMap { group in
+      let matches = commands.filter { $0.group == group }
+      return matches.isEmpty ? nil : .init(id: "commands-\(group.rawValue)", title: group.title, commands: matches)
+    }
   }
   private var selectableGroups: [[String]] {
     groups.map { group in
