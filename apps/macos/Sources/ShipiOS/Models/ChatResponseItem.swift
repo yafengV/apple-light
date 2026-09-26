@@ -5,11 +5,13 @@ import Foundation
 enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
   case message(id: UUID, text: String)
   case tool(UUID)
+  case question(UUID)
 
   var id: String {
     switch self {
     case .message(let id, _): "message." + id.uuidString
     case .tool(let id): "tool." + id.uuidString
+    case .question(let id): "question." + id.uuidString
     }
   }
   var text: String? {
@@ -38,7 +40,12 @@ extension AgentRun {
       if case .tool(let id) = item { return id }
       return nil
     }
+    let questions = items.compactMap { item -> UUID? in
+      if case .question(let id) = item { return id }
+      return nil
+    }
     guard Set(tools) == Set(toolExecutions.map(\.id)) else { return nil }
+    guard Set(questions) == Set(codexQuestions.map(\.id)) else { return nil }
     return items
   }
 

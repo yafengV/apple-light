@@ -5,6 +5,63 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexQuestionValidationAndTimelineRoundTrip() throws {
+    let event: JSONValue = .object([
+      "type": .string("request_user_input"), "call_id": .string("question-1"),
+      "turn_id": .string("turn-1"), "isBlocking": .bool(true),
+      "questions": .array([.object([
+        "id": .string("credential"), "header": .string("Account"),
+        "question": .string("Enter a value"), "isSecret": .bool(true),
+      ])]),
+    ])
+    let question = try CodexQuestionRequest.parse(event)
+    XCTAssertTrue(question.questions[0].isSecret)
+    XCTAssertTrue(question.validAnswers(["credential": ["private-answer"]]))
+    XCTAssertFalse(question.validAnswers(["credential": [""]]))
+    let items: [ChatResponseItem] = [.question(question.id), .message(id: UUID(), text: "Done")]
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "succeeded", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object([
+        "response": .string("Done"), "response_items": try ChatResponseItem.json(items),
+        "codex_questions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode([question])),
+      ]))
+    let restored = try JSONDecoder().decode(AgentRun.self, from: JSONEncoder().encode(run))
+    XCTAssertEqual(restored.responseItems, items)
+    XCTAssertEqual(restored.codexQuestions, [question])
+    XCTAssertFalse(String(decoding: try JSONEncoder().encode(restored), as: UTF8.self)
+      .contains("private-answer"))
+  }
+
+  @MainActor func testNonblockingCodexQuestionExpiresWithoutStallingTurn() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "running", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object(["response": .string("")]))
+    store.library.chatRuns.append(run)
+    let event: JSONValue = .object([
+      "type": .string("request_user_input"), "call_id": .string("question-1"),
+      "turn_id": .string("turn-1"), "isBlocking": .bool(false),
+      "questions": .array([.object([
+        "id": .string("choice"), "header": .string("Choice"),
+        "question": .string("Choose a value"),
+        "options": .array([.object(["label": .string("A"), "description": .string("First")])]),
+      ])]),
+    ])
+    try await store.handleCodexQuestion(runID: run.id, taskID: run.id, event: event)
+    XCTAssertEqual(store.codexPendingQuestions.count, 1)
+    XCTAssertEqual(store.library.chatRuns[0].codexQuestions.first?.status, .awaiting)
+    XCTAssertEqual(store.library.chatRuns[0].responseItems?.count, 1)
+    store.expireCodexQuestions(runID: run.id)
+    XCTAssertTrue(store.codexPendingQuestions.isEmpty)
+    XCTAssertEqual(store.library.chatRuns[0].codexQuestions.first?.status, .expired)
+  }
+
   func testCodexCommandEventsKeepOneOrderedToolRowAndOutput() throws {
     var executions: [MCPToolExecution] = []
     var items: [ChatResponseItem] = [.message(id: UUID(), text: "先检查项目。")]
@@ -389,6 +446,50 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.responseItems?.count, 2)
     XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("patch-proof.txt"),
       encoding: .utf8), "patched\n")
+    await store.shutdown()
+  }
+  @MainActor func testCodexStructuredQuestionResumesAndPersistsWithoutAnswer() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("codex-question")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    var pending: CodexQuestionContext?
+    for _ in 0..<150 {
+      pending = store.codexPendingQuestions.values.first { $0.runID == run.id }
+      if pending != nil { break }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    let current = store.library.chatRuns.first { $0.id == run.id }
+    let question = try XCTUnwrap(pending, "Codex did not show a question card: status=\(current?.status ?? "missing") "
+      + "message=\(current?.result?["message"].text ?? "") response=\(current?.result?["response"].text ?? "") "
+      + "store=\(store.error ?? "")")
+    XCTAssertEqual(question.request.questions.first?.id, "credential")
+    XCTAssertTrue(question.request.questions.first?.isSecret == true)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run.id }?.codexQuestions.first?.status,
+      .awaiting)
+    await store.answerCodexQuestion(question.request.id,
+      answers: ["credential": ["private-fixture-answer-6db5"]])
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.codexQuestions.first?.status, .answered)
+    XCTAssertEqual(finished.responseItems?.count, 2)
+    XCTAssertFalse(try String(contentsOf: root.appendingPathComponent("Data/workspace.json"),
+      encoding: .utf8).contains("private-fixture-answer-6db5"))
     await store.shutdown()
   }
   @MainActor func testCodexResponsesImageOnlyStartsProjectTask() async throws {

@@ -22,7 +22,16 @@ class Responses(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         self.requests.append((self.path, self.headers.get("Authorization"), body))
         request_number = len(self.requests)
-        if request_number == 10:
+        if request_number == 12:
+            item = {
+                "type": "function_call", "call_id": "question-call-12", "name": "request_user_input",
+                "arguments": json.dumps({"questions": [{
+                    "id": "credential", "header": "Credential", "question": "Enter fixture value?",
+                    "isSecret": True, "isOther": True,
+                    "options": [{"label": "Provided value", "description": "Use a saved value."}],
+                }]}),
+            }
+        elif request_number == 10:
             item = {
                 "type": "custom_tool_call", "name": "apply_patch", "call_id": "patch-call-10",
                 "input": "*** Begin Patch\n*** Add File: patch-proof.txt\n+patched\n*** End Patch",
@@ -294,8 +303,35 @@ def main():
                     raise AssertionError(event)
             assert saw_patch_begin and saw_patch_end, (len(Responses.requests), patch_event_types)
             assert (project / "patch-proof.txt").read_text() == "patched\n"
+            seventh = client.request("codex.turn.submit", {
+                "taskId": task_id, "text": "Ask the structured fixture question",
+            })
+            assert seventh["turnId"]
+            saw_question = False
+            question_events = []
+            while True:
+                message = client.next_event()
+                if message.get("method") != "codex.event":
+                    continue
+                event = message["params"]["event"]
+                question_events.append(event)
+                if event["type"] == "request_user_input":
+                    assert event["call_id"] == "question-call-12", event
+                    assert event["questions"][0]["id"] == "credential", event
+                    answered = client.request("codex.turn.answer", {
+                        "taskId": task_id, "turnId": event["turn_id"],
+                        "answers": {"credential": ["private-fixture-answer-6db5"]},
+                    })
+                    assert answered["answered"]
+                    saw_question = True
+                elif event["type"] == "task_complete":
+                    break
+                elif event["type"] == "error":
+                    raise AssertionError(event)
+            assert saw_question, [event for event in question_events if event["type"] in
+                ("warning", "raw_response_item", "agent_message", "task_complete")]
             assert client.request("codex.thread.stop", {"taskId": task_id})["stopped"]
-            assert len(Responses.requests) == 11, Responses.requests
+            assert len(Responses.requests) == 13, Responses.requests
             assert Responses.requests[0][:2] == ("/v1/responses", "Bearer fixture-token")
             assert b"Hi" in Responses.requests[0][2]
         finally:
@@ -309,7 +345,7 @@ def main():
                 contents = item.read_bytes()
                 assert b"fixture-token" not in contents, item
                 assert b"environment-poison-token" not in contents, item
-    print("PASS: bundled Codex RPC approvals, workspace command and patch writes, isolation, and credential cleanup")
+    print("PASS: bundled Codex RPC approvals, structured question, workspace writes, isolation, and credential cleanup")
 
 
 if __name__ == "__main__":

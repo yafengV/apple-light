@@ -73,6 +73,14 @@ pub struct CodexApproval {
     pub decision: CodexApprovalChoice,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexUserInputAnswer {
+    pub task_id: String,
+    pub turn_id: String,
+    pub answers: HashMap<String, Vec<String>>,
+}
+
 fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
     let path = home.join("thread.json");
     let data = match std::fs::read(&path) {
@@ -115,6 +123,7 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
 enum Command {
     Submit(Vec<UserInput>, oneshot::Sender<Result<String>>),
     Approve(CodexApproval, oneshot::Sender<Result<()>>),
+    Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
 }
@@ -260,6 +269,37 @@ impl CodexBridge {
         let (reply, result) = oneshot::channel();
         sender
             .send(Command::Approve(approval, reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
+    pub async fn answer_user_input(&self, answer: CodexUserInputAnswer) -> Result<()> {
+        ensure!(
+            !answer.turn_id.is_empty() && answer.turn_id.len() <= 256,
+            "invalid turn ID"
+        );
+        ensure!(
+            !answer.answers.is_empty() && answer.answers.len() <= 3,
+            "invalid question count"
+        );
+        for (id, values) in &answer.answers {
+            ensure!(!id.is_empty() && id.len() <= 128, "invalid question ID");
+            ensure!(
+                !values.is_empty() && values.len() <= 8,
+                "invalid answer count"
+            );
+            ensure!(
+                values
+                    .iter()
+                    .all(|value| !value.is_empty() && value.len() <= 4096),
+                "invalid answer length"
+            );
+        }
+        let sender = self.sender(&answer.task_id).await?;
+        let (reply, result) = oneshot::channel();
+        sender
+            .send(Command::Answer(answer, reply))
             .await
             .context("Codex thread stopped")?;
         result.await.context("Codex thread stopped")?
@@ -464,6 +504,9 @@ async fn run_thread(
                         CodexApprovalKind::Patch => live.approve_patch(approval.id, decision).await,
                     };
                     let _ = reply.send(result);
+                }
+                Some(Command::Answer(answer, reply)) => {
+                    let _ = reply.send(live.answer_user_input(answer.turn_id, answer.answers).await);
                 }
                 Some(Command::Interrupt(reply)) => {
                     let _ = reply.send(live.interrupt_turn().await);

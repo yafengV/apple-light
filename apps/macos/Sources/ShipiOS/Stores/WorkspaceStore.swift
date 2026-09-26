@@ -163,6 +163,8 @@ final class WorkspaceStore {
   var mcpRefreshingServers: Set<UUID> = []
   var mcpPendingApprovals: [UUID: MCPApprovalContext] = [:]
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
+  var codexPendingQuestions: [UUID: CodexQuestionContext] = [:]
+  @ObservationIgnored var codexQuestionContinuations: [UUID: CheckedContinuation<[String: [String]]?, Never>] = [:]
   @ObservationIgnored var mcpTaskGrants: Set<String> = []
   @ObservationIgnored var mcpConnections: [UUID: MCPConnection] = [:]
   @ObservationIgnored var mcpConnectionTokens: [UUID: UUID] = [:]
@@ -1001,6 +1003,7 @@ final class WorkspaceStore {
     captureWorkspaceTabLayout()
     shuttingDown = true
     await shutdownMCPConnections()
+    for id in Array(codexPendingQuestions.keys) { cancelCodexQuestion(id) }
     sleepPrevention.stop()
     for task in modelTasks.values { task.cancel() }
     compatibilityModelTask?.cancel()

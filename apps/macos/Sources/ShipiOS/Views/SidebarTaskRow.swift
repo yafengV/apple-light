@@ -17,6 +17,9 @@ struct SidebarTaskRow: View {
         if store.mcpPendingApprovals.values.contains(where: { task.runIDs.contains($0.runID) }) {
           Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
             .accessibilityLabel("等待工具批准")
+        } else if store.codexPendingQuestions.values.contains(where: { task.runIDs.contains($0.runID) }) {
+          Image(systemName: "questionmark.bubble.fill").foregroundStyle(.orange)
+            .accessibilityLabel("等待回答问题")
         } else if let run, run.isActive {
           ProgressView().controlSize(.mini).frame(width: 12)
         } else {

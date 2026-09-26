@@ -97,6 +97,16 @@ final class CodexChatTransport {
     ])
   }
 
+  func answer(taskID: String, turnID: String, answers: [String: [String]]) async throws {
+    guard activeThreads.contains(taskID), !turnID.isEmpty else {
+      throw AgentFailure(message: "Codex 提问所属任务已断开。")
+    }
+    _ = try await client.request("codex.turn.answer", [
+      "taskId": .string(taskID), "turnId": .string(turnID),
+      "answers": .object(answers.mapValues { .array($0.map(JSONValue.string)) }),
+    ])
+  }
+
   private func stageText(_ text: String) throws -> (id: UUID, url: URL, byteCount: Int) {
     let bytes = Data(text.utf8)
     guard !bytes.isEmpty, bytes.count <= 1_000_000 else {

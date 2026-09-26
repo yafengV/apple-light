@@ -24,16 +24,26 @@ extension WorkspaceStore {
     library.chatRuns = library.chatRuns.map { run in
       guard run.isActive else { return run }
       var result = run.result
-      if case .object(var fields) = result, !run.toolExecutions.isEmpty {
-        let records = run.toolExecutions.map { item in
-          var item = item
-          if item.status == .running || item.status == .awaitingApproval {
-            item.status = .cancelled
-            item.output = "应用已重启，本次调用未恢复；请确认服务器实际状态。"
+      if case .object(var fields) = result {
+        if !run.toolExecutions.isEmpty {
+          let records = run.toolExecutions.map { item in
+            var item = item
+            if item.status == .running || item.status == .awaitingApproval {
+              item.status = .cancelled
+              item.output = "应用已重启，本次调用未恢复；请确认服务器实际状态。"
+            }
+            return item
           }
-          return item
+          fields["tool_executions"] = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(records))
         }
-        fields["tool_executions"] = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(records))
+        if !run.codexQuestions.isEmpty {
+          let questions = run.codexQuestions.map { item in
+            var item = item
+            if item.status == .awaiting { item.status = .cancelled }
+            return item
+          }
+          fields["codex_questions"] = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(questions))
+        }
         result = .object(fields)
       }
       return AgentRun(
@@ -286,47 +296,55 @@ extension WorkspaceStore {
     return try await withTaskCancellationHandler {
       var rendered = ""
       var completed = false
-      for try await event in stream {
-        try Task.checkCancellation()
-        switch event["type"].text {
-        case "exec_command_begin", "exec_command_end", "patch_apply_begin", "patch_apply_end":
-          recordCodexCommand(runID: runID, event: event)
-          if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
-            rendered = ""
-          }
-        case "exec_approval_request", "apply_patch_approval_request":
-          try await resolveCodexApproval(runID: runID, taskID: taskID, event: event)
-        case "agent_message_delta":
-          if let delta = event["delta"].text, !delta.isEmpty {
-            appendChat(runID, delta: delta)
-            rendered += delta
-          }
-        case "agent_message":
-          if let message = event["message"].text, !message.isEmpty {
-            if message.hasPrefix(rendered) {
-              let suffix = String(message.dropFirst(rendered.count))
-              if !suffix.isEmpty { appendChat(runID, delta: suffix) }
-            } else if let current = library.chatRuns.first(where: { $0.id == runID }) {
-              var items = current.responseItems ?? []
-              items.append(.message(id: UUID(), text: message))
-              replaceChat(current, status: current.status,
-                response: (current.result?["response"].text ?? "") + message,
-                responseItems: items)
+      do {
+        for try await event in stream {
+          try Task.checkCancellation()
+          switch event["type"].text {
+          case "exec_command_begin", "exec_command_end", "patch_apply_begin", "patch_apply_end":
+            recordCodexCommand(runID: runID, event: event)
+            if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
+              rendered = ""
             }
-            rendered = message
+          case "exec_approval_request", "apply_patch_approval_request":
+            try await resolveCodexApproval(runID: runID, taskID: taskID, event: event)
+          case "request_user_input":
+            try await handleCodexQuestion(runID: runID, taskID: taskID, event: event)
+          case "agent_message_delta":
+            if let delta = event["delta"].text, !delta.isEmpty {
+              appendChat(runID, delta: delta)
+              rendered += delta
+            }
+          case "agent_message":
+            if let message = event["message"].text, !message.isEmpty {
+              if message.hasPrefix(rendered) {
+                let suffix = String(message.dropFirst(rendered.count))
+                if !suffix.isEmpty { appendChat(runID, delta: suffix) }
+              } else if let current = library.chatRuns.first(where: { $0.id == runID }) {
+                var items = current.responseItems ?? []
+                items.append(.message(id: UUID(), text: message))
+                replaceChat(current, status: current.status,
+                  response: (current.result?["response"].text ?? "") + message,
+                  responseItems: items)
+              }
+              rendered = message
+            }
+          case "task_complete":
+            expireCodexQuestions(runID: runID)
+            if library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false,
+              let message = event["last_agent_message"].text,
+              !message.isEmpty { appendChat(runID, delta: message) }
+            completed = true
+          case "error":
+            throw AgentFailure(message: event["message"].text ?? "Codex 回合失败。")
+          default: break
           }
-        case "task_complete":
-          if library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false,
-            let message = event["last_agent_message"].text,
-            !message.isEmpty { appendChat(runID, delta: message) }
-          completed = true
-        case "error":
-          throw AgentFailure(message: event["message"].text ?? "Codex 回合失败。")
-        default: break
         }
+        guard completed else { throw AgentFailure(message: "Codex 事件流提前结束，已保留收到的内容。") }
+        return nil
+      } catch {
+        await codexTransport.interrupt(taskID: taskID)
+        throw error
       }
-      guard completed else { throw AgentFailure(message: "Codex 事件流提前结束，已保留收到的内容。") }
-      return nil
     } onCancel: {
       Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
     }
@@ -371,6 +389,7 @@ extension WorkspaceStore {
   private func finishChat(
     _ id: String, status: String, message: String? = nil, usage: ModelTokenUsage? = nil
   ) -> String? {
+    expireCodexQuestions(runID: id)
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return nil }
     var response = current.result?["response"].text ?? ""
     var items = current.responseItems
@@ -407,10 +426,11 @@ extension WorkspaceStore {
     if let finished = runs.first(where: { $0.id == id }) { observeCompletions([finished]) }
     return continueTaskID
   }
-  private func replaceChat(
+  func replaceChat(
     _ current: AgentRun, status: String, response: String, message: String? = nil,
     usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil,
-    toolExecutions: [MCPToolExecution]? = nil
+    toolExecutions: [MCPToolExecution]? = nil,
+    codexQuestions: [CodexQuestionRequest]? = nil
   ) {
     var result: [String: JSONValue] = [:]
     if case .object(let fields) = current.result { result = fields }
@@ -421,6 +441,10 @@ extension WorkspaceStore {
     if let toolExecutions,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(toolExecutions)) {
       result["tool_executions"] = value
+    }
+    if let codexQuestions,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexQuestions)) {
+      result["codex_questions"] = value
     }
     if let message { result["message"] = .string(message) }
     if let usage { result["usage"] = usage.jsonValue }

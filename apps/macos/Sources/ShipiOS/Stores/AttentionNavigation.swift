@@ -47,6 +47,8 @@ extension WorkspaceStore {
   }
 
   private func taskNeedsAttention(_ task: WorkspaceTask) -> Bool {
-    library.unreadTasks.contains(task.id) || mcpPendingApprovals.values.contains { task.runIDs.contains($0.runID) }
+    library.unreadTasks.contains(task.id)
+      || mcpPendingApprovals.values.contains { task.runIDs.contains($0.runID) }
+      || codexPendingQuestions.values.contains { task.runIDs.contains($0.runID) }
   }
 }

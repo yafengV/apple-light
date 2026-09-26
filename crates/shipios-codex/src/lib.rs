@@ -4,17 +4,18 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_core_api::{
     AbsolutePathBuf, AskForApproval, AuthCredentialsStoreMode, AuthKeyringBackendKind, AuthManager,
     CodexAppsToolsCache, CodexHomeUserInstructionsProvider, CodexThread, Config, Constrained,
-    EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, NewThread, Op,
-    PermissionProfile, Permissions, SessionSource, StartIfIdleSubmission, StartThreadOptions,
-    ThreadId, ThreadManager, TurnInputRequest, UserInput, build_models_manager, init_state_db,
-    local_agent_graph_store_from_state_db, passthrough_image_store, resolve_installation_id,
-    thread_store_from_config,
+    EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, Feature,
+    NewThread, Op, PermissionProfile, Permissions, SessionSource, StartIfIdleSubmission,
+    StartThreadOptions, ThreadId, ThreadManager, TurnInputRequest, UserInput, build_models_manager,
+    init_state_db, local_agent_graph_store_from_state_db, passthrough_image_store,
+    resolve_installation_id, thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
 use codex_protocol::mcp::ClientMcpExtensions;
 use codex_protocol::protocol::ReviewDecision;
+use codex_protocol::request_user_input::{RequestUserInputAnswer, RequestUserInputResponse};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{Arc, Mutex, OnceLock},
 };
@@ -132,6 +133,9 @@ impl CodexSession {
         config.workspace_roots = vec![config.cwd.clone()];
         config.workspace_roots_explicit = true;
         config.model = Some(options.model);
+        config
+            .features
+            .enable(Feature::DefaultModeRequestUserInput)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = Permissions::from_approval_and_profile(
             Constrained::allow_any(AskForApproval::OnRequest),
@@ -289,6 +293,26 @@ impl CodexSession {
             .submit(Op::PatchApproval {
                 id,
                 decision: decision.into(),
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn answer_user_input(
+        &self,
+        turn_id: String,
+        answers: HashMap<String, Vec<String>>,
+    ) -> Result<()> {
+        let response = RequestUserInputResponse {
+            answers: answers
+                .into_iter()
+                .map(|(id, answers)| (id, RequestUserInputAnswer { answers }))
+                .collect(),
+        };
+        self.thread
+            .submit(Op::UserInputAnswer {
+                id: turn_id,
+                response,
             })
             .await?;
         Ok(())

@@ -22,7 +22,17 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/v1/responses':
             request_text = json.dumps(body)
             slow = 'slow-codex' in request_text
-            if 'codex-patch' in request_text and 'custom_tool_call_output' not in request_text:
+            if 'codex-question' in request_text and 'function_call_output' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-question-call',
+                    'name': 'request_user_input',
+                    'arguments': json.dumps({'questions': [{
+                        'id': 'credential', 'header': 'Credential',
+                        'question': 'Enter the fixture value?', 'isSecret': True, 'isOther': True,
+                        'options': [{'label': 'Provided value', 'description': 'Use a saved value.'}],
+                    }]}),
+                }
+            elif 'codex-patch' in request_text and 'custom_tool_call_output' not in request_text:
                 item = {
                     'type': 'custom_tool_call', 'call_id': 'swift-patch-call',
                     'name': 'apply_patch',

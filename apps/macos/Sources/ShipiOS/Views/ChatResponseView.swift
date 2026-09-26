@@ -29,6 +29,10 @@ struct ChatResponseView: View {
         if let execution = executions.first(where: { $0.id == id }) {
           MCPToolExecutionView(store: store, run: run, execution: execution)
         }
+      case .question(let id):
+        if let question = run.codexQuestions.first(where: { $0.id == id }) {
+          CodexQuestionView(store: store, run: run, request: question)
+        }
       }
     }
   }

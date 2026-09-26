@@ -1,5 +1,8 @@
 use crate::{
-    codex_bridge::{CodexApproval, CodexBridge, CodexImage, CodexTextAttachment, StartThread},
+    codex_bridge::{
+        CodexApproval, CodexBridge, CodexImage, CodexTextAttachment, CodexUserInputAnswer,
+        StartThread,
+    },
     service::{RunRequest, Service},
 };
 use anyhow::Result;
@@ -181,6 +184,11 @@ async fn dispatch(
                 let p: CodexApproval = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.approve(p).await.map_err(failed)?;
                 Ok(json!({"resolved":true}))
+            }
+            "codex.turn.answer" => {
+                let p: CodexUserInputAnswer = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.answer_user_input(p).await.map_err(failed)?;
+                Ok(json!({"answered":true}))
             }
             "codex.thread.stop" => {
                 let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
