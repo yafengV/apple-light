@@ -91,6 +91,22 @@ import XCTest
     XCTAssertEqual(updates.flatMap(\.files).map(\.path), ["Alpha.swift", "Alpha.swift"])
   }
 
+  func testBundledAgentCompletesARealSearchWhenProvided() async throws {
+    guard let path = ProcessInfo.processInfo.environment["SHIPIOS_TEST_AGENT"] else {
+      throw XCTSkip("Set SHIPIOS_TEST_AGENT to run the Swift-to-Rust file search integration test")
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Data().write(to: root.appendingPathComponent("AlphaBeta.swift"))
+    let session = try WorkspaceFileSearchSession(root: root, executable: URL(fileURLWithPath: path))
+    defer { session.close() }
+    var updates: [WorkspaceFileSearchUpdate] = []
+    for try await update in try session.query("ab") { updates.append(update) }
+    XCTAssertEqual(updates.last?.complete, true)
+    XCTAssertEqual(updates.last?.files.map(\.path), ["AlphaBeta.swift"])
+  }
+
   func testTimeoutAndMalformedFramesFailWithoutLeavingLoadingPending() async throws {
     for (body, expected) in [("exec /bin/sleep 10", "超时"), ("read query; printf 'not-json\\n'", "无效"), ("exit 0", "已退出")] {
       let root = try fixture(body)
