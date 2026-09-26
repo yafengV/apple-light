@@ -33,6 +33,14 @@ extension WorkspaceStore {
         return
       }
     }
+    if record.archivedHead != nil, FileManager.default.fileExists(atPath: record.path) {
+      notices.show(id: noticeID, title: "上次归档快照仍待处理，已保留目录；请恢复任务后重试", level: .info)
+      return
+    }
+    var protectedHead: String?
+    var protectedStash: String?
+    var snapshotCaptured = false
+    var stateCommitted = false
     do {
       if !FileManager.default.fileExists(atPath: record.path) {
         guard record.archivedHead != nil else {
@@ -49,25 +57,61 @@ extension WorkspaceStore {
         ["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: checkout)
       let ignored = try await GitReviewService.checked(
         ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], at: checkout)
-      guard status.isEmpty, ignored.isEmpty else {
-        notices.show(id: noticeID, title: "工作树包含未保存文件，已保留目录", level: .info)
-        return
-      }
+      let hasUncommittedFiles = !status.isEmpty || !ignored.isEmpty
       let snapshot = try await GitBranchService.snapshot(at: checkout)
       guard let head = snapshot.currentCommit else {
         throw AgentFailure(message: "工作树没有可恢复的提交，已保留目录。")
       }
+      var copiedFiles: [ManagedSourceFile] = []
+      var stashCommit: String?
+      if hasUncommittedFiles {
+        let paths = try await ManagedSourceFiles.discoverAll(at: checkout,
+          excluding: dataRoot)
+        copiedFiles = try ManagedSourceFiles.capture(paths, from: checkout,
+          dataRoot: dataRoot, taskID: taskID)
+        snapshotCaptured = !copiedFiles.isEmpty
+        let captured = try await GitReviewService.checked(
+          ["stash", "create", "shipios-archive-\(taskID)"], at: checkout)
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !captured.isEmpty {
+          guard captured.range(of: "^[0-9a-f]{40,64}$",
+            options: .regularExpression) != nil else {
+            throw AgentFailure(message: "无法保存工作树的已跟踪修改，已保留目录。")
+          }
+          _ = try await GitReviewService.checked(
+            ["update-ref", "refs/shipios/managed-archive-dirty/\(taskID)", captured],
+            at: URL(fileURLWithPath: record.source))
+          stashCommit = captured
+          protectedStash = captured
+        }
+        guard stashCommit != nil || !copiedFiles.isEmpty else {
+          throw AgentFailure(message: "无法保存工作树的未提交内容，已保留目录。")
+        }
+      }
       let reference = "refs/shipios/managed-archive/" + taskID
       _ = try await GitReviewService.checked(["update-ref", reference, head],
         at: URL(fileURLWithPath: record.source))
+      protectedHead = head
       var candidate = library
       guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else { return }
       candidate.managedWorktrees[index].archivedHead = head
+      candidate.managedWorktrees[index].archivedStashCommit = stashCommit
+      candidate.managedWorktrees[index].archivedCopiedFiles = copiedFiles.isEmpty ? nil : copiedFiles
       candidate.managedWorktrees[index].checkout = archivedCheckout(record.checkout, head: head)
       try commitLibrary(candidate)
-      let removed = try await WorktreeService.removeCleanManaged(candidate.managedWorktrees[index])
+      stateCommitted = true
+      if stashCommit == nil, let previous = record.archivedStashCommit {
+        _ = try? await GitReviewService.checked(
+          ["update-ref", "-d", "refs/shipios/managed-archive-dirty/\(taskID)", previous],
+          at: URL(fileURLWithPath: record.source))
+      }
+      if copiedFiles.isEmpty { ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: taskID) }
+      let removed = hasUncommittedFiles
+        ? try await WorktreeService.removeSnapshottedManaged(
+          candidate.managedWorktrees[index], dataRoot: dataRoot)
+        : try await WorktreeService.removeCleanManaged(candidate.managedWorktrees[index])
       guard removed else {
-        notices.show(id: noticeID, title: "工作树在归档时发生修改，已保留目录", level: .info)
+        notices.show(id: noticeID, title: "工作树在快照后发生修改，已保留目录", level: .info)
         return
       }
       var completed = library
@@ -76,6 +120,19 @@ extension WorkspaceStore {
       try commitLibrary(completed)
       notices.show(id: noticeID, title: "已保存提交并清理工作树，恢复任务时可重建", level: .info)
     } catch {
+      if !stateCommitted {
+        if snapshotCaptured { ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: taskID) }
+        if let protectedStash {
+          _ = try? await GitReviewService.checked(
+            ["update-ref", "-d", "refs/shipios/managed-archive-dirty/\(taskID)", protectedStash],
+            at: URL(fileURLWithPath: record.source))
+        }
+        if let protectedHead {
+          _ = try? await GitReviewService.checked(
+            ["update-ref", "-d", "refs/shipios/managed-archive/\(taskID)", protectedHead],
+            at: URL(fileURLWithPath: record.source))
+        }
+      }
       notices.show(id: noticeID, title: "工作树已保留：\(error.localizedDescription)", level: .error)
     }
   }
@@ -90,27 +147,68 @@ extension WorkspaceStore {
       return false
     }
     do {
+      let wasMissing = !FileManager.default.fileExists(atPath: record.path)
       try await WorktreeService.createOrRecover(record.checkout)
       let checkout = try await GitBranchService.snapshot(at: URL(fileURLWithPath: record.path))
       guard checkout.currentCommit == head else {
         throw AgentFailure(message: "工作树的提交与归档快照不一致，未覆盖目录。")
+      }
+      if wasMissing || record.archivedPruned == true {
+        try await restoreArchivedChanges(record)
       }
       var candidate = library
       guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else {
         throw AgentFailure(message: "托管工作树记录已丢失。")
       }
       candidate.managedWorktrees[index].archivedHead = nil
+      candidate.managedWorktrees[index].archivedStashCommit = nil
+      candidate.managedWorktrees[index].archivedCopiedFiles = nil
       candidate.managedWorktrees[index].archivedPruned = false
       try commitLibrary(candidate)
       _ = try? await GitReviewService.checked(
         ["update-ref", "-d", "refs/shipios/managed-archive/\(taskID)", head],
         at: URL(fileURLWithPath: record.source))
+      if let stash = record.archivedStashCommit {
+        _ = try? await GitReviewService.checked(
+          ["update-ref", "-d", "refs/shipios/managed-archive-dirty/\(taskID)", stash],
+          at: URL(fileURLWithPath: record.source))
+      }
+      ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: taskID)
       archivedTaskDeletionError = nil
       return true
     } catch {
       archivedTaskDeletionError = "无法恢复托管工作树：\(error.localizedDescription)"
       return false
     }
+  }
+
+  private func restoreArchivedChanges(_ record: ManagedWorktree) async throws {
+    let target = URL(fileURLWithPath: record.path)
+    if let stash = record.archivedStashCommit {
+      let worktreeMatches = try await LocalWorkspaceService.git(
+        ["diff", "--quiet", stash, "--"], at: target).status == 0
+      let indexMatches = try await LocalWorkspaceService.git(
+        ["diff", "--quiet", "--cached", stash + "^2", "--"], at: target).status == 0
+      if !worktreeMatches || !indexMatches {
+        let worktreeClean = try await LocalWorkspaceService.git(
+          ["diff", "--quiet", "HEAD", "--"], at: target).status == 0
+        let indexClean = try await LocalWorkspaceService.git(
+          ["diff", "--quiet", "--cached", "HEAD", "--"], at: target).status == 0
+        guard worktreeClean, indexClean else {
+          throw AgentFailure(message: "工作树已有其他已跟踪修改，未覆盖目录。")
+        }
+        _ = try await GitReviewService.checked(["stash", "apply", "--index", stash], at: target)
+        let finalWorktree = try await LocalWorkspaceService.git(
+          ["diff", "--quiet", stash, "--"], at: target).status == 0
+        let finalIndex = try await LocalWorkspaceService.git(
+          ["diff", "--quiet", "--cached", stash + "^2", "--"], at: target).status == 0
+        guard finalWorktree, finalIndex else {
+          throw AgentFailure(message: "已跟踪修改恢复后校验失败，快照仍保留。")
+        }
+      }
+    }
+    try ManagedSourceFiles.install(record.archivedCopiedFiles ?? [], dataRoot: dataRoot,
+      taskID: record.taskID, target: target)
   }
 
   private func archivedCheckout(_ checkout: PermanentWorktree, head: String) -> PermanentWorktree {

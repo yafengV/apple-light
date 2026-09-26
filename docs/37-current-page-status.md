@@ -2,7 +2,7 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
-托管工作树现在已接入 Git 项目新任务的输入区和首轮 Codex Core 会话，支持从当前提交或所选分支创建，任务按来源项目展示，见[第 225 篇](225-managed-worktree-new-task.md)。当前分支的已跟踪、未跟踪及 `.worktreeinclude` 指定的忽略文件可传递并保持来源原样；干净检出归档后可清理并在恢复任务时重建，见[第 226 篇](226-clean-managed-worktree-archive.md)。脏工作树的安全快照/清理和 Handoff 仍缺失。自动化通过不代表已完成原生界面对照。
+托管工作树现在已接入 Git 项目新任务的输入区和首轮 Codex Core 会话，支持从当前提交或所选分支创建，任务按来源项目展示，见[第 225 篇](225-managed-worktree-new-task.md)。当前分支的已跟踪、未跟踪及 `.worktreeinclude` 指定的忽略文件可传递并保持来源原样；干净及可完整快照的脏检出归档后可清理并在恢复任务时重建，见[第 226 篇](226-clean-managed-worktree-archive.md)和[第 227 篇](227-dirty-managed-worktree-archive.md)。Handoff、工作树数量限制和删除归档任务时的清理仍缺失。自动化通过不代表已完成原生界面对照。
 
 Codex Core 的长差异现在额外保存为 ShipiOS 私有完整快照，时间线保留轻量预览，并可查看或复制完整内容；多文件差异可在查看窗口逐文件选择与复制，见[第 222 篇](222-codex-full-diff-snapshots.md)和[第 223 篇](223-codex-diff-file-navigation.md)。差异卡的当前 Codex Mac 视觉、键盘和文件打开行为仍未原生配对。
 

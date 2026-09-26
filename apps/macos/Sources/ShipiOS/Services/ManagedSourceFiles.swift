@@ -28,18 +28,40 @@ enum ManagedSourceFiles {
       URL(fileURLWithPath: $0).lastPathComponent == "AGENTS.override.md"
         && type(at: source.appendingPathComponent($0)) != mode_t(S_IFLNK)
     })
-    if let dataRoot {
-      let sourcePath = GitBranchService.canonicalRoot(source).path
-      let privatePath = GitBranchService.canonicalRoot(dataRoot).path
-      guard sourcePath != privatePath else {
-        throw AgentFailure(message: "ShipiOS 数据目录不能与项目根目录相同。")
-      }
-      if privatePath.hasPrefix(sourcePath + "/") {
-        let relative = String(privatePath.dropFirst(sourcePath.count + 1))
-        paths = paths.filter { $0 != relative && !$0.hasPrefix(relative + "/") }
+    return try withoutPrivateData(paths, source: source, dataRoot: dataRoot).sorted()
+  }
+
+  /// Archiving removes the checkout, so even ignored files must be accounted for.
+  static func discoverAll(at source: URL, excluding dataRoot: URL? = nil) async throws -> [String] {
+    let ordinary = Set(split(try await GitReviewService.checked(
+      ["ls-files", "--others", "--exclude-standard", "-z"], at: source)))
+    let ignored = Set(split(try await GitReviewService.checked(
+      ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], at: source)))
+    return try withoutPrivateData(ordinary.union(ignored), source: source,
+      dataRoot: dataRoot).sorted()
+  }
+
+  static func archiveSnapshotMatches(_ files: [ManagedSourceFile], source: URL,
+    dataRoot: URL, taskID: String) async throws -> Bool {
+    guard try await discoverAll(at: source, excluding: dataRoot) == files.map(\.path).sorted() else {
+      return false
+    }
+    let savedRoot = directory(dataRoot: dataRoot, taskID: taskID)
+    for entry in files {
+      let parts = try components(entry.path)
+      let current = try regularFile(root: source, parts: parts)
+      let saved = try regularFile(root: savedRoot, parts: parts)
+      let currentHash = try hash(current)
+      let savedHash = try hash(saved)
+      guard currentHash == entry.sha256, savedHash == entry.sha256 else { return false }
+      let currentAttributes = try FileManager.default.attributesOfItem(atPath: current.path)
+      let savedAttributes = try FileManager.default.attributesOfItem(atPath: saved.path)
+      guard (currentAttributes[.posixPermissions] as? NSNumber)?.intValue == entry.permissions,
+        (savedAttributes[.posixPermissions] as? NSNumber)?.intValue == entry.permissions else {
+        return false
       }
     }
-    return paths.sorted()
+    return true
   }
 
   static func capture(_ paths: [String], from source: URL, dataRoot: URL,
@@ -144,6 +166,19 @@ enum ManagedSourceFiles {
 
   private static func split(_ output: String) -> [String] {
     output.split(separator: "\0").map(String.init)
+  }
+
+  private static func withoutPrivateData(_ paths: Set<String>, source: URL,
+    dataRoot: URL?) throws -> Set<String> {
+    guard let dataRoot else { return paths }
+    let sourcePath = GitBranchService.canonicalRoot(source).path
+    let privatePath = GitBranchService.canonicalRoot(dataRoot).path
+    guard sourcePath != privatePath else {
+      throw AgentFailure(message: "ShipiOS 数据目录不能与项目根目录相同。")
+    }
+    guard privatePath.hasPrefix(sourcePath + "/") else { return paths }
+    let relative = String(privatePath.dropFirst(sourcePath.count + 1))
+    return paths.filter { $0 != relative && !$0.hasPrefix(relative + "/") }
   }
 
   private static func components(_ path: String) throws -> [String] {

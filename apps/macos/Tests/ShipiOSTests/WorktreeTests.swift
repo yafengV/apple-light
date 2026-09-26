@@ -202,6 +202,11 @@ final class WorktreeTests: XCTestCase {
     let ignoredRemoved = try await WorktreeService.removeCleanManaged(managed)
     XCTAssertFalse(ignoredRemoved)
     try FileManager.default.removeItem(at: target.appendingPathComponent("ignored"))
+    let empty = target.appendingPathComponent("empty-directory", isDirectory: true)
+    try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: false)
+    let emptyRemoved = try await WorktreeService.removeCleanManaged(managed)
+    XCTAssertFalse(emptyRemoved)
+    try FileManager.default.removeItem(at: empty)
     let head = try await git(["rev-parse", "HEAD"], target)
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let reference = "refs/shipios/managed-archive/\(taskID)"
@@ -218,7 +223,42 @@ final class WorktreeTests: XCTestCase {
     _ = try await git(["update-ref", "-d", reference, head], source)
   }
 
-  @MainActor func testArchiveAndRestoreManagedTaskPrunesCleanCheckoutButKeepsDirtyOne() async throws {
+  func testManagedArchiveRefusesForceRemovalWhenCheckoutChangesAfterSnapshot() async throws {
+    let (base, source) = try await fixture()
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let plan = try await WorktreeService.plan(snapshot: snapshot, branch: nil,
+      title: "Snapshot", parent: base.appendingPathComponent("worktrees"))
+    try await WorktreeService.createOrRecover(plan)
+    let target = URL(fileURLWithPath: plan.path)
+    let file = target.appendingPathComponent("file")
+    try write("captured\n", file)
+    try write("extra\n", target.appendingPathComponent("untracked"))
+    let taskID = UUID().uuidString
+    let data = base.appendingPathComponent("data")
+    let paths = try await ManagedSourceFiles.discoverAll(at: target, excluding: data)
+    let files = try ManagedSourceFiles.capture(paths, from: target,
+      dataRoot: data, taskID: taskID)
+    let stash = try await git(["stash", "create", "snapshot"], target)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let head = try await git(["rev-parse", "HEAD"], target)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    _ = try await git(["update-ref", "refs/shipios/managed-archive/\(taskID)", head], source)
+    _ = try await git(["update-ref", "refs/shipios/managed-archive-dirty/\(taskID)", stash], source)
+    var managed = ManagedWorktree(taskID: taskID, checkout: plan)
+    managed.archivedHead = head
+    managed.archivedStashCommit = stash
+    managed.archivedCopiedFiles = files
+    try write("changed after capture\n", file)
+    let removed = try await WorktreeService.removeSnapshottedManaged(managed, dataRoot: data)
+    XCTAssertFalse(removed)
+    XCTAssertEqual(try String(contentsOf: file), "changed after capture\n")
+    try write("captured\n", file)
+    let nowRemoved = try await WorktreeService.removeSnapshottedManaged(managed, dataRoot: data)
+    XCTAssertTrue(nowRemoved)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+  }
+
+  @MainActor func testArchiveAndRestoreManagedTasksKeepsTrackedAndUntrackedChanges() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
     var repository = URL(fileURLWithPath: #filePath)
@@ -268,16 +308,51 @@ final class WorktreeTests: XCTestCase {
     store.library.tasks.append(WorkspaceTask(id: dirtyID, project: dirty.path,
       title: "Dirty", runIDs: []))
     XCTAssertTrue(store.saveLibrary())
-    let dirtyFile = URL(fileURLWithPath: dirty.path).appendingPathComponent("file")
+    let dirtyRoot = URL(fileURLWithPath: dirty.path)
+    let dirtyFile = dirtyRoot.appendingPathComponent("file")
+    try write("staged\n", dirtyFile)
+    _ = try await git(["add", "file"], dirtyRoot)
     try write("unsaved\n", dirtyFile)
+    try write("ignored\n", dirtyRoot.appendingPathComponent(".gitignore"))
+    _ = try await git(["add", ".gitignore"], dirtyRoot)
+    try write("untracked\n", dirtyRoot.appendingPathComponent("untracked"))
+    try write("cache\n", dirtyRoot.appendingPathComponent("ignored"))
     store.updateTask(dirtyID, archive: true)
     await store.managedArchiveCleanupTask?.value
-    XCTAssertTrue(FileManager.default.fileExists(atPath: dirty.path))
-    XCTAssertNil(store.library.managedWorktrees.first { $0.taskID == dirtyID }?.archivedHead)
-    XCTAssertEqual(try String(contentsOf: dirtyFile), "unsaved\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: dirty.path))
+    let archivedDirty = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == dirtyID })
+    XCTAssertEqual(archivedDirty.archivedPruned, true)
+    XCTAssertNotNil(archivedDirty.archivedStashCommit)
+    XCTAssertEqual(archivedDirty.archivedCopiedFiles?.map(\.path).sorted(),
+      ["ignored", "untracked"])
+    await store.shutdown()
+    store = WorkspaceStore(dataRoot: data,
+      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    await store.restore()
+    XCTAssertEqual(store.library.managedWorktrees.first { $0.taskID == dirtyID }?.archivedPruned,
+      true)
+    try FileManager.default.createDirectory(at: dirtyRoot, withIntermediateDirectories: false)
+    let collision = dirtyRoot.appendingPathComponent("occupied")
+    try write("do not overwrite\n", collision)
+    await store.restoreArchivedTaskWithFeedback(dirtyID)
+    XCTAssertTrue(store.library.tasks.first { $0.id == dirtyID }?.archived == true)
+    XCTAssertEqual(try String(contentsOf: collision), "do not overwrite\n")
+    try FileManager.default.removeItem(at: dirtyRoot)
     await store.restoreArchivedTaskWithFeedback(dirtyID)
     XCTAssertFalse(store.library.tasks.first { $0.id == dirtyID }?.archived ?? true)
     XCTAssertEqual(try String(contentsOf: dirtyFile), "unsaved\n")
+    XCTAssertEqual(try String(contentsOf: dirtyRoot.appendingPathComponent("untracked")),
+      "untracked\n")
+    XCTAssertEqual(try String(contentsOf: dirtyRoot.appendingPathComponent("ignored")), "cache\n")
+    let restoredStatus = try await git(["status", "--short"], dirtyRoot)
+    XCTAssertTrue(restoredStatus.contains("MM file"), restoredStatus)
+    XCTAssertTrue(restoredStatus.contains("A  .gitignore"), restoredStatus)
+    XCTAssertTrue(restoredStatus.contains("?? untracked"), restoredStatus)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: data
+      .appendingPathComponent("ManagedSourceSnapshots").appendingPathComponent(dirtyID).path))
+    let dirtyReference = try await LocalWorkspaceService.git(
+      ["show-ref", "--verify", "refs/shipios/managed-archive-dirty/\(dirtyID)"], at: source)
+    XCTAssertNotEqual(dirtyReference.status, 0)
 
     let pinnedID = UUID().uuidString
     let pinnedCreated = await store.createManagedWorktree(snapshot: snapshot,

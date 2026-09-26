@@ -100,10 +100,72 @@ enum WorktreeService {
     let ignored = try await GitReviewService.checked(
       ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], at: target)
     guard status.isEmpty, ignored.isEmpty else { return false }
+    guard try !containsEmptyDirectory(at: target) else { return false }
     _ = try await GitReviewService.checked(["worktree", "remove", "--", target.path], at: source)
     let remaining = try await registeredPaths(at: source)
     guard !FileManager.default.fileExists(atPath: target.path), !remaining.contains(targetPath) else {
       throw AgentFailure(message: "Git 工作树移除后校验失败，请在终端检查：\(record.path)")
+    }
+    return true
+  }
+
+  /// Force removal is permitted only after the protected Git objects and copied files are
+  /// confirmed to represent the current checkout exactly. No snapshot means no force removal.
+  static func removeSnapshottedManaged(_ record: ManagedWorktree,
+    dataRoot: URL) async throws -> Bool {
+    guard let head = record.archivedHead else {
+      throw AgentFailure(message: "缺少归档提交，未移除工作树。")
+    }
+    let source = URL(fileURLWithPath: record.source)
+    let target = URL(fileURLWithPath: record.path)
+    let targetPath = GitBranchService.canonicalRoot(target).path
+    guard targetPath != GitBranchService.canonicalRoot(source).path,
+      (try? FileManager.default.attributesOfItem(atPath: target.path)[.type]) as? FileAttributeType
+        != .typeSymbolicLink else {
+      throw AgentFailure(message: "托管工作树路径无效，未移除目录。")
+    }
+    let registered = try await registeredPaths(at: source)
+    guard registered.contains(targetPath), FileManager.default.fileExists(atPath: target.path) else {
+      throw AgentFailure(message: "工作树目录或 Git 登记已改变，未移除目录。")
+    }
+    let targetCommon = try await commonDirectory(at: target)
+    let sourceCommon = try await commonDirectory(at: source)
+    guard targetCommon.path == sourceCommon.path else {
+      throw AgentFailure(message: "工作树所属仓库已改变，未移除目录。")
+    }
+    let protectedHead = try await GitReviewService.checked(
+      ["rev-parse", "--verify", "refs/shipios/managed-archive/\(record.taskID)^{commit}"],
+      at: source).trimmingCharacters(in: .whitespacesAndNewlines)
+    let actualHead = try await GitReviewService.checked(
+      ["rev-parse", "--verify", "HEAD^{commit}"], at: target)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard protectedHead == head, actualHead == head else { return false }
+    if let stash = record.archivedStashCommit {
+      let protectedStash = try await GitReviewService.checked(
+        ["rev-parse", "--verify", "refs/shipios/managed-archive-dirty/\(record.taskID)^{commit}"],
+        at: source).trimmingCharacters(in: .whitespacesAndNewlines)
+      guard protectedStash == stash else { return false }
+      let worktreeMatch = try await LocalWorkspaceService.git(
+        ["diff", "--quiet", stash, "--"], at: target).status == 0
+      let indexMatch = try await LocalWorkspaceService.git(
+        ["diff", "--quiet", "--cached", stash + "^2", "--"], at: target).status == 0
+      guard worktreeMatch, indexMatch else { return false }
+    } else {
+      let worktreeClean = try await LocalWorkspaceService.git(
+        ["diff", "--quiet", "HEAD", "--"], at: target).status == 0
+      let indexClean = try await LocalWorkspaceService.git(
+        ["diff", "--quiet", "--cached", "HEAD", "--"], at: target).status == 0
+      guard worktreeClean, indexClean else { return false }
+    }
+    guard try await ManagedSourceFiles.archiveSnapshotMatches(
+      record.archivedCopiedFiles ?? [], source: target, dataRoot: dataRoot,
+      taskID: record.taskID) else { return false }
+    guard try !containsEmptyDirectory(at: target) else { return false }
+    _ = try await GitReviewService.checked(["worktree", "remove", "--force", "--", target.path],
+      at: source)
+    let remaining = try await registeredPaths(at: source)
+    guard !FileManager.default.fileExists(atPath: target.path), !remaining.contains(targetPath) else {
+      throw AgentFailure(message: "工作树移除后校验失败，请在终端检查：\(record.path)")
     }
     return true
   }
@@ -113,6 +175,20 @@ enum WorktreeService {
     return Set(output.split(separator: "\0").filter { $0.hasPrefix("worktree ") }.map {
       GitBranchService.canonicalRoot(URL(fileURLWithPath: String($0.dropFirst(9)))).path
     })
+  }
+
+  private static func containsEmptyDirectory(at root: URL) throws -> Bool {
+    guard let enumerator = FileManager.default.enumerator(at: root,
+      includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]) else {
+      throw AgentFailure(message: "无法检查工作树目录，已保留目录。")
+    }
+    for case let url as URL in enumerator {
+      let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+      guard values.isDirectory == true, values.isSymbolicLink != true else { continue }
+      if try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
+        .isEmpty { return true }
+    }
+    return false
   }
 
   private static func commonDirectory(at root: URL) async throws -> URL {

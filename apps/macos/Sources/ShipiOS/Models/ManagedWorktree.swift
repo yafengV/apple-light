@@ -16,6 +16,8 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var sourceChangesApplied: Bool? = nil
   /// Protected by refs/shipios/managed-archive/<taskID> until this checkout is restored.
   var archivedHead: String? = nil
+  var archivedStashCommit: String? = nil
+  var archivedCopiedFiles: [ManagedSourceFile]? = nil
   var archivedPruned: Bool? = nil
 
   var id: UUID { checkout.id }
