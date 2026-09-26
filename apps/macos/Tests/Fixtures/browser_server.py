@@ -59,6 +59,22 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == '/slow':
             time.sleep(0.6)
+        if path in ('/frame', '/frame-cross', '/frame-form'):
+            if path == '/frame-form':
+                body = (b'<!doctype html><html><head><title>Frame form</title></head>'
+                        b'<body><input id="frame-input" aria-label="Frame input" value="original">'
+                        b'<a href="/download">Frame download</a></body></html>')
+            else:
+                source = '/frame-form' if path == '/frame' else (
+                    f'http://localhost:{self.server.server_address[1]}/frame-form')
+                body = (f'<!doctype html><html><head><title>Frames</title></head>'
+                        f'<body><h1>Main page</h1><iframe src="{source}"></iframe></body></html>').encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         counts[path] = counts.get(path, 0) + 1
         title = {'/one': 'One', '/two': 'Two', '/popup': 'Popup', '/tall': 'Tall'}.get(path, path)
         if path == '/cache':

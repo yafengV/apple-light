@@ -205,7 +205,22 @@ extension WorkspaceStore {
     action: String, url: URL, handle: String?, text: String?, token: UUID?) async -> JSONValue {
     do {
       if action == "inspect" {
-        let inspected = try await BrowserAgentDOM.inspect(tab)
+        let discovered = await BrowserAgentDOM.availableFrames(tab)
+        var allowed: [BrowserAgentDOM.Frame] = []
+        let mainHost = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        for frame in discovered {
+          guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
+            return .object(["status": .string("cancelled")])
+          }
+          let frameHost = frame.url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+          if frameHost == mainHost {
+            allowed.append(frame)
+          } else if await allowCodexBrowserAccess(url: frame.url, taskID: taskID,
+            token: token) {
+            allowed.append(frame)
+          }
+        }
+        let inspected = try await BrowserAgentDOM.inspect(tab, frames: allowed)
         guard codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }),
           !tab.closed, !tab.loading, tab.committedURL == url else {
           return .object(["status": .string("unavailable"),
@@ -219,9 +234,19 @@ extension WorkspaceStore {
         handle.contains(":"), action != "fill" || text.map({ $0.unicodeScalars.count <= 4_000 }) == true else {
         return .object(["status": .string("error"), "message": .string("请使用页面检查返回的元素句柄；填写文字最多 4000 字。")])
       }
+      let frameURL = try await BrowserAgentDOM.frameURL(tab, handle: handle)
+      let mainHost = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+      let frameHost = frameURL.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+      if frameHost != mainHost {
+        guard await allowCodexBrowserAccess(url: frameURL, taskID: taskID,
+          token: token) else {
+          return .object(["status": .string("denied"), "host": .string(frameURL.host ?? "")])
+        }
+      }
       let target = try await BrowserAgentDOM.target(tab, handle: handle)
       guard codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }),
-        !tab.closed, !tab.loading, tab.committedURL == url else {
+        !tab.closed, !tab.loading, tab.committedURL == url,
+        target["frame_url"].text == frameURL.absoluteString else {
         return .object(["status": .string("unavailable"),
           "message": .string("操作前网页已变化，请重新检查网页。")])
       }
@@ -234,7 +259,7 @@ extension WorkspaceStore {
           return .object(["status": .string("error"),
             "message": .string("请检查网页并选择有效的下载链接。")])
         }
-        let host = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let host = frameHost
         let linkHost = link.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
         guard let host, linkHost == host else {
           return .object(["status": .string("denied"), "host": .string(link.host ?? ""),
@@ -243,7 +268,8 @@ extension WorkspaceStore {
         guard codexBrowserRequestCurrent(taskID: taskID, token: token),
           codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }),
           !tab.closed, !tab.loading, tab.committedURL == url,
-          browserPermissionPreferences.decision(for: url) != .block else {
+          browserPermissionPreferences.decision(for: url) != .block,
+          browserPermissionPreferences.decision(for: frameURL) != .block else {
           return .object(["status": .string("unavailable"), "message": .string("网页或权限已变化。")])
         }
         guard let id = tab.downloadURL(link, allowedHost: host) else {
@@ -262,7 +288,7 @@ extension WorkspaceStore {
             return .object(["status": .string("error"),
               "message": .string("链接地址不安全或不受支持。")])
           }
-          if link.host?.lowercased() != url.host?.lowercased() {
+          if link.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) != frameHost {
             return .object(["status": .string("denied"), "host": .string(link.host ?? ""),
               "message": .string("目标链接属于其他网站，请使用 open 单独打开并授权。")])
           }
@@ -276,7 +302,7 @@ extension WorkspaceStore {
         let inputAction = tag == "input" && ["submit", "button", "reset", "image", "checkbox", "radio"]
           .contains(target["type"].text?.lowercased() ?? "")
         if tag == "button" || inputAction || target["role"].text == "button" {
-          guard await confirmCodexBrowserControl(target, url: url, taskID: taskID,
+          guard await confirmCodexBrowserControl(target, url: frameURL, taskID: taskID,
             token: token) else {
             return .object(["status": .string("denied"), "host": .string(url.host ?? "")])
           }
@@ -288,11 +314,16 @@ extension WorkspaceStore {
         return .object(["status": .string("unavailable"),
           "message": .string("确认期间网页或任务归属已变化。")])
       }
-      if browserPermissionPreferences.decision(for: url) == .block {
-        return .object(["status": .string("denied"), "host": .string(url.host ?? "")])
+      guard (try? await BrowserAgentDOM.frameURL(tab, handle: handle)) == frameURL else {
+        return .object(["status": .string("unavailable"), "message": .string("嵌入页面已变化。")])
       }
-      tab.agentNavigationHost = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
-      defer { tab.agentNavigationHost = nil }
+      if browserPermissionPreferences.decision(for: url) == .block
+        || browserPermissionPreferences.decision(for: frameURL) == .block {
+        return .object(["status": .string("denied"), "host": .string(frameURL.host ?? "")])
+      }
+      tab.agentNavigationHost = mainHost
+      tab.agentAllowedFrameHosts = Set([mainHost, frameHost].compactMap { $0 })
+      defer { tab.agentNavigationHost = nil; tab.agentAllowedFrameHosts = nil }
       try await BrowserAgentDOM.perform(tab, action: action, handle: handle, text: text)
       try? await Task.sleep(for: .milliseconds(200))
       for _ in 0..<200 where tab.loading {

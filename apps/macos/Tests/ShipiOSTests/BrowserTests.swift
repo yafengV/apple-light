@@ -219,6 +219,95 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(capped["truncated"].boolean, true)
     XCTAssertLessThan(try JSONEncoder().encode(capped).count, 60_000)
   }
+  @MainActor func testCodexBrowserAgentInspectsAndFillsSameSiteFrame() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-frame-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"])]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/frame", title: "Frames")
+    try await eventually("Frame did not register") { tab.agentFrames.values.contains { !$0.isMainFrame } }
+    store.library.browserPermissions.defaultDecision = .allow
+    let inspected = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    XCTAssertEqual(inspected["status"].text, "ok")
+    let input = try XCTUnwrap(inspected["elements"].items.first { $0["label"].text == "Frame input" })
+    let handle = try XCTUnwrap(input["handle"].text)
+    XCTAssertEqual(handle.split(separator: ":").count, 3)
+    XCTAssertEqual(input["frame_url"].text, base + "/frame-form")
+    let filled = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: handle, text: "inside frame")
+    XCTAssertEqual(filled["status"].text, "ok")
+    let value = try await tab.view.evaluateJavaScript(
+      "document.querySelector('iframe').contentDocument.getElementById('frame-input').value") as? String
+    XCTAssertEqual(value, "inside frame")
+    let oldFrameIDs = Set(tab.agentFrames.keys)
+    _ = try await tab.view.evaluateJavaScript(
+      "document.querySelector('iframe').src = '/frame-form?reloaded=1'; undefined")
+    try await eventually("Frame navigation did not replace its Agent token") {
+      !Set(tab.agentFrames.keys).subtracting(oldFrameIDs).isEmpty
+    }
+    let changed = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: handle, text: "stale frame")
+    XCTAssertEqual(changed["status"].text, "error")
+    try await load(tab, "/one", title: "One")
+    let stale = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: handle, text: "stale")
+    XCTAssertEqual(stale["status"].text, "error")
+  }
+  @MainActor func testCodexBrowserAgentRequiresSeparateCrossSiteFramePermission() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-cross-frame-\(UUID())")
+    let downloads = root.appendingPathComponent("Downloads")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    XCTAssertTrue(store.setBrowserDownloadFolder(downloads))
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"])]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/frame-cross", title: "Frames")
+    try await eventually("Cross-site frame did not register") { tab.agentFrames.values.contains { !$0.isMainFrame } }
+    store.library.browserPermissions.defaultDecision = .block
+    XCTAssertTrue(store.setBrowserSiteAccess("127.0.0.1", decision: .allow))
+    let blocked = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    XCTAssertEqual(blocked["status"].text, "ok")
+    XCTAssertFalse(blocked["elements"].items.contains { $0["label"].text == "Frame input" })
+    XCTAssertTrue(store.setBrowserSiteAccess("localhost", decision: .allow))
+    let allowed = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let input = try XCTUnwrap(allowed["elements"].items.first { $0["label"].text == "Frame input" })
+    let handle = try XCTUnwrap(input["handle"].text)
+    let linkHandle = try XCTUnwrap(allowed["elements"].items.first {
+      $0["label"].text == "Frame download"
+    }?["handle"].text)
+    XCTAssertTrue(store.setBrowserSiteAccess("localhost", decision: .block))
+    let revoked = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: handle, text: "forbidden")
+    XCTAssertEqual(revoked["status"].text, "denied")
+    XCTAssertTrue(store.setBrowserSiteAccess("localhost", decision: .allow))
+    let filled = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: handle, text: "approved")
+    XCTAssertEqual(filled["status"].text, "ok")
+    let frames = await BrowserAgentDOM.availableFrames(tab)
+    let frame = try XCTUnwrap(frames.first)
+    let value = try await tab.view.callAsyncJavaScript(
+      "return document.getElementById('frame-input').value;", arguments: [:],
+      in: frame.info, contentWorld: .page) as? String
+    XCTAssertEqual(value, "approved")
+    let started = await store.codexBrowserResult(taskID: "owner", action: "download",
+      tabID: tab.id.uuidString, handle: linkHandle)
+    XCTAssertEqual(started["status"].text, "ok")
+    let downloadID = try XCTUnwrap(UUID(uuidString: started["download_id"].text ?? ""))
+    try await eventually("Cross-site frame download did not finish") {
+      store.browserDownloads.first(where: { $0.id == downloadID })?.status == .finished
+    }
+    XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("fixture.txt")),
+      "shipios browser download\n")
+  }
   @MainActor func testCodexBrowserOpenPreservesBackgroundTaskOwnershipAndRespectsBlock() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-open-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
