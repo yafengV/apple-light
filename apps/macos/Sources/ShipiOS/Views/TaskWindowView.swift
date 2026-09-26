@@ -123,6 +123,7 @@ struct TaskWindowView: View {
                 Divider()
                 TaskSummaryView(task: task, runs: taskRuns, library: store.library,
                   openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
+                  openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                   openFile: { taskSummary.dismissPopover(); previewFile = $0 },
                   openImage: { image, images in
                     taskSummary.dismissPopover()
@@ -199,6 +200,7 @@ struct TaskWindowView: View {
               set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
               TaskSummaryView(task: task, runs: taskRuns, library: store.library,
                 openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
+                openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                 openFile: { taskSummary.dismissPopover(); previewFile = $0 },
                 openImage: { image, images in
                   taskSummary.dismissPopover()
@@ -817,6 +819,17 @@ struct TaskWindowView: View {
           ContentUnavailableView("计划不可用", systemImage: "text.document",
             description: Text("此计划可能已从任务中移除。"))
         }
+      case .sources:
+        TaskSourcesView(sources: taskRuns.summarySources(in: store.library), dataRoot: store.dataRoot,
+          openExternal: { url in
+            store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+              click: WebLinkClick(event: NSApp.currentEvent),
+              openInApp: { tabs.openBrowser($0, presentation: $1) })
+          },
+          addFile: { store.chooseFiles(draft: taskID) },
+          addImage: { store.chooseImages(draft: taskID) },
+          canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
+          canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount)
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

@@ -49,6 +49,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   case browser(UUID, owner: String)
   case review(owner: String)
   case plan(String, owner: String)
+  case sources(owner: String)
   case terminal(UUID, owner: String)
 
   var id: String {
@@ -56,13 +57,14 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .browser(let id, _): "browser:\(id.uuidString)"
     case .review(let owner): "review:\(owner)"
     case .plan(let runID, _): "plan:\(runID)"
+    case .sources(let owner): "sources:\(owner)"
     case .terminal(let id, _): "terminal:\(id.uuidString)"
     }
   }
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .review(let owner), .plan(_, let owner), .terminal(_, let owner): owner
+    case .browser(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .terminal(_, let owner): owner
     }
   }
 
@@ -81,6 +83,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .browser: "globe"
     case .review: "square.stack.3d.up"
     case .plan: "text.document"
+    case .sources: "square.stack"
     case .terminal: "terminal"
     }
   }
@@ -90,6 +93,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .browser: .browser
     case .review: .review
     case .plan: .plan
+    case .sources: .sources
     case .terminal: .terminal
     }
   }
@@ -99,6 +103,7 @@ enum PinnedWorkspaceTabKind: String, Codable {
   case browser
   case review
   case plan
+  case sources
   case terminal
 }
 

@@ -189,6 +189,7 @@ struct WorkspaceView: View {
                 set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
                 TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
                   openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
+                  openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                   openFile: { taskSummary.dismissPopover(); store.preview($0) },
                   openImage: { image, images in taskSummary.dismissPopover(); store.preview(image, images: images) },
                   openExternal: { url in
@@ -313,6 +314,7 @@ struct WorkspaceView: View {
               Divider()
               TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
                 openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
+                openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                 openFile: { taskSummary.dismissPopover(); store.preview($0) },
                 openImage: { image, images in taskSummary.dismissPopover(); store.preview(image, images: images) },
                 openExternal: { url in

@@ -92,6 +92,11 @@ extension WorkspaceStore {
         taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument != nil else { return nil }
       tab = .plan(runID, owner: owner)
       workspaceTabs.append(tab)
+    case .sources:
+      guard library.tasks.contains(where: { $0.id == owner }),
+        saved.id == WorkspaceContentTab.sources(owner: owner).id else { return nil }
+      tab = .sources(owner: owner)
+      workspaceTabs.append(tab)
     case .terminal:
       guard let root = workspaceTabProject(owner: owner),
         saved.id.hasPrefix("terminal:"), let id = UUID(uuidString: String(saved.id.dropFirst(9))) else { return nil }

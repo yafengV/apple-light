@@ -65,6 +65,29 @@ import XCTest
     restored.resetProjectTabs()
     XCTAssertEqual(restored.selected(.left), tab, "A plan document survives a worktree project change")
   }
+  func testSourcesTabRemainsInDetachedTaskAndRestores() throws {
+    let (store, resources, tabs) = try fixture()
+    defer { resources.shutdown() }
+    tabs.openSources()
+    let tab = try XCTUnwrap(tabs.selected(.left))
+    XCTAssertEqual(tab, .sources(owner: "popup"))
+    XCTAssertEqual(tabs.title(tab), "来源")
+    XCTAssertEqual(tabs.layoutSnapshot.content.tabs.first?.kind, .sources)
+    XCTAssertEqual(store.selection, "main")
+    let saved = tabs.layoutSnapshot
+    tabs.close(tab.id)
+    tabs.reopen()
+    XCTAssertEqual(tabs.selected(.left), tab)
+
+    let restoredResources = TaskWindowResources()
+    defer { restoredResources.shutdown() }
+    restoredResources.prepare("popup", store: store)
+    let restored = try XCTUnwrap(restoredResources.tasks["popup"])
+    restored.restoreLayout(saved)
+    XCTAssertEqual(restored.selected(.left), tab)
+    restored.resetProjectTabs()
+    XCTAssertEqual(restored.selected(.left), tab)
+  }
   private func output(_ session: TerminalSession) -> String {
     String(decoding: session.view.getTerminal().getBufferAsData(), as: UTF8.self)
   }

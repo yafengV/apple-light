@@ -95,6 +95,20 @@ import XCTest
     XCTAssertEqual(store.library.drafts["a"], "A draft"); XCTAssertEqual(store.library.drafts["b"], "B draft")
   }
 
+  func testSourcesTabRestoresOnlyForItsTask() throws {
+    let store = try fixture()
+    let saved = SavedWorkspaceTab(id: "sources:a", kind: .sources, placement: .detached)
+    save([saved], store: store)
+    let value = route(saved.id, store: store)
+    XCTAssertEqual(store.detachedWorkspaceTabRestoration(value), .ready("a"))
+    XCTAssertEqual(store.prepareDetachedWorkspaceTab(value), value)
+    XCTAssertTrue(store.workspaceTabs.contains(.sources(owner: "a")))
+    XCTAssertEqual(store.selection, "b")
+
+    let foreign = WorkspaceTabWindowRoute(tabID: saved.id, owner: "b", dataRoot: store.dataRoot)
+    XCTAssertEqual(store.detachedWorkspaceTabRestoration(foreign), .close)
+  }
+
   func testCloseBackgroundRestoredTabReturnsToOwnerAndCannotBeRestoredAgain() throws {
     let store = try fixture(), value = route("review:a", store: store)
     save([.init(id: value.tabID, kind: .review, placement: .detached)], store: store)

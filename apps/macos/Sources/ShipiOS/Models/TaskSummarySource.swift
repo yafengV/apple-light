@@ -16,6 +16,21 @@ enum TaskSummarySource: Identifiable, Equatable {
     case .webSearch: "web-search"
     }
   }
+
+  var title: String {
+    switch self {
+    case .file(let file): file.name
+    case .image(let image): image.name
+    case .external(let source): source.title
+    case .tool(_, let name): name
+    case .webSearch: "网页搜索"
+    }
+  }
+
+  var searchableText: String {
+    if case .external(let source) = self { return source.title + " " + source.url }
+    return title
+  }
 }
 
 extension Collection where Element == AgentRun {

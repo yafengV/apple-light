@@ -7,6 +7,7 @@ struct TaskSummaryView: View {
   let runs: [AgentRun]
   let library: WorkspaceLibrary
   let openPlan: (String) -> Void
+  let openAllSources: () -> Void
   let openFile: (FileAttachment) -> Void
   let openImage: (ImageAttachment, [ImageAttachment]) -> Void
   let openExternal: (URL) -> Void
@@ -90,35 +91,13 @@ struct TaskSummaryView: View {
                 .help("添加来源")
                 .accessibilityLabel("添加来源")
               }
-              ForEach(sources) { source in
-                switch source {
-                case .file(let file):
-                  Button { openFile(file) } label: {
-                    Label(file.name, systemImage: file.isPDF ? "doc.richtext" : "doc.text")
-                      .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                  }
-                  .buttonStyle(.plain).help("预览文件：\(file.name)")
-                case .image(let image):
-                  Button { openImage(image, sourceImages) } label: {
-                    Label(image.name, systemImage: "photo")
-                      .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                  }
-                  .buttonStyle(.plain).help("预览图片：\(image.name)")
-                case .external(let source):
-                  if let url = try? BrowserAddress.url(source.url) {
-                    Button { openExternal(url) } label: {
-                      Label(source.title, systemImage: "link")
-                        .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                    }
-                    .buttonStyle(.plain).help(source.url)
-                  }
-                case .tool(_, let name):
-                  Label(name, systemImage: "puzzlepiece.extension")
-                    .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                case .webSearch:
-                  Label("网页搜索", systemImage: "globe")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+              TaskSourcesListView(sources: Array(sources.prefix(3)), images: sourceImages,
+                openFile: openFile, openImage: openImage, openExternal: openExternal)
+              if sources.count > 3 {
+                Button("查看全部 \(sources.count.formatted()) 个来源", action: openAllSources)
+                  .buttonStyle(.plain)
+                  .foregroundStyle(.tint)
+                  .accessibilityLabel("查看全部来源")
               }
             }
             .appFont(.callout)

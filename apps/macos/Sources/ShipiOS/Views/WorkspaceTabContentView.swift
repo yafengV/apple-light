@@ -20,6 +20,22 @@ struct WorkspaceTabContentView: View {
         ContentUnavailableView("计划不可用", systemImage: "text.document",
           description: Text("此计划可能已从任务中移除。"))
       }
+    case .sources(let owner):
+      if let task = store.library.tasks.first(where: { $0.id == owner }) {
+        TaskSourcesView(sources: store.taskWindowRuns(owner).summarySources(in: store.library),
+          dataRoot: store.dataRoot,
+          openExternal: { url in
+            store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+              click: WebLinkClick(event: NSApp.currentEvent))
+          },
+          addFile: { store.chooseFiles(draft: owner) },
+          addImage: { store.chooseImages(draft: owner) },
+          canAddFile: store.taskWindowFiles(owner).count < FileAttachmentStorage.maxCount,
+          canAddImage: store.taskWindowImages(owner).count < ImageAttachmentStorage.maxCount)
+      } else {
+        ContentUnavailableView("来源不可用", systemImage: "square.stack",
+          description: Text("此任务可能已移除。"))
+      }
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)

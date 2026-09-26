@@ -100,6 +100,7 @@ import Observation
     case .browser(let id, _): browser.session.tabs.first { $0.id == id }?.title ?? "浏览器"
     case .review: "审查"
     case .plan(let runID, _): planDocument?(runID)?.title ?? "计划"
+    case .sources: "来源"
     case .terminal(let id, _): panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
     }
   }
@@ -161,6 +162,11 @@ import Observation
     let tab = WorkspaceContentTab.plan(runID, owner: taskID)
     if !tabs.contains(tab) { tabs.append(tab) }
     move(tab.id, to: .left)
+  }
+  func openSources(in place: WorkspaceTabPlacement = .left) {
+    let tab = WorkspaceContentTab.sources(owner: taskID)
+    if !tabs.contains(tab) { tabs.append(tab) }
+    move(tab.id, to: place)
   }
   func newTerminal(in place: WorkspaceTabPlacement = .bottom) {
     guard place != .detached, let terminal = panels.newTerminal() else { return }
@@ -276,6 +282,7 @@ import Observation
       openingPlacement = .left
     case .review: openReview(in: state.placement, defaultScope: panels.workspace.reviewScope)
     case .plan(let runID, _): openPlan(runID: runID)
+    case .sources: openSources(in: state.placement)
     case .terminal: newTerminal(in: state.placement)
     }
   }
@@ -357,6 +364,10 @@ import Observation
         let runID = String(entry.id.dropFirst(5))
         guard planDocument?(runID) != nil else { continue }
         tab = .plan(runID, owner: taskID)
+        tabs.append(tab)
+      case .sources:
+        guard entry.id == WorkspaceContentTab.sources(owner: taskID).id else { continue }
+        tab = .sources(owner: taskID)
         tabs.append(tab)
       case .terminal:
         guard sameProject, entry.id.hasPrefix("terminal:"),

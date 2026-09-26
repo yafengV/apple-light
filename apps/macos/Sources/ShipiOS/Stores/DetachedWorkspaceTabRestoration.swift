@@ -44,6 +44,9 @@ extension WorkspaceStore {
       let runID = String(saved.id.dropFirst(5))
       guard library.tasks.first(where: { $0.id == owner })?.runIDs.contains(runID) == true,
         taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument != nil else { return .close }
+    case .sources:
+      guard saved.id == WorkspaceContentTab.sources(owner: owner).id,
+        library.tasks.contains(where: { $0.id == owner }) else { return .close }
     case .browser:
       guard saved.id.hasPrefix("browser:"), UUID(uuidString: String(saved.id.dropFirst(8))) != nil else { return .close }
     case .terminal:

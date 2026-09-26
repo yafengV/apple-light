@@ -113,6 +113,28 @@ import XCTest
     XCTAssertEqual(restored.library.pinnedContentTabs.first?.sourceTabID, id)
   }
 
+  func testSourcesTabRestoresAndPinnedOpenKeepsItsTask() async throws {
+    let original = try fixture(project: false)
+    XCTAssertTrue(original.openTaskSources())
+    let tab = try XCTUnwrap(original.activeWorkspaceContentTab)
+    XCTAssertEqual(tab, .sources(owner: "a"))
+    original.moveWorkspaceTab(tab.id, to: .right)
+    original.saveLibrary()
+
+    let restored = try restarted(original)
+    XCTAssertEqual(restored.activeRightWorkspaceContentTab, tab)
+    XCTAssertEqual(restored.workspaceTabLayoutSnapshot.tabs.first?.kind, .sources)
+    restored.pinWorkspaceTab(tab.id)
+    let pin = try XCTUnwrap(restored.library.pinnedContentTabs.first)
+    XCTAssertEqual(pin.kind, .sources)
+    restored.closeWorkspaceTab(tab.id)
+    await restored.openPinnedWorkspaceTab(pin.id)
+    XCTAssertEqual(restored.activeWorkspaceContentTab, tab)
+    XCTAssertNil(restored.materializeWorkspaceTab(
+      SavedWorkspaceTab(id: tab.id, kind: .sources, placement: .left,
+        address: nil, committedURL: nil), owner: "b"))
+  }
+
   func testShutdownCapturesBeforeResourcesAreDestroyedAndClosedTabsStayClosed() async throws {
     let original = try fixture(project: false)
     original.newBrowserTab()
