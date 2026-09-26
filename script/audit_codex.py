@@ -27,4 +27,4 @@ for key, symbols in checks.items():
     for symbol in symbols:
         if symbol not in source:
             raise SystemExit(f"Missing symbol in {key}: {symbol}")
-print(json.dumps({"revision": actual, "sourceChecks": "passed", "coreCompiled": False, "modelCalls": False}, indent=2))
+print(json.dumps({"revision": actual, "sourceChecks": "passed", "checkScope": "source-only"}, indent=2))

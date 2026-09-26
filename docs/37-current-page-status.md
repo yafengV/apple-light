@@ -10,6 +10,8 @@
 
 随后本地临时模型服务的回合已通过，收到回复与完成事件并生成隔离 rollout，见[第 188 篇](188-codex-local-model-turn.md)；产品与 UI 的事件接入仍未完成。
 
+固定 Codex Core 已作为 `shipios-codex` 适配库进入产品 Rust 工作区，见[第 189 篇](189-codex-workspace-adapter.md)；Agent RPC 和 Swift 会话仍未调用该库，页面对齐数量不变。
+
 文件搜索部分结果不再受从请求开始计算的固定 20 秒期限影响，改为按最后一次有效进展计时，见 [第 186 篇](186-file-search-idle-timeout.md)。14 项相关测试和应用构建通过；此前原生弹层超时的原因仍待桌面解锁后复核。
 
 网页编辑快捷键见 [第 182 篇](182-browser-editing-shortcuts.md)：WebKit 可编辑焦点上报后，输入框与地址栏中的 ⌘←/⌘→ 不再误触发历史导航。20 项相关回归通过；主窗口和分离网页的编辑与正文导航均已原生复验。嵌套 frame、复杂输入法与完整 Codex 配对继续待验。

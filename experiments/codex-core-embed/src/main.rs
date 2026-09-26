@@ -1,13 +1,15 @@
 use codex_core_api::{
-    AbsolutePathBuf, Arg0DispatchPaths, AskForApproval, AuthCredentialsStoreMode, AuthManager,
-    CodexAppsToolsCache, CodexHomeUserInstructionsProvider, Config, Constrained,
-    EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, NewThread,
-    PermissionProfile, Permissions, SessionSource, StartIfIdleSubmission, StartThreadOptions,
-    ThreadManager, TurnInputRequest, UserInput, arg0_dispatch_or_else, build_models_manager,
-    init_state_db, local_agent_graph_store_from_state_db, passthrough_image_store,
-    resolve_installation_id, thread_store_from_config,
+    AbsolutePathBuf, Arg0DispatchPaths, AskForApproval, AuthCredentialsStoreMode,
+    AuthKeyringBackendKind, AuthManager, CodexAppsToolsCache, CodexHomeUserInstructionsProvider,
+    Config, Constrained, EnvironmentManager, EventMsg, ExecServerRuntimePaths,
+    ExtensionRegistryBuilder, NewThread, PermissionProfile, Permissions, SessionSource,
+    StartIfIdleSubmission, StartThreadOptions, ThreadManager, TurnInputRequest, UserInput,
+    arg0_dispatch_or_else, build_models_manager, init_state_db,
+    local_agent_graph_store_from_state_db, passthrough_image_store, resolve_installation_id,
+    thread_store_from_config,
 };
 use codex_extension_api::ContextContributor;
+use codex_login::{login_with_api_key, logout};
 use serde_json::json;
 use std::sync::Arc;
 use wiremock::matchers::{method, path};
@@ -90,7 +92,7 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
         .await;
 
     config.model = None;
-    config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::File;
+    config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
     let mut provider = config.model_provider.clone();
     provider.name = "ShipiOS Mock".to_owned();
     provider.base_url = Some(format!("{}/v1", server.uri()));
@@ -98,7 +100,7 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     provider.experimental_bearer_token = None;
     provider.auth = None;
     provider.aws = None;
-    provider.requires_openai_auth = false;
+    provider.requires_openai_auth = true;
     provider.supports_websockets = false;
     provider.supports_standalone_web_search = false;
     config.model_provider_id = "shipios-mock".to_owned();
@@ -115,6 +117,13 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     config.permissions = Permissions::from_approval_and_profile(
         Constrained::allow_any(AskForApproval::Never),
         Constrained::allow_any(PermissionProfile::read_only()),
+    )?;
+    let token = "shipios-test-token";
+    login_with_api_key(
+        &shipios_home,
+        token,
+        AuthCredentialsStoreMode::Ephemeral,
+        AuthKeyringBackendKind::default(),
     )?;
     let state_db = init_state_db(&config).await;
     let auth_manager = AuthManager::shared_from_config(&config, false).await?;
@@ -193,6 +202,8 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     thread.shutdown_and_wait().await?;
     manager.remove_thread(&thread_id).await;
     assert!(rollout.is_file());
+    assert!(!shipios_home.join("auth.json").exists());
+    assert!(!std::fs::read_to_string(&rollout)?.contains(token));
     assert_eq!(std::fs::read_dir(other_home)?.count(), 1);
     let requests = server
         .received_requests()
@@ -206,10 +217,21 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
         })
         .collect();
     assert_eq!(turns.len(), 1);
-    assert!(turns[0].headers.get("authorization").is_none());
+    assert_eq!(
+        turns[0]
+            .headers
+            .get("authorization")
+            .and_then(|value| value.to_str().ok()),
+        Some("Bearer shipios-test-token")
+    );
     let body: serde_json::Value = serde_json::from_slice(&turns[0].body)?;
     assert!(body.to_string().contains("Reply with the fixture text"));
     server.verify().await;
+    assert!(logout(
+        &shipios_home,
+        AuthCredentialsStoreMode::Ephemeral,
+        AuthKeyringBackendKind::default(),
+    )?);
     println!("isolated Codex turn streamed and persisted: {thread_id}");
     Ok(())
 }

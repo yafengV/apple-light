@@ -2,9 +2,9 @@
 
 ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工具：复用成熟 Coding Agent，连接代码修改、Xcode 构建、Simulator 验证、TestFlight 和 App Store 发布准备。
 
-当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。尚未链接 Codex Core，自主编码和完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
+当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。Codex Core 适配库已进入 Rust 工作区，但尚未接入 Agent RPC 和 Swift UI；自主编码和完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
 
-固定上游版本的 `codex-core-api` 已完成独立 host 编译、配置隔离与本地假服务回合 PoC；它尚未进入产品运行路径，详见 [验证记录](docs/188-codex-local-model-turn.md)。
+固定上游版本的 `codex-core-api` 已完成配置隔离与本地假服务回合验证，现有产品适配库见[验证记录](docs/189-codex-workspace-adapter.md)。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 
@@ -52,6 +52,7 @@ python3 script/smoke_ipc.py
 | `crates/shipios-core` | 显式配置、来源追踪、SQLite 运行与事件存储、实例锁 |
 | `crates/shipios-tools` | 有界项目扫描、参数化 Xcode 命令、进程组取消、日志与诊断 |
 | `crates/shipios-agent` | CLI、JSON-RPC、任务调度、状态查询与事件重放 |
+| `crates/shipios-codex` | 固定上游版本的独立配置、内存认证与线程适配；尚未接入 Agent RPC |
 | `apps/macos` | SwiftUI/AppKit 原生工作台、Agent 生命周期、Swift 测试 |
 | `clients/swift` | 可运行的 Foundation IPC 客户端探针 |
 | `fixtures/HelloShipiOS` | 无外部依赖的 iOS 构建 fixture |

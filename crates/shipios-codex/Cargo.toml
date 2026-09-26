@@ -1,0 +1,19 @@
+[package]
+name = "shipios-codex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+codex-core-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-extension-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-login = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+tokio.workspace = true
+url = "2"
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+wiremock = "0.6"
