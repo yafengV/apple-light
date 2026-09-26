@@ -780,6 +780,43 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(resetWire["effort"].text, "medium")
     await store.shutdown()
   }
+  @MainActor func testCodexServiceChangeReconnectsExistingTaskWithHistory() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-service-switch original")
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: first.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first.id }?.result?["response"].text,
+      "/v1/responses|history")
+    let taskID = try XCTUnwrap(store.library.task(containing: first.id)?.id)
+
+    var switched = config
+    switched.baseURL = config.baseURL.replacingOccurrences(of: "/v1", with: "/alt/v1")
+    try store.saveModelConfiguration(switched)
+    await store.startChat("codex-service-switch switched", taskID: taskID)
+    let second = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: second.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == second.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "/alt/v1/responses|history")
+    XCTAssertEqual(store.library.task(containing: second.id)?.id, taskID)
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

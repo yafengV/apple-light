@@ -577,9 +577,14 @@ async fn run_thread(
                     let _ = reply.send(live.interrupt_turn().await);
                 }
                 Some(Command::Stop(reply)) => {
-                    let result = live.interrupt_turn().await;
+                    let _ = live.interrupt_turn().await;
                     let shutdown = session.take().expect("live session").shutdown().await;
-                    let _ = reply.send(result.and(shutdown));
+                    let mut active = sessions.lock().await;
+                    if active.get(&task_key).is_some_and(|handle| handle.thread_id == thread_id) {
+                        active.remove(&task_key);
+                    }
+                    drop(active);
+                    let _ = reply.send(shutdown);
                     break;
                 }
                 None => break,

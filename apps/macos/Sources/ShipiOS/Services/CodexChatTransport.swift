@@ -1,12 +1,25 @@
 import Foundation
+import CryptoKit
 
 /// Routes one live Codex turn per task through the project Agent's private stdio channel.
 @MainActor
 final class CodexChatTransport {
+  private struct ServiceIdentity: Equatable {
+    let endpoint: String
+    let keyDigest: Data?
+
+    init(config: ModelConfiguration, key: String?) {
+      endpoint = config.credentialAccount
+      keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
+    }
+  }
+
   private let client: AgentClient
   private let dataRoot: URL
   private var generation = UUID()
   private var activeThreads: Set<String> = []
+  private var serviceIdentities: [String: ServiceIdentity] = [:]
+  private var preparingTasks: Set<String> = []
   private var streams: [String: AsyncThrowingStream<JSONValue, Error>.Continuation] = [:]
   private var activeTurnIDs: [String: String] = [:]
 
@@ -25,17 +38,26 @@ final class CodexChatTransport {
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
-    guard streams[taskID] == nil else {
+    guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
+    defer { preparingTasks.remove(taskID) }
     guard continuationText.utf8.count <= 48_000 else {
       throw AgentFailure(message: "本轮文字超过 Codex 通道的 48 KiB 上限，请缩短后重试。")
+    }
+    let token = generation
+    let service = ServiceIdentity(config: config, key: key)
+    if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
+      _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
+      guard generation == token else { throw CancellationError() }
+      activeThreads.remove(taskID)
+      activeTurnIDs.removeValue(forKey: taskID)
+      serviceIdentities.removeValue(forKey: taskID)
     }
     let staged = try fileAppendix.map(stageText)
     defer { if let staged { try? FileManager.default.removeItem(at: staged.url) } }
     let (stream, continuation) = AsyncThrowingStream<JSONValue, Error>.makeStream()
     streams[taskID] = continuation
-    let token = generation
     do {
       let firstTurn = !activeThreads.contains(taskID)
       var sendFullContext = firstTurn
@@ -49,6 +71,7 @@ final class CodexChatTransport {
         guard generation == token else { throw CancellationError() }
         sendFullContext = thread["resumed"].boolean != true
         activeThreads.insert(taskID)
+        serviceIdentities[taskID] = service
       }
       let wireImages: [JSONValue] = images.map { image in .object([
         "id": .string(image.id.uuidString),
@@ -123,6 +146,7 @@ final class CodexChatTransport {
     guard activeThreads.contains(taskID) else { return }
     _ = try? await client.request("codex.thread.stop", ["taskId": .string(taskID)])
     activeThreads.remove(taskID)
+    serviceIdentities.removeValue(forKey: taskID)
     activeTurnIDs.removeValue(forKey: taskID)
     streams.removeValue(forKey: taskID)?.finish()
   }
@@ -182,6 +206,7 @@ final class CodexChatTransport {
   func reset(_ error: Error) {
     generation = UUID()
     activeThreads.removeAll()
+    serviceIdentities.removeAll()
     activeTurnIDs.removeAll()
     let pending = Array(streams.values)
     streams.removeAll()

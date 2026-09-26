@@ -22,7 +22,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({'data': [{'id': 'fixture-model'}]}).encode())
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        if self.path == '/v1/responses':
+        if self.path in ('/v1/responses', '/alt/v1/responses'):
             request_text = json.dumps(body)
             if 'codex-terminal-error' in request_text:
                 self.send_response(400)
@@ -142,6 +142,12 @@ class Handler(BaseHTTPRequestHandler):
                         'model': body.get('model'),
                         'effort': body.get('reasoning', {}).get('effort'),
                     })}],
+                }
+            elif 'codex-service-switch' in request_text:
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'service-selection',
+                    'content': [{'type': 'output_text', 'text': self.path +
+                        ('|history' if 'codex-service-switch original' in request_text else '|new')}],
                 }
             else:
                 item = {
