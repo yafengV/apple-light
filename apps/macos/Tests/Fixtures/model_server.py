@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 class Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.0'
     retry_attempts = 0
+    review_patch_attempts = 0
     def log_message(self, *args):
         pass
     def do_GET(self):
@@ -59,6 +60,13 @@ class Handler(BaseHTTPRequestHandler):
                         {'step': 'Verify behavior', 'status': 'completed'},
                     ]}),
                 }
+            elif 'codex-review-readonly' in request_text and Handler.review_patch_attempts == 0:
+                Handler.review_patch_attempts += 1
+                item = {
+                    'type': 'custom_tool_call', 'call_id': 'review-write-attempt',
+                    'name': 'apply_patch',
+                    'input': '*** Begin Patch\n*** Add File: review-write-proof.txt\n+must-not-write\n*** End Patch',
+                }
             elif 'codex-question' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-question-call',
@@ -90,6 +98,7 @@ class Handler(BaseHTTPRequestHandler):
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',
                     'content': [{'type': 'output_text', 'text':
                         'Steered fixture reply' if 'steered-inflight-proof' in request_text
+                        else 'Review fixture reply' if '<git_diff>' in request_text
                         else 'Codex fixture reply'}],
                 }
             events = [

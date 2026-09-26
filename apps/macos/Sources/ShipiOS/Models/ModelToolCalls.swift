@@ -140,6 +140,11 @@ enum CodexCommandTimeline {
     var execution = index.map { executions[$0] } ?? MCPToolExecution(
       callID: callID, serverID: serverID, serverName: "Codex", toolName: toolName,
       arguments: arguments, status: .running)
+    if execution.status == .denied,
+      (type == "exec_command_end" && event["status"].text == "declined"
+        || type == "patch_apply_end" && event["success"].boolean != true) {
+      return true
+    }
     if type == "exec_approval_request" || type == "apply_patch_approval_request" {
       execution.status = .awaitingApproval
     } else if type == "exec_command_begin" || type == "patch_apply_begin" {

@@ -58,6 +58,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         base_url: format!("{}/v1", server.uri()),
         model: "gpt-5.2".to_owned(),
         api_key: Some(token.to_owned()),
+        read_only: false,
         runtime_paths: runtime_paths.clone(),
     })
     .await?;
@@ -67,6 +68,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         base_url: format!("{}/v1", server.uri()),
         model: "gpt-5.2".to_owned(),
         api_key: None,
+        read_only: false,
         runtime_paths,
     })
     .await;

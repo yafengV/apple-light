@@ -16,6 +16,8 @@ pub struct StartThread {
     pub model: String,
     pub api_key: Option<String>,
     pub initial_context_bytes: Option<usize>,
+    #[serde(default)]
+    pub read_only: bool,
 }
 
 #[derive(Serialize)]
@@ -190,6 +192,7 @@ impl CodexBridge {
             base_url: request.base_url,
             model: request.model,
             api_key: request.api_key,
+            read_only: request.read_only,
             runtime_paths,
         };
         let resumed = previous.is_some();
@@ -650,6 +653,7 @@ mod tests {
                     model: "gpt-5.2".to_owned(),
                     api_key: None,
                     initial_context_bytes: Some(48_001),
+                    read_only: false,
                 })
                 .await
                 .is_err()
@@ -661,6 +665,7 @@ mod tests {
                 model: "gpt-5.2".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_000),
+                read_only: false,
             })
             .await?;
         assert_eq!(thread.task_id, task_id);
@@ -701,6 +706,7 @@ mod tests {
                 model: "gpt-5.2".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_001),
+                read_only: false,
             })
             .await?;
         assert!(resumed.resumed);

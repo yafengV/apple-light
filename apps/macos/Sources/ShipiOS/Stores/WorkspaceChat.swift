@@ -101,8 +101,8 @@ extension WorkspaceStore {
       let taskID = requestedTaskID
       let taskProject = taskID.flatMap { id in library.tasks.first(where: { $0.id == id })?.project }
       if usesCodex {
-        guard mode == .standard, review == nil else {
-          throw AgentFailure(message: "Codex Responses 当前支持普通文字、图片及文本/PDF 附件；代码审查和任务模式仍待接入。")
+        guard mode == .standard else {
+          throw AgentFailure(message: "Codex Responses 当前支持普通会话与代码审查；计划和目标模式仍待接入。")
         }
         guard connected, let project, (taskProject ?? currentProjectKey) == project.path else {
           throw AgentFailure(message: "Codex Responses 当前仅支持已连接项目中的任务，请先打开对应项目。")
@@ -141,7 +141,9 @@ extension WorkspaceStore {
       messages.append(contentsOf: library.chatContext(taskID: taskID))
       messages.append(
         ChatMessage(
-          role: "user", content: review?.snapshot.modelPrompt ?? prompt,
+          role: "user", content: review.map {
+            usesCodex ? "\($0.snapshot.requestTitle)。审查此消息附带的只读 Git 差异。" : $0.snapshot.modelPrompt
+          } ?? prompt,
           images: images, files: files))
       let now = Date().timeIntervalSince1970 * 1000
       var request: [String: JSONValue] = [
@@ -229,8 +231,9 @@ extension WorkspaceStore {
         do {
           let usage: ModelTokenUsage?
           if usesCodex {
-            usage = try await streamCodexChat(runID: run.id, taskID: taskID ?? run.id,
-              config: config, key: key, messages: messages)
+            usage = try await streamCodexChat(runID: run.id,
+              taskID: review == nil ? (taskID ?? run.id) : run.id,
+              config: config, key: key, messages: messages, review: review)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
               messages: messages, bindings: tools)
@@ -279,7 +282,8 @@ extension WorkspaceStore {
     }
   }
   private func streamCodexChat(
-    runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage]
+    runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage],
+    review: ModelCodeReviewContext?
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
@@ -289,6 +293,7 @@ extension WorkspaceStore {
     let fileAppendix = files.isEmpty ? nil : try FileAttachmentStorage.content(
       ChatMessage(role: "user", content: "", files: files), root: dataRoot,
       total: &fileTextBytes)
+    let reviewAppendix = review.map { "\n\n\($0.snapshot.modelPrompt)" }
     guard let continuationText = messages.last?.content,
       !continuationText.isEmpty || !images.isEmpty || !files.isEmpty else {
       throw AgentFailure(message: "Codex 回合缺少输入。")
@@ -296,8 +301,9 @@ extension WorkspaceStore {
     let stream = try await codexTransport.startTurn(
       taskID: taskID, config: config, key: key,
       initialText: initialText, continuationText: continuationText, images: images,
-      fileAppendix: fileAppendix)
-    return try await withTaskCancellationHandler {
+      fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil)
+    do {
+      let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""
       var completed = false
       do {
@@ -313,7 +319,8 @@ extension WorkspaceStore {
               rendered = ""
             }
           case "exec_approval_request", "apply_patch_approval_request":
-            try await resolveCodexApproval(runID: runID, taskID: taskID, event: event)
+            try await resolveCodexApproval(runID: runID, taskID: taskID, event: event,
+              readOnlyReview: review != nil)
           case "request_user_input":
             try await handleCodexQuestion(runID: runID, taskID: taskID, event: event)
           case "plan_update":
@@ -370,8 +377,14 @@ extension WorkspaceStore {
         await codexTransport.interrupt(taskID: taskID)
         throw error
       }
-    } onCancel: {
-      Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
+      } onCancel: {
+        Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
+      }
+      if review != nil { await codexTransport.stop(taskID: taskID) }
+      return usage
+    } catch {
+      if review != nil { await codexTransport.stop(taskID: taskID) }
+      throw error
     }
   }
   private func recordCodexRuntimeStatus(runID: String, message: String?) {
@@ -415,15 +428,17 @@ extension WorkspaceStore {
       responseItems: items, codexPlan: plan)
     saveLibrary()
   }
-  private func resolveCodexApproval(runID: String, taskID: String, event: JSONValue) async throws {
+  private func resolveCodexApproval(runID: String, taskID: String, event: JSONValue,
+    readOnlyReview: Bool = false) async throws {
     guard let callID = event["call_id"].text,
       let execution = recordCodexCommand(runID: runID, event: event) else {
       throw AgentFailure(message: "Codex 审批事件缺少工具标识。")
     }
     let patch = event["type"].text == "apply_patch_approval_request"
     let choices = patch ? (once: true, task: false) : CodexCommandTimeline.approvalChoices(event)
-    let decision = await requestMCPApproval(execution, runID: runID,
-      allowsOnce: choices.once, allowsTask: choices.task)
+    let decision: MCPApprovalDecision = readOnlyReview ? .deny
+      : await requestMCPApproval(execution, runID: runID,
+        allowsOnce: choices.once, allowsTask: choices.task)
     try Task.checkCancellation()
     let allowed = decision != .deny
     let id = patch ? callID : (event["approval_id"].text ?? callID)
@@ -433,6 +448,11 @@ extension WorkspaceStore {
       var executions = current.toolExecutions
       CodexCommandTimeline.resolve(callID: callID, patch: patch, allowed: allowed,
         executions: &executions)
+      if readOnlyReview, let index = executions.firstIndex(where: {
+        $0.callID == callID && $0.serverID == CodexCommandTimeline.serverID
+      }) {
+        executions[index].output = "代码审查为只读，已拒绝写入操作。"
+      }
       replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
         toolExecutions: executions)
       saveLibrary()

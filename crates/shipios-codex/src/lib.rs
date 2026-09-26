@@ -29,6 +29,7 @@ pub struct SessionOptions {
     pub base_url: String,
     pub model: String,
     pub api_key: Option<String>,
+    pub read_only: bool,
     pub runtime_paths: ExecServerRuntimePaths,
 }
 
@@ -140,7 +141,11 @@ impl CodexSession {
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = Permissions::from_approval_and_profile(
             Constrained::allow_any(AskForApproval::OnRequest),
-            Constrained::allow_any(PermissionProfile::workspace_write()),
+            Constrained::allow_any(if options.read_only {
+                PermissionProfile::read_only()
+            } else {
+                PermissionProfile::workspace_write()
+            }),
         )?;
 
         let mut provider = config.model_provider.clone();

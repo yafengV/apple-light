@@ -204,6 +204,14 @@ final class DesktopFeaturesTests: XCTestCase {
       executions: &executions)
     XCTAssertEqual(executions[1].status, .denied)
     XCTAssertEqual(items.count, 2)
+    let declined: JSONValue = .object([
+      "type": .string("exec_command_end"), "call_id": .string("exec-2"),
+      "status": .string("declined"), "exit_code": .number(1),
+      "aggregated_output": .string("Core declined the command"),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(declined, executions: &executions, items: &items))
+    XCTAssertEqual(executions[1].status, .denied)
+    XCTAssertEqual(executions[1].output, "用户拒绝了本次操作。")
   }
 
   func testCommandWarningsDoNotCorruptStructuredOutput() async throws {
@@ -1800,6 +1808,88 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(messages.last?.content.contains("<git_diff>") == true)
     XCTAssertTrue(messages.last?.content.contains("+let value = 3") == true)
     XCTAssertFalse(store.showingReviewMode)
+    await store.shutdown()
+  }
+
+  @MainActor func testCodexReviewUsesReadOnlyTurnAndStagesLargeDiff() async throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repositoryRoot.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("Project")
+    try await makeReviewRepository(project)
+    let file = project.appendingPathComponent("Review.swift")
+    try (try String(contentsOf: file, encoding: .utf8) + "\n// codex-review-readonly "
+      + String(repeating: "x", count: 60_000) + "\n").write(to: file, atomically: true, encoding: .utf8)
+    let snapshot = try await GitReviewService.modelReviewSnapshot(scope: .uncommitted, at: project)
+    XCTAssertGreaterThan(snapshot.diff.utf8.count, 48_000)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    store.library.gitPreferences.reviewDelivery = .detached
+    store.showingReviewMode = true
+    store.reviewModeProject = project.path
+    await store.startCodeReview(.uncommitted)
+    let run = try XCTUnwrap(store.library.chatRuns.last, store.reviewModeError ?? store.error ?? "")
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Review fixture reply")
+    XCTAssertEqual(finished.request["conversation_kind"].text, "review")
+    XCTAssertEqual(finished.request["api_protocol"].text, ModelAPIProtocol.codexResponses.rawValue)
+    XCTAssertEqual(store.selectedTask?.id, store.library.task(containing: run.id)?.id)
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      project.appendingPathComponent("review-write-proof.txt").path))
+    XCTAssertTrue(finished.toolExecutions.contains {
+      $0.toolName == "补丁" && $0.status == .denied
+        && $0.output == "代码审查为只读，已拒绝写入操作。"
+    }, "\(finished.toolExecutions)")
+    XCTAssertFalse(store.showingReviewMode)
+    await store.shutdown()
+  }
+
+  @MainActor func testCodexInlineReviewKeepsTaskAndAllowsNormalFollowup() async throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repositoryRoot.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("Project")
+    try await makeReviewRepository(project)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    let taskID = seedReviewTask(store, project: project.path)
+    store.library.drafts[taskID] = "保留当前草稿"
+    store.library.gitPreferences.reviewDelivery = .inline
+    store.showingReviewMode = true
+    store.reviewModeProject = project.path
+    await store.startCodeReview(.uncommitted)
+    let review = try XCTUnwrap(store.library.chatRuns.last, store.reviewModeError ?? store.error ?? "")
+    await store.modelTask(runID: review.id)?.value
+    XCTAssertEqual(store.library.task(containing: review.id)?.id, taskID)
+    XCTAssertEqual(store.library.drafts[taskID], "保留当前草稿")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == review.id }?.result?["response"].text,
+      "Review fixture reply")
+    await store.startChat("normal-followup", taskID: taskID)
+    let followup = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: followup.id)?.value
+    XCTAssertEqual(store.library.task(containing: followup.id)?.id, taskID)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == followup.id }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == followup.id }?.result?["response"].text,
+      "Codex fixture reply")
     await store.shutdown()
   }
 

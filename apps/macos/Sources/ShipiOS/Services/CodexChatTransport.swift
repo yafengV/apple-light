@@ -22,7 +22,7 @@ final class CodexChatTransport {
   func startTurn(
     taskID: String, config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
-    fileAppendix: String?
+    fileAppendix: String?, readOnly: Bool = false
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -43,6 +43,7 @@ final class CodexChatTransport {
           "taskId": .string(taskID), "baseUrl": .string(config.baseURL),
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
           "initialContextBytes": .number(Double(initialText.utf8.count)),
+          "readOnly": .bool(readOnly),
         ])
         guard generation == token else { throw CancellationError() }
         sendFullContext = thread["resumed"].boolean != true
@@ -111,6 +112,14 @@ final class CodexChatTransport {
   func interrupt(taskID: String) async {
     guard activeThreads.contains(taskID) else { return }
     _ = try? await client.request("codex.turn.interrupt", ["taskId": .string(taskID)])
+  }
+
+  func stop(taskID: String) async {
+    guard activeThreads.contains(taskID) else { return }
+    _ = try? await client.request("codex.thread.stop", ["taskId": .string(taskID)])
+    activeThreads.remove(taskID)
+    activeTurnIDs.removeValue(forKey: taskID)
+    streams.removeValue(forKey: taskID)?.finish()
   }
 
   func approve(taskID: String, id: String, turnID: String?, patch: Bool,
