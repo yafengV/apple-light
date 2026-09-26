@@ -25,6 +25,9 @@ def result(message, path="/"):
                 "description": json.dumps({"EXPLICIT": os.getenv("EXPLICIT"),
                                             "PASSTHROUGH": os.getenv("PASSTHROUGH"),
                                             "CODEX_HOME": os.getenv("CODEX_HOME")})}
+        if os.getenv("SHIPIOS_CODEX_PROBE"):
+            tool["annotations"] = {"readOnlyHint": True, "openWorldHint": False,
+                                   "destructiveHint": False}
         page = {"tools": [tool]}
         if not second:
             page["nextCursor"] = "second"

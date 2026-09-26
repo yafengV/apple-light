@@ -817,6 +817,168 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(store.library.task(containing: second.id)?.id, taskID)
     await store.shutdown()
   }
+  @MainActor func testCodexResponsesUsesConfiguredMCPTool() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let callLog = project.appendingPathComponent("mcp-calls.jsonl")
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"
+    mcp.command = "/usr/bin/python3"
+    mcp.arguments = [fixture.path, "stdio"]
+    mcp.environment = [MCPKeyValue(key: "CALL_LOG", value: callLog.path),
+      MCPKeyValue(key: "SHIPIOS_CODEX_PROBE", value: "1")]
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-mcp-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    let deadline = Date().addingTimeInterval(15)
+    while Date() < deadline {
+      if store.library.chatRuns.first(where: { $0.id == run.id })?.status != "running" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "MCP fixture reply")
+    let execution = try XCTUnwrap(finished.toolExecutions.first {
+      $0.serverName == "shipios_fixture" && $0.toolName == "first"
+    })
+    XCTAssertEqual(execution.status, .succeeded)
+    XCTAssertEqual(execution.serverID, mcp.id)
+    XCTAssertTrue(execution.output?.contains("TOOL_OK") == true,
+      execution.output ?? "Missing MCP output")
+    XCTAssertTrue(finished.responseItems?.contains(.tool(execution.id)) == true)
+    let calls = try String(contentsOf: callLog, encoding: .utf8)
+    XCTAssertTrue(calls.contains("\"name\": \"first\""), calls)
+
+    XCTAssertTrue(store.setMCPServerEnabled(false, id: mcp.id))
+    let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
+    await store.startChat("codex-mcp-disabled", taskID: taskID)
+    let disabledRun = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: disabledRun.id)?.value
+    let disabled = try XCTUnwrap(store.library.chatRuns.first { $0.id == disabledRun.id })
+    XCTAssertEqual(disabled.status, "succeeded", disabled.result?["message"].text ?? "")
+    XCTAssertEqual(disabled.result?["response"].text, "MCP disabled reply")
+    await store.shutdown()
+  }
+  @MainActor func testCodexResponsesMCPApprovalResumesToolCall() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let callLog = project.appendingPathComponent("mcp-calls.jsonl")
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"
+    mcp.command = "/usr/bin/python3"
+    mcp.arguments = [fixture.path, "stdio"]
+    mcp.environment = [MCPKeyValue(key: "CALL_LOG", value: callLog.path)]
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-mcp-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    let deadline = Date().addingTimeInterval(15)
+    var request: CodexQuestionRequest?
+    while Date() < deadline {
+      request = store.library.chatRuns.first(where: { $0.id == run.id })?.codexQuestions.last
+      if request != nil { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let approval = try XCTUnwrap(request, "Codex MCP approval did not reach the task timeline")
+    let question = try XCTUnwrap(approval.questions.first)
+    XCTAssertTrue(question.options?.contains(where: { $0.label == "Allow" }) == true)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: callLog.path),
+      "MCP tool ran before approval")
+    await store.answerCodexQuestion(approval.id, answers: [question.id: ["Allow"]])
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "MCP fixture reply")
+    XCTAssertEqual(finished.toolExecutions.first(where: { $0.toolName == "first" })?.status, .succeeded)
+    XCTAssertTrue(try String(contentsOf: callLog, encoding: .utf8).contains("\"name\": \"first\""))
+    await store.shutdown()
+  }
+  @MainActor func testCodexResponsesUsesHTTPMCPTool() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let callLog = project.appendingPathComponent("mcp-calls.jsonl")
+    let mcpProcess = Process()
+    mcpProcess.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    mcpProcess.arguments = ["-u", fixture.path, "http"]
+    mcpProcess.environment = ProcessInfo.processInfo.environment.merging([
+      "CALL_LOG": callLog.path, "SHIPIOS_CODEX_PROBE": "1"
+    ]) { _, new in new }
+    let output = Pipe()
+    mcpProcess.standardOutput = output
+    mcpProcess.standardError = FileHandle.nullDevice
+    try mcpProcess.run()
+    defer {
+      if mcpProcess.isRunning { mcpProcess.terminate(); mcpProcess.waitUntilExit() }
+    }
+    let port = String(decoding: output.fileHandleForReading.availableData, as: UTF8.self)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    XCTAssertNotNil(Int(port), "HTTP MCP fixture failed to start")
+
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"
+    mcp.transport = .streamableHTTP
+    mcp.url = "http://127.0.0.1:\(port)/mcp"
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-mcp-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "MCP fixture reply")
+    XCTAssertEqual(finished.toolExecutions.first(where: { $0.toolName == "first" })?.status, .succeeded)
+    XCTAssertTrue(try String(contentsOf: callLog, encoding: .utf8).contains("\"name\": \"first\""))
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

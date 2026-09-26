@@ -1,6 +1,7 @@
 //! Host adapter for the pinned Codex Core runtime.
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
+use codex_config::{McpServerConfig, RawMcpServerConfig};
 use codex_core_api::{
     AbsolutePathBuf, AskForApproval, AuthCredentialsStoreMode, AuthKeyringBackendKind, AuthManager,
     CodexAppsToolsCache, CodexHomeUserInstructionsProvider, CodexThread, Config, Constrained,
@@ -19,6 +20,8 @@ use codex_protocol::openai_models::ReasoningEffort;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::request_user_input::{RequestUserInputAnswer, RequestUserInputResponse};
+use serde::Deserialize;
+use serde_json::json;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
@@ -35,7 +38,91 @@ pub struct SessionOptions {
     pub model: String,
     pub api_key: Option<String>,
     pub read_only: bool,
+    pub mcp_servers: Vec<ShipMcpServer>,
     pub runtime_paths: ExecServerRuntimePaths,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShipMcpServer {
+    pub name: String,
+    pub enabled: bool,
+    pub transport: ShipMcpTransport,
+    pub command: String,
+    pub arguments: Vec<String>,
+    pub environment: Vec<ShipMcpKeyValue>,
+    pub environment_passthrough: Vec<String>,
+    pub working_directory: String,
+    pub url: String,
+    pub bearer_token_environment_variable: String,
+    pub headers: Vec<ShipMcpKeyValue>,
+    pub environment_headers: Vec<ShipMcpKeyValue>,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum ShipMcpTransport {
+    #[serde(rename = "stdio")]
+    Stdio,
+    #[serde(rename = "streamableHTTP")]
+    StreamableHttp,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ShipMcpKeyValue {
+    pub key: String,
+    pub value: String,
+}
+
+fn mcp_key_values(entries: Vec<ShipMcpKeyValue>) -> Result<HashMap<String, String>> {
+    let count = entries.len();
+    let values = entries
+        .into_iter()
+        .map(|entry| (entry.key, entry.value))
+        .collect::<HashMap<_, _>>();
+    ensure!(values.len() == count, "duplicate MCP variable or header");
+    Ok(values)
+}
+
+fn configured_mcp_servers(servers: Vec<ShipMcpServer>) -> Result<HashMap<String, McpServerConfig>> {
+    ensure!(servers.len() <= 100, "too many MCP servers");
+    let mut configured = HashMap::new();
+    let mut names = HashSet::new();
+    for server in servers.into_iter().filter(|server| server.enabled) {
+        ensure!(
+            !server.name.is_empty()
+                && server.name.len() <= 64
+                && server.name.as_bytes()[0].is_ascii_alphanumeric()
+                && server
+                    .name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte)),
+            "invalid MCP server name"
+        );
+        ensure!(
+            names.insert(server.name.to_ascii_lowercase()),
+            "duplicate MCP server name"
+        );
+        let raw = match server.transport {
+            ShipMcpTransport::Stdio => json!({
+                "command": server.command,
+                "args": server.arguments,
+                "env": mcp_key_values(server.environment)?,
+                "env_vars": server.environment_passthrough,
+                "cwd": if server.working_directory.is_empty() { None } else { Some(server.working_directory) },
+            }),
+            ShipMcpTransport::StreamableHttp => json!({
+                "url": server.url,
+                "bearer_token_env_var": if server.bearer_token_environment_variable.is_empty() { None } else { Some(server.bearer_token_environment_variable) },
+                "http_headers": mcp_key_values(server.headers)?,
+                "env_http_headers": mcp_key_values(server.environment_headers)?,
+            }),
+        };
+        let raw: RawMcpServerConfig =
+            serde_json::from_value(raw).context("parse ShipiOS MCP server")?;
+        let config = McpServerConfig::try_from(raw).map_err(|error| anyhow!(error))?;
+        configured.insert(server.name, config);
+    }
+    Ok(configured)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -148,10 +235,14 @@ impl CodexSession {
         config.workspace_roots = vec![config.cwd.clone()];
         config.workspace_roots_explicit = true;
         config.model = Some(options.model.clone());
+        config.mcp_servers = Constrained::allow_any(configured_mcp_servers(options.mcp_servers)?);
         config.update_plan_enabled = true;
         config
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;
+        // ShipiOS currently answers Codex's structured questions through the
+        // task timeline; route MCP approvals through that supported channel.
+        config.features.disable(Feature::ToolCallMcpElicitation)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = Permissions::from_approval_and_profile(
             Constrained::allow_any(AskForApproval::OnRequest),

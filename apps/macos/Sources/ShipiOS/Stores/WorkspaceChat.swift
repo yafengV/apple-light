@@ -308,7 +308,8 @@ extension WorkspaceStore {
       taskID: taskID, config: config, key: key,
       initialText: initialText, continuationText: continuationText, images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil,
-      planMode: mode == .plan, goalInstructions: goalInstructions)
+      planMode: mode == .plan, goalInstructions: goalInstructions,
+      mcpServers: mcpServers)
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""
@@ -325,6 +326,8 @@ extension WorkspaceStore {
             if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
               rendered = ""
             }
+          case "mcp_tool_call_begin", "mcp_tool_call_end":
+            recordCodexMCPCall(runID: runID, event: event)
           case "exec_approval_request", "apply_patch_approval_request":
             try await resolveCodexApproval(runID: runID, taskID: taskID, event: event,
               readOnlyReason: review != nil ? "代码审查为只读，已拒绝写入操作。"
@@ -426,6 +429,44 @@ extension WorkspaceStore {
       $0.serverID == CodexCommandTimeline.serverID && $0.callID == event["call_id"].text
         && $0.toolName == (patch ? "补丁" : "命令")
     }
+  }
+  private func recordCodexMCPCall(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }),
+      let callID = event["call_id"].text, !callID.isEmpty,
+      let serverName = event["invocation"]["server"].text,
+      let toolName = event["invocation"]["tool"].text else { return }
+    var executions = current.toolExecutions
+    var items = current.responseItems ?? []
+    let index = executions.firstIndex { $0.callID == callID && $0.serverName == serverName }
+    guard let serverID = index.map({ executions[$0].serverID })
+      ?? mcpServers.first(where: { $0.name == serverName })?.id else { return }
+    let arguments = event["invocation"]["arguments"]
+    var execution = index.map { executions[$0] } ?? MCPToolExecution(
+      callID: callID, serverID: serverID, serverName: serverName, toolName: toolName,
+      arguments: arguments == .null ? "{}" : String(arguments.pretty.prefix(65_536)),
+      status: .running)
+    if event["type"].text == "mcp_tool_call_end" {
+      let result = event["result"]
+      if let error = result["Err"].text {
+        execution.status = .failed
+        execution.output = String(error.prefix(65_536))
+      } else if result["Ok"] != .null {
+        let output = result["Ok"]
+        execution.status = output["isError"].boolean == true ? .failed : .succeeded
+        execution.output = String(output.pretty.prefix(65_536))
+      } else {
+        execution.status = .failed
+        execution.output = "Codex 未返回可识别的 MCP 工具结果。"
+      }
+    }
+    if let index { executions[index] = execution }
+    else {
+      executions.append(execution)
+      items.append(.tool(execution.id))
+    }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      responseItems: items, toolExecutions: executions)
+    saveLibrary()
   }
   private func recordCodexPlan(runID: String, event: JSONValue) throws {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }

@@ -149,6 +149,48 @@ class Handler(BaseHTTPRequestHandler):
                     'content': [{'type': 'output_text', 'text': self.path +
                         ('|history' if 'codex-service-switch original' in request_text else '|new')}],
                 }
+            elif 'codex-mcp-disabled' in request_text:
+                search = next((entry for entry in body.get('tools', [])
+                    if isinstance(entry, dict) and entry.get('type') == 'tool_search'), None)
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'mcp-disabled',
+                    'content': [{'type': 'output_text', 'text':
+                        'MCP disabled reply' if search is None
+                        or 'shipios_fixture' not in search.get('description', '')
+                        else 'MCP still advertised'}],
+                }
+            elif 'codex-mcp-probe' in request_text:
+                search_output = next((entry for entry in body.get('input', [])
+                    if isinstance(entry, dict) and entry.get('type') == 'tool_search_output'
+                    and entry.get('call_id') == 'fixture-mcp-search'), None)
+                namespace = next((entry.get('name') for entry in (search_output or {}).get('tools', [])
+                    if isinstance(entry, dict) and entry.get('type') == 'namespace'
+                    and entry.get('name') == 'mcp__shipios_fixture'
+                    and any(tool.get('name') == 'first' for tool in entry.get('tools', []))), None)
+                call_output = next((entry.get('output', '') for entry in body.get('input', [])
+                    if isinstance(entry, dict) and entry.get('type') == 'function_call_output'
+                    and entry.get('call_id') == 'fixture-mcp-call'), '')
+                if search_output is None:
+                    item = {
+                        'type': 'tool_search_call', 'call_id': 'fixture-mcp-search',
+                        'execution': 'client',
+                        'arguments': {'query': 'shipios_fixture first MCP tool', 'limit': 8},
+                    }
+                elif namespace and 'function_call_output' not in request_text:
+                    item = {
+                        'type': 'function_call', 'call_id': 'fixture-mcp-call',
+                        'namespace': namespace, 'name': 'first', 'arguments': '{}',
+                    }
+                else:
+                    item = {
+                        'type': 'message', 'role': 'assistant', 'id': 'mcp-result',
+                        'content': [{'type': 'output_text', 'text':
+                            'MCP fixture reply' if namespace and '"name":"first"' in call_output
+                            else 'MCP tool or result missing: ' + json.dumps({
+                                'search_output': search_output,
+                                'has_result': 'function_call_output' in request_text,
+                            })}],
+                    }
             else:
                 item = {
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',

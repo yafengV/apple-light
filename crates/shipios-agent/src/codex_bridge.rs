@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 use codex_core_api::UserInput;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use shipios_codex::{ApprovalDecision, CodexSession, CodexTurnMode, SessionOptions};
+use shipios_codex::{ApprovalDecision, CodexSession, CodexTurnMode, SessionOptions, ShipMcpServer};
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
@@ -18,6 +18,8 @@ pub struct StartThread {
     pub initial_context_bytes: Option<usize>,
     #[serde(default)]
     pub read_only: bool,
+    #[serde(default)]
+    pub mcp_servers: Vec<ShipMcpServer>,
 }
 
 #[derive(Serialize)]
@@ -199,6 +201,7 @@ impl CodexBridge {
             model: request.model,
             api_key: request.api_key,
             read_only: request.read_only,
+            mcp_servers: request.mcp_servers,
             runtime_paths,
         };
         let resumed = previous.is_some();
@@ -685,6 +688,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(48_001),
                     read_only: false,
+                    mcp_servers: Vec::new(),
                 })
                 .await
                 .is_err()
@@ -697,6 +701,7 @@ mod tests {
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_000),
                 read_only: false,
+                mcp_servers: Vec::new(),
             })
             .await?;
         assert_eq!(thread.task_id, task_id);
@@ -738,6 +743,7 @@ mod tests {
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_001),
                 read_only: false,
+                mcp_servers: Vec::new(),
             })
             .await?;
         assert!(resumed.resumed);

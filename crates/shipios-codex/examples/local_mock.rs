@@ -59,6 +59,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         model: "gpt-5.2".to_owned(),
         api_key: Some(token.to_owned()),
         read_only: false,
+        mcp_servers: Vec::new(),
         runtime_paths: runtime_paths.clone(),
     })
     .await?;
@@ -69,6 +70,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         model: "gpt-5.2".to_owned(),
         api_key: None,
         read_only: false,
+        mcp_servers: Vec::new(),
         runtime_paths,
     })
     .await;

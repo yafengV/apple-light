@@ -7,10 +7,12 @@ final class CodexChatTransport {
   private struct ServiceIdentity: Equatable {
     let endpoint: String
     let keyDigest: Data?
+    let mcpDigest: Data
 
-    init(config: ModelConfiguration, key: String?) {
+    init(config: ModelConfiguration, key: String?, mcpData: Data) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
+      mcpDigest = Data(SHA256.hash(data: mcpData))
     }
   }
 
@@ -36,7 +38,7 @@ final class CodexChatTransport {
     taskID: String, config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
-    goalInstructions: String? = nil
+    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration]
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -45,8 +47,13 @@ final class CodexChatTransport {
     guard continuationText.utf8.count <= 48_000 else {
       throw AgentFailure(message: "本轮文字超过 Codex 通道的 48 KiB 上限，请缩短后重试。")
     }
+    let enabledServers = try mcpServers.filter(\.enabled).map { try $0.validated() }
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    let mcpData = try encoder.encode(enabledServers)
+    let mcpValue = try JSONDecoder().decode(JSONValue.self, from: mcpData)
     let token = generation
-    let service = ServiceIdentity(config: config, key: key)
+    let service = ServiceIdentity(config: config, key: key, mcpData: mcpData)
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }
@@ -67,6 +74,7 @@ final class CodexChatTransport {
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
           "initialContextBytes": .number(Double(initialText.utf8.count)),
           "readOnly": .bool(readOnly),
+          "mcpServers": mcpValue,
         ])
         guard generation == token else { throw CancellationError() }
         sendFullContext = thread["resumed"].boolean != true

@@ -8,9 +8,12 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 codex-core-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-config = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-extension-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-login = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-protocol = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 url = "2"
 

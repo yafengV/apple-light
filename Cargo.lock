@@ -10630,10 +10630,12 @@ name = "shipios-codex"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "codex-config",
  "codex-core-api",
  "codex-extension-api",
  "codex-login",
  "codex-protocol",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
