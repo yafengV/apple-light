@@ -141,6 +141,12 @@ struct ExecutionMessageView: View {
             ).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
           }
           ChatResponseView(store: store, run: run)
+          if run.isActive, let status = run.result?["codex_runtime_status"].text,
+            !status.isEmpty {
+            Label(status, systemImage: "arrow.clockwise")
+              .appFont(.caption).foregroundStyle(.secondary)
+              .accessibilityLabel("Codex 运行状态：\(status)")
+          }
           if run.isActive { ProgressView().controlSize(.small).accessibilityLabel("正在生成回复") }
           if let message = run.result?["message"].text {
             ConversationSearchText(message, id: .init(run: run.id, part: "error")).appFont(.callout)

@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.0'
+    retry_attempts = 0
     def log_message(self, *args):
         pass
     def do_GET(self):
@@ -21,6 +22,24 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         if self.path == '/v1/responses':
             request_text = json.dumps(body)
+            if 'codex-terminal-error' in request_text:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"error":{"message":"fixture request rejected"}}')
+                return
+            if 'codex-retry' in request_text and Handler.retry_attempts == 0:
+                Handler.retry_attempts += 1
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/event-stream')
+                self.end_headers()
+                self.wfile.write(b'event: response.created\ndata: {"type":"response.created","response":{"id":"retry-1"}}\n\n')
+                self.wfile.flush()
+                self.close_connection = True
+                return
+            if 'codex-retry' in request_text and Handler.retry_attempts == 1:
+                Handler.retry_attempts += 1
+                time.sleep(2)
             slow = 'slow-codex' in request_text and 'steered-inflight-proof' not in request_text
             if 'codex-plan' in request_text and 'swift-plan-call' not in request_text:
                 item = {

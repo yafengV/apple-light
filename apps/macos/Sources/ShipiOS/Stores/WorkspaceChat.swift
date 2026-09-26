@@ -250,9 +250,10 @@ extension WorkspaceStore {
               GoalResponseParser.continuationPrompt, taskID: continueGoal, mode: .goal)
           }
         } catch {
+          let cancelled = Task.isCancelled || error is CancellationError
           _ = finishChat(
-            run.id, status: Task.isCancelled ? "cancelled" : "failed",
-            message: Task.isCancelled ? nil : error.localizedDescription)
+            run.id, status: cancelled ? "cancelled" : "failed",
+            message: cancelled ? nil : error.localizedDescription)
           removeModelTask(runID: run.id)
         }
       }
@@ -304,6 +305,9 @@ extension WorkspaceStore {
           try Task.checkCancellation()
           switch event["type"].text {
           case "exec_command_begin", "exec_command_end", "patch_apply_begin", "patch_apply_end":
+            if event["type"].text?.hasSuffix("_begin") == true {
+              recordCodexRuntimeStatus(runID: runID, message: nil)
+            }
             recordCodexCommand(runID: runID, event: event)
             if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
               rendered = ""
@@ -313,14 +317,20 @@ extension WorkspaceStore {
           case "request_user_input":
             try await handleCodexQuestion(runID: runID, taskID: taskID, event: event)
           case "plan_update":
+            recordCodexRuntimeStatus(runID: runID, message: nil)
             try recordCodexPlan(runID: runID, event: event)
+          case "stream_error", "stream_info", "auth_recovery_started", "auth_recovery_completed":
+            recordCodexRuntimeStatus(runID: runID,
+              message: event["message"].text ?? "Codex 正在恢复连接…")
           case "agent_message_delta":
             if let delta = event["delta"].text, !delta.isEmpty {
+              recordCodexRuntimeStatus(runID: runID, message: nil)
               appendChat(runID, delta: delta)
               rendered += delta
             }
           case "agent_message":
             if let message = event["message"].text, !message.isEmpty {
+              recordCodexRuntimeStatus(runID: runID, message: nil)
               if message.hasPrefix(rendered) {
                 let suffix = String(message.dropFirst(rendered.count))
                 if !suffix.isEmpty { appendChat(runID, delta: suffix) }
@@ -334,11 +344,21 @@ extension WorkspaceStore {
               rendered = message
             }
           case "task_complete":
+            recordCodexRuntimeStatus(runID: runID, message: nil)
             expireCodexQuestions(runID: runID)
             if library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false,
               let message = event["last_agent_message"].text,
               !message.isEmpty { appendChat(runID, delta: message) }
+            if let message = event["error"]["message"].text, !message.isEmpty {
+              throw AgentFailure(message: message)
+            }
             completed = true
+          case "turn_aborted":
+            let reason = event["reason"].text ?? "interrupted"
+            if reason == "budget_limited" {
+              throw AgentFailure(message: "Codex 回合因预算限制而停止，已保留收到的内容。")
+            }
+            throw CancellationError()
           case "error":
             throw AgentFailure(message: event["message"].text ?? "Codex 回合失败。")
           default: break
@@ -353,6 +373,24 @@ extension WorkspaceStore {
     } onCancel: {
       Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
     }
+  }
+  private func recordCodexRuntimeStatus(runID: String, message: String?) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let value = trimmed.map { String($0.prefix(500)) }.flatMap { $0.isEmpty ? nil : $0 }
+    guard current.result?["codex_runtime_status"].text != value else { return }
+    var fields: [String: JSONValue] = [:]
+    if case .object(let existing) = current.result { fields = existing }
+    fields["codex_runtime_status"] = value.map(JSONValue.string) ?? .null
+    let updated = AgentRun(id: current.id, kind: current.kind, project: current.project,
+      status: current.status, createdAt: current.createdAt,
+      updatedAt: Date().timeIntervalSince1970 * 1000,
+      request: current.request, result: .object(fields))
+    if let index = library.chatRuns.firstIndex(where: { $0.id == runID }) {
+      library.chatRuns[index] = updated
+    }
+    if let index = runs.firstIndex(where: { $0.id == runID }) { runs[index] = updated }
+    saveLibrary()
   }
   @discardableResult private func recordCodexCommand(runID: String, event: JSONValue) -> MCPToolExecution? {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return nil }

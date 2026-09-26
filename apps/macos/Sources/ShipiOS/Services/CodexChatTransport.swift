@@ -177,9 +177,14 @@ final class CodexChatTransport {
   private func receive(_ payload: JSONValue) {
     guard let taskID = payload["taskId"].text, let continuation = streams[taskID] else { return }
     let event = payload["event"]
+    if ["task_complete", "turn_aborted"].contains(event["type"].text ?? ""),
+      let eventTurnID = event["turn_id"].text,
+      let activeTurnID = activeTurnIDs[taskID], eventTurnID != activeTurnID {
+      return
+    }
     continuation.yield(event)
     switch event["type"].text {
-    case "task_complete", "error":
+    case "task_complete", "turn_aborted", "error":
       activeTurnIDs.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish()
     default: break
