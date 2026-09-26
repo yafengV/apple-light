@@ -140,6 +140,13 @@ struct WorkspaceView: View {
               .help("布局")
               .accessibilityLabel("任务布局")
             }
+            if let task = store.selectedTask, store.canHandOffToWorktree(task) {
+              Button {
+                Task { await store.handOffTaskToWorktree(task.id) }
+              } label: {
+                Label("移交", systemImage: "arrow.left.arrow.right")
+              }.help("将任务移交到工作树")
+            }
             Menu {
               Button("在新窗口中新建任务") {
                 if let task = store.createPopoutTask() {

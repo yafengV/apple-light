@@ -301,7 +301,7 @@ final class WorkspaceStore {
   var selectedTask: WorkspaceTask? { library.task(containing: selection) }
   var conversationRuns: [AgentRun] {
     guard let task = selectedTask else { return [] }
-    return task.runIDs.compactMap { id in runs.first { $0.id == id } }
+    return taskWindowRuns(task.id)
   }
   var visibleTasks: [WorkspaceTask] {
     library.visible(project: project?.path ?? "", query: query, archived: showingArchived)

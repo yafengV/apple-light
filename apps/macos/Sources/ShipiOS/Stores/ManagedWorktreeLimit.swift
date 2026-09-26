@@ -31,7 +31,7 @@ extension WorkspaceStore {
   }
 
   func scheduleManagedLimitCleanup() {
-    guard library.automaticallyDeleteManagedWorktrees,
+    guard !managedTaskPreparing, library.automaticallyDeleteManagedWorktrees,
       managedWorktreeCount > library.managedWorktreeLimit else { return }
     let previous = managedLimitCleanupTask
     managedLimitCleanupTask = Task { @MainActor in

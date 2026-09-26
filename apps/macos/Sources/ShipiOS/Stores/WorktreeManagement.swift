@@ -184,7 +184,7 @@ extension WorkspaceStore {
 
   /// Replaying an already-applied stash is unsafe. Compare both the worktree and index with
   /// the captured stash trees so a crash after Git succeeds can be resumed without rewriting.
-  private func applyManagedSourceChanges(_ record: ManagedWorktree) async throws {
+  func applyManagedSourceChanges(_ record: ManagedWorktree) async throws {
     let target = URL(fileURLWithPath: record.path)
     if let commit = record.sourceStashCommit {
       guard commit.range(of: "^[0-9a-f]{40,64}$", options: .regularExpression) != nil else {
@@ -231,7 +231,7 @@ extension WorkspaceStore {
     guard libraryLoaded, let source = project, connected, selectedTask == nil,
       newTaskExecution == .worktree, !busy, !managedTaskPreparing else { return false }
     managedTaskPreparing = true
-    defer { managedTaskPreparing = false }
+    defer { managedTaskPreparing = false; scheduleManagedLimitCleanup() }
     let sourcePath = source.path
     let sourceDraftKey = draftKey
     let submittedMode = chatMode

@@ -844,6 +844,28 @@ final class WorktreeTests: XCTestCase {
     await restored.shutdown()
   }
 
+  @MainActor func testLocalHandoffRejectsDirtyCheckoutWithoutMovingTaskOrCreatingWorktree() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    let taskID = UUID().uuidString
+    store.library.visit(source.path)
+    store.library.tasks = [WorkspaceTask(id: taskID, project: source.path,
+      title: "Local task", runIDs: [])]
+    XCTAssertTrue(store.saveLibrary())
+    try write("unfinished\n", source.appendingPathComponent("file"))
+
+    let handedOff = await store.handOffTaskToWorktree(taskID)
+    XCTAssertFalse(handedOff)
+    XCTAssertTrue(store.worktreeError?.contains("未提交修改") == true)
+    XCTAssertEqual(store.library.tasks.first?.project, source.path)
+    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: store.worktreeRoot.path))
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "unfinished\n")
+    await store.shutdown()
+  }
+
   @MainActor func testManagedWorktreeRecoveryKeepsWorkAndOriginalCheckoutIdentity() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")

@@ -373,7 +373,8 @@ struct WorkspaceLibrary: Codable {
         if let run = byID[id] { tasks[index].includeDates(from: run) }
       }
     }
-    let known = Set(tasks.filter { $0.project == project }.flatMap(\.runIDs))
+    // A handed-off task owns its earlier runs even though they were recorded in another checkout.
+    let known = Set(tasks.flatMap(\.runIDs))
     for run in runs.reversed() where !known.contains(run.id) && !deletedRunIDs.contains(run.id) {
       tasks.insert(
         WorkspaceTask(id: run.id, project: project, title: run.title, runIDs: [run.id]), at: 0)

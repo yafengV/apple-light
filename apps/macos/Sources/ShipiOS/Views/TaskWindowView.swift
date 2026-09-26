@@ -15,6 +15,7 @@ struct TaskWindowView: View {
   @Environment(\.openWindow) private var openWindow
   @Environment(\.dismiss) private var dismiss
   @State private var forkError: String?
+  @State private var handoffError: String?
   @State private var mode = ChatMode.standard
   @State private var commandSelection = ComposerCommandSelection()
   @State private var pluginSelection = PluginMentionSelection()
@@ -194,6 +195,16 @@ struct TaskWindowView: View {
             } label: { Image(systemName: "rectangle.split.2x1") }
               .accessibilityLabel("任务布局")
             if !task.isPopoutDraft {
+              if store.canHandOffToWorktree(task) {
+                Button {
+                  Task {
+                    if await store.handOffTaskToWorktree(taskID) { handoffError = nil }
+                    else { handoffError = store.worktreeError }
+                  }
+                } label: {
+                  Label("移交", systemImage: "arrow.left.arrow.right")
+                }.help("将任务移交到工作树")
+              }
               Menu {
                 Button("分叉到新任务") { forkTask() }
                   .disabled(!store.canForkTaskWindow(taskID) || windowCommandsBlocked)
@@ -606,6 +617,14 @@ struct TaskWindowView: View {
           focusRequest: findFocusRequest, shortcuts: store.shortcuts,
           previous: { moveFindMatch(-1) }, next: { moveFindMatch(1) }, close: { closeFind() })
         Divider()
+      }
+      if let handoffError {
+        HStack {
+          Text(handoffError).foregroundStyle(.red).textSelection(.enabled)
+          Spacer()
+          Button { self.handoffError = nil } label: { Image(systemName: "xmark") }
+            .buttonStyle(.plain).accessibilityLabel("关闭移交错误")
+        }.padding(10)
       }
       if let forkError {
         HStack {

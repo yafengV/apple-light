@@ -729,7 +729,6 @@ final class ModelTransportTests: XCTestCase {
     let binary = repository.appendingPathComponent("target/debug/shipios-agent")
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let source = root.appendingPathComponent("Source", isDirectory: true)
-    let target = root.appendingPathComponent("Worktree", isDirectory: true)
     let data = root.appendingPathComponent("Data")
     try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -737,10 +736,11 @@ final class ModelTransportTests: XCTestCase {
     _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
     _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
     try Data("initial\n".utf8).write(to: source.appendingPathComponent("file"))
-    _ = try await GitReviewService.checked(["add", "file"], at: source)
+    try Data("local.env\n".utf8).write(to: source.appendingPathComponent(".gitignore"))
+    try Data("local.env\n".utf8).write(to: source.appendingPathComponent(".worktreeinclude"))
+    _ = try await GitReviewService.checked(["add", "file", ".gitignore", ".worktreeinclude"], at: source)
     _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
-    _ = try await GitReviewService.checked(
-      ["worktree", "add", "--detach", "--", target.path, "HEAD"], at: source)
+    try Data("private setting\n".utf8).write(to: source.appendingPathComponent("local.env"))
 
     var store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
     await store.restore()
@@ -759,11 +759,19 @@ final class ModelTransportTests: XCTestCase {
 
     store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
     await store.restore()
-    let index = try XCTUnwrap(store.library.tasks.firstIndex { $0.id == taskID })
-    store.library.tasks[index].project = GitBranchService.canonicalRoot(target).path
-    XCTAssertTrue(store.saveLibrary())
-    await store.open(target)
+    await store.open(source)
     XCTAssertTrue(store.connected, store.error ?? "")
+    let handedOff = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(handedOff, store.worktreeError ?? "")
+    let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == taskID })
+    let target = URL(fileURLWithPath: record.path)
+    XCTAssertEqual(store.library.tasks.first { $0.id == taskID }?.project, target.path)
+    XCTAssertEqual(store.conversationRuns.map(\.id), [first.id])
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("local.env")), "private setting\n")
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("local.env")), "private setting\n")
+    await store.open(source)
+    XCTAssertEqual(store.library.tasks.filter { $0.runIDs.contains(first.id) }.count, 1)
+    await store.open(target)
     await store.startChat("codex-handoff-cwd-probe", taskID: taskID)
     let second = try XCTUnwrap(store.library.chatRuns.last)
     await store.modelTask(runID: second.id)?.value

@@ -39,7 +39,7 @@ python3 script/smoke_ipc.py
 
 桌面应用默认将数据存入 `~/Library/Application Support/ShipiOS/Desktop/Projects/<项目路径哈希>/`，每个项目独立保存；可通过 `./script/build_and_run.sh --app --data-root "$PWD/.shipios-local/desktop"` 选择开发数据目录。CLI 脚本数据存入忽略的 `.shipios-local/`。直接启动 Agent 默认使用 `~/Library/Application Support/ShipiOS`，可用 `--data-dir` 或 `SHIPIOS_HOME` 指定独立目录。不会读取个人 Codex 配置或认证，也不会使用 `OPENAI_API_KEY`。
 
-构建会执行所选项目的构建阶段，应针对自己信任的工程运行。Git 项目的新任务可选择托管工作树及起始分支；当前分支的未提交文件和 `.worktreeinclude` 指定的忽略文件可传递，详见[创建流程](docs/225-managed-worktree-new-task.md)。托管检出归档后的清理和快照恢复见[干净检出](docs/226-clean-managed-worktree-archive.md)与[脏检出](docs/227-dirty-managed-worktree-archive.md)；删除归档任务时的工作树资源处理见[第 228 篇](docs/228-managed-worktree-archive-deletion.md)，数量上限见[第 229 篇](docs/229-managed-worktree-retention-limit.md)。不会将构建成功标为 UI 验证通过。
+构建会执行所选项目的构建阶段，应针对自己信任的工程运行。Git 项目的新任务可选择托管工作树及起始分支；当前分支的未提交文件和 `.worktreeinclude` 指定的忽略文件可传递，详见[创建流程](docs/225-managed-worktree-new-task.md)。托管检出归档后的清理和快照恢复见[干净检出](docs/226-clean-managed-worktree-archive.md)与[脏检出](docs/227-dirty-managed-worktree-archive.md)；删除归档任务时的工作树资源处理见[第 228 篇](docs/228-managed-worktree-archive-deletion.md)，数量上限见[第 229 篇](docs/229-managed-worktree-retention-limit.md)。干净本地检出中的已有任务可[移交到托管工作树](docs/230-local-to-worktree-handoff.md)。不会将构建成功标为 UI 验证通过。
 
 桌面快捷键：`⌘N` 新任务、`⌘K` / `⌘⇧P` 命令菜单、`⌘O` 打开项目、`⌘↵` 发送、`⌘.` 停止、`⌘B` 侧栏、`⌘P` 文件搜索、`⌘J` 终端、`⌘⌥B` 审查、`⌘⇧B` 浏览器。全局“新任务”可不选文件夹直接对话；项目菜单中的“新任务”使用该项目。设置 → 模型与 API 可填写独立服务，密钥保存在 ShipiOS 专属 Keychain 中；设置 → 通用可选择模型运行时“引导当前运行”或“等待下一轮”。输入 `/chat`、`/doctor`、`/build`、`/plan` 或 `/goal` 选择会话、诊断、构建、计划或持久目标。Chat Completions 会话支持文字、图片和文本/PDF 文件附件，不自动读写项目；Codex Responses 当前支持项目内相同的输入类型，线程权限为只读。输入区加号可选择文件或图片；PDF 仅提取文字。图片需要所选模型与服务支持视觉输入。界面记录、队列与目标状态写入 `workspace.json`，非敏感模型配置写入 `model.json`，本地执行记录仍由 Agent 数据库保存。
 
@@ -253,6 +253,7 @@ python3 script/smoke_ipc.py
 | [Codex 完整差异快照](docs/222-codex-full-diff-snapshots.md) | 长差异私有保存，时间线可查看或复制完整内容；原生视觉与导航待验收 |
 | [Codex 差异按文件浏览](docs/223-codex-diff-file-navigation.md) | 多文件差异可逐文件选择与复制；文件打开及原生配对待验收 |
 | [托管工作树基础](docs/224-managed-worktree-foundation.md) | 一任务一工作树的独立记录和安全恢复基础；新任务入口与完整生命周期待接通 |
+| [已有任务移交到工作树](docs/230-local-to-worktree-handoff.md) | 干净本地检出中的任务可迁至托管工作树并继续 Codex Core 会话；反向和脏检出迁移待补齐 |
 | [本地 IPC v1](protocol/README.md) | 客户端握手、方法、事件、错误与断线行为 |
 
 ## 当前基线

@@ -61,6 +61,8 @@ struct SidebarTaskRow: View {
         }
         Button(task.pinned ? "取消置顶" : "置顶任务") { store.updateTask(task.id, pin: !task.pinned) }
         SidebarPlacementMenu(store: store, item: .task(task.id))
+        Button("移交到工作树") { Task { await store.handOffTaskToWorktree(task.id) } }
+          .disabled(!store.canHandOffToWorktree(task))
         Button(task.archived ? "恢复任务" : "归档任务") {
           store.updateTask(task.id, archive: !task.archived)
         }
