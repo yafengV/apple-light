@@ -512,7 +512,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       decisionHandler(.cancel); return
     }
     if let agentNavigationHost, navigationAction.targetFrame?.isMainFrame != false,
-      url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) != agentNavigationHost {
+      (url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) != agentNavigationHost
+        || url.user != nil || url.password != nil) {
       error = "Agent 网页跳转到其他网站，需重新授权该网站。"
       decisionHandler(.cancel); return
     }
@@ -595,7 +596,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
   func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-    guard !closed, let url = navigationAction.request.url, BrowserAddress.permits(url),
+    guard !closed, agentNavigationHost == nil,
+      let url = navigationAction.request.url, BrowserAddress.permits(url),
       let create = openWindow, let tab = create(configuration) else { return nil }
     tab.address = url.absoluteString
     return tab.view

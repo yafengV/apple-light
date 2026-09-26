@@ -67,6 +67,8 @@ impl BrowserToolBridge {
         action: &str,
         tab_id: Option<String>,
         url: Option<String>,
+        handle: Option<String>,
+        text: Option<String>,
     ) -> Result<Value, String> {
         let request_id = Uuid::new_v4().to_string();
         let (reply, receiver) = oneshot::channel();
@@ -77,7 +79,8 @@ impl BrowserToolBridge {
         let event = json!({
             "taskId": self.task_id,
             "event": {"type": "browser_request", "requestId": request_id,
-                "action": action, "tabId": tab_id, "url": url}
+                "action": action, "tabId": tab_id, "url": url,
+                "handle": handle, "text": text}
         });
         if self.events.send(event).is_err() {
             self.pending
@@ -105,6 +108,8 @@ struct BrowserArgs {
     action: String,
     tab_id: Option<String>,
     url: Option<String>,
+    handle: Option<String>,
+    text: Option<String>,
 }
 
 fn valid_browser_url(value: &str) -> bool {
@@ -154,14 +159,16 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
     fn spec(&self) -> ToolSpec {
         ToolSpec::Function(ResponsesApiTool {
             name: "shipios_browser".to_owned(),
-            description: "Open a website in the ShipiOS browser, list tabs owned by this task, or read one tab's page text. Use action=list to obtain tab_id, action=read with that ID, or action=open with an http/https URL. ShipiOS checks website access policy before opening or reading a site, and may ask the user.".to_owned(),
+            description: "Use the task's ShipiOS browser. list returns tab IDs; open navigates to an http/https URL; read returns visible page text; inspect returns live interactive element handles; click activates a handle; fill enters text in a text field. Inspect again after navigation or page changes. ShipiOS checks website access and may ask the user.".to_owned(),
             strict: false,
             parameters: parse_tool_input_schema(&json!({
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "read", "open"]},
+                    "action": {"type": "string", "enum": ["list", "read", "open", "inspect", "click", "fill"]},
                     "tab_id": {"type": "string", "description": "Required for read; use an ID returned by list."},
-                    "url": {"type": "string", "description": "Required for open; absolute http/https URL."}
+                    "url": {"type": "string", "description": "Required for open; absolute http/https URL."},
+                    "handle": {"type": "string", "description": "Required for click and fill; use a handle returned by inspect."},
+                    "text": {"type": "string", "description": "Required for fill; text to enter, at most 4000 characters."}
                 },
                 "required": ["action"],
                 "additionalProperties": false
@@ -179,28 +186,42 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
         Box::pin(async move {
             let args: BrowserArgs = serde_json::from_str(call.function_arguments()?)
                 .map_err(|error| FunctionCallError::RespondToModel(error.to_string()))?;
-            if !matches!(args.action.as_str(), "list" | "read" | "open")
-                || (args.action == "read"
-                    && args
-                        .tab_id
-                        .as_ref()
-                        .is_none_or(|id| Uuid::parse_str(id).is_err()))
+            if !matches!(
+                args.action.as_str(),
+                "list" | "read" | "open" | "inspect" | "click" | "fill"
+            ) || (matches!(args.action.as_str(), "read" | "inspect" | "click" | "fill")
+                && args
+                    .tab_id
+                    .as_ref()
+                    .is_none_or(|id| Uuid::parse_str(id).is_err()))
                 || (args.action == "open"
                     && args
                         .url
                         .as_ref()
                         .is_none_or(|value| !valid_browser_url(value)))
+                || (matches!(args.action.as_str(), "click" | "fill")
+                    && args.handle.as_ref().is_none_or(|value| {
+                        value.len() > 100 || !value.is_ascii() || !value.contains(':')
+                    }))
+                || (args.action == "fill"
+                    && args
+                        .text
+                        .as_ref()
+                        .is_none_or(|value| value.chars().count() > 4_000))
             {
                 return Err(FunctionCallError::RespondToModel(
-                    "Use action=list, action=read with a valid tab_id, or action=open with an http/https URL.".to_owned(),
+                    "Use list, open with an http/https URL, read or inspect with a tab_id, or click/fill with a tab_id and inspected handle (plus text for fill).".to_owned(),
                 ));
             }
             let result = self
                 .bridge
-                .request(&args.action, args.tab_id, args.url)
+                .request(&args.action, args.tab_id, args.url, args.handle, args.text)
                 .await
                 .map_err(FunctionCallError::RespondToModel)?;
-            Ok(Box::new(JsonToolOutput::new(result)) as Box<dyn ToolOutput>)
+            Ok(
+                Box::new(JsonToolOutput::new(result).with_external_context())
+                    as Box<dyn ToolOutput>,
+            )
         })
     }
 }
@@ -214,7 +235,8 @@ mod tests {
         let (events, mut receiver) = broadcast::channel(8);
         let bridge = BrowserToolBridge::new(events);
         let task = bridge.for_task("task-a".to_owned());
-        let pending = tokio::spawn(async move { task.request("list", None, None).await });
+        let pending =
+            tokio::spawn(async move { task.request("list", None, None, None, None).await });
         let event = receiver.recv().await.expect("request event");
         let id = event["event"]["requestId"].as_str().unwrap();
         assert_eq!(event["taskId"], "task-a");
@@ -230,7 +252,7 @@ mod tests {
         let bridge = BrowserToolBridge::new(events);
         let task = bridge.for_task("task-a".to_owned());
         let pending = tokio::spawn(async move {
-            task.request("read", Some(Uuid::new_v4().to_string()), None)
+            task.request("read", Some(Uuid::new_v4().to_string()), None, None, None)
                 .await
         });
         let event = receiver.recv().await.expect("request event");

@@ -15,6 +15,9 @@ enum CodexBrowserTimeline {
     let name: String = switch action {
     case "open": "打开网页"
     case "read": "读取网页"
+    case "inspect": "检查网页控件"
+    case "click": "点击网页控件"
+    case "fill": "填写网页控件"
     default: "列出网页标签"
     }
     var execution = index.map { executions[$0] } ?? MCPToolExecution(
@@ -26,10 +29,14 @@ enum CodexBrowserTimeline {
       execution.status = switch result["status"].text {
       case "ok", "loading": .succeeded
       case "denied": .denied
+      case "cancelled": .cancelled
       default: .failed
       }
       execution.output = String(result.pretty.prefix(16_000))
-      if let url = result["url"].text { execution.arguments = url }
+      if let url = result["url"].text {
+        let label = result["label"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        execution.arguments = label.isEmpty ? url : "\(label) · \(url)"
+      }
     }
     if let index { executions[index] = execution }
     else {
@@ -47,5 +54,16 @@ enum CodexBrowserTimeline {
     let title = event["result"]["title"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     return CodexWebSource(title: title.isEmpty ? url.host ?? url.absoluteString : String(title.prefix(160)),
       url: url.absoluteString)
+  }
+
+  static func expirePending(_ executions: inout [MCPToolExecution],
+    status: MCPToolExecution.Status) -> Bool {
+    var changed = false
+    for index in executions.indices where executions[index].serverID == serverID
+      && executions[index].status == .running {
+      executions[index].status = status
+      changed = true
+    }
+    return changed
   }
 }

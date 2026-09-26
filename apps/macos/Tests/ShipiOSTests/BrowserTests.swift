@@ -102,6 +102,123 @@ final class BrowserTests: XCTestCase {
     XCTAssertTrue(allowed["text"].text?.contains("Fixture page") == true)
     XCTAssertEqual(allowed["url"].text, tab.committedURL?.absoluteString)
   }
+  @MainActor func testCodexBrowserAgentInspectsFillsAndClicksOnlyCurrentPageHandles() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-actions-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "", title: "Other", runIDs: ["run-other"])]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/one", title: "One")
+    store.library.browserPermissions.defaultDecision = .block
+    let denied = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    XCTAssertEqual(denied["status"].text, "denied")
+    store.library.browserPermissions.defaultDecision = .allow
+    let inspected = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    XCTAssertEqual(inspected["status"].text, "ok")
+    let elements = inspected["elements"].items
+    let input = try XCTUnwrap(elements.first { $0["tag"].text == "input" })
+    let next = try XCTUnwrap(elements.first { $0["href"].text?.hasSuffix("/two") == true })
+    let inputHandle = try XCTUnwrap(input["handle"].text)
+    let nextHandle = try XCTUnwrap(next["handle"].text)
+    let malformed = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: String(inputHandle.prefix(while: { $0 != ":" })) + ":")
+    XCTAssertEqual(malformed["status"].text, "error")
+    _ = try await tab.view.evaluateJavaScript("""
+      window.fillEvents = 0;
+      document.getElementById('draft').addEventListener('input', () => { window.fillEvents += 1; });
+      undefined;
+      """)
+    let foreign = await store.codexBrowserResult(taskID: "other", action: "fill",
+      tabID: tab.id.uuidString, handle: inputHandle, text: "foreign")
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+    let filled = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: inputHandle, text: "agent value")
+    XCTAssertEqual(filled["status"].text, "ok")
+    let actual = try await tab.view.evaluateJavaScript("document.getElementById('draft').value") as? String
+    XCTAssertEqual(actual, "agent value")
+    let events = try await tab.view.evaluateJavaScript("window.fillEvents") as? Int
+    XCTAssertEqual(events, 1)
+    let clicked = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: nextHandle)
+    XCTAssertEqual(clicked["status"].text, "ok")
+    XCTAssertEqual(tab.committedURL?.path, "/two")
+    let stale = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: nextHandle)
+    XCTAssertEqual(stale["status"].text, "error")
+
+    _ = try await tab.view.evaluateJavaScript("""
+      const secret = document.createElement('input'); secret.type = 'password';
+      secret.id = 'secret'; document.body.appendChild(secret);
+      const button = document.createElement('button'); button.id = 'mutate';
+      button.textContent = 'Submit'; button.onclick = () => { window.didMutate = true; };
+      document.body.appendChild(button); undefined;
+      """)
+    let refreshed = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let passwordHandle = try XCTUnwrap(refreshed["elements"].items.first {
+      $0["type"].text == "password"
+    }?["handle"].text)
+    let password = await store.codexBrowserResult(taskID: "owner", action: "fill",
+      tabID: tab.id.uuidString, handle: passwordHandle, text: "forbidden")
+    XCTAssertEqual(password["status"].text, "error")
+    let secret = try await tab.view.evaluateJavaScript("document.getElementById('secret').value") as? String
+    XCTAssertEqual(secret, "")
+    let buttonHandle = try XCTUnwrap(refreshed["elements"].items.first {
+      $0["tag"].text == "button"
+    }?["handle"].text)
+    let button = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: buttonHandle)
+    XCTAssertEqual(button["status"].text, "denied", "Controls need an owning visible confirmation sheet")
+    let mutated = try await tab.view.evaluateJavaScript("window.didMutate === true") as? Bool
+    XCTAssertEqual(mutated, false)
+    _ = try await tab.view.evaluateJavaScript("""
+      const external = document.createElement('a'); external.href = 'http://localhost:' + location.port + '/two';
+      external.textContent = 'Other host'; document.body.appendChild(external);
+      const popup = document.createElement('a'); popup.href = '/two'; popup.target = '_blank';
+      popup.textContent = 'New tab'; document.body.appendChild(popup);
+      const redirect = document.createElement('a'); redirect.href = '/redirect-other-host';
+      redirect.textContent = 'Cross-host redirect'; document.body.appendChild(redirect); undefined;
+      """)
+    let links = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let externalHandle = try XCTUnwrap(links["elements"].items.first {
+      $0["label"].text == "Other host"
+    }?["handle"].text)
+    let crossHost = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: externalHandle)
+    XCTAssertEqual(crossHost["status"].text, "denied")
+    let popupHandle = try XCTUnwrap(links["elements"].items.first {
+      $0["label"].text == "New tab"
+    }?["handle"].text)
+    let newTab = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: popupHandle)
+    XCTAssertEqual(newTab["status"].text, "error")
+    XCTAssertEqual(store.workspace.browser.tabs.count, 1)
+    XCTAssertEqual(tab.committedURL?.path, "/two")
+    let redirectHandle = try XCTUnwrap(links["elements"].items.first {
+      $0["label"].text == "Cross-host redirect"
+    }?["handle"].text)
+    let redirect = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: redirectHandle)
+    XCTAssertEqual(redirect["status"].text, "error")
+    XCTAssertFalse(store.workspace.browser.tabs.contains { $0.committedURL?.host == "localhost" })
+    let invalidated = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: popupHandle, token: UUID())
+    XCTAssertEqual(invalidated["status"].text, "cancelled")
+
+    _ = try await tab.view.evaluateJavaScript("""
+      for (let i = 0; i < 100; i++) {
+        const link = document.createElement('a'); link.href = '/two?item=' + i;
+        link.textContent = 'Item ' + i; document.body.appendChild(link);
+      } undefined;
+      """)
+    let capped = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    XCTAssertEqual(capped["elements"].items.count, 50)
+    XCTAssertEqual(capped["truncated"].boolean, true)
+    XCTAssertLessThan(try JSONEncoder().encode(capped).count, 60_000)
+  }
   @MainActor func testCodexBrowserOpenPreservesBackgroundTaskOwnershipAndRespectsBlock() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-open-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }

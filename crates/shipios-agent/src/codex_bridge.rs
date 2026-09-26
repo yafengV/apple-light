@@ -821,7 +821,9 @@ mod tests {
                     json!({"type":"response.created","response":{"id":"browser-1"}}),
                     json!({"type":"response.output_item.done","item":{
                         "type":"function_call","call_id":"browser-call-1",
-                        "name":"shipios_browser","arguments":"{\"action\":\"list\"}"}}),
+                        "name":"shipios_browser","arguments":format!(
+                            "{{\"action\":\"fill\",\"tab_id\":\"{}\",\"handle\":\"scan:1\",\"text\":\"sample\"}}",
+                            Uuid::nil())}}),
                     completed("browser-1"),
                 ]);
                 let done = sse(vec![
@@ -869,7 +871,7 @@ mod tests {
                     })
                     .await?;
                 bridge
-                    .submit(&task_id, "List my browser tabs".to_owned())
+                    .submit(&task_id, "Fill the browser form".to_owned())
                     .await?;
                 let mut saw_request = false;
                 let mut saw_reply = false;
@@ -881,13 +883,16 @@ mod tests {
                     match event["type"].as_str() {
                         Some("browser_request") => {
                             assert_eq!(payload["taskId"], task_id);
-                            assert_eq!(event["action"], "list");
+                            assert_eq!(event["action"], "fill");
+                            assert_eq!(event["tabId"], Uuid::nil().to_string());
+                            assert_eq!(event["handle"], "scan:1");
+                            assert_eq!(event["text"], "sample");
                             assert!(
                                 bridge
                                     .resolve_browser(CodexBrowserResolution {
                                         task_id: task_id.clone(),
                                         request_id: event["requestId"].as_str().unwrap().to_owned(),
-                                        result: json!({"status":"ok","tabs":[{"title":"Fixture"}]}),
+                                        result: json!({"status":"ok","action":"filled"}),
                                     })
                                     .is_ok()
                             );
@@ -904,7 +909,7 @@ mod tests {
                 assert!(saw_request && saw_reply);
                 let requests = server.received_requests().await.unwrap();
                 assert!(String::from_utf8_lossy(&requests[0].body).contains("shipios_browser"));
-                assert!(String::from_utf8_lossy(&requests[1].body).contains("Fixture"));
+                assert!(String::from_utf8_lossy(&requests[1].body).contains("filled"));
                 Ok::<_, anyhow::Error>(())
             })
             .await

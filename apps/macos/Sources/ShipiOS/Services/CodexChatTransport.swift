@@ -4,7 +4,7 @@ import CryptoKit
 /// Routes one live Codex turn per task through the project Agent's private stdio channel.
 @MainActor
 final class CodexChatTransport {
-  var onBrowserRequest: ((String, JSONValue) -> Void)?
+  var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
   private struct ServiceIdentity: Equatable {
     let endpoint: String
     let keyDigest: Data?
@@ -25,6 +25,7 @@ final class CodexChatTransport {
   private var preparingTasks: Set<String> = []
   private var streams: [String: AsyncThrowingStream<JSONValue, Error>.Continuation] = [:]
   private var activeTurnIDs: [String: String] = [:]
+  private var browserTurnTokens: [String: UUID] = [:]
 
   init(client: AgentClient, dataRoot: URL) {
     self.client = client
@@ -69,6 +70,7 @@ final class CodexChatTransport {
     defer { if let staged { try? FileManager.default.removeItem(at: staged.url) } }
     let (stream, continuation) = AsyncThrowingStream<JSONValue, Error>.makeStream()
     streams[taskID] = continuation
+    browserTurnTokens[taskID] = UUID()
     do {
       let firstTurn = !activeThreads.contains(taskID)
       var sendFullContext = firstTurn
@@ -135,6 +137,7 @@ final class CodexChatTransport {
       return stream
     } catch {
       if Task.isCancelled { await interrupt(taskID: taskID) }
+      browserTurnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
       throw error
     }
@@ -174,11 +177,13 @@ final class CodexChatTransport {
   }
 
   func interrupt(taskID: String) async {
+    browserTurnTokens.removeValue(forKey: taskID)
     guard activeThreads.contains(taskID) else { return }
     _ = try? await client.request("codex.turn.interrupt", ["taskId": .string(taskID)])
   }
 
   func stop(taskID: String) async {
+    browserTurnTokens.removeValue(forKey: taskID)
     guard activeThreads.contains(taskID) else { return }
     _ = try? await client.request("codex.thread.stop", ["taskId": .string(taskID)])
     activeThreads.remove(taskID)
@@ -257,6 +262,7 @@ final class CodexChatTransport {
     activeThreads.removeAll()
     serviceIdentities.removeAll()
     activeTurnIDs.removeAll()
+    browserTurnTokens.removeAll()
     let pending = Array(streams.values)
     streams.removeAll()
     for stream in pending { stream.finish(throwing: error) }
@@ -266,6 +272,10 @@ final class CodexChatTransport {
     _ = try await client.request("codex.browser.resolve", [
       "taskId": .string(taskID), "requestId": .string(requestID), "result": result,
     ])
+  }
+
+  func browserRequestIsCurrent(taskID: String, token: UUID) -> Bool {
+    browserTurnTokens[taskID] == token && streams[taskID] != nil
   }
 
   func publishBrowserResult(taskID: String, requestID: String, result: JSONValue) {
@@ -278,8 +288,9 @@ final class CodexChatTransport {
     guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
     if event["type"].text == "browser_request" {
-      streams[taskID]?.yield(event)
-      onBrowserRequest?(taskID, event)
+      guard let token = browserTurnTokens[taskID], let stream = streams[taskID] else { return }
+      stream.yield(event)
+      onBrowserRequest?(taskID, token, event)
       return
     }
     guard let continuation = streams[taskID] else { return }
@@ -292,6 +303,7 @@ final class CodexChatTransport {
     switch event["type"].text {
     case "task_complete", "turn_aborted", "error":
       activeTurnIDs.removeValue(forKey: taskID)
+      browserTurnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish()
     default: break
     }

@@ -412,6 +412,7 @@ extension WorkspaceStore {
             }
           case "task_complete":
             recordCodexRuntimeStatus(runID: runID, message: nil)
+            expirePendingCodexBrowserCalls(runID: runID, status: .failed)
             expireCodexQuestions(runID: runID)
             expireCodexElicitations(runID: runID)
             if library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false,
@@ -438,6 +439,8 @@ extension WorkspaceStore {
         guard completed else { throw AgentFailure(message: "Codex 事件流提前结束，已保留收到的内容。") }
         return nil
       } catch {
+        expirePendingCodexBrowserCalls(runID: runID,
+          status: error is CancellationError ? .cancelled : .failed)
         await codexTransport.interrupt(taskID: taskID)
         throw error
       }
@@ -578,6 +581,14 @@ extension WorkspaceStore {
     }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions, codexWebSources: sources)
+    saveLibrary()
+  }
+  private func expirePendingCodexBrowserCalls(runID: String, status: MCPToolExecution.Status) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var executions = current.toolExecutions
+    guard CodexBrowserTimeline.expirePending(&executions, status: status) else { return }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      toolExecutions: executions)
     saveLibrary()
   }
   private func resolveCodexMCPElicitation(runID: String, taskID: String, event: JSONValue,
