@@ -26,18 +26,21 @@ final class ModelCatalog {
   nonisolated static func decodeDetails(_ data: Data) throws -> [ModelCatalogEntry] {
     do {
       guard let response = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-        let rows = response["data"] as? [[String: Any]] else { throw DecodingError.dataCorrupted(
+        let rows = (response["data"] ?? response["models"]) as? [[String: Any]] else { throw DecodingError.dataCorrupted(
           .init(codingPath: [], debugDescription: "Missing model data")) }
       var entries: [String: ModelCatalogEntry] = [:]
       for row in rows {
-        guard let id = row["id"] as? String else { throw DecodingError.dataCorrupted(
+        guard let id = (row["id"] ?? row["slug"]) as? String else { throw DecodingError.dataCorrupted(
           .init(codingPath: [], debugDescription: "Missing model ID")) }
         guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
         let value = row["supported_reasoning_efforts"] ?? row["supportedReasoningEfforts"]
+          ?? row["supported_reasoning_levels"] ?? row["supportedReasoningLevels"]
         let efforts: Set<String>? = {
           if let strings = value as? [String] { return Set(strings) }
           if let objects = value as? [[String: Any]] {
-            return Set(objects.compactMap { ($0["reasoning_effort"] ?? $0["reasoningEffort"]) as? String })
+            return Set(objects.compactMap {
+              ($0["reasoning_effort"] ?? $0["reasoningEffort"] ?? $0["effort"]) as? String
+            })
           }
           return nil
         }()
@@ -88,6 +91,12 @@ final class ModelCatalog {
     let visible = AgentReasoningEfforts.available(advanced: advanced)
     guard let supported = supportedReasoningEfforts[model] else { return visible }
     return visible.filter { $0.isEmpty || supported.contains($0) }
+  }
+
+  func powerChoices(for model: String, advanced: Set<AgentAdvancedReasoningEffort>) -> [String] {
+    guard supportedReasoningEfforts[model] != nil else { return [] }
+    let choices = availableReasoning(for: model, advanced: advanced)
+    return choices.count >= 2 ? choices : []
   }
 
   func reasoningWhenSelecting(_ model: String, current: String) -> String {

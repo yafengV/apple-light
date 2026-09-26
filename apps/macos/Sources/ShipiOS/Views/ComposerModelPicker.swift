@@ -11,6 +11,7 @@ struct ComposerModelPicker: View {
   @State private var highlighted: String?
   @State private var refresh = UUID()
   @State private var saveError: String?
+  @State private var showingModels = false
   @FocusState private var searching: Bool
 
   private var choices: [String] {
@@ -20,11 +21,23 @@ struct ComposerModelPicker: View {
     catalog.availableReasoning(for: configuration.model,
       advanced: store.library.enabledAdvancedReasoningEfforts)
   }
+  private var powerChoices: [String] {
+    catalog.powerChoices(for: configuration.model,
+      advanced: store.library.enabledAdvancedReasoningEfforts)
+  }
+  private var showingPower: Bool {
+    !showingModels && powerChoices.contains(configuration.reasoning)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Text("选择模型").appFont(.headline)
+        if showingModels && !powerChoices.isEmpty {
+          Button { showingModels = false; searching = false } label: {
+            Image(systemName: "chevron.left")
+          }.buttonStyle(.plain).accessibilityLabel("返回推理档位")
+        }
+        Text(showingPower ? "模型与推理" : "选择模型").appFont(.headline)
         Spacer()
         Button {
           refresh = UUID()
@@ -33,68 +46,100 @@ struct ComposerModelPicker: View {
         }.buttonStyle(.plain).help("刷新服务的模型列表")
           .accessibilityLabel("刷新模型列表").disabled(catalog.loading)
       }
-      TextField("搜索或输入模型 ID", text: $query)
-        .textFieldStyle(.roundedBorder).focused($searching)
-        .accessibilityLabel("搜索模型")
-        .onKeyPress(.downArrow) { move(1); return .handled }
-        .onKeyPress(.upArrow) { move(-1); return .handled }
-        .onSubmit {
-          if let model = highlighted ?? choices.first { choose(model) }
-          else if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { choose(query) }
-        }
-      ScrollViewReader { proxy in
-        ScrollView {
-          LazyVStack(spacing: 2) {
-            ForEach(choices, id: \.self) { model in
-              Button { choose(model) } label: {
-                HStack {
-                  Text(model).lineLimit(2).multilineTextAlignment(.leading)
-                  Spacer()
-                  if configuration.model == model {
-                    Image(systemName: "checkmark").accessibilityLabel("当前模型")
-                  }
-                }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
-                  .contentShape(Rectangle())
-                  .background(
-                    highlighted == model ? Color.primary.opacity(0.08) : .clear,
-                    in: RoundedRectangle(cornerRadius: 6))
-              }.buttonStyle(.plain).id(model)
+      if showingPower {
+        HStack {
+          Text("模型").foregroundStyle(.secondary)
+          Spacer()
+          Button {
+            showingModels = true
+            searching = true
+          } label: {
+            HStack(spacing: 5) {
+              Text(configuration.model).lineLimit(1)
+              Image(systemName: "chevron.right").font(.caption)
             }
-            if choices.isEmpty {
-              Text(catalog.loading ? "正在获取模型…" : "没有匹配的模型")
-                .foregroundStyle(.secondary).padding(8)
+          }.buttonStyle(.plain).accessibilityLabel("更换模型：\(configuration.model)")
+        }
+        Text("推理强度：\(AgentReasoningEfforts.titles[configuration.reasoning] ?? configuration.reasoning)")
+          .appFont(.caption).foregroundStyle(.secondary)
+        Slider(value: Binding(
+          get: { Double(powerChoices.firstIndex(of: configuration.reasoning) ?? 0) },
+          set: { value in
+            let index = min(max(Int(value.rounded()), 0), powerChoices.count - 1)
+            selectReasoning(powerChoices[index])
+          }), in: 0...Double(powerChoices.count - 1), step: 1) {
+            Text("推理强度")
+          }
+          .accessibilityValue(AgentReasoningEfforts.titles[configuration.reasoning] ?? configuration.reasoning)
+        HStack {
+          Text(AgentReasoningEfforts.titles[powerChoices.first ?? ""] ?? "服务默认")
+          Spacer()
+          Text(AgentReasoningEfforts.titles[powerChoices.last ?? ""] ?? "")
+        }.appFont(.caption).foregroundStyle(.secondary)
+      } else {
+        TextField("搜索或输入模型 ID", text: $query)
+          .textFieldStyle(.roundedBorder).focused($searching)
+          .accessibilityLabel("搜索模型")
+          .onKeyPress(.downArrow) { move(1); return .handled }
+          .onKeyPress(.upArrow) { move(-1); return .handled }
+          .onSubmit {
+            if let model = highlighted ?? choices.first { choose(model) }
+            else if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { choose(query) }
+          }
+        ScrollViewReader { proxy in
+          ScrollView {
+            LazyVStack(spacing: 2) {
+              ForEach(choices, id: \.self) { model in
+                Button { choose(model) } label: {
+                  HStack {
+                    Text(model).lineLimit(2).multilineTextAlignment(.leading)
+                    Spacer()
+                    if configuration.model == model {
+                      Image(systemName: "checkmark").accessibilityLabel("当前模型")
+                    }
+                  }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .background(
+                      highlighted == model ? Color.primary.opacity(0.08) : .clear,
+                      in: RoundedRectangle(cornerRadius: 6))
+                }.buttonStyle(.plain).id(model)
+              }
+              if choices.isEmpty {
+                Text(catalog.loading ? "正在获取模型…" : "没有匹配的模型")
+                  .foregroundStyle(.secondary).padding(8)
+              }
             }
-          }
-        }.frame(maxHeight: 230)
-          .onChange(of: highlighted) { _, model in
-            if let model { proxy.scrollTo(model) }
-          }
-      }
-      if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-        !choices.contains(query.trimmingCharacters(in: .whitespacesAndNewlines))
-      {
-        Button("使用模型 ID：\(query)") { choose(query) }
-          .lineLimit(2).help("使用服务商提供的模型 ID")
-      }
-      if catalog.loading {
-        ProgressView("正在获取模型列表…").controlSize(.small)
-      } else if let error = catalog.error {
-        Text(error).appFont(.caption).foregroundStyle(.secondary)
-      }
-      Divider()
-      Picker(
-        "推理强度",
-        selection: Binding(
-          get: { configuration.reasoning },
-          set: { selectReasoning($0) })
-      ) {
-        ForEach(efforts, id: \.self) { effort in
-          Text(AgentReasoningEfforts.titles[effort] ?? effort).tag(effort)
+          }.frame(maxHeight: 230)
+            .onChange(of: highlighted) { _, model in
+              if let model { proxy.scrollTo(model) }
+            }
         }
-        if !efforts.contains(configuration.reasoning) {
-          Text(configuration.reasoning).tag(configuration.reasoning)
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+          !choices.contains(query.trimmingCharacters(in: .whitespacesAndNewlines))
+        {
+          Button("使用模型 ID：\(query)") { choose(query) }
+            .lineLimit(2).help("使用服务商提供的模型 ID")
         }
-      }.disabled(configuration.model.isEmpty)
+        if catalog.loading {
+          ProgressView("正在获取模型列表…").controlSize(.small)
+        } else if let error = catalog.error {
+          Text(error).appFont(.caption).foregroundStyle(.secondary)
+        }
+        Divider()
+        Picker(
+          "推理强度",
+          selection: Binding(
+            get: { configuration.reasoning },
+            set: { selectReasoning($0) })
+        ) {
+          ForEach(efforts, id: \.self) { effort in
+            Text(AgentReasoningEfforts.titles[effort] ?? effort).tag(effort)
+          }
+          if !efforts.contains(configuration.reasoning) {
+            Text(configuration.reasoning).tag(configuration.reasoning)
+          }
+        }.disabled(configuration.model.isEmpty)
+      }
       Text("模型列表由当前服务提供；推理强度是否可用取决于所选模型。更改用于下一次请求。")
         .appFont(.caption).foregroundStyle(.secondary)
       if catalog.isCurrentReasoningUnsupported(for: configuration.model, reasoning: configuration.reasoning) {
@@ -116,10 +161,13 @@ struct ComposerModelPicker: View {
       highlighted = choices.first
       await Task.yield()
       guard !Task.isCancelled else { return }
-      searching = true
+      searching = !showingPower
     }
     .onChange(of: choices) { _, choices in
       if !choices.contains(highlighted ?? "") { highlighted = choices.first }
+    }
+    .onChange(of: showingPower) { _, value in
+      if value { searching = false }
     }
     .onExitCommand(perform: close)
   }

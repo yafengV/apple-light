@@ -28,10 +28,15 @@ final class ModelSelectionTests: XCTestCase {
     let payload = Data(#"{"data":[{"id":"z"},{"id":"Model/A"},{"id":"model/a"},{"id":"z"},{"id":" "}]}"#.utf8)
     XCTAssertEqual(try ModelCatalog.decode(payload), ["Model/A", "model/a", "z"])
     XCTAssertEqual(try ModelCatalog.decode(Data(#"{"data":[]}"#.utf8)), [])
-    let detailed = Data(#"{"data":[{"id":"gpt-a","supported_reasoning_efforts":[{"reasoning_effort":"low"},{"reasoning_effort":"max"}]},{"id":"gpt-b","supportedReasoningEfforts":["medium","ultra"]}]}"#.utf8)
+    let detailed = Data(#"{"data":[{"id":"gpt-a","supported_reasoning_efforts":[{"reasoning_effort":"low"},{"reasoning_effort":"max"}]},{"id":"gpt-b","supportedReasoningEfforts":["medium","ultra"]},{"id":"gpt-c","supported_reasoning_levels":[{"effort":"high","description":"Thinks longer"}]}]}"#.utf8)
     XCTAssertEqual(try ModelCatalog.decodeDetails(detailed), [
       ModelCatalogEntry(id: "gpt-a", supportedReasoningEfforts: ["low", "max"]),
       ModelCatalogEntry(id: "gpt-b", supportedReasoningEfforts: ["medium", "ultra"]),
+      ModelCatalogEntry(id: "gpt-c", supportedReasoningEfforts: ["high"]),
+    ])
+    let codex = Data(#"{"models":[{"slug":"gpt-codex","supported_reasoning_levels":[{"effort":"medium","description":"Balanced"},{"effort":"high","description":"More reasoning"}]}]}"#.utf8)
+    XCTAssertEqual(try ModelCatalog.decodeDetails(codex), [
+      ModelCatalogEntry(id: "gpt-codex", supportedReasoningEfforts: ["medium", "high"]),
     ])
     for bad in [#"{"error":{"message":"private-server-detail"}}"#, #"{"data":[{}]}"#, "[]"] {
       XCTAssertThrowsError(try ModelCatalog.decode(Data(bad.utf8))) { error in
@@ -68,6 +73,9 @@ final class ModelSelectionTests: XCTestCase {
       ["", "none", "minimal", "low", "medium", "high", "xhigh", "max"])
     XCTAssertEqual(catalog.availableReasoning(for: "missing", advanced: []),
       AgentReasoningEfforts.standard)
+    XCTAssertEqual(catalog.powerChoices(for: "known", advanced: [.max]), ["", "low", "max"])
+    XCTAssertEqual(catalog.powerChoices(for: "known", advanced: []), ["", "low"])
+    XCTAssertEqual(catalog.powerChoices(for: "unknown", advanced: [.max]), [])
     XCTAssertEqual(catalog.reasoningWhenSelecting("known", current: "max"), "max")
     XCTAssertEqual(catalog.reasoningWhenSelecting("known", current: "high"), "")
     XCTAssertEqual(catalog.reasoningWhenSelecting("unknown", current: "high"), "high")
