@@ -2,7 +2,7 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
-环境页新增默认及分平台 cleanup 脚本；托管工作树归档或超额清理前在来源项目运行，失败保留目录，成功记录执行状态并在恢复后重置，见[第 235 篇](235-managed-worktree-cleanup.md)。共享环境文件、完整环境目录选择和原生页面配对仍缺。
+环境页新增默认及分平台 cleanup 脚本；托管工作树归档或超额清理前在来源项目运行，失败保留目录，成功记录执行状态并在恢复后重置，见[第 235 篇](235-managed-worktree-cleanup.md)。Codex 的共享环境文件位于项目内 `.codex/environments/environment.toml`；ShipiOS 尚未读写该文件，完整环境目录选择和原生页面配对仍缺。
 
 本机 Codex 静态资源的本地环境编辑器复核后，环境页补齐默认/macOS/Linux/Windows setup 脚本选择、Action 平台限制和四类图标；macOS 覆盖脚本及两个工作树路径变量进入真实初始化流程，见[第 234 篇](234-local-environment-platforms.md)。cleanup、共享环境文件和原生页面配对仍缺。
 
