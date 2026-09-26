@@ -5,6 +5,7 @@ struct TaskPullRequestDetailView: View {
   let request: GitHubPullRequest
   let root: URL
   let openExternal: (URL) -> Void
+  let onRefresh: (GitHubPullRequest) -> Void
   let back: () -> Void
   let close: () -> Void
 
@@ -95,6 +96,7 @@ struct TaskPullRequestDetailView: View {
       let updated = try await GitHubPRService().details(for: request, at: root)
       guard !Task.isCancelled else { return }
       details = updated
+      onRefresh(updated.recorded(updating: request))
     } catch {
       guard !Task.isCancelled else { return }
       self.error = error.localizedDescription

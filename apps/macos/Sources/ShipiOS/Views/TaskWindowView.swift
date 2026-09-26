@@ -140,7 +140,8 @@ struct TaskWindowView: View {
                   addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles(draft: taskID) } },
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                   canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
-                  canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount) {
+                  canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount,
+                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) }) {
                   taskSummary.close()
                 }
               }
@@ -217,7 +218,8 @@ struct TaskWindowView: View {
                 addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles(draft: taskID) } },
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                 canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
-                canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount) {
+                canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount,
+                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) }) {
                 taskSummary.close()
               }
               .frame(height: 480)

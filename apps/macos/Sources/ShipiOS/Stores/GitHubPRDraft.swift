@@ -129,6 +129,27 @@ extension WorkspaceStore {
     }
   }
 
+  @discardableResult func updateRecordedPullRequest(_ updated: GitHubPullRequest,
+    for taskID: String) -> Bool {
+    guard library.tasks.contains(where: { $0.id == taskID }),
+      let url = updated.validatedURL,
+      let requests = library.taskPullRequests[taskID],
+      let index = requests.firstIndex(where: { $0.validatedURL == url }),
+      updated.number == requests[index].number,
+      updated.isCrossRepository == requests[index].isCrossRepository else { return false }
+    var candidate = library
+    var replacement = requests
+    replacement[index] = updated
+    candidate.taskPullRequests[taskID] = replacement
+    do {
+      try commitLibrary(candidate)
+      return true
+    } catch {
+      self.error = "无法保存 PR 最新状态：\(error.localizedDescription)"
+      return false
+    }
+  }
+
   func createPullRequest(in workspace: DeveloperWorkspace, draft: Bool, taskID: String? = nil) async {
     guard !library.gitPreferences.readOnlyReview, !workspace.gitBusy, !workspace.gitActionRunning,
       let root = workspace.root, workspace.pullRequestDraft.canCreate,

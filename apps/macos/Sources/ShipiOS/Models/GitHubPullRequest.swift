@@ -44,6 +44,17 @@ struct GitHubPullRequest: Codable, Equatable, Sendable {
   let headRefName: String
   let baseRefName: String
   let isCrossRepository: Bool
+  var state: String? = nil
+  var checkedAt: Date? = nil
+
+  var statusLabel: String {
+    switch state?.uppercased() {
+    case "MERGED": "已合并"
+    case "CLOSED": "上次为已关闭"
+    case "OPEN": isDraft ? "上次为草稿" : "上次为开放"
+    default: isDraft ? "上次记录为草稿" : "上次记录为开放"
+    }
+  }
 
   var validatedURL: URL? {
     guard number > 0, let components = URLComponents(string: url),
@@ -84,6 +95,13 @@ struct GitHubPRDetails: Decodable, Equatable, Sendable {
     case "CLOSED": "已关闭"
     default: isDraft ? "草稿" : "开放"
     }
+  }
+
+  func recorded(updating original: GitHubPullRequest, at date: Date = Date()) -> GitHubPullRequest {
+    GitHubPullRequest(number: number, url: url, title: title, isDraft: isDraft,
+      headRefName: headRefName, baseRefName: baseRefName,
+      isCrossRepository: original.isCrossRepository,
+      state: state.uppercased(), checkedAt: date)
   }
 
   var checkSummary: (passed: Int, failed: Int, pending: Int) {

@@ -17,6 +17,7 @@ struct TaskSummaryView: View {
   let addImage: () -> Void
   let canAddFile: Bool
   let canAddImage: Bool
+  let onPullRequestUpdated: (GitHubPullRequest) -> Void
   let close: () -> Void
 
   private var latestPlanDocument: (runID: String, document: CodexPlanDocument)? {
@@ -35,6 +36,7 @@ struct TaskSummaryView: View {
         TaskPullRequestDetailView(request: selection.request,
           root: URL(fileURLWithPath: task.project, isDirectory: true),
           openExternal: openExternal,
+          onRefresh: onPullRequestUpdated,
           back: { selectedPullRequest = nil },
           close: { selectedPullRequest = nil; close() })
       } else {
@@ -103,8 +105,7 @@ struct TaskSummaryView: View {
                       Text("#\(request.number)").foregroundStyle(.secondary)
                       VStack(alignment: .leading, spacing: 3) {
                         Text(request.title).lineLimit(2)
-                        Text(request.isDraft ? "草稿 · \(request.headRefName) → \(request.baseRefName)"
-                          : "\(request.headRefName) → \(request.baseRefName)")
+                        Text("\(request.statusLabel) · \(request.headRefName) → \(request.baseRefName)")
                           .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
                       }
                       Spacer(minLength: 0)

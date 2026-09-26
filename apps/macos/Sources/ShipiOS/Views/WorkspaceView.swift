@@ -200,7 +200,8 @@ struct WorkspaceView: View {
                   addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles() } },
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                   canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
-                  canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount) {
+                  canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount,
+                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) }) {
                   taskSummary.close()
                 }
                 .frame(height: 480)
@@ -325,7 +326,8 @@ struct WorkspaceView: View {
                 addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles() } },
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                 canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
-                canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount) {
+                canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount,
+                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) }) {
                 taskSummary.close()
               }
             }

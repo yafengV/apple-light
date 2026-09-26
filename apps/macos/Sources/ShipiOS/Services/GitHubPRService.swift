@@ -87,7 +87,8 @@ struct GitHubPRService: Sendable {
       throw GitHubPRRefreshRequired(message: "创建结果尚未确认，请重新检查 PR 状态。")
     }
     return GitHubPullRequest(number: number, url: url.absoluteString, title: title, isDraft: draft,
-      headRefName: context.head, baseRefName: base, isCrossRepository: false)
+      headRefName: context.head, baseRefName: base, isCrossRepository: false,
+      state: "OPEN", checkedAt: Date())
   }
 
   func generationContent(_ context: GitHubPRContext, base: String) async throws -> GitPullRequestContent {
@@ -129,10 +130,12 @@ struct GitHubPRService: Sendable {
     let items = try JSONDecoder().decode([GitHubPullRequest].self, from: Data(output.utf8))
     let matches = items.filter { $0.headRefName == head && !$0.isCrossRepository }
     guard matches.count <= 1 else { throw AgentFailure(message: "此分支有多个已打开的 PR，请在 GitHub 中选择。") }
-    if let item = matches.first {
+    if var item = matches.first {
       guard let url = repository.pullRequestURL(item.url), Int(url.lastPathComponent) == item.number else {
         throw AgentFailure(message: "GitHub 返回了无效的 PR 地址。")
       }
+      item.state = "OPEN"
+      item.checkedAt = Date()
       return item
     }
     return nil

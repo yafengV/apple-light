@@ -90,8 +90,16 @@ final class GitHubPRTests: XCTestCase {
     XCTAssertFalse(store.recordPullRequest(created, for: "other",
       at: root.appendingPathComponent("wrong"), repository: repository))
 
+    let updated = GitHubPullRequest(number: created.number, url: created.url,
+      title: "Merged title", isDraft: false, headRefName: created.headRefName,
+      baseRefName: created.baseRefName, isCrossRepository: false,
+      state: "MERGED", checkedAt: Date(timeIntervalSince1970: 1000))
+    XCTAssertTrue(store.updateRecordedPullRequest(updated, for: "owner"))
+    XCTAssertFalse(store.updateRecordedPullRequest(updated, for: "other"))
+    XCTAssertEqual(store.library.taskPullRequests["owner"], [updated])
+
     var reloaded = try WorkspaceLibrary.load(from: dataRoot.appendingPathComponent("workspace.json"))
-    XCTAssertEqual(reloaded.taskPullRequests["owner"], [created])
+    XCTAssertEqual(reloaded.taskPullRequests["owner"], [updated])
     XCTAssertNil(reloaded.taskPullRequests["other"])
     reloaded.tasks[0].archived = true
     _ = reloaded.deleteArchivedTasks(["owner"])
@@ -110,6 +118,17 @@ final class GitHubPRTests: XCTestCase {
         baseRefName: request.baseRefName, isCrossRepository: request.isCrossRepository)
       XCTAssertNil(unsafe.validatedURL)
     }
+  }
+
+  func testLegacyPRDecodesWithoutCachedState() throws {
+    let json = """
+      {"number":42,"url":"https://github.com/sample/project/pull/42","title":"Legacy",
+      "isDraft":true,"headRefName":"topic","baseRefName":"main","isCrossRepository":false}
+      """
+    let request = try JSONDecoder().decode(GitHubPullRequest.self, from: Data(json.utf8))
+    XCTAssertNil(request.state)
+    XCTAssertNil(request.checkedAt)
+    XCTAssertEqual(request.statusLabel, "上次记录为草稿")
   }
 
   func testDetailsRefreshValidatesIdentityAndReportsCurrentStatus() async throws {
@@ -142,6 +161,10 @@ final class GitHubPRTests: XCTestCase {
     XCTAssertEqual(details.checkSummary.passed, 1)
     XCTAssertEqual(details.checkSummary.failed, 1)
     XCTAssertEqual(details.checkSummary.pending, 1)
+    let refreshed = details.recorded(updating: request, at: Date(timeIntervalSince1970: 1000))
+    XCTAssertEqual(refreshed.title, "Current title")
+    XCTAssertEqual(refreshed.state, "MERGED")
+    XCTAssertEqual(refreshed.checkedAt, Date(timeIntervalSince1970: 1000))
     let calls = try requests(at: root)
     XCTAssertTrue(calls.contains { ($0["args"] as? [String])?.prefix(3) == ["pr", "view", "42"] })
 
