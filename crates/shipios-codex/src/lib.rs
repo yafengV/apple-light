@@ -524,9 +524,14 @@ impl CodexSession {
         server_name: String,
         request_id: RequestId,
         decision: ApprovalDecision,
+        form_content: Option<serde_json::Value>,
     ) -> Result<()> {
         let (action, content, meta) = match decision {
-            ApprovalDecision::Allow => (ElicitationAction::Accept, Some(json!({})), None),
+            ApprovalDecision::Allow => (
+                ElicitationAction::Accept,
+                Some(form_content.unwrap_or_else(|| json!({}))),
+                None,
+            ),
             ApprovalDecision::AllowForSession => (
                 ElicitationAction::Accept,
                 Some(json!({})),

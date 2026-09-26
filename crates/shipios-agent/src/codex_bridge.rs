@@ -85,6 +85,8 @@ pub struct CodexElicitation {
     pub server_name: String,
     pub request_id: RequestId,
     pub decision: CodexApprovalChoice,
+    #[serde(default)]
+    pub content: Option<Value>,
 }
 
 #[derive(Deserialize)]
@@ -305,6 +307,16 @@ impl CodexBridge {
         );
         if let RequestId::String(id) = &response.request_id {
             ensure!(!id.is_empty() && id.len() <= 256, "invalid elicitation ID");
+        }
+        if let Some(content) = &response.content {
+            ensure!(
+                serde_json::to_vec(content)?.len() <= 65_536,
+                "elicitation content is too large"
+            );
+            ensure!(
+                matches!(response.decision, CodexApprovalChoice::Allow),
+                "only an accepted form may contain elicitation content"
+            );
         }
         let sender = self.sender(&response.task_id).await?;
         let (reply, result) = oneshot::channel();
@@ -608,7 +620,7 @@ async fn run_thread(
                         CodexApprovalChoice::Deny => ApprovalDecision::Deny,
                     };
                     let result = live.resolve_mcp_elicitation(
-                        response.server_name, response.request_id, decision).await;
+                        response.server_name, response.request_id, decision, response.content).await;
                     let _ = reply.send(result);
                 }
                 Some(Command::Answer(answer, reply)) => {

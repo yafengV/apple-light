@@ -50,5 +50,6 @@ extension WorkspaceStore {
     library.unreadTasks.contains(task.id)
       || mcpPendingApprovals.values.contains { task.runIDs.contains($0.runID) }
       || codexPendingQuestions.values.contains { task.runIDs.contains($0.runID) }
+      || codexPendingElicitations.values.contains { task.runIDs.contains($0.runID) }
   }
 }

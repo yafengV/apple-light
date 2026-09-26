@@ -1016,6 +1016,82 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(try String(contentsOf: callLog, encoding: .utf8).contains("\"name\": \"first\""))
     await store.shutdown()
   }
+  @MainActor func testCodexResponsesMCPFormElicitationReturnsTypedContent() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let callLog = project.appendingPathComponent("form-response.jsonl")
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"
+    mcp.command = "/usr/bin/python3"
+    mcp.arguments = [fixture.path, "stdio_form"]
+    mcp.environment = [MCPKeyValue(key: "CALL_LOG", value: callLog.path),
+      MCPKeyValue(key: "SHIPIOS_CODEX_PROBE", value: "1")]
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-mcp-form-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    let deadline = Date().addingTimeInterval(15)
+    var request: CodexElicitationRequest?
+    while Date() < deadline {
+      request = store.library.chatRuns.first(where: { $0.id == run.id })?.codexElicitations.last
+      if request != nil { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let form = try XCTUnwrap(request, "MCP form did not reach the task timeline")
+    XCTAssertEqual(form.fields.map(\.id), ["count", "reason"])
+    XCTAssertFalse(form.validContent(.object(["reason": .string("ok"), "count": .string("2")])))
+    XCTAssertFalse(form.validContent(.object(["reason": .string("no"), "count": .number(2)])))
+    XCTAssertFalse(form.validContent(.object(["reason": .string("fixture reason")])))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: callLog.path))
+    let content = JSONValue.object(["reason": .string("fixture reason"), "count": .number(2)])
+    XCTAssertTrue(form.validContent(content))
+    store.submitCodexElicitation(form.id, accepted: true, content: content)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "MCP form fixture reply")
+    XCTAssertEqual(finished.codexElicitations.first?.status, .accepted)
+    XCTAssertTrue(finished.responseItems?.contains(.elicitation(form.id)) == true)
+    let answer = try String(contentsOf: callLog, encoding: .utf8)
+    XCTAssertTrue(answer.contains("fixture reason"), answer)
+    XCTAssertTrue(answer.contains("\"count\": 2"), answer)
+
+    store.newTask()
+    await store.startChat("codex-mcp-form-probe")
+    let declinedRun = try XCTUnwrap(store.library.chatRuns.last)
+    let declineDeadline = Date().addingTimeInterval(15)
+    var declineForm: CodexElicitationRequest?
+    while Date() < declineDeadline {
+      declineForm = store.library.chatRuns.first(where: { $0.id == declinedRun.id })?.codexElicitations.last
+      if declineForm != nil { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    store.submitCodexElicitation(try XCTUnwrap(declineForm).id, accepted: false, content: nil)
+    await store.modelTask(runID: declinedRun.id)?.value
+    let declined = try XCTUnwrap(store.library.chatRuns.first { $0.id == declinedRun.id })
+    XCTAssertEqual(declined.status, "succeeded", declined.result?["message"].text ?? "")
+    XCTAssertEqual(declined.codexElicitations.first?.status, .declined)
+    let answers = try String(contentsOf: callLog, encoding: .utf8).split(separator: "\n")
+    XCTAssertEqual(answers.count, 2)
+    XCTAssertTrue(answers.last?.contains("decline") == true)
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

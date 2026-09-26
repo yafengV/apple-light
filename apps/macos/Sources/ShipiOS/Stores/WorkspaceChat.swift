@@ -329,9 +329,14 @@ extension WorkspaceStore {
           case "mcp_tool_call_begin", "mcp_tool_call_end":
             recordCodexMCPCall(runID: runID, event: event)
           case "elicitation_request":
-            try await resolveCodexMCPElicitation(runID: runID, taskID: taskID, event: event,
-              readOnlyReason: review != nil ? "代码审查为只读，已拒绝 MCP 工具调用。"
-                : mode == .plan ? "计划模式为只读，已拒绝 MCP 工具调用。" : nil)
+            if event["request"]["_meta"]["codex_approval_kind"].text == "mcp_tool_call",
+              event["id"].text?.hasPrefix("mcp_tool_call_approval_") == true {
+              try await resolveCodexMCPElicitation(runID: runID, taskID: taskID, event: event,
+                readOnlyReason: review != nil ? "代码审查为只读，已拒绝 MCP 工具调用。"
+                  : mode == .plan ? "计划模式为只读，已拒绝 MCP 工具调用。" : nil)
+            } else {
+              try await handleCodexElicitation(runID: runID, taskID: taskID, event: event)
+            }
           case "exec_approval_request", "apply_patch_approval_request":
             try await resolveCodexApproval(runID: runID, taskID: taskID, event: event,
               readOnlyReason: review != nil ? "代码审查为只读，已拒绝写入操作。"
@@ -368,6 +373,7 @@ extension WorkspaceStore {
           case "task_complete":
             recordCodexRuntimeStatus(runID: runID, message: nil)
             expireCodexQuestions(runID: runID)
+            expireCodexElicitations(runID: runID)
             if library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false,
               let message = event["last_agent_message"].text,
               !message.isEmpty { appendChat(runID, delta: message) }
@@ -575,6 +581,7 @@ extension WorkspaceStore {
     _ id: String, status: String, message: String? = nil, usage: ModelTokenUsage? = nil
   ) -> String? {
     expireCodexQuestions(runID: id)
+    expireCodexElicitations(runID: id)
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return nil }
     var response = current.result?["response"].text ?? ""
     var items = current.responseItems
@@ -615,7 +622,8 @@ extension WorkspaceStore {
     _ current: AgentRun, status: String, response: String, message: String? = nil,
     usage: ModelTokenUsage? = nil, responseItems: [ChatResponseItem]? = nil,
     toolExecutions: [MCPToolExecution]? = nil,
-    codexQuestions: [CodexQuestionRequest]? = nil, codexPlan: CodexPlan? = nil
+    codexQuestions: [CodexQuestionRequest]? = nil,
+    codexElicitations: [CodexElicitationRequest]? = nil, codexPlan: CodexPlan? = nil
   ) {
     var result: [String: JSONValue] = [:]
     if case .object(let fields) = current.result { result = fields }
@@ -630,6 +638,10 @@ extension WorkspaceStore {
     if let codexQuestions,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexQuestions)) {
       result["codex_questions"] = value
+    }
+    if let codexElicitations,
+      let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexElicitations)) {
+      result["codex_elicitations"] = value
     }
     if let codexPlan,
       let value = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(codexPlan)) {

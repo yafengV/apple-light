@@ -165,6 +165,8 @@ final class WorkspaceStore {
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
   var codexPendingQuestions: [UUID: CodexQuestionContext] = [:]
   @ObservationIgnored var codexQuestionContinuations: [UUID: CheckedContinuation<[String: [String]]?, Never>] = [:]
+  var codexPendingElicitations: [UUID: CodexElicitationContext] = [:]
+  @ObservationIgnored var codexElicitationContinuations: [UUID: CheckedContinuation<CodexElicitationDecision?, Never>] = [:]
   @ObservationIgnored var codexSteeringMessages: Set<UUID> = []
   @ObservationIgnored var mcpTaskGrants: Set<String> = []
   @ObservationIgnored var mcpConnections: [UUID: MCPConnection] = [:]
@@ -1025,6 +1027,7 @@ final class WorkspaceStore {
     shuttingDown = true
     await shutdownMCPConnections()
     for id in Array(codexPendingQuestions.keys) { cancelCodexQuestion(id) }
+    for id in Array(codexPendingElicitations.keys) { cancelCodexElicitation(id) }
     sleepPrevention.stop()
     for task in modelTasks.values { task.cancel() }
     compatibilityModelTask?.cancel()

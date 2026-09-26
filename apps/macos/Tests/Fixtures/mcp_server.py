@@ -93,11 +93,34 @@ if sys.argv[1] == "http":
     server.serve_forever()
 else:
     mode = sys.argv[1]
+    pending_form_call = None
     if len(sys.argv) > 2:
         with open(sys.argv[2], "w") as f:
             f.write(str(os.getpid()))
     for line in sys.stdin:
         message = json.loads(line)
+        if mode == "stdio_form" and message.get("method") == "tools/call":
+            pending_form_call = message["id"]
+            request = {"jsonrpc": "2.0", "id": "fixture-form-request",
+                       "method": "elicitation/create", "params": {
+                           "message": "Provide the fixture details",
+                           "requestedSchema": {"type": "object", "properties": {
+                               "reason": {"type": "string", "title": "Reason", "minLength": 3},
+                               "count": {"type": "integer", "title": "Count"}},
+                               "required": ["reason", "count"]}}}
+            print(json.dumps(request), flush=True)
+            continue
+        if mode == "stdio_form" and message.get("id") == "fixture-form-request" \
+                and message.get("method") is None:
+            answer = message.get("result", {})
+            if os.getenv("CALL_LOG"):
+                with open(os.environ["CALL_LOG"], "a") as f:
+                    f.write(json.dumps(answer) + "\n")
+            payload = {"jsonrpc": "2.0", "id": pending_form_call, "result": {
+                "content": [{"type": "text", "text": "FORM_OK " + json.dumps(answer)}]}}
+            print(json.dumps(payload), flush=True)
+            pending_form_call = None
+            continue
         if mode == "stall":
             time.sleep(30)
             continue

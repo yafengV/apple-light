@@ -179,7 +179,7 @@ final class CodexChatTransport {
   }
 
   func resolveMCPElicitation(taskID: String, serverName: String, requestID: JSONValue,
-    decision: MCPApprovalDecision) async throws {
+    decision: MCPApprovalDecision, content: JSONValue? = nil) async throws {
     guard activeThreads.contains(taskID), !serverName.isEmpty,
       requestID.text != nil || requestID.int != nil else {
       throw AgentFailure(message: "Codex MCP 审批所属任务已断开。")
@@ -193,6 +193,7 @@ final class CodexChatTransport {
     _ = try await client.request("codex.elicitation.resolve", [
       "taskId": .string(taskID), "serverName": .string(serverName),
       "requestId": requestID, "decision": .string(choice),
+      "content": content ?? .null,
     ])
   }
 
