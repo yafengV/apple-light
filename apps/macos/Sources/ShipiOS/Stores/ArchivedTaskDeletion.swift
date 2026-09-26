@@ -104,7 +104,13 @@ extension WorkspaceStore {
         return true
       }
       let deletedSelectionIDs = deletedRuns.union(originalTaskIDs.subtracting(candidate.tasks.map(\.id)))
+      let originalSnapshotIDs = Set(deletedRuns.map { library.forkRunOrigins[$0] ?? $0 })
       try commitLibrary(candidate)
+      let retainedSnapshotIDs = Set(candidate.chatRuns.map(\.id))
+        .union(candidate.forkRunOrigins.values)
+      for id in originalSnapshotIDs.subtracting(retainedSnapshotIDs) {
+        ReviewSnapshotStorage.remove(runID: id, root: dataRoot)
+      }
       if selection.map(deletedSelectionIDs.contains) == true { selection = nil }
       navigationBack.removeAll { $0.run.map(deletedSelectionIDs.contains) == true }
       navigationForward.removeAll { $0.run.map(deletedSelectionIDs.contains) == true }

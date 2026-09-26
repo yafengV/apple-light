@@ -98,6 +98,7 @@ class Handler(BaseHTTPRequestHandler):
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',
                     'content': [{'type': 'output_text', 'text':
                         'Steered fixture reply' if 'steered-inflight-proof' in request_text
+                        else 'Changed review reply' if 'review-snapshot-new' in request_text
                         else 'Review fixture reply' if '<git_diff>' in request_text
                         else 'Codex fixture reply'}],
                 }

@@ -1,6 +1,6 @@
 import Foundation
 
-enum ModelCodeReviewScope: Equatable, Sendable {
+enum ModelCodeReviewScope: Codable, Equatable, Sendable {
   case uncommitted
   case branch(String)
 
@@ -17,7 +17,7 @@ enum ModelCodeReviewScope: Equatable, Sendable {
   }
 }
 
-struct ModelCodeReviewSnapshot: Equatable, Sendable {
+struct ModelCodeReviewSnapshot: Codable, Equatable, Sendable {
   let scope: ModelCodeReviewScope
   let diff: String
 

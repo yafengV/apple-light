@@ -648,6 +648,21 @@ final class WorkspaceStore {
       return
     }
     if run.kind == "chat" {
+      if request["conversation_kind"]?.text == "review" {
+        do {
+          let originalID = library.forkRunOrigins[run.id] ?? run.id
+          let snapshot = try ReviewSnapshotStorage.load(runID: originalID, root: dataRoot)
+          guard request["review_scope"]?.text == snapshot.scope.metadataValue,
+            request["review_selection"]?.text == snapshot.scope.selection,
+            let delivery = request["review_delivery"]?.text.flatMap(ReviewDelivery.init(rawValue:)),
+            let owner = library.task(containing: run.id) else {
+            throw AgentFailure(message: "原审查范围或所属任务已失效，无法重新运行。")
+          }
+          await startChat(snapshot.requestTitle, taskID: owner.id,
+            review: ModelCodeReviewContext(snapshot: snapshot, delivery: delivery))
+        } catch { self.error = error.localizedDescription }
+        return
+      }
       await startChat(
         library.notes[run.id] ?? "", images: library.runImages[run.id] ?? [],
         files: library.runFiles[run.id] ?? [],

@@ -5,6 +5,27 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  @MainActor func testLegacyReviewRetryDoesNotBecomeOrdinaryChat() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "succeeded", createdAt: 0, updatedAt: 0,
+      request: .object([
+        "model": .string("gpt-5.4"), "conversation_kind": .string("review"),
+        "review_scope": .string("uncommitted"), "review_delivery": .string("detached"),
+      ]), result: .object(["response": .string("旧审查结果")]))
+    store.library.chatRuns = [run]
+    store.library.tasks = [WorkspaceTask(id: UUID().uuidString, project: "/project",
+      title: "代码审查", runIDs: [run.id])]
+    store.runs = [run]
+    store.selection = run.id
+    await store.rerun()
+    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertTrue(store.error?.contains("原审查差异快照已不存在") == true)
+  }
+
   @MainActor func testCodexRejectedSteeringKeepsQueuedMessage() async {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -1852,7 +1873,52 @@ final class ModelTransportTests: XCTestCase {
         && $0.output == "代码审查为只读，已拒绝写入操作。"
     }, "\(finished.toolExecutions)")
     XCTAssertFalse(store.showingReviewMode)
+    let originalSnapshot = try ReviewSnapshotStorage.load(runID: run.id,
+      root: root.appendingPathComponent("Data"))
+    XCTAssertEqual(originalSnapshot.diff, snapshot.diff)
     await store.shutdown()
+
+    try (try String(contentsOf: file, encoding: .utf8) + "\n// review-snapshot-new\n")
+      .write(to: file, atomically: true, encoding: .utf8)
+    let restarted = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: binary)
+    await restarted.restore()
+    restarted.notificationPreferences = .init(timing: .never)
+    await restarted.open(project)
+    restarted.selection = run.id
+    await restarted.rerun()
+    let retried = try XCTUnwrap(restarted.library.chatRuns.last)
+    XCTAssertNotEqual(retried.id, run.id)
+    await restarted.modelTask(runID: retried.id)?.value
+    XCTAssertEqual(restarted.library.chatRuns.first { $0.id == retried.id }?.status, "succeeded")
+    XCTAssertEqual(restarted.library.chatRuns.first { $0.id == retried.id }?.result?["response"].text,
+      "Review fixture reply")
+    XCTAssertEqual(retried.request["conversation_kind"].text, "review")
+    XCTAssertEqual(try ReviewSnapshotStorage.load(runID: retried.id,
+      root: root.appendingPathComponent("Data")), originalSnapshot)
+    let taskID = try XCTUnwrap(restarted.library.task(containing: run.id)?.id)
+    let fork = try XCTUnwrap(restarted.forkConversation())
+    let forkReviewID = try XCTUnwrap(fork.runIDs.first)
+    restarted.updateTask(taskID, archive: true)
+    XCTAssertTrue(restarted.deleteArchivedTasks([taskID]))
+    XCTAssertEqual(try ReviewSnapshotStorage.load(runID: run.id,
+      root: root.appendingPathComponent("Data")), originalSnapshot)
+    restarted.selection = forkReviewID
+    await restarted.rerun()
+    let forkRetry = try XCTUnwrap(restarted.library.chatRuns.last)
+    await restarted.modelTask(runID: forkRetry.id)?.value
+    XCTAssertEqual(restarted.library.chatRuns.first { $0.id == forkRetry.id }?.status, "succeeded")
+    XCTAssertEqual(restarted.library.chatRuns.first { $0.id == forkRetry.id }?.result?["response"].text,
+      "Review fixture reply")
+    restarted.updateTask(fork.id, archive: true)
+    XCTAssertTrue(restarted.deleteArchivedTasks([fork.id]))
+    XCTAssertThrowsError(try ReviewSnapshotStorage.load(runID: run.id,
+      root: root.appendingPathComponent("Data")))
+    XCTAssertThrowsError(try ReviewSnapshotStorage.load(runID: retried.id,
+      root: root.appendingPathComponent("Data")))
+    XCTAssertThrowsError(try ReviewSnapshotStorage.load(runID: forkRetry.id,
+      root: root.appendingPathComponent("Data")))
+    await restarted.shutdown()
   }
 
   @MainActor func testCodexInlineReviewKeepsTaskAndAllowsNormalFollowup() async throws {

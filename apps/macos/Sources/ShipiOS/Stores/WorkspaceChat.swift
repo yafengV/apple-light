@@ -219,7 +219,12 @@ extension WorkspaceStore {
         candidate.projectSelections[currentProjectKey] = run.id
         candidate.lastWorkspace = currentProjectKey
       }
-      try commitLibrary(candidate)
+      if let review { try ReviewSnapshotStorage.save(review.snapshot, runID: run.id, root: dataRoot) }
+      do { try commitLibrary(candidate) }
+      catch {
+        if review != nil { ReviewSnapshotStorage.remove(runID: run.id, root: dataRoot) }
+        throw error
+      }
       if mode == .goal { pendingGoal = nil }
       adoptDraftTerminal(submittedTerminal, run: run)
       completionTracker.begin(run.id)
