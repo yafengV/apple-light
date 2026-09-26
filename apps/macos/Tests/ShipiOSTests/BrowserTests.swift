@@ -141,6 +141,26 @@ final class BrowserTests: XCTestCase {
     }
   }
 
+  func testAddressInputSearchAndHistorySuggestions() throws {
+    XCTAssertEqual(try BrowserAddressInput.url("SwiftUI navigation").host, "www.google.com")
+    XCTAssertEqual(URLComponents(url: try BrowserAddressInput.url("SwiftUI 导航 & tabs"), resolvingAgainstBaseURL: false)?
+      .queryItems?.first?.value, "SwiftUI 导航 & tabs")
+    XCTAssertEqual(try BrowserAddressInput.url("openai").path, "/search")
+    XCTAssertEqual(try BrowserAddressInput.url("example.com docs").path, "/search")
+    XCTAssertEqual(try BrowserAddressInput.url("example.com/docs").host, "example.com")
+    XCTAssertEqual(try BrowserAddressInput.url("localhost:3000").scheme, "http")
+    for address in ["file:///tmp/private", "javascript:alert(1)", "https://name:secret@example.com",
+      "https://invalid host"] {
+      XCTAssertThrowsError(try BrowserAddressInput.url(address), address)
+    }
+    let older = BrowserHistoryEntry(url: "https://example.com/guide", title: "Swift Guide")
+    let newer = BrowserHistoryEntry(url: "https://swift.org", title: "Swift Home")
+    XCTAssertEqual(BrowserAddressInput.historyMatches("SWIFT", in: [newer, older]).map(\.id), [newer.id, older.id])
+    XCTAssertEqual(BrowserAddressInput.historyMatches("guide", in: [newer, older]).map(\.id), [older.id])
+    XCTAssertEqual(BrowserAddressInput.historyMatches("swift", in: [newer, older], limit: 1).count, 1)
+    XCTAssertTrue(BrowserAddressInput.historyMatches("", in: [newer]).isEmpty)
+  }
+
   @MainActor func testMessageLinksReusePageAndMoveBetweenSplitAndFullWidth() async throws {
     let store = WorkspaceStore()
     defer { store.workspace.browser.shutdown() }

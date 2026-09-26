@@ -29,6 +29,9 @@ struct BrowserPanel: View {
   var showsTabStrip = true
   var tabID: UUID? = nil
   @State private var showingDownloads = false
+  @State private var addressSuggestionsVisible = false
+  @State private var addressSuggestionTabID: UUID?
+  @State private var selectedAddressSuggestion = -1
   private var comments: [BrowserComment] { store.browserComments(taskID: context?.taskID) }
   private func canFocus() -> Bool {
     context?.canFocus() ?? (store.browserVisible && store.presentedOverlay == nil
@@ -37,6 +40,30 @@ struct BrowserPanel: View {
   private var displayedTab: BrowserTab? {
     if let tabID { return session.tabs.first { $0.id == tabID } }
     return session.selected
+  }
+  private func addressMatches(_ tab: BrowserTab) -> [BrowserHistoryEntry] {
+    BrowserAddressInput.historyMatches(tab.address, in: store.library.browserHistory)
+  }
+  private func moveAddressSuggestion(_ direction: Int, tab: BrowserTab) {
+    let count = addressMatches(tab).count
+    guard count > 0 else { return }
+    if selectedAddressSuggestion < 0 {
+      selectedAddressSuggestion = direction < 0 ? count - 1 : 0
+    } else {
+      selectedAddressSuggestion = (selectedAddressSuggestion + direction + count) % count
+    }
+  }
+  private func navigateAddress(_ text: String, tab: BrowserTab) {
+    let matches = addressMatches(tab)
+    if selectedAddressSuggestion >= 0, selectedAddressSuggestion < matches.count {
+      tab.address = matches[selectedAddressSuggestion].url
+    } else {
+      do { tab.address = try BrowserAddressInput.url(text).absoluteString }
+      catch { tab.address = text }
+    }
+    addressSuggestionsVisible = false
+    selectedAddressSuggestion = -1
+    tab.navigate()
   }
   var body: some View {
     VStack(spacing: 0) {
@@ -67,7 +94,20 @@ struct BrowserPanel: View {
           Button { if tab.loading { tab.stop() } else { tab.reload() } } label: {
             Image(systemName: tab.loading ? "xmark" : "arrow.clockwise")
           }.help(tab.loading ? "停止加载" : "重新加载").accessibilityLabel(tab.loading ? "停止加载" : "重新加载网页")
-          BrowserAddressField(tab: tab, session: session, canFocus: canFocus, independentFocus: context?.independentFocus == true)
+          BrowserAddressField(tab: tab, session: session, canFocus: canFocus,
+            independentFocus: context?.independentFocus == true,
+            onBeginEditing: {
+              addressSuggestionTabID = tab.id
+              addressSuggestionsVisible = true
+              selectedAddressSuggestion = -1
+            }, onEndEditing: {
+              DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                if !tab.editingAddress { addressSuggestionsVisible = false }
+              }
+            }, onChange: { selectedAddressSuggestion = -1 },
+            onMoveSuggestion: { moveAddressSuggestion($0, tab: tab) },
+            onSubmit: { navigateAddress($0, tab: tab) },
+            onCancel: { addressSuggestionsVisible = false })
             .frame(minWidth: 90, minHeight: 24).id(tab.id)
           Button {
             Task { await store.captureBrowserSnapshot(tab, taskID: context?.taskID) }
@@ -111,6 +151,37 @@ struct BrowserPanel: View {
             }
           } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
         }.buttonStyle(.plain).padding(10)
+        if addressSuggestionsVisible && addressSuggestionTabID == tab.id {
+          let matches = addressMatches(tab)
+          if !matches.isEmpty || BrowserAddressInput.isSearchQuery(tab.address) {
+            VStack(alignment: .leading, spacing: 0) {
+              ForEach(Array(matches.enumerated()), id: \.element.id) { index, entry in
+                Button {
+                  selectedAddressSuggestion = index
+                  navigateAddress(entry.url, tab: tab)
+                } label: {
+                  HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                    VStack(alignment: .leading, spacing: 2) {
+                      Text(entry.title.isEmpty ? entry.url : entry.title).lineLimit(1)
+                      Text(entry.url).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                  }.padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(selectedAddressSuggestion == index ? Color.accentColor.opacity(0.15) : Color.clear)
+                }.buttonStyle(.plain).accessibilityLabel("历史页面：\(entry.title.isEmpty ? entry.url : entry.title)")
+              }
+              if matches.isEmpty && BrowserAddressInput.isSearchQuery(tab.address) {
+                Button { navigateAddress(tab.address, tab: tab) } label: {
+                  Label("搜索 Google：\(tab.address)", systemImage: "magnifyingglass")
+                    .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain)
+              }
+            }.background(.regularMaterial).padding(.horizontal, 76)
+              .accessibilityIdentifier("browser-address-suggestions")
+          }
+        }
         if let error = tab.error {
           HStack(alignment: .top) {
             Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
