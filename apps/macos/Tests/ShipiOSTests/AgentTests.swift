@@ -178,6 +178,15 @@ final class AgentTests: XCTestCase {
     let noEnvironment = try await store.managedEnvironmentSnapshot(
       selectionID: WorktreeEnvironmentChoice.none)
     XCTAssertEqual(noEnvironment, ManagedEnvironmentSnapshot.none)
+    await store.selectSharedEnvironment("broken.toml")
+    XCTAssertTrue(store.environmentStatus.contains("无法解析"), store.environmentStatus)
+    XCTAssertNotNil(store.environmentRevision)
+    XCTAssertEqual(store.worktreeSetupScript, "")
+    store.environmentName = "Repaired"
+    await store.saveSharedEnvironment()
+    XCTAssertTrue(store.environmentStatus.contains("已保存"), store.environmentStatus)
+    XCTAssertTrue(try String(contentsOf: directory.appendingPathComponent("broken.toml"),
+      encoding: .utf8).contains("Repaired"))
     store.createSharedEnvironment()
     XCTAssertEqual(store.environmentFileName, "environment-3.toml")
     store.worktreeSetupScript = "echo third"

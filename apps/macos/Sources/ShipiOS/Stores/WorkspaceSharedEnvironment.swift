@@ -70,6 +70,16 @@ extension WorkspaceStore {
     environmentLoadedState.map { $0 != currentEnvironmentFormState } ?? false
   }
 
+  private func clearEnvironmentForm(for fileName: String) {
+    environmentName = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+    worktreeSetupScript = ""
+    setupPlatformScripts = .init()
+    worktreeCleanupScript = ""
+    cleanupPlatformScripts = .init()
+    environmentActions = []
+    environmentLoadedState = currentEnvironmentFormState
+  }
+
   func refreshSharedEnvironments() async {
     guard connected, let path = project?.path else { return }
     do {
@@ -100,6 +110,11 @@ extension WorkspaceStore {
       environmentExists = result["exists"].boolean == true
       environmentRevision = result["revision"].text
       if environmentExists {
+        if result["error"].text != nil {
+          clearEnvironmentForm(for: fileName)
+          environmentStatus = "环境文件无法解析。编辑并保存可替换该文件。"
+          return
+        }
         let config = result["config"]
         environmentName = config["name"].text ?? environmentName
         worktreeSetupScript = config["setup"]["script"].text ?? ""
@@ -120,15 +135,16 @@ extension WorkspaceStore {
       environmentLoadedState = currentEnvironmentFormState
     } catch {
       guard project?.path == path, environmentFileName == fileName else { return }
+      clearEnvironmentForm(for: fileName)
       environmentStatus = "共享环境文件读取失败：\(error.localizedDescription)"
     }
   }
 
   func selectSharedEnvironment(_ fileName: String) async {
-    guard environmentFiles.contains(where: { $0.id == fileName && $0.error == nil }) else { return }
+    guard let entry = environmentFiles.first(where: { $0.id == fileName }) else { return }
     environmentFileName = fileName
     await loadSharedEnvironment()
-    saveProfile()
+    if entry.error == nil { saveProfile() }
   }
 
   func createSharedEnvironment() {
@@ -154,17 +170,17 @@ extension WorkspaceStore {
     saveProfile()
   }
 
-  func saveSharedEnvironment() async {
-    guard connected, let path = project?.path, !environmentSaving else { return }
+  @discardableResult func saveSharedEnvironment() async -> Bool {
+    guard connected, let path = project?.path, !environmentSaving else { return false }
     let name = environmentName.trimmingCharacters(in: .whitespacesAndNewlines)
     let fileName = environmentFileName
     guard !name.isEmpty else {
       environmentStatus = "请填写环境名称。"
-      return
+      return false
     }
     guard environmentActions.allSatisfy(\.isRunnable) else {
       environmentStatus = "请为每个操作填写名称和命令。"
-      return
+      return false
     }
     environmentSaving = true
     defer { environmentSaving = false }
@@ -191,7 +207,7 @@ extension WorkspaceStore {
         "expectedRevision": environmentRevision.map(JSONValue.string) ?? .null,
         "config": .object(config),
       ])
-      guard project?.path == path, environmentFileName == fileName else { return }
+      guard project?.path == path, environmentFileName == fileName else { return false }
       environmentRevision = result["revision"].text
       environmentExists = result["exists"].boolean == true
       environmentStatus = "已保存至项目共享环境文件。"
@@ -199,11 +215,13 @@ extension WorkspaceStore {
       saveProfile()
       if let entries = try? await client.request("environment.list")
         .decode([LocalEnvironmentEntry].self) {
-        environmentFiles = entries
+        if project?.path == path, environmentFileName == fileName { environmentFiles = entries }
       }
+      return project?.path == path && environmentFileName == fileName
     } catch {
-      guard project?.path == path, environmentFileName == fileName else { return }
+      guard project?.path == path, environmentFileName == fileName else { return false }
       environmentStatus = "共享环境保存失败：\(error.localizedDescription)"
+      return false
     }
   }
 }

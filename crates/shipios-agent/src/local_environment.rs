@@ -57,6 +57,7 @@ pub struct Loaded {
     pub exists: bool,
     pub revision: Option<String>,
     pub config: Option<Environment>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -140,7 +141,7 @@ fn roots_until_boundary(project: &Path, home: Option<&Path>) -> Vec<PathBuf> {
     let mut current = project;
     for depth in 0..50 {
         // A parent home directory is personal Codex state, not a project environment.
-        if depth > 0 && home.as_deref() == Some(current) {
+        if depth > 0 && home == Some(current) {
             break;
         }
         result.push(current.to_path_buf());
@@ -245,17 +246,22 @@ pub fn load(project: &Path, file_name: &str) -> Result<Loaded> {
             exists: false,
             revision: None,
             config: None,
+            error: None,
         });
     };
-    let source = std::str::from_utf8(&bytes).context("environment file is not UTF-8")?;
+    let config = std::str::from_utf8(&bytes)
+        .ok()
+        .and_then(|source| toml::from_str::<Environment>(source).ok())
+        .filter(|config| validate(config).is_ok());
     // Do not include parser excerpts: scripts may contain private values.
-    let config: Environment = toml::from_str(source)
-        .map_err(|_| anyhow::anyhow!("invalid or unsupported environment file"))?;
-    validate(&config)?;
+    let error = config
+        .is_none()
+        .then(|| "This environment file needs attention".to_owned());
     Ok(Loaded {
         exists: true,
         revision: Some(revision(&bytes)),
-        config: Some(config),
+        config,
+        error,
     })
 }
 
@@ -351,9 +357,10 @@ pub fn list(project: &Path) -> Result<Vec<Entry>> {
                     .ok()
                     .and_then(|value| value.config.as_ref())
                     .map(|config| config.name.clone()),
-                error: loaded
-                    .err()
-                    .map(|_| "This environment file needs attention".into()),
+                error: match loaded {
+                    Ok(value) => value.error,
+                    Err(_) => Some("This environment file needs attention".into()),
+                },
                 inherited: depth > 0,
                 source_folder: root
                     .file_name()
@@ -596,6 +603,29 @@ mod tests {
         fs::create_dir_all(&project)?;
         let roots = roots_until_boundary(&project, Some(&home));
         assert_eq!(roots, vec![project, home.join("projects")]);
+        Ok(())
+    }
+
+    #[test]
+    fn damaged_environment_keeps_revision_for_explicit_repair() -> Result<()> {
+        let project = tempfile::tempdir()?;
+        fs::create_dir_all(directory(project.path()))?;
+        fs::write(directory(project.path()).join("broken.toml"), "[setup\n")?;
+        let broken = load(project.path(), "broken.toml")?;
+        assert!(broken.exists);
+        assert!(broken.config.is_none());
+        assert!(broken.error.is_some());
+        assert!(broken.revision.is_some());
+        let repaired = save(
+            project.path(),
+            SaveRequest {
+                file_name: "broken.toml".into(),
+                expected_revision: broken.revision,
+                config: example(),
+            },
+        )?;
+        assert!(repaired.error.is_none());
+        assert_eq!(repaired.config.unwrap().name, "Example");
         Ok(())
     }
 }

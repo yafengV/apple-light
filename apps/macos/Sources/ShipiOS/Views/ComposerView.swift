@@ -98,7 +98,10 @@ struct ComposerView: View {
                     }
                   }.frame(maxWidth: 310)
                     .disabled(store.library.pendingManagedDraftTaskIDs[project.path] != nil)
-                  Button("环境设置…") { store.openSettings(.environments) }
+                  Button("环境设置…") {
+                    store.environmentSettingsOpenProject = true
+                    store.openSettings(.environments)
+                  }
                     .buttonStyle(.plain)
                 }
                 HStack(spacing: 8) {

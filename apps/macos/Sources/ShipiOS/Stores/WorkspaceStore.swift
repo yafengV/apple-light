@@ -286,6 +286,7 @@ final class WorkspaceStore {
   var cleanupPlatformScripts = EnvironmentPlatformScripts()
   var environmentActions: [EnvironmentAction] = []
   var environmentFiles: [LocalEnvironmentEntry] = []
+  var environmentSettingsOpenProject = false
   var environmentFileName = "environment.toml"
   var environmentName = ""
   var environmentRevision: String?
