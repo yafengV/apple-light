@@ -70,9 +70,12 @@ pub struct SaveRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
+    pub id: String,
     pub file_name: String,
     pub name: Option<String>,
     pub error: Option<String>,
+    pub inherited: bool,
+    pub source_folder: String,
 }
 
 fn directory(project: &Path) -> PathBuf {
@@ -120,6 +123,67 @@ fn checked_path(project: &Path, file_name: &str) -> Result<PathBuf> {
         Err(error) => return Err(error.into()),
     }
     Ok(path)
+}
+
+fn roots(project: &Path) -> Result<Vec<PathBuf>> {
+    let project = project
+        .canonicalize()
+        .context("project directory is unavailable")?;
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|path| path.canonicalize().unwrap_or(path));
+    Ok(roots_until_boundary(&project, home.as_deref()))
+}
+
+fn roots_until_boundary(project: &Path, home: Option<&Path>) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    let mut current = project;
+    for depth in 0..50 {
+        // A parent home directory is personal Codex state, not a project environment.
+        if depth > 0 && home.as_deref() == Some(current) {
+            break;
+        }
+        result.push(current.to_path_buf());
+        if current.join(".git").exists() {
+            break;
+        }
+        let Some(parent) = current.parent() else {
+            break;
+        };
+        current = parent;
+    }
+    result
+}
+
+fn selected_root(project: &Path, selection: &str) -> Result<PathBuf> {
+    if !Path::new(selection).is_absolute() {
+        validate_file_name(selection)?;
+        return Ok(project.to_path_buf());
+    }
+    for root in roots(project)?.into_iter().skip(1) {
+        let candidate = directory(&root);
+        let Ok(relative) = Path::new(selection).strip_prefix(&candidate) else {
+            continue;
+        };
+        let Some(file_name) = relative.to_str() else {
+            continue;
+        };
+        if validate_file_name(file_name).is_ok()
+            && candidate.join(file_name) == Path::new(selection)
+        {
+            return Ok(root);
+        }
+    }
+    anyhow::bail!("environment is outside the project inheritance scope")
+}
+
+fn selected_file_name(selection: &str) -> Result<&str> {
+    let file_name = Path::new(selection)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("invalid environment file name")?;
+    validate_file_name(file_name)?;
+    Ok(file_name)
 }
 
 fn read_raw(project: &Path, file_name: &str) -> Result<Option<Vec<u8>>> {
@@ -175,7 +239,8 @@ fn validate(config: &Environment) -> Result<()> {
 }
 
 pub fn load(project: &Path, file_name: &str) -> Result<Loaded> {
-    let Some(bytes) = read_raw(project, file_name)? else {
+    let root = selected_root(project, file_name)?;
+    let Some(bytes) = read_raw(&root, selected_file_name(file_name)?)? else {
         return Ok(Loaded {
             exists: false,
             revision: None,
@@ -196,8 +261,14 @@ pub fn load(project: &Path, file_name: &str) -> Result<Loaded> {
 
 pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
     validate(&request.config)?;
-    validate_file_name(&request.file_name)?;
-    let previous = read_raw(project, &request.file_name)?;
+    let root = selected_root(project, &request.file_name)?;
+    let file_name = selected_file_name(&request.file_name)?;
+    let inherited = Path::new(&request.file_name).is_absolute();
+    let previous = read_raw(&root, file_name)?;
+    ensure!(
+        !inherited || previous.is_some(),
+        "inherited environment no longer exists"
+    );
     let current_revision = previous.as_deref().map(revision);
     ensure!(
         current_revision == request.expected_revision,
@@ -209,15 +280,15 @@ pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
         source.len() as u64 <= MAX_BYTES,
         "environment file exceeds 32 KiB"
     );
-    let directory = directory(project);
+    let directory = directory(&root);
     if !directory.exists() {
-        if !project.join(".codex").exists() {
-            fs::create_dir(project.join(".codex"))?;
+        if !root.join(".codex").exists() {
+            fs::create_dir(root.join(".codex"))?;
         }
         fs::create_dir(&directory)?;
     }
-    checked_path(project, &request.file_name)?;
-    let path = directory.join(&request.file_name);
+    checked_path(&root, file_name)?;
+    let path = directory.join(file_name);
     let temporary = directory.join(format!(".environment-{}.tmp", uuid::Uuid::new_v4()));
     let result = (|| -> Result<()> {
         let mut file = OpenOptions::new()
@@ -228,10 +299,7 @@ pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
         file.sync_all()?;
         // Recheck just before replacement; a concurrent external edit must survive.
         ensure!(
-            read_raw(project, &request.file_name)?
-                .as_deref()
-                .map(revision)
-                == current_revision,
+            read_raw(&root, file_name)?.as_deref().map(revision) == current_revision,
             "environment file changed outside ShipiOS; reload before saving"
         );
         fs::rename(&temporary, &path)?;
@@ -246,41 +314,56 @@ pub fn save(project: &Path, request: SaveRequest) -> Result<Loaded> {
 }
 
 pub fn list(project: &Path) -> Result<Vec<Entry>> {
-    check_component(&project.join(".codex"))?;
-    let directory = directory(project);
-    check_component(&directory)?;
-    let files = match fs::read_dir(&directory) {
-        Ok(files) => files,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => return Err(error.into()),
-    };
-    let mut names = Vec::new();
-    for file in files {
-        let file = file?;
-        let Some(name) = file.file_name().to_str().map(str::to_owned) else {
-            continue;
+    let mut entries = Vec::new();
+    for (depth, root) in roots(project)?.into_iter().enumerate() {
+        check_component(&root.join(".codex"))?;
+        let folder = directory(&root);
+        check_component(&folder)?;
+        let files = match fs::read_dir(&folder) {
+            Ok(files) => files,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
         };
-        if validate_file_name(&name).is_ok() {
-            names.push(name);
+        let mut names = Vec::new();
+        for file in files {
+            let file = file?;
+            let Some(name) = file.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if validate_file_name(&name).is_ok() {
+                names.push(name);
+            }
+        }
+        ensure!(names.len() <= 64, "too many environment files");
+        names.sort_by_key(|name| (name != "environment.toml", name.clone()));
+        for file_name in names {
+            let id = if depth == 0 {
+                file_name.clone()
+            } else {
+                folder.join(&file_name).to_string_lossy().into_owned()
+            };
+            let loaded = load(project, &id);
+            entries.push(Entry {
+                id,
+                file_name,
+                name: loaded
+                    .as_ref()
+                    .ok()
+                    .and_then(|value| value.config.as_ref())
+                    .map(|config| config.name.clone()),
+                error: loaded
+                    .err()
+                    .map(|_| "This environment file needs attention".into()),
+                inherited: depth > 0,
+                source_folder: root
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("/")
+                    .to_owned(),
+            });
         }
     }
-    ensure!(names.len() <= 64, "too many environment files");
-    names.sort();
-    Ok(names
-        .into_iter()
-        .map(|file_name| match load(project, &file_name) {
-            Ok(loaded) => Entry {
-                file_name,
-                name: loaded.config.map(|config| config.name),
-                error: None,
-            },
-            Err(_) => Entry {
-                file_name,
-                name: None,
-                error: Some("This environment file needs attention".into()),
-            },
-        })
-        .collect())
+    Ok(entries)
 }
 
 #[cfg(test)]
@@ -401,8 +484,18 @@ mod tests {
         fs::write(directory(project.path()).join("broken.toml"), "[setup\n")?;
         let entries = list(project.path())?;
         assert_eq!(entries.len(), 3);
-        assert_eq!(entries[1].name.as_deref(), Some("Second"));
-        assert!(entries[0].error.is_some());
+        assert_eq!(
+            entries
+                .iter()
+                .find(|entry| entry.file_name == "environment-2.toml")
+                .and_then(|entry| entry.name.as_deref()),
+            Some("Second")
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.file_name == "broken.toml" && entry.error.is_some())
+        );
         assert!(load(project.path(), "../outside.toml").is_err());
         assert!(
             save(
@@ -415,6 +508,94 @@ mod tests {
             )
             .is_err()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn inherits_until_git_root_and_keeps_duplicate_names_distinct() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let repository = temp.path().join("repo");
+        let project = repository.join("app");
+        fs::create_dir_all(&project)?;
+        fs::create_dir(repository.join(".git"))?;
+        save(
+            &repository,
+            SaveRequest {
+                file_name: "environment.toml".into(),
+                expected_revision: None,
+                config: example(),
+            },
+        )?;
+        let mut child = example();
+        child.name = "Child".into();
+        save(
+            &project,
+            SaveRequest {
+                file_name: "environment.toml".into(),
+                expected_revision: None,
+                config: child,
+            },
+        )?;
+        save(
+            temp.path(),
+            SaveRequest {
+                file_name: "outside.toml".into(),
+                expected_revision: None,
+                config: example(),
+            },
+        )?;
+        let entries = list(&project)?;
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].id, "environment.toml");
+        assert!(!entries[0].inherited);
+        assert_eq!(
+            entries[1].id,
+            directory(&repository.canonicalize()?)
+                .join("environment.toml")
+                .to_string_lossy()
+        );
+        assert!(entries[1].inherited);
+        assert_eq!(entries[1].source_folder, "repo");
+        assert_eq!(
+            load(&project, &entries[0].id)?.config.unwrap().name,
+            "Child"
+        );
+        let inherited = load(&project, &entries[1].id)?;
+        assert_eq!(inherited.config.as_ref().unwrap().name, "Example");
+        let mut changed = inherited.config.unwrap();
+        changed.name = "Shared".into();
+        save(
+            &project,
+            SaveRequest {
+                file_name: entries[1].id.clone(),
+                expected_revision: inherited.revision,
+                config: changed,
+            },
+        )?;
+        assert_eq!(
+            load(&repository, "environment.toml")?.config.unwrap().name,
+            "Shared"
+        );
+        assert!(
+            load(
+                &project,
+                &directory(temp.path())
+                    .join("outside.toml")
+                    .to_string_lossy()
+            )
+            .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn project_search_does_not_read_personal_codex_home() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let home = temp.path().join("home");
+        let project = home.join("projects/app");
+        fs::create_dir_all(&project)?;
+        let roots = roots_until_boundary(&project, Some(&home));
+        assert_eq!(roots, vec![project, home.join("projects")]);
         Ok(())
     }
 }

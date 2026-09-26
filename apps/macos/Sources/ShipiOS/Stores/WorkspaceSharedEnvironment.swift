@@ -1,11 +1,16 @@
 import Foundation
 
 struct LocalEnvironmentEntry: Decodable, Identifiable {
+  let id: String
   let fileName: String
   let name: String?
   let error: String?
-  var id: String { fileName }
-  var title: String { name.map { "\($0) · \(fileName)" } ?? fileName }
+  let inherited: Bool
+  let sourceFolder: String
+  var title: String {
+    let label = name.map { "\($0) · \(fileName)" } ?? fileName
+    return inherited ? "\(label) — 来自 \(sourceFolder)" : label
+  }
 }
 
 enum WorktreeEnvironmentChoice {
@@ -34,7 +39,7 @@ extension WorkspaceStore {
         cleanupScript: profile.worktreeCleanupScript, cleanupPlatforms: profile.cleanupPlatformScripts,
         actions: profile.actions)
     }
-    guard environmentFiles.contains(where: { $0.fileName == selectionID && $0.error == nil }) else {
+    guard environmentFiles.contains(where: { $0.id == selectionID && $0.error == nil }) else {
       throw AgentFailure(message: "所选本地环境已不可用，请刷新环境列表后重试。")
     }
     let loaded = try await client.request("environment.load", ["fileName": .string(selectionID)])
@@ -72,9 +77,10 @@ extension WorkspaceStore {
       guard project?.path == path else { return }
       environmentFiles = entries
       let valid = entries.filter { $0.error == nil }
-      if !valid.contains(where: { $0.fileName == environmentFileName }) {
-        environmentFileName = valid.first(where: { $0.fileName == "environment.toml" })?.fileName
-          ?? valid.first?.fileName ?? "environment.toml"
+      if !valid.contains(where: { $0.id == environmentFileName }) {
+        environmentFileName = valid.first(where: { !$0.inherited && $0.fileName == "environment.toml" })?.id
+          ?? valid.first(where: { $0.fileName == "environment.toml" })?.id
+          ?? valid.first?.id ?? "environment.toml"
       }
       await loadSharedEnvironment()
     } catch {
@@ -119,14 +125,14 @@ extension WorkspaceStore {
   }
 
   func selectSharedEnvironment(_ fileName: String) async {
-    guard environmentFiles.contains(where: { $0.fileName == fileName && $0.error == nil }) else { return }
+    guard environmentFiles.contains(where: { $0.id == fileName && $0.error == nil }) else { return }
     environmentFileName = fileName
     await loadSharedEnvironment()
     saveProfile()
   }
 
   func createSharedEnvironment() {
-    let occupied = Set(environmentFiles.map(\.fileName))
+    let occupied = Set(environmentFiles.filter { !$0.inherited }.map(\.fileName))
     let next: String
     if !occupied.contains("environment.toml") { next = "environment.toml" }
     else {

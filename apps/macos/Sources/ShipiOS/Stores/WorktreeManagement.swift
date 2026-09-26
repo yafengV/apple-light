@@ -16,7 +16,7 @@ extension WorkspaceStore {
           (snapshot.fileName ?? WorktreeEnvironmentChoice.legacy)
       }
       if let selected = library.newTaskEnvironmentSelections[currentProjectKey] { return selected }
-      if environmentFiles.contains(where: { $0.fileName == environmentFileName && $0.error == nil }) {
+      if environmentFiles.contains(where: { $0.id == environmentFileName && $0.error == nil }) {
         return environmentFileName
       }
       if hasLegacyWorktreeEnvironment {

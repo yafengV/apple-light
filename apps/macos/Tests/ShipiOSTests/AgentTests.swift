@@ -198,4 +198,40 @@ final class AgentTests: XCTestCase {
     XCTAssertEqual(restored.worktreeSetupScript, "echo third")
     await restored.shutdown()
   }
+
+  @MainActor func testParentEnvironmentAppearsAndCanBeUsedForNewTask() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-inherited-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("repo/app")
+    let parent = root.appendingPathComponent("repo")
+    let shared = parent.appendingPathComponent(".codex/environments/environment.toml")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: parent.appendingPathComponent(".git"),
+      withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: shared.deletingLastPathComponent(),
+      withIntermediateDirectories: true)
+    try "version = 1\nname = 'Parent'\n[setup]\nscript = 'echo parent'\n"
+      .write(to: shared, atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"), agentExecutable: binary)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    let inherited = try XCTUnwrap(store.environmentFiles.first(where: { $0.inherited }))
+    XCTAssertEqual(inherited.fileName, "environment.toml")
+    XCTAssertEqual(inherited.sourceFolder, "repo")
+    await store.selectSharedEnvironment(inherited.id)
+    XCTAssertEqual(store.environmentName, "Parent")
+    store.newTaskEnvironmentSelection = inherited.id
+    let snapshot = try await store.managedEnvironmentSnapshot(selectionID: inherited.id)
+    XCTAssertEqual(snapshot.macOSSetupScript, "echo parent")
+    XCTAssertEqual(snapshot.fileName, inherited.id)
+    store.environmentName = "Updated parent"
+    await store.saveSharedEnvironment()
+    XCTAssertTrue(store.environmentStatus.contains("已保存"), store.environmentStatus)
+    XCTAssertTrue(try String(contentsOf: shared, encoding: .utf8).contains("Updated parent"))
+    await store.shutdown()
+  }
 }

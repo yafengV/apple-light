@@ -87,12 +87,12 @@ struct ComposerView: View {
                     }
                     ForEach(store.environmentFiles.filter { $0.error == nil }) { entry in
                       Text(entry.fileName == "environment.toml"
-                        ? "默认环境 · \(entry.title)" : entry.title).tag(entry.fileName)
+                        ? "默认环境 · \(entry.title)" : entry.title).tag(entry.id)
                     }
                     if ![WorktreeEnvironmentChoice.none, WorktreeEnvironmentChoice.legacy]
                       .contains(store.newTaskEnvironmentSelection),
                       !store.environmentFiles.contains(where: {
-                        $0.fileName == store.newTaskEnvironmentSelection && $0.error == nil
+                        $0.id == store.newTaskEnvironmentSelection && $0.error == nil
                       }) {
                       Text("所选环境已不可用").tag(store.newTaskEnvironmentSelection)
                     }

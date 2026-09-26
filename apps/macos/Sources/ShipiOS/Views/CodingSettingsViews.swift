@@ -206,16 +206,28 @@ struct LocalEnvironmentSettingsView: View {
                 showingDiscardConfirmation = true
               } else { Task { await store.selectSharedEnvironment(fileName) } }
             })) {
-              if !store.environmentFiles.contains(where: { $0.fileName == store.environmentFileName }) {
+              if !store.environmentFiles.contains(where: { $0.id == store.environmentFileName }) {
                 Text(store.environmentFileName).tag(store.environmentFileName)
               }
-              ForEach(store.environmentFiles.filter { $0.error == nil }) { entry in
-                Text(entry.title).tag(entry.fileName)
+              if store.environmentFiles.contains(where: { $0.error == nil && !$0.inherited }) {
+                Section("项目环境") {
+                  ForEach(store.environmentFiles.filter { $0.error == nil && !$0.inherited }) { entry in
+                    Text(entry.title).tag(entry.id)
+                  }
+                }
+              }
+              if store.environmentFiles.contains(where: { $0.error == nil && $0.inherited }) {
+                Section("继承环境") {
+                  ForEach(store.environmentFiles.filter { $0.error == nil && $0.inherited }) { entry in
+                    Text(entry.title).tag(entry.id)
+                  }
+                }
               }
             }
             .disabled(!store.connected || store.environmentSaving)
           TextField("环境名称", text: $store.environmentName)
-          Text(".codex/environments/\(store.environmentFileName)")
+          Text(store.environmentFileName.hasPrefix("/")
+            ? store.environmentFileName : ".codex/environments/\(store.environmentFileName)")
             .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
           HStack {
             Button("保存共享环境") { Task { await store.saveSharedEnvironment() } }
@@ -239,7 +251,7 @@ struct LocalEnvironmentSettingsView: View {
             }.disabled(!store.connected || store.environmentSaving)
           }
           ForEach(store.environmentFiles.filter { $0.error != nil }) { entry in
-            Label("\(entry.fileName)：需要修复后才能选择", systemImage: "exclamationmark.triangle")
+            Label("\(entry.title)：需要修复后才能选择", systemImage: "exclamationmark.triangle")
               .appFont(.caption).foregroundStyle(.secondary)
           }
           if !store.environmentStatus.isEmpty {
