@@ -48,6 +48,8 @@ struct DesktopCommand: Identifiable {
     .init(id: "search", title: "搜索任务", icon: "magnifyingglass", shortcut: ""),
     .init(id: "projects", title: "项目", icon: "folder", shortcut: ""),
     .init(id: "plugins", title: "插件", icon: "shippingbox", shortcut: ""),
+    .init(id: "open-skills", title: "打开技能", icon: "wand.and.stars", shortcut: ""),
+    .init(id: "reload-skills", title: "重新加载技能", icon: "arrow.clockwise", shortcut: ""),
     .init(id: "automations", title: "自动化", icon: "clock.arrow.circlepath", shortcut: ""),
     .init(id: "open", title: "打开文件夹…", icon: "folder.badge.plus", shortcut: "⌘O"),
     .init(id: "files", title: "搜索文件", icon: "doc.text.magnifyingglass", shortcut: "⌘P"),
@@ -103,7 +105,7 @@ struct DesktopCommand: Identifiable {
 }
 
 enum DesktopCommandGroup: String, CaseIterable {
-  case chat, navigation, panels, project, configure, app
+  case chat, navigation, panels, project, configure, skills, app
 
   var title: String {
     switch self {
@@ -112,6 +114,7 @@ enum DesktopCommandGroup: String, CaseIterable {
     case .panels: "面板"
     case .project: "项目"
     case .configure: "配置"
+    case .skills: "技能"
     case .app: "应用"
     }
   }
@@ -130,6 +133,7 @@ extension DesktopCommand {
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
     case "projects", "open", "branch", "doctor", "build": .project
     case "settings", "shortcuts", "plugins", "automations": .configure
+    case "open-skills", "reload-skills": .skills
     default: .app
     }
   }

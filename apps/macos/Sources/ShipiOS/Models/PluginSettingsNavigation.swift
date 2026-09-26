@@ -19,14 +19,20 @@ enum PluginSettingsSection: String, CaseIterable, Identifiable {
   }
 
   static func visible(in plugins: [PluginInstallation], pluginsEnabled: Bool, standaloneSkills: Int = 0) -> [Self] {
-    allCases.filter { $0 == .mcpServers || (pluginsEnabled && $0.count(in: plugins, standaloneSkills: standaloneSkills) > 0) }
+    allCases.filter { $0 == .mcpServers || (pluginsEnabled && ($0 == .skills
+      || $0.count(in: plugins, standaloneSkills: standaloneSkills) > 0)) }
   }
 }
 
 extension WorkspaceStore {
   func reconcilePluginSettingsTarget() {
-    if let section = settingsSearchRequest?.result.field?.pluginSection,
-      !visiblePluginSettingsSections.contains(section) { settingsSearchRequest = nil }
+    if let field = settingsSearchRequest?.result.field,
+      let section = field.pluginSection,
+      !visiblePluginSettingsSections.contains(section)
+        || (field == .skillsInstalled && section.count(in: pluginPreferences.installed,
+          standaloneSkills: pluginPreferences.standaloneSkills.count) == 0) {
+      settingsSearchRequest = nil
+    }
   }
   var visiblePluginSettingsSections: [PluginSettingsSection] {
     PluginSettingsSection.visible(in: pluginPreferences.installed, pluginsEnabled: pluginsEnabled,

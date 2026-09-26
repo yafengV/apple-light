@@ -21,7 +21,7 @@ final class PluginSettingsNavigationTests: XCTestCase {
   }
 
   func testTabsUseInstalledCountsAndKeepMCPWhenEmptyOrPluginsDisabled() {
-    XCTAssertEqual(PluginSettingsSection.visible(in: [], pluginsEnabled: true), [.mcpServers])
+    XCTAssertEqual(PluginSettingsSection.visible(in: [], pluginsEnabled: true), [.mcpServers, .skills])
     XCTAssertEqual(PluginSettingsSection.visible(in: [plugin], pluginsEnabled: true), [.plugins, .mcpServers, .skills])
     XCTAssertEqual(PluginSettingsSection.visible(in: [plugin], pluginsEnabled: false), [.mcpServers])
     XCTAssertEqual(PluginSettingsSection.plugins.count(in: [plugin]), 1)
@@ -60,7 +60,27 @@ final class PluginSettingsNavigationTests: XCTestCase {
     XCTAssertFalse(store.pluginPreferences.installed[0].enabled)
   }
 
-  @MainActor func testRemovalAndGlobalDisableCancelStaleSearchTargets() {
+  @MainActor func testOpenSkillsCommandShowsEmptySkillManagementPage() {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.showProjects()
+    XCTAssertTrue(store.commandEnabled("open-skills"))
+    store.executeCommand("open-skills")
+    XCTAssertEqual(store.destination, .settings)
+    XCTAssertEqual(store.settingsPage, .plugins)
+    XCTAssertEqual(store.activePluginSettingsSection, .skills)
+    XCTAssertTrue(store.visiblePluginSettingsSections.contains(.skills))
+    store.closeSettings()
+    XCTAssertEqual(store.destination, .projects)
+    store.libraryLoaded = true
+    store.restoringLibrary = false
+    store.pluginsEnabled = false
+    XCTAssertFalse(store.commandEnabled("open-skills"))
+    XCTAssertFalse(store.commandEnabled("reload-skills"))
+  }
+
+  @MainActor func testRemovalKeepsEmptySkillsPageButClearsStaleHighlightAndDisableHidesIt() {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
@@ -70,9 +90,9 @@ final class PluginSettingsNavigationTests: XCTestCase {
     store.revealSetting(target)
     store.pluginPreferences = .init()
     XCTAssertNil(store.settingsSearchRequest)
-    XCTAssertEqual(store.activePluginSettingsSection, .mcpServers)
+    XCTAssertEqual(store.activePluginSettingsSection, .skills)
     store.revealSetting(target)
-    XCTAssertNil(store.settingsSearchRequest)
+    XCTAssertEqual(store.settingsSearchRequest?.result.field, .skillsInstalled)
     store.pluginPreferences = .init(installed: [plugin])
     store.revealSetting(target)
     store.pluginsEnabled = false

@@ -110,7 +110,7 @@ final class StandaloneSkillTests: XCTestCase {
     store.restoringLibrary = false
     store.scopeLoaded = true
     await store.loadPlugins()
-    XCTAssertEqual(store.visiblePluginSettingsSections, [.mcpServers])
+    XCTAssertEqual(store.visiblePluginSettingsSections, [.mcpServers, .skills])
     XCTAssertTrue(store.installStandaloneSkill(from: source))
     XCTAssertEqual(store.visiblePluginSettingsSections, [.mcpServers, .skills])
     XCTAssertEqual(store.activePluginSettingsSection, .skills)
@@ -127,7 +127,7 @@ final class StandaloneSkillTests: XCTestCase {
     XCTAssertTrue(store.removeStandaloneSkill(skill.id))
     XCTAssertTrue(store.composerSkills.isEmpty)
     XCTAssertTrue(store.installedPluginSkills.isEmpty)
-    XCTAssertEqual(store.visiblePluginSettingsSections, [.mcpServers])
+    XCTAssertEqual(store.visiblePluginSettingsSections, [.mcpServers, .skills])
     XCTAssertFalse(store.trySkill(skill.id))
     XCTAssertEqual(store.draft, skill.promptReference + " ")
     XCTAssertEqual(store.library.tasks.count, 1)

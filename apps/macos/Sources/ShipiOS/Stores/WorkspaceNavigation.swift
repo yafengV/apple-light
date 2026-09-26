@@ -36,6 +36,8 @@ extension WorkspaceStore {
     case "search": showingSearch = true
     case "projects": showProjects()
     case "plugins": showPlugins()
+    case "open-skills": openSettings(.skills)
+    case "reload-skills": Task { await loadPlugins() }
     case "automations": showAutomations()
     case "settings": openSettings()
     case "pet": togglePet()
@@ -171,6 +173,8 @@ extension WorkspaceStore {
     case "build": return destination == .workspace && canBuild
     case "stop": return selectedActiveRun != nil || activeLocalRun != nil
     case "pet": return petsLoaded
+    case "open-skills": return pluginsEnabled
+    case "reload-skills": return pluginsEnabled && !pluginsLoading
     case "rename", "pin", "unread": return destination == .workspace && selectedTask != nil
     case "archive":
       return destination == .workspace && selectedTask != nil

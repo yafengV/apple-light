@@ -488,7 +488,7 @@ struct TaskWindowView: View {
     SearchDialogContext(currentTaskID: taskID, commandEnabled: { id in
       guard searchMode == .commands, !otherWindowModalActive else { return false }
       if TaskWindowCommandContext.owns(id) { return availableWindowCommands.contains(id) }
-      return ["settings", "shortcuts", "projects", "plugins", "automations", "new", "new-alternate", "open", "pet", "clear-unread"].contains(id)
+      return ["settings", "shortcuts", "projects", "plugins", "open-skills", "reload-skills", "automations", "new", "new-alternate", "open", "pet", "clear-unread"].contains(id)
         && store.commandEnabled(id)
     }, performCommand: { id in
       switch id {
@@ -509,7 +509,7 @@ struct TaskWindowView: View {
         else {
           searchReturnFocus = nil
           store.executeCommand(id)
-          if id != "pet" && id != "clear-unread" { openWindow(id: "main") }
+          if id != "pet" && id != "clear-unread" && id != "reload-skills" { openWindow(id: "main") }
         }
       }
     }, canSelectTask: { candidate in

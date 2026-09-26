@@ -207,6 +207,24 @@ final class PluginTests: XCTestCase {
     XCTAssertEqual(store.draft, "")
   }
 
+  @MainActor func testReloadSkillsCommandReadsExternallyInstalledSkill() async throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let dataRoot = base.appendingPathComponent("Data")
+    let store = WorkspaceStore(dataRoot: dataRoot)
+    await store.loadPlugins()
+    XCTAssertTrue(store.commandEnabled("reload-skills"))
+    XCTAssertTrue(store.pluginSkills.isEmpty)
+    _ = try PluginStorage.install(from: fixture(at: base), root: dataRoot)
+    store.executeCommand("reload-skills")
+    for _ in 0..<100 where store.pluginSkills.isEmpty {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertEqual(store.pluginSkills.map(\.skillID), ["example"])
+    XCTAssertEqual(store.pluginPreferences.installed.count, 1)
+    XCTAssertNil(store.pluginsError)
+  }
+
   func testMentionSelectionFiltersEnabledPluginsAndReplacesOnlyTrailingToken() {
     let enabled = PluginInstallation(
       id: "fixture-plugin", name: "Fixture Plugin", summary: "", version: "1",

@@ -60,6 +60,8 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(groups["focus-tab-1"], .panels)
     XCTAssertEqual(groups["branch"], .project)
     XCTAssertEqual(groups["settings"], .configure)
+    XCTAssertEqual(groups["open-skills"], .skills)
+    XCTAssertEqual(groups["reload-skills"], .skills)
     XCTAssertEqual(groups["pet"], .app)
   }
 
