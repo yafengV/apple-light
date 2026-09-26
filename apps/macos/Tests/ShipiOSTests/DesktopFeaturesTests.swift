@@ -650,6 +650,80 @@ final class ModelTransportTests: XCTestCase {
       encoding: .utf8), "written-in-default-mode\n")
     await store.shutdown()
   }
+  @MainActor func testCodexGoalRunsTwoTurnsAndClearsInstructionsWhenComplete() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    XCTAssertTrue(store.configureGoal(GoalDefinition(
+      objective: "完成 Codex 目标", successCriteria: ["第一轮检查", "第二轮完成"],
+      maxIterations: 3)))
+    store.draft = "codex-goal"
+    await store.sendDraft()
+
+    let deadline = Date().addingTimeInterval(15)
+    while Date() < deadline {
+      if store.library.chatRuns.count == 2, store.modelTask == nil { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let taskID = try XCTUnwrap(store.selectedTask?.id)
+    XCTAssertEqual(store.library.chatRuns.count, 2, store.error ?? "")
+    XCTAssertEqual(store.library.chatRuns.map { $0.status }, ["succeeded", "succeeded"])
+    XCTAssertEqual(store.library.chatRuns.map { $0.request["goal_iteration"].int }, [1, 2])
+    XCTAssertEqual(store.library.goalSessions[taskID]?.status, .completed)
+    XCTAssertEqual(store.library.chatRuns.map { $0.result?["response"].text },
+      ["Codex 目标第一轮仍需继续。", "Codex 目标已完成。"])
+
+    await store.startChat("codex-goal-after", taskID: taskID)
+    let ordinary = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: ordinary.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == ordinary.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Goal cleared fixture reply")
+    await store.shutdown()
+  }
+  @MainActor func testCodexGoalPausesWithoutCompletionSignal() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    XCTAssertTrue(store.configureGoal(GoalDefinition(
+      objective: "等待明确状态", successCriteria: ["服务确认完成"], maxIterations: 3)))
+    store.draft = "codex-goal-no-status"
+    await store.sendDraft()
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let taskID = try XCTUnwrap(store.selectedTask?.id)
+    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertEqual(store.library.chatRuns[0].status, "succeeded")
+    XCTAssertEqual(store.library.goalSessions[taskID]?.status, .paused)
+    XCTAssertEqual(store.chatMode, .standard)
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

@@ -315,7 +315,7 @@ impl CodexBridge {
 
     #[cfg(test)]
     pub async fn submit(&self, task_id: &str, text: String) -> Result<String> {
-        self.submit_with_attachments(task_id, text, Vec::new(), None, false)
+        self.submit_with_attachments(task_id, text, Vec::new(), None, false, None)
             .await
     }
 
@@ -326,7 +326,7 @@ impl CodexBridge {
         text: String,
         images: Vec<CodexImage>,
     ) -> Result<String> {
-        self.submit_with_attachments(task_id, text, images, None, false)
+        self.submit_with_attachments(task_id, text, images, None, false, None)
             .await
     }
 
@@ -337,14 +337,21 @@ impl CodexBridge {
         images: Vec<CodexImage>,
         text_attachment: Option<CodexTextAttachment>,
         plan_mode: bool,
+        goal_instructions: Option<String>,
     ) -> Result<String> {
+        ensure!(
+            !plan_mode || goal_instructions.is_none(),
+            "plan and goal modes cannot be combined"
+        );
         let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
             .send(Command::Submit(
                 inputs,
-                if plan_mode {
+                if let Some(instructions) = goal_instructions {
+                    CodexTurnMode::Goal(instructions)
+                } else if plan_mode {
                     CodexTurnMode::Plan
                 } else {
                     CodexTurnMode::Default
@@ -801,6 +808,7 @@ mod tests {
                     byte_count: text_appendix.len() as u64,
                 }),
                 false,
+                None,
             )
             .await?;
         loop {

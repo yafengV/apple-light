@@ -43,6 +43,9 @@ class Handler(BaseHTTPRequestHandler):
                 Handler.retry_attempts += 1
                 time.sleep(2)
             slow = 'slow-codex' in request_text and 'steered-inflight-proof' not in request_text
+            developer_inputs = [part.get('text', '') for message in body.get('input', [])
+                if message.get('role') == 'developer' for part in message.get('content', [])]
+            current_developer = developer_inputs[-1] if developer_inputs else ''
             if 'codex-native-plan' in request_text and Handler.plan_patch_attempts == 0:
                 Handler.plan_patch_attempts += 1
                 item = {
@@ -106,6 +109,31 @@ class Handler(BaseHTTPRequestHandler):
                         'sandbox_permissions': 'require_escalated',
                         'justification': 'Exercise the ShipiOS approval card in a fixture project',
                     }),
+                }
+            elif 'codex-goal-after' in request_text:
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'goal-cleared',
+                    'content': [{'type': 'output_text', 'text':
+                        'Goal cleared fixture reply' if '当前任务处于目标模式' not in current_developer
+                        and '<collaboration_mode>' in current_developer else 'Goal leaked'}],
+                }
+            elif 'codex-goal-no-status' in request_text:
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'goal-no-status',
+                    'content': [{'type': 'output_text', 'text': '服务未给出完成状态。'}],
+                }
+            elif 'codex-goal' in request_text:
+                first = '当前为第 1 轮' in current_developer
+                second = '当前为第 2 轮' in current_developer
+                valid = '目标：\n完成 Codex 目标' in current_developer and \
+                    '1. 第一轮检查' in current_developer and \
+                    '2. 第二轮完成' in current_developer
+                reply = ('Codex 目标第一轮仍需继续。\n\nSHIPIOS_GOAL_STATUS: continue' if first
+                    else 'Codex 目标已完成。\n\nSHIPIOS_GOAL_STATUS: complete' if second
+                    else 'Missing goal turn instructions') if valid else 'Missing goal definition'
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'goal-reply',
+                    'content': [{'type': 'output_text', 'text': reply}],
                 }
             else:
                 item = {

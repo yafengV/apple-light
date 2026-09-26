@@ -37,10 +37,11 @@ pub struct SessionOptions {
     pub runtime_paths: ExecServerRuntimePaths,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CodexTurnMode {
     Default,
     Plan,
+    Goal(String),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -280,8 +281,8 @@ impl CodexSession {
             }),
             "message is empty"
         );
-        let kind = match mode {
-            CodexTurnMode::Default => ModeKind::Default,
+        let kind = match &mode {
+            CodexTurnMode::Default | CodexTurnMode::Goal(_) => ModeKind::Default,
             CodexTurnMode::Plan => ModeKind::Plan,
         };
         let preset = self
@@ -290,7 +291,7 @@ impl CodexSession {
             .into_iter()
             .find(|item| item.mode == Some(kind))
             .ok_or_else(|| anyhow!("Codex collaboration mode is unavailable"))?;
-        let collaboration_mode = CollaborationMode {
+        let mut collaboration_mode = CollaborationMode {
             mode: kind,
             settings: CollaborationSettings {
                 model: self.model.clone(),
@@ -299,6 +300,18 @@ impl CodexSession {
             },
         }
         .apply_mask(&preset);
+        if let CodexTurnMode::Goal(instructions) = &mode {
+            ensure!(
+                !instructions.trim().is_empty(),
+                "goal instructions are empty"
+            );
+            let base = collaboration_mode
+                .settings
+                .developer_instructions
+                .get_or_insert_with(String::new);
+            base.push_str("\n\n");
+            base.push_str(instructions);
+        }
         let settings = ThreadSettingsOverrides {
             collaboration_mode: Some(collaboration_mode),
             permission_profile: Some(if self.read_only || mode == CodexTurnMode::Plan {

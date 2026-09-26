@@ -53,6 +53,7 @@ struct CodexSubmit {
     text_attachment: Option<CodexTextAttachment>,
     #[serde(default)]
     plan_mode: bool,
+    goal_instructions: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -186,7 +187,7 @@ async fn dispatch(
             }
             "codex.turn.submit" => {
                 let p: CodexSubmit = serde_json::from_value(params).map_err(|_| invalid())?;
-                Ok(json!({"turnId":codex.submit_with_attachments(&p.task_id,p.text,p.images,p.text_attachment,p.plan_mode).await.map_err(failed)?}))
+                Ok(json!({"turnId":codex.submit_with_attachments(&p.task_id,p.text,p.images,p.text_attachment,p.plan_mode,p.goal_instructions).await.map_err(failed)?}))
             }
             "codex.turn.steer" => {
                 let p: CodexSteer = serde_json::from_value(params).map_err(|_| invalid())?;

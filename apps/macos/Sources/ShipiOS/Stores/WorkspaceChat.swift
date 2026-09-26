@@ -101,8 +101,8 @@ extension WorkspaceStore {
       let taskID = requestedTaskID
       let taskProject = taskID.flatMap { id in library.tasks.first(where: { $0.id == id })?.project }
       if usesCodex {
-        guard mode != .goal, review == nil || mode == .standard else {
-          throw AgentFailure(message: "Codex Responses 当前支持普通会话、计划模式与代码审查；目标模式仍待接入。")
+        guard review == nil || mode == .standard else {
+          throw AgentFailure(message: "代码审查不能与计划或目标模式同时使用。")
         }
         guard connected, let project, (taskProject ?? currentProjectKey) == project.path else {
           throw AgentFailure(message: "Codex Responses 当前仅支持已连接项目中的任务，请先打开对应项目。")
@@ -238,7 +238,8 @@ extension WorkspaceStore {
           if usesCodex {
             usage = try await streamCodexChat(runID: run.id,
               taskID: review == nil ? (taskID ?? run.id) : run.id,
-              config: config, key: key, messages: messages, mode: mode, review: review)
+              config: config, key: key, messages: messages, mode: mode,
+              goalInstructions: mode == .goal ? modeInstructions : nil, review: review)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
               messages: messages, bindings: tools)
@@ -288,7 +289,7 @@ extension WorkspaceStore {
   }
   private func streamCodexChat(
     runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage],
-    mode: ChatMode, review: ModelCodeReviewContext?
+    mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
@@ -307,7 +308,7 @@ extension WorkspaceStore {
       taskID: taskID, config: config, key: key,
       initialText: initialText, continuationText: continuationText, images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil,
-      planMode: mode == .plan)
+      planMode: mode == .plan, goalInstructions: goalInstructions)
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""
