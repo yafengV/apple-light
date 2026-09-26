@@ -29,6 +29,51 @@ struct LocalEnvironmentFormState: Equatable {
 
 @MainActor
 extension WorkspaceStore {
+  func refreshEnvironmentCatalog() async {
+    guard !environmentCatalogLoading else { return }
+    let paths = library.orderedProjects
+    let request = UUID()
+    environmentCatalogRequest = request
+    environmentCatalog = [:]
+    environmentCatalogErrors = [:]
+    guard !paths.isEmpty else { environmentCatalogLoading = false; return }
+    environmentCatalogLoading = true
+    let browser = AgentClient()
+    let temporary = FileManager.default.temporaryDirectory
+      .appendingPathComponent("shipios-environment-catalog-\(UUID())", isDirectory: true)
+    do {
+      guard let seed = paths.first(where: { path in
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+          && isDirectory.boolValue
+      }) else { throw AgentFailure(message: "没有可读取的项目目录。") }
+      try browser.start(executable: executable, project: URL(fileURLWithPath: seed),
+        dataDirectory: temporary)
+      _ = try await browser.request("initialize", ["protocolVersion": .number(1)])
+      for path in paths {
+        guard environmentCatalogRequest == request else { break }
+        do {
+          let result = try await browser.request("environment.list", ["projectPath": .string(path)])
+          let entries = try result.decode([LocalEnvironmentEntry].self)
+          if environmentCatalogRequest == request { environmentCatalog[path] = entries }
+        } catch {
+          if environmentCatalogRequest == request {
+            environmentCatalogErrors[path] = error.localizedDescription
+          }
+        }
+      }
+    } catch {
+      if environmentCatalogRequest == request {
+        for path in paths where environmentCatalog[path] == nil {
+          environmentCatalogErrors[path] = error.localizedDescription
+        }
+      }
+    }
+    await browser.stop()
+    try? FileManager.default.removeItem(at: temporary)
+    if environmentCatalogRequest == request { environmentCatalogLoading = false }
+  }
+
   func managedEnvironmentSnapshot(selectionID: String) async throws -> ManagedEnvironmentSnapshot {
     guard connected, let project else { throw AgentFailure(message: "项目环境尚未连接。") }
     if selectionID == WorktreeEnvironmentChoice.none { return .none }

@@ -243,4 +243,42 @@ final class AgentTests: XCTestCase {
     XCTAssertTrue(try String(contentsOf: shared, encoding: .utf8).contains("Updated parent"))
     await store.shutdown()
   }
+
+  @MainActor func testEnvironmentCatalogListsOtherProjectsWithoutSwitchingWorkspace() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-catalog-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = root.appendingPathComponent("first")
+    let second = root.appendingPathComponent("second")
+    for (project, name) in [(first, "First"), (second, "Second")] {
+      let folder = project.appendingPathComponent(".codex/environments")
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      try FileManager.default.createDirectory(at: project.appendingPathComponent(".git"),
+        withIntermediateDirectories: true)
+      try "version = 1\nname = '\(name)'\n[setup]\nscript = ''\n"
+        .write(to: folder.appendingPathComponent("environment.toml"), atomically: true,
+          encoding: .utf8)
+    }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"), agentExecutable: binary)
+    await store.open(first)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    store.library.projects.append(second.path)
+    let missing = root.appendingPathComponent("missing")
+    store.library.projects.append(missing.path)
+    await store.refreshEnvironmentCatalog()
+    XCTAssertEqual(store.environmentCatalog[first.path]?.first?.name, "First")
+    XCTAssertEqual(store.environmentCatalog[second.path]?.first?.name, "Second")
+    XCTAssertEqual(store.project?.path, first.path)
+    XCTAssertNotNil(store.environmentCatalogErrors[missing.path])
+    do {
+      _ = try await store.client.request("environment.list", ["projectPath": .string("relative")])
+      XCTFail("相对目录不应参与跨项目查询")
+    } catch {
+      XCTAssertTrue(error.localizedDescription.contains("invalid method parameters"))
+    }
+    await store.shutdown()
+  }
 }

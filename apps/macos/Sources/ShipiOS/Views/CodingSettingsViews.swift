@@ -148,6 +148,7 @@ struct LocalEnvironmentSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var page = EnvironmentPage.projects
   @State private var inheritedExpanded = false
+  @State private var expandedCatalogInherited: Set<String> = []
   @State private var setupPlatform = EnvironmentPlatform.all
   @State private var cleanupPlatform = EnvironmentPlatform.all
   @State private var showingSetupVariables = false
@@ -199,22 +200,40 @@ struct LocalEnvironmentSettingsView: View {
     .task(id: store.settingsSearchRequest?.token) {
       if store.settingsSearchRequest?.result.page == .environments { page = .editor }
     }
+    .task(id: store.settingsPage) {
+      if store.destination == .settings && store.settingsPage == .environments && page == .projects {
+        await store.refreshEnvironmentCatalog()
+      }
+    }
+    .onChange(of: page) { _, newPage in
+      if newPage == .projects && store.destination == .settings && store.settingsPage == .environments {
+        Task { await store.refreshEnvironmentCatalog() }
+      }
+    }
     .onAppear {
       if store.environmentSettingsOpenProject {
+        let editor = store.environmentSettingsOpenEditor
         store.environmentSettingsOpenProject = false
-        page = .overview
+        store.environmentSettingsOpenEditor = false
+        page = editor ? .editor : .overview
       }
     }
     .onChange(of: store.environmentSettingsOpenProject) { _, shouldOpen in
       if shouldOpen && store.destination == .settings {
+        let editor = store.environmentSettingsOpenEditor
         store.environmentSettingsOpenProject = false
-        page = .overview
+        store.environmentSettingsOpenEditor = false
+        page = editor ? .editor : .overview
       }
     }
     .onChange(of: store.destination) { _, destination in
       if destination == .settings && store.environmentSettingsOpenProject {
+        let editor = store.environmentSettingsOpenEditor
         store.environmentSettingsOpenProject = false
-        page = .overview
+        store.environmentSettingsOpenEditor = false
+        page = editor ? .editor : .overview
+      } else if destination == .settings && store.settingsPage == .environments && page == .projects {
+        Task { await store.refreshEnvironmentCatalog() }
       }
     }
     .confirmationDialog("放弃未保存的环境修改？", isPresented: $showingDiscardConfirmation) {
@@ -252,27 +271,55 @@ struct LocalEnvironmentSettingsView: View {
       } else {
         Section("可用项目") {
           ForEach(store.library.orderedProjects, id: \.self) { path in
-            Button {
-              if store.project?.path == path && store.connected { page = .overview }
-              else { Task { await openEnvironmentProject(path) } }
-            } label: {
-              HStack(spacing: 12) {
-                Image(systemName: store.library.isPermanentWorktree(path)
-                  ? "arrow.triangle.branch" : "folder")
-                  .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 3) {
-                  Text(store.library.projectTitle(path))
-                    .foregroundStyle(.primary)
-                  Text(path).appFont(.caption).foregroundStyle(.secondary)
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                Button {
+                  Task { await openEnvironmentProject(path) }
+                } label: {
+                  HStack(spacing: 12) {
+                    Image(systemName: store.library.isPermanentWorktree(path)
+                      ? "arrow.triangle.branch" : "folder")
+                      .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                      Text(store.library.projectTitle(path)).foregroundStyle(.primary)
+                      Text(path).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                  }.contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                  .disabled(projectUnavailable(path))
+                  .accessibilityLabel("打开项目环境：\(store.library.projectTitle(path))")
+                Button {
+                  Task { await openEnvironmentProject(path, createNew: true) }
+                } label: { Image(systemName: "plus") }
+                  .buttonStyle(.plain)
+                  .disabled(projectUnavailable(path))
+                  .accessibilityLabel("添加环境到 \(store.library.projectTitle(path))")
+              }
+              if let entries = store.environmentCatalog[path] {
+                ForEach(entries.filter { !$0.inherited }) { entry in
+                  catalogEnvironmentRow(path: path, entry: entry)
                 }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
-              }.contentShape(Rectangle())
+                let inherited = entries.filter(\.inherited)
+                if !inherited.isEmpty {
+                  DisclosureGroup("继承环境（\(inherited.count)）", isExpanded: Binding(
+                    get: { expandedCatalogInherited.contains(path) },
+                    set: { expanded in
+                      if expanded { expandedCatalogInherited.insert(path) }
+                      else { expandedCatalogInherited.remove(path) }
+                    })) {
+                    ForEach(inherited) { entry in
+                      catalogEnvironmentRow(path: path, entry: entry)
+                    }
+                  }
+                }
+              } else if let error = store.environmentCatalogErrors[path] {
+                Text("环境读取失败：\(error)").appFont(.caption).foregroundStyle(.red)
+              } else if store.environmentCatalogLoading {
+                ProgressView("正在载入环境…").controlSize(.small)
+              }
             }
-            .buttonStyle(.plain)
-            .disabled(store.busy || store.activeLocalRun != nil)
-            .accessibilityLabel("打开项目环境：\(store.library.projectTitle(path))")
           }
         }
       }
@@ -280,6 +327,33 @@ struct LocalEnvironmentSettingsView: View {
         Text(error).foregroundStyle(.red).textSelection(.enabled)
       }
     }.settingsFormStyle().appSurface()
+  }
+
+  private func catalogEnvironmentRow(path: String, entry: LocalEnvironmentEntry) -> some View {
+    Button {
+      Task { await openEnvironmentProject(path, selectionID: entry.id) }
+    } label: {
+      HStack(spacing: 8) {
+        Image(systemName: entry.error == nil ? "shippingbox" : "exclamationmark.triangle")
+          .foregroundStyle(entry.error == nil ? Color.secondary : Color.red)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(entry.name ?? entry.fileName).foregroundStyle(entry.error == nil ? Color.primary : Color.red)
+          if entry.inherited {
+            Text("来自 \(entry.sourceFolder) · \(entry.fileName)")
+              .appFont(.caption).foregroundStyle(.secondary)
+          } else if entry.name != nil {
+            Text(entry.fileName).appFont(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Spacer()
+        Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+      }.padding(.leading, 24).contentShape(Rectangle())
+    }.buttonStyle(.plain).disabled(projectUnavailable(path))
+      .accessibilityLabel(entry.title)
+  }
+
+  private func projectUnavailable(_ path: String) -> Bool {
+    store.busy || (store.activeLocalRun != nil && store.project?.path != path)
   }
 
   private var overview: some View {
@@ -362,12 +436,23 @@ struct LocalEnvironmentSettingsView: View {
       .accessibilityLabel(entry.title)
   }
 
-  private func openEnvironmentProject(_ path: String) async {
-    await store.open(URL(fileURLWithPath: path))
+  private func openEnvironmentProject(_ path: String, selectionID: String? = nil,
+    createNew: Bool = false) async {
+    if store.project?.path != path || !store.connected {
+      await store.open(URL(fileURLWithPath: path))
+    }
     let opened = store.connected && store.project?.path == path
+    if opened {
+      if createNew { store.createSharedEnvironment() }
+      else if let selectionID { await store.selectSharedEnvironment(selectionID) }
+    }
+    let needsEditor = createNew || selectionID.flatMap { selected in
+      store.environmentFiles.first(where: { $0.id == selected })?.error
+    } != nil
+    store.environmentSettingsOpenEditor = opened && needsEditor
     store.environmentSettingsOpenProject = opened
     store.openSettings(.environments)
-    page = opened ? .overview : .projects
+    page = opened ? (needsEditor ? .editor : .overview) : .projects
   }
 
   private func chooseEnvironmentProject() {

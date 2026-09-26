@@ -10,7 +10,7 @@ use anyhow::Result;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use shipios_core::PROTOCOL_VERSION;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     sync::mpsc,
@@ -43,6 +43,12 @@ struct Artifact {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct EnvironmentFile {
     file_name: String,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EnvironmentList {
+    #[serde(default)]
+    project_path: Option<PathBuf>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -133,11 +139,13 @@ async fn dispatch(
         let failed = |e: anyhow::Error| (-32010, e.to_string());
         match method {
             "environment.list" => {
-                if params != json!({}) {
-                    return Err(invalid());
-                }
+                let request: EnvironmentList =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
+                let project = request.project_path.as_deref()
+                    .unwrap_or(&service.config.project);
+                if !project.is_absolute() { return Err(invalid()); }
                 Ok(serde_json::to_value(
-                    local_environment::list(&service.config.project).map_err(failed)?,
+                    local_environment::list(project).map_err(failed)?,
                 )
                 .unwrap())
             }
