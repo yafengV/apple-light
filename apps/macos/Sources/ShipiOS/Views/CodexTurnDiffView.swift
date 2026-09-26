@@ -7,7 +7,8 @@ struct CodexTurnDiffView: View {
   @State private var expanded = false
   @State private var copied = false
   @State private var showingFullDiff = false
-  @State private var fullDiff: String?
+  @State private var files: [CodexTurnDiffFile] = []
+  @State private var selectedFileID: Int? = 0
   @State private var loadError: String?
 
   var body: some View {
@@ -19,9 +20,8 @@ struct CodexTurnDiffView: View {
               .foregroundStyle(.secondary)
           }
           Spacer()
-          if diff.truncated {
-            Button("查看完整差异") { openFullDiff() }.controlSize(.small)
-          }
+          Button(diff.truncated ? "查看完整差异" : "按文件查看") { openFullDiff() }
+            .controlSize(.small)
           Button(copied ? "已复制" : "复制完整差异") { copyFullDiff() }
             .controlSize(.small)
         }.appFont(.caption)
@@ -46,29 +46,65 @@ struct CodexTurnDiffView: View {
         HStack {
           Text("本轮完整代码差异").font(.headline)
           Spacer()
-          Button("完成") { showingFullDiff = false }
+          Button("完成") { dismissFullDiff() }
         }
-        ScrollView {
-          Text(fullDiff ?? "").appFont(.caption, design: .monospaced)
-            .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+        HStack(spacing: 0) {
+          List(files, selection: $selectedFileID) { file in
+            Text(file.path).lineLimit(2).tag(file.id)
+          }.listStyle(.sidebar).frame(width: 240)
+          Divider()
+          VStack(alignment: .leading, spacing: 8) {
+            if let file = files.first(where: { $0.id == selectedFileID }) {
+              HStack {
+                Text(file.path).appFont(.callout, weight: .semibold)
+                  .lineLimit(1).help(file.path)
+                Spacer()
+                Button("复制此文件差异") {
+                  NSPasteboard.general.clearContents()
+                  NSPasteboard.general.setString(file.patch, forType: .string)
+                }.controlSize(.small)
+              }
+              ScrollView {
+                Text(file.patch).appFont(.caption, design: .monospaced)
+                  .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+              }
+            }
+          }.padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-      }.padding(20).frame(minWidth: 760, minHeight: 520)
+      }.padding(20).frame(minWidth: 900, minHeight: 520)
     }
     .onChange(of: diff) { _, _ in
       copied = false
-      fullDiff = nil
       loadError = nil
+      if showingFullDiff {
+        let selectedPath = files.first { $0.id == selectedFileID }?.path
+        openFullDiff()
+        if let selectedPath, let matching = files.first(where: { $0.path == selectedPath }) {
+          selectedFileID = matching.id
+        }
+      } else { files = [] }
+    }
+    .onChange(of: showingFullDiff) { _, visible in
+      if !visible { files = [] }
     }
   }
 
   private func openFullDiff() {
     do {
-      fullDiff = try CodexTurnDiffStorage.load(diff, root: root)
+      let source = try CodexTurnDiffStorage.load(diff, root: root)
+      files = CodexTurnDiffFiles.parse(source)
+      selectedFileID = 0
       loadError = nil
       showingFullDiff = true
     } catch {
+      if showingFullDiff { dismissFullDiff() }
       loadError = error.localizedDescription
     }
+  }
+
+  private func dismissFullDiff() {
+    showingFullDiff = false
+    files = []
   }
 
   private func copyFullDiff() {

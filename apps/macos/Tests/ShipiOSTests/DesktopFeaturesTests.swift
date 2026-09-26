@@ -5,6 +5,24 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  func testCodexTurnDiffFileNavigationPreservesExactSlicesAndPaths() {
+    let source = "diff --git a/one.swift b/one.swift\n--- a/one.swift\n+++ b/one.swift\n"
+      + "@@ -1 +1 @@\n--- old content\n+++ new content\n"
+      + "diff --git a/gone.swift b/gone.swift\n--- a/gone.swift\n+++ /dev/null\n-old\n"
+      + "diff --git \"a/old name\" \"b/new name\"\nrename from old name\nrename to new name\n"
+      + "--- \"a/old name\"\n+++ \"b/new name\"\n+new\n"
+      + "diff --git \"a/\\344\\270\\255.txt\" \"b/\\344\\270\\255.txt\"\n"
+      + "Binary files differ\n"
+    let files = CodexTurnDiffFiles.parse(source)
+    XCTAssertEqual(files.map(\.path), ["one.swift", "gone.swift", "new name", "中.txt"])
+    XCTAssertEqual(files.map(\.patch).joined(), source)
+    XCTAssertEqual(CodexTurnDiffFiles.parse("preface\n" + source).map(\.patch).joined(),
+      "preface\n" + source)
+    XCTAssertEqual(files[1].patch, "diff --git a/gone.swift b/gone.swift\n--- a/gone.swift\n+++ /dev/null\n-old\n")
+    XCTAssertEqual(CodexTurnDiffFiles.parse("plain patch").map(\.path), ["完整差异"])
+    XCTAssertTrue(CodexTurnDiffFiles.parse("").isEmpty)
+  }
+
   func testCodexTurnDiffUpdatesOneCardAndClearsWhenCoreClearsDiff() throws {
     var diff: CodexTurnDiff?
     var items: [ChatResponseItem] = [.message(id: UUID(), text: "修改开始")]
