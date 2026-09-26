@@ -265,9 +265,6 @@ extension WorkspaceStore {
     runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage]
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
-    guard initialText.utf8.count <= 48_000 else {
-      throw AgentFailure(message: "会话上下文超过当前 Codex 通道的 48 KiB 上限，请新建任务。")
-    }
     guard let continuationText = messages.last?.content, !continuationText.isEmpty else {
       throw AgentFailure(message: "Codex 回合缺少文字输入。")
     }

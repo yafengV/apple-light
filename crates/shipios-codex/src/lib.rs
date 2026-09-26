@@ -1,5 +1,4 @@
-//! Host adapter for the pinned Codex Core runtime. The desktop still uses its
-//! existing chat transport until the Agent RPC and event mapping are connected.
+//! Host adapter for the pinned Codex Core runtime.
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_core_api::{
@@ -12,6 +11,7 @@ use codex_core_api::{
     thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
+use codex_protocol::mcp::ClientMcpExtensions;
 use std::{
     collections::HashSet,
     path::PathBuf,
@@ -75,6 +75,14 @@ pub struct CodexSession {
 
 impl CodexSession {
     pub async fn start(options: SessionOptions) -> Result<Self> {
+        Self::open(options, None).await
+    }
+
+    pub async fn resume(options: SessionOptions, rollout_path: PathBuf) -> Result<Self> {
+        Self::open(options, Some(rollout_path)).await
+    }
+
+    async fn open(options: SessionOptions, rollout_path: Option<PathBuf>) -> Result<Self> {
         let url = Url::parse(&options.base_url).context("invalid model service URL")?;
         let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "::1"));
         ensure!(
@@ -150,7 +158,7 @@ impl CodexSession {
         let manager = ThreadManager::new(
             &config,
             Arc::clone(&auth_manager),
-            build_models_manager(&config, auth_manager),
+            build_models_manager(&config, Arc::clone(&auth_manager)),
             CodexAppsToolsCache::default(),
             SessionSource::Exec,
             environment_manager,
@@ -168,9 +176,24 @@ impl CodexSession {
         );
         let NewThread {
             thread_id, thread, ..
-        } = manager
-            .start_thread(StartThreadOptions::new(config))
-            .await?;
+        } = match rollout_path {
+            Some(path) => {
+                manager
+                    .resume_thread_from_rollout(
+                        config,
+                        path,
+                        auth_manager,
+                        None,
+                        ClientMcpExtensions::default(),
+                    )
+                    .await?
+            }
+            None => {
+                manager
+                    .start_thread(StartThreadOptions::new(config))
+                    .await?
+            }
+        };
         Ok(Self {
             manager,
             thread_id,

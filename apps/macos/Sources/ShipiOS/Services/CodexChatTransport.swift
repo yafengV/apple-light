@@ -23,22 +23,28 @@ final class CodexChatTransport {
     guard streams[taskID] == nil else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
+    guard continuationText.utf8.count <= 48_000 else {
+      throw AgentFailure(message: "本轮文字超过 Codex 通道的 48 KiB 上限，请缩短后重试。")
+    }
     let (stream, continuation) = AsyncThrowingStream<JSONValue, Error>.makeStream()
     streams[taskID] = continuation
     let token = generation
     do {
       let firstTurn = !activeThreads.contains(taskID)
+      var sendFullContext = firstTurn
       if firstTurn {
-        _ = try await client.request("codex.thread.start", [
+        let thread = try await client.request("codex.thread.start", [
           "taskId": .string(taskID), "baseUrl": .string(config.baseURL),
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
+          "initialContextBytes": .number(Double(initialText.utf8.count)),
         ])
         guard generation == token else { throw CancellationError() }
+        sendFullContext = thread["resumed"].boolean != true
         activeThreads.insert(taskID)
       }
       _ = try await client.request("codex.turn.submit", [
         "taskId": .string(taskID),
-        "text": .string(firstTurn ? initialText : continuationText),
+        "text": .string(sendFullContext ? initialText : continuationText),
       ])
       guard generation == token else { throw CancellationError() }
       try Task.checkCancellation()

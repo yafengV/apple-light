@@ -177,7 +177,7 @@ final class ModelTransportTests: XCTestCase {
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
     await store.restore()
     config.apiProtocol = .codexResponses
-    store.modelConfiguration = config
+    try store.saveModelConfiguration(config)
     store.notificationPreferences = .init(timing: .never)
     await store.open(project)
     XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
@@ -203,6 +203,18 @@ final class ModelTransportTests: XCTestCase {
     await running.value
     XCTAssertEqual(store.library.chatRuns.first { $0.id == interrupted.id }?.status, "cancelled")
     await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    restored.notificationPreferences = .init(timing: .never)
+    await restored.restore()
+    await restored.open(project)
+    XCTAssertTrue(restored.connected, restored.error ?? "Agent did not reconnect")
+    await restored.startChat("After restart", taskID: run.id)
+    let resumedRun = try XCTUnwrap(restored.library.chatRuns.last)
+    await restored.modelTask(runID: resumedRun.id)?.value
+    let resumed = try XCTUnwrap(restored.library.chatRuns.first { $0.id == resumedRun.id })
+    XCTAssertEqual(resumed.status, "succeeded", resumed.result?["message"].text ?? "")
+    XCTAssertEqual(resumed.result?["response"].text, "Codex fixture reply")
+    await restored.shutdown()
   }
   @MainActor func testTaskModelOverrideReachesRequestAndChangingItDoesNotRewriteInflightRun() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

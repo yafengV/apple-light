@@ -14,6 +14,7 @@ pub struct StartThread {
     pub base_url: String,
     pub model: String,
     pub api_key: Option<String>,
+    pub initial_context_bytes: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -21,6 +22,53 @@ pub struct StartThread {
 pub struct ThreadInfo {
     pub task_id: String,
     pub thread_id: String,
+    pub resumed: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PersistedThread {
+    thread_id: String,
+    rollout_path: PathBuf,
+}
+
+fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
+    let path = home.join("thread.json");
+    let data = match std::fs::read(&path) {
+        Ok(data) => data,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error).context("read saved Codex thread"),
+    };
+    let thread: PersistedThread =
+        serde_json::from_slice(&data).context("parse saved Codex thread")?;
+    let home = home.canonicalize().context("resolve private Codex home")?;
+    let rollout = thread
+        .rollout_path
+        .canonicalize()
+        .context("saved Codex rollout is missing")?;
+    ensure!(
+        rollout.starts_with(&home),
+        "saved Codex rollout escaped its private home"
+    );
+    Ok(Some(PersistedThread {
+        thread_id: thread.thread_id,
+        rollout_path: rollout,
+    }))
+}
+
+fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()> {
+    ensure!(
+        thread.rollout_path.starts_with(home),
+        "Codex rollout escaped its private home"
+    );
+    let temporary = home.join(format!("thread-{}.tmp", Uuid::new_v4()));
+    std::fs::write(&temporary, serde_json::to_vec(thread)?)
+        .context("save Codex thread reference")?;
+    if let Err(error) = std::fs::rename(&temporary, home.join("thread.json")) {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error).context("publish Codex thread reference");
+    }
+    Ok(())
 }
 
 enum Command {
@@ -68,21 +116,55 @@ impl CodexBridge {
         );
         let home = private_dir(&self.data_dir.join("Codex"))?;
         let home = private_dir(&home.join("Tasks"))?;
-        let home = private_dir(&home.join(&task_key))?;
+        let home = private_dir(&home.join(&task_key))?
+            .canonicalize()
+            .context("resolve private Codex home")?;
+        let previous = saved_thread(&home)?;
+        if previous.is_none() {
+            ensure!(
+                request
+                    .initial_context_bytes
+                    .is_none_or(|bytes| bytes <= 48_000),
+                "conversation exceeds the 48 KiB Codex startup limit; start a new task"
+            );
+        }
         let runtime_paths = codex_core_api::ExecServerRuntimePaths::new(
             std::env::current_exe().context("resolve Agent executable")?,
             None,
         )?;
-        let session = CodexSession::start(SessionOptions {
-            codex_home: home,
+        let options = SessionOptions {
+            codex_home: home.clone(),
             project_root: self.project.clone(),
             base_url: request.base_url,
             model: request.model,
             api_key: request.api_key,
             runtime_paths,
-        })
-        .await?;
+        };
+        let resumed = previous.is_some();
+        let session = if let Some(ref previous) = previous {
+            CodexSession::resume(options, previous.rollout_path.clone()).await?
+        } else {
+            CodexSession::start(options).await?
+        };
         let thread_id = session.thread_id();
+        if let Some(ref previous) = previous {
+            if previous.thread_id != thread_id {
+                let _ = session.shutdown().await;
+                return Err(anyhow!("resumed Codex thread identity changed"));
+            }
+        }
+        let saved = session.rollout_path().map(|rollout_path| PersistedThread {
+            thread_id: thread_id.clone(),
+            rollout_path,
+        });
+        let save_result = saved
+            .as_ref()
+            .context("Codex thread has no persistent rollout")
+            .and_then(|saved| persist_thread(&home, saved));
+        if let Err(error) = save_result {
+            let _ = session.shutdown().await;
+            return Err(error);
+        }
         let (sender, receiver) = mpsc::channel(16);
         let mut sessions = self.sessions.lock().await;
         ensure!(
@@ -105,7 +187,11 @@ impl CodexBridge {
             task_id.clone(),
             thread_id.clone(),
         ));
-        Ok(ThreadInfo { task_id, thread_id })
+        Ok(ThreadInfo {
+            task_id,
+            thread_id,
+            resumed,
+        })
     }
 
     async fn sender(&self, task_id: &str) -> Result<mpsc::Sender<Command>> {
@@ -267,7 +353,7 @@ mod tests {
                     .insert_header("content-type", "text/event-stream")
                     .set_body_string(response),
             )
-            .expect(1)
+            .expect(2)
             .mount(&server)
             .await;
         let temp = tempfile::tempdir()?;
@@ -276,15 +362,29 @@ mod tests {
         let bridge = CodexBridge::new(temp.path().join("Data"), project);
         let mut events = bridge.subscribe();
         let task_id = Uuid::new_v4().to_string().to_uppercase();
+        assert!(
+            bridge
+                .start(StartThread {
+                    task_id: task_id.clone(),
+                    base_url: format!("{}/v1", server.uri()),
+                    model: "gpt-5.2".to_owned(),
+                    api_key: None,
+                    initial_context_bytes: Some(48_001),
+                })
+                .await
+                .is_err()
+        );
         let thread = bridge
             .start(StartThread {
                 task_id: task_id.clone(),
                 base_url: format!("{}/v1", server.uri()),
                 model: "gpt-5.2".to_owned(),
                 api_key: Some("bridge-test-token".to_owned()),
+                initial_context_bytes: Some(48_000),
             })
             .await?;
         assert_eq!(thread.task_id, task_id);
+        assert!(!thread.resumed);
         assert!(!bridge.submit(&task_id, " ".to_owned()).await.is_ok());
         assert!(
             !bridge
@@ -312,13 +412,43 @@ mod tests {
         assert_eq!(reply.as_deref(), Some("Agent bridge reply"));
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
+        let restarted = CodexBridge::new(temp.path().join("Data"), temp.path().join("Project"));
+        let mut resumed_events = restarted.subscribe();
+        let resumed = restarted
+            .start(StartThread {
+                task_id: task_id.clone(),
+                base_url: format!("{}/v1", server.uri()),
+                model: "gpt-5.2".to_owned(),
+                api_key: Some("bridge-test-token".to_owned()),
+                initial_context_bytes: Some(48_001),
+            })
+            .await?;
+        assert!(resumed.resumed);
+        assert_eq!(resumed.thread_id, thread.thread_id);
+        restarted.submit(&task_id, "Again".to_owned()).await?;
+        let mut resumed_reply = None;
+        loop {
+            let event =
+                tokio::time::timeout(std::time::Duration::from_secs(10), resumed_events.recv())
+                    .await??;
+            match event["event"]["type"].as_str() {
+                Some("agent_message") => {
+                    resumed_reply = event["event"]["message"].as_str().map(str::to_owned)
+                }
+                Some("task_complete") => break,
+                Some("error") => anyhow::bail!("Codex resume error: {}", event["event"]),
+                _ => {}
+            }
+        }
+        assert_eq!(resumed_reply.as_deref(), Some("Agent bridge reply"));
+        restarted.stop(&task_id).await?;
         let home = temp
             .path()
             .join("Data/Codex/Tasks")
             .join(task_id.to_lowercase());
         assert!(!home.join("auth.json").exists());
         let requests = server.received_requests().await.expect("mock requests");
-        assert_eq!(requests.len(), 1);
+        assert_eq!(requests.len(), 2);
         assert_eq!(
             requests[0]
                 .headers
