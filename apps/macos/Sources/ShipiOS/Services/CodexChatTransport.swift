@@ -60,6 +60,8 @@ final class CodexChatTransport {
         "text": .string(sendFullContext ? initialText : continuationText),
         "images": .array(wireImages),
         "planMode": .bool(planMode),
+        "model": .string(config.model),
+        "reasoningEffort": .string(config.reasoning),
       ]
       if let goalInstructions { request["goalInstructions"] = .string(goalInstructions) }
       if let staged {

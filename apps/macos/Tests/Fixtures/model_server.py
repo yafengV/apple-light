@@ -135,6 +135,14 @@ class Handler(BaseHTTPRequestHandler):
                     'type': 'message', 'role': 'assistant', 'id': 'goal-reply',
                     'content': [{'type': 'output_text', 'text': reply}],
                 }
+            elif 'codex-model-switch' in request_text:
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'model-selection',
+                    'content': [{'type': 'output_text', 'text': json.dumps({
+                        'model': body.get('model'),
+                        'effort': body.get('reasoning', {}).get('effort'),
+                    })}],
+                }
             else:
                 item = {
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',

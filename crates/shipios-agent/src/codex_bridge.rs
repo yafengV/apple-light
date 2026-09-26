@@ -123,11 +123,13 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
 }
 
 enum Command {
-    Submit(
-        Vec<UserInput>,
-        CodexTurnMode,
-        oneshot::Sender<Result<String>>,
-    ),
+    Submit {
+        inputs: Vec<UserInput>,
+        mode: CodexTurnMode,
+        model: Option<String>,
+        reasoning_effort: Option<String>,
+        reply: oneshot::Sender<Result<String>>,
+    },
     Steer(Vec<UserInput>, String, oneshot::Sender<Result<bool>>),
     Approve(CodexApproval, oneshot::Sender<Result<()>>),
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
@@ -315,7 +317,7 @@ impl CodexBridge {
 
     #[cfg(test)]
     pub async fn submit(&self, task_id: &str, text: String) -> Result<String> {
-        self.submit_with_attachments(task_id, text, Vec::new(), None, false, None)
+        self.submit_with_attachments(task_id, text, Vec::new(), None, false, None, None, None)
             .await
     }
 
@@ -326,7 +328,7 @@ impl CodexBridge {
         text: String,
         images: Vec<CodexImage>,
     ) -> Result<String> {
-        self.submit_with_attachments(task_id, text, images, None, false, None)
+        self.submit_with_attachments(task_id, text, images, None, false, None, None, None)
             .await
     }
 
@@ -338,6 +340,8 @@ impl CodexBridge {
         text_attachment: Option<CodexTextAttachment>,
         plan_mode: bool,
         goal_instructions: Option<String>,
+        model: Option<String>,
+        reasoning_effort: Option<String>,
     ) -> Result<String> {
         ensure!(
             !plan_mode || goal_instructions.is_none(),
@@ -347,17 +351,19 @@ impl CodexBridge {
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
-            .send(Command::Submit(
+            .send(Command::Submit {
                 inputs,
-                if let Some(instructions) = goal_instructions {
+                mode: if let Some(instructions) = goal_instructions {
                     CodexTurnMode::Goal(instructions)
                 } else if plan_mode {
                     CodexTurnMode::Plan
                 } else {
                     CodexTurnMode::Default
                 },
+                model,
+                reasoning_effort,
                 reply,
-            ))
+            })
             .await
             .context("Codex thread stopped")?;
         result.await.context("Codex thread stopped")?
@@ -546,8 +552,8 @@ async fn run_thread(
         tokio::select! {
             biased;
             command = receiver.recv() => match command {
-                Some(Command::Submit(inputs, mode, reply)) => {
-                    let _ = reply.send(live.submit_inputs_in_mode(inputs, mode).await);
+                Some(Command::Submit { inputs, mode, model, reasoning_effort, reply }) => {
+                    let _ = reply.send(live.submit_inputs_in_mode(inputs, mode, model, reasoning_effort).await);
                 }
                 Some(Command::Steer(inputs, expected_turn_id, reply)) => {
                     let _ = reply.send(live.steer_inputs(inputs, expected_turn_id).await);
@@ -808,6 +814,8 @@ mod tests {
                     byte_count: text_appendix.len() as u64,
                 }),
                 false,
+                None,
+                None,
                 None,
             )
             .await?;

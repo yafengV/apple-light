@@ -724,6 +724,62 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(store.chatMode, .standard)
     await store.shutdown()
   }
+  @MainActor func testCodexTaskModelSelectionChangesTheNextResponsesTurn() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    config.reasoning = "high"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-model-switch")
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: first.id)?.value
+    let taskID = try XCTUnwrap(store.library.task(containing: first.id)?.id)
+    let initial = try XCTUnwrap(store.library.chatRuns.first { $0.id == first.id })
+    let initialWire = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(initial.result?["response"].text).utf8))
+    XCTAssertEqual(initial.status, "succeeded", initial.result?["message"].text ?? "")
+    XCTAssertEqual(initialWire["model"].text, "gpt-5.4")
+    XCTAssertEqual(initialWire["effort"].text, "high")
+
+    try store.selectModel("gpt-5.5", reasoning: "low", taskID: taskID)
+    await store.startChat("codex-model-switch second", taskID: taskID)
+    let second = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: second.id)?.value
+    let changed = try XCTUnwrap(store.library.chatRuns.first { $0.id == second.id })
+    let changedWire = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(changed.result?["response"].text).utf8))
+    XCTAssertEqual(changed.status, "succeeded", changed.result?["message"].text ?? "")
+    XCTAssertEqual(changed.request["model"].text, "gpt-5.5")
+    XCTAssertEqual(changed.request["reasoning_effort"].text, "low")
+    XCTAssertEqual(changedWire["model"].text, "gpt-5.5")
+    XCTAssertEqual(changedWire["effort"].text, "low")
+    XCTAssertEqual(initial.request["model"].text, "gpt-5.4")
+
+    try store.selectModel("gpt-5.5", reasoning: "", taskID: taskID)
+    await store.startChat("codex-model-switch default effort", taskID: taskID)
+    let defaultEffort = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: defaultEffort.id)?.value
+    let reset = try XCTUnwrap(store.library.chatRuns.first { $0.id == defaultEffort.id })
+    let resetWire = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(reset.result?["response"].text).utf8))
+    XCTAssertEqual(reset.status, "succeeded", reset.result?["message"].text ?? "")
+    XCTAssertEqual(resetWire["model"].text, "gpt-5.5")
+    XCTAssertEqual(resetWire["effort"].text, "medium")
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

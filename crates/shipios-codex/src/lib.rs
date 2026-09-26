@@ -15,6 +15,7 @@ use codex_protocol::config_types::{
     CollaborationMode, ModeKind, Settings as CollaborationSettings,
 };
 use codex_protocol::mcp::ClientMcpExtensions;
+use codex_protocol::openai_models::ReasoningEffort;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::request_user_input::{RequestUserInputAnswer, RequestUserInputResponse};
@@ -264,7 +265,7 @@ impl CodexSession {
     }
 
     pub async fn submit_inputs(&self, inputs: Vec<UserInput>) -> Result<String> {
-        self.submit_inputs_in_mode(inputs, CodexTurnMode::Default)
+        self.submit_inputs_in_mode(inputs, CodexTurnMode::Default, None, None)
             .await
     }
 
@@ -272,6 +273,8 @@ impl CodexSession {
         &self,
         inputs: Vec<UserInput>,
         mode: CodexTurnMode,
+        model: Option<String>,
+        reasoning_effort: Option<String>,
     ) -> Result<String> {
         ensure!(
             inputs.iter().any(|input| match input {
@@ -291,15 +294,30 @@ impl CodexSession {
             .into_iter()
             .find(|item| item.mode == Some(kind))
             .ok_or_else(|| anyhow!("Codex collaboration mode is unavailable"))?;
+        let model = model.unwrap_or_else(|| self.model.clone());
+        let model = model.trim().to_owned();
+        ensure!(!model.is_empty(), "model ID is required");
+        let effort = reasoning_effort
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                value
+                    .parse::<ReasoningEffort>()
+                    .map_err(|error| anyhow!(error))
+            })
+            .transpose()?;
         let mut collaboration_mode = CollaborationMode {
             mode: kind,
             settings: CollaborationSettings {
-                model: self.model.clone(),
-                reasoning_effort: None,
+                model: model.clone(),
+                reasoning_effort: effort.clone(),
                 developer_instructions: None,
             },
         }
         .apply_mask(&preset);
+        collaboration_mode.settings.model = model;
+        collaboration_mode.settings.reasoning_effort = effort;
         if let CodexTurnMode::Goal(instructions) = &mode {
             ensure!(
                 !instructions.trim().is_empty(),
