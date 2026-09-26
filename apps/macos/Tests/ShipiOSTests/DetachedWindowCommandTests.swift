@@ -100,7 +100,7 @@ import XCTest
     window.contentView = host
     defer { window.contentView = nil; window.close() }
     func address(_ view: NSView) -> NSTextField? {
-      if let field = view as? NSTextField, field.placeholderString == "网址或 localhost 地址" { return field }
+      if let field = view as? NSTextField, field.accessibilityLabel() == "浏览器地址" { return field }
       return view.subviews.lazy.compactMap { address($0) }.first
     }
     for _ in 0..<100 {

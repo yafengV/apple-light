@@ -86,6 +86,8 @@ struct BrowserPanel: View {
         Divider()
       }
       if let tab = displayedTab {
+        ZStack(alignment: .top) {
+          VStack(spacing: 0) {
         HStack(spacing: 9) {
           Button { tab.back() } label: { Image(systemName: "chevron.left") }
             .disabled(!tab.canGoBack).help("后退").accessibilityLabel("浏览器后退")
@@ -151,37 +153,6 @@ struct BrowserPanel: View {
             }
           } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
         }.buttonStyle(.plain).padding(10)
-        if addressSuggestionsVisible && addressSuggestionTabID == tab.id {
-          let matches = addressMatches(tab)
-          if !matches.isEmpty || BrowserAddressInput.isSearchQuery(tab.address) {
-            VStack(alignment: .leading, spacing: 0) {
-              ForEach(Array(matches.enumerated()), id: \.element.id) { index, entry in
-                Button {
-                  selectedAddressSuggestion = index
-                  navigateAddress(entry.url, tab: tab)
-                } label: {
-                  HStack(spacing: 8) {
-                    Image(systemName: "clock.arrow.circlepath")
-                    VStack(alignment: .leading, spacing: 2) {
-                      Text(entry.title.isEmpty ? entry.url : entry.title).lineLimit(1)
-                      Text(entry.url).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
-                  }.padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(selectedAddressSuggestion == index ? Color.accentColor.opacity(0.15) : Color.clear)
-                }.buttonStyle(.plain).accessibilityLabel("历史页面：\(entry.title.isEmpty ? entry.url : entry.title)")
-              }
-              if matches.isEmpty && BrowserAddressInput.isSearchQuery(tab.address) {
-                Button { navigateAddress(tab.address, tab: tab) } label: {
-                  Label("搜索 Google：\(tab.address)", systemImage: "magnifyingglass")
-                    .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-              }
-            }.background(.regularMaterial).padding(.horizontal, 76)
-              .accessibilityIdentifier("browser-address-suggestions")
-          }
-        }
         if let error = tab.error {
           HStack(alignment: .top) {
             Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
@@ -236,6 +207,12 @@ struct BrowserPanel: View {
               .allowsHitTesting(false)
           }
         }
+          }
+          addressSuggestionOverlay(tab)
+            .padding(.top, 42)
+            .padding(.horizontal, 76)
+            .zIndex(1)
+        }
       }
     }.background {
       if context == nil { BrowserKeyboardBridge(store: store).frame(width: 0, height: 0) }
@@ -245,6 +222,43 @@ struct BrowserPanel: View {
         // owner selects and focuses tabs in response to user actions.
         if tabID == nil { session.ensureTab() }
       }
+  }
+
+  @ViewBuilder private func addressSuggestionOverlay(_ tab: BrowserTab) -> some View {
+    if addressSuggestionsVisible && addressSuggestionTabID == tab.id {
+      let matches = addressMatches(tab)
+      if !matches.isEmpty || BrowserAddressInput.isSearchQuery(tab.address) {
+        VStack(alignment: .leading, spacing: 0) {
+          ForEach(Array(matches.enumerated()), id: \.element.id) { index, entry in
+            Button {
+              selectedAddressSuggestion = index
+              navigateAddress(entry.url, tab: tab)
+            } label: {
+              HStack(spacing: 8) {
+                Image(systemName: "clock.arrow.circlepath")
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(entry.title.isEmpty ? entry.url : entry.title).lineLimit(1)
+                  Text(entry.url).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+              }.padding(.horizontal, 12).padding(.vertical, 6)
+                .background(selectedAddressSuggestion == index ? Color.accentColor.opacity(0.15) : Color.clear)
+            }.buttonStyle(.plain).accessibilityLabel("历史页面：\(entry.title.isEmpty ? entry.url : entry.title)")
+          }
+          if matches.isEmpty && BrowserAddressInput.isSearchQuery(tab.address) {
+            Button { navigateAddress(tab.address, tab: tab) } label: {
+              Label("搜索 Google：\(tab.address)", systemImage: "magnifyingglass")
+                .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain)
+          }
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.separator, lineWidth: 1))
+        .shadow(radius: 12, y: 5)
+        .accessibilityIdentifier("browser-address-suggestions")
+      }
+    }
   }
 
   private func markerKey(tab: BrowserTab) -> String {

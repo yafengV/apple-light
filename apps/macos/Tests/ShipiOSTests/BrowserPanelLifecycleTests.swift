@@ -33,4 +33,32 @@ import XCTest
       window.close()
     }
   }
+
+  func testAddressSuggestionsDoNotResizeTheWebPage() async throws {
+    _ = NSApplication.shared
+    let store = WorkspaceStore()
+    let session = BrowserSession()
+    defer { session.shutdown() }
+    let tab = session.newTab()
+    store.library.browserHistory = [BrowserHistoryEntry(url: "https://swift.org", title: "Swift Home")]
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 700, height: 500),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: BrowserPanel(store: store, session: session, showsTabStrip: false))
+    window.contentView = host
+    host.layoutSubtreeIfNeeded()
+    let initialHeight = tab.view.frame.height
+    XCTAssertGreaterThan(initialHeight, 0)
+
+    let field = try XCTUnwrap(session.addressField)
+    field.stringValue = "swift"
+    field.delegate?.controlTextDidBeginEditing?(Notification(name: NSControl.textDidBeginEditingNotification, object: field))
+    field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
+    host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(50))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(tab.view.frame.height, initialHeight, accuracy: 1,
+      "Opening address suggestions must overlay the page instead of moving it")
+    window.close()
+  }
 }
