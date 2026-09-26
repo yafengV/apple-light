@@ -104,6 +104,25 @@ struct GitHubPRService: Sendable {
     return try await GitPullRequestContent.capture(context, base: base, baseCommit: baseCommit)
   }
 
+  func details(for pullRequest: GitHubPullRequest, at root: URL) async throws -> GitHubPRDetails {
+    guard let url = pullRequest.validatedURL else {
+      throw AgentFailure(message: "保存的 PR 地址无效。")
+    }
+    let parts = url.pathComponents
+    guard parts.count == 5 else { throw AgentFailure(message: "无法识别 PR 仓库。") }
+    let repository = try GitHubRepository.parse("https://github.com/\(parts[1])/\(parts[2])")
+    let output = try await run(["pr", "view", String(pullRequest.number), "--repo",
+      repository.fullName, "--json",
+      "number,url,title,body,state,isDraft,headRefName,baseRefName,reviewDecision,mergeable,statusCheckRollup"], at: root)
+    let details = try JSONDecoder().decode(GitHubPRDetails.self, from: Data(output.utf8))
+    guard details.number == pullRequest.number,
+      repository.pullRequestURL(details.url) == url,
+      ["OPEN", "CLOSED", "MERGED"].contains(details.state.uppercased()) else {
+      throw AgentFailure(message: "GitHub 返回的 PR 与当前任务记录不一致。")
+    }
+    return details
+  }
+
   private func existingPR(_ repository: GitHubRepository, head: String, at root: URL) async throws -> GitHubPullRequest? {
     let output = try await run(["pr", "list", "--repo", repository.fullName, "--head", head, "--state", "open", "--limit", "100",
       "--json", "number,url,title,isDraft,headRefName,baseRefName,isCrossRepository"], at: root)

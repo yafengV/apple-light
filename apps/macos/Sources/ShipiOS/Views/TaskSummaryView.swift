@@ -4,6 +4,7 @@ import SwiftUI
 /// A task-local summary assembled only from records ShipiOS actually owns.
 struct TaskSummaryView: View {
   @State private var outputPreview: TaskSummaryOutputFile?
+  @State private var selectedPullRequest: (taskID: String, request: GitHubPullRequest)?
   let task: WorkspaceTask
   let runs: [AgentRun]
   let library: WorkspaceLibrary
@@ -29,6 +30,21 @@ struct TaskSummaryView: View {
   }
 
   var body: some View {
+    Group {
+      if let selection = selectedPullRequest, selection.taskID == task.id {
+        TaskPullRequestDetailView(request: selection.request,
+          root: URL(fileURLWithPath: task.project, isDirectory: true),
+          openExternal: openExternal,
+          back: { selectedPullRequest = nil },
+          close: { selectedPullRequest = nil; close() })
+      } else {
+        summaryContent
+      }
+    }
+    .onChange(of: task.id) { _, _ in selectedPullRequest = nil }
+  }
+
+  @ViewBuilder private var summaryContent: some View {
     let sources = runs.summarySources(in: library)
     let pullRequests = (library.taskPullRequests[task.id] ?? []).filter { $0.validatedURL != nil }
     let artifacts = runs.summaryArtifacts
@@ -82,7 +98,7 @@ struct TaskSummaryView: View {
               }
               ForEach(pullRequests, id: \.url) { request in
                 if let url = request.validatedURL {
-                  Button { openExternal(url) } label: {
+                  Button { selectedPullRequest = (task.id, request) } label: {
                     HStack(alignment: .top, spacing: 8) {
                       Text("#\(request.number)").foregroundStyle(.secondary)
                       VStack(alignment: .leading, spacing: 3) {
@@ -96,6 +112,7 @@ struct TaskSummaryView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                   }
                   .buttonStyle(.plain)
+                  .help("查看 PR 详情")
                   .contextMenu {
                     Button("复制链接") {
                       NSPasteboard.general.clearContents()

@@ -57,6 +57,49 @@ struct GitHubPullRequest: Codable, Equatable, Sendable {
   }
 }
 
+struct GitHubPRDetails: Decodable, Equatable, Sendable {
+  struct Check: Decodable, Equatable, Sendable {
+    let name: String?
+    let context: String?
+    let status: String?
+    let conclusion: String?
+    let state: String?
+  }
+
+  let number: Int
+  let url: String
+  let title: String
+  let body: String?
+  let state: String
+  let isDraft: Bool
+  let headRefName: String
+  let baseRefName: String
+  let reviewDecision: String?
+  let mergeable: String?
+  let statusCheckRollup: [Check]?
+
+  var statusLabel: String {
+    switch state.uppercased() {
+    case "MERGED": "已合并"
+    case "CLOSED": "已关闭"
+    default: isDraft ? "草稿" : "开放"
+    }
+  }
+
+  var checkSummary: (passed: Int, failed: Int, pending: Int) {
+    var passed = 0, failed = 0, pending = 0
+    for check in statusCheckRollup ?? [] {
+      let value = (check.conclusion ?? check.state ?? check.status ?? "").uppercased()
+      switch value {
+      case "SUCCESS", "NEUTRAL", "SKIPPED": passed += 1
+      case "FAILURE", "ERROR", "TIMED_OUT", "ACTION_REQUIRED", "CANCELLED": failed += 1
+      default: pending += 1
+      }
+    }
+    return (passed, failed, pending)
+  }
+}
+
 struct GitHubPRContext: Equatable, Sendable {
   let plan: GitPushPlan
   let repository: GitHubRepository

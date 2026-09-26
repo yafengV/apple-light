@@ -112,6 +112,49 @@ final class GitHubPRTests: XCTestCase {
     }
   }
 
+  func testDetailsRefreshValidatesIdentityAndReportsCurrentStatus() async throws {
+    let (root, service) = try await fixture()
+    let request = GitHubPullRequest(number: 42,
+      url: "https://github.com/sample/project/pull/42", title: "Old title",
+      isDraft: true, headRefName: "feature/topic", baseRefName: "main",
+      isCrossRepository: false)
+    var fixtureState = try state(at: root)
+    fixtureState["pullRequests"] = [[
+      "number": 42, "url": request.url, "title": "Current title",
+      "isDraft": false, "headRefName": "feature/topic", "baseRefName": "main",
+      "isCrossRepository": false,
+    ]]
+    fixtureState["detailState"] = "MERGED"
+    fixtureState["detailBody"] = "## What changed\n\nA real PR description."
+    fixtureState["reviewDecision"] = "APPROVED"
+    fixtureState["statusCheckRollup"] = [
+      ["name": "build", "status": "COMPLETED", "conclusion": "SUCCESS"],
+      ["context": "lint", "state": "FAILURE"],
+      ["name": "deploy", "status": "IN_PROGRESS"],
+    ]
+    try save(fixtureState, at: root)
+
+    let details = try await service.details(for: request, at: root)
+    XCTAssertEqual(details.title, "Current title")
+    XCTAssertEqual(details.statusLabel, "已合并")
+    XCTAssertEqual(details.body, "## What changed\n\nA real PR description.")
+    XCTAssertEqual(details.reviewDecision, "APPROVED")
+    XCTAssertEqual(details.checkSummary.passed, 1)
+    XCTAssertEqual(details.checkSummary.failed, 1)
+    XCTAssertEqual(details.checkSummary.pending, 1)
+    let calls = try requests(at: root)
+    XCTAssertTrue(calls.contains { ($0["args"] as? [String])?.prefix(3) == ["pr", "view", "42"] })
+
+    fixtureState["detailMismatch"] = true
+    try save(fixtureState, at: root)
+    do {
+      _ = try await service.details(for: request, at: root)
+      XCTFail("The detail panel must reject a different repository")
+    } catch {
+      XCTAssertTrue(error.localizedDescription.contains("不一致"))
+    }
+  }
+
   func testDraftCreationUsesExplicitHeadAndPrivateBodyFileAndPreventsDuplicates() async throws {
     let (root, service) = try await fixture()
     var config = try state(at: root); config["inactiveFailure"] = true; try save(config, at: root)

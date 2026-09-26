@@ -30,6 +30,23 @@ elif args[:2] == ["repo", "view"]:
     print(json.dumps({"nameWithOwner": "sample/project", "defaultBranchRef": {"name": "main"}}))
 elif args[:2] == ["pr", "list"]:
     print(json.dumps(state.get("pullRequests", [])))
+elif args[:2] == ["pr", "view"]:
+    if arg("--repo") != "sample/project":
+        print("Wrong repository", file=sys.stderr)
+        sys.exit(2)
+    item = next((item for item in state.get("pullRequests", [])
+                 if str(item.get("number")) == args[2]), None)
+    if item is None:
+        print("PR not found", file=sys.stderr)
+        sys.exit(1)
+    details = {**item, "body": state.get("detailBody", ""),
+               "state": state.get("detailState", "OPEN"),
+               "reviewDecision": state.get("reviewDecision"),
+               "mergeable": state.get("mergeable"),
+               "statusCheckRollup": state.get("statusCheckRollup", [])}
+    if state.get("detailMismatch"):
+        details["url"] = "https://github.com/other/project/pull/42"
+    print(json.dumps(details))
 elif args and args[0] == "api":
     endpoint = next(value for value in args if value.startswith("repos/"))
     print(state["base"] if endpoint.endswith("/main") else state.get("published", state["head"]))
