@@ -180,7 +180,7 @@ final class WorktreeTests: XCTestCase {
     do {
       try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
       XCTFail("New source file was ignored")
-    } catch { XCTAssertTrue(error.localizedDescription.contains("新的未跟踪")) }
+    } catch { XCTAssertTrue(error.localizedDescription.contains("新增")) }
     try FileManager.default.removeItem(at: source.appendingPathComponent("late"))
     try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
     try await ManagedSourceFiles.removeCaptured(files, from: source, excluding: data)
@@ -190,6 +190,101 @@ final class WorktreeTests: XCTestCase {
     XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("note")), "draft\n")
     try ManagedSourceFiles.removeSnapshotChecked(dataRoot: data, taskID: taskID)
     XCTAssertFalse(ManagedSourceFiles.snapshotExists(dataRoot: data, taskID: taskID))
+  }
+
+  func testDirtyHandoffMovesStagedUnstagedAndLocalFilesWithRetry() async throws {
+    let (base, source) = try await fixture()
+    try write(".env\n", source.appendingPathComponent(".gitignore"))
+    try write(".env\n", source.appendingPathComponent(".worktreeinclude"))
+    _ = try await git(["add", ".gitignore", ".worktreeinclude"], source)
+    _ = try await git(["commit", "-qm", "Local file policy"], source)
+    let starting = try await GitBranchService.snapshot(at: source)
+    let plan = try await WorktreeService.plan(snapshot: starting, branch: nil,
+      title: "Dirty transfer", parent: base.appendingPathComponent("worktrees"))
+    try await WorktreeService.createOrRecover(plan)
+    let target = URL(fileURLWithPath: plan.path)
+    try write("staged\n", source.appendingPathComponent("file"))
+    _ = try await git(["add", "file"], source)
+    try write("unstaged\n", source.appendingPathComponent("file"))
+    try write("draft\n", source.appendingPathComponent("note"))
+    try write("private\n", source.appendingPathComponent(".env"))
+    let taskID = UUID().uuidString
+    let data = base.appendingPathComponent("data")
+    let snapshot = try await HandoffGitState.capture(taskID: taskID, source: source,
+      target: target, dataRoot: data)
+    XCTAssertNotNil(snapshot.stashCommit)
+    XCTAssertEqual(snapshot.copiedFiles.map(\.path), [".env", "note"])
+    let sourceIndexBefore = try await git(["show", ":file"], source)
+    XCTAssertEqual(sourceIndexBefore, "staged\n")
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "unstaged\n")
+    try await HandoffGitState.apply(snapshot, dataRoot: data)
+    try await HandoffGitState.apply(snapshot, dataRoot: data)
+    let destinationMatches = try await HandoffGitState.destinationMatches(snapshot)
+    XCTAssertTrue(destinationMatches)
+    let targetIndex = try await git(["show", ":file"], target)
+    XCTAssertEqual(targetIndex, "staged\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "unstaged\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("note")), "draft\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent(".env")), "private\n")
+    try await HandoffGitState.clearSource(snapshot, dataRoot: data)
+    try await HandoffGitState.clearSource(snapshot, dataRoot: data)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "initial\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("note").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent(".env").path))
+    let sourceStatus = try await git(["status", "--porcelain"], source)
+    XCTAssertEqual(sourceStatus, "")
+    try await HandoffGitState.release(snapshot, dataRoot: data)
+    try await HandoffGitState.release(snapshot, dataRoot: data)
+    XCTAssertFalse(ManagedSourceFiles.snapshotExists(dataRoot: data, taskID: taskID))
+    let retained = try await LocalWorkspaceService.git(
+      ["rev-parse", "--verify", snapshot.protectedReference], at: source)
+    XCTAssertNotEqual(retained.status, 0)
+  }
+
+  func testDirtyHandoffRejectsTargetConflictAndChangedSourceWithoutDeletingWork() async throws {
+    let (base, source) = try await fixture()
+    try write(".env\n", source.appendingPathComponent(".gitignore"))
+    try write(".env\n", source.appendingPathComponent(".worktreeinclude"))
+    _ = try await git(["add", ".gitignore", ".worktreeinclude"], source)
+    _ = try await git(["commit", "-qm", "Local file policy"], source)
+    let starting = try await GitBranchService.snapshot(at: source)
+    let plan = try await WorktreeService.plan(snapshot: starting, branch: nil,
+      title: "Dirty conflict", parent: base.appendingPathComponent("worktrees"))
+    try await WorktreeService.createOrRecover(plan)
+    let target = URL(fileURLWithPath: plan.path)
+    let data = base.appendingPathComponent("data")
+    let taskID = UUID().uuidString
+    try write("private\n", source.appendingPathComponent(".env"))
+    try write("conflict\n", target.appendingPathComponent(".env"))
+    do {
+      _ = try await HandoffGitState.capture(taskID: taskID, source: source,
+        target: target, dataRoot: data)
+      XCTFail("Target conflict was accepted")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("冲突")) }
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent(".env")), "private\n")
+    XCTAssertFalse(ManagedSourceFiles.snapshotExists(dataRoot: data, taskID: taskID))
+    try FileManager.default.removeItem(at: target.appendingPathComponent(".env"))
+    try write("staged\n", source.appendingPathComponent("file"))
+    _ = try await git(["add", "file"], source)
+    let snapshot = try await HandoffGitState.capture(taskID: taskID, source: source,
+      target: target, dataRoot: data)
+    try await HandoffGitState.apply(snapshot, dataRoot: data)
+    try write("new source change\n", source.appendingPathComponent("file"))
+    do {
+      try await HandoffGitState.clearSource(snapshot, dataRoot: data)
+      XCTFail("Changed source was cleared")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("来源")) }
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "new source change\n")
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent(".env")), "private\n")
+    let sourceIndexAfter = try await git(["show", ":file"], source)
+    XCTAssertEqual(sourceIndexAfter, "staged\n")
+    do {
+      try await HandoffGitState.release(snapshot, dataRoot: data)
+      XCTFail("Recovery snapshot was released before source cleanup")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("保留恢复快照")) }
+    try write("staged\n", source.appendingPathComponent("file"))
+    try await HandoffGitState.clearSource(snapshot, dataRoot: data)
+    try await HandoffGitState.release(snapshot, dataRoot: data)
   }
 
   func testSelectedBranchAndStaleBranchValidation() async throws {
@@ -897,7 +992,7 @@ final class WorktreeTests: XCTestCase {
     await restored.shutdown()
   }
 
-  @MainActor func testLocalHandoffRejectsDirtyCheckoutWithoutMovingTaskOrCreatingWorktree() async throws {
+  @MainActor func testLocalHandoffMovesDirtyCheckoutAndClearsOriginal() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
     let store = WorkspaceStore(dataRoot: data)
@@ -910,16 +1005,16 @@ final class WorktreeTests: XCTestCase {
     try write("unfinished\n", source.appendingPathComponent("file"))
 
     let handedOff = await store.handOffTaskToWorktree(taskID)
-    XCTAssertFalse(handedOff)
-    XCTAssertTrue(store.worktreeError?.contains("未提交修改") == true)
-    XCTAssertEqual(store.library.tasks.first?.project, source.path)
-    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
-    XCTAssertFalse(FileManager.default.fileExists(atPath: store.worktreeRoot.path))
-    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "unfinished\n")
+    XCTAssertTrue(handedOff, store.worktreeError ?? "")
+    let targetPath = try XCTUnwrap(store.library.managedWorktrees.first?.path)
+    XCTAssertEqual(store.library.tasks.first?.project, targetPath)
+    XCTAssertNil(store.library.managedWorktrees.first?.pendingHandoff)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "initial\n")
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: targetPath).appendingPathComponent("file")), "unfinished\n")
     await store.shutdown()
   }
 
-  @MainActor func testWorktreeHandoffRejectsDirtyCheckoutAndDivergedCommits() async throws {
+  @MainActor func testWorktreeHandoffMovesDirtyCheckoutAndRejectsDivergedCommits() async throws {
     let (base, source) = try await fixture()
     let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
     await store.restore()
@@ -934,18 +1029,13 @@ final class WorktreeTests: XCTestCase {
     let target = URL(fileURLWithPath: targetPath)
 
     try write("unfinished\n", target.appendingPathComponent("file"))
-    let rejectedDirty = await store.handOffTaskToLocal(taskID)
-    XCTAssertFalse(rejectedDirty)
-    XCTAssertEqual(store.library.tasks.first?.project, targetPath)
-    let sourceAfterRejection = try await GitBranchService.snapshot(at: source)
-    XCTAssertEqual(sourceAfterRejection.currentReference, "refs/heads/main")
-    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "unfinished\n")
-
-    _ = try await git(["commit", "-qam", "Worktree commit"], target)
     let movedToLocal = await store.handOffTaskToLocal(taskID)
     XCTAssertTrue(movedToLocal, store.worktreeError ?? "")
     let branch = try XCTUnwrap(store.library.managedWorktrees.first?.handoffBranch)
     XCTAssertEqual(store.library.tasks.first?.project, source.path)
+    XCTAssertNil(store.library.managedWorktrees.first?.pendingHandoff)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "unfinished\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "initial\n")
     try write("local diverged\n", source.appendingPathComponent("file"))
     _ = try await git(["commit", "-qam", "Local divergence"], source)
     try write("worktree diverged\n", target.appendingPathComponent("file"))
@@ -963,6 +1053,84 @@ final class WorktreeTests: XCTestCase {
     XCTAssertEqual(targetAfter.currentCommit, targetBefore.currentCommit)
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "local diverged\n")
     XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "worktree diverged\n")
+    await store.shutdown()
+  }
+
+  @MainActor func testDirtyHandoffResumesAfterRestartBeforeSourceCleanup() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let taskID = UUID().uuidString
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.tasks = [WorkspaceTask(id: taskID, project: source.path,
+      title: "Interrupted transfer", runIDs: [])]
+    XCTAssertTrue(store.saveLibrary())
+    let movedToWorktree = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(movedToWorktree, store.worktreeError ?? "")
+    let movedToLocal = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(movedToLocal, store.worktreeError ?? "")
+    let targetPath = try XCTUnwrap(store.library.managedWorktrees.first?.path)
+    let target = URL(fileURLWithPath: targetPath)
+    try write("staged\n", source.appendingPathComponent("file"))
+    _ = try await git(["add", "file"], source)
+    try write("unstaged\n", source.appendingPathComponent("file"))
+    try write("local\n", source.appendingPathComponent("note"))
+    let snapshot = try await HandoffGitState.capture(taskID: taskID,
+      source: source, target: target, dataRoot: data)
+    try await HandoffGitState.apply(snapshot, dataRoot: data)
+    let recordIndex = try XCTUnwrap(store.library.managedWorktrees.firstIndex(where: { $0.taskID == taskID }))
+    store.library.managedWorktrees[recordIndex].pendingHandoff = PendingHandoff(
+      direction: .toWorktree, snapshot: snapshot, phase: .clearing)
+    XCTAssertTrue(store.saveLibrary())
+    XCTAssertFalse(store.canStartChat(taskID: taskID))
+    store.updateTask(taskID, archive: true)
+    XCTAssertFalse(store.library.tasks.first?.archived ?? true)
+    await store.shutdown()
+
+    let resumed = WorkspaceStore(dataRoot: data)
+    await resumed.restore()
+    XCTAssertEqual(resumed.library.tasks.first?.project, targetPath)
+    XCTAssertNil(resumed.library.managedWorktrees.first?.pendingHandoff)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "initial\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("note").path))
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "unstaged\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("note")), "local\n")
+    let index = try await git(["show", ":file"], target)
+    XCTAssertEqual(index, "staged\n")
+    await resumed.shutdown()
+  }
+
+  @MainActor func testHandoffMovesIncludedIgnoredFileWhenItIsTheOnlyChangedState() async throws {
+    let (base, source) = try await fixture()
+    try write(".env\n", source.appendingPathComponent(".gitignore"))
+    try write(".env\n", source.appendingPathComponent(".worktreeinclude"))
+    _ = try await git(["add", ".gitignore", ".worktreeinclude"], source)
+    _ = try await git(["commit", "-qm", "Local file policy"], source)
+    try write("first\n", source.appendingPathComponent(".env"))
+    let taskID = UUID().uuidString
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.tasks = [WorkspaceTask(id: taskID, project: source.path,
+      title: "Ignored file transfer", runIDs: [])]
+    XCTAssertTrue(store.saveLibrary())
+    let firstMove = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(firstMove, store.worktreeError ?? "")
+    let target = URL(fileURLWithPath: try XCTUnwrap(store.library.managedWorktrees.first?.path))
+    let back = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(back, store.worktreeError ?? "")
+    try FileManager.default.removeItem(at: target.appendingPathComponent(".env"))
+    try write("second\n", source.appendingPathComponent(".env"))
+    let movedIgnored = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(movedIgnored, store.worktreeError ?? "")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent(".env")), "second\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent(".env").path))
+    try write("third\n", target.appendingPathComponent(".env"))
+    let returnedIgnored = await store.handOffTaskToLocal(taskID)
+    XCTAssertTrue(returnedIgnored, store.worktreeError ?? "")
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent(".env")), "third\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: target.appendingPathComponent(".env").path))
     await store.shutdown()
   }
 

@@ -140,7 +140,18 @@ struct WorkspaceView: View {
               .help("布局")
               .accessibilityLabel("任务布局")
             }
-            if let task = store.selectedTask, store.canHandOffToWorktree(task) {
+            if let task = store.selectedTask,
+              let pending = store.library.managedWorktrees.first(where: { $0.taskID == task.id })?.pendingHandoff {
+              Button {
+                Task {
+                  if pending.direction == .toWorktree { await store.handOffTaskToWorktree(task.id) }
+                  else { await store.handOffTaskToLocal(task.id) }
+                }
+              } label: {
+                Label("继续移交", systemImage: "arrow.left.arrow.right")
+              }.help("继续完成上次任务移交")
+                .disabled(!store.canHandOffToWorktree(task) && !store.canHandOffToLocal(task))
+            } else if let task = store.selectedTask, store.canHandOffToWorktree(task) {
               Button {
                 Task { await store.handOffTaskToWorktree(task.id) }
               } label: {

@@ -19,9 +19,24 @@ extension WorkspaceStore {
   }
 
   /// Keep the task and its private Codex rollout, then reopen it from a detached checkout.
-  /// Dirty local checkouts are rejected until their Git state can be moved without touching
-  /// unrelated work in the shared local project.
   @discardableResult func handOffTaskToWorktree(_ taskID: String) async -> Bool {
+    if library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff != nil {
+      guard !managedTaskPreparing else {
+        worktreeError = "上一次任务移交仍待完成。"
+        return false
+      }
+      managedTaskPreparing = true
+      defer { managedTaskPreparing = false; scheduleManagedLimitCleanup() }
+      do {
+        try await finishPendingHandoff(taskID: taskID, openMovedTask: true)
+        worktreeError = nil
+        return true
+      } catch {
+        worktreeError = error.localizedDescription
+        self.error = error.localizedDescription
+        return false
+      }
+    }
     guard let task = library.tasks.first(where: { $0.id == taskID }),
       canHandOffToWorktree(task) else {
       worktreeError = "请等待任务完成，并从本地 Git 项目迁移现有任务。"
@@ -38,9 +53,6 @@ extension WorkspaceStore {
       guard snapshot.canChange else {
         throw AgentFailure(message: "请打开 Git 仓库根目录后迁移任务。")
       }
-      guard snapshot.changedFiles == 0 else {
-        throw AgentFailure(message: "本地检出有未提交修改；请先提交或整理修改，再迁移任务。")
-      }
       if let retained = library.managedWorktrees.first(where: { $0.taskID == taskID }),
         retained.archivedPruned == true || !FileManager.default.fileExists(atPath: retained.path) {
         guard await restoreManagedArchiveIfNeeded(taskID) else {
@@ -56,7 +68,7 @@ extension WorkspaceStore {
         throw AgentFailure(message: "请先把本地检出切回任务分支 \(branch)，再移交到工作树。")
       }
       let copiedFiles: [ManagedSourceFile]
-      if existing == nil {
+      if existing == nil && snapshot.changedFiles == 0 {
         let paths = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
         copiedFiles = try ManagedSourceFiles.capture(paths, from: source,
           dataRoot: dataRoot, taskID: taskID)
@@ -78,15 +90,26 @@ extension WorkspaceStore {
       }
       let target = URL(fileURLWithPath: record.path)
       let targetSnapshot = try await GitBranchService.snapshot(at: target)
+      var needsDirtyTransfer = snapshot.changedFiles > 0
       if existing != nil {
-        guard targetSnapshot.currentReference == nil, targetSnapshot.changedFiles == 0,
+        let localFiles = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
+        if (try? ManagedSourceFiles.matchExisting(localFiles, between: source, and: target)) != true {
+          needsDirtyTransfer = true
+        }
+        guard targetSnapshot.currentReference == nil,
+          (needsDirtyTransfer || targetSnapshot.changedFiles == 0),
           let targetHead = targetSnapshot.currentCommit,
           let sourceHead = snapshot.currentCommit else {
           throw AgentFailure(message: "关联工作树有未提交修改或已切换分支，未覆盖该目录。")
         }
-        let localFiles = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
-        guard (try? ManagedSourceFiles.matchExisting(localFiles, between: source, and: target)) == true else {
-          throw AgentFailure(message: "两个检出的本地配置文件不同，未覆盖关联工作树。")
+        if needsDirtyTransfer {
+          let worktreeClean = try await LocalWorkspaceService.git(
+            ["diff", "--quiet", "HEAD", "--"], at: target)
+          let indexClean = try await LocalWorkspaceService.git(
+            ["diff", "--quiet", "--cached", "HEAD", "--"], at: target)
+          guard worktreeClean.status == 0, indexClean.status == 0 else {
+            throw AgentFailure(message: "关联工作树已有已跟踪修改，未覆盖该目录。")
+          }
         }
         if targetHead != sourceHead {
           guard try await handoffIsAncestor(targetHead, of: sourceHead, at: source) else {
@@ -99,10 +122,16 @@ extension WorkspaceStore {
       let targetAfterCreation = try await GitBranchService.snapshot(at: target)
       let sourceAfterCreation = try await GitBranchService.snapshot(at: source)
       guard targetAfterCreation.currentCommit == snapshot.currentCommit,
-        targetAfterCreation.changedFiles == 0,
         sourceAfterCreation.currentCommit == snapshot.currentCommit,
-        sourceAfterCreation.changedFiles == 0 else {
+        (needsDirtyTransfer || (targetAfterCreation.changedFiles == 0 && sourceAfterCreation.changedFiles == 0)) else {
         throw AgentFailure(message: "迁移期间 Git 状态发生变化，任务仍留在本地；请检查两个检出后重试。")
+      }
+      if needsDirtyTransfer {
+        try await beginDirtyHandoff(taskID: taskID, direction: .toWorktree,
+          source: source, target: target)
+        error = nil
+        worktreeError = nil
+        return true
       }
       var candidate = library
       guard let index = candidate.tasks.firstIndex(where: {
@@ -145,6 +174,23 @@ extension WorkspaceStore {
   /// Check out the task's committed work on a reserved local branch. The worktree stays
   /// associated with the task, so another handoff returns to the same detached checkout.
   @discardableResult func handOffTaskToLocal(_ taskID: String) async -> Bool {
+    if library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff != nil {
+      guard !managedTaskPreparing else {
+        worktreeError = "上一次任务移交仍待完成。"
+        return false
+      }
+      managedTaskPreparing = true
+      defer { managedTaskPreparing = false; scheduleManagedLimitCleanup() }
+      do {
+        try await finishPendingHandoff(taskID: taskID, openMovedTask: true)
+        worktreeError = nil
+        return true
+      } catch {
+        worktreeError = error.localizedDescription
+        self.error = error.localizedDescription
+        return false
+      }
+    }
     guard let task = library.tasks.first(where: { $0.id == taskID }),
       canHandOffToLocal(task),
       let original = library.managedWorktrees.first(where: { $0.taskID == taskID }) else {
@@ -170,14 +216,13 @@ extension WorkspaceStore {
       let local = try await GitBranchService.snapshot(at: source)
       let worktree = try await GitBranchService.snapshot(at: target)
       guard local.canChange, worktree.canChange,
-        local.changedFiles == 0, worktree.changedFiles == 0,
+        local.changedFiles == 0,
         worktree.currentReference == nil, let head = worktree.currentCommit else {
-        throw AgentFailure(message: "两边检出都需要没有未提交修改，且任务工作树保持 detached HEAD。")
+        throw AgentFailure(message: "本地检出需要没有未提交修改，且任务工作树保持 detached HEAD。")
       }
       let included = try await ManagedSourceFiles.discover(at: target, excluding: dataRoot)
-      guard (try? ManagedSourceFiles.matchExisting(included, between: target, and: source)) == true else {
-        throw AgentFailure(message: "两个检出的本地配置文件不同，未覆盖本地目录。")
-      }
+      let needsDirtyTransfer = worktree.changedFiles > 0
+        || (try? ManagedSourceFiles.matchExisting(included, between: target, and: source)) != true
       let branch = record.handoffBranch
         ?? (library.gitPreferences.branchPrefix + "shipios-" + taskID.lowercased())
       let branchRef = "refs/heads/" + branch
@@ -206,6 +251,9 @@ extension WorkspaceStore {
       } else {
         expectedHead = head
       }
+      if needsDirtyTransfer && expectedHead != head {
+        throw AgentFailure(message: "工作树存在未提交修改且本地分支提交更靠前；请先同步提交再移交。")
+      }
       if record.handoffBranch == nil {
         var reserved = library
         guard let index = reserved.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else {
@@ -221,7 +269,7 @@ extension WorkspaceStore {
         localBeforeSwitch.changedFiles == 0,
         targetBeforeSwitch.currentReference == nil,
         targetBeforeSwitch.currentCommit == head,
-        targetBeforeSwitch.changedFiles == 0 else {
+        (needsDirtyTransfer || targetBeforeSwitch.changedFiles == 0) else {
         throw AgentFailure(message: "移交期间 Git 状态发生变化，未修改本地分支。")
       }
       if tip == nil {
@@ -239,6 +287,13 @@ extension WorkspaceStore {
         localAfterSwitch.currentCommit == expectedHead,
         localAfterSwitch.changedFiles == 0 else {
         throw AgentFailure(message: "本地分支切换后校验失败，请检查 Git 状态。")
+      }
+      if needsDirtyTransfer {
+        try await beginDirtyHandoff(taskID: taskID, direction: .toLocal,
+          source: target, target: source)
+        error = nil
+        worktreeError = nil
+        return true
       }
       var candidate = library
       guard let index = candidate.tasks.firstIndex(where: {

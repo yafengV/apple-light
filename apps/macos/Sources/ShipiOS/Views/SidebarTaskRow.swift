@@ -61,7 +61,15 @@ struct SidebarTaskRow: View {
         }
         Button(task.pinned ? "取消置顶" : "置顶任务") { store.updateTask(task.id, pin: !task.pinned) }
         SidebarPlacementMenu(store: store, item: .task(task.id))
-        if store.library.managedWorktrees.contains(where: {
+        if let pending = store.library.managedWorktrees.first(where: { $0.taskID == task.id })?.pendingHandoff {
+          Button("继续移交") {
+            Task {
+              if pending.direction == .toWorktree { await store.handOffTaskToWorktree(task.id) }
+              else { await store.handOffTaskToLocal(task.id) }
+            }
+          }
+          .disabled(!store.canHandOffToWorktree(task) && !store.canHandOffToLocal(task))
+        } else if store.library.managedWorktrees.contains(where: {
           $0.taskID == task.id && $0.path == task.project
         }) {
           Button("移交到本地") { Task { await store.handOffTaskToLocal(task.id) } }
@@ -74,7 +82,10 @@ struct SidebarTaskRow: View {
         Button(task.archived ? "恢复任务" : "归档任务") {
           store.updateTask(task.id, archive: !task.archived)
         }
-        .disabled(store.activeRun(taskID: task.id) != nil)
+        .disabled(store.activeRun(taskID: task.id) != nil || store.managedTaskPreparing ||
+          store.library.managedWorktrees.contains(where: {
+            $0.taskID == task.id && $0.pendingHandoff != nil
+          }))
       }
       .modifier(SidebarItemDrag(store: store, item: .task(task.id)))
   }

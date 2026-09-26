@@ -13,6 +13,7 @@ extension WorkspaceStore {
     await Task.yield()
     guard let task = library.tasks.first(where: { $0.id == taskID && ($0.archived || dueToLimit) }),
       let record = library.managedWorktrees.first(where: { $0.taskID == task.id }),
+      record.pendingHandoff == nil,
       activeRun(taskID: taskID) == nil else { return }
     let noticeID = "managed-archive-" + taskID
     if task.pinned {

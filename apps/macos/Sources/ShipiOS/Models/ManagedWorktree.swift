@@ -6,6 +6,20 @@ struct ManagedSourceFile: Codable, Equatable {
   let permissions: Int
 }
 
+enum HandoffDirection: String, Codable {
+  case toWorktree, toLocal
+}
+
+enum HandoffPhase: String, Codable {
+  case applying, clearing, finalizing, releasing
+}
+
+struct PendingHandoff: Codable, Equatable {
+  let direction: HandoffDirection
+  let snapshot: HandoffGitSnapshot
+  var phase: HandoffPhase
+}
+
 /// A checkout reserved for one task, separate from a permanent worktree project.
 struct ManagedWorktree: Codable, Identifiable, Equatable {
   let taskID: String
@@ -16,6 +30,8 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var sourceChangesApplied: Bool? = nil
   /// Reserved before switching the local checkout during Worktree → Local handoff.
   var handoffBranch: String? = nil
+  /// Persisted before touching the target; retained until both checkouts and the task move agree.
+  var pendingHandoff: PendingHandoff? = nil
   /// Protected by refs/shipios/managed-archive/<taskID> until this checkout is restored.
   var archivedHead: String? = nil
   var archivedStashCommit: String? = nil

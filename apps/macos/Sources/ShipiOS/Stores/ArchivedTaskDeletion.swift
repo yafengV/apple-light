@@ -126,6 +126,9 @@ extension WorkspaceStore {
       let eligible = Set(candidate.tasks.filter { taskIDs.contains($0.id) && $0.archived && !$0.isPopoutDraft }.map(\.id))
       let managed = candidate.managedWorktrees.filter { eligible.contains($0.taskID) }
       for record in managed {
+        guard record.pendingHandoff == nil else {
+          throw AgentFailure(message: "工作树任务仍有未完成的移交，请先恢复任务：\(record.path)")
+        }
         let hasSourceSnapshot = record.sourceStashCommit != nil
           || record.sourceCopiedFiles?.isEmpty == false
         guard !hasSourceSnapshot || record.sourceChangesApplied == true else {

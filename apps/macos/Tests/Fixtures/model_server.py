@@ -100,6 +100,12 @@ class Handler(BaseHTTPRequestHandler):
                     'name': 'apply_patch',
                     'input': '*** Begin Patch\n*** Add File: patch-proof.txt\n+patched\n*** End Patch',
                 }
+            elif 'codex-handoff-cwd-probe-dirty' in request_text and 'swift-handoff-dirty-call' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-handoff-dirty-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({'cmd': 'pwd', 'yield_time_ms': 10000}),
+                }
             elif 'codex-handoff-cwd-probe-local' in request_text and 'swift-handoff-local-call' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-handoff-local-call',

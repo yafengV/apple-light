@@ -829,6 +829,30 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(fastForwarded.currentReference, "refs/heads/" + branch)
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")),
       "committed in worktree\n")
+    try Data("staged next turn\n".utf8).write(to: source.appendingPathComponent("file"))
+    _ = try await GitReviewService.checked(["add", "file"], at: source)
+    try Data("unstaged next turn\n".utf8).write(to: source.appendingPathComponent("file"))
+    try Data("local note\n".utf8).write(to: source.appendingPathComponent("note"))
+    let movedDirty = await store.handOffTaskToWorktree(taskID)
+    XCTAssertTrue(movedDirty, store.worktreeError ?? "")
+    XCTAssertEqual(store.library.tasks.first { $0.id == taskID }?.project, target.path)
+    XCTAssertEqual(store.conversationRuns.map(\.id), [first.id, second.id, third.id, fourth.id])
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")),
+      "committed in worktree\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("note").path))
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")),
+      "unstaged next turn\n")
+    let stagedNextTurn = try await GitReviewService.checked(["show", ":file"], at: target)
+    XCTAssertEqual(stagedNextTurn, "staged next turn\n")
+    await store.startChat("codex-handoff-cwd-probe-dirty", taskID: taskID)
+    let fifth = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: fifth.id)?.value
+    let dirtyRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == fifth.id })
+    XCTAssertEqual(dirtyRun.status, "succeeded")
+    let dirtyCommand = try XCTUnwrap(dirtyRun.toolExecutions.first { $0.toolName == "命令" })
+    let dirtyDirectory = try XCTUnwrap(dirtyCommand.output?.trimmingCharacters(in: .whitespacesAndNewlines))
+    XCTAssertEqual(URL(fileURLWithPath: dirtyDirectory).resolvingSymlinksInPath().path,
+      target.resolvingSymlinksInPath().path)
     await store.shutdown()
   }
 

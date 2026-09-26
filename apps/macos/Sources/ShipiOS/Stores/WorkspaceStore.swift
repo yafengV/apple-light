@@ -325,6 +325,11 @@ final class WorkspaceStore {
   var canStartChat: Bool { canStartChat(taskID: selectedTask?.id) }
   var canStart: Bool {
     project != nil && connected && !busy && !managedTaskPreparing
+      && (selectedTask.map { task in
+        !library.managedWorktrees.contains(where: {
+          $0.taskID == task.id && $0.pendingHandoff != nil
+        })
+      } ?? true)
       && activeLocalRun == nil && !shuttingDown
   }
   var canBuild: Bool {
@@ -357,7 +362,11 @@ final class WorkspaceStore {
 
   func canStartChat(taskID: String?) -> Bool {
     guard !busy, !managedTaskPreparing, !shuttingDown else { return false }
-    return taskID.map { activeRun(taskID: $0) == nil } ?? true
+    return taskID.map { taskID in
+      activeRun(taskID: taskID) == nil && !library.managedWorktrees.contains(where: {
+        $0.taskID == taskID && $0.pendingHandoff != nil
+      })
+    } ?? true
   }
 
   func installModelTask(_ task: Task<Void, Never>, runID: String) {
@@ -422,6 +431,7 @@ final class WorkspaceStore {
     defer { restoringLibrary = false }
     guard await loadLibrary() else { return }
     await cleanupPendingManagedWorktreeDeletions()
+    await restorePendingHandoffs()
     await loadModelConfiguration()
     await loadPersonalization()
     await loadMemories()
@@ -966,6 +976,10 @@ final class WorkspaceStore {
 
   func updateTask(_ id: String, title: String? = nil, pin: Bool? = nil, archive: Bool? = nil) {
     guard let index = library.tasks.firstIndex(where: { $0.id == id }) else { return }
+    if archive != nil,
+      managedTaskPreparing || library.managedWorktrees.contains(where: {
+        $0.taskID == id && $0.pendingHandoff != nil
+      }) { return }
     if archive == false,
       let managed = library.managedWorktrees.first(where: { $0.taskID == id }),
       managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {

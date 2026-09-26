@@ -195,7 +195,24 @@ struct TaskWindowView: View {
             } label: { Image(systemName: "rectangle.split.2x1") }
               .accessibilityLabel("任务布局")
             if !task.isPopoutDraft {
-              if store.canHandOffToWorktree(task) {
+              if let pending = store.library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff {
+                Button {
+                  Task {
+                    let completed: Bool
+                    if pending.direction == .toWorktree {
+                      completed = await store.handOffTaskToWorktree(taskID)
+                    } else {
+                      completed = await store.handOffTaskToLocal(taskID)
+                    }
+                    if completed { handoffError = nil }
+                    else { handoffError = store.worktreeError }
+                  }
+                } label: {
+                  Label("继续移交", systemImage: "arrow.left.arrow.right")
+                }.help("继续完成上次任务移交")
+                  .disabled(windowCommandsBlocked ||
+                    (!store.canHandOffToWorktree(task) && !store.canHandOffToLocal(task)))
+              } else if store.canHandOffToWorktree(task) {
                 Button {
                   Task {
                     if await store.handOffTaskToWorktree(taskID) { handoffError = nil }

@@ -84,21 +84,38 @@ enum ManagedSourceFiles {
     return true
   }
 
+  static func installedMatches(_ files: [ManagedSourceFile], at target: URL) throws -> Bool {
+    for entry in files {
+      let output = try regularFile(root: target, parts: components(entry.path))
+      guard try matches(output, entry) else { return false }
+    }
+    return true
+  }
+
+  static func capturedSourceMatches(_ files: [ManagedSourceFile], at source: URL,
+    excluding dataRoot: URL, allowMissing: Bool = false) async throws -> Bool {
+    let expected = Set(files.map(\.path))
+    guard expected.count == files.count else { return false }
+    let discovered = Set(try await discover(at: source, excluding: dataRoot))
+    guard allowMissing ? discovered.isSubset(of: expected) : discovered == expected else {
+      return false
+    }
+    for entry in files where discovered.contains(entry.path) {
+      let current = try regularFile(root: source, parts: components(entry.path))
+      guard try matches(current, entry) else { return false }
+    }
+    return true
+  }
+
   /// A partially completed move may already have removed some files. Never remove a file
   /// that changed after capture or a newly appeared included/untracked path.
   static func removeCaptured(_ files: [ManagedSourceFile], from source: URL,
     excluding dataRoot: URL) async throws {
-    let expected = Set(files.map(\.path))
+    guard try await capturedSourceMatches(files, at: source, excluding: dataRoot,
+      allowMissing: true) else {
+      throw AgentFailure(message: "来源文件在移交期间改变或新增，未清理原目录。")
+    }
     let discovered = Set(try await discover(at: source, excluding: dataRoot))
-    guard discovered.isSubset(of: expected) else {
-      throw AgentFailure(message: "来源检出出现新的未跟踪或包含文件，未清理原目录。")
-    }
-    for entry in files where discovered.contains(entry.path) {
-      let current = try regularFile(root: source, parts: components(entry.path))
-      guard try matches(current, entry) else {
-        throw AgentFailure(message: "来源文件在移交期间改变，未清理：\(entry.path)")
-      }
-    }
     for entry in files where discovered.contains(entry.path) {
       let current = try regularFile(root: source, parts: components(entry.path))
       guard try matches(current, entry) else {
