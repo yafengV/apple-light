@@ -69,11 +69,7 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
     }
     do { try write(id: id, query: text) }
     catch { fail(error); throw error }
-    deadline = Task { [weak self, timeout] in
-      do { try await Task.sleep(for: timeout) } catch { return }
-      guard let self, self.currentID == id, self.continuation != nil else { return }
-      self.fail(AgentFailure(message: "文件搜索超时，请重试。"))
-    }
+    armDeadline(for: id)
     return stream
   }
 
@@ -113,8 +109,10 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
       do {
         let update = try JSONDecoder().decode(WorkspaceFileSearchUpdate.self, from: line)
         guard update.id == currentID else { continue }
-        continuation?.yield(update)
+        guard let emitter = continuation else { continue }
+        emitter.yield(update)
         if update.complete { continuation?.finish(); continuation = nil; deadline?.cancel(); deadline = nil }
+        else { armDeadline(for: update.id) }
       } catch { fail(AgentFailure(message: "文件搜索响应无效，请重试。")); return }
     }
     if buffer.count > 1_048_576 { fail(AgentFailure(message: "文件搜索响应过大。")) }
@@ -123,6 +121,14 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   private func cancelCurrent() {
     deadline?.cancel(); deadline = nil
     continuation?.finish(throwing: CancellationError()); continuation = nil
+  }
+  private func armDeadline(for id: Int) {
+    deadline?.cancel()
+    deadline = Task { [weak self, timeout] in
+      do { try await Task.sleep(for: timeout) } catch { return }
+      guard let self, self.currentID == id, self.continuation != nil else { return }
+      self.fail(AgentFailure(message: "文件搜索超时，请重试。"))
+    }
   }
   private func fail(_ error: Error) {
     guard !closed else { return }

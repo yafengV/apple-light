@@ -107,6 +107,25 @@ import XCTest
     XCTAssertEqual(updates.last?.files.map(\.path), ["AlphaBeta.swift"])
   }
 
+  func testPartialResultsKeepAWorkingSearchAlive() async throws {
+    let root = try fixture("""
+    read query
+    for value in 1 2 3 4 5; do
+      printf '{"id":1,"files":[],"complete":false}\\n'
+      /bin/sleep 0.15
+    done
+    printf '{"id":1,"files":[],"complete":true}\\n'
+    while read query; do :; done
+    """)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
+      timeout: .milliseconds(400))
+    defer { session.close() }
+    var updates: [WorkspaceFileSearchUpdate] = []
+    for try await update in try session.query("value") { updates.append(update) }
+    XCTAssertEqual(updates.map(\.complete), [false, false, false, false, false, true])
+  }
+
   func testTimeoutAndMalformedFramesFailWithoutLeavingLoadingPending() async throws {
     for (body, expected) in [("exec /bin/sleep 10", "超时"), ("read query; printf 'not-json\\n'", "无效"), ("exit 0", "已退出")] {
       let root = try fixture(body)
