@@ -722,6 +722,111 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testNewWorktreeTaskRunsCodexInDetachedCheckoutAndKeepsSourceDraftIdentity() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let source = root.appendingPathComponent("Source", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
+    try Data("original\n".utf8).write(to: source.appendingPathComponent("README.md"))
+    _ = try await GitReviewService.checked(["add", "README.md"], at: source)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    let data = root.appendingPathComponent("Data")
+    let store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(source)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    store.newTaskExecution = .worktree
+    store.draft = "managed-worktree-probe"
+    await store.sendDraft()
+    let managed = try XCTUnwrap(store.library.managedWorktrees.first, store.error ?? "")
+    let task = try XCTUnwrap(store.library.tasks.first { $0.id == managed.taskID })
+    let run = try XCTUnwrap(store.library.chatRuns.first { task.runIDs.contains($0.id) })
+    await store.modelTask(runID: run.id)?.value
+    XCTAssertTrue(managed.ready)
+    XCTAssertEqual(task.project, managed.path)
+    XCTAssertEqual(run.project, managed.path)
+    XCTAssertEqual(store.project?.path, managed.path)
+    XCTAssertEqual(store.library.sidebarProject(for: task), source.path)
+    XCTAssertTrue(store.library.sidebarItems(in: SidebarLayout.project(source.path))
+      .contains(.task(task.id)))
+    XCTAssertFalse(store.library.orderedProjects.contains(managed.path))
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run.id }?.status, "succeeded",
+      store.error ?? "")
+    XCTAssertFalse(store.canForkTaskWindow(task.id))
+    XCTAssertEqual(store.library.drafts[task.id], "")
+    XCTAssertNil(store.library.pendingManagedDraftTaskIDs[source.path])
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("README.md"),
+      encoding: .utf8), "original\n")
+    let checkout = try await GitBranchService.snapshot(at: URL(fileURLWithPath: managed.path))
+    XCTAssertNil(checkout.currentReference)
+    store.updateTask(task.id, archive: true)
+    let archived = ArchivedTaskPresentation(library: store.library)
+    XCTAssertTrue(archived.projects.contains { $0.path == source.path })
+    XCTAssertFalse(archived.projects.contains { $0.path == managed.path })
+    XCTAssertEqual(archived.groups(query: "", project: .all, kind: .all, sort: .updated)
+      .first { $0.project == source.path }?.entries.first?.task.id,
+      task.id)
+    store.updateTask(task.id, archive: false)
+    store.selection = nil
+    store.draft = "second task must use another checkout"
+    await store.sendDraft()
+    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertTrue(store.error?.contains("此工作树仅属于原任务") == true)
+    store.selection = task.id
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: data, agentExecutable: binary)
+    await restored.restore()
+    XCTAssertEqual(restored.library.managedWorktrees.first?.taskID, task.id)
+    XCTAssertEqual(restored.library.tasks.first { $0.id == task.id }?.project, managed.path)
+    await restored.shutdown()
+  }
+
+  @MainActor func testNewWorktreeTaskRejectsDirtySourceWithoutLosingDraft() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let source = root.appendingPathComponent("Source", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
+    let file = source.appendingPathComponent("README.md")
+    try Data("original\n".utf8).write(to: file)
+    _ = try await GitReviewService.checked(["add", "README.md"], at: source)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    try Data("local change\n".utf8).write(to: file)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    await store.open(source)
+    store.newTaskExecution = .worktree
+    store.draft = "must-stay"
+    await store.sendDraft()
+    XCTAssertEqual(store.project?.path, source.path)
+    XCTAssertEqual(store.draft, "must-stay")
+    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
+    XCTAssertTrue(store.library.pendingManagedDraftTaskIDs.isEmpty)
+    XCTAssertTrue(store.library.chatRuns.isEmpty)
+    XCTAssertTrue(store.error?.contains("未提交修改") == true)
+    XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "local change\n")
+    await store.shutdown()
+  }
+
   @MainActor func testCodexResponsesChatUsesAgentAndKeepsTaskReply() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

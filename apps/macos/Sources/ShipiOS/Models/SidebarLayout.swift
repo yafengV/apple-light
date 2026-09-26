@@ -74,7 +74,7 @@ extension WorkspaceLibrary {
       return pinnedProjects.contains(path) ? SidebarLayout.pinned : SidebarLayout.projects
     case .task(let id):
       guard let task = tasks.first(where: { $0.id == id }) else { return "" }
-      return task.pinned ? SidebarLayout.pinned : SidebarLayout.project(task.project)
+      return task.pinned ? SidebarLayout.pinned : SidebarLayout.project(sidebarProject(for: task))
     case .contentTab(let id):
       return pinnedContentTabs.contains(where: { $0.id == id }) ? SidebarLayout.pinned : ""
     }
@@ -82,7 +82,8 @@ extension WorkspaceLibrary {
 
   func sidebarItems(in section: String) -> [SidebarItem] {
     let candidates =
-      projects.map(SidebarItem.project)
+      projects.filter { path in !managedWorktrees.contains(where: { $0.path == path }) }
+        .map(SidebarItem.project)
       + tasks.filter { !$0.archived && !$0.isPopoutDraft }.map { SidebarItem.task($0.id) }
       + pinnedContentTabs.map { SidebarItem.contentTab($0.id) }
     let visible = candidates.filter { sidebarSection(for: $0) == section }
@@ -108,7 +109,7 @@ extension WorkspaceLibrary {
     case .project: isDefault = section == SidebarLayout.projects
     case .task(let id):
       isDefault =
-        tasks.first { $0.id == id }.map { section == SidebarLayout.project($0.project) } ?? false
+        tasks.first { $0.id == id }.map { section == SidebarLayout.project(sidebarProject(for: $0)) } ?? false
     case .contentTab: isDefault = false
     }
     if case .contentTab = item {

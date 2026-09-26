@@ -1,6 +1,15 @@
 import AppKit
 
 extension WorkspaceStore {
+  var newTaskExecution: NewTaskExecution {
+    get { library.newTaskExecutions[currentProjectKey] ?? .local }
+    set {
+      guard !currentProjectKey.isEmpty else { return }
+      library.newTaskExecutions[currentProjectKey] = newValue
+      saveLibrary()
+    }
+  }
+
   var worktreeRoot: URL {
     GitBranchService.canonicalRoot(library.worktreeRoot.map { URL(fileURLWithPath: $0) }
       ?? dataRoot.appendingPathComponent("worktrees", isDirectory: true))
@@ -99,6 +108,7 @@ extension WorkspaceStore {
     branch: GitBranchChoice?, taskID: String) async -> ManagedWorktree? {
     guard libraryLoaded, !busy, activeLocalRun == nil,
       UUID(uuidString: taskID) != nil,
+      !library.managedWorktrees.contains(where: { $0.path == snapshot.root.path }),
       library.projects.contains(where: {
         GitBranchService.canonicalRoot(URL(fileURLWithPath: $0)) == snapshot.root
       }) else {
@@ -156,5 +166,77 @@ extension WorkspaceStore {
       throw AgentFailure(message: "托管工作树已创建，但状态尚未保存。请重试恢复。路径：\(ready.path)\n\(error.localizedDescription)")
     }
     return ready
+  }
+
+  /// Convert a new-project draft to a one-task checkout before its first model turn.
+  func prepareManagedWorktreeTask() async -> Bool {
+    guard libraryLoaded, let source = project, connected, selectedTask == nil,
+      newTaskExecution == .worktree, !busy, !managedTaskPreparing else { return false }
+    managedTaskPreparing = true
+    defer { managedTaskPreparing = false }
+    let sourcePath = source.path
+    let sourceDraftKey = draftKey
+    let submittedMode = chatMode
+    do {
+      let config = modelConfiguration(for: nil)
+      guard config.apiProtocol == .codexResponses else {
+        throw AgentFailure(message: "工作树任务需要在设置 → 模型与 API 中选择 Codex Core · Responses。")
+      }
+      try config.validateEndpoint()
+      guard !config.model.isEmpty else {
+        throw AgentFailure(message: "请先在设置 → 模型与 API 中配置独立服务和模型。")
+      }
+      guard personalizationLoaded, memoryError == nil else {
+        throw AgentFailure(message: "个人指令或记忆尚未加载完成，请在设置中检查。")
+      }
+      _ = try ModelKeychain.read(account: config.credentialAccount)
+      let snapshot = try await GitBranchService.snapshot(at: source)
+      guard snapshot.canChange, project?.path == sourcePath else {
+        throw AgentFailure(message: "请打开 Git 仓库根目录后创建工作树任务。")
+      }
+      let taskID = library.pendingManagedDraftTaskIDs[sourcePath] ?? UUID().uuidString
+      if library.managedWorktrees.first(where: { $0.taskID == taskID }) == nil,
+        snapshot.changedFiles > 0 {
+        throw AgentFailure(message: "当前项目有未提交修改。托管工作树的修改传递尚未接通；请先提交或选择本地任务。")
+      }
+      if library.pendingManagedDraftTaskIDs[sourcePath] == nil {
+        var pending = library
+        pending.pendingManagedDraftTaskIDs[sourcePath] = taskID
+        try commitLibrary(pending)
+      }
+      guard let record = await createManagedWorktree(snapshot: snapshot, branch: nil,
+        taskID: taskID) else {
+        throw AgentFailure(message: worktreeError ?? "无法创建托管工作树。")
+      }
+      guard project?.path == sourcePath else {
+        throw AgentFailure(message: "工作树已创建。请返回来源项目后重试发送草稿。")
+      }
+      var candidate = library
+      if !candidate.tasks.contains(where: { $0.id == taskID }) {
+        candidate.tasks.insert(WorkspaceTask(id: taskID, project: record.path,
+          title: "新任务", runIDs: []), at: 0)
+      }
+      candidate.drafts[taskID] = candidate.drafts[sourceDraftKey]
+      candidate.draftImages[taskID] = candidate.draftImages[sourceDraftKey]
+      candidate.draftFiles[taskID] = candidate.draftFiles[sourceDraftKey]
+      candidate.drafts[sourceDraftKey] = nil
+      candidate.draftImages[sourceDraftKey] = nil
+      candidate.draftFiles[sourceDraftKey] = nil
+      candidate.projectSelections[record.path] = taskID
+      candidate.pendingManagedDraftTaskIDs[sourcePath] = nil
+      if let profile = candidate.profiles[sourcePath] { candidate.profiles[record.path] = profile }
+      try commitLibrary(candidate)
+      await open(URL(fileURLWithPath: record.path))
+      guard connected, project?.path == record.path else {
+        throw AgentFailure(message: "工作树任务已保存，但无法连接该目录。请从侧栏重试。")
+      }
+      selection = taskID
+      chatMode = submittedMode
+      error = nil
+      return true
+    } catch {
+      self.error = error.localizedDescription
+      return false
+    }
   }
 }

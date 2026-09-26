@@ -2,9 +2,11 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
+托管工作树现在已接入 Git 项目新任务的输入区和首轮 Codex Core 会话，任务按来源项目展示，见[第 225 篇](225-managed-worktree-new-task.md)。当前仅从干净来源的当前提交创建；分支选择、未提交修改传递、`.worktreeinclude`、安全清理/快照恢复和 Handoff 仍缺失。自动化通过不代表已完成原生界面对照。
+
 Codex Core 的长差异现在额外保存为 ShipiOS 私有完整快照，时间线保留轻量预览，并可查看或复制完整内容；多文件差异可在查看窗口逐文件选择与复制，见[第 222 篇](222-codex-full-diff-snapshots.md)和[第 223 篇](223-codex-diff-file-navigation.md)。差异卡的当前 Codex Mac 视觉、键盘和文件打开行为仍未原生配对。
 
-托管工作树现有独立于永久工作树的持久化记录、Git 创建与中断恢复基础，见[第 224 篇](224-managed-worktree-foundation.md)。新任务输入区、未提交修改传递、任务归属、归档清理/快照恢复和 Handoff 仍未接通，因此不能把这一阶段视为托管工作树流程完成。
+托管工作树独立记录、Git 创建与中断恢复基础见[第 224 篇](224-managed-worktree-foundation.md)；该文档描述第一阶段，后续新任务接入以第 225 篇为准。
 
 Codex Core 的累计 `turn_diff` 现作为可展开的本轮代码变更卡进入会话，真实补丁流程已验证卡片顺序、文件内容与重启恢复，见[第 221 篇](221-codex-turn-diff-timeline.md)。精确差异视觉和文件导航仍待原生配对。
 

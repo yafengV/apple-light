@@ -68,6 +68,11 @@ extension WorkspaceStore {
   {
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
     guard canStartChat(taskID: requestedTaskID) else { return }
+    if requestedTaskID == nil,
+      library.managedWorktrees.contains(where: { $0.path == currentProjectKey }) {
+      error = "此工作树仅属于原任务。请返回来源项目创建新任务。"
+      return
+    }
     if compact, !canCompactConversation(taskID: requestedTaskID) {
       error = "只有已有的空闲 Codex 会话可以整理上下文。"
       return

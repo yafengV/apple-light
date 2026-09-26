@@ -10,3 +10,10 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var path: String { checkout.path }
   var ready: Bool { checkout.ready }
 }
+
+enum NewTaskExecution: String, Codable, CaseIterable, Identifiable {
+  case local, worktree
+
+  var id: String { rawValue }
+  var title: String { self == .local ? "本地" : "工作树" }
+}

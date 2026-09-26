@@ -202,6 +202,8 @@ struct WorkspaceLibrary: Codable {
   var worktreeRoot: String?
   var permanentWorktrees: [PermanentWorktree] = []
   var managedWorktrees: [ManagedWorktree] = []
+  var newTaskExecutions: [String: NewTaskExecution] = [:]
+  var pendingManagedDraftTaskIDs: [String: String] = [:]
   var goalSessions: [String: GoalSession] = [:]
 
   init() {}
@@ -216,7 +218,8 @@ struct WorkspaceLibrary: Codable {
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
       defaultTerminalLocation, gitPreferences,
-      worktreeRoot, permanentWorktrees, managedWorktrees, goalSessions
+      worktreeRoot, permanentWorktrees, managedWorktrees, newTaskExecutions,
+      pendingManagedDraftTaskIDs, goalSessions
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -301,10 +304,23 @@ struct WorkspaceLibrary: Codable {
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
     permanentWorktrees = try c.decodeIfPresent([PermanentWorktree].self, forKey: .permanentWorktrees) ?? []
     managedWorktrees = try c.decodeIfPresent([ManagedWorktree].self, forKey: .managedWorktrees) ?? []
+    newTaskExecutions = try c.decodeIfPresent([String: NewTaskExecution].self,
+      forKey: .newTaskExecutions) ?? [:]
+    pendingManagedDraftTaskIDs = try c.decodeIfPresent([String: String].self,
+      forKey: .pendingManagedDraftTaskIDs) ?? [:]
     goalSessions = try c.decodeIfPresent([String: GoalSession].self, forKey: .goalSessions) ?? [:]
   }
   func projectTitle(_ path: String) -> String {
-    path.isEmpty ? "无项目" : (projectNames[path] ?? URL(fileURLWithPath: path).lastPathComponent)
+    if path.isEmpty { return "无项目" }
+    if let managed = managedWorktrees.first(where: { $0.path == path }) {
+      return (projectNames[managed.source] ?? URL(fileURLWithPath: managed.source).lastPathComponent)
+        + " · 工作树"
+    }
+    return projectNames[path] ?? URL(fileURLWithPath: path).lastPathComponent
+  }
+
+  func sidebarProject(for task: WorkspaceTask) -> String {
+    managedWorktrees.first(where: { $0.taskID == task.id })?.source ?? task.project
   }
 
   func isPermanentWorktree(_ path: String) -> Bool {
@@ -438,7 +454,8 @@ struct WorkspaceLibrary: Codable {
   func visible(project: String, query: String, archived: Bool) -> [WorkspaceTask] {
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
     return tasks.filter {
-      !$0.isPopoutDraft && $0.project == project && $0.archived == archived
+      !$0.isPopoutDraft && ($0.project == project || sidebarProject(for: $0) == project)
+        && $0.archived == archived
         && (query.isEmpty
           || $0.title.localizedCaseInsensitiveContains(query)
           || $0.runIDs.contains { notes[$0]?.localizedCaseInsensitiveContains(query) == true })

@@ -63,6 +63,26 @@ struct ComposerView: View {
         }
         editor
         controls
+        if store.action == .chat, store.selectedTask == nil, let project = store.project,
+          store.workspace.gitAvailable,
+          !store.library.managedWorktrees.contains(where: { $0.path == project.path }) {
+          HStack(spacing: 12) {
+            Picker("执行环境", selection: $store.newTaskExecution) {
+              ForEach(NewTaskExecution.allCases) { execution in
+                Text(execution.title).tag(execution)
+              }
+            }.pickerStyle(.segmented).frame(width: 230)
+            if store.newTaskExecution == .worktree {
+              if store.managedTaskPreparing {
+                ProgressView("正在创建工作树…").controlSize(.small)
+              } else {
+                Text("从当前提交创建此任务专用的工作树")
+                  .appFont(.caption).foregroundStyle(.secondary)
+              }
+            }
+            Spacer(minLength: 0)
+          }
+        }
       }.padding(16)
         .background(.background, in: RoundedRectangle(cornerRadius: 18))
         .overlay(

@@ -247,7 +247,7 @@ final class WorkspaceStore {
   var liveModelRequestCount: Int { modelTasks.count + (compatibilityModelTask == nil ? 0 : 1) }
   var lastChatSave = Date.distantPast
   var canSend: Bool {
-    destination == .workspace && !importingImages && !importingFiles
+    destination == .workspace && !importingImages && !importingFiles && !managedTaskPreparing
       && ((action == .chat ? canStartChat : canStart)
         || selectedActiveRun?.kind == "chat")
   }
@@ -282,6 +282,7 @@ final class WorkspaceStore {
   var configuration = "Debug"
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
+  var managedTaskPreparing = false
   var restoringLibrary = false
   var error: String?
   var logText = ""
@@ -772,6 +773,10 @@ final class WorkspaceStore {
   }
 
   func newTask(recordHistory: Bool = true) {
+    if let project, let managed = library.managedWorktrees.first(where: { $0.path == project.path }) {
+      Task { await newTask(in: managed.source) }
+      return
+    }
     destination = .workspace
     dismissCodeReviewMode()
     if recordHistory { recordNavigation() }
@@ -905,12 +910,27 @@ final class WorkspaceStore {
         return
       }
       action = chosen
+      if selectedTask == nil,
+        library.managedWorktrees.contains(where: { $0.path == currentProjectKey }) {
+        error = "此工作树仅属于原任务。请返回来源项目创建新任务。"
+        return
+      }
       guard chosen == .chat || project != nil else {
         error = "环境诊断和构建需要项目，请先打开项目文件夹。"
         return
       }
       guard chosen != .build || canBuild else {
         error = "请先选择工程并填写 Scheme，再构建项目。"
+        return
+      }
+      if chosen == .chat, selectedTask == nil, newTaskExecution == .worktree {
+        guard comments.isEmpty, pageComments.isEmpty else {
+          error = "请先移除来自本地检出的审查或网页评论，再创建工作树任务。"
+          return
+        }
+        guard !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          || !images.isEmpty || !files.isEmpty else { return }
+        if await prepareManagedWorktreeTask() { await sendDraft() }
         return
       }
       let chatCount = library.chatRuns.count
@@ -940,7 +960,7 @@ final class WorkspaceStore {
     if let pin {
       library.moveSidebarItem(
         .task(id),
-        to: pin ? SidebarLayout.pinned : SidebarLayout.project(library.tasks[index].project))
+        to: pin ? SidebarLayout.pinned : SidebarLayout.project(library.sidebarProject(for: library.tasks[index])))
     }
     if let archive {
       if archive && !library.tasks[index].archived {

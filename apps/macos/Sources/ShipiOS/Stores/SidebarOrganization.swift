@@ -94,7 +94,8 @@ extension WorkspaceStore {
     guard tokens.count == 1, let token = tokens.first, let item = SidebarItem(dragToken: token)
     else { return false }
     if case .project(let path) = target, case .task(let id) = item {
-      guard library.tasks.first(where: { $0.id == id })?.project == path else { return false }
+      guard library.tasks.first(where: { $0.id == id })
+        .map({ library.sidebarProject(for: $0) }) == path else { return false }
       guard library.moveSidebarItem(item, to: SidebarLayout.project(path)) else { return false }
       library.collapsedProjects.remove(path)
       saveLibrary()

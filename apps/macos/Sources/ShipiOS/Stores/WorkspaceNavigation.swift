@@ -322,7 +322,9 @@ extension WorkspaceStore {
     saveLibrary()
   }
   func archiveProject(_ path: String) {
-    for task in library.tasks where task.project == path { updateTask(task.id, archive: true) }
+    for task in library.tasks where library.sidebarProject(for: task) == path {
+      updateTask(task.id, archive: true)
+    }
   }
   func moveFindMatch(_ offset: Int) {
     let count = findMatches.count
