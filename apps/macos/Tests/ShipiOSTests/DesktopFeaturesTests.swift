@@ -1092,6 +1092,66 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(answers.last?.contains("decline") == true)
     await store.shutdown()
   }
+  @MainActor func testCodexResponsesMCPURLElicitationCanCompleteOrCancel() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let callLog = project.appendingPathComponent("url-response.jsonl")
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"
+    mcp.command = "/usr/bin/python3"
+    mcp.arguments = [fixture.path, "stdio_url"]
+    mcp.environment = [MCPKeyValue(key: "CALL_LOG", value: callLog.path),
+      MCPKeyValue(key: "SHIPIOS_CODEX_PROBE", value: "1")]
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    for accepted in [true, false] {
+      if !accepted { store.newTask() }
+      await store.startChat("codex-mcp-url-probe")
+      let run = try XCTUnwrap(store.library.chatRuns.last)
+      let deadline = Date().addingTimeInterval(15)
+      var request: CodexElicitationRequest?
+      while Date() < deadline {
+        request = store.library.chatRuns.first(where: { $0.id == run.id })?.codexElicitations.last
+        if request != nil { break }
+        try await Task.sleep(for: .milliseconds(50))
+      }
+      let challenge = try XCTUnwrap(request, "MCP URL request did not reach timeline")
+      XCTAssertTrue(challenge.isURLRequest)
+      XCTAssertEqual(challenge.urlDisplay, "example.com")
+      XCTAssertEqual(store.codexPendingElicitations[challenge.id]?.verificationURL?.query,
+        "one_time=fixture-secret")
+      let stored = try JSONEncoder().encode(challenge)
+      XCTAssertFalse(String(decoding: stored, as: UTF8.self).contains("fixture-secret"))
+      store.submitCodexElicitation(challenge.id, accepted: accepted, content: nil)
+      await store.modelTask(runID: run.id)?.value
+      let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+      XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+      XCTAssertEqual(finished.result?["response"].text, "MCP URL fixture reply")
+      XCTAssertEqual(finished.codexElicitations.last?.status, accepted ? .accepted : .cancelled)
+      XCTAssertTrue(finished.responseItems?.contains(.elicitation(challenge.id)) == true)
+    }
+    let answers = try String(contentsOf: callLog, encoding: .utf8).split(separator: "\n")
+    XCTAssertEqual(answers.count, 2)
+    XCTAssertTrue(answers[0].contains("accept"))
+    XCTAssertTrue(answers[1].contains("cancel"))
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

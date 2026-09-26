@@ -3,7 +3,10 @@ use codex_core_api::UserInput;
 use codex_protocol::mcp::RequestId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use shipios_codex::{ApprovalDecision, CodexSession, CodexTurnMode, SessionOptions, ShipMcpServer};
+use shipios_codex::{
+    ApprovalDecision, CodexSession, CodexTurnMode, ElicitationDecision, SessionOptions,
+    ShipMcpServer,
+};
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
@@ -68,6 +71,15 @@ pub enum CodexApprovalChoice {
     Deny,
 }
 
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CodexElicitationChoice {
+    Allow,
+    AllowForSession,
+    Deny,
+    Cancel,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CodexApproval {
@@ -84,7 +96,7 @@ pub struct CodexElicitation {
     pub task_id: String,
     pub server_name: String,
     pub request_id: RequestId,
-    pub decision: CodexApprovalChoice,
+    pub decision: CodexElicitationChoice,
     #[serde(default)]
     pub content: Option<Value>,
 }
@@ -314,7 +326,7 @@ impl CodexBridge {
                 "elicitation content is too large"
             );
             ensure!(
-                matches!(response.decision, CodexApprovalChoice::Allow),
+                matches!(response.decision, CodexElicitationChoice::Allow),
                 "only an accepted form may contain elicitation content"
             );
         }
@@ -615,9 +627,10 @@ async fn run_thread(
                 }
                 Some(Command::ResolveElicitation(response, reply)) => {
                     let decision = match response.decision {
-                        CodexApprovalChoice::Allow => ApprovalDecision::Allow,
-                        CodexApprovalChoice::AllowForSession => ApprovalDecision::AllowForSession,
-                        CodexApprovalChoice::Deny => ApprovalDecision::Deny,
+                        CodexElicitationChoice::Allow => ElicitationDecision::Accept,
+                        CodexElicitationChoice::AllowForSession => ElicitationDecision::AcceptForSession,
+                        CodexElicitationChoice::Deny => ElicitationDecision::Decline,
+                        CodexElicitationChoice::Cancel => ElicitationDecision::Cancel,
                     };
                     let result = live.resolve_mcp_elicitation(
                         response.server_name, response.request_id, decision, response.content).await;

@@ -140,6 +140,14 @@ pub enum ApprovalDecision {
     Deny,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ElicitationDecision {
+    Accept,
+    AcceptForSession,
+    Decline,
+    Cancel,
+}
+
 impl From<ApprovalDecision> for ReviewDecision {
     fn from(value: ApprovalDecision) -> Self {
         match value {
@@ -523,21 +531,22 @@ impl CodexSession {
         &self,
         server_name: String,
         request_id: RequestId,
-        decision: ApprovalDecision,
+        decision: ElicitationDecision,
         form_content: Option<serde_json::Value>,
     ) -> Result<()> {
         let (action, content, meta) = match decision {
-            ApprovalDecision::Allow => (
+            ElicitationDecision::Accept => (
                 ElicitationAction::Accept,
                 Some(form_content.unwrap_or_else(|| json!({}))),
                 None,
             ),
-            ApprovalDecision::AllowForSession => (
+            ElicitationDecision::AcceptForSession => (
                 ElicitationAction::Accept,
                 Some(json!({})),
                 Some(json!({"persist": "session"})),
             ),
-            ApprovalDecision::Deny => (ElicitationAction::Decline, None, None),
+            ElicitationDecision::Decline => (ElicitationAction::Decline, None, None),
+            ElicitationDecision::Cancel => (ElicitationAction::Cancel, None, None),
         };
         self.thread
             .submit(Op::ResolveElicitation {

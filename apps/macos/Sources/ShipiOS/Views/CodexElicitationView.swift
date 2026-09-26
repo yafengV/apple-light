@@ -57,56 +57,77 @@ struct CodexElicitationView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Image(systemName: "list.bullet.rectangle")
-        Text("MCP 表单 · \(request.serverName)").appFont(.headline)
+        Image(systemName: request.isURLRequest ? "link.badge.plus" : "list.bullet.rectangle")
+        Text("MCP \(request.isURLRequest ? "验证" : "表单") · \(request.serverName)").appFont(.headline)
         Spacer()
         Text(statusLabel).appFont(.caption).foregroundStyle(.secondary)
       }
       Text(request.message).appFont(.body).textSelection(.enabled)
+      if let host = request.urlDisplay {
+        Label(host, systemImage: "globe").appFont(.caption).foregroundStyle(.secondary)
+      }
       if pending {
-        ForEach(request.fields) { field in
-          VStack(alignment: .leading, spacing: 5) {
-            if field.kind != .boolean {
-              Text(field.title + (field.required ? " *" : "")).appFont(.callout)
+        if request.isURLRequest {
+          if let url = store.codexPendingElicitations[request.id]?.verificationURL {
+            Button("在浏览器中打开验证页面") {
+              store.performMessageLinkAction(.openExternal, url: url, ownerRunID: run.id)
             }
-            switch field.kind {
-            case .boolean:
-              Toggle(field.title, isOn: Binding(
-                get: { toggles[field.id] ?? false },
-                set: { toggles[field.id] = $0 }))
-            case .choice:
-              Picker(field.title, selection: Binding(
-                get: { selections[field.id] ?? 0 },
-                set: { selections[field.id] = $0 })) {
-                ForEach(field.choices.indices, id: \.self) { index in
-                  Text(field.choices[index].text ?? field.choices[index].pretty).tag(index)
+          }
+          HStack {
+            Button("取消") {
+              store.submitCodexElicitation(request.id, accepted: false, content: nil)
+            }
+            Spacer()
+            Button("已完成验证，继续") {
+              store.submitCodexElicitation(request.id, accepted: true, content: nil)
+            }
+            .buttonStyle(.borderedProminent)
+          }
+        } else {
+          ForEach(request.fields) { field in
+            VStack(alignment: .leading, spacing: 5) {
+              if field.kind != .boolean {
+                Text(field.title + (field.required ? " *" : "")).appFont(.callout)
+              }
+              switch field.kind {
+              case .boolean:
+                Toggle(field.title, isOn: Binding(
+                  get: { toggles[field.id] ?? false },
+                  set: { toggles[field.id] = $0 }))
+              case .choice:
+                Picker(field.title, selection: Binding(
+                  get: { selections[field.id] ?? 0 },
+                  set: { selections[field.id] = $0 })) {
+                  ForEach(field.choices.indices, id: \.self) { index in
+                    Text(field.choices[index].text ?? field.choices[index].pretty).tag(index)
+                  }
+                }.labelsHidden()
+              case .json:
+                TextEditor(text: binding(for: field.id))
+                  .font(.system(.body, design: .monospaced))
+                  .frame(minHeight: 90, maxHeight: 180)
+                  .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.secondary.opacity(0.25)))
+              default:
+                if field.secret {
+                  SecureField(field.title, text: binding(for: field.id))
+                } else {
+                  TextField(field.title, text: binding(for: field.id))
                 }
-              }.labelsHidden()
-            case .json:
-              TextEditor(text: binding(for: field.id))
-                .font(.system(.body, design: .monospaced))
-                .frame(minHeight: 90, maxHeight: 180)
-                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.secondary.opacity(0.25)))
-            default:
-              if field.secret {
-                SecureField(field.title, text: binding(for: field.id))
-              } else {
-                TextField(field.title, text: binding(for: field.id))
+              }
+              if !field.description.isEmpty {
+                Text(field.description).appFont(.caption).foregroundStyle(.secondary)
               }
             }
-            if !field.description.isEmpty {
-              Text(field.description).appFont(.caption).foregroundStyle(.secondary)
+          }
+          HStack {
+            Button("拒绝") { store.submitCodexElicitation(request.id, accepted: false, content: nil) }
+            Spacer()
+            Button("提交") {
+              store.submitCodexElicitation(request.id, accepted: true, content: content)
             }
+            .buttonStyle(.borderedProminent)
+            .disabled(content == nil)
           }
-        }
-        HStack {
-          Button("拒绝") { store.submitCodexElicitation(request.id, accepted: false, content: nil) }
-          Spacer()
-          Button("提交") {
-            store.submitCodexElicitation(request.id, accepted: true, content: content)
-          }
-          .buttonStyle(.borderedProminent)
-          .disabled(content == nil)
         }
       }
     }
@@ -118,8 +139,8 @@ struct CodexElicitationView: View {
 
   private var statusLabel: String {
     switch request.status {
-    case .awaiting: pending ? "等待填写" : "已结束"
-    case .accepted: "已提交"
+    case .awaiting: pending ? (request.isURLRequest ? "等待验证" : "等待填写") : "已结束"
+    case .accepted: request.isURLRequest ? "已完成" : "已提交"
     case .declined: "已拒绝"
     case .cancelled: "已取消"
     case .expired: "已过期"

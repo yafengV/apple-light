@@ -14,7 +14,8 @@ extension WorkspaceStore {
       response: current.result?["response"].text ?? "",
       responseItems: items, codexElicitations: records)
     codexPendingElicitations[request.id] = CodexElicitationContext(
-      runID: runID, taskID: taskID, request: request)
+      runID: runID, taskID: taskID, request: request,
+      verificationURL: request.isURLRequest ? try CodexElicitationRequest.verificationURL(event) : nil)
     saveLibrary()
     let decision: CodexElicitationDecision? = await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
@@ -29,9 +30,10 @@ extension WorkspaceStore {
     do {
       try await codexTransport.resolveMCPElicitation(taskID: taskID,
         serverName: request.serverName, requestID: request.requestID,
-        decision: decision.accepted ? .allowOnce : .deny, content: decision.content)
+        decision: decision.accepted ? .allow : (request.isURLRequest ? .cancel : .deny),
+        content: decision.content)
       updateCodexElicitation(request.id, runID: runID,
-        status: decision.accepted ? .accepted : .declined)
+        status: decision.accepted ? .accepted : (request.isURLRequest ? .cancelled : .declined))
     } catch {
       updateCodexElicitation(request.id, runID: runID, status: .cancelled)
       throw error
@@ -40,8 +42,9 @@ extension WorkspaceStore {
 
   func submitCodexElicitation(_ id: UUID, accepted: Bool, content: JSONValue?) {
     guard let context = codexPendingElicitations[id],
-      !accepted || (content.map(context.request.validContent) == true) else {
-      error = "请填写有效的 MCP 表单。"
+      !accepted || (context.request.isURLRequest ? content == nil
+        : content.map(context.request.validContent) == true) else {
+      error = "请提供有效的 MCP 请求响应。"
       return
     }
     guard let continuation = codexElicitationContinuations.removeValue(forKey: id) else {

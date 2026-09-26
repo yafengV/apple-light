@@ -159,7 +159,8 @@ class Handler(BaseHTTPRequestHandler):
                         or 'shipios_fixture' not in search.get('description', '')
                         else 'MCP still advertised'}],
                 }
-            elif 'codex-mcp-form-probe' in request_text:
+            elif 'codex-mcp-form-probe' in request_text or 'codex-mcp-url-probe' in request_text:
+                url_probe = 'codex-mcp-url-probe' in request_text
                 search_output = next((entry for entry in body.get('input', [])
                     if isinstance(entry, dict) and entry.get('type') == 'tool_search_output'
                     and entry.get('call_id') == 'fixture-form-search'), None)
@@ -180,8 +181,9 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     item = {'type': 'message', 'role': 'assistant', 'id': 'mcp-form-result',
                         'content': [{'type': 'output_text', 'text':
-                            'MCP form fixture reply' if 'FORM_OK' in call_output_text
-                            else 'MCP form failed: ' + call_output_text}]}
+                            ('MCP URL fixture reply' if url_probe else 'MCP form fixture reply')
+                            if ('URL_OK' if url_probe else 'FORM_OK') in call_output_text
+                            else 'MCP elicitation failed: ' + call_output_text}]}
             elif 'codex-mcp-probe' in request_text:
                 repeat = 'codex-mcp-probe-repeat' in request_text
                 search_call_id = 'fixture-mcp-search-repeat' if repeat else 'fixture-mcp-search'

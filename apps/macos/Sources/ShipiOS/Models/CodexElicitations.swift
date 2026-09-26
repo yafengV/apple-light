@@ -37,15 +37,31 @@ struct CodexElicitationRequest: Codable, Equatable, Identifiable, Sendable {
   let requestID: JSONValue
   let message: String
   let schema: JSONValue
+  // URL requests may contain one-time tokens. Persist only the host for the timeline.
+  var urlDisplay: String? = nil
   var status: Status = .awaiting
+
+  var isURLRequest: Bool { urlDisplay != nil }
 
   static func parse(_ event: JSONValue) throws -> Self {
     let request = event["request"]
     guard event["type"].text == "elicitation_request",
-      ["form", "openai/form", "openaiForm"].contains(request["mode"].text ?? ""),
       let serverName = event["server_name"].text, !serverName.isEmpty,
       let message = request["message"].text, !message.isEmpty,
-      event["id"].text != nil || event["id"].int != nil,
+      event["id"].text != nil || event["id"].int != nil else {
+      throw AgentFailure(message: "Codex 返回了无效的 MCP 请求。")
+    }
+    if request["mode"].text == "url" {
+      let url = try verificationURL(event)
+      var record = Self(serverName: serverName, requestID: event["id"],
+        message: message, schema: .null)
+      record.urlDisplay = url.host.map { host in
+        url.port.map { "\(host):\($0)" } ?? host
+      }
+      return record
+    }
+    guard event["type"].text == "elicitation_request",
+      ["form", "openai/form", "openaiForm"].contains(request["mode"].text ?? ""),
       case .object(let schema) = request["requested_schema"],
       schema["type"]?.text == "object",
       case .object(let properties) = schema["properties"], properties.count <= 32,
@@ -59,6 +75,25 @@ struct CodexElicitationRequest: Codable, Equatable, Identifiable, Sendable {
     }
     return Self(serverName: serverName, requestID: event["id"], message: message,
       schema: request["requested_schema"])
+  }
+
+  static func verificationURL(_ event: JSONValue) throws -> URL {
+    let request = event["request"]
+    guard request["mode"].text == "url",
+      let id = request["elicitation_id"].text ?? request["elicitationId"].text,
+      !id.isEmpty, id.utf8.count <= 256,
+      let raw = request["url"].text, raw.utf8.count <= 4096,
+      let parts = URLComponents(string: raw), let url = parts.url,
+      let host = parts.host, !host.isEmpty,
+      parts.user == nil, parts.password == nil,
+      parts.fragment == nil,
+      parts.port.map({ (1...65535).contains($0) }) ?? true,
+      parts.scheme?.lowercased() == "https" ||
+        (parts.scheme?.lowercased() == "http" &&
+          ["localhost", "127.0.0.1", "::1"].contains(host.lowercased())) else {
+      throw AgentFailure(message: "Codex 返回了无效的 MCP 验证地址。")
+    }
+    return url
   }
 
   var fields: [CodexElicitationField] {
@@ -129,6 +164,19 @@ struct CodexElicitationContext {
   let runID: String
   let taskID: String
   let request: CodexElicitationRequest
+  let verificationURL: URL?
+}
+
+enum CodexElicitationChoice: String {
+  case allow, allowForSession = "allow_for_session", deny, cancel
+
+  init(_ decision: MCPApprovalDecision) {
+    switch decision {
+    case .allowOnce: self = .allow
+    case .allowTask: self = .allowForSession
+    case .deny: self = .deny
+    }
+  }
 }
 
 struct CodexElicitationDecision {

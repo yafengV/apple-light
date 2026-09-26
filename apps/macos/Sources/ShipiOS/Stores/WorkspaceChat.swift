@@ -511,7 +511,7 @@ extension WorkspaceStore {
     do {
       try Task.checkCancellation()
       try await codexTransport.resolveMCPElicitation(taskID: taskID, serverName: serverName,
-        requestID: .string(requestID), decision: decision)
+        requestID: .string(requestID), decision: CodexElicitationChoice(decision))
     } catch {
       if let current = library.chatRuns.first(where: { $0.id == runID }),
         let index = current.toolExecutions.firstIndex(where: {

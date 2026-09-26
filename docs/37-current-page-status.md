@@ -2,9 +2,11 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
+Codex Core 的 MCP URL 验证请求现进入任务时间线，可在系统浏览器打开验证地址，并明确完成或取消；一次性 URL 参数不写入工作区记录。本地 MCP 集成测试已覆盖两种响应与回合续接，见[第 212 篇](212-codex-mcp-url-elicitation.md)。设备验证模式及当前 Codex Mac 的原生交互配对仍待完成。
+
 “已实现”仅表示有实际功能，不表示布局、操作细节和所有边界与 Codex 相同。各页原生检查及自动化证据以对应文档为准；锁屏后新增功能不冒用早期截图作为验收。
 
-Codex Core 的 MCP 表单请求现进入任务时间线，可填写、校验、提交或拒绝；本地服务发起的真实 `elicitation/create` 已通过集成测试，见[第 211 篇](211-codex-mcp-form-elicitation.md)。URL 与设备验证模式以及当前 Codex Mac 的表单交互仍待完成。
+Codex Core 的 MCP 表单请求现进入任务时间线，可填写、校验、提交或拒绝；本地服务发起的真实 `elicitation/create` 已通过集成测试，见[第 211 篇](211-codex-mcp-form-elicitation.md)。设备验证模式以及当前 Codex Mac 的表单交互仍待完成。
 
 Codex MCP 审批已改用 Core 默认的 `elicitation_request`，在同一工具卡中提供拒绝、本次允许和本任务允许，本地集成测试验证本任务授权后的再次调用不重复提问，见[第 210 篇](210-codex-mcp-approval-card.md)。当前 Codex Mac 的审批卡视觉与原生交互仍待配对。
 

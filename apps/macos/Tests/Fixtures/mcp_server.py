@@ -99,25 +99,30 @@ else:
             f.write(str(os.getpid()))
     for line in sys.stdin:
         message = json.loads(line)
-        if mode == "stdio_form" and message.get("method") == "tools/call":
+        if mode in ("stdio_form", "stdio_url") and message.get("method") == "tools/call":
             pending_form_call = message["id"]
-            request = {"jsonrpc": "2.0", "id": "fixture-form-request",
-                       "method": "elicitation/create", "params": {
+            params = ({"message": "Complete the fixture verification",
+                       "mode": "url", "url": "https://example.com/verify?one_time=fixture-secret",
+                       "elicitationId": "fixture-verification"}
+                      if mode == "stdio_url" else {
                            "message": "Provide the fixture details",
                            "requestedSchema": {"type": "object", "properties": {
                                "reason": {"type": "string", "title": "Reason", "minLength": 3},
                                "count": {"type": "integer", "title": "Count"}},
-                               "required": ["reason", "count"]}}}
+                               "required": ["reason", "count"]}})
+            request = {"jsonrpc": "2.0", "id": "fixture-form-request",
+                       "method": "elicitation/create", "params": params}
             print(json.dumps(request), flush=True)
             continue
-        if mode == "stdio_form" and message.get("id") == "fixture-form-request" \
+        if mode in ("stdio_form", "stdio_url") and message.get("id") == "fixture-form-request" \
                 and message.get("method") is None:
             answer = message.get("result", {})
             if os.getenv("CALL_LOG"):
                 with open(os.environ["CALL_LOG"], "a") as f:
                     f.write(json.dumps(answer) + "\n")
             payload = {"jsonrpc": "2.0", "id": pending_form_call, "result": {
-                "content": [{"type": "text", "text": "FORM_OK " + json.dumps(answer)}]}}
+                "content": [{"type": "text", "text":
+                    ("URL_OK " if mode == "stdio_url" else "FORM_OK ") + json.dumps(answer)}]}}
             print(json.dumps(payload), flush=True)
             pending_form_call = None
             continue

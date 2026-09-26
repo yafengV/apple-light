@@ -179,20 +179,14 @@ final class CodexChatTransport {
   }
 
   func resolveMCPElicitation(taskID: String, serverName: String, requestID: JSONValue,
-    decision: MCPApprovalDecision, content: JSONValue? = nil) async throws {
+    decision: CodexElicitationChoice, content: JSONValue? = nil) async throws {
     guard activeThreads.contains(taskID), !serverName.isEmpty,
       requestID.text != nil || requestID.int != nil else {
       throw AgentFailure(message: "Codex MCP 审批所属任务已断开。")
     }
-    let choice: String
-    switch decision {
-    case .allowOnce: choice = "allow"
-    case .allowTask: choice = "allow_for_session"
-    case .deny: choice = "deny"
-    }
     _ = try await client.request("codex.elicitation.resolve", [
       "taskId": .string(taskID), "serverName": .string(serverName),
-      "requestId": requestID, "decision": .string(choice),
+      "requestId": requestID, "decision": .string(decision.rawValue),
       "content": content ?? .null,
     ])
   }
