@@ -4,7 +4,7 @@ ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工�
 
 当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。尚未链接 Codex Core，自主编码和完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
 
-固定上游版本的 `codex-core-api` 已完成独立 host 编译与配置隔离 PoC；它尚未进入产品运行路径，详见 [验证记录](docs/185-codex-core-embed-poc.md)。
+固定上游版本的 `codex-core-api` 已完成独立 host 编译、配置隔离与空线程启动 PoC；它尚未进入产品运行路径，详见 [验证记录](docs/187-codex-thread-bootstrap.md)。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 

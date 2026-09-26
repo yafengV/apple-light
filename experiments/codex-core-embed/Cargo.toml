@@ -7,6 +7,7 @@ publish = false
 [workspace]
 
 [dependencies]
+anyhow = "1"
 codex-core-api = { path = "../../.cache/codex-upstream/codex-rs/core-api" }
 codex-extension-api = { path = "../../.cache/codex-upstream/codex-rs/ext/extension-api" }
 tempfile = "3"
