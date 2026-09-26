@@ -283,6 +283,7 @@ final class WorkspaceStore {
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
+  var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
   var error: String?
   var logText = ""

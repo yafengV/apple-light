@@ -10,6 +10,14 @@ extension WorkspaceStore {
     }
   }
 
+  var newTaskStartingBranch: GitBranchChoice? {
+    get { newTaskStartingBranches[currentProjectKey] }
+    set {
+      guard !currentProjectKey.isEmpty else { return }
+      newTaskStartingBranches[currentProjectKey] = newValue
+    }
+  }
+
   var worktreeRoot: URL {
     GitBranchService.canonicalRoot(library.worktreeRoot.map { URL(fileURLWithPath: $0) }
       ?? dataRoot.appendingPathComponent("worktrees", isDirectory: true))
@@ -194,6 +202,13 @@ extension WorkspaceStore {
       guard snapshot.canChange, project?.path == sourcePath else {
         throw AgentFailure(message: "请打开 Git 仓库根目录后创建工作树任务。")
       }
+      let startingBranch = newTaskStartingBranches[sourcePath]
+      if let startingBranch,
+        !snapshot.branches.contains(where: {
+          $0.reference == startingBranch.reference && $0.commit == startingBranch.commit
+        }) {
+        throw AgentFailure(message: "起始分支已更新或被删除，请刷新分支列表后重试。")
+      }
       let taskID = library.pendingManagedDraftTaskIDs[sourcePath] ?? UUID().uuidString
       if library.managedWorktrees.first(where: { $0.taskID == taskID }) == nil,
         snapshot.changedFiles > 0 {
@@ -204,7 +219,7 @@ extension WorkspaceStore {
         pending.pendingManagedDraftTaskIDs[sourcePath] = taskID
         try commitLibrary(pending)
       }
-      guard let record = await createManagedWorktree(snapshot: snapshot, branch: nil,
+      guard let record = await createManagedWorktree(snapshot: snapshot, branch: startingBranch,
         taskID: taskID) else {
         throw AgentFailure(message: worktreeError ?? "无法创建托管工作树。")
       }

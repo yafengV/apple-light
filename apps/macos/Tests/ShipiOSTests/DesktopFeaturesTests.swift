@@ -737,6 +737,10 @@ final class ModelTransportTests: XCTestCase {
     try Data("original\n".utf8).write(to: source.appendingPathComponent("README.md"))
     _ = try await GitReviewService.checked(["add", "README.md"], at: source)
     _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    _ = try await GitReviewService.checked(["switch", "-qc", "feature"], at: source)
+    try Data("feature\n".utf8).write(to: source.appendingPathComponent("README.md"))
+    _ = try await GitReviewService.checked(["commit", "-qam", "Feature"], at: source)
+    _ = try await GitReviewService.checked(["switch", "-q", "main"], at: source)
     let data = root.appendingPathComponent("Data")
     let store = WorkspaceStore(dataRoot: data, agentExecutable: binary)
     await store.restore()
@@ -746,6 +750,8 @@ final class ModelTransportTests: XCTestCase {
     await store.open(source)
     XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
     store.newTaskExecution = .worktree
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    store.newTaskStartingBranch = try XCTUnwrap(snapshot.branches.first { $0.name == "feature" })
     store.draft = "managed-worktree-probe"
     await store.sendDraft()
     let managed = try XCTUnwrap(store.library.managedWorktrees.first, store.error ?? "")
@@ -769,6 +775,8 @@ final class ModelTransportTests: XCTestCase {
       encoding: .utf8), "original\n")
     let checkout = try await GitBranchService.snapshot(at: URL(fileURLWithPath: managed.path))
     XCTAssertNil(checkout.currentReference)
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: managed.path)
+      .appendingPathComponent("README.md"), encoding: .utf8), "feature\n")
     store.updateTask(task.id, archive: true)
     let archived = ArchivedTaskPresentation(library: store.library)
     XCTAssertTrue(archived.projects.contains { $0.path == source.path })

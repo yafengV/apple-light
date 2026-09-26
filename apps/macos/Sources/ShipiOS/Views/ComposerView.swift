@@ -6,6 +6,8 @@ struct ComposerView: View {
   @Bindable var store: WorkspaceStore
   @State private var imageDropTargeted = false
   @State private var showingBuildOptions = false
+  @State private var newTaskBranches = GitBranchCatalog()
+  @State private var newTaskBranchRefresh = UUID()
   @State private var commandSelection = ComposerCommandSelection()
   @State private var pluginSelection = PluginMentionSelection()
   @State private var skillSelection = SkillMentionSelection()
@@ -66,7 +68,7 @@ struct ComposerView: View {
         if store.action == .chat, store.selectedTask == nil, let project = store.project,
           store.workspace.gitAvailable,
           !store.library.managedWorktrees.contains(where: { $0.path == project.path }) {
-          HStack(spacing: 12) {
+          VStack(alignment: .leading, spacing: 8) {
             Picker("执行环境", selection: $store.newTaskExecution) {
               ForEach(NewTaskExecution.allCases) { execution in
                 Text(execution.title).tag(execution)
@@ -76,11 +78,41 @@ struct ComposerView: View {
               if store.managedTaskPreparing {
                 ProgressView("正在创建工作树…").controlSize(.small)
               } else {
-                Text("从当前提交创建此任务专用的工作树")
-                  .appFont(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                  if let snapshot = newTaskBranches.snapshot {
+                    Picker("起始分支", selection: Binding(
+                      get: { store.newTaskStartingBranch?.reference ?? "" },
+                      set: { reference in
+                        store.newTaskStartingBranch = snapshot.branches.first {
+                          $0.reference == reference
+                        }
+                      })) {
+                        Text("当前提交 · \(snapshot.currentName)").tag("")
+                        ForEach(snapshot.branches) { branch in
+                          Text(branch.name).tag(branch.reference)
+                        }
+                      }.frame(maxWidth: 290)
+                    Button { newTaskBranchRefresh = UUID() } label: {
+                      Image(systemName: "arrow.clockwise")
+                    }.buttonStyle(.plain).accessibilityLabel("刷新起始分支")
+                  } else if newTaskBranches.loading {
+                    ProgressView("正在读取分支…").controlSize(.small)
+                  }
+                }
+                if let error = newTaskBranches.error {
+                  Text(error).appFont(.caption).foregroundStyle(.red)
+                } else if let branch = store.newTaskStartingBranch,
+                  newTaskBranches.snapshot?.branches.contains(where: {
+                    $0.reference == branch.reference && $0.commit == branch.commit
+                  }) == false {
+                  Text("起始分支已更新；请刷新后重新选择。")
+                    .appFont(.caption).foregroundStyle(.red)
+                } else {
+                  Text("从所选提交创建此任务专用的工作树")
+                    .appFont(.caption).foregroundStyle(.secondary)
+                }
               }
             }
-            Spacer(minLength: 0)
           }
         }
       }.padding(16)
@@ -113,6 +145,12 @@ struct ComposerView: View {
       }
     }
     .onChange(of: store.draft, initial: true) { _, _ in updateCommands() }
+    .task(id: "\(store.project?.path ?? "")|\(store.newTaskExecution.rawValue)|\(newTaskBranchRefresh)") {
+      if let project = store.project, store.newTaskExecution == .worktree,
+        store.workspace.gitAvailable, store.selectedTask == nil {
+        await newTaskBranches.load(root: project)
+      }
+    }
     .onChange(of: store.enabledComposerCommands) { _, _ in updateCommands() }
     .onChange(of: store.pluginPreferences) { _, _ in updateCommands() }
     .onChange(of: store.pluginSkills) { _, _ in updateCommands() }
