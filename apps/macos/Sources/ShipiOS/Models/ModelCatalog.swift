@@ -4,10 +4,18 @@ import Observation
 struct ModelCatalogEntry: Equatable {
   let id: String
   let supportedReasoningEfforts: Set<String>?
+  let displayName: String?
+  let description: String?
+  let defaultReasoningEffort: String?
 
-  init(id: String, supportedReasoningEfforts: Set<String>? = nil) {
+  init(id: String, supportedReasoningEfforts: Set<String>? = nil,
+    displayName: String? = nil, description: String? = nil,
+    defaultReasoningEffort: String? = nil) {
     self.id = id
     self.supportedReasoningEfforts = supportedReasoningEfforts
+    self.displayName = displayName
+    self.description = description
+    self.defaultReasoningEffort = defaultReasoningEffort
   }
 }
 
@@ -15,6 +23,7 @@ struct ModelCatalogEntry: Equatable {
 final class ModelCatalog {
   private(set) var models: [String] = []
   private(set) var supportedReasoningEfforts: [String: Set<String>] = [:]
+  private(set) var details: [String: ModelCatalogEntry] = [:]
   private(set) var loading = false
   private(set) var error: String?
   @ObservationIgnored private var generation = UUID()
@@ -44,9 +53,16 @@ final class ModelCatalog {
           }
           return nil
         }()
-        if entries[id]?.supportedReasoningEfforts == nil || efforts != nil {
-          entries[id] = ModelCatalogEntry(id: id, supportedReasoningEfforts: efforts)
-        }
+        let previous = entries[id]
+        entries[id] = ModelCatalogEntry(
+          id: id,
+          supportedReasoningEfforts: efforts ?? previous?.supportedReasoningEfforts,
+          displayName: (row["display_name"] ?? row["displayName"] ?? row["name"]) as? String
+            ?? previous?.displayName,
+          description: row["description"] as? String ?? previous?.description,
+          defaultReasoningEffort: (row["default_reasoning_level"]
+            ?? row["default_reasoning_effort"] ?? row["defaultReasoningEffort"]) as? String
+            ?? previous?.defaultReasoningEffort)
       }
       return entries.values.sorted { $0.id < $1.id }
     } catch {
@@ -65,6 +81,7 @@ final class ModelCatalog {
     generation = token
     models = []
     supportedReasoningEfforts = [:]
+    details = [:]
     error = nil
     loading = true
     defer { if generation == token { loading = false } }
@@ -72,6 +89,7 @@ final class ModelCatalog {
       let result = try await fetch(config)
       guard !Task.isCancelled, generation == token else { return }
       models = result.map(\.id)
+      details = Dictionary(result.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
       supportedReasoningEfforts = result.reduce(into: [:]) { values, entry in
         if let efforts = entry.supportedReasoningEfforts { values[entry.id] = efforts }
       }
@@ -84,7 +102,31 @@ final class ModelCatalog {
   func choices(current: String, query: String) -> [String] {
     let all = current.isEmpty ? models : [current] + models.filter { $0 != current }
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-    return query.isEmpty ? all : all.filter { $0.localizedCaseInsensitiveContains(query) }
+    return query.isEmpty ? all : all.filter {
+      $0.localizedCaseInsensitiveContains(query)
+        || (details[$0]?.displayName?.localizedCaseInsensitiveContains(query) ?? false)
+        || (details[$0]?.description?.localizedCaseInsensitiveContains(query) ?? false)
+    }
+  }
+
+  func title(for model: String) -> String {
+    nonempty(details[model]?.displayName) ?? model
+  }
+
+  func subtitle(for model: String) -> String? {
+    guard let detail = details[model] else { return nil }
+    let description = nonempty(detail.description)
+    if title(for: model) == model { return description }
+    return ([model] + (description.map { [$0] } ?? [])).joined(separator: " · ")
+  }
+
+  func defaultReasoningEffort(for model: String) -> String? {
+    details[model]?.defaultReasoningEffort
+  }
+
+  private func nonempty(_ value: String?) -> String? {
+    guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+    return value
   }
 
   func availableReasoning(for model: String, advanced: Set<AgentAdvancedReasoningEffort>) -> [String] {

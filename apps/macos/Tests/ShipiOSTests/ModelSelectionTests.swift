@@ -34,9 +34,10 @@ final class ModelSelectionTests: XCTestCase {
       ModelCatalogEntry(id: "gpt-b", supportedReasoningEfforts: ["medium", "ultra"]),
       ModelCatalogEntry(id: "gpt-c", supportedReasoningEfforts: ["high"]),
     ])
-    let codex = Data(#"{"models":[{"slug":"gpt-codex","supported_reasoning_levels":[{"effort":"medium","description":"Balanced"},{"effort":"high","description":"More reasoning"}]}]}"#.utf8)
+    let codex = Data(#"{"models":[{"slug":"gpt-codex","display_name":"Codex","description":"Coding model","default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"medium","description":"Balanced"},{"effort":"high","description":"More reasoning"}]}]}"#.utf8)
     XCTAssertEqual(try ModelCatalog.decodeDetails(codex), [
-      ModelCatalogEntry(id: "gpt-codex", supportedReasoningEfforts: ["medium", "high"]),
+      ModelCatalogEntry(id: "gpt-codex", supportedReasoningEfforts: ["medium", "high"],
+        displayName: "Codex", description: "Coding model", defaultReasoningEffort: "medium"),
     ])
     for bad in [#"{"error":{"message":"private-server-detail"}}"#, #"{"data":[{}]}"#, "[]"] {
       XCTAssertThrowsError(try ModelCatalog.decode(Data(bad.utf8))) { error in
@@ -64,7 +65,8 @@ final class ModelSelectionTests: XCTestCase {
   @MainActor func testModelReasoningOptionsUseOptionalProviderCapabilities() async {
     let catalog = ModelCatalog()
     await catalog.load(config: ModelConfiguration()) { _ in [
-      ModelCatalogEntry(id: "known", supportedReasoningEfforts: ["low", "max"]),
+      ModelCatalogEntry(id: "known", supportedReasoningEfforts: ["low", "max"],
+        displayName: "Known Reasoner", description: "For coding", defaultReasoningEffort: "low"),
       ModelCatalogEntry(id: "unknown"),
     ] }
     XCTAssertEqual(catalog.availableReasoning(for: "known", advanced: [.max, .ultra]),
@@ -76,6 +78,13 @@ final class ModelSelectionTests: XCTestCase {
     XCTAssertEqual(catalog.powerChoices(for: "known", advanced: [.max]), ["", "low", "max"])
     XCTAssertEqual(catalog.powerChoices(for: "known", advanced: []), ["", "low"])
     XCTAssertEqual(catalog.powerChoices(for: "unknown", advanced: [.max]), [])
+    XCTAssertEqual(catalog.title(for: "known"), "Known Reasoner")
+    XCTAssertEqual(catalog.subtitle(for: "known"), "known · For coding")
+    XCTAssertEqual(catalog.defaultReasoningEffort(for: "known"), "low")
+    XCTAssertEqual(catalog.choices(current: "known", query: "reasoner"), ["known"])
+    XCTAssertEqual(catalog.choices(current: "known", query: "coding"), ["known"])
+    XCTAssertEqual(catalog.title(for: "unknown"), "unknown")
+    XCTAssertNil(catalog.subtitle(for: "unknown"))
     XCTAssertEqual(catalog.reasoningWhenSelecting("known", current: "max"), "max")
     XCTAssertEqual(catalog.reasoningWhenSelecting("known", current: "high"), "")
     XCTAssertEqual(catalog.reasoningWhenSelecting("unknown", current: "high"), "high")
@@ -98,14 +107,17 @@ final class ModelSelectionTests: XCTestCase {
     }
     await fulfillment(of: [started], timeout: 2)
     await catalog.load(config: ModelConfiguration()) { _ in
-      [ModelCatalogEntry(id: "new-provider-model", supportedReasoningEfforts: ["low"])]
+      [ModelCatalogEntry(id: "new-provider-model", supportedReasoningEfforts: ["low"],
+        displayName: "New model")]
     }
     completion?.resume(returning: [ModelCatalogEntry(id: "old-provider-model",
-      supportedReasoningEfforts: ["ultra"])])
+      supportedReasoningEfforts: ["ultra"], displayName: "Old model")])
     await first.value
     XCTAssertEqual(catalog.models, ["new-provider-model"])
     XCTAssertEqual(catalog.supportedReasoningEfforts["new-provider-model"], ["low"])
     XCTAssertNil(catalog.supportedReasoningEfforts["old-provider-model"])
+    XCTAssertEqual(catalog.title(for: "new-provider-model"), "New model")
+    XCTAssertNil(catalog.details["old-provider-model"])
     XCTAssertFalse(catalog.loading)
   }
 

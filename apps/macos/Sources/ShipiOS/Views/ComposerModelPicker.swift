@@ -28,6 +28,16 @@ struct ComposerModelPicker: View {
   private var showingPower: Bool {
     !showingModels && powerChoices.contains(configuration.reasoning)
   }
+  private var defaultReasoningTitle: String {
+    guard let effort = catalog.defaultReasoningEffort(for: configuration.model) else {
+      return "服务默认"
+    }
+    return "服务默认（\(AgentReasoningEfforts.titles[effort] ?? effort)）"
+  }
+  private var currentReasoningTitle: String {
+    configuration.reasoning.isEmpty ? defaultReasoningTitle
+      : (AgentReasoningEfforts.titles[configuration.reasoning] ?? configuration.reasoning)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -55,12 +65,12 @@ struct ComposerModelPicker: View {
             searching = true
           } label: {
             HStack(spacing: 5) {
-              Text(configuration.model).lineLimit(1)
+              Text(catalog.title(for: configuration.model)).lineLimit(1)
               Image(systemName: "chevron.right").font(.caption)
             }
           }.buttonStyle(.plain).accessibilityLabel("更换模型：\(configuration.model)")
         }
-        Text("推理强度：\(AgentReasoningEfforts.titles[configuration.reasoning] ?? configuration.reasoning)")
+        Text("推理强度：\(currentReasoningTitle)")
           .appFont(.caption).foregroundStyle(.secondary)
         Slider(value: Binding(
           get: { Double(powerChoices.firstIndex(of: configuration.reasoning) ?? 0) },
@@ -70,9 +80,9 @@ struct ComposerModelPicker: View {
           }), in: 0...Double(powerChoices.count - 1), step: 1) {
             Text("推理强度")
           }
-          .accessibilityValue(AgentReasoningEfforts.titles[configuration.reasoning] ?? configuration.reasoning)
+          .accessibilityValue(currentReasoningTitle)
         HStack {
-          Text(AgentReasoningEfforts.titles[powerChoices.first ?? ""] ?? "服务默认")
+          Text(defaultReasoningTitle)
           Spacer()
           Text(AgentReasoningEfforts.titles[powerChoices.last ?? ""] ?? "")
         }.appFont(.caption).foregroundStyle(.secondary)
@@ -92,7 +102,12 @@ struct ComposerModelPicker: View {
               ForEach(choices, id: \.self) { model in
                 Button { choose(model) } label: {
                   HStack {
-                    Text(model).lineLimit(2).multilineTextAlignment(.leading)
+                    VStack(alignment: .leading, spacing: 2) {
+                      Text(catalog.title(for: model)).lineLimit(1)
+                      if let subtitle = catalog.subtitle(for: model) {
+                        Text(subtitle).appFont(.caption).foregroundStyle(.secondary).lineLimit(2)
+                      }
+                    }.multilineTextAlignment(.leading)
                     Spacer()
                     if configuration.model == model {
                       Image(systemName: "checkmark").accessibilityLabel("当前模型")
