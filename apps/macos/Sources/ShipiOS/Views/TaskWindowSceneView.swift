@@ -10,6 +10,9 @@ struct TaskWindowSceneView: View {
   @State private var resources = TaskWindowResources()
   @State private var navigation = TaskWindowNavigation()
   @State private var hasPresentedTask = false
+  @State private var restoringWorktree = false
+  @State private var worktreeRestoreRequest: UUID?
+  @State private var worktreeRestoreError: String?
   @Environment(\.dismiss) private var dismiss
 
   private var availableTasks: Set<String> { Set(store.library.tasks.map(\.id)) }
@@ -21,7 +24,8 @@ struct TaskWindowSceneView: View {
 
   var body: some View {
     Group {
-      if case .ready(let taskID) = restoration, let tabs = resources.tasks[taskID] {
+      if case .ready(let taskID) = restoration, !restoringWorktree,
+        worktreeRestoreError == nil, let tabs = resources.tasks[taskID] {
         TaskWindowView(store: store, taskID: taskID, tabs: tabs, resources: resources, renameHistory: renameHistory,
           onNavigate: visit,
           canGoBack: navigation.destination(backwards: true, current: taskID, available: availableTasks) != nil,
@@ -46,13 +50,7 @@ struct TaskWindowSceneView: View {
       Self.logger.notice("Restoration: route=\(route != nil) loaded=\(store.libraryLoaded) restoring=\(store.restoringLibrary) taskExists=\(route.map { availableTasks.contains($0.taskID) } ?? false) closing=\(restoration == .close)")
       switch restoration {
       case .ready(let taskID):
-        resources.retainTasks(availableTasks, displaying: taskID)
-        resources.prepare(taskID, store: store, windowID: route?.id)
-        if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
-        hasPresentedTask = true
-        if route?.dataRoot == nil || route?.windowID == nil {
-          route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
-        }
+        await prepareTask(taskID)
       case .close: dismiss()
       case .loading, .failed: break
       }
@@ -71,8 +69,51 @@ struct TaskWindowSceneView: View {
         Button("关闭窗口") { dismiss() }
       }
     case .loading: ProgressView("正在恢复任务…")
-    case .close, .ready: Color.clear
+    case .ready:
+      if let worktreeRestoreError {
+        ContentUnavailableView {
+          Label("无法恢复任务工作树", systemImage: "exclamationmark.triangle")
+        } description: {
+          Text(worktreeRestoreError)
+        } actions: {
+          Button("重试") {
+            if let taskID = route?.taskID { Task { await prepareTask(taskID) } }
+          }
+          Button("关闭窗口") { dismiss() }
+        }
+      } else if restoringWorktree {
+        ProgressView("正在恢复工作树…")
+      } else { Color.clear }
+    case .close: Color.clear
     }
+  }
+
+  private func prepareTask(_ taskID: String) async {
+    let request = UUID()
+    worktreeRestoreRequest = request
+    restoringWorktree = true
+    worktreeRestoreError = nil
+    defer {
+      if worktreeRestoreRequest == request {
+        restoringWorktree = false
+        worktreeRestoreRequest = nil
+      }
+    }
+    let restored = await store.restoreManagedArchiveIfNeeded(taskID)
+    guard !Task.isCancelled, worktreeRestoreRequest == request,
+      route?.taskID == taskID else { return }
+    guard restored else {
+      worktreeRestoreError = store.archivedTaskDeletionError ?? "工作树无法恢复。"
+      return
+    }
+    resources.retainTasks(availableTasks, displaying: taskID)
+    resources.prepare(taskID, store: store, windowID: route?.id)
+    if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
+    hasPresentedTask = true
+    if route?.dataRoot == nil || route?.windowID == nil {
+      route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
+    }
+    store.scheduleManagedLimitCleanup()
   }
 
   private func visit(_ taskID: String) {

@@ -178,6 +178,7 @@ extension WorkspaceStore {
     catch {
       throw AgentFailure(message: "托管工作树已创建，但状态尚未保存。请重试恢复。路径：\(ready.path)\n\(error.localizedDescription)")
     }
+    scheduleManagedLimitCleanup()
     return ready
   }
 

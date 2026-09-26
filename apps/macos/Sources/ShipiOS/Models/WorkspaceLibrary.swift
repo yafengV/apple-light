@@ -200,6 +200,8 @@ struct WorkspaceLibrary: Codable {
   var defaultTerminalLocation = WorkspaceTabPlacement.bottom
   var gitPreferences = GitPreferences()
   var worktreeRoot: String?
+  var automaticallyDeleteManagedWorktrees = true
+  var managedWorktreeLimit = 15
   var permanentWorktrees: [PermanentWorktree] = []
   var managedWorktrees: [ManagedWorktree] = []
   /// Deleted tasks whose protected Git refs/private file snapshots still need cleanup.
@@ -220,7 +222,8 @@ struct WorkspaceLibrary: Codable {
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
       defaultTerminalLocation, gitPreferences,
-      worktreeRoot, permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
+      worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
+      permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
       newTaskExecutions,
       pendingManagedDraftTaskIDs, goalSessions
   }
@@ -305,6 +308,10 @@ struct WorkspaceLibrary: Codable {
     gitPreferences = try c.decodeIfPresent(GitPreferences.self, forKey: .gitPreferences) ?? GitPreferences()
     gitPreferences.normalize()
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
+    automaticallyDeleteManagedWorktrees = try c.decodeIfPresent(Bool.self,
+      forKey: .automaticallyDeleteManagedWorktrees) ?? true
+    managedWorktreeLimit = max(1, try c.decodeIfPresent(Int.self,
+      forKey: .managedWorktreeLimit) ?? 15)
     permanentWorktrees = try c.decodeIfPresent([PermanentWorktree].self, forKey: .permanentWorktrees) ?? []
     managedWorktrees = try c.decodeIfPresent([ManagedWorktree].self, forKey: .managedWorktrees) ?? []
     pendingManagedWorktreeDeletions = try c.decodeIfPresent([ManagedWorktree].self,

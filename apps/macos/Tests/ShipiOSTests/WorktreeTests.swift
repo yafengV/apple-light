@@ -713,8 +713,106 @@ final class WorktreeTests: XCTestCase {
   func testLegacyLibraryDecodesWithDefaultWorktreeSettings() throws {
     let old = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertNil(old.worktreeRoot)
+    XCTAssertTrue(old.automaticallyDeleteManagedWorktrees)
+    XCTAssertEqual(old.managedWorktreeLimit, 15)
     XCTAssertTrue(old.permanentWorktrees.isEmpty)
     XCTAssertTrue(old.managedWorktrees.isEmpty)
+  }
+
+  @MainActor func testManagedWorktreeLimitPrunesOldCheckoutAndRestoresActiveTaskOnSelection() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    var repository = URL(fileURLWithPath: #filePath)
+    for _ in 0..<5 { repository.deleteLastPathComponent() }
+    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let store = WorkspaceStore(dataRoot: data, agentExecutable: agent)
+    await store.restore()
+    await store.open(source)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let oldID = UUID().uuidString
+    let oldCreated = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: oldID)
+    let old = try XCTUnwrap(oldCreated, store.worktreeError ?? "")
+    let oldRoot = URL(fileURLWithPath: old.path)
+    try write("staged\n", oldRoot.appendingPathComponent("file"))
+    _ = try await git(["add", "file"], oldRoot)
+    try write("unstaged\n", oldRoot.appendingPathComponent("file"))
+    try write("untracked\n", oldRoot.appendingPathComponent("note"))
+    var oldTask = WorkspaceTask(id: oldID, project: old.path,
+      title: "Older worktree", runIDs: [])
+    oldTask.updatedAt = Date(timeIntervalSince1970: 1_000_000_000)
+    store.library.tasks.append(oldTask)
+    XCTAssertTrue(store.saveLibrary())
+
+    let newID = UUID().uuidString
+    let newCreated = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: newID)
+    let newer = try XCTUnwrap(newCreated, store.worktreeError ?? "")
+    var newTask = WorkspaceTask(id: newID, project: newer.path,
+      title: "Newer worktree", runIDs: [])
+    newTask.updatedAt = Date(timeIntervalSince1970: 1_500_000_000)
+    store.library.tasks.append(newTask)
+    XCTAssertTrue(store.saveLibrary())
+    XCTAssertEqual(store.managedWorktreeCount, 2)
+    store.setManagedWorktreeLimit(1)
+    await store.managedLimitCleanupTask?.value
+    XCTAssertEqual(store.managedWorktreeCount, 1)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: old.path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: newer.path))
+    XCTAssertEqual(store.library.managedWorktrees.first { $0.taskID == oldID }?.archivedPruned, true)
+    XCTAssertFalse(store.library.tasks.first { $0.id == oldID }?.archived ?? true)
+    let selected = await store.selectTaskAwaitingScope(oldTask)
+    XCTAssertTrue(selected)
+    await store.managedLimitCleanupTask?.value
+    XCTAssertEqual(store.project?.path, old.path)
+    XCTAssertEqual(try String(contentsOf: oldRoot.appendingPathComponent("file")), "unstaged\n")
+    XCTAssertEqual(try String(contentsOf: oldRoot.appendingPathComponent("note")), "untracked\n")
+    let status = try await git(["status", "--short"], oldRoot)
+    XCTAssertTrue(status.contains("MM file"), status)
+    XCTAssertTrue(status.contains("?? note"), status)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: old.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: newer.path))
+    XCTAssertEqual(store.managedWorktreeCount, 1)
+    await store.shutdown()
+  }
+
+  @MainActor func testManagedWorktreeLimitCanBeDisabledAndSkipsPinnedTasks() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    var store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    var paths: [String] = []
+    for index in 0..<2 {
+      let taskID = UUID().uuidString
+      let created = await store.createManagedWorktree(snapshot: snapshot,
+        branch: nil, taskID: taskID)
+      let record = try XCTUnwrap(created, store.worktreeError ?? "")
+      paths.append(record.path)
+      var task = WorkspaceTask(id: taskID, project: record.path,
+        title: "Pinned \(index)", runIDs: [])
+      task.pinned = true
+      store.library.tasks.append(task)
+    }
+    XCTAssertTrue(store.saveLibrary())
+    store.setAutomaticManagedWorktreeDeletion(false)
+    store.setManagedWorktreeLimit(250)
+    XCTAssertEqual(store.library.managedWorktreeLimit, 250)
+    store.setManagedWorktreeLimit(1)
+    XCTAssertEqual(store.managedWorktreeCount, 2)
+    await store.shutdown()
+    store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    XCTAssertFalse(store.library.automaticallyDeleteManagedWorktrees)
+    XCTAssertEqual(store.library.managedWorktreeLimit, 1)
+    store.setAutomaticManagedWorktreeDeletion(true)
+    await store.managedLimitCleanupTask?.value
+    XCTAssertEqual(store.managedWorktreeCount, 2)
+    XCTAssertTrue(paths.allSatisfy { FileManager.default.fileExists(atPath: $0) })
+    await store.shutdown()
   }
 
   @MainActor func testManagedWorktreeReservesOneCheckoutWithoutBecomingPermanentProject() async throws {

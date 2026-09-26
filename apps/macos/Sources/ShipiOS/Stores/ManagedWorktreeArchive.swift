@@ -5,13 +5,13 @@ extension WorkspaceStore {
     let previous = managedArchiveCleanupTask
     managedArchiveCleanupTask = Task { @MainActor in
       await previous?.value
-      await pruneArchivedManagedWorktree(taskID)
+      await pruneManagedWorktreeIfEligible(taskID)
     }
   }
 
-  private func pruneArchivedManagedWorktree(_ taskID: String) async {
+  func pruneManagedWorktreeIfEligible(_ taskID: String, dueToLimit: Bool = false) async {
     await Task.yield()
-    guard let task = library.tasks.first(where: { $0.id == taskID && $0.archived }),
+    guard let task = library.tasks.first(where: { $0.id == taskID && ($0.archived || dueToLimit) }),
       let record = library.managedWorktrees.first(where: { $0.taskID == task.id }),
       activeRun(taskID: taskID) == nil else { return }
     let noticeID = "managed-archive-" + taskID
@@ -27,6 +27,7 @@ extension WorkspaceStore {
       return
     }
     if project?.path == record.path {
+      if dueToLimit { return }
       await open(URL(fileURLWithPath: record.source))
       guard project?.path != record.path else {
         notices.show(id: noticeID, title: "项目仍在使用工作树，已保留目录", level: .info)
@@ -137,9 +138,10 @@ extension WorkspaceStore {
     }
   }
 
-  /// Recreate a pruned checkout before making its archived task visible again.
+  /// Recreate a checkout pruned by archiving or the configured worktree limit.
   func restoreManagedArchiveIfNeeded(_ taskID: String) async -> Bool {
     await managedArchiveCleanupTask?.value
+    await managedLimitCleanupTask?.value
     guard let record = library.managedWorktrees.first(where: { $0.taskID == taskID }) else { return true }
     guard let head = record.archivedHead else {
       if FileManager.default.fileExists(atPath: record.path) { return true }

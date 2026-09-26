@@ -56,6 +56,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case environmentScheme
   case environmentConfiguration
   case worktreeRoot
+  case worktreeCleanup
   case worktreeList
   case anyApplication
   case screenRecording
@@ -150,6 +151,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .environmentScheme: .environments
     case .environmentConfiguration: .environments
     case .worktreeRoot: .worktrees
+    case .worktreeCleanup: .worktrees
     case .worktreeList: .worktrees
     case .anyApplication: .computerUse
     case .screenRecording: .computerUse
@@ -223,6 +225,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .environmentScheme: "Scheme"
     case .environmentConfiguration: "构建配置"
     case .worktreeRoot: "工作树根目录"
+    case .worktreeCleanup: "托管工作树自动清理"
     case .worktreeList: "永久工作树"
     case .anyApplication: "任意应用"
     case .screenRecording: "屏幕录制"
@@ -327,6 +330,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .environmentScheme: "方案"
     case .environmentConfiguration: "Debug Release"
     case .worktreeRoot: "文件夹"
+    case .worktreeCleanup: "数量上限 快照 删除"
     case .worktreeList: "恢复登记"
     case .anyApplication: "控制"
     case .screenRecording: "系统访问"

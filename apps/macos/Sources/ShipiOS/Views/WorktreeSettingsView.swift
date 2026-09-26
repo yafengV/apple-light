@@ -14,6 +14,26 @@ struct WorktreeSettingsView: View {
         Text("目录设置仅用于之后创建的工作树，不会移动已有项目。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
+      Section("托管工作树") {
+        Toggle("自动清理旧工作树", isOn: Binding(
+          get: { store.library.automaticallyDeleteManagedWorktrees },
+          set: { store.setAutomaticManagedWorktreeDeletion($0) }))
+          .disabled(store.busy).settingsSearchTarget(.worktreeCleanup)
+        if store.library.automaticallyDeleteManagedWorktrees {
+          let limit = Binding(
+            get: { store.library.managedWorktreeLimit },
+            set: { store.setManagedWorktreeLimit($0) })
+          HStack {
+            Text("保留最近")
+            TextField("数量", value: limit, format: .number)
+              .frame(width: 72).accessibilityLabel("托管工作树保留数量")
+            Text("个工作树")
+            Stepper("调整保留数量", value: limit, in: 1...Int.max).labelsHidden()
+          }.disabled(store.busy)
+        }
+        Text("当前有 \(store.managedWorktreeCount) 个托管工作树。清理前保存快照；置顶或运行中的任务不会自动清理。")
+          .appFont(.caption).foregroundStyle(.secondary)
+      }
       Section("永久工作树") {
         Text("从侧栏项目菜单创建。每个工作树是独立项目，归档其中的任务不会删除目录。").settingsSearchTarget(.worktreeList)
           .foregroundStyle(.secondary)

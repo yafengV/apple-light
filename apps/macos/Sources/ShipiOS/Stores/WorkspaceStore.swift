@@ -284,6 +284,7 @@ final class WorkspaceStore {
   var busy = false
   var managedTaskPreparing = false
   @ObservationIgnored var managedArchiveCleanupTask: Task<Void, Never>?
+  @ObservationIgnored var managedLimitCleanupTask: Task<Void, Never>?
   @ObservationIgnored var managedDeletionCleanupTask: Task<Void, Never>?
   var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
@@ -436,6 +437,7 @@ final class WorkspaceStore {
     } else {
       await openProjectless()
     }
+    scheduleManagedLimitCleanup()
   }
 
   /// Switches to a scope with no filesystem root and no local Agent connection.
@@ -483,6 +485,14 @@ final class WorkspaceStore {
 
   @discardableResult func openTaskScope(_ key: String) async -> Bool {
     if key == currentProjectKey && (key.isEmpty || connected) { return true }
+    if let managed = library.managedWorktrees.first(where: { $0.path == key }),
+      managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
+      guard await restoreManagedArchiveIfNeeded(managed.taskID) else {
+        notices.show(id: "managed-restore-" + managed.taskID,
+          title: archivedTaskDeletionError ?? "无法恢复工作树", level: .error)
+        return false
+      }
+    }
     if key.isEmpty { await openProjectless() }
     else { await open(URL(fileURLWithPath: key)) }
     return currentProjectKey == key && (key.isEmpty || connected)
@@ -854,6 +864,7 @@ final class WorkspaceStore {
     rememberProjectSelection()
     saveLibrary()
     focusComposer = UUID()
+    scheduleManagedLimitCleanup()
   }
 
   func sendDraft() async {
@@ -1063,6 +1074,7 @@ final class WorkspaceStore {
 
   func shutdown() async {
     await managedArchiveCleanupTask?.value
+    await managedLimitCleanupTask?.value
     await managedDeletionCleanupTask?.value
     captureWorkspaceTabLayout()
     shuttingDown = true
