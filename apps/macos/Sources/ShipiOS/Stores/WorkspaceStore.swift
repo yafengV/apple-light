@@ -168,6 +168,7 @@ final class WorkspaceStore {
   var codexPendingElicitations: [UUID: CodexElicitationContext] = [:]
   @ObservationIgnored var codexElicitationContinuations: [UUID: CheckedContinuation<CodexElicitationDecision?, Never>] = [:]
   @ObservationIgnored var codexSteeringMessages: Set<UUID> = []
+  @ObservationIgnored var codexCommandOutputBuffers: [String: [String: Data]] = [:]
   @ObservationIgnored var mcpTaskGrants: Set<String> = []
   @ObservationIgnored var mcpConnections: [UUID: MCPConnection] = [:]
   @ObservationIgnored var mcpConnectionTokens: [UUID: UUID] = [:]

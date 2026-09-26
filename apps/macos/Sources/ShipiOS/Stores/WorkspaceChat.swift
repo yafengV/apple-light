@@ -342,6 +342,10 @@ extension WorkspaceStore {
             if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
               rendered = ""
             }
+          case "exec_command_output_delta":
+            recordCodexCommandOutput(runID: runID, event: event)
+          case "raw_response_item":
+            recordCodexCommandResult(runID: runID, event: event)
           case "web_search_begin", "web_search_end":
             recordCodexRuntimeStatus(runID: runID, message: nil)
             recordCodexWebSearch(runID: runID, event: event)
@@ -453,6 +457,9 @@ extension WorkspaceStore {
     var executions = current.toolExecutions
     var items = current.responseItems ?? []
     guard CodexCommandTimeline.apply(event, executions: &executions, items: &items) else { return nil }
+    if event["type"].text == "exec_command_end", let callID = event["call_id"].text {
+      codexCommandOutputBuffers[runID]?[callID] = nil
+    }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions)
     saveLibrary()
@@ -461,6 +468,34 @@ extension WorkspaceStore {
       $0.serverID == CodexCommandTimeline.serverID && $0.callID == event["call_id"].text
         && $0.toolName == (patch ? "补丁" : "命令")
     }
+  }
+  private func recordCodexCommandOutput(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var executions = current.toolExecutions
+    var buffers = codexCommandOutputBuffers[runID] ?? [:]
+    guard CodexCommandTimeline.appendOutput(event, executions: &executions,
+      outputBuffers: &buffers) else { return }
+    codexCommandOutputBuffers[runID] = buffers
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      toolExecutions: executions)
+    if Date().timeIntervalSince(lastChatSave) > 1 {
+      lastChatSave = Date()
+      saveLibrary()
+    }
+  }
+  private func recordCodexCommandResult(runID: String, event: JSONValue) {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+    var executions = current.toolExecutions
+    guard CodexCommandTimeline.applyToolResult(event, executions: &executions) else { return }
+    if let callID = event["item"]["call_id"].text,
+      let execution = executions.first(where: {
+        $0.serverID == CodexCommandTimeline.serverID && $0.callID == callID
+      }), execution.status == .running {
+      codexCommandOutputBuffers[runID, default: [:]][callID] = Data((execution.output ?? "").utf8)
+    }
+    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+      toolExecutions: executions)
+    saveLibrary()
   }
   private func recordCodexWebSearch(runID: String, event: JSONValue) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
@@ -620,6 +655,7 @@ extension WorkspaceStore {
   private func finishChat(
     _ id: String, status: String, message: String? = nil, usage: ModelTokenUsage? = nil
   ) -> String? {
+    codexCommandOutputBuffers[id] = nil
     expireCodexQuestions(runID: id)
     expireCodexElicitations(runID: id)
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return nil }

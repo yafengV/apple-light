@@ -225,6 +225,57 @@ final class DesktopFeaturesTests: XCTestCase {
     XCTAssertEqual(restored.toolExecutions, executions)
   }
 
+  func testCodexCommandOutputDecodesSplitUTF8AndKeepsFinalOutput() {
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    var buffers: [String: Data] = [:]
+    let begin: JSONValue = .object([
+      "type": .string("exec_command_begin"), "call_id": .string("utf8-call"),
+      "command": .array([.string("printf")]),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(begin, executions: &executions, items: &items))
+    let initial: JSONValue = .object([
+      "type": .string("raw_response_item"), "item": .object([
+        "type": .string("function_call_output"), "call_id": .string("utf8-call"),
+        "output": .string("Process running\nOutput:\nwarmup\n"),
+      ]),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.applyToolResult(initial, executions: &executions))
+    let bytes = Data("中\n".utf8)
+    for part in [Data(bytes.prefix(1)), Data(bytes.dropFirst(1))] {
+      let delta: JSONValue = .object([
+        "type": .string("exec_command_output_delta"), "call_id": .string("utf8-call"),
+        "stream": .string("stdout"), "chunk": .string(part.base64EncodedString()),
+      ])
+      XCTAssertTrue(CodexCommandTimeline.appendOutput(delta, executions: &executions,
+        outputBuffers: &buffers))
+    }
+    XCTAssertEqual(executions[0].output, "warmup\n中\n")
+    XCTAssertEqual(items, [.tool(executions[0].id)])
+    let end: JSONValue = .object([
+      "type": .string("exec_command_end"), "call_id": .string("utf8-call"),
+      "status": .string("completed"), "exit_code": .number(0),
+      "aggregated_output": .string("中\n"),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(end, executions: &executions, items: &items))
+    XCTAssertEqual(executions[0].output, "warmup\n中\n")
+    let completeResult: JSONValue = .object([
+      "type": .string("raw_response_item"), "item": .object([
+        "type": .string("function_call_output"), "call_id": .string("utf8-call"),
+        "output": .string("Chunk ID: 1\nOutput:\nwarmup\n中\nfinal\n"),
+      ]),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.applyToolResult(completeResult, executions: &executions))
+    XCTAssertFalse(CodexCommandTimeline.applyToolResult(completeResult, executions: &executions))
+    XCTAssertEqual(executions[0].output, "warmup\n中\nfinal\n")
+    XCTAssertEqual(executions[0].status, .succeeded)
+    XCTAssertEqual(items.count, 1)
+    XCTAssertFalse(CodexCommandTimeline.appendOutput(.object([
+      "type": .string("exec_command_output_delta"), "call_id": .string("utf8-call"),
+      "chunk": .string(Data("late".utf8).base64EncodedString()),
+    ]), executions: &executions, outputBuffers: &buffers))
+  }
+
   func testCodexApprovalAndPatchEventsStayInOneToolRow() {
     let choices = CodexCommandTimeline.approvalChoices(.object([
       "available_decisions": .array([.string("approved_for_session"),
@@ -648,6 +699,52 @@ final class ModelTransportTests: XCTestCase {
     let stopped = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
     XCTAssertEqual(stopped.status, "cancelled")
     XCTAssertEqual(stopped.toolExecutions.first?.status, .cancelled)
+    await store.shutdown()
+  }
+  @MainActor func testCodexCommandShowsLiveOutputBeforeCompletion() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("codex-live-output-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    var live: MCPToolExecution?
+    for _ in 0..<100 {
+      let current = store.library.chatRuns.first { $0.id == run.id }
+      live = current?.toolExecutions.first { $0.toolName == "命令"
+        && $0.status == .running && $0.output?.contains("stream-start") == true }
+      if live != nil { break }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    let observed = store.library.chatRuns.first { $0.id == run.id }
+    let active = try XCTUnwrap(live, "Core command output did not appear while running: "
+      + "status=\(observed?.status ?? "missing") tools=\(observed?.toolExecutions ?? []) "
+      + "message=\(observed?.result?["message"].text ?? "")")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run.id }?.status, "running")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run.id }?.responseItems,
+      [.tool(active.id)])
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.toolExecutions.count, 1)
+    XCTAssertEqual(finished.toolExecutions[0].id, active.id)
+    XCTAssertEqual(finished.toolExecutions[0].status, .succeeded)
+    XCTAssertEqual(finished.toolExecutions[0].output, "warmup\nstream-start\nstream-end\n")
+    XCTAssertEqual(finished.responseItems?.filter {
+      if case .tool = $0 { return true }; return false
+    }.count, 1)
     await store.shutdown()
   }
   @MainActor func testCodexApprovalCardResumesCommandAndPersistsTimeline() async throws {

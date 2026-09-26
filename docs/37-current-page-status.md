@@ -2,6 +2,8 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
+Codex Core 的命令运行中输出现在进入同一时间线卡片，折叠态显示最新一行，并合并工具结果中的首段输出。本地 Core 长命令实测运行中更新和最终完整输出，见[第 218 篇](218-codex-live-command-output.md)。卡片原生视觉与键盘交互仍待配对。
+
 Codex Core 的网页搜索开始/结束事件现在合并为任务时间线工具卡，本地假服务的真实 Core 流程已验证顺序与持久化，见[第 217 篇](217-codex-web-search-timeline.md)。实际联网和当前 Codex Mac 卡片交互仍待验收。
 
 Codex Core 的手动与自动上下文整理事件现在进入有序时间线，主窗口与独立任务窗口显示独立标记；`/compact` 的下一轮与重启后续接已验证，见[第 215 篇](215-codex-manual-compaction.md)和[第 216 篇](216-codex-compaction-timeline.md)。命令与标记的当前 Codex Mac 原生交互仍待配对。

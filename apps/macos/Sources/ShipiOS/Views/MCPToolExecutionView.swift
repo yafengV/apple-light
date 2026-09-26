@@ -12,6 +12,13 @@ struct MCPToolExecutionView: View {
   private var awaiting: Bool {
     run.isActive && execution.status == .awaitingApproval && approvalContext != nil
   }
+  private var liveCommandPreview: String? {
+    guard execution.serverID == CodexCommandTimeline.serverID,
+      execution.status == .running,
+      let output = execution.output,
+      let last = output.split(whereSeparator: \.isNewline).last else { return nil }
+    return String(last.prefix(300))
+  }
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       DisclosureGroup(isExpanded: Binding(get: { expanded || awaiting }, set: { expanded = $0 })) {
@@ -30,13 +37,19 @@ struct MCPToolExecutionView: View {
           }
         }.padding(.top, 8)
       } label: {
-        HStack {
-          Image(systemName: awaiting ? "hand.raised"
-            : execution.serverID == CodexWebSearchTimeline.serverID ? "globe" : "wrench.and.screwdriver")
-          Text(execution.serverID == CodexWebSearchTimeline.serverID
-            ? execution.arguments : execution.serverName + "." + execution.toolName).lineLimit(1)
-          Spacer()
-          Text(execution.label).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+          HStack {
+            Image(systemName: awaiting ? "hand.raised"
+              : execution.serverID == CodexWebSearchTimeline.serverID ? "globe" : "wrench.and.screwdriver")
+            Text(execution.serverID == CodexWebSearchTimeline.serverID
+              ? execution.arguments : execution.serverName + "." + execution.toolName).lineLimit(1)
+            Spacer()
+            Text(execution.label).foregroundStyle(.secondary)
+          }
+          if let liveCommandPreview {
+            Text(liveCommandPreview).appFont(.caption, design: .monospaced)
+              .foregroundStyle(.secondary).lineLimit(1)
+          }
         }.appFont(.caption)
       }
       if awaiting {

@@ -112,6 +112,52 @@ extension AgentRun {
 enum CodexCommandTimeline {
   static let serverID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
+  /// Core sends command output as base64 raw bytes. Keep the bounded bytes for
+  /// each active call so a UTF-8 scalar split across events is decoded intact.
+  static func appendOutput(
+    _ event: JSONValue, executions: inout [MCPToolExecution],
+    outputBuffers: inout [String: Data]
+  ) -> Bool {
+    guard event["type"].text == "exec_command_output_delta",
+      let callID = event["call_id"].text, !callID.isEmpty,
+      let encoded = event["chunk"].text,
+      let chunk = Data(base64Encoded: encoded), !chunk.isEmpty,
+      let index = executions.firstIndex(where: {
+        $0.serverID == serverID && $0.callID == callID && $0.toolName == "命令"
+          && $0.status == .running
+      }) else { return false }
+    var bytes = outputBuffers[callID] ?? Data((executions[index].output ?? "").utf8)
+    let remaining = max(0, 65_536 - bytes.count)
+    guard remaining > 0 else { return false }
+    bytes.append(contentsOf: chunk.prefix(remaining))
+    outputBuffers[callID] = bytes
+    executions[index].output = String(decoding: bytes, as: UTF8.self)
+    return true
+  }
+
+  /// The tool result can include the first output chunk before Core starts
+  /// sending live deltas, and later may contain the complete command output.
+  static func applyToolResult(_ event: JSONValue, executions: inout [MCPToolExecution]) -> Bool {
+    let item = event["item"]
+    guard event["type"].text == "raw_response_item",
+      item["type"].text == "function_call_output",
+      let callID = item["call_id"].text,
+      let output = item["output"].text,
+      let marker = output.range(of: "\nOutput:\n"),
+      let index = executions.firstIndex(where: {
+        $0.serverID == serverID && $0.callID == callID && $0.toolName == "命令"
+      }) else { return false }
+    let actual = String(output[marker.upperBound...].prefix(65_536))
+    let existing = executions[index].output ?? ""
+    let merged: String
+    if actual.contains(existing) { merged = actual }
+    else if existing.contains(actual) { merged = existing }
+    else { merged = String((actual + existing).prefix(65_536)) }
+    guard existing != merged else { return false }
+    executions[index].output = merged.isEmpty ? nil : merged
+    return true
+  }
+
   static func approvalChoices(_ event: JSONValue) -> (once: Bool, task: Bool) {
     guard case .array(let decisions) = event["available_decisions"] else {
       return (true, false)
@@ -152,7 +198,14 @@ enum CodexCommandTimeline {
     } else if type == "exec_command_end" {
       let output = event["aggregated_output"].text.flatMap { $0.isEmpty ? nil : $0 }
         ?? [event["stdout"].text, event["stderr"].text].compactMap { $0 }.joined()
-      execution.output = output.isEmpty ? nil : String(output.prefix(65_536))
+      if !output.isEmpty {
+        let completed = String(output.prefix(65_536))
+        if let existing = execution.output, existing.hasSuffix(completed) {
+          // A startup result may contain the first chunk omitted from end.
+        } else {
+          execution.output = completed
+        }
+      }
       switch event["status"].text {
       case "declined": execution.status = .denied
       case "failed": execution.status = .failed
