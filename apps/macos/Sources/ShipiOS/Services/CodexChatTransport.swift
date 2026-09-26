@@ -22,7 +22,7 @@ final class CodexChatTransport {
   func startTurn(
     taskID: String, config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
-    fileAppendix: String?, readOnly: Bool = false
+    fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -58,6 +58,7 @@ final class CodexChatTransport {
         "taskId": .string(taskID),
         "text": .string(sendFullContext ? initialText : continuationText),
         "images": .array(wireImages),
+        "planMode": .bool(planMode),
       ]
       if let staged {
         request["textAttachment"] = .object([

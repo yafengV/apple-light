@@ -607,6 +607,49 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(restored.responseItems, finished.responseItems)
     await store.shutdown()
   }
+  @MainActor func testCodexNativePlanIsReadOnlyAndNextTurnReturnsToDefault() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("codex-native-plan", mode: .plan)
+    let plan = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: plan.id)?.value
+    let planned = try XCTUnwrap(store.library.chatRuns.first { $0.id == plan.id })
+    XCTAssertEqual(planned.status, "succeeded", planned.result?["message"].text ?? "")
+    XCTAssertEqual(planned.request["mode"].text, ChatMode.plan.rawValue)
+    XCTAssertEqual(planned.result?["response"].text, "Plan mode fixture reply")
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      project.appendingPathComponent("plan-write-proof.txt").path))
+    XCTAssertTrue(planned.toolExecutions.contains {
+      $0.toolName == "补丁" && $0.status == .denied
+        && $0.output == "计划模式为只读，已拒绝写入操作。"
+    }, "\(planned.toolExecutions)")
+
+    let taskID = try XCTUnwrap(store.library.task(containing: plan.id)?.id)
+    await store.startChat("codex-after-plan", taskID: taskID)
+    let next = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: next.id)?.value
+    let continued = try XCTUnwrap(store.library.chatRuns.first { $0.id == next.id })
+    XCTAssertEqual(continued.status, "succeeded", continued.result?["message"].text ?? "")
+    XCTAssertEqual(continued.result?["response"].text, "Default mode fixture reply")
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("after-plan-write-proof.txt"),
+      encoding: .utf8), "written-in-default-mode\n")
+    await store.shutdown()
+  }
   @MainActor func testCodexSteeringKeepsOneLiveRunAndRecordsUserMessage() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

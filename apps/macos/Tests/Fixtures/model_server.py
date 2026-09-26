@@ -8,6 +8,7 @@ class Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.0'
     retry_attempts = 0
     review_patch_attempts = 0
+    plan_patch_attempts = 0
     def log_message(self, *args):
         pass
     def do_GET(self):
@@ -42,7 +43,20 @@ class Handler(BaseHTTPRequestHandler):
                 Handler.retry_attempts += 1
                 time.sleep(2)
             slow = 'slow-codex' in request_text and 'steered-inflight-proof' not in request_text
-            if 'codex-plan' in request_text and 'swift-plan-call' not in request_text:
+            if 'codex-native-plan' in request_text and Handler.plan_patch_attempts == 0:
+                Handler.plan_patch_attempts += 1
+                item = {
+                    'type': 'custom_tool_call', 'call_id': 'plan-write-attempt',
+                    'name': 'apply_patch',
+                    'input': '*** Begin Patch\n*** Add File: plan-write-proof.txt\n+must-not-write\n*** End Patch',
+                }
+            elif 'codex-after-plan' in request_text and 'after-plan-write-attempt' not in request_text:
+                item = {
+                    'type': 'custom_tool_call', 'call_id': 'after-plan-write-attempt',
+                    'name': 'apply_patch',
+                    'input': '*** Begin Patch\n*** Add File: after-plan-write-proof.txt\n+written-in-default-mode\n*** End Patch',
+                }
+            elif 'codex-plan' in request_text and 'swift-plan-call' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-plan-call',
                     'name': 'update_plan',
@@ -98,6 +112,10 @@ class Handler(BaseHTTPRequestHandler):
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',
                     'content': [{'type': 'output_text', 'text':
                         'Steered fixture reply' if 'steered-inflight-proof' in request_text
+                        else 'Default mode fixture reply' if 'codex-after-plan' in request_text
+                          and '# Collaboration Mode: Default' in request_text
+                        else 'Plan mode fixture reply' if 'codex-native-plan' in request_text
+                          and '<collaboration_mode># Plan Mode' in request_text
                         else 'Changed review reply' if 'review-snapshot-new' in request_text
                         else 'Review fixture reply' if '<git_diff>' in request_text
                         else 'Codex fixture reply'}],

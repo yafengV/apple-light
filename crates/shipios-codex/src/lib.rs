@@ -11,8 +11,12 @@ use codex_core_api::{
     passthrough_image_store, resolve_installation_id, thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
+use codex_protocol::config_types::{
+    CollaborationMode, ModeKind, Settings as CollaborationSettings,
+};
 use codex_protocol::mcp::ClientMcpExtensions;
 use codex_protocol::protocol::ReviewDecision;
+use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::request_user_input::{RequestUserInputAnswer, RequestUserInputResponse};
 use std::{
     collections::{HashMap, HashSet},
@@ -31,6 +35,12 @@ pub struct SessionOptions {
     pub api_key: Option<String>,
     pub read_only: bool,
     pub runtime_paths: ExecServerRuntimePaths,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CodexTurnMode {
+    Default,
+    Plan,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -92,6 +102,8 @@ pub struct CodexSession {
     manager: ThreadManager,
     thread_id: ThreadId,
     thread: Arc<CodexThread>,
+    model: String,
+    read_only: bool,
     _home_guard: SessionHomeGuard,
 }
 
@@ -133,7 +145,7 @@ impl CodexSession {
         config.cwd = AbsolutePathBuf::from_absolute_path_checked(project.clone())?;
         config.workspace_roots = vec![config.cwd.clone()];
         config.workspace_roots_explicit = true;
-        config.model = Some(options.model);
+        config.model = Some(options.model.clone());
         config.update_plan_enabled = true;
         config
             .features
@@ -228,6 +240,8 @@ impl CodexSession {
             manager,
             thread_id,
             thread,
+            model: options.model,
+            read_only: options.read_only,
             _home_guard: home_guard,
         })
     }
@@ -249,6 +263,15 @@ impl CodexSession {
     }
 
     pub async fn submit_inputs(&self, inputs: Vec<UserInput>) -> Result<String> {
+        self.submit_inputs_in_mode(inputs, CodexTurnMode::Default)
+            .await
+    }
+
+    pub async fn submit_inputs_in_mode(
+        &self,
+        inputs: Vec<UserInput>,
+        mode: CodexTurnMode,
+    ) -> Result<String> {
         ensure!(
             inputs.iter().any(|input| match input {
                 UserInput::Text { text, .. } => !text.trim().is_empty(),
@@ -257,9 +280,37 @@ impl CodexSession {
             }),
             "message is empty"
         );
+        let kind = match mode {
+            CodexTurnMode::Default => ModeKind::Default,
+            CodexTurnMode::Plan => ModeKind::Plan,
+        };
+        let preset = self
+            .manager
+            .list_collaboration_modes()
+            .into_iter()
+            .find(|item| item.mode == Some(kind))
+            .ok_or_else(|| anyhow!("Codex collaboration mode is unavailable"))?;
+        let collaboration_mode = CollaborationMode {
+            mode: kind,
+            settings: CollaborationSettings {
+                model: self.model.clone(),
+                reasoning_effort: None,
+                developer_instructions: None,
+            },
+        }
+        .apply_mask(&preset);
+        let settings = ThreadSettingsOverrides {
+            collaboration_mode: Some(collaboration_mode),
+            permission_profile: Some(if self.read_only || mode == CodexTurnMode::Plan {
+                PermissionProfile::read_only()
+            } else {
+                PermissionProfile::workspace_write()
+            }),
+            ..Default::default()
+        };
         let result = self
             .thread
-            .start_turn_if_idle(TurnInputRequest::user_input(inputs))
+            .start_turn_if_idle(TurnInputRequest::user_input(inputs).with_thread_settings(settings))
             .await?;
         match result {
             StartIfIdleSubmission::Started { turn_id } => Ok(turn_id),

@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 use codex_core_api::UserInput;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use shipios_codex::{ApprovalDecision, CodexSession, SessionOptions};
+use shipios_codex::{ApprovalDecision, CodexSession, CodexTurnMode, SessionOptions};
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
@@ -123,7 +123,11 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
 }
 
 enum Command {
-    Submit(Vec<UserInput>, oneshot::Sender<Result<String>>),
+    Submit(
+        Vec<UserInput>,
+        CodexTurnMode,
+        oneshot::Sender<Result<String>>,
+    ),
     Steer(Vec<UserInput>, String, oneshot::Sender<Result<bool>>),
     Approve(CodexApproval, oneshot::Sender<Result<()>>),
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
@@ -311,7 +315,7 @@ impl CodexBridge {
 
     #[cfg(test)]
     pub async fn submit(&self, task_id: &str, text: String) -> Result<String> {
-        self.submit_with_attachments(task_id, text, Vec::new(), None)
+        self.submit_with_attachments(task_id, text, Vec::new(), None, false)
             .await
     }
 
@@ -322,7 +326,7 @@ impl CodexBridge {
         text: String,
         images: Vec<CodexImage>,
     ) -> Result<String> {
-        self.submit_with_attachments(task_id, text, images, None)
+        self.submit_with_attachments(task_id, text, images, None, false)
             .await
     }
 
@@ -332,12 +336,21 @@ impl CodexBridge {
         text: String,
         images: Vec<CodexImage>,
         text_attachment: Option<CodexTextAttachment>,
+        plan_mode: bool,
     ) -> Result<String> {
         let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
-            .send(Command::Submit(inputs, reply))
+            .send(Command::Submit(
+                inputs,
+                if plan_mode {
+                    CodexTurnMode::Plan
+                } else {
+                    CodexTurnMode::Default
+                },
+                reply,
+            ))
             .await
             .context("Codex thread stopped")?;
         result.await.context("Codex thread stopped")?
@@ -526,8 +539,8 @@ async fn run_thread(
         tokio::select! {
             biased;
             command = receiver.recv() => match command {
-                Some(Command::Submit(inputs, reply)) => {
-                    let _ = reply.send(live.submit_inputs(inputs).await);
+                Some(Command::Submit(inputs, mode, reply)) => {
+                    let _ = reply.send(live.submit_inputs_in_mode(inputs, mode).await);
                 }
                 Some(Command::Steer(inputs, expected_turn_id, reply)) => {
                     let _ = reply.send(live.steer_inputs(inputs, expected_turn_id).await);
@@ -787,6 +800,7 @@ mod tests {
                     id: text_id,
                     byte_count: text_appendix.len() as u64,
                 }),
+                false,
             )
             .await?;
         loop {
