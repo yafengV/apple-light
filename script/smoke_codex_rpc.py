@@ -22,7 +22,12 @@ class Responses(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         self.requests.append((self.path, self.headers.get("Authorization"), body))
         request_number = len(self.requests)
-        if request_number in (2, 4, 6, 8):
+        if request_number == 10:
+            item = {
+                "type": "custom_tool_call", "name": "apply_patch", "call_id": "patch-call-10",
+                "input": "*** Begin Patch\n*** Add File: patch-proof.txt\n+patched\n*** End Patch",
+            }
+        elif request_number in (2, 4, 6, 8):
             proof = {
                 2: "approval-proof.txt", 4: "denied-proof.txt", 6: "workspace-proof.txt",
                 8: "session-proof.txt",
@@ -138,7 +143,7 @@ def main():
             started = client.request("codex.thread.start", {
                 "taskId": task_id,
                 "baseUrl": f"http://127.0.0.1:{server.server_port}/v1",
-                "model": "gpt-5.2",
+                "model": "gpt-5.4",
                 "apiKey": "fixture-token",
             })
             assert started["taskId"] == task_id
@@ -262,8 +267,35 @@ def main():
                     raise AssertionError(event)
             assert saw_session_approval
             assert (project / "session-proof.txt").read_text() == "approved"
+            sixth = client.request("codex.turn.submit", {
+                "taskId": task_id, "text": "Apply the patch fixture",
+            })
+            assert sixth["turnId"]
+            saw_patch_begin = False
+            saw_patch_end = False
+            patch_event_types = []
+            while True:
+                message = client.next_event()
+                if message.get("method") != "codex.event":
+                    continue
+                event = message["params"]["event"]
+                patch_event_types.append(event["type"])
+                if event["type"] == "patch_apply_begin":
+                    assert event["call_id"] == "patch-call-10", event
+                    saw_patch_begin = True
+                elif event["type"] == "patch_apply_end":
+                    assert event["success"] is True, event
+                    saw_patch_end = True
+                elif event["type"] == "apply_patch_approval_request":
+                    raise AssertionError("Workspace patch unexpectedly asked for approval")
+                elif event["type"] == "task_complete":
+                    break
+                elif event["type"] == "error":
+                    raise AssertionError(event)
+            assert saw_patch_begin and saw_patch_end, (len(Responses.requests), patch_event_types)
+            assert (project / "patch-proof.txt").read_text() == "patched\n"
             assert client.request("codex.thread.stop", {"taskId": task_id})["stopped"]
-            assert len(Responses.requests) == 9, Responses.requests
+            assert len(Responses.requests) == 11, Responses.requests
             assert Responses.requests[0][:2] == ("/v1/responses", "Bearer fixture-token")
             assert b"Hi" in Responses.requests[0][2]
         finally:
@@ -277,7 +309,7 @@ def main():
                 contents = item.read_bytes()
                 assert b"fixture-token" not in contents, item
                 assert b"environment-poison-token" not in contents, item
-    print("PASS: bundled Codex RPC approval, session grant, denial, workspace write, isolation, and credential cleanup")
+    print("PASS: bundled Codex RPC approvals, workspace command and patch writes, isolation, and credential cleanup")
 
 
 if __name__ == "__main__":

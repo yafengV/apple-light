@@ -22,7 +22,13 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/v1/responses':
             request_text = json.dumps(body)
             slow = 'slow-codex' in request_text
-            if 'codex-approval' in request_text and 'function_call_output' not in request_text:
+            if 'codex-patch' in request_text and 'custom_tool_call_output' not in request_text:
+                item = {
+                    'type': 'custom_tool_call', 'call_id': 'swift-patch-call',
+                    'name': 'apply_patch',
+                    'input': '*** Begin Patch\n*** Add File: patch-proof.txt\n+patched\n*** End Patch',
+                }
+            elif 'codex-approval' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-approval-call',
                     'name': 'exec_command',

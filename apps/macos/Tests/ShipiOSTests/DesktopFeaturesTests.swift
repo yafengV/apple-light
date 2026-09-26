@@ -361,6 +361,36 @@ final class ModelTransportTests: XCTestCase {
       encoding: .utf8), "approved")
     await store.shutdown()
   }
+  @MainActor func testCodexPatchAppearsInTimelineAndWritesProjectFile() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("codex-patch")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.toolExecutions.count, 1)
+    XCTAssertEqual(finished.toolExecutions[0].toolName, "补丁")
+    XCTAssertEqual(finished.toolExecutions[0].status, .succeeded)
+    XCTAssertEqual(finished.responseItems?.count, 2)
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("patch-proof.txt"),
+      encoding: .utf8), "patched\n")
+    await store.shutdown()
+  }
   @MainActor func testCodexResponsesImageOnlyStartsProjectTask() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
