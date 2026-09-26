@@ -78,6 +78,18 @@ final class CodexChatTransport {
     _ = try? await client.request("codex.turn.interrupt", ["taskId": .string(taskID)])
   }
 
+  func approve(taskID: String, id: String, turnID: String?, patch: Bool, allowed: Bool) async throws {
+    guard activeThreads.contains(taskID), !id.isEmpty else {
+      throw AgentFailure(message: "Codex 审批所属任务已断开。")
+    }
+    _ = try await client.request("codex.turn.approve", [
+      "taskId": .string(taskID), "id": .string(id),
+      "turnId": turnID.map(JSONValue.string) ?? .null,
+      "kind": .string(patch ? "patch" : "exec"),
+      "decision": .string(allowed ? "allow" : "deny"),
+    ])
+  }
+
   private func stageText(_ text: String) throws -> (id: UUID, url: URL, byteCount: Int) {
     let bytes = Data(text.utf8)
     guard !bytes.isEmpty, bytes.count <= 1_000_000 else {

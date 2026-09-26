@@ -20,13 +20,26 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         if self.path == '/v1/responses':
-            slow = 'slow-codex' in json.dumps(body)
-            events = [
-                {'type': 'response.created', 'response': {'id': 'resp-1'}},
-                {'type': 'response.output_item.done', 'item': {
+            request_text = json.dumps(body)
+            slow = 'slow-codex' in request_text
+            if 'codex-approval' in request_text and 'function_call_output' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-approval-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({
+                        'cmd': 'printf approved > approval-proof.txt',
+                        'sandbox_permissions': 'require_escalated',
+                        'justification': 'Exercise the ShipiOS approval card in a fixture project',
+                    }),
+                }
+            else:
+                item = {
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',
                     'content': [{'type': 'output_text', 'text': 'Codex fixture reply'}],
-                }},
+                }
+            events = [
+                {'type': 'response.created', 'response': {'id': 'resp-1'}},
+                {'type': 'response.output_item.done', 'item': item},
                 {'type': 'response.completed', 'response': {
                     'id': 'resp-1', 'usage': {
                         'input_tokens': 0, 'input_tokens_details': None,

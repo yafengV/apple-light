@@ -129,7 +129,7 @@ extension WorkspaceStore {
     }
   }
 
-  private func requestMCPApproval(_ execution: MCPToolExecution, runID: String) async -> MCPApprovalDecision {
+  func requestMCPApproval(_ execution: MCPToolExecution, runID: String) async -> MCPApprovalDecision {
     await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: .deny); return }

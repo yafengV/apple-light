@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 use codex_core_api::UserInput;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use shipios_codex::{CodexSession, SessionOptions};
+use shipios_codex::{ApprovalDecision, CodexSession, SessionOptions};
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
@@ -48,6 +48,30 @@ pub struct CodexTextAttachment {
     byte_count: u64,
 }
 
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CodexApprovalKind {
+    Exec,
+    Patch,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CodexApprovalChoice {
+    Allow,
+    Deny,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexApproval {
+    pub task_id: String,
+    pub id: String,
+    pub turn_id: Option<String>,
+    pub kind: CodexApprovalKind,
+    pub decision: CodexApprovalChoice,
+}
+
 fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
     let path = home.join("thread.json");
     let data = match std::fs::read(&path) {
@@ -89,6 +113,7 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
 
 enum Command {
     Submit(Vec<UserInput>, oneshot::Sender<Result<String>>),
+    Approve(CodexApproval, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
 }
@@ -218,6 +243,20 @@ impl CodexBridge {
             .get(&task_id.hyphenated().to_string())
             .map(|handle| handle.sender.clone())
             .ok_or_else(|| anyhow!("Codex thread is not active"))
+    }
+
+    pub async fn approve(&self, approval: CodexApproval) -> Result<()> {
+        ensure!(
+            !approval.id.is_empty() && approval.id.len() <= 256,
+            "invalid approval ID"
+        );
+        let sender = self.sender(&approval.task_id).await?;
+        let (reply, result) = oneshot::channel();
+        sender
+            .send(Command::Approve(approval, reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
     }
 
     #[cfg(test)]
@@ -407,6 +446,17 @@ async fn run_thread(
             command = receiver.recv() => match command {
                 Some(Command::Submit(inputs, reply)) => {
                     let _ = reply.send(live.submit_inputs(inputs).await);
+                }
+                Some(Command::Approve(approval, reply)) => {
+                    let decision = match approval.decision {
+                        CodexApprovalChoice::Allow => ApprovalDecision::Allow,
+                        CodexApprovalChoice::Deny => ApprovalDecision::Deny,
+                    };
+                    let result = match approval.kind {
+                        CodexApprovalKind::Exec => live.approve_exec(approval.id, approval.turn_id, decision).await,
+                        CodexApprovalKind::Patch => live.approve_patch(approval.id, decision).await,
+                    };
+                    let _ = reply.send(result);
                 }
                 Some(Command::Interrupt(reply)) => {
                     let _ = reply.send(live.interrupt_turn().await);

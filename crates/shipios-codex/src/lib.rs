@@ -12,6 +12,7 @@ use codex_core_api::{
 };
 use codex_login::{login_with_api_key, logout};
 use codex_protocol::mcp::ClientMcpExtensions;
+use codex_protocol::protocol::ReviewDecision;
 use std::{
     collections::HashSet,
     path::PathBuf,
@@ -28,6 +29,23 @@ pub struct SessionOptions {
     pub model: String,
     pub api_key: Option<String>,
     pub runtime_paths: ExecServerRuntimePaths,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalDecision {
+    Allow,
+    Deny,
+}
+
+impl From<ApprovalDecision> for ReviewDecision {
+    fn from(value: ApprovalDecision) -> Self {
+        match value {
+            ApprovalDecision::Allow => Self::Approved,
+            ApprovalDecision::Deny => Self::Denied {
+                rejection: "User denied this action in ShipiOS".to_owned(),
+            },
+        }
+    }
 }
 
 static ACTIVE_HOMES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
@@ -114,8 +132,8 @@ impl CodexSession {
         config.model = Some(options.model);
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = Permissions::from_approval_and_profile(
-            Constrained::allow_any(AskForApproval::Never),
-            Constrained::allow_any(PermissionProfile::read_only()),
+            Constrained::allow_any(AskForApproval::OnRequest),
+            Constrained::allow_any(PermissionProfile::workspace_write()),
         )?;
 
         let mut provider = config.model_provider.clone();
@@ -245,6 +263,32 @@ impl CodexSession {
 
     pub async fn interrupt_turn(&self) -> Result<()> {
         self.thread.submit(Op::Interrupt).await?;
+        Ok(())
+    }
+
+    pub async fn approve_exec(
+        &self,
+        id: String,
+        turn_id: Option<String>,
+        decision: ApprovalDecision,
+    ) -> Result<()> {
+        self.thread
+            .submit(Op::ExecApproval {
+                id,
+                turn_id,
+                decision: decision.into(),
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn approve_patch(&self, id: String, decision: ApprovalDecision) -> Result<()> {
+        self.thread
+            .submit(Op::PatchApproval {
+                id,
+                decision: decision.into(),
+            })
+            .await?;
         Ok(())
     }
 

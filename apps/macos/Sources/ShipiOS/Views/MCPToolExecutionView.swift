@@ -22,7 +22,9 @@ struct MCPToolExecutionView: View {
           if let output = execution.output {
             MCPResultView(output: output)
               .environment(\.mcpApprovalSurfaceVisible, approvalSurfaceVisible && (expanded || awaiting))
-            Button("查看完整工具输出") { showingRaw = true }
+            Button(execution.serverID == CodexCommandTimeline.serverID ? "查看工具输出" : "查看完整工具输出") {
+              showingRaw = true
+            }
           }
         }.padding(.top, 8)
       } label: {
@@ -39,8 +41,10 @@ struct MCPToolExecutionView: View {
           Button("拒绝") { store.resolveMCPApproval(execution.id, decision: .deny) }
             .help("拒绝当前请求 " + store.shortcuts.label("approval-decline"))
           Spacer()
-          Menu("允许…") {
-            Button("在本任务中允许此工具") { store.resolveMCPApproval(execution.id, decision: .allowTask) }
+          if execution.serverID != CodexCommandTimeline.serverID {
+            Menu("允许…") {
+              Button("在本任务中允许此工具") { store.resolveMCPApproval(execution.id, decision: .allowTask) }
+            }
           }
           Button("允许本次") { store.resolveMCPApproval(execution.id, decision: .allowOnce) }
             .buttonStyle(.borderedProminent)

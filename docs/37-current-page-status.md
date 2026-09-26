@@ -4,6 +4,8 @@
 
 “已实现”仅表示有实际功能，不表示布局、操作细节和所有边界与 Codex 相同。各页原生检查及自动化证据以对应文档为准；锁屏后新增功能不冒用早期截图作为验收。
 
+Codex Core 已从只读改为工作区写入，并将命令及补丁审批接到任务时间线和私有 Agent RPC，见[第 196 篇](196-codex-write-and-approval.md)。本地端到端测试覆盖命令允许、拒绝与普通项目写入；补丁真实模型回归及当前 Codex Mac 逐页原生对照仍待完成，完整配对验收数量不变。
+
 Codex Responses 的命令开始、结束、状态和输出现在进入聊天有序时间线，见[第 195 篇](195-codex-command-timeline.md)。此阶段仍是只读工具展示；审批和写入尚未接入，也没有新增当前 Codex Mac 的完整页面配对验收。
 
 本页列出 19 个主窗口页面/控件类别和 24 个设置页面/子页类别，共 43 个验收面；这不是缺陷数，也不能据此换算完成百分比。目前 0 个取得与当前用户版本 Codex 的完整逐页、逐交互配对验收。功能性缺口集中在 Codex Core 完整自主编码会话及原生工具审批、结构化提问、托管工作树/远程环境、插件与自动化完整生命周期，以及各页视觉、焦点、键盘、拖放细节。固定版本 Codex Core 的隔离嵌入 PoC 见 [第 185 篇](185-codex-core-embed-poc.md)，产品适配库见 [第 189 篇](189-codex-workspace-adapter.md)，Agent RPC 见 [第 190 篇](190-codex-agent-rpc.md)，Swift 文字会话见 [第 191 篇](191-codex-responses-ui-text-session.md)，重启续接见 [第 192 篇](192-codex-thread-resume.md)，图片输入见 [第 193 篇](193-codex-image-input.md)，文本/PDF 附件见 [第 194 篇](194-codex-file-input.md)。

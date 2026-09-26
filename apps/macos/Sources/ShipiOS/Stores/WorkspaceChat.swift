@@ -289,9 +289,13 @@ extension WorkspaceStore {
       for try await event in stream {
         try Task.checkCancellation()
         switch event["type"].text {
-        case "exec_command_begin", "exec_command_end":
+        case "exec_command_begin", "exec_command_end", "patch_apply_begin", "patch_apply_end":
           recordCodexCommand(runID: runID, event: event)
-          if event["type"].text == "exec_command_begin" { rendered = "" }
+          if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
+            rendered = ""
+          }
+        case "exec_approval_request", "apply_patch_approval_request":
+          try await resolveCodexApproval(runID: runID, taskID: taskID, event: event)
         case "agent_message_delta":
           if let delta = event["delta"].text, !delta.isEmpty {
             appendChat(runID, delta: delta)
@@ -327,14 +331,40 @@ extension WorkspaceStore {
       Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
     }
   }
-  private func recordCodexCommand(runID: String, event: JSONValue) {
-    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
+  @discardableResult private func recordCodexCommand(runID: String, event: JSONValue) -> MCPToolExecution? {
+    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return nil }
     var executions = current.toolExecutions
     var items = current.responseItems ?? []
-    guard CodexCommandTimeline.apply(event, executions: &executions, items: &items) else { return }
+    guard CodexCommandTimeline.apply(event, executions: &executions, items: &items) else { return nil }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions)
     saveLibrary()
+    let patch = event["type"].text?.contains("patch") == true
+    return executions.first {
+      $0.serverID == CodexCommandTimeline.serverID && $0.callID == event["call_id"].text
+        && $0.toolName == (patch ? "补丁" : "命令")
+    }
+  }
+  private func resolveCodexApproval(runID: String, taskID: String, event: JSONValue) async throws {
+    guard let callID = event["call_id"].text,
+      let execution = recordCodexCommand(runID: runID, event: event) else {
+      throw AgentFailure(message: "Codex 审批事件缺少工具标识。")
+    }
+    let patch = event["type"].text == "apply_patch_approval_request"
+    let decision = await requestMCPApproval(execution, runID: runID)
+    try Task.checkCancellation()
+    let allowed = decision != .deny
+    let id = patch ? callID : (event["approval_id"].text ?? callID)
+    try await codexTransport.approve(taskID: taskID, id: id,
+      turnID: patch ? nil : event["turn_id"].text, patch: patch, allowed: allowed)
+    if let current = library.chatRuns.first(where: { $0.id == runID }) {
+      var executions = current.toolExecutions
+      CodexCommandTimeline.resolve(callID: callID, patch: patch, allowed: allowed,
+        executions: &executions)
+      replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
+        toolExecutions: executions)
+      saveLibrary()
+    }
   }
   private func finishChat(
     _ id: String, status: String, message: String? = nil, usage: ModelTokenUsage? = nil

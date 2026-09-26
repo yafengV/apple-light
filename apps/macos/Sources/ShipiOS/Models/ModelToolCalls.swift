@@ -98,8 +98,8 @@ extension AgentRun {
   }
 }
 
-/// Projects the pinned Codex Core command lifecycle onto the shared chat timeline.
-/// The events are paired by call_id; repeated begin/end events update the same row.
+/// Projects the pinned Codex Core tool lifecycle onto the shared chat timeline.
+/// Events are paired by call_id and tool kind; approval and completion update one row.
 enum CodexCommandTimeline {
   static let serverID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
@@ -107,16 +107,27 @@ enum CodexCommandTimeline {
     _ event: JSONValue, executions: inout [MCPToolExecution], items: inout [ChatResponseItem]
   ) -> Bool {
     guard let type = event["type"].text,
-      type == "exec_command_begin" || type == "exec_command_end",
+      ["exec_command_begin", "exec_command_end", "exec_approval_request",
+        "patch_apply_begin", "patch_apply_end", "apply_patch_approval_request"].contains(type),
       let callID = event["call_id"].text, !callID.isEmpty else { return false }
+    let patch = type.hasPrefix("patch_") || type == "apply_patch_approval_request"
+    let toolName = patch ? "补丁" : "命令"
     let command = event["command"].items.compactMap(\.text).joined(separator: " ")
     let cwd = event["cwd"].text ?? ""
-    let arguments = cwd.isEmpty ? command : "\(cwd)\n$ \(command)"
-    let index = executions.firstIndex { $0.serverID == serverID && $0.callID == callID }
+    let reason = event["reason"].text.map { "\n原因：\($0)" } ?? ""
+    let arguments = patch ? String(event["changes"].pretty.prefix(65_536)) + reason
+      : (cwd.isEmpty ? command : "\(cwd)\n$ \(command)") + reason
+    let index = executions.firstIndex {
+      $0.serverID == serverID && $0.callID == callID && $0.toolName == toolName
+    }
     var execution = index.map { executions[$0] } ?? MCPToolExecution(
-      callID: callID, serverID: serverID, serverName: "Codex", toolName: "命令",
+      callID: callID, serverID: serverID, serverName: "Codex", toolName: toolName,
       arguments: arguments, status: .running)
-    if type == "exec_command_end" {
+    if type == "exec_approval_request" || type == "apply_patch_approval_request" {
+      execution.status = .awaitingApproval
+    } else if type == "exec_command_begin" || type == "patch_apply_begin" {
+      execution.status = .running
+    } else if type == "exec_command_end" {
       let output = event["aggregated_output"].text.flatMap { $0.isEmpty ? nil : $0 }
         ?? [event["stdout"].text, event["stderr"].text].compactMap { $0 }.joined()
       execution.output = output.isEmpty ? nil : String(output.prefix(65_536))
@@ -125,6 +136,10 @@ enum CodexCommandTimeline {
       case "failed": execution.status = .failed
       default: execution.status = event["exit_code"].int == 0 ? .succeeded : .failed
       }
+    } else if type == "patch_apply_end" {
+      let output = [event["stdout"].text, event["stderr"].text].compactMap { $0 }.joined()
+      execution.output = output.isEmpty ? nil : String(output.prefix(65_536))
+      execution.status = event["success"].boolean == true ? .succeeded : .failed
     }
     if let index { executions[index] = execution }
     else {
@@ -132,5 +147,15 @@ enum CodexCommandTimeline {
       items.append(.tool(execution.id))
     }
     return true
+  }
+
+  static func resolve(
+    callID: String, patch: Bool, allowed: Bool, executions: inout [MCPToolExecution]
+  ) {
+    guard let index = executions.firstIndex(where: {
+      $0.serverID == serverID && $0.callID == callID && $0.toolName == (patch ? "补丁" : "命令")
+    }) else { return }
+    executions[index].status = allowed ? .running : .denied
+    if !allowed { executions[index].output = "用户拒绝了本次操作。" }
   }
 }

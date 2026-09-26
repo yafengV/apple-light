@@ -46,6 +46,46 @@ final class DesktopFeaturesTests: XCTestCase {
     XCTAssertEqual(restored.toolExecutions, executions)
   }
 
+  func testCodexApprovalAndPatchEventsStayInOneToolRow() {
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    let approval: JSONValue = .object([
+      "type": .string("apply_patch_approval_request"), "call_id": .string("patch-1"),
+      "reason": .string("更新测试文件"),
+      "changes": .object(["Tests.swift": .object(["type": .string("update")])]),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(approval, executions: &executions, items: &items))
+    XCTAssertEqual(executions[0].status, .awaitingApproval)
+    XCTAssertEqual(executions[0].toolName, "补丁")
+    XCTAssertTrue(executions[0].arguments.contains("Tests.swift"))
+    CodexCommandTimeline.resolve(callID: "patch-1", patch: true, allowed: true,
+      executions: &executions)
+    XCTAssertEqual(executions[0].status, .running)
+    let begin: JSONValue = .object([
+      "type": .string("patch_apply_begin"), "call_id": .string("patch-1"),
+      "changes": .object([:]),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(begin, executions: &executions, items: &items))
+    let end: JSONValue = .object([
+      "type": .string("patch_apply_end"), "call_id": .string("patch-1"),
+      "success": .bool(true), "stdout": .string("Done"), "stderr": .string(""),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(end, executions: &executions, items: &items))
+    XCTAssertEqual(items.count, 1)
+    XCTAssertEqual(executions.count, 1)
+    XCTAssertEqual(executions[0].status, .succeeded)
+    XCTAssertEqual(executions[0].output, "Done")
+    let denied: JSONValue = .object([
+      "type": .string("exec_approval_request"), "call_id": .string("exec-2"),
+      "command": .array([.string("git"), .string("push")]),
+    ])
+    XCTAssertTrue(CodexCommandTimeline.apply(denied, executions: &executions, items: &items))
+    CodexCommandTimeline.resolve(callID: "exec-2", patch: false, allowed: false,
+      executions: &executions)
+    XCTAssertEqual(executions[1].status, .denied)
+    XCTAssertEqual(items.count, 2)
+  }
+
   func testCommandWarningsDoNotCorruptStructuredOutput() async throws {
     let result = try await LocalWorkspaceService.command(
       "/bin/sh", ["-c", "printf 'warning' >&2; printf 'valid'"],
@@ -271,6 +311,46 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(restored.library.chatRuns.first { $0.id == imageRun.id }?.status, "succeeded")
     XCTAssertEqual(restored.library.runImages[imageRun.id], [image])
     await restored.shutdown()
+  }
+  @MainActor func testCodexApprovalCardResumesCommandAndPersistsTimeline() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("codex-approval")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    var approval: MCPApprovalContext?
+    for _ in 0..<150 {
+      approval = store.mcpPendingApprovals.values.first { $0.runID == run.id }
+      if approval != nil { break }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    let pending = try XCTUnwrap(approval, "Codex did not show an approval card")
+    XCTAssertEqual(pending.execution.serverID, CodexCommandTimeline.serverID)
+    XCTAssertEqual(pending.execution.status, .awaitingApproval)
+    XCTAssertTrue(pending.execution.arguments.contains("approval-proof.txt"))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("approval-proof.txt").path))
+    store.resolveMCPApproval(pending.execution.id, decision: .allowOnce)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.toolExecutions.count, 1)
+    XCTAssertEqual(finished.toolExecutions[0].status, .succeeded)
+    XCTAssertEqual(finished.responseItems?.count, 2)
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("approval-proof.txt"),
+      encoding: .utf8), "approved")
+    await store.shutdown()
   }
   @MainActor func testCodexResponsesImageOnlyStartsProjectTask() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
