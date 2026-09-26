@@ -1,5 +1,9 @@
 import Foundation
 
+enum CodexNoticeKind: String, Codable, Equatable, Sendable {
+  case warning, deprecation, modelChange
+}
+
 /// Ordered display events. Tool state lives in tool_executions and can change
 /// without moving the corresponding row or replacing its view identity.
 enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
@@ -9,6 +13,7 @@ enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
   case elicitation(UUID)
   case plan(UUID)
   case reasoning(itemID: String, sections: [String])
+  case notice(id: UUID, kind: CodexNoticeKind, message: String)
   case compaction(UUID)
   case user(UUID)
 
@@ -20,6 +25,7 @@ enum ChatResponseItem: Codable, Equatable, Identifiable, Sendable {
     case .elicitation(let id): "elicitation." + id.uuidString
     case .plan(let id): "plan." + id.uuidString
     case .reasoning(let itemID, _): "reasoning." + itemID
+    case .notice(let id, _, _): "notice." + id.uuidString
     case .compaction(let id): "compaction." + id.uuidString
     case .user(let id): "user." + id.uuidString
     }

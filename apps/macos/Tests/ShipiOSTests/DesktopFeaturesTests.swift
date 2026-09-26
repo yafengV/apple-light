@@ -5,6 +5,48 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFeaturesTests: XCTestCase {
+  @MainActor func testCodexWarningsStayBetweenMessagesWithoutFailingTheTurn() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let run = AgentRun(id: UUID().uuidString, kind: "chat", project: "/project",
+      status: "running", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("codexResponses")]),
+      result: .object(["response": .string("Before"),
+        "response_items": try ChatResponseItem.json([.message(id: UUID(), text: "Before")])]))
+    store.library.chatRuns = [run]
+    store.runs = [run]
+    store.recordCodexNotice(runID: run.id, event: .object([
+      "type": .string("warning"), "message": .string("Service is degraded"),
+    ]))
+    store.appendChat(run.id, delta: "After")
+    let updated = try XCTUnwrap(store.library.chatRuns.first)
+    XCTAssertEqual(updated.status, "running")
+    XCTAssertEqual(updated.result?["response"].text, "BeforeAfter")
+    let items = try XCTUnwrap(updated.responseItems)
+    XCTAssertEqual(items.count, 3)
+    XCTAssertEqual(items[0].text, "Before")
+    if case .notice(_, let kind, let message) = items[1] {
+      XCTAssertEqual(kind, .warning)
+      XCTAssertEqual(message, "Service is degraded")
+    } else { XCTFail("Missing warning notice") }
+    XCTAssertEqual(items[2].text, "After")
+    XCTAssertEqual(try ChatResponseItem.json(items).decode([ChatResponseItem].self), items)
+    XCTAssertNil(CodexNoticeTimeline.item(for: .object([
+      "type": .string("guardian_warning"),
+      "message": .string("Automatic approval review approved (safe)"),
+    ])))
+    XCTAssertNotNil(CodexNoticeTimeline.item(for: .object([
+      "type": .string("deprecation_notice"), "summary": .string("Old setting"),
+      "details": .string("Use the new setting"),
+    ])))
+    XCTAssertNotNil(CodexNoticeTimeline.item(for: .object([
+      "type": .string("model_reroute"), "from_model": .string("A"),
+      "to_model": .string("B"), "reason": .string("high_risk_cyber_activity"),
+    ])))
+  }
+
   func testCodexReasoningSectionsKeepOneOrderedSummaryWithoutRawContent() throws {
     var items: [ChatResponseItem] = [.message(id: UUID(), text: "先检查。")]
     XCTAssertFalse(CodexReasoningTimeline.apply(.object([
@@ -626,10 +668,14 @@ final class ModelTransportTests: XCTestCase {
     let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == compact.id })
     XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
     XCTAssertEqual(finished.result?["response"].text, "上下文已整理。")
-    XCTAssertEqual(finished.responseItems?.count, 1)
+    XCTAssertEqual(finished.responseItems?.count, 2)
     if case .compaction = finished.responseItems?.first {} else {
       XCTFail("Manual compaction must appear as an event marker")
     }
+    if case .notice(_, let kind, let message) = finished.responseItems?.last {
+      XCTAssertEqual(kind, .warning)
+      XCTAssertTrue(message.contains("Long threads"))
+    } else { XCTFail("Core compaction warning must remain visible") }
     XCTAssertFalse(store.library.chatContext(taskID: first.id).contains { $0.content == "整理上下文" })
     XCTAssertEqual(store.draft, "")
 
@@ -651,6 +697,8 @@ final class ModelTransportTests: XCTestCase {
     let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
     restored.notificationPreferences = .init(timing: .never)
     await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == compact.id }?.responseItems,
+      finished.responseItems)
     await restored.open(project)
     XCTAssertTrue(restored.canCompactConversation(taskID: first.id))
     await restored.startChat("整理上下文", taskID: first.id, compact: true)
@@ -723,7 +771,13 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(search.serverID, CodexWebSearchTimeline.serverID)
     XCTAssertEqual(search.status, .succeeded)
     XCTAssertEqual(search.arguments, "搜索：ShipiOS integration query")
-    XCTAssertEqual(finished.responseItems?.first, .tool(search.id))
+    XCTAssertTrue(finished.responseItems?.contains(.tool(search.id)) == true)
+    XCTAssertTrue(finished.responseItems?.contains(where: {
+      if case .notice(_, .warning, let message) = $0 {
+        return message.contains("Model metadata")
+      }
+      return false
+    }) == true)
     XCTAssertEqual(finished.responseItems?.last?.text, "Web search fixture reply")
     await store.shutdown()
 
@@ -849,7 +903,16 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
     XCTAssertEqual(finished.toolExecutions.count, 1)
     XCTAssertEqual(finished.toolExecutions[0].status, .succeeded)
-    XCTAssertEqual(finished.responseItems?.count, 2)
+    XCTAssertEqual(finished.responseItems?.filter({
+      if case .tool = $0 { return true }
+      return false
+    }).count, 1)
+    XCTAssertTrue(finished.responseItems?.contains(where: {
+      if case .notice(_, .warning, let message) = $0 {
+        return message.contains("Model metadata")
+      }
+      return false
+    }) == true)
     XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("approval-proof.txt"),
       encoding: .utf8), "approved")
     await store.shutdown()

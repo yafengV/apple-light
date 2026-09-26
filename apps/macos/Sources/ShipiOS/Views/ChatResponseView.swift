@@ -43,6 +43,8 @@ struct ChatResponseView: View {
         }
       case .reasoning(_, let sections):
         CodexReasoningView(sections: sections)
+      case .notice(_, let kind, let message):
+        CodexNoticeView(kind: kind, message: message)
       case .compaction:
         Label("上下文已整理", systemImage: "text.badge.checkmark")
           .appFont(.caption).foregroundStyle(.secondary)

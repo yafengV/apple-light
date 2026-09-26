@@ -2,6 +2,8 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
+Codex Core 的警告、弃用与模型切换提示现保存在会话时间线。真实 Core `/compact` 的长会话警告已验证顺序、成功状态和重启恢复，见[第 220 篇](220-codex-notices-timeline.md)。原生提示交互仍待配对。
+
 Codex Core 的思考摘要分段现按项目 ID 合并为会话内可展开卡片，位于相应最终回复之前；本地 Core 事件与重启持久化已验证，见[第 219 篇](219-codex-reasoning-summary-timeline.md)。当前 Codex Mac 的卡片视觉、展开与键盘交互仍待配对。
 
 Codex Core 的命令运行中输出现在进入同一时间线卡片，折叠态显示最新一行，并合并工具结果中的首段输出。本地 Core 长命令实测运行中更新和最终完整输出，见[第 218 篇](218-codex-live-command-output.md)。卡片原生视觉与键盘交互仍待配对。
