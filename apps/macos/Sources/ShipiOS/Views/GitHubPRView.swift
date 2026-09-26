@@ -5,6 +5,7 @@ struct GitHubPRView: View {
   @Bindable var store: WorkspaceStore
   @Bindable var workspace: DeveloperWorkspace
   @Bindable var draft: GitHubPRDraft
+  let taskID: String?
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -71,7 +72,7 @@ struct GitHubPRView: View {
       }
     }.padding(24).frame(width: 530)
       .interactiveDismissDisabled(draft.creating)
-      .task { if let root = workspace.root { await draft.load(at: root) } }
+      .task { await refreshExisting() }
       .onDisappear { draft.cancelLoading() }
   }
 
@@ -79,10 +80,17 @@ struct GitHubPRView: View {
     draft.canCreate && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
   }
   private func refresh() {
+    Task { await refreshExisting() }
+  }
+  private func refreshExisting() async {
     guard let root = workspace.root else { return }
-    Task { await draft.load(at: root) }
+    await draft.load(at: root)
+    if let existing = draft.existing, let repository = draft.context?.repository,
+      workspace.root == root {
+      _ = store.recordPullRequest(existing, for: taskID, at: root, repository: repository)
+    }
   }
   private func submit(draft: Bool) {
-    Task { await store.createPullRequest(in: workspace, draft: draft) }
+    Task { await store.createPullRequest(in: workspace, draft: draft, taskID: taskID) }
   }
 }

@@ -29,6 +29,7 @@ struct TaskSummaryView: View {
 
   var body: some View {
     let sources = runs.summarySources(in: library)
+    let pullRequests = (library.taskPullRequests[task.id] ?? []).filter { $0.validatedURL != nil }
     let sourceImages = sources.compactMap { source -> ImageAttachment? in
       if case .image(let image) = source { return image }
       return nil
@@ -69,6 +70,40 @@ struct TaskSummaryView: View {
               .buttonStyle(.plain)
               .help("打开计划文档")
             }
+          }
+          if !pullRequests.isEmpty {
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                Label("Pull requests", systemImage: "arrow.triangle.pullrequest").appFont(.headline)
+                Text(pullRequests.count.formatted()).appFont(.caption).foregroundStyle(.secondary)
+              }
+              ForEach(pullRequests, id: \.url) { request in
+                if let url = request.validatedURL {
+                  Button { openExternal(url) } label: {
+                    HStack(alignment: .top, spacing: 8) {
+                      Text("#\(request.number)").foregroundStyle(.secondary)
+                      VStack(alignment: .leading, spacing: 3) {
+                        Text(request.title).lineLimit(2)
+                        Text(request.isDraft ? "草稿 · \(request.headRefName) → \(request.baseRefName)"
+                          : "\(request.headRefName) → \(request.baseRefName)")
+                          .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                      }
+                      Spacer(minLength: 0)
+                      Image(systemName: "arrow.up.right").foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                  }
+                  .buttonStyle(.plain)
+                  .contextMenu {
+                    Button("复制链接") {
+                      NSPasteboard.general.clearContents()
+                      NSPasteboard.general.setString(url.absoluteString, forType: .string)
+                    }
+                    Button("在浏览器中打开") { openExternal(url) }
+                  }
+                }
+              }
+            }.appFont(.callout)
           }
           if !sources.isEmpty || task.project.isEmpty {
             Divider()

@@ -61,6 +61,57 @@ final class GitHubPRTests: XCTestCase {
     XCTAssertThrowsError(try GitHubRepository.parse("https://gitlab.com/sample/project"))
   }
 
+  @MainActor func testCreatedPRPersistsOnlyForOwningTaskAndIsRemovedWithTask() async throws {
+    let (root, service) = try await fixture()
+    let dataRoot = root.appendingPathComponent(".git/shipios-state")
+    let store = WorkspaceStore(dataRoot: dataRoot)
+    store.libraryLoaded = true
+    store.library.tasks = [
+      WorkspaceTask(id: "owner", project: root.path, title: "Owner", runIDs: []),
+      WorkspaceTask(id: "other", project: root.path, title: "Other", runIDs: []),
+    ]
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    workspace.pullRequestDraft = GitHubPRDraft(service: service)
+    await workspace.pullRequestDraft.load(at: root)
+    workspace.pullRequestDraft.title = "Feature title"
+    workspace.pullRequestDraft.body = "Feature body"
+
+    await store.createPullRequest(in: workspace, draft: true, taskID: "owner")
+    let created = try XCTUnwrap(workspace.pullRequestDraft.existing)
+    XCTAssertEqual(store.library.taskPullRequests["owner"], [created])
+    XCTAssertNil(store.library.taskPullRequests["other"])
+    XCTAssertNotNil(created.validatedURL)
+
+    let repository = try GitHubRepository.parse("git@github.com:sample/project.git")
+    XCTAssertTrue(store.recordPullRequest(created, for: "owner", at: root, repository: repository))
+    XCTAssertEqual(store.library.taskPullRequests["owner"]?.count, 1)
+    XCTAssertFalse(store.recordPullRequest(created, for: "missing", at: root, repository: repository))
+    XCTAssertFalse(store.recordPullRequest(created, for: "other",
+      at: root.appendingPathComponent("wrong"), repository: repository))
+
+    var reloaded = try WorkspaceLibrary.load(from: dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(reloaded.taskPullRequests["owner"], [created])
+    XCTAssertNil(reloaded.taskPullRequests["other"])
+    reloaded.tasks[0].archived = true
+    _ = reloaded.deleteArchivedTasks(["owner"])
+    XCTAssertNil(reloaded.taskPullRequests["owner"])
+  }
+
+  func testSummaryRejectsUnsafeStoredPRLinks() {
+    let request = GitHubPullRequest(number: 42, url: "https://github.com/sample/project/pull/42",
+      title: "Feature", isDraft: false, headRefName: "feature", baseRefName: "main",
+      isCrossRepository: false)
+    XCTAssertNotNil(request.validatedURL)
+    for invalid in ["https://github.com/sample/project/pull/42?next=bad",
+      "https://github.com/sample/project/pull/43", "https://evil.example/pull/42"] {
+      let unsafe = GitHubPullRequest(number: request.number, url: invalid,
+        title: request.title, isDraft: request.isDraft, headRefName: request.headRefName,
+        baseRefName: request.baseRefName, isCrossRepository: request.isCrossRepository)
+      XCTAssertNil(unsafe.validatedURL)
+    }
+  }
+
   func testDraftCreationUsesExplicitHeadAndPrivateBodyFileAndPreventsDuplicates() async throws {
     let (root, service) = try await fixture()
     var config = try state(at: root); config["inactiveFailure"] = true; try save(config, at: root)

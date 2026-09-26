@@ -316,6 +316,7 @@ struct WorkspaceLibrary: Codable {
   var sidebar = SidebarLayout()
   var panelSizes: [String: WorkspacePanelSizes] = [:]
   var reviewComments: [String: [ReviewComment]] = [:]
+  var taskPullRequests: [String: [GitHubPullRequest]] = [:]
   var browserComments: [String: [BrowserComment]] = [:]
   var preferredEditor = ExternalEditor.system.rawValue
   var appearance: AppearancePreferences?
@@ -359,7 +360,7 @@ struct WorkspaceLibrary: Codable {
   enum CodingKeys: String, CodingKey {
     case tasks, projects, lastWorkspace, notes, runBranches, drafts, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
-      reviewComments, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
+      reviewComments, taskPullRequests, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
@@ -408,6 +409,8 @@ struct WorkspaceLibrary: Codable {
       try c.decodeIfPresent([String: WorkspacePanelSizes].self, forKey: .panelSizes) ?? [:]
     reviewComments =
       try c.decodeIfPresent([String: [ReviewComment]].self, forKey: .reviewComments) ?? [:]
+    taskPullRequests =
+      try c.decodeIfPresent([String: [GitHubPullRequest]].self, forKey: .taskPullRequests) ?? [:]
     browserComments =
       try c.decodeIfPresent([String: [BrowserComment]].self, forKey: .browserComments) ?? [:]
     preferredEditor =
@@ -600,6 +603,7 @@ struct WorkspaceLibrary: Codable {
       draftImages[id] = nil
       draftFiles[id] = nil
       reviewComments[id] = nil
+      taskPullRequests[id] = nil
       browserComments[id] = nil
       let sidebarID = SidebarItem.task(id).id
       sidebar.placement[sidebarID] = nil

@@ -44,6 +44,17 @@ struct GitHubPullRequest: Codable, Equatable, Sendable {
   let headRefName: String
   let baseRefName: String
   let isCrossRepository: Bool
+
+  var validatedURL: URL? {
+    guard number > 0, let components = URLComponents(string: url),
+      components.scheme == "https", components.host?.lowercased() == "github.com",
+      components.port == nil, components.user == nil, components.password == nil,
+      components.query == nil, components.fragment == nil else { return nil }
+    let parts = components.path.split(separator: "/").map(String.init)
+    guard parts.count == 4, parts[2] == "pull", parts[3] == String(number),
+      (try? GitHubRepository.parse("https://github.com/\(parts[0])/\(parts[1])")) != nil else { return nil }
+    return components.url
+  }
 }
 
 struct GitHubPRContext: Equatable, Sendable {

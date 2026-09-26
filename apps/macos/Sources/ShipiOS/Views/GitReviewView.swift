@@ -5,6 +5,7 @@ struct GitReviewView: View {
   @Bindable var workspace: DeveloperWorkspace
   var taskID: String?
   var focusComposer: (() -> Void)?
+  @State private var pullRequestTaskID: String?
   var body: some View {
     VStack(spacing: 0) {
       if workspace.gitAvailable {
@@ -112,7 +113,10 @@ struct GitReviewView: View {
               Text(status).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             Spacer()
-            Button("创建 PR…") { workspace.showingPullRequest = true }
+            Button("创建 PR…") {
+              pullRequestTaskID = taskID ?? store.selectedTask?.id
+              workspace.showingPullRequest = true
+            }
               .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitActionRunning)
             Button("提交或推送…") { workspace.showingCommitPush = true }
               .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
@@ -129,7 +133,8 @@ struct GitReviewView: View {
         taskTitle: store.gitCommitTaskTitle(taskID: taskID))
     }
     .sheet(isPresented: $workspace.showingPullRequest) {
-      GitHubPRView(store: store, workspace: workspace, draft: workspace.pullRequestDraft)
+      GitHubPRView(store: store, workspace: workspace, draft: workspace.pullRequestDraft,
+        taskID: pullRequestTaskID)
     }
     .onChange(of: store.library.gitPreferences.readOnlyReview) { _, readOnly in
       if readOnly { workspace.cancelCommitMessageGeneration() }
