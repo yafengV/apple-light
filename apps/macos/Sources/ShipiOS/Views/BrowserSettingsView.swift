@@ -5,7 +5,7 @@ struct BrowserSettingsView: View {
   @State private var query = ""
   @State private var showingClearConfirmation = false
   @State private var clearing = false
-  @State private var includeHistory = true
+  @State private var clearSelection = BrowserDataClearSelection()
   @State private var site = ""
   @State private var siteDecision = BrowserAccessDecision.allow
 
@@ -38,13 +38,13 @@ struct BrowserSettingsView: View {
         Button("清除", role: .destructive) {
           clearing = true
           Task {
-            await store.clearBrowserData(includeHistory: includeHistory)
+            await store.clearBrowserData(clearSelection)
             clearing = false
           }
         }
         Button("取消", role: .cancel) {}
       } message: {
-        Text(includeHistory ? "将清除 Cookie、缓存、网站存储和浏览历史。" : "将清除 Cookie、缓存和网站存储，保留浏览历史。")
+        Text("将清除所选时间范围内勾选的数据。浏览历史与网站登录状态清除后无法恢复。")
       }
   }
 
@@ -81,9 +81,17 @@ struct BrowserSettingsView: View {
           ? "内置浏览器使用与系统浏览器分开的 ShipiOS 资料。Cookie、缓存和网站存储会在应用重启后保留；历史记录保存在 ShipiOS 独立数据目录。"
           : "此隔离实例使用临时浏览资料。Cookie、缓存和网站存储只在本次 App 运行期间保留；历史记录保存在当前实例的数据目录。")
           .foregroundStyle(.secondary)
-        Toggle("同时清除浏览历史", isOn: $includeHistory)
+        Picker("时间范围", selection: $clearSelection.range) {
+          ForEach(BrowserDataTimeRange.allCases) { range in
+            Text(range.title).tag(range)
+          }
+        }
+        Toggle("浏览历史", isOn: $clearSelection.history)
+        Toggle("Cookie 与网站登录状态", isOn: $clearSelection.cookies)
+        Toggle("缓存文件", isOn: $clearSelection.cache)
+        Toggle("其他网站数据", isOn: $clearSelection.otherWebsiteData)
         Button("清除浏览数据…", role: .destructive) { showingClearConfirmation = true }.settingsSearchTarget(.browserClear)
-          .disabled(clearing)
+          .disabled(clearing || !clearSelection.hasSelection)
         if clearing { ProgressView("正在清除…").controlSize(.small) }
         if let error = store.browserSettingsError {
           Text(error).foregroundStyle(.red).textSelection(.enabled)

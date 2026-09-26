@@ -81,20 +81,33 @@ extension WorkspaceStore {
   }
 
   func clearBrowserHistory() {
+    clearBrowserHistory(since: .distantPast)
+  }
+
+  func clearBrowserHistory(since cutoff: Date) {
     do {
       var candidate = library
-      candidate.browserHistory = []
+      candidate.browserHistory.removeAll { $0.visitedAt >= cutoff }
       try commitLibrary(candidate)
       browserSettingsError = nil
     } catch { browserSettingsError = error.localizedDescription }
   }
 
   func clearBrowserData(includeHistory: Bool) async {
-    await workspace.browser.clearWebsiteData()
+    var selection = BrowserDataClearSelection()
+    selection.history = includeHistory
+    await clearBrowserData(selection)
+  }
+
+  func clearBrowserData(_ selection: BrowserDataClearSelection) async {
+    guard selection.hasSelection else { return }
+    let types = selection.websiteDataTypes
+    let cutoff = selection.range.cutoff(relativeTo: Date())
+    await workspace.browser.clearWebsiteData(types: types, since: cutoff)
     for session in additionalBrowserSessions.allObjects
       where session.dataStore !== workspace.browser.dataStore {
-      await session.clearWebsiteData()
+      await session.clearWebsiteData(types: types, since: cutoff)
     }
-    if includeHistory { clearBrowserHistory() }
+    if selection.history { clearBrowserHistory(since: cutoff) }
   }
 }

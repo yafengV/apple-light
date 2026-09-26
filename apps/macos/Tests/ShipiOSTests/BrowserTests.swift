@@ -1080,6 +1080,53 @@ final class BrowserTests: XCTestCase {
       try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
         .browserHistory.isEmpty)
   }
+  func testBrowserDataClearSelectionSeparatesTypesAndTimeRanges() {
+    let now = Date(timeIntervalSince1970: 2_000_000_000)
+    XCTAssertEqual(BrowserDataTimeRange.lastHour.cutoff(relativeTo: now), now.addingTimeInterval(-3_600))
+    XCTAssertEqual(BrowserDataTimeRange.lastDay.cutoff(relativeTo: now), now.addingTimeInterval(-86_400))
+    XCTAssertEqual(BrowserDataTimeRange.lastWeek.cutoff(relativeTo: now), now.addingTimeInterval(-7 * 86_400))
+    XCTAssertEqual(BrowserDataTimeRange.lastFourWeeks.cutoff(relativeTo: now), now.addingTimeInterval(-28 * 86_400))
+    XCTAssertEqual(BrowserDataTimeRange.allTime.cutoff(relativeTo: now), .distantPast)
+    var selection = BrowserDataClearSelection()
+    selection.history = false; selection.cookies = false; selection.cache = false; selection.otherWebsiteData = false
+    XCTAssertFalse(selection.hasSelection)
+    XCTAssertTrue(selection.websiteDataTypes.isEmpty)
+    selection.cookies = true
+    XCTAssertEqual(selection.websiteDataTypes, [WKWebsiteDataTypeCookies])
+    selection.cookies = false; selection.cache = true
+    XCTAssertEqual(selection.websiteDataTypes, [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache])
+    selection.cache = false; selection.otherWebsiteData = true
+    XCTAssertFalse(selection.websiteDataTypes.contains(WKWebsiteDataTypeCookies))
+    XCTAssertFalse(selection.websiteDataTypes.contains(WKWebsiteDataTypeDiskCache))
+    XCTAssertFalse(selection.websiteDataTypes.contains(WKWebsiteDataTypeMemoryCache))
+    selection.cookies = true; selection.cache = true
+    XCTAssertEqual(selection.websiteDataTypes, WKWebsiteDataStore.allWebsiteDataTypes())
+  }
+  @MainActor func testClearBrowserDataRespectsSelectedHistoryRangeAndCookieType() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    defer { store.workspace.browser.shutdown() }
+    let tab = store.workspace.browser.newTab()
+    try await load(tab, "/cookie", title: "/cookie")
+    let recent = try XCTUnwrap(store.library.browserHistory.first)
+    let older = BrowserHistoryEntry(url: "https://example.com/old", title: "Old",
+      visitedAt: Date().addingTimeInterval(-3 * 86_400))
+    store.library.browserHistory.append(older)
+    var selection = BrowserDataClearSelection(range: .lastDay, history: true, cookies: false,
+      cache: false, otherWebsiteData: false)
+    await store.clearBrowserData(selection)
+    XCTAssertEqual(store.library.browserHistory.map(\.id), [older.id])
+    let cookieAfterHistoryClear = try await tab.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(cookieAfterHistoryClear, "fixture=yes")
+    selection.range = .allTime; selection.history = false; selection.cookies = true
+    await store.clearBrowserData(selection)
+    let cookieAfterCookieClear = try await tab.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(cookieAfterCookieClear, "")
+    XCTAssertEqual(store.library.browserHistory.map(\.id), [older.id])
+    XCTAssertNotEqual(recent.id, older.id)
+  }
   @MainActor func testMainAndTaskBrowsersShareAnIsolatedProfileAndClearItTogether() async throws {
     let shared = WKWebsiteDataStore.nonPersistent()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -229,9 +229,12 @@ final class BrowserSession {
     _ = linkDownloadWorker?.cancelDownload(id)
   }
   func clearWebsiteData() async {
-    let types = WKWebsiteDataStore.allWebsiteDataTypes()
+    await clearWebsiteData(types: WKWebsiteDataStore.allWebsiteDataTypes(), since: .distantPast)
+  }
+  func clearWebsiteData(types: Set<String>, since: Date) async {
+    guard !types.isEmpty else { return }
     await withCheckedContinuation { continuation in
-      dataStore.removeData(ofTypes: types, modifiedSince: .distantPast) {
+      dataStore.removeData(ofTypes: types, modifiedSince: since) {
         continuation.resume()
       }
     }
