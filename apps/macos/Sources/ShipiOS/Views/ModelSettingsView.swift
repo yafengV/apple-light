@@ -35,6 +35,10 @@ struct ModelSettingsView: View {
         } else {
           Text("Codex Core 使用 /responses 流式接口。当前支持已连接项目的文字、图片、文本/PDF 附件会话、只读计划模式、目标模式、代码审查及已启用的 MCP 工具。连接测试只检查 /models，首条消息才会验证 /responses。")
             .appFont(.caption).foregroundStyle(.secondary)
+          SettingsToggle(title: "服务支持托管网页搜索",
+            description: "仅当此 /responses 服务接受 web_search 工具时开启。连接测试不会验证搜索能力。",
+            isOn: $draft.supportsHostedWebSearch)
+            .settingsSearchTarget(.hostedWebSearch)
         }
         Text("地址与模型保存在 ShipiOS，密钥保存在 macOS Keychain，并按服务地址隔离。")
           .appFont(.caption).foregroundStyle(.secondary)

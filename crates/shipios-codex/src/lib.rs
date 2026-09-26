@@ -15,6 +15,7 @@ use codex_login::{login_with_api_key, logout};
 use codex_protocol::approvals::ElicitationAction;
 use codex_protocol::config_types::{
     CollaborationMode, ModeKind, ReasoningSummary, Settings as CollaborationSettings, Verbosity,
+    WebSearchMode,
 };
 use codex_protocol::mcp::{ClientMcpExtensions, RequestId};
 use codex_protocol::openai_models::ReasoningEffort;
@@ -42,6 +43,7 @@ pub struct SessionOptions {
     pub read_only: bool,
     pub permissions: SessionPermissions,
     pub responses: SessionResponsePreferences,
+    pub web_search: SessionWebSearch,
     pub mcp_servers: Vec<ShipMcpServer>,
     pub runtime_paths: ExecServerRuntimePaths,
 }
@@ -64,6 +66,30 @@ pub struct SessionResponsePreferences {
     pub verbosity: Option<Verbosity>,
     #[serde(default)]
     pub reasoning_summary: Option<ReasoningSummary>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionWebSearch {
+    pub mode: WebSearchMode,
+    pub supports_hosted_web_search: bool,
+}
+
+impl Default for SessionWebSearch {
+    fn default() -> Self {
+        Self {
+            mode: WebSearchMode::Disabled,
+            supports_hosted_web_search: false,
+        }
+    }
+}
+
+fn configured_web_search(settings: SessionWebSearch) -> Result<WebSearchMode> {
+    ensure!(
+        settings.supports_hosted_web_search || settings.mode == WebSearchMode::Disabled,
+        "configured model service does not support hosted web search"
+    );
+    Ok(settings.mode)
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -336,6 +362,9 @@ impl CodexSession {
         config.permissions = configured_permissions(options.read_only, options.permissions)?;
         config.model_verbosity = options.responses.verbosity;
         config.model_reasoning_summary = options.responses.reasoning_summary;
+        config
+            .web_search_mode
+            .set(configured_web_search(options.web_search)?)?;
 
         let mut provider = config.model_provider.clone();
         provider.name = "ShipiOS API".to_owned();
@@ -778,5 +807,28 @@ mod tests {
         .unwrap();
         assert_eq!(defaults.verbosity, None);
         assert_eq!(defaults.reasoning_summary, Some(ReasoningSummary::Auto));
+    }
+
+    #[test]
+    fn session_web_search_wire_values_match_agent_settings() {
+        let value = serde_json::json!({
+            "mode": "indexed", "supportsHostedWebSearch": true
+        });
+        let parsed: SessionWebSearch = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(parsed.mode, WebSearchMode::Indexed);
+        assert!(parsed.supports_hosted_web_search);
+        assert_eq!(serde_json::to_value(parsed).unwrap(), value);
+        assert_eq!(SessionWebSearch::default().mode, WebSearchMode::Disabled);
+        assert_eq!(
+            configured_web_search(parsed).unwrap(),
+            WebSearchMode::Indexed
+        );
+        assert!(
+            configured_web_search(SessionWebSearch {
+                mode: WebSearchMode::Live,
+                supports_hosted_web_search: false,
+            })
+            .is_err()
+        );
     }
 }

@@ -63,3 +63,16 @@ struct AgentResponsePreferences: Codable, Equatable {
   var verbosity = AgentResponseVerbosity.modelDefault
   var reasoningSummary = AgentReasoningSummary.auto
 }
+
+enum AgentWebSearchMode: String, Codable, CaseIterable {
+  case disabled, cached, indexed, live
+
+  var title: String {
+    switch self {
+    case .disabled: "关闭"
+    case .cached: "缓存"
+    case .indexed: "索引"
+    case .live: "实时"
+    }
+  }
+}

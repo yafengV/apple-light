@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use shipios_codex::{
     ApprovalDecision, CodexSession, CodexTurnMode, ElicitationDecision, SessionOptions,
-    SessionPermissions, SessionResponsePreferences, ShipMcpServer,
+    SessionPermissions, SessionResponsePreferences, SessionWebSearch, ShipMcpServer,
 };
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -29,6 +29,8 @@ pub struct StartThread {
     #[serde(default)]
     pub responses: SessionResponsePreferences,
     #[serde(default)]
+    pub web_search: SessionWebSearch,
+    #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
 }
 
@@ -49,6 +51,8 @@ struct PersistedThread {
     permissions: SessionPermissions,
     #[serde(default)]
     responses: SessionResponsePreferences,
+    #[serde(default)]
+    web_search: SessionWebSearch,
 }
 
 #[derive(Deserialize)]
@@ -142,6 +146,7 @@ fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
         rollout_path: rollout,
         permissions: thread.permissions,
         responses: thread.responses,
+        web_search: thread.web_search,
     }))
 }
 
@@ -244,6 +249,10 @@ impl CodexBridge {
             .as_ref()
             .map(|thread| thread.responses)
             .unwrap_or(request.responses);
+        let web_search = previous
+            .as_ref()
+            .map(|thread| thread.web_search)
+            .unwrap_or(request.web_search);
         let options = SessionOptions {
             codex_home: home.clone(),
             project_root: self.project.clone(),
@@ -253,6 +262,7 @@ impl CodexBridge {
             read_only: request.read_only,
             permissions,
             responses,
+            web_search,
             mcp_servers: request.mcp_servers,
             runtime_paths,
         };
@@ -274,6 +284,7 @@ impl CodexBridge {
             rollout_path,
             permissions,
             responses,
+            web_search,
         });
         let save_result = saved
             .as_ref()
@@ -728,7 +739,7 @@ async fn run_thread(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::config_types::{ReasoningSummary, Verbosity};
+    use codex_protocol::config_types::{ReasoningSummary, Verbosity, WebSearchMode};
     use serde_json::json;
     use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
     use wiremock::matchers::{method, path};
@@ -795,6 +806,10 @@ mod tests {
             verbosity: Some(Verbosity::High),
             reasoning_summary: Some(ReasoningSummary::Concise),
         };
+        let custom_web_search = SessionWebSearch {
+            mode: WebSearchMode::Cached,
+            supports_hosted_web_search: true,
+        };
         assert!(
             bridge
                 .start(StartThread {
@@ -807,6 +822,7 @@ mod tests {
                     read_only: false,
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
+                    web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                 })
                 .await
@@ -831,6 +847,7 @@ mod tests {
                     read_only: false,
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
+                    web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                 })
                 .await
@@ -847,6 +864,7 @@ mod tests {
                 read_only: false,
                 permissions: custom_permissions,
                 responses: custom_responses,
+                web_search: custom_web_search,
                 mcp_servers: Vec::new(),
             })
             .await?;
@@ -886,6 +904,10 @@ mod tests {
             saved_thread(&task_home)?.unwrap().responses,
             custom_responses
         );
+        assert_eq!(
+            saved_thread(&task_home)?.unwrap().web_search,
+            custom_web_search
+        );
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
         let restarted = CodexBridge::new(data_dir.clone(), temp.path().join("Project"));
@@ -901,6 +923,7 @@ mod tests {
                 read_only: false,
                 permissions: SessionPermissions::default(),
                 responses: SessionResponsePreferences::default(),
+                web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),
             })
             .await?;
@@ -911,6 +934,10 @@ mod tests {
         assert_eq!(
             saved_thread(&task_home)?.unwrap().responses,
             custom_responses
+        );
+        assert_eq!(
+            saved_thread(&task_home)?.unwrap().web_search,
+            custom_web_search
         );
         assert!(resumed.resumed);
         assert_eq!(resumed.thread_id, thread.thread_id);
@@ -1016,6 +1043,13 @@ mod tests {
             let body: serde_json::Value = serde_json::from_slice(&request.body)?;
             assert_eq!(body["text"]["verbosity"], "high");
             assert_eq!(body["reasoning"]["summary"], "concise");
+            assert!(
+                body["tools"]
+                    .as_array()
+                    .is_some_and(|tools| tools.iter().any(|tool| {
+                        tool["type"] == "web_search" && tool["external_web_access"] == false
+                    }))
+            );
         }
         let image_request: serde_json::Value = serde_json::from_slice(&requests[2].body)?;
         assert!(

@@ -40,6 +40,7 @@ final class CodexChatTransport {
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
+    webSearchMode: AgentWebSearchMode,
     compact: Bool = false
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
@@ -86,6 +87,10 @@ final class CodexChatTransport {
             "verbosity": responses.verbosity == .modelDefault
               ? .null : .string(responses.verbosity.rawValue),
             "reasoningSummary": .string(responses.reasoningSummary.rawValue),
+          ]),
+          "webSearch": .object([
+            "mode": .string(config.supportsHostedWebSearch ? webSearchMode.rawValue : AgentWebSearchMode.disabled.rawValue),
+            "supportsHostedWebSearch": .bool(config.supportsHostedWebSearch),
           ]),
           "mcpServers": mcpValue,
         ])

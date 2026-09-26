@@ -7,11 +7,14 @@ final class ModelSelectionTests: XCTestCase {
     let legacyConfig = try JSONDecoder().decode(ModelConfiguration.self,
       from: Data(#"{"baseURL":"https://example.com/v1","model":"old"}"#.utf8))
     XCTAssertEqual(legacyConfig.apiProtocol, .chatCompletions)
+    XCTAssertFalse(legacyConfig.supportsHostedWebSearch)
     var responses = legacyConfig
     responses.apiProtocol = .codexResponses
+    responses.supportsHostedWebSearch = true
     let encoded = try JSONEncoder().encode(responses)
     XCTAssertEqual(try JSONDecoder().decode(ModelConfiguration.self, from: encoded).apiProtocol,
       .codexResponses)
+    XCTAssertTrue(try JSONDecoder().decode(ModelConfiguration.self, from: encoded).supportsHostedWebSearch)
     let legacyChoice = try JSONDecoder().decode(TaskModelSelection.self,
       from: Data(#"{"model":"old","reasoning":"","providerAccount":"https://example.com/v1"}"#.utf8))
     let store = WorkspaceStore()

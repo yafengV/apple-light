@@ -21,12 +21,14 @@ struct ModelConfiguration: Codable, Equatable {
   var apiProtocol: ModelAPIProtocol = .chatCompletions
   /// New configurations request authoritative usage. Legacy providers stay unchanged until enabled.
   var includeUsage = true
+  /// The configured Responses endpoint accepts OpenAI hosted web_search tools.
+  var supportsHostedWebSearch = false
   /// Retained only for migration from model.json to the independent AGENTS.md.
   var instructions = Personalization.baseInstructions
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case baseURL, model, reasoning, apiProtocol, includeUsage, instructions
+    case baseURL, model, reasoning, apiProtocol, includeUsage, supportsHostedWebSearch, instructions
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -36,6 +38,7 @@ struct ModelConfiguration: Codable, Equatable {
     apiProtocol = try c.decodeIfPresent(ModelAPIProtocol.self, forKey: .apiProtocol)
       ?? .chatCompletions
     includeUsage = try c.decodeIfPresent(Bool.self, forKey: .includeUsage) ?? false
+    supportsHostedWebSearch = try c.decodeIfPresent(Bool.self, forKey: .supportsHostedWebSearch) ?? false
     instructions = try c.decodeIfPresent(String.self, forKey: .instructions)
       ?? Personalization.baseInstructions
   }

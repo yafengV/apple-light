@@ -38,6 +38,18 @@ final class WorkspaceLibraryTests: XCTestCase {
       .agentResponsePreferences, selected)
   }
 
+  @MainActor func testAgentWebSearchModeDefaultsOffAndPersists() throws {
+    let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
+    XCTAssertEqual(legacy.agentWebSearchMode, .disabled)
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-search-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    XCTAssertTrue(store.saveAgentWebSearchMode(.indexed))
+    XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .agentWebSearchMode, .indexed)
+  }
+
   @MainActor func testArchiveTimestampMigrationAndRestoreKeepsSettingsOpen() throws {
     let legacy = Data(
       #"{"id":"old","project":"/project","title":"Old","runIDs":["old"],"pinned":false,"archived":true}"#

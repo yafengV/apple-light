@@ -5,6 +5,7 @@ struct AgentSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var status = ""
   @State private var responseStatus = ""
+  @State private var searchStatus = ""
 
   var body: some View {
     Form {
@@ -55,6 +56,25 @@ struct AgentSettingsView: View {
         Text("回复设置只用于新建的 Codex Core 会话。独立 API 服务或模型可能不支持这些参数。")
           .appFont(.caption).foregroundStyle(.secondary)
         if !responseStatus.isEmpty { Text(responseStatus).appFont(.caption).foregroundStyle(.secondary) }
+      }
+      Section("网页搜索") {
+        SettingsMenuPicker("搜索模式", description: "缓存、索引和实时搜索需要独立 API 服务支持托管 web_search 工具。",
+          selection: Binding(
+            get: { store.library.agentWebSearchMode },
+            set: { value in searchStatus = store.saveAgentWebSearchMode(value) ? "已保存。" : "保存失败，请重试。" }),
+          options: AgentWebSearchMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .disabled(store.modelConfiguration.apiProtocol != .codexResponses
+            || !store.modelConfiguration.supportsHostedWebSearch)
+          .settingsSearchTarget(.agentWebSearch)
+        if store.modelConfiguration.apiProtocol != .codexResponses
+          || !store.modelConfiguration.supportsHostedWebSearch {
+          Text("当前模型配置未声明搜索能力。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          Button("配置模型服务…") { store.settingsPage = .model }
+        }
+        Text("搜索模式只用于新建的 Codex Core 会话；实际结果由服务商提供。")
+          .appFont(.caption).foregroundStyle(.secondary)
+        if !searchStatus.isEmpty { Text(searchStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
     }.settingsFormStyle().appSurface()
   }

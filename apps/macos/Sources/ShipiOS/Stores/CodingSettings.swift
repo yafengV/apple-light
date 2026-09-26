@@ -17,6 +17,14 @@ extension WorkspaceStore {
     return false
   }
 
+  @discardableResult func saveAgentWebSearchMode(_ mode: AgentWebSearchMode) -> Bool {
+    let previous = library.agentWebSearchMode
+    library.agentWebSearchMode = mode
+    if saveLibrary() { return true }
+    library.agentWebSearchMode = previous
+    return false
+  }
+
   func gitCommitTaskTitle(taskID: String?) -> String? {
     if let taskID { return library.tasks.first { $0.id == taskID }?.title }
     return selectedTask?.title

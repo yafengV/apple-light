@@ -61,6 +61,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         read_only: false,
         permissions: SessionPermissions::default(),
         responses: Default::default(),
+        web_search: Default::default(),
         mcp_servers: Vec::new(),
         runtime_paths: runtime_paths.clone(),
     })
@@ -74,6 +75,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         read_only: false,
         permissions: SessionPermissions::default(),
         responses: Default::default(),
+        web_search: Default::default(),
         mcp_servers: Vec::new(),
         runtime_paths,
     })
