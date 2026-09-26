@@ -226,12 +226,36 @@ extension WorkspaceStore {
     ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: record.taskID)
   }
 
+  func runManagedWorktreeSetup(_ record: ManagedWorktree) async throws {
+    guard let current = library.managedWorktrees.first(where: { $0.taskID == record.taskID }),
+      current.ready, current.sourceChangesApplied == true
+        || (current.sourceStashCommit == nil && (current.sourceCopiedFiles ?? []).isEmpty) else {
+      throw AgentFailure(message: "工作树仍在准备来源文件，无法运行初始化脚本。")
+    }
+    guard current.setupCompleted != true else { return }
+    let script = library.profiles[record.source]?.worktreeSetupScript ?? ""
+    if !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      try await WorktreeSetupService.run(script, at: URL(fileURLWithPath: record.path))
+    }
+    var candidate = library
+    guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == record.taskID }) else {
+      throw AgentFailure(message: "工作树任务记录已丢失，请在终端检查：\(record.path)")
+    }
+    candidate.managedWorktrees[index].setupCompleted = true
+    try commitLibrary(candidate)
+  }
+
   /// Convert a new-project draft to a one-task checkout before its first model turn.
   func prepareManagedWorktreeTask() async -> Bool {
     guard libraryLoaded, let source = project, connected, selectedTask == nil,
       newTaskExecution == .worktree, !busy, !managedTaskPreparing else { return false }
     managedTaskPreparing = true
-    defer { managedTaskPreparing = false; scheduleManagedLimitCleanup() }
+    managedTaskPreparationMessage = "正在创建工作树…"
+    defer {
+      managedTaskPreparing = false
+      managedTaskPreparationMessage = "正在创建工作树…"
+      scheduleManagedLimitCleanup()
+    }
     let sourcePath = source.path
     let sourceDraftKey = draftKey
     let submittedMode = chatMode
@@ -306,6 +330,8 @@ extension WorkspaceStore {
         record.sourceChangesApplied != true {
         try await applyManagedSourceChanges(record)
       }
+      managedTaskPreparationMessage = "正在初始化工作树…"
+      try await runManagedWorktreeSetup(record)
       guard project?.path == sourcePath else {
         throw AgentFailure(message: "工作树已创建。请返回来源项目后重试发送草稿。")
       }

@@ -3,6 +3,37 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testManagedSetupRunsOnceAndRetriesAfterFailure() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.profiles[source.path] = BuildProfile(worktreeSetupScript: "exit 7")
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot, branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    do {
+      try await store.runManagedWorktreeSetup(record)
+      XCTFail("Failing setup accepted")
+    } catch {
+      XCTAssertTrue(error.localizedDescription.contains("退出码 7"))
+    }
+    XCTAssertNil(store.library.managedWorktrees.first?.setupCompleted)
+    store.library.profiles[source.path]?.worktreeSetupScript =
+      "printf 'ready' >> setup-marker"
+    XCTAssertTrue(store.saveLibrary())
+    try await store.runManagedWorktreeSetup(record)
+    try await store.runManagedWorktreeSetup(record)
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
+      .appendingPathComponent("setup-marker")), "ready")
+    let saved = try WorkspaceLibrary.load(from: data.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(saved.managedWorktrees.first?.setupCompleted, true)
+    await store.shutdown()
+  }
+
   @MainActor func testTmpAliasStaysStableAcrossCreationAndPendingRecovery() async throws {
     let (_, source) = try await fixture()
     let parent = URL(fileURLWithPath: "/private/tmp/shipios-worktree-alias-\(UUID())/worktrees")

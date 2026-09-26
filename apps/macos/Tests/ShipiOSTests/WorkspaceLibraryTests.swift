@@ -145,7 +145,14 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertTrue(restored.visible(project: "/another", query: "发布", archived: true).isEmpty)
     XCTAssertEqual(restored.drafts["one"], "尚未发送的说明")
     XCTAssertEqual(restored.profiles["/project"]?.configuration, "Release")
+    XCTAssertEqual(restored.profiles["/project"]?.worktreeSetupScript, "")
     XCTAssertTrue(restored.tasks[0].pinned)
+  }
+
+  func testLegacyBuildProfileWithoutSetupScriptLoads() throws {
+    let profile = try JSONDecoder().decode(BuildProfile.self,
+      from: Data(#"{"container":"Demo.xcodeproj","scheme":"Demo","configuration":"Debug"}"#.utf8))
+    XCTAssertEqual(profile.worktreeSetupScript, "")
   }
 
   func testSlashActionsAreExplicitAndNeverTreatNotesAsModelPrompts() throws {

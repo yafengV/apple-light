@@ -161,6 +161,15 @@ struct LocalEnvironmentSettingsView: View {
           Text("这些值用于环境诊断和本地构建，并随项目保存在 ShipiOS 独立目录中。")
             .appFont(.caption).foregroundStyle(.secondary)
         }
+        Section("工作树初始化") {
+          Text("创建托管工作树后、首次发送任务前运行。命令在新工作树目录中执行。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          TextEditor(text: $store.worktreeSetupScript)
+            .font(.system(.body, design: .monospaced))
+            .frame(minHeight: 100)
+            .accessibilityLabel("工作树初始化脚本")
+          Button("保存初始化脚本") { store.saveProfile() }
+        }
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))
       }

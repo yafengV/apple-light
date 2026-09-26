@@ -34,6 +34,27 @@ struct BuildProfile: Codable {
   var container = ""
   var scheme = ""
   var configuration = "Debug"
+  var worktreeSetupScript = ""
+
+  init(container: String = "", scheme: String = "", configuration: String = "Debug",
+    worktreeSetupScript: String = "") {
+    self.container = container
+    self.scheme = scheme
+    self.configuration = configuration
+    self.worktreeSetupScript = worktreeSetupScript
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case container, scheme, configuration, worktreeSetupScript
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    container = try values.decodeIfPresent(String.self, forKey: .container) ?? ""
+    scheme = try values.decodeIfPresent(String.self, forKey: .scheme) ?? ""
+    configuration = try values.decodeIfPresent(String.self, forKey: .configuration) ?? "Debug"
+    worktreeSetupScript = try values.decodeIfPresent(String.self, forKey: .worktreeSetupScript) ?? ""
+  }
 }
 
 enum ReviewDelivery: String, Codable, CaseIterable, Identifiable, Sendable {

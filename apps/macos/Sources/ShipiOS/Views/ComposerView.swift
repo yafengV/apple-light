@@ -76,7 +76,7 @@ struct ComposerView: View {
             }.pickerStyle(.segmented).frame(width: 230)
             if store.newTaskExecution == .worktree {
               if store.managedTaskPreparing {
-                ProgressView("正在创建工作树…").controlSize(.small)
+                ProgressView(store.managedTaskPreparationMessage).controlSize(.small)
               } else {
                 HStack(spacing: 8) {
                   if let snapshot = newTaskBranches.snapshot {

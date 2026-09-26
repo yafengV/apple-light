@@ -280,9 +280,11 @@ final class WorkspaceStore {
   var container = ""
   var scheme = ""
   var configuration = "Debug"
+  var worktreeSetupScript = ""
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
+  var managedTaskPreparationMessage = "正在创建工作树…"
   @ObservationIgnored var managedArchiveCleanupTask: Task<Void, Never>?
   @ObservationIgnored var managedLimitCleanupTask: Task<Void, Never>?
   @ObservationIgnored var managedDeletionCleanupTask: Task<Void, Never>?
@@ -482,6 +484,7 @@ final class WorkspaceStore {
     container = ""
     scheme = ""
     configuration = "Debug"
+    worktreeSetupScript = ""
     action = .chat
     events = []
     logText = ""
@@ -616,6 +619,7 @@ final class WorkspaceStore {
         }
         scheme = profile.scheme
         configuration = profile.configuration
+        worktreeSetupScript = profile.worktreeSetupScript
       }
       action = .chat
       library.lastWorkspace = project!.path
@@ -1034,7 +1038,8 @@ final class WorkspaceStore {
   func saveProfile() {
     guard libraryLoaded, let project else { return }
     library.profiles[project.path] = BuildProfile(
-      container: container, scheme: scheme, configuration: configuration)
+      container: container, scheme: scheme, configuration: configuration,
+      worktreeSetupScript: worktreeSetupScript)
     saveLibrary()
   }
 

@@ -28,6 +28,8 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var sourceStashCommit: String? = nil
   var sourceCopiedFiles: [ManagedSourceFile]? = nil
   var sourceChangesApplied: Bool? = nil
+  /// A successful setup is durable so retries never repeat a completed script.
+  var setupCompleted: Bool? = nil
   /// Reserved before switching the local checkout during Worktree → Local handoff.
   var handoffBranch: String? = nil
   /// Persisted before touching the target; retained until both checkouts and the task move agree.
