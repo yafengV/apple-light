@@ -69,7 +69,23 @@ extension WorkspaceStore {
     // Build the candidate after yielding so intervening library updates survive.
     await Task.yield()
     guard archiveDeletion?.id == request.id else { return }
-    if deleteArchivedTasks(request.taskIDs) { archiveDeletion = nil }
+    do {
+      let eligible = Set(library.tasks.filter {
+        request.taskIDs.contains($0.id) && $0.archived && !$0.isPopoutDraft
+      }.map(\.id))
+      let retained = library.managedWorktrees.filter {
+        eligible.contains($0.taskID) && $0.archivedPruned != true
+          && FileManager.default.fileExists(atPath: $0.path)
+      }
+      for record in retained { try await WorktreeService.validateRetainedManaged(record) }
+      if deleteArchivedTasks(request.taskIDs,
+        validatedManaged: Set(retained.map(\.taskID))) {
+        await managedDeletionCleanupTask?.value
+        archiveDeletion = nil
+      }
+    } catch {
+      archivedTaskDeletionError = "无法安全删除归档任务：\(error.localizedDescription)"
+    }
   }
 
   func deleteArchivedTask(_ taskID: String) {
@@ -100,13 +116,53 @@ extension WorkspaceStore {
     }
   }
 
-  @discardableResult func deleteArchivedTasks(_ taskIDs: Set<String>) -> Bool {
+  @discardableResult func deleteArchivedTasks(_ taskIDs: Set<String>,
+    validatedManaged: Set<String> = []) -> Bool {
     guard !taskIDs.isEmpty else { return true }
     do {
       var candidate = library
       let originalTaskCount = candidate.tasks.count
       let originalTaskIDs = Set(candidate.tasks.map(\.id))
       let eligible = Set(candidate.tasks.filter { taskIDs.contains($0.id) && $0.archived && !$0.isPopoutDraft }.map(\.id))
+      let managed = candidate.managedWorktrees.filter { eligible.contains($0.taskID) }
+      for record in managed {
+        let hasSourceSnapshot = record.sourceStashCommit != nil
+          || record.sourceCopiedFiles?.isEmpty == false
+        guard !hasSourceSnapshot || record.sourceChangesApplied == true else {
+          throw AgentFailure(message: "工作树仍有待传递的来源修改，请先恢复任务：\(record.path)")
+        }
+        if record.archivedPruned != true && FileManager.default.fileExists(atPath: record.path) {
+          guard validatedManaged.contains(record.taskID) else {
+            throw AgentFailure(message: "请先检查仍在磁盘的托管工作树：\(record.path)")
+          }
+          if !candidate.permanentWorktrees.contains(where: { $0.path == record.path }) {
+            let checkout = record.checkout
+            let title = candidate.tasks.first(where: { $0.id == record.taskID })?.title
+              ?? checkout.title
+            var permanent = PermanentWorktree(id: checkout.id, source: checkout.source,
+              path: checkout.path, commonDirectory: checkout.commonDirectory,
+              startingCommit: checkout.startingCommit, startingName: checkout.startingName,
+              createdAt: checkout.createdAt, title: title)
+            permanent.ready = true
+            candidate.permanentWorktrees.append(permanent)
+          }
+          if !candidate.projects.contains(record.path) { candidate.projects.insert(record.path, at: 0) }
+          if candidate.projectNames[record.path] == nil {
+            candidate.projectNames[record.path] = candidate.tasks.first(where: {
+              $0.id == record.taskID
+            })?.title ?? record.checkout.title
+          }
+        }
+        candidate.newTaskExecutions[record.taskID] = nil
+        candidate.pendingManagedDraftTaskIDs = candidate.pendingManagedDraftTaskIDs.filter {
+          $0.value != record.taskID
+        }
+      }
+      candidate.managedWorktrees.removeAll { eligible.contains($0.taskID) }
+      let alreadyPending = Set(candidate.pendingManagedWorktreeDeletions.map(\.taskID))
+      candidate.pendingManagedWorktreeDeletions.append(contentsOf: managed.filter {
+        !alreadyPending.contains($0.taskID)
+      })
       let deletedRuns = candidate.deleteArchivedTasks(eligible)
       guard candidate.tasks.count != originalTaskCount else {
         archivedTaskDeletionError = nil
@@ -117,6 +173,7 @@ extension WorkspaceStore {
       let deletedDiffIDs = Set((library.chatRuns + library.forkRuns)
         .filter { deletedRuns.contains($0.id) }.compactMap { $0.codexTurnDiff?.id })
       try commitLibrary(candidate)
+      if !managed.isEmpty { scheduleManagedDeletionCleanup() }
       let retainedSnapshotIDs = Set(candidate.chatRuns.map(\.id))
         .union(candidate.forkRunOrigins.values)
       for id in originalSnapshotIDs.subtracting(retainedSnapshotIDs) {

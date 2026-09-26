@@ -396,6 +396,201 @@ final class WorktreeTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testDeletingPrunedManagedTaskCleansProtectedRefsAndPrivateSnapshot() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    var store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    let target = URL(fileURLWithPath: record.path)
+    store.library.tasks.append(WorkspaceTask(id: taskID, project: record.path,
+      title: "Delete snapshot", runIDs: []))
+    XCTAssertTrue(store.saveLibrary())
+    try write("local edit\n", target.appendingPathComponent("file"))
+    try write("private copy\n", target.appendingPathComponent("untracked"))
+    store.updateTask(taskID, archive: true)
+    await store.managedArchiveCleanupTask?.value
+    XCTAssertEqual(store.library.managedWorktrees.first?.archivedPruned, true)
+    let snapshotRoot = data.appendingPathComponent("ManagedSourceSnapshots")
+      .appendingPathComponent(taskID)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: snapshotRoot.path))
+
+    store.archiveDeletion = .init(kind: .single, taskIDs: [taskID])
+    await store.confirmArchiveDeletion()
+    XCTAssertFalse(store.library.tasks.contains { $0.id == taskID })
+    XCTAssertFalse(store.library.managedWorktrees.contains { $0.taskID == taskID })
+    XCTAssertTrue(store.library.pendingManagedWorktreeDeletions.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: record.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: snapshotRoot.path))
+    for reference in ["refs/shipios/managed-archive/\(taskID)",
+      "refs/shipios/managed-archive-dirty/\(taskID)"] {
+      let result = try await LocalWorkspaceService.git(["show-ref", "--verify", reference], at: source)
+      XCTAssertNotEqual(result.status, 0)
+    }
+    await store.shutdown()
+    store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    XCTAssertTrue(store.library.pendingManagedWorktreeDeletions.isEmpty)
+    XCTAssertFalse(store.library.tasks.contains { $0.id == taskID })
+    await store.shutdown()
+  }
+
+  @MainActor func testDeletingRetainedManagedTaskPreservesCheckoutAsPermanentProject() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    var store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    let target = URL(fileURLWithPath: record.path)
+    let edit = target.appendingPathComponent("keep-me")
+    try write("user data\n", edit)
+    var task = WorkspaceTask(id: taskID, project: record.path,
+      title: "Retained checkout", runIDs: [])
+    task.pinned = true
+    store.library.tasks.append(task)
+    XCTAssertTrue(store.saveLibrary())
+    store.updateTask(taskID, archive: true)
+    await store.managedArchiveCleanupTask?.value
+    XCTAssertTrue(FileManager.default.fileExists(atPath: target.path))
+    store.archiveDeletion = .init(kind: .single, taskIDs: [taskID])
+    await store.confirmArchiveDeletion()
+    XCTAssertNil(store.archivedTaskDeletionError)
+    XCTAssertFalse(store.library.tasks.contains { $0.id == taskID })
+    XCTAssertFalse(store.library.managedWorktrees.contains { $0.taskID == taskID })
+    XCTAssertTrue(store.library.permanentWorktrees.contains { $0.path == record.path && $0.ready })
+    XCTAssertTrue(store.library.projects.contains(record.path))
+    XCTAssertEqual(store.library.projectTitle(record.path), "Retained checkout")
+    XCTAssertEqual(try String(contentsOf: edit), "user data\n")
+    await store.shutdown()
+    store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    XCTAssertTrue(store.library.permanentWorktrees.contains { $0.path == record.path && $0.ready })
+    XCTAssertEqual(try String(contentsOf: edit), "user data\n")
+    await store.shutdown()
+  }
+
+  @MainActor func testManagedDeletionRetainsCleanupRecordUntilProtectedRefCanBeRemoved() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    var store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    let target = URL(fileURLWithPath: record.path)
+    try write("committed progress\n", target.appendingPathComponent("file"))
+    _ = try await git(["commit", "-qam", "Progress"], target)
+    store.library.tasks.append(WorkspaceTask(id: taskID, project: record.path,
+      title: "Retry cleanup", runIDs: []))
+    XCTAssertTrue(store.saveLibrary())
+    store.updateTask(taskID, archive: true)
+    await store.managedArchiveCleanupTask?.value
+    let archivedHead = try XCTUnwrap(store.library.managedWorktrees.first?.archivedHead)
+    let reference = "refs/shipios/managed-archive/\(taskID)"
+    _ = try await git(["update-ref", reference, snapshot.currentCommit!], source)
+    store.archiveDeletion = .init(kind: .single, taskIDs: [taskID])
+    await store.confirmArchiveDeletion()
+    XCTAssertFalse(store.library.tasks.contains { $0.id == taskID })
+    XCTAssertEqual(store.library.pendingManagedWorktreeDeletions.map(\.taskID), [taskID])
+    let altered = try await LocalWorkspaceService.git(["rev-parse", reference], at: source)
+    XCTAssertEqual(altered.text.trimmingCharacters(in: .whitespacesAndNewlines),
+      snapshot.currentCommit)
+    await store.shutdown()
+    store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    XCTAssertEqual(store.library.pendingManagedWorktreeDeletions.map(\.taskID), [taskID])
+    _ = try await git(["update-ref", reference, archivedHead], source)
+    await store.cleanupPendingManagedWorktreeDeletions()
+    XCTAssertTrue(store.library.pendingManagedWorktreeDeletions.isEmpty)
+    let removed = try await LocalWorkspaceService.git(["show-ref", "--verify", reference], at: source)
+    XCTAssertNotEqual(removed.status, 0)
+    await store.shutdown()
+  }
+
+  @MainActor func testDeletingManagedTaskRejectsReplacedCheckout() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    var task = WorkspaceTask(id: taskID, project: record.path,
+      title: "Do not convert", runIDs: [])
+    task.pinned = true
+    store.library.tasks.append(task)
+    XCTAssertTrue(store.saveLibrary())
+    store.updateTask(taskID, archive: true)
+    await store.managedArchiveCleanupTask?.value
+    let target = URL(fileURLWithPath: record.path)
+    let moved = target.appendingPathExtension("moved")
+    try FileManager.default.moveItem(at: target, to: moved)
+    try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+    try write("unrelated\n", target.appendingPathComponent("do-not-touch"))
+    store.archiveDeletion = .init(kind: .single, taskIDs: [taskID])
+    await store.confirmArchiveDeletion()
+    XCTAssertTrue(store.library.tasks.contains { $0.id == taskID && $0.archived })
+    XCTAssertTrue(store.library.managedWorktrees.contains { $0.taskID == taskID })
+    XCTAssertFalse(store.library.permanentWorktrees.contains { $0.path == record.path })
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("do-not-touch")),
+      "unrelated\n")
+    XCTAssertTrue(FileManager.default.fileExists(atPath: moved.path))
+    await store.shutdown()
+  }
+
+  @MainActor func testDeletingManagedTaskKeepsUnappliedSourceSnapshot() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot,
+      branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    var task = WorkspaceTask(id: taskID, project: record.path,
+      title: "Pending source changes", runIDs: [])
+    task.pinned = true
+    store.library.tasks.append(task)
+    let index = try XCTUnwrap(store.library.managedWorktrees.firstIndex { $0.taskID == taskID })
+    store.library.managedWorktrees[index].sourceCopiedFiles = [
+      ManagedSourceFile(path: "source-only", sha256: String(repeating: "a", count: 64),
+        permissions: 0o600)
+    ]
+    XCTAssertTrue(store.saveLibrary())
+    store.updateTask(taskID, archive: true)
+    await store.managedArchiveCleanupTask?.value
+    store.archiveDeletion = .init(kind: .single, taskIDs: [taskID])
+    await store.confirmArchiveDeletion()
+    XCTAssertTrue(store.library.tasks.contains { $0.id == taskID && $0.archived })
+    XCTAssertTrue(store.library.managedWorktrees.contains { $0.taskID == taskID })
+    XCTAssertTrue(store.library.permanentWorktrees.isEmpty)
+    XCTAssertTrue(store.archivedTaskDeletionError?.contains("来源修改") == true)
+    await store.shutdown()
+  }
+
   func testMetadataDirectoryAndChangedRootAreRejected() async throws {
     let (base, source) = try await fixture()
     let snapshot = try await GitBranchService.snapshot(at: source)

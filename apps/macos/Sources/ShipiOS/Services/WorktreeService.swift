@@ -170,6 +170,27 @@ enum WorktreeService {
     return true
   }
 
+  /// A retained checkout becomes an ordinary permanent worktree when its archived task is deleted.
+  static func validateRetainedManaged(_ record: ManagedWorktree) async throws {
+    let source = URL(fileURLWithPath: record.source)
+    let target = URL(fileURLWithPath: record.path)
+    let registered = try await registeredPaths(at: source)
+    let sourceCommon = try await commonDirectory(at: source)
+    let targetCommon = try await commonDirectory(at: target)
+    guard record.ready,
+      (try? FileManager.default.attributesOfItem(atPath: target.path)[.type]) as? FileAttributeType
+        == .typeDirectory,
+      GitBranchService.canonicalRoot(target).path == target.path,
+      target.path != GitBranchService.canonicalRoot(source).path,
+      registered.contains(target.path),
+      sourceCommon.path == targetCommon.path,
+      targetCommon.path ==
+        GitBranchService.canonicalRoot(URL(fileURLWithPath: record.checkout.commonDirectory)).path
+    else {
+      throw AgentFailure(message: "托管工作树目录或 Git 登记已改变，未删除归档任务：\(record.path)")
+    }
+  }
+
   private static func registeredPaths(at source: URL) async throws -> Set<String> {
     let output = try await GitReviewService.checked(["worktree", "list", "--porcelain", "-z"], at: source)
     return Set(output.split(separator: "\0").filter { $0.hasPrefix("worktree ") }.map {

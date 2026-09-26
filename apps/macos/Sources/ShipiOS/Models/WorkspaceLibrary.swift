@@ -202,6 +202,8 @@ struct WorkspaceLibrary: Codable {
   var worktreeRoot: String?
   var permanentWorktrees: [PermanentWorktree] = []
   var managedWorktrees: [ManagedWorktree] = []
+  /// Deleted tasks whose protected Git refs/private file snapshots still need cleanup.
+  var pendingManagedWorktreeDeletions: [ManagedWorktree] = []
   var newTaskExecutions: [String: NewTaskExecution] = [:]
   var pendingManagedDraftTaskIDs: [String: String] = [:]
   var goalSessions: [String: GoalSession] = [:]
@@ -218,7 +220,8 @@ struct WorkspaceLibrary: Codable {
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
       defaultTerminalLocation, gitPreferences,
-      worktreeRoot, permanentWorktrees, managedWorktrees, newTaskExecutions,
+      worktreeRoot, permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
+      newTaskExecutions,
       pendingManagedDraftTaskIDs, goalSessions
   }
   init(from decoder: Decoder) throws {
@@ -304,6 +307,8 @@ struct WorkspaceLibrary: Codable {
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
     permanentWorktrees = try c.decodeIfPresent([PermanentWorktree].self, forKey: .permanentWorktrees) ?? []
     managedWorktrees = try c.decodeIfPresent([ManagedWorktree].self, forKey: .managedWorktrees) ?? []
+    pendingManagedWorktreeDeletions = try c.decodeIfPresent([ManagedWorktree].self,
+      forKey: .pendingManagedWorktreeDeletions) ?? []
     newTaskExecutions = try c.decodeIfPresent([String: NewTaskExecution].self,
       forKey: .newTaskExecutions) ?? [:]
     pendingManagedDraftTaskIDs = try c.decodeIfPresent([String: String].self,

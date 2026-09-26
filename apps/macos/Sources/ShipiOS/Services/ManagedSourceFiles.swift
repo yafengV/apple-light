@@ -159,6 +159,24 @@ enum ManagedSourceFiles {
     if type(at: root) == mode_t(S_IFDIR) { try? FileManager.default.removeItem(at: root) }
   }
 
+  /// Deletion cleanup must report failures so the persisted tombstone can retry on restart.
+  static func removeSnapshotChecked(dataRoot: URL, taskID: String) throws {
+    guard UUID(uuidString: taskID) != nil else {
+      throw AgentFailure(message: "工作树任务 ID 无效。")
+    }
+    let parent = dataRoot.appendingPathComponent(folder, isDirectory: true)
+    guard let parentType = type(at: parent) else { return }
+    guard parentType == mode_t(S_IFDIR) else {
+      throw AgentFailure(message: "私有工作树快照目录无效。")
+    }
+    let root = directory(dataRoot: dataRoot, taskID: taskID)
+    guard let rootType = type(at: root) else { return }
+    guard rootType == mode_t(S_IFDIR) else {
+      throw AgentFailure(message: "工作树文件快照目录无效。")
+    }
+    try FileManager.default.removeItem(at: root)
+  }
+
   private static func directory(dataRoot: URL, taskID: String) -> URL {
     dataRoot.appendingPathComponent(folder, isDirectory: true)
       .appendingPathComponent(taskID, isDirectory: true)

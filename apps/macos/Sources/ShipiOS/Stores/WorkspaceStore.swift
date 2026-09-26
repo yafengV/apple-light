@@ -284,6 +284,7 @@ final class WorkspaceStore {
   var busy = false
   var managedTaskPreparing = false
   @ObservationIgnored var managedArchiveCleanupTask: Task<Void, Never>?
+  @ObservationIgnored var managedDeletionCleanupTask: Task<Void, Never>?
   var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
   var error: String?
@@ -416,6 +417,7 @@ final class WorkspaceStore {
     restoringLibrary = true
     defer { restoringLibrary = false }
     guard await loadLibrary() else { return }
+    await cleanupPendingManagedWorktreeDeletions()
     await loadModelConfiguration()
     await loadPersonalization()
     await loadMemories()
@@ -1061,6 +1063,7 @@ final class WorkspaceStore {
 
   func shutdown() async {
     await managedArchiveCleanupTask?.value
+    await managedDeletionCleanupTask?.value
     captureWorkspaceTabLayout()
     shuttingDown = true
     await shutdownMCPConnections()
