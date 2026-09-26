@@ -27,8 +27,7 @@ struct TaskWindowView: View {
   @State private var previewImages: [ImagePreviewItem] = []
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
-  @State private var showingTaskSummary = false
-  @State private var contentWidth: CGFloat = 0
+  @State private var taskSummary = TaskSummaryPresentation()
   @State private var renameTitle: String?
   @State private var dropTargeted = false
   @State private var showingFind = false
@@ -100,7 +99,7 @@ struct TaskWindowView: View {
     Group {
       if let task {
         GeometryReader { geometry in
-          let summaryInline = showingTaskSummary && geometry.size.width >= 1000
+          let summaryInline = taskSummary.showsInline
           VStack(spacing: 0) {
             HStack(spacing: 0) {
               if showsSidePanel && tabs.primarySide == .right {
@@ -123,7 +122,7 @@ struct TaskWindowView: View {
               if summaryInline {
                 Divider()
                 TaskSummaryView(task: task, runs: taskRuns, library: store.library) {
-                  showingTaskSummary = false
+                  taskSummary.close()
                 }
               }
             }
@@ -142,8 +141,8 @@ struct TaskWindowView: View {
               .taskWindowDropDestination(tabs: tabs, placement: .bottom)
             }
           }
-          .onAppear { contentWidth = geometry.size.width }
-          .onChange(of: geometry.size.width) { _, width in contentWidth = width }
+          .onAppear { taskSummary.resize(to: geometry.size.width) }
+          .onChange(of: geometry.size.width) { _, width in taskSummary.resize(to: width) }
           .overlay(alignment: tabs.primarySide == .left ? .trailing : .leading) {
             if !showsSidePanel, tabs.canDropDraggedTab(to: .right) {
               hiddenPanelDropTarget(.right, title: tabs.primarySide == .left ? "移到右侧" : "移到左侧",
@@ -171,16 +170,17 @@ struct TaskWindowView: View {
             }
             .help("在当前任务中查找 " + store.shortcuts.label("find"))
 
-            Button { showingTaskSummary.toggle() } label: {
+            Button { taskSummary.toggle() } label: {
               Image(systemName: "sidebar.trailing")
             }
             .help("切换任务摘要")
             .accessibilityLabel("切换任务摘要")
+            .accessibilityValue(taskSummary.isVisible ? "已显示" : "已隐藏")
             .popover(isPresented: Binding(
-              get: { showingTaskSummary && contentWidth < 1000 },
-              set: { if !$0 { showingTaskSummary = false } }), arrowEdge: .bottom) {
+              get: { taskSummary.showsPopover },
+              set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
               TaskSummaryView(task: task, runs: taskRuns, library: store.library) {
-                showingTaskSummary = false
+                taskSummary.close()
               }
               .frame(height: 480)
             }
@@ -621,7 +621,7 @@ struct TaskWindowView: View {
     case "model": openTaskModelPicker()
     case "fork": forkTask()
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
-    case "task-summary": showingTaskSummary.toggle()
+    case "task-summary": taskSummary.toggle()
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)

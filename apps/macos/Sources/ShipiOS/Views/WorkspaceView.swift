@@ -5,8 +5,7 @@ struct WorkspaceView: View {
   @Environment(\.openWindow) private var openWindow
   @State private var renameHistory = TaskRenameHistory()
   @State private var columns: NavigationSplitViewVisibility = .all
-  @State private var showingTaskSummary = false
-  @State private var detailWidth: CGFloat = 0
+  @State private var taskSummary = TaskSummaryPresentation()
 
   var body: some View {
     workspaceRoot
@@ -71,7 +70,7 @@ struct WorkspaceView: View {
         store.taskWindowOpenRequest = nil
         openWindow(value: route)
       }
-      .onChange(of: store.taskSummaryToggleRequest) { _, _ in showingTaskSummary.toggle() }
+      .onChange(of: store.taskSummaryToggleRequest) { _, _ in taskSummary.toggle() }
       .onChange(of: store.project) { _, _ in store.showingBranchPicker = false }
       .onChange(of: store.logName) { _, _ in Task { await store.loadDetails() } }
       .alert("重命名项目", isPresented: Binding(
@@ -178,16 +177,17 @@ struct WorkspaceView: View {
               Image(systemName: "square.stack.3d.up")
             }.help("审查 \(store.shortcuts.label("review"))").disabled(!store.commandEnabled("review"))
             if let task = store.selectedTask {
-              Button { showingTaskSummary.toggle() } label: {
+              Button { taskSummary.toggle() } label: {
                 Image(systemName: "sidebar.trailing")
               }
               .help("切换任务摘要")
               .accessibilityLabel("切换任务摘要")
+              .accessibilityValue(taskSummary.isVisible ? "已显示" : "已隐藏")
               .popover(isPresented: Binding(
-                get: { showingTaskSummary && detailWidth < 1100 },
-                set: { if !$0 { showingTaskSummary = false } }), arrowEdge: .bottom) {
+                get: { taskSummary.showsPopover },
+                set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
                 TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library) {
-                  showingTaskSummary = false
+                  taskSummary.close()
                 }
                 .frame(height: 480)
               }
@@ -279,7 +279,7 @@ struct WorkspaceView: View {
         GeometryReader { detail in
           let inspectorWidth = store.panelSizes.inspector(available: detail.size.width)
           let terminalHeight = store.panelSizes.terminal(available: detail.size.height)
-          let summaryInline = showingTaskSummary && store.selectedTask != nil && detail.size.width >= 1100
+          let summaryInline = taskSummary.showsInline && store.selectedTask != nil
           HStack(spacing: 0) {
             if store.showingInspector && store.workspaceContentPaneSide == .left {
               inspectorColumn(width: inspectorWidth, height: detail.size.height)
@@ -299,12 +299,12 @@ struct WorkspaceView: View {
             if summaryInline, let task = store.selectedTask {
               Divider()
               TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library) {
-                showingTaskSummary = false
+                taskSummary.close()
               }
             }
           }.frame(width: detail.size.width, height: detail.size.height)
-            .onAppear { detailWidth = detail.size.width }
-            .onChange(of: detail.size.width) { _, width in detailWidth = width }
+            .onAppear { taskSummary.resize(to: detail.size.width) }
+            .onChange(of: detail.size.width) { _, width in taskSummary.resize(to: width) }
             .appSurface()
             .opacity(store.retainsStandalonePage ? 0 : 1)
             .allowsHitTesting(!store.retainsStandalonePage)
