@@ -97,6 +97,10 @@ struct ComposerModelPicker: View {
       }.disabled(configuration.model.isEmpty)
       Text("模型列表由当前服务提供；推理强度是否可用取决于所选模型。更改用于下一次请求。")
         .appFont(.caption).foregroundStyle(.secondary)
+      if catalog.isCurrentReasoningUnsupported(for: configuration.model, reasoning: configuration.reasoning) {
+        Text("当前推理强度不在此模型声明的支持列表中；请选择其他等级或服务默认值。")
+          .appFont(.caption).foregroundStyle(.orange)
+      }
       if let saveError { Text(saveError).appFont(.caption).foregroundStyle(.red) }
       HStack {
         Button("模型与 API 设置…") { if let onSettings { onSettings() } else { store.openSettings(.model) } }.buttonStyle(.plain)
@@ -133,7 +137,8 @@ struct ComposerModelPicker: View {
 
   private func choose(_ model: String) {
     do {
-      try store.selectModel(model, reasoning: configuration.reasoning, taskID: taskID)
+      try store.selectModel(model,
+        reasoning: catalog.reasoningWhenSelecting(model, current: configuration.reasoning), taskID: taskID)
       close()
     } catch { saveError = error.localizedDescription }
   }

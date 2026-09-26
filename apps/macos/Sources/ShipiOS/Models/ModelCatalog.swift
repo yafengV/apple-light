@@ -89,4 +89,14 @@ final class ModelCatalog {
     guard let supported = supportedReasoningEfforts[model] else { return visible }
     return visible.filter { $0.isEmpty || supported.contains($0) }
   }
+
+  func reasoningWhenSelecting(_ model: String, current: String) -> String {
+    guard !current.isEmpty, let supported = supportedReasoningEfforts[model],
+      !supported.contains(current) else { return current }
+    return ""
+  }
+
+  func isCurrentReasoningUnsupported(for model: String, reasoning: String) -> Bool {
+    !reasoning.isEmpty && (supportedReasoningEfforts[model].map { !$0.contains(reasoning) } ?? false)
+  }
 }

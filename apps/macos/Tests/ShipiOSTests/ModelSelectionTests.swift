@@ -68,6 +68,12 @@ final class ModelSelectionTests: XCTestCase {
       ["", "none", "minimal", "low", "medium", "high", "xhigh", "max"])
     XCTAssertEqual(catalog.availableReasoning(for: "missing", advanced: []),
       AgentReasoningEfforts.standard)
+    XCTAssertEqual(catalog.reasoningWhenSelecting("known", current: "max"), "max")
+    XCTAssertEqual(catalog.reasoningWhenSelecting("known", current: "high"), "")
+    XCTAssertEqual(catalog.reasoningWhenSelecting("unknown", current: "high"), "high")
+    XCTAssertTrue(catalog.isCurrentReasoningUnsupported(for: "known", reasoning: "high"))
+    XCTAssertFalse(catalog.isCurrentReasoningUnsupported(for: "known", reasoning: ""))
+    XCTAssertFalse(catalog.isCurrentReasoningUnsupported(for: "unknown", reasoning: "high"))
   }
 
   @MainActor func testOldProviderResponseCannotReplaceNewProviderList() async {
