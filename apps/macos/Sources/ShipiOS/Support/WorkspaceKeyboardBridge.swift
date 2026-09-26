@@ -63,6 +63,7 @@ extension WorkspaceStore {
               || DesktopCommand.numberSlot($0.id) != nil) && shortcuts.matches($0.id, binding)
             || shortcuts.bindings($0.id).dropFirst().contains(binding))
       }), commandEnabled(command.id) else { return false }
+    if (command.id == "back" || command.id == "forward"), workspace.browser.hasEditableFocus { return false }
     executeCommand(command.id)
     return true
   }

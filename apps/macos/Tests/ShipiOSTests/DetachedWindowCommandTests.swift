@@ -120,6 +120,12 @@ import XCTest
     XCTAssertTrue(window.firstResponder === field.currentEditor())
     XCTAssertEqual(store.workspace.browser.selection, b.id)
     XCTAssertEqual(store.selection, "b")
+    XCTAssertTrue(store.workspace.browser.hasEditableFocus(tabID: a.id, in: window))
+    XCTAssertTrue(window.makeFirstResponder(a.view))
+    a.setPageEditableFocus(frame: "editor", editable: true)
+    XCTAssertTrue(store.workspace.browser.hasEditableFocus(tabID: a.id, in: window))
+    a.setPageEditableFocus(frame: "editor", editable: false)
+    XCTAssertFalse(store.workspace.browser.hasEditableFocus(tabID: a.id, in: window))
   }
 
   func testElementReferencesRemainInExplicitTaskAndDraftOwner() throws {

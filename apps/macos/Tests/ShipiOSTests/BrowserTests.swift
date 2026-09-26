@@ -33,6 +33,36 @@ final class BrowserTests: XCTestCase {
     tab.address = base + path; tab.navigate()
     try await eventually("Page did not finish: \(path)") { !tab.loading && tab.title == title && tab.error == nil }
   }
+  @MainActor func testPageEditableFocusReportsInputsAndClearsOnBlurAndNavigation() async throws {
+    let session = BrowserSession()
+    defer { session.shutdown() }
+    let tab = session.newTab()
+    try await load(tab, "/one", title: "One")
+    XCTAssertFalse(tab.pageEditingText)
+    _ = try await tab.view.evaluateJavaScript("document.getElementById('draft').focus()")
+    try await eventually("Input focus did not reach the native page") { tab.pageEditingText }
+    _ = try await tab.view.evaluateJavaScript("document.getElementById('draft').blur()")
+    try await eventually("Input blur did not clear editing focus") { !tab.pageEditingText }
+    _ = try await tab.view.evaluateJavaScript("""
+      const editor = document.createElement('div');
+      editor.contentEditable = 'true'; document.body.appendChild(editor); editor.focus();
+      """)
+    try await eventually("Contenteditable focus did not reach the native page") { tab.pageEditingText }
+    try await load(tab, "/two", title: "Two")
+    XCTAssertFalse(tab.pageEditingText)
+  }
+  @MainActor func testSharedWebKitControllerInstallsOneFocusMonitorAcrossTabs() async throws {
+    let configuration = WKWebViewConfiguration()
+    let first = BrowserTab(configuration: configuration)
+    let scripts = configuration.userContentController.userScripts.count
+    let second = BrowserTab(configuration: configuration)
+    defer { first.close(); second.close() }
+    XCTAssertEqual(configuration.userContentController.userScripts.count, scripts)
+    first.close()
+    try await load(second, "/one", title: "One")
+    _ = try await second.view.evaluateJavaScript("document.getElementById('draft').focus()")
+    try await eventually("Closing another tab removed shared focus monitoring") { second.pageEditingText }
+  }
   @MainActor func testCopyURLTargetsExactVisiblePaneAndIgnoresClosedTab() async throws {
     let session = BrowserSession()
     defer { session.shutdown() }

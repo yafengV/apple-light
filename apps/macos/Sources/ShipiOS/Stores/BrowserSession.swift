@@ -199,6 +199,16 @@ final class BrowserSession {
       view === tab.view || view.isDescendant(of: tab.view) { return true }
     return false
   }
+  func hasEditableFocus(tabID: UUID?, in window: NSWindow? = NSApp?.keyWindow) -> Bool {
+    guard let tabID, let tab = tabs.first(where: { $0.id == tabID }),
+      let window, tab.view.window === window,
+      let responder = window.firstResponder else { return false }
+    if let field = addressField, field.window === window,
+      responder === field || responder === field.currentEditor() { return true }
+    return tab.pageEditingText && (responder === tab.view
+      || (responder as? NSView)?.isDescendant(of: tab.view) == true)
+  }
+  var hasEditableFocus: Bool { hasEditableFocus(tabID: selection) }
   func copyURL(tabID: UUID? = nil, to pasteboard: NSPasteboard = .general) {
     let tab: BrowserTab?
     if let tabID { tab = tabs.first { $0.id == tabID } } else { tab = selected }

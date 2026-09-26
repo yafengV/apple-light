@@ -512,6 +512,8 @@ struct TaskWindowView: View {
   private var windowCommandContext: TaskWindowCommandContext {
     TaskWindowCommandContext(enabled: windowCommandsBlocked ? [] : availableWindowCommands,
       perform: performWindowCommand, keyboardAllowed: { id in
+        if ["browser-back", "browser-forward", "back", "forward"].contains(id),
+          browser.session.hasEditableFocus { return false }
         if BrowserKeyboardBridge.contextualCommands.contains(id) {
           return (id == "browser-address" && panels.showingFiles) || browser.session.hasNativeFocus
         }

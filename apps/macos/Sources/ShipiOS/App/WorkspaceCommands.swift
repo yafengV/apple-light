@@ -114,6 +114,7 @@ struct WorkspaceCommands: Commands {
     if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       return taskWindowCommands.enabled.contains(id)
     }
+    if (id == "back" || id == "forward"), store.workspace.browser.hasEditableFocus { return false }
     return store.commandEnabled(id)
   }
   private func perform(_ id: String) {

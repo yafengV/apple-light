@@ -32,6 +32,9 @@ extension WorkspaceStore {
       default: break
       }
     }, closeTitle: "关闭标签页窗口", keyboardAllowed: { [weak self] id in
+      if ["browser-back", "browser-forward", "back", "forward"].contains(id),
+        let browserID = self?.workspaceTabs.first(where: { $0.id == tabID })?.browserID,
+        self?.workspace.browser.hasEditableFocus(tabID: browserID) == true { return false }
       guard id != "browser-address", BrowserKeyboardBridge.contextualCommands.contains(id) else { return true }
       guard let self, let browserID = self.workspaceTabs.first(where: { $0.id == tabID })?.browserID else { return false }
       return self.workspace.browser.hasNativeFocus(tabID: browserID)

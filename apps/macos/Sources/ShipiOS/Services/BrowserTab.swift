@@ -71,6 +71,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored var contextTarget: BrowserContextTarget?
   @ObservationIgnored var nativeInspectTarget: AnyObject?
   @ObservationIgnored var nativeInspectAction: Selector?
+  private(set) var pageEditingText = false
+  @ObservationIgnored private var editingFrames: Set<String> = []
 
   init(configuration: WKWebViewConfiguration, id: UUID = UUID()) {
     self.id = id
@@ -78,6 +80,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     view = BrowserWebView(frame: .zero, configuration: configuration)
     super.init()
     view.browserTab = self
+    BrowserEditableFocusHandler.install(on: view.configuration)
     if #available(macOS 13.3, *) { view.isInspectable = true }
     view.navigationDelegate = self
     view.uiDelegate = self
@@ -119,6 +122,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     guard !closed else { return }
     cancelElementSelection()
     closed = true
+    resetPageEditableFocus()
     view.stopLoading()
     for id in Array(downloads.keys) + Array(pendingDownloads) { _ = cancelDownload(id) }
     view.navigationDelegate = nil; view.uiDelegate = nil
@@ -268,11 +272,21 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
   func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
     guard !closed else { return }
+    resetPageEditableFocus()
     cancelElementSelection()
     selectedElement = nil
     elementSelectionError = nil
     snapshotError = nil
     activeNavigation = navigation; error = nil; sync()
+  }
+  func setPageEditableFocus(frame: String, editable: Bool) {
+    if editable { editingFrames.insert(frame) }
+    else { editingFrames.remove(frame) }
+    pageEditingText = !editingFrames.isEmpty
+  }
+  private func resetPageEditableFocus() {
+    editingFrames.removeAll()
+    pageEditingText = false
   }
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     guard navigation === activeNavigation else { return }
