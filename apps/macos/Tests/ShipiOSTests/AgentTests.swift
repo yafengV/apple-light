@@ -316,6 +316,21 @@ final class AgentTests: XCTestCase {
     editor.name = "Edited other"
     let saved = await editor.save()
     XCTAssertTrue(saved, editor.status)
+    let otherFile = other.appendingPathComponent(".codex/environments/environment.toml")
+    let externallyEdited = try String(contentsOf: otherFile, encoding: .utf8) + "\n# outside edit\n"
+    try externallyEdited.write(to: otherFile, atomically: true, encoding: .utf8)
+    editor.name = "Draft after external edit"
+    let conflictSave = await editor.save()
+    XCTAssertFalse(conflictSave)
+    XCTAssertTrue(editor.saveConflict)
+    XCTAssertEqual(editor.name, "Draft after external edit")
+    XCTAssertEqual(try String(contentsOf: otherFile, encoding: .utf8), externallyEdited)
+    let repeatedSave = await editor.save()
+    XCTAssertFalse(repeatedSave)
+    await editor.refresh()
+    XCTAssertFalse(editor.saveConflict)
+    XCTAssertFalse(editor.hasUnsavedChanges)
+    XCTAssertEqual(editor.name, "Edited other")
     editor.name = "Unsaved draft"
     XCTAssertTrue(editor.hasUnsavedChanges)
     await editor.load()

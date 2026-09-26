@@ -522,8 +522,9 @@ struct LocalEnvironmentSettingsView: View {
             ? environment.fileName : ".codex/environments/\(environment.fileName)")
             .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
           HStack {
-            Button("保存共享环境") {
-              Task { await saveEnvironment(returnToOverview: true) }
+            Button(environment.saveConflict ? "放弃修改并重新载入" : "保存共享环境") {
+              if environment.saveConflict { Task { await environment.refresh() } }
+              else { Task { await saveEnvironment(returnToOverview: true) } }
             }
               .disabled(!environment.connected || environment.saving)
             Button("重新载入环境") {
@@ -535,7 +536,8 @@ struct LocalEnvironmentSettingsView: View {
               .disabled(!environment.connected || environment.saving)
           }
           if !environment.status.isEmpty {
-            Text(environment.status).appFont(.caption).foregroundStyle(.secondary)
+            Text(environment.status).appFont(.caption)
+              .foregroundStyle(environment.saveConflict ? .red : .secondary)
           }
         }.disabled(managedSnapshot != nil)
         if store.project?.path == path {
@@ -573,6 +575,7 @@ struct LocalEnvironmentSettingsView: View {
               }.padding(16).frame(minWidth: 330).textSelection(.enabled)
             }
           Button("保存初始化脚本") { Task { await saveEnvironment() } }
+            .disabled(environment.saveConflict)
         }.disabled(managedSnapshot != nil)
         Section("工作树清理") {
           Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
@@ -587,6 +590,7 @@ struct LocalEnvironmentSettingsView: View {
             .frame(minHeight: 100)
             .accessibilityLabel("\(cleanupPlatform.title) 工作树清理脚本")
           Button("保存清理脚本") { Task { await saveEnvironment() } }
+            .disabled(environment.saveConflict)
         }.disabled(managedSnapshot != nil)
         Section("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
@@ -619,6 +623,7 @@ struct LocalEnvironmentSettingsView: View {
           }
           Button("添加操作") { environment.actions.append(EnvironmentAction()) }
           Button("保存快捷操作") { Task { await saveEnvironment() } }
+            .disabled(environment.saveConflict)
         }.disabled(managedSnapshot != nil)
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))

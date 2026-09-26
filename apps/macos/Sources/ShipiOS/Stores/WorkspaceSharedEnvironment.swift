@@ -32,6 +32,7 @@ final class EnvironmentSettingsSession {
   var connected = false
   var loading = false
   var saving = false
+  var saveConflict = false
   var loadedState: LocalEnvironmentFormState?
   @ObservationIgnored private var client: AgentClient?
   @ObservationIgnored private var temporary: URL?
@@ -137,6 +138,7 @@ final class EnvironmentSettingsSession {
   }
 
   private func clearForm() {
+    saveConflict = false
     name = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
     setupScript = ""
     setupPlatforms = .init()
@@ -183,7 +185,7 @@ final class EnvironmentSettingsSession {
   }
 
   @discardableResult func save() async -> Bool {
-    guard let client, !saving else { return false }
+    guard let client, !saving, !saveConflict else { return false }
     let token = generation
     let selected = fileName
     let validName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -219,6 +221,7 @@ final class EnvironmentSettingsSession {
       guard generation == token, fileName == selected else { return false }
       revision = result["revision"].text
       exists = result["exists"].boolean == true
+      saveConflict = false
       loadedState = formState
       status = "已保存至项目共享环境文件。"
       if let entries = try? await client.request("environment.list")
@@ -228,7 +231,11 @@ final class EnvironmentSettingsSession {
       return generation == token
     } catch {
       if generation == token, fileName == selected {
-        status = "共享环境保存失败：\(error.localizedDescription)"
+        if let failure = error as? AgentFailure,
+          failure.message == "environment file changed outside ShipiOS; reload before saving" {
+          saveConflict = true
+          status = "此环境文件已在磁盘上更改。放弃当前修改并重新载入后才能继续保存。"
+        } else { status = "共享环境保存失败：\(error.localizedDescription)" }
       }
       return false
     }
