@@ -24,6 +24,7 @@ final class WorkspaceStore {
   }
   var destination: AppDestination = .workspace
   var taskWindowOpenRequest: TaskWindowRoute?
+  var taskSummaryToggleRequest = UUID()
   var settingsReturnDestination: AppDestination = .workspace
   var showingFileSearch: Bool {
     get { presentedOverlay == .fileSearch }

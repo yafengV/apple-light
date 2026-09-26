@@ -5,9 +5,100 @@ struct WorkspaceView: View {
   @Environment(\.openWindow) private var openWindow
   @State private var renameHistory = TaskRenameHistory()
   @State private var columns: NavigationSplitViewVisibility = .all
+  @State private var showingTaskSummary = false
+  @State private var detailWidth: CGFloat = 0
 
   var body: some View {
+    workspaceRoot
+    .task(id: store.currentWorkspaceTabOwner) { store.restoreWorkspaceTabLayout() }
+    .task(id: store.workspaceTabLayoutSnapshot) {
+      do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+      store.saveLibrary()
+    }
+    .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
+      for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
+    }
+    .onDisappear { store.endWorkspaceTabDrag() }
+    .disabled(store.renameTaskID != nil)
+    .accessibilityHidden(store.renameTaskID != nil)
+    .overlay {
+      if let id = store.renameTaskID {
+        TaskRenameDialog(initialTitle: store.renameDraft,
+          save: { try renameHistory.rename(store: store, taskID: id, title: $0) },
+          close: { store.renameTaskID = nil; store.focusComposer = UUID() })
+          .id(id)
+      }
+    }
+    .focusedSceneValue(\.taskRenameActive, store.renameTaskID != nil)
+    .taskRenameUndo(store: store, history: renameHistory,
+      blocked: store.renameTaskID != nil || store.presentedOverlay != nil || store.hasSettingsConfirmation
+        || store.destination != .workspace || store.showingModelPicker || store.showingBranchPicker, revealInMain: true)
+    .overlay(alignment: .top) {
+      if store.draggingWorkspaceTabID != nil {
+        VStack(spacing: 8) {
+          WorkspaceTabNewWindowDropTarget(store: store) { id in
+            store.moveWorkspaceTab(id, to: .detached)
+            if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
+          }
+          if let cue = store.workspaceTabDropTarget?.cue(side: store.workspaceContentPaneSide), store.workspaceTabDropTarget != .newWindow {
+            Label(cue.title, systemImage: cue.icon)
+              .appFont(.callout)
+              .padding(.horizontal, 14).padding(.vertical, 8)
+              .background(.regularMaterial, in: Capsule())
+              .overlay(Capsule().stroke(Color.accentColor, lineWidth: 2))
+              .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+              .allowsHitTesting(false)
+          }
+        }
+        .padding(.top, 46)
+      }
+    }
+    .tint(store.appearance.accentHex == nil ? .primary : store.appearance.accentColor)
+  }
+
+  private var workspaceRoot: some View {
     GeometryReader { geometry in
+      workspaceNavigation(geometry)
+      .toolbar { workspaceToolbar }
+      .onChange(of: store.selection) { _, _ in
+        store.endWorkspaceTabDrag()
+        store.restoreWorkspaceTabLayout()
+        Task { await store.loadDetails() }
+      }
+      .onChange(of: store.destination) { _, _ in store.endWorkspaceTabDrag() }
+      .onChange(of: store.taskWindowOpenRequest) { _, route in
+        guard let route else { return }
+        store.taskWindowOpenRequest = nil
+        openWindow(value: route)
+      }
+      .onChange(of: store.taskSummaryToggleRequest) { _, _ in showingTaskSummary.toggle() }
+      .onChange(of: store.project) { _, _ in store.showingBranchPicker = false }
+      .onChange(of: store.logName) { _, _ in Task { await store.loadDetails() } }
+      .alert("重命名项目", isPresented: Binding(
+        get: { store.renameProjectPath != nil },
+        set: { if !$0 { store.renameProjectPath = nil } })
+      ) {
+        TextField("名称", text: $store.renameDraft)
+        Button("取消", role: .cancel) { store.renameProjectPath = nil }
+        Button("保存") {
+          if let path = store.renameProjectPath { store.renameProject(path, title: store.renameDraft) }
+          store.renameProjectPath = nil
+        }.disabled(store.renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      }
+      .onReceive(NotificationCenter.default.publisher(for: .toggleShipiOSSidebar)) { _ in
+        guard store.destination != .settings else { return }
+        withAnimation { columns = columns == .detailOnly ? .all : .detailOnly }
+      }
+      .task {
+        while !Task.isCancelled {
+          await store.runDueAutomations()
+          try? await Task.sleep(for: .seconds(30))
+        }
+      }
+    }
+  }
+
+  private func workspaceNavigation(_ geometry: GeometryProxy) -> some View {
       NavigationSplitView(columnVisibility: $columns) {
         TaskSidebarView(store: store)
           .appSidebarSurface()
@@ -15,45 +106,7 @@ struct WorkspaceView: View {
           .frame(height: geometry.size.height)
           .navigationSplitViewColumnWidth(min: 210, ideal: 245, max: 310)
       } detail: {
-        GeometryReader { detail in
-          let inspectorWidth = store.panelSizes.inspector(available: detail.size.width)
-          let terminalHeight = store.panelSizes.terminal(available: detail.size.height)
-          HStack(spacing: 0) {
-            if store.showingInspector && store.workspaceContentPaneSide == .left {
-              inspectorColumn(width: inspectorWidth, height: detail.size.height)
-              inspectorResizeHandle(availableWidth: detail.size.width)
-            }
-            mainWorkspaceColumn(
-              width: max(
-                0,
-                detail.size.width
-                  - (store.showingInspector ? inspectorWidth + WorkspacePanelSizes.divider : 0)),
-              height: detail.size.height, terminalHeight: terminalHeight)
-            if store.showingInspector && store.workspaceContentPaneSide == .right {
-              inspectorResizeHandle(availableWidth: detail.size.width)
-              inspectorColumn(width: inspectorWidth, height: detail.size.height)
-            }
-          }.frame(width: detail.size.width, height: detail.size.height)
-            .appSurface()
-            .opacity(store.retainsStandalonePage ? 0 : 1)
-            .allowsHitTesting(!store.retainsStandalonePage)
-            .disabled(store.retainsStandalonePage)
-            .accessibilityHidden(store.retainsStandalonePage)
-            .overlay {
-              ZStack {
-                Group {
-                  if store.retainsProjectsPage { ProjectLibraryView(store: store) }
-                  else if store.retainsPluginsPage { PluginsView(store: store) }
-                  else if store.retainsAutomationsPage { AutomationsView(store: store) }
-                }
-                .opacity(store.destination == .pluginDetail ? 0 : 1)
-                .allowsHitTesting(store.destination != .pluginDetail)
-                .disabled(store.destination == .pluginDetail)
-                .accessibilityHidden(store.destination == .pluginDetail)
-                if store.destination == .pluginDetail { PluginDetailView(store: store) }
-              }
-            }
-        }
+        workspaceDetail
       }
       .frame(width: geometry.size.width, height: geometry.size.height)
       .navigationTitle(
@@ -67,7 +120,9 @@ struct WorkspaceView: View {
               ? "插件"
               : store.destination == .automations ? "自动化" : store.selectedTask?.title ?? "新任务"
       )
-      .toolbar {
+  }
+
+  @ToolbarContentBuilder private var workspaceToolbar: some ToolbarContent {
         if store.destination == .workspace {
           ToolbarItem(placement: .navigation) {
             Menu {
@@ -122,6 +177,21 @@ struct WorkspaceView: View {
             } label: {
               Image(systemName: "square.stack.3d.up")
             }.help("审查 \(store.shortcuts.label("review"))").disabled(!store.commandEnabled("review"))
+            if let task = store.selectedTask {
+              Button { showingTaskSummary.toggle() } label: {
+                Image(systemName: "sidebar.trailing")
+              }
+              .help("切换任务摘要")
+              .accessibilityLabel("切换任务摘要")
+              .popover(isPresented: Binding(
+                get: { showingTaskSummary && detailWidth < 1100 },
+                set: { if !$0 { showingTaskSummary = false } }), arrowEdge: .bottom) {
+                TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library) {
+                  showingTaskSummary = false
+                }
+                .frame(height: 480)
+              }
+            }
             Button {
               store.showingInspector.toggle()
             } label: {
@@ -203,86 +273,58 @@ struct WorkspaceView: View {
             }.help("任务操作")
           }
         }
-      }
-      .onChange(of: store.selection) { _, _ in
-        store.endWorkspaceTabDrag()
-        store.restoreWorkspaceTabLayout()
-        Task { await store.loadDetails() }
-      }
-      .onChange(of: store.destination) { _, _ in store.endWorkspaceTabDrag() }
-      .onChange(of: store.taskWindowOpenRequest) { _, route in
-        guard let route else { return }
-        store.taskWindowOpenRequest = nil
-        openWindow(value: route)
-      }
-      .onChange(of: store.project) { _, _ in store.showingBranchPicker = false }
-      .onChange(of: store.logName) { _, _ in Task { await store.loadDetails() } }
-      .alert("重命名项目", isPresented: Binding(
-        get: { store.renameProjectPath != nil },
-        set: { if !$0 { store.renameProjectPath = nil } })
-      ) {
-        TextField("名称", text: $store.renameDraft)
-        Button("取消", role: .cancel) { store.renameProjectPath = nil }
-        Button("保存") {
-          if let path = store.renameProjectPath { store.renameProject(path, title: store.renameDraft) }
-          store.renameProjectPath = nil
-        }.disabled(store.renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-      }
-      .onReceive(NotificationCenter.default.publisher(for: .toggleShipiOSSidebar)) { _ in
-        guard store.destination != .settings else { return }
-        withAnimation { columns = columns == .detailOnly ? .all : .detailOnly }
-      }
-      .task {
-        while !Task.isCancelled {
-          await store.runDueAutomations()
-          try? await Task.sleep(for: .seconds(30))
+  }
+
+  private var workspaceDetail: some View {
+        GeometryReader { detail in
+          let inspectorWidth = store.panelSizes.inspector(available: detail.size.width)
+          let terminalHeight = store.panelSizes.terminal(available: detail.size.height)
+          let summaryInline = showingTaskSummary && store.selectedTask != nil && detail.size.width >= 1100
+          HStack(spacing: 0) {
+            if store.showingInspector && store.workspaceContentPaneSide == .left {
+              inspectorColumn(width: inspectorWidth, height: detail.size.height)
+              inspectorResizeHandle(availableWidth: detail.size.width)
+            }
+            mainWorkspaceColumn(
+              width: max(
+                0,
+                detail.size.width
+                  - (store.showingInspector ? inspectorWidth + WorkspacePanelSizes.divider : 0)
+                  - (summaryInline ? 317 : 0)),
+              height: detail.size.height, terminalHeight: terminalHeight)
+            if store.showingInspector && store.workspaceContentPaneSide == .right {
+              inspectorResizeHandle(availableWidth: detail.size.width)
+              inspectorColumn(width: inspectorWidth, height: detail.size.height)
+            }
+            if summaryInline, let task = store.selectedTask {
+              Divider()
+              TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library) {
+                showingTaskSummary = false
+              }
+            }
+          }.frame(width: detail.size.width, height: detail.size.height)
+            .onAppear { detailWidth = detail.size.width }
+            .onChange(of: detail.size.width) { _, width in detailWidth = width }
+            .appSurface()
+            .opacity(store.retainsStandalonePage ? 0 : 1)
+            .allowsHitTesting(!store.retainsStandalonePage)
+            .disabled(store.retainsStandalonePage)
+            .accessibilityHidden(store.retainsStandalonePage)
+            .overlay {
+              ZStack {
+                Group {
+                  if store.retainsProjectsPage { ProjectLibraryView(store: store) }
+                  else if store.retainsPluginsPage { PluginsView(store: store) }
+                  else if store.retainsAutomationsPage { AutomationsView(store: store) }
+                }
+                .opacity(store.destination == .pluginDetail ? 0 : 1)
+                .allowsHitTesting(store.destination != .pluginDetail)
+                .disabled(store.destination == .pluginDetail)
+                .accessibilityHidden(store.destination == .pluginDetail)
+                if store.destination == .pluginDetail { PluginDetailView(store: store) }
+              }
+            }
         }
-      }
-    }
-    .task(id: store.currentWorkspaceTabOwner) { store.restoreWorkspaceTabLayout() }
-    .task(id: store.workspaceTabLayoutSnapshot) {
-      do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
-      store.saveLibrary()
-    }
-    .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
-      for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
-    }
-    .onDisappear { store.endWorkspaceTabDrag() }
-    .disabled(store.renameTaskID != nil)
-    .accessibilityHidden(store.renameTaskID != nil)
-    .overlay {
-      if let id = store.renameTaskID {
-        TaskRenameDialog(initialTitle: store.renameDraft,
-          save: { try renameHistory.rename(store: store, taskID: id, title: $0) },
-          close: { store.renameTaskID = nil; store.focusComposer = UUID() })
-          .id(id)
-      }
-    }
-    .focusedSceneValue(\.taskRenameActive, store.renameTaskID != nil)
-    .taskRenameUndo(store: store, history: renameHistory,
-      blocked: store.renameTaskID != nil || store.presentedOverlay != nil || store.hasSettingsConfirmation
-        || store.destination != .workspace || store.showingModelPicker || store.showingBranchPicker, revealInMain: true)
-    .overlay(alignment: .top) {
-      if store.draggingWorkspaceTabID != nil {
-        VStack(spacing: 8) {
-          WorkspaceTabNewWindowDropTarget(store: store) { id in
-            store.moveWorkspaceTab(id, to: .detached)
-            if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
-          }
-          if let cue = store.workspaceTabDropTarget?.cue(side: store.workspaceContentPaneSide), store.workspaceTabDropTarget != .newWindow {
-            Label(cue.title, systemImage: cue.icon)
-              .appFont(.callout)
-              .padding(.horizontal, 14).padding(.vertical, 8)
-              .background(.regularMaterial, in: Capsule())
-              .overlay(Capsule().stroke(Color.accentColor, lineWidth: 2))
-              .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
-              .allowsHitTesting(false)
-          }
-        }
-        .padding(.top, 46)
-      }
-    }
-    .tint(store.appearance.accentHex == nil ? .primary : store.appearance.accentColor)
   }
 
   @ViewBuilder private var inspectorContent: some View {

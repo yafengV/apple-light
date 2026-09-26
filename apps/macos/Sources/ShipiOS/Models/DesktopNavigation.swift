@@ -41,6 +41,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "model", title: "选择模型与推理强度", icon: "cpu", shortcut: "⌃⇧M"),
     .init(id: "fork", title: "分叉到新任务", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "open-task-window", title: "在新窗口中打开任务", icon: "macwindow.on.rectangle", shortcut: ""),
+    .init(id: "task-summary", title: "切换任务摘要", icon: "sidebar.trailing", shortcut: ""),
     .init(id: "branch", title: "切换或创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "settings", title: "设置", icon: "gearshape", shortcut: "⌘,"),
     .init(id: "pet", title: "显示或隐藏宠物", icon: "pawprint", shortcut: "⌥Space"),
@@ -129,7 +130,7 @@ extension DesktopCommand {
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation
-    case "bottom-panel", "files", "tree", "terminal", "review", "review-open", "browser",
+    case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
     case "projects", "open", "branch", "doctor", "build": .project
     case "settings", "shortcuts", "plugins", "automations": .configure

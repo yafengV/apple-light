@@ -27,6 +27,8 @@ struct TaskWindowView: View {
   @State private var previewImages: [ImagePreviewItem] = []
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
+  @State private var showingTaskSummary = false
+  @State private var contentWidth: CGFloat = 0
   @State private var renameTitle: String?
   @State private var dropTargeted = false
   @State private var showingFind = false
@@ -98,6 +100,7 @@ struct TaskWindowView: View {
     Group {
       if let task {
         GeometryReader { geometry in
+          let summaryInline = showingTaskSummary && geometry.size.width >= 1000
           VStack(spacing: 0) {
             HStack(spacing: 0) {
               if showsSidePanel && tabs.primarySide == .right {
@@ -117,6 +120,12 @@ struct TaskWindowView: View {
                 sidePanelResizeHandle(geometry)
                 rightContent(geometry)
               }
+              if summaryInline {
+                Divider()
+                TaskSummaryView(task: task, runs: taskRuns, library: store.library) {
+                  showingTaskSummary = false
+                }
+              }
             }
             if tabs.showingBottom, let tab = tabs.selected(.bottom) {
               PanelResizeHandle(axis: .horizontal,
@@ -133,6 +142,8 @@ struct TaskWindowView: View {
               .taskWindowDropDestination(tabs: tabs, placement: .bottom)
             }
           }
+          .onAppear { contentWidth = geometry.size.width }
+          .onChange(of: geometry.size.width) { _, width in contentWidth = width }
           .overlay(alignment: tabs.primarySide == .left ? .trailing : .leading) {
             if !showsSidePanel, tabs.canDropDraggedTab(to: .right) {
               hiddenPanelDropTarget(.right, title: tabs.primarySide == .left ? "移到右侧" : "移到左侧",
@@ -159,6 +170,20 @@ struct TaskWindowView: View {
               Image(systemName: "text.magnifyingglass")
             }
             .help("在当前任务中查找 " + store.shortcuts.label("find"))
+
+            Button { showingTaskSummary.toggle() } label: {
+              Image(systemName: "sidebar.trailing")
+            }
+            .help("切换任务摘要")
+            .accessibilityLabel("切换任务摘要")
+            .popover(isPresented: Binding(
+              get: { showingTaskSummary && contentWidth < 1000 },
+              set: { if !$0 { showingTaskSummary = false } }), arrowEdge: .bottom) {
+              TaskSummaryView(task: task, runs: taskRuns, library: store.library) {
+                showingTaskSummary = false
+              }
+              .frame(height: 480)
+            }
 
             Button { performWindowCommand("browser") } label: { Image(systemName: "globe") }
               .help("显示或隐藏浏览器").accessibilityLabel("任务浏览器")
@@ -498,7 +523,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -538,7 +563,7 @@ struct TaskWindowView: View {
       if canGoForward { enabled.insert("forward") }
     }
     if !otherWindowModalActive, let task {
-      enabled.formUnion(["find", "plan", "model", "open-task-window"])
+      enabled.formUnion(["find", "plan", "model", "open-task-window", "task-summary"])
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
@@ -596,6 +621,7 @@ struct TaskWindowView: View {
     case "model": openTaskModelPicker()
     case "fork": forkTask()
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
+    case "task-summary": showingTaskSummary.toggle()
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next": moveFindMatch(1)

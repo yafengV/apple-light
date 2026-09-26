@@ -17,6 +17,7 @@ extension WorkspaceStore {
       if let task = selectedTask {
         taskWindowOpenRequest = .newWindow(taskID: task.id, dataRoot: dataRoot)
       }
+    case "task-summary": taskSummaryToggleRequest = UUID()
     case "plan":
       action = .chat
       chatMode = .plan
@@ -140,6 +141,7 @@ extension WorkspaceStore {
     case "browser-copy": return browserVisible && workspace.browser.selected?.committedURL != nil
     case "fork": return destination == .workspace && canForkConversation
     case "open-task-window": return destination == .workspace && selectedTask != nil
+    case "task-summary": return destination == .workspace && selectedTask != nil
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty

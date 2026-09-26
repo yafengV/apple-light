@@ -57,6 +57,7 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(groups["next-task"], .navigation)
     XCTAssertEqual(groups["focus-chat-1"], .navigation)
     XCTAssertEqual(groups["browser-new"], .panels)
+    XCTAssertEqual(groups["task-summary"], .panels)
     XCTAssertEqual(groups["focus-tab-1"], .panels)
     XCTAssertEqual(groups["branch"], .project)
     XCTAssertEqual(groups["settings"], .configure)
@@ -86,6 +87,26 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertFalse(store.commandEnabled("open-task-window"))
     store.executeCommand("open-task-window")
     XCTAssertNil(store.taskWindowOpenRequest)
+    await store.shutdown()
+  }
+
+  @MainActor func testTaskSummaryCommandOnlyTargetsAnOpenTask() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let initial = store.taskSummaryToggleRequest
+    XCTAssertFalse(store.commandEnabled("task-summary"))
+    store.executeCommand("task-summary")
+    XCTAssertEqual(store.taskSummaryToggleRequest, initial)
+    let current = task("summary")
+    store.library.tasks = [current]
+    store.selectTask(current)
+    XCTAssertTrue(store.commandEnabled("task-summary"))
+    store.executeCommand("task-summary")
+    XCTAssertNotEqual(store.taskSummaryToggleRequest, initial)
+    store.openSettings()
+    XCTAssertFalse(store.commandEnabled("task-summary"))
     await store.shutdown()
   }
 
