@@ -641,12 +641,31 @@ extension WorkspaceStore {
   }
   func recordCodexTurnDiff(runID: String, event: JSONValue) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
-    var diff = current.codexTurnDiff
+    let previous = current.codexTurnDiff
+    var diff = previous
     var items = current.responseItems ?? []
-    guard CodexTurnDiffTimeline.apply(event, diff: &diff, items: &items) else { return }
+    var storedByteCount: Int?
+    var contentSHA256: String?
+    let diffID = previous?.id ?? UUID()
+    if let source = event["unified_diff"].text, !source.isEmpty {
+      do {
+        let stored = try CodexTurnDiffStorage.save(source, id: diffID, root: dataRoot)
+        storedByteCount = stored.byteCount
+        contentSHA256 = stored.sha256
+      } catch {
+        self.error = "无法保存本轮完整差异：\(error.localizedDescription)"
+      }
+    }
+    guard CodexTurnDiffTimeline.apply(event, diff: &diff, items: &items,
+      storedByteCount: storedByteCount, contentSHA256: contentSHA256, newID: diffID) else { return }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, codexTurnDiff: diff, clearCodexTurnDiff: diff == nil)
-    saveLibrary()
+    let saved = saveLibrary()
+    if saved, diff == nil, let previous {
+      let retained = library.chatRuns.contains { $0.codexTurnDiff?.id == previous.id }
+        || library.forkRuns.contains { $0.codexTurnDiff?.id == previous.id }
+      if !retained { CodexTurnDiffStorage.remove(id: previous.id, root: dataRoot) }
+    }
   }
   func recordCodexCompaction(runID: String, manual: Bool) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }

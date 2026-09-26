@@ -47,7 +47,7 @@ struct ChatResponseView: View {
         CodexNoticeView(kind: kind, message: message)
       case .diff(let id):
         if let diff = run.codexTurnDiff, diff.id == id {
-          CodexTurnDiffView(diff: diff)
+          CodexTurnDiffView(diff: diff, root: store.dataRoot)
         }
       case .compaction:
         Label("上下文已整理", systemImage: "text.badge.checkmark")

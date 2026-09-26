@@ -293,7 +293,7 @@ struct WorkspaceView: View {
           axis: .horizontal, value: terminalHeight,
           bounds: WorkspacePanelSizes.terminalBounds(available: height),
           label: "调整终端高度", onResize: store.resizeTerminal,
-          onEnd: store.saveLibrary, onReset: store.resetTerminalSize
+          onEnd: { store.saveLibrary() }, onReset: store.resetTerminalSize
         )
         .frame(height: WorkspacePanelSizes.divider)
         VStack(spacing: 0) {
@@ -357,7 +357,7 @@ struct WorkspaceView: View {
       value: store.panelSizes.inspector(available: availableWidth),
       bounds: WorkspacePanelSizes.inspectorBounds(available: availableWidth),
       label: "调整内容面板宽度", onResize: store.resizeInspector,
-      onEnd: store.saveLibrary, onReset: store.resetInspectorSize
+      onEnd: { store.saveLibrary() }, onReset: store.resetInspectorSize
     )
     .frame(width: WorkspacePanelSizes.divider)
   }

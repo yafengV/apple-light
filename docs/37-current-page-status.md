@@ -2,6 +2,8 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
+Codex Core 的长差异现在额外保存为 ShipiOS 私有完整快照，时间线保留轻量预览，并可查看或复制完整内容；更新、清空、分叉引用与归档删除有自动化验证，见[第 222 篇](222-codex-full-diff-snapshots.md)。差异卡的当前 Codex Mac 视觉、键盘和文件导航仍未原生配对。
+
 Codex Core 的累计 `turn_diff` 现作为可展开的本轮代码变更卡进入会话，真实补丁流程已验证卡片顺序、文件内容与重启恢复，见[第 221 篇](221-codex-turn-diff-timeline.md)。精确差异视觉和文件导航仍待原生配对。
 
 Codex Core 的警告、弃用与模型切换提示现保存在会话时间线。真实 Core `/compact` 的长会话警告已验证顺序、成功状态和重启恢复，见[第 220 篇](220-codex-notices-timeline.md)。原生提示交互仍待配对。

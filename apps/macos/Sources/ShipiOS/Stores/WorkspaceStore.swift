@@ -1014,12 +1014,16 @@ final class WorkspaceStore {
     }
   }
 
-  func saveLibrary() {
-    guard libraryLoaded else { return }
+  @discardableResult func saveLibrary() -> Bool {
+    guard libraryLoaded else { return false }
     captureWorkspaceTabLayout()
     autoreleasepool { taskWindowResources.allObjects.forEach { $0.captureLayouts() } }
-    do { try library.save(to: dataRoot.appendingPathComponent("workspace.json")) } catch {
+    do {
+      try library.save(to: dataRoot.appendingPathComponent("workspace.json"))
+      return true
+    } catch {
       self.error = "无法保存工作区记录：\(error.localizedDescription)"
+      return false
     }
   }
 
