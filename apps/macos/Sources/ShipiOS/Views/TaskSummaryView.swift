@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// A task-local summary assembled only from records ShipiOS actually owns.
@@ -9,13 +10,6 @@ struct TaskSummaryView: View {
 
   private var latestPlan: CodexPlan? {
     runs.reversed().compactMap(\.codexPlan).first
-  }
-
-  private var attachments: [String] {
-    runs.flatMap { run in
-      (library.runFiles[run.id] ?? []).map(\.name)
-        + (library.runImages[run.id] ?? []).map(\.name)
-    }
   }
 
   private var usage: TaskModelUsage? {
@@ -46,12 +40,21 @@ struct TaskSummaryView: View {
             }
           }
           if let latestPlan { CodexPlanView(plan: latestPlan) }
-          if !attachments.isEmpty {
+          if !runs.summaryArtifacts.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 8) {
-              Label("附件", systemImage: "paperclip").appFont(.headline)
-              ForEach(Array(attachments.enumerated()), id: \.offset) { _, name in
-                Text(name).appFont(.callout).lineLimit(2)
+              Label("产物", systemImage: "shippingbox").appFont(.headline)
+              ForEach(runs.summaryArtifacts) { artifact in
+                Button {
+                  NSWorkspace.shared.activateFileViewerSelecting([artifact.directory])
+                } label: {
+                  Label(artifact.title, systemImage: "folder")
+                    .appFont(.callout).lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help("在 Finder 中显示产物")
+                .disabled(!FileManager.default.fileExists(atPath: artifact.directory.path))
               }
             }
           }
@@ -66,7 +69,7 @@ struct TaskSummaryView: View {
           }
           if runs.isEmpty {
             ContentUnavailableView("暂无会话摘要", systemImage: "text.alignleft",
-              description: Text("开始任务后，这里会显示计划、附件和用量。"))
+              description: Text("开始任务后，这里会显示计划、产物和用量。"))
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
