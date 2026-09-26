@@ -8,6 +8,11 @@ struct LocalEnvironmentEntry: Decodable, Identifiable {
   var title: String { name.map { "\($0) · \(fileName)" } ?? fileName }
 }
 
+enum WorktreeEnvironmentChoice {
+  static let none = "__none__"
+  static let legacy = "__legacy__"
+}
+
 struct LocalEnvironmentFormState: Equatable {
   var name: String
   var setup: String
@@ -19,6 +24,37 @@ struct LocalEnvironmentFormState: Equatable {
 
 @MainActor
 extension WorkspaceStore {
+  func managedEnvironmentSnapshot(selectionID: String) async throws -> ManagedEnvironmentSnapshot {
+    guard connected, let project else { throw AgentFailure(message: "项目环境尚未连接。") }
+    if selectionID == WorktreeEnvironmentChoice.none { return .none }
+    if selectionID == WorktreeEnvironmentChoice.legacy {
+      let profile = library.profiles[project.path] ?? BuildProfile()
+      return ManagedEnvironmentSnapshot(fileName: nil, name: "ShipiOS 本地配置", disabled: false,
+        setupScript: profile.worktreeSetupScript, setupPlatforms: profile.setupPlatformScripts,
+        cleanupScript: profile.worktreeCleanupScript, cleanupPlatforms: profile.cleanupPlatformScripts,
+        actions: profile.actions)
+    }
+    guard environmentFiles.contains(where: { $0.fileName == selectionID && $0.error == nil }) else {
+      throw AgentFailure(message: "所选本地环境已不可用，请刷新环境列表后重试。")
+    }
+    let loaded = try await client.request("environment.load", ["fileName": .string(selectionID)])
+    guard loaded["exists"].boolean == true else {
+      throw AgentFailure(message: "所选本地环境文件已被删除，请刷新后重试。")
+    }
+    let config = loaded["config"]
+    let actions = config["actions"].items.map { action in
+      EnvironmentAction(title: action["name"].text ?? "",
+        symbol: action["icon"].text ?? "tool", script: action["command"].text ?? "",
+        platform: EnvironmentPlatform(rawValue: action["platform"].text ?? "all") ?? .all)
+    }
+    return ManagedEnvironmentSnapshot(fileName: selectionID,
+      name: config["name"].text ?? selectionID, disabled: false,
+      setupScript: config["setup"]["script"].text ?? "",
+      setupPlatforms: platformScripts(from: config["setup"]),
+      cleanupScript: config["cleanup"]["script"].text ?? "",
+      cleanupPlatforms: platformScripts(from: config["cleanup"]), actions: actions)
+  }
+
   var currentEnvironmentFormState: LocalEnvironmentFormState {
     LocalEnvironmentFormState(name: environmentName, setup: worktreeSetupScript,
       setupPlatforms: setupPlatformScripts, cleanup: worktreeCleanupScript,

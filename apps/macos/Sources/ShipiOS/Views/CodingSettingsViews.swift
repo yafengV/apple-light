@@ -149,6 +149,11 @@ struct LocalEnvironmentSettingsView: View {
   @State private var reloadingEnvironment = false
   @State private var showingDiscardConfirmation = false
 
+  private var managedSnapshot: ManagedEnvironmentSnapshot? {
+    guard let path = store.project?.path else { return nil }
+    return store.library.managedWorktrees.first(where: { $0.path == path })?.environment
+  }
+
   private var setupScript: Binding<String> {
     Binding(get: {
       setupPlatform == .all ? store.worktreeSetupScript
@@ -183,6 +188,11 @@ struct LocalEnvironmentSettingsView: View {
         Section("当前项目") {
           LabeledContent("项目", value: store.library.projectTitle(project.path))
           Text(project.path).appFont(.caption).textSelection(.enabled)
+          if let managedSnapshot {
+            LabeledContent("任务环境", value: managedSnapshot.name)
+            Text("此任务使用创建时保存的环境配置。新任务的环境请在来源项目中调整。")
+              .appFont(.caption).foregroundStyle(.secondary)
+          }
         }
         Section("本地环境") {
           Picker("环境", selection: Binding(
@@ -235,7 +245,7 @@ struct LocalEnvironmentSettingsView: View {
           if !store.environmentStatus.isEmpty {
             Text(store.environmentStatus).appFont(.caption).foregroundStyle(.secondary)
           }
-        }
+        }.disabled(managedSnapshot != nil)
         Section("构建环境") {
           TextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
           TextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
@@ -269,7 +279,7 @@ struct LocalEnvironmentSettingsView: View {
               }.padding(16).frame(minWidth: 330).textSelection(.enabled)
             }
           Button("保存初始化脚本") { Task { await store.saveSharedEnvironment() } }
-        }
+        }.disabled(managedSnapshot != nil)
         Section("工作树清理") {
           Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
             .appFont(.caption).foregroundStyle(.secondary)
@@ -283,7 +293,7 @@ struct LocalEnvironmentSettingsView: View {
             .frame(minHeight: 100)
             .accessibilityLabel("\(cleanupPlatform.title) 工作树清理脚本")
           Button("保存清理脚本") { Task { await store.saveSharedEnvironment() } }
-        }
+        }.disabled(managedSnapshot != nil)
         Section("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
             .appFont(.caption).foregroundStyle(.secondary)
@@ -315,13 +325,13 @@ struct LocalEnvironmentSettingsView: View {
           }
           Button("添加操作") { store.environmentActions.append(EnvironmentAction()) }
           Button("保存快捷操作") { Task { await store.saveSharedEnvironment() } }
-        }
+        }.disabled(managedSnapshot != nil)
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))
       }
       Section("工作树环境") {
         Button("查看工作树设置…") { store.settingsPage = .worktrees }
-        Text("工作树会继承来源项目的构建配置、初始化与清理脚本、快捷操作。")
+        Text("新任务可单独选择环境；托管工作树保存创建时的脚本和快捷操作。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
     }.settingsFormStyle().appSurface()

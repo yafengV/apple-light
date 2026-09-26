@@ -7,7 +7,8 @@ extension WorkspaceStore {
       throw AgentFailure(message: "托管工作树已改变，无法运行清理脚本。")
     }
     guard current.cleanupCompleted != true else { return }
-    let script = library.profiles[current.source]?.macOSCleanupScript ?? ""
+    let script = current.environment?.macOSCleanupScript
+      ?? library.profiles[current.source]?.macOSCleanupScript ?? ""
     guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
     try await LocalEnvironmentScriptService.run(script, phase: .cleanup,
       source: URL(fileURLWithPath: current.source), worktree: URL(fileURLWithPath: current.path))

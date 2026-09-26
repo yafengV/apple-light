@@ -1,6 +1,37 @@
 import AppKit
 
 extension WorkspaceStore {
+  var hasLegacyWorktreeEnvironment: Bool {
+    guard let profile = library.profiles[currentProjectKey] else { return false }
+    return !profile.macOSSetupScript.isEmpty || !profile.macOSCleanupScript.isEmpty
+      || !profile.actions.isEmpty
+  }
+
+  var newTaskEnvironmentSelection: String {
+    get {
+      if let taskID = library.pendingManagedDraftTaskIDs[currentProjectKey],
+        let record = library.managedWorktrees.first(where: { $0.taskID == taskID }) {
+        guard let snapshot = record.environment else { return WorktreeEnvironmentChoice.legacy }
+        return snapshot.disabled ? WorktreeEnvironmentChoice.none :
+          (snapshot.fileName ?? WorktreeEnvironmentChoice.legacy)
+      }
+      if let selected = library.newTaskEnvironmentSelections[currentProjectKey] { return selected }
+      if environmentFiles.contains(where: { $0.fileName == environmentFileName && $0.error == nil }) {
+        return environmentFileName
+      }
+      if hasLegacyWorktreeEnvironment {
+        return WorktreeEnvironmentChoice.legacy
+      }
+      return WorktreeEnvironmentChoice.none
+    }
+    set {
+      guard !currentProjectKey.isEmpty,
+        library.pendingManagedDraftTaskIDs[currentProjectKey] == nil else { return }
+      library.newTaskEnvironmentSelections[currentProjectKey] = newValue
+      saveLibrary()
+    }
+  }
+
   var newTaskExecution: NewTaskExecution {
     get { library.newTaskExecutions[currentProjectKey] ?? .local }
     set {
@@ -115,7 +146,8 @@ extension WorkspaceStore {
   @discardableResult func createManagedWorktree(snapshot: GitBranchSnapshot,
     branch: GitBranchChoice?, taskID: String,
     sourceStashCommit: String? = nil,
-    sourceCopiedFiles: [ManagedSourceFile] = []) async -> ManagedWorktree? {
+    sourceCopiedFiles: [ManagedSourceFile] = [],
+    environment: ManagedEnvironmentSnapshot? = nil) async -> ManagedWorktree? {
     guard libraryLoaded, !busy, activeLocalRun == nil,
       UUID(uuidString: taskID) != nil,
       !library.managedWorktrees.contains(where: { $0.path == snapshot.root.path }),
@@ -140,6 +172,7 @@ extension WorkspaceStore {
       var record = ManagedWorktree(taskID: taskID, checkout: checkout)
       record.sourceStashCommit = sourceStashCommit
       record.sourceCopiedFiles = sourceCopiedFiles.isEmpty ? nil : sourceCopiedFiles
+      record.environment = environment
       var candidate = library
       candidate.managedWorktrees.append(record)
       try commitLibrary(candidate)
@@ -233,7 +266,8 @@ extension WorkspaceStore {
       throw AgentFailure(message: "工作树仍在准备来源文件，无法运行初始化脚本。")
     }
     guard current.setupCompleted != true else { return }
-    let script = library.profiles[record.source]?.macOSSetupScript ?? ""
+    let script = current.environment?.macOSSetupScript
+      ?? library.profiles[record.source]?.macOSSetupScript ?? ""
     if !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
       try await LocalEnvironmentScriptService.run(script, phase: .setup,
         source: URL(fileURLWithPath: record.source), worktree: URL(fileURLWithPath: record.path))
@@ -289,6 +323,9 @@ extension WorkspaceStore {
       let taskID = library.pendingManagedDraftTaskIDs[sourcePath] ?? UUID().uuidString
       preparedTaskID = taskID
       let existing = library.managedWorktrees.first(where: { $0.taskID == taskID })
+      let environment: ManagedEnvironmentSnapshot
+      if let captured = existing?.environment { environment = captured }
+      else { environment = try await managedEnvironmentSnapshot(selectionID: newTaskEnvironmentSelection) }
       let copiesCurrentBranch = startingBranch == nil
         || (startingBranch?.reference == snapshot.currentReference
           && startingBranch?.commit == snapshot.currentCommit)
@@ -324,7 +361,7 @@ extension WorkspaceStore {
       }
       guard let record = await createManagedWorktree(snapshot: snapshot, branch: startingBranch,
         taskID: taskID, sourceStashCommit: sourceStashCommit,
-        sourceCopiedFiles: sourceCopiedFiles) else {
+        sourceCopiedFiles: sourceCopiedFiles, environment: environment) else {
         throw AgentFailure(message: worktreeError ?? "无法创建托管工作树。")
       }
       if (record.sourceStashCommit != nil || !(record.sourceCopiedFiles ?? []).isEmpty),
@@ -349,7 +386,9 @@ extension WorkspaceStore {
       candidate.draftFiles[sourceDraftKey] = nil
       candidate.projectSelections[record.path] = taskID
       candidate.pendingManagedDraftTaskIDs[sourcePath] = nil
-      if let profile = candidate.profiles[sourcePath] { candidate.profiles[record.path] = profile }
+      var taskProfile = candidate.profiles[sourcePath] ?? BuildProfile()
+      record.environment?.apply(to: &taskProfile)
+      candidate.profiles[record.path] = taskProfile
       try commitLibrary(candidate)
       await open(URL(fileURLWithPath: record.path))
       guard connected, project?.path == record.path else {

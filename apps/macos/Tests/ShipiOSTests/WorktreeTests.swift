@@ -3,6 +3,77 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testChosenEnvironmentSnapshotControlsSetupCleanupAndWorktreeActions() async throws {
+    let (base, source) = try await fixture()
+    var repository = URL(fileURLWithPath: #filePath)
+    for _ in 0..<5 { repository.deleteLastPathComponent() }
+    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"), agentExecutable: agent)
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.profiles[source.path] = BuildProfile(
+      worktreeSetupScript: "exit 7", worktreeCleanupScript: "exit 8",
+      actions: [EnvironmentAction(title: "Wrong", script: "exit 9")])
+    XCTAssertTrue(store.saveLibrary())
+    let snapshot = ManagedEnvironmentSnapshot(fileName: "environment-2.toml", name: "Selected",
+      disabled: false, setupScript: "printf 'selected' > selected-setup",
+      setupPlatforms: .init(), cleanupScript: "printf 'selected' > selected-cleanup",
+      cleanupPlatforms: .init(), actions: [EnvironmentAction(title: "Chosen", script: "echo chosen")])
+    let branch = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: branch, branch: nil, taskID: taskID,
+      environment: snapshot)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    XCTAssertEqual(store.library.managedWorktrees.first?.environment, snapshot)
+    try await store.runManagedWorktreeSetup(record)
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
+      .appendingPathComponent("selected-setup")), "selected")
+    var taskProfile = try XCTUnwrap(store.library.profiles[source.path])
+    snapshot.apply(to: &taskProfile)
+    XCTAssertEqual(taskProfile.actions.first?.title, "Chosen")
+    store.library.profiles[record.path] = taskProfile
+    XCTAssertTrue(store.saveLibrary())
+    await store.open(URL(fileURLWithPath: record.path))
+    XCTAssertTrue(store.connected, store.error ?? "")
+    XCTAssertEqual(store.environmentActions.first?.title, "Chosen")
+    var task = WorkspaceTask(id: taskID, project: record.path, title: "Selected", runIDs: [])
+    task.archived = true
+    store.library.tasks.append(task)
+    XCTAssertTrue(store.saveLibrary())
+    await store.pruneManagedWorktreeIfEligible(taskID)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("selected-cleanup")), "selected")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: record.path))
+    await store.shutdown()
+  }
+
+  @MainActor func testNoEnvironmentSkipsExistingProjectScripts() async throws {
+    let (base, source) = try await fixture()
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.profiles[source.path] = BuildProfile(
+      worktreeSetupScript: "exit 7", worktreeCleanupScript: "exit 8")
+    XCTAssertTrue(store.saveLibrary())
+    var taskProfile = try XCTUnwrap(store.library.profiles[source.path])
+    ManagedEnvironmentSnapshot.none.apply(to: &taskProfile)
+    XCTAssertTrue(taskProfile.macOSSetupScript.isEmpty)
+    XCTAssertTrue(taskProfile.macOSCleanupScript.isEmpty)
+    let branch = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: branch, branch: nil, taskID: taskID,
+      environment: ManagedEnvironmentSnapshot.none)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    try await store.runManagedWorktreeSetup(record)
+    XCTAssertEqual(store.library.managedWorktrees.first?.setupCompleted, true)
+    var task = WorkspaceTask(id: taskID, project: record.path, title: "No environment", runIDs: [])
+    task.archived = true
+    store.library.tasks.append(task)
+    XCTAssertTrue(store.saveLibrary())
+    await store.pruneManagedWorktreeIfEligible(taskID)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: record.path))
+    await store.shutdown()
+  }
+
   @MainActor func testCleanupFailurePreservesWorktreeAndSuccessfulCleanupRunsAgainAfterRestore() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
@@ -946,6 +1017,16 @@ final class WorktreeTests: XCTestCase {
     XCTAssertEqual(old.managedWorktreeLimit, 15)
     XCTAssertTrue(old.permanentWorktrees.isEmpty)
     XCTAssertTrue(old.managedWorktrees.isEmpty)
+  }
+
+  func testLegacyManagedWorktreeDecodesWithoutEnvironmentSnapshot() throws {
+    let checkout = PermanentWorktree(id: UUID(), source: "/source", path: "/worktree",
+      commonDirectory: "/common", startingCommit: "abc", startingName: "main",
+      createdAt: Date(timeIntervalSince1970: 0), title: "Legacy")
+    let legacy = ManagedWorktree(taskID: UUID().uuidString, checkout: checkout)
+    let data = try JSONEncoder().encode(legacy)
+    let decoded = try JSONDecoder().decode(ManagedWorktree.self, from: data)
+    XCTAssertNil(decoded.environment)
   }
 
   @MainActor func testManagedWorktreeLimitPrunesOldCheckoutAndRestoresActiveTaskOnSelection() async throws {

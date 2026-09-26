@@ -79,6 +79,29 @@ struct ComposerView: View {
                 ProgressView(store.managedTaskPreparationMessage).controlSize(.small)
               } else {
                 HStack(spacing: 8) {
+                  Picker("环境", selection: $store.newTaskEnvironmentSelection) {
+                    Text("无环境").tag(WorktreeEnvironmentChoice.none)
+                    if store.newTaskEnvironmentSelection == WorktreeEnvironmentChoice.legacy
+                      || store.environmentFiles.isEmpty && store.hasLegacyWorktreeEnvironment {
+                      Text("ShipiOS 本地配置").tag(WorktreeEnvironmentChoice.legacy)
+                    }
+                    ForEach(store.environmentFiles.filter { $0.error == nil }) { entry in
+                      Text(entry.fileName == "environment.toml"
+                        ? "默认环境 · \(entry.title)" : entry.title).tag(entry.fileName)
+                    }
+                    if ![WorktreeEnvironmentChoice.none, WorktreeEnvironmentChoice.legacy]
+                      .contains(store.newTaskEnvironmentSelection),
+                      !store.environmentFiles.contains(where: {
+                        $0.fileName == store.newTaskEnvironmentSelection && $0.error == nil
+                      }) {
+                      Text("所选环境已不可用").tag(store.newTaskEnvironmentSelection)
+                    }
+                  }.frame(maxWidth: 310)
+                    .disabled(store.library.pendingManagedDraftTaskIDs[project.path] != nil)
+                  Button("环境设置…") { store.openSettings(.environments) }
+                    .buttonStyle(.plain)
+                }
+                HStack(spacing: 8) {
                   if let snapshot = newTaskBranches.snapshot {
                     Picker("起始分支", selection: Binding(
                       get: { store.newTaskStartingBranch?.reference ?? "" },

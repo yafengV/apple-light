@@ -661,7 +661,16 @@ final class WorkspaceStore {
         environmentActions = profile.actions
         environmentFileName = profile.environmentFileName ?? "environment.toml"
       }
-      await refreshSharedEnvironments()
+      if let managed = library.managedWorktrees.first(where: { $0.path == project!.path }),
+        let environment = managed.environment {
+        environmentName = environment.name
+        environmentFileName = environment.fileName ?? "environment.toml"
+        environmentStatus = environment.disabled
+          ? "此任务创建时选择了无环境。" : "此任务使用创建时保存的环境配置。"
+        environmentLoadedState = currentEnvironmentFormState
+      } else {
+        await refreshSharedEnvironments()
+      }
       action = .chat
       library.lastWorkspace = project!.path
       library.visit(project!.path)

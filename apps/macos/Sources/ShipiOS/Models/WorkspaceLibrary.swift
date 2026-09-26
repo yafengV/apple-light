@@ -347,6 +347,7 @@ struct WorkspaceLibrary: Codable {
   /// Deleted tasks whose protected Git refs/private file snapshots still need cleanup.
   var pendingManagedWorktreeDeletions: [ManagedWorktree] = []
   var newTaskExecutions: [String: NewTaskExecution] = [:]
+  var newTaskEnvironmentSelections: [String: String] = [:]
   var pendingManagedDraftTaskIDs: [String: String] = [:]
   var goalSessions: [String: GoalSession] = [:]
 
@@ -364,7 +365,7 @@ struct WorkspaceLibrary: Codable {
       defaultTerminalLocation, gitPreferences,
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
-      newTaskExecutions,
+      newTaskExecutions, newTaskEnvironmentSelections,
       pendingManagedDraftTaskIDs, goalSessions
   }
   init(from decoder: Decoder) throws {
@@ -458,6 +459,8 @@ struct WorkspaceLibrary: Codable {
       forKey: .pendingManagedWorktreeDeletions) ?? []
     newTaskExecutions = try c.decodeIfPresent([String: NewTaskExecution].self,
       forKey: .newTaskExecutions) ?? [:]
+    newTaskEnvironmentSelections = try c.decodeIfPresent([String: String].self,
+      forKey: .newTaskEnvironmentSelections) ?? [:]
     pendingManagedDraftTaskIDs = try c.decodeIfPresent([String: String].self,
       forKey: .pendingManagedDraftTaskIDs) ?? [:]
     goalSessions = try c.decodeIfPresent([String: GoalSession].self, forKey: .goalSessions) ?? [:]

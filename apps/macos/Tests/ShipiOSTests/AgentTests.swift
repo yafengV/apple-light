@@ -171,6 +171,13 @@ final class AgentTests: XCTestCase {
     XCTAssertEqual(store.environmentName, "Second")
     XCTAssertEqual(store.worktreeSetupScript, "echo second")
     XCTAssertEqual(store.library.profiles[project.path]?.worktreeSetupScript, "echo second")
+    store.newTaskEnvironmentSelection = "environment-2.toml"
+    let chosen = try await store.managedEnvironmentSnapshot(selectionID: store.newTaskEnvironmentSelection)
+    XCTAssertEqual(chosen.fileName, "environment-2.toml")
+    XCTAssertEqual(chosen.macOSSetupScript, "echo second")
+    let noEnvironment = try await store.managedEnvironmentSnapshot(
+      selectionID: WorktreeEnvironmentChoice.none)
+    XCTAssertEqual(noEnvironment, ManagedEnvironmentSnapshot.none)
     store.createSharedEnvironment()
     XCTAssertEqual(store.environmentFileName, "environment-3.toml")
     store.worktreeSetupScript = "echo third"
