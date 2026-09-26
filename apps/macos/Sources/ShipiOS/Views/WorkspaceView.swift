@@ -187,7 +187,13 @@ struct WorkspaceView: View {
                 get: { taskSummary.showsPopover },
                 set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
                 TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
-                  openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) }) {
+                  openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
+                  openFile: { taskSummary.dismissPopover(); store.preview($0) },
+                  openImage: { image, images in taskSummary.dismissPopover(); store.preview(image, images: images) },
+                  addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles() } },
+                  addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
+                  canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
+                  canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount) {
                   taskSummary.close()
                 }
                 .frame(height: 480)
@@ -300,7 +306,13 @@ struct WorkspaceView: View {
             if summaryInline, let task = store.selectedTask {
               Divider()
               TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
-                openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) }) {
+                openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
+                openFile: { taskSummary.dismissPopover(); store.preview($0) },
+                openImage: { image, images in taskSummary.dismissPopover(); store.preview(image, images: images) },
+                addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles() } },
+                addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
+                canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
+                canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount) {
                 taskSummary.close()
               }
             }

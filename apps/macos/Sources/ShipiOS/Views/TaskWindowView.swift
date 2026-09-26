@@ -122,7 +122,18 @@ struct TaskWindowView: View {
               if summaryInline {
                 Divider()
                 TaskSummaryView(task: task, runs: taskRuns, library: store.library,
-                  openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) }) {
+                  openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
+                  openFile: { taskSummary.dismissPopover(); previewFile = $0 },
+                  openImage: { image, images in
+                    taskSummary.dismissPopover()
+                    previewImage = ImagePreviewItem(image)
+                    previewImages = images.map(ImagePreviewItem.init)
+                    imagePreviewReturnFocus = nil
+                  },
+                  addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles(draft: taskID) } },
+                  addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
+                  canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
+                  canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount) {
                   taskSummary.close()
                 }
               }
@@ -181,7 +192,18 @@ struct TaskWindowView: View {
               get: { taskSummary.showsPopover },
               set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
               TaskSummaryView(task: task, runs: taskRuns, library: store.library,
-                openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) }) {
+                openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
+                openFile: { taskSummary.dismissPopover(); previewFile = $0 },
+                openImage: { image, images in
+                  taskSummary.dismissPopover()
+                  previewImage = ImagePreviewItem(image)
+                  previewImages = images.map(ImagePreviewItem.init)
+                  imagePreviewReturnFocus = nil
+                },
+                addFile: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseFiles(draft: taskID) } },
+                addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
+                canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
+                canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount) {
                 taskSummary.close()
               }
               .frame(height: 480)

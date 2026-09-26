@@ -7,6 +7,12 @@ struct TaskSummaryView: View {
   let runs: [AgentRun]
   let library: WorkspaceLibrary
   let openPlan: (String) -> Void
+  let openFile: (FileAttachment) -> Void
+  let openImage: (ImageAttachment, [ImageAttachment]) -> Void
+  let addFile: () -> Void
+  let addImage: () -> Void
+  let canAddFile: Bool
+  let canAddImage: Bool
   let close: () -> Void
 
   private var latestPlanDocument: (runID: String, document: CodexPlanDocument)? {
@@ -20,6 +26,11 @@ struct TaskSummaryView: View {
   }
 
   var body: some View {
+    let sources = runs.summarySources(in: library)
+    let sourceImages = sources.compactMap { source -> ImageAttachment? in
+      if case .image(let image) = source { return image }
+      return nil
+    }
     VStack(spacing: 0) {
       HStack {
         Text("摘要").appFont(.headline)
@@ -56,6 +67,52 @@ struct TaskSummaryView: View {
               .buttonStyle(.plain)
               .help("打开计划文档")
             }
+          }
+          if !sources.isEmpty || task.project.isEmpty {
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                Label("来源", systemImage: "square.stack").appFont(.headline)
+                if !sources.isEmpty {
+                  Text(sources.count.formatted()).appFont(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Menu {
+                  Button("添加文件…", systemImage: "doc.badge.plus", action: addFile)
+                    .disabled(!canAddFile)
+                  Button("添加图片…", systemImage: "photo", action: addImage)
+                    .disabled(!canAddImage)
+                } label: {
+                  Image(systemName: "plus")
+                }
+                .menuStyle(.borderlessButton)
+                .help("添加来源")
+                .accessibilityLabel("添加来源")
+              }
+              ForEach(sources) { source in
+                switch source {
+                case .file(let file):
+                  Button { openFile(file) } label: {
+                    Label(file.name, systemImage: file.isPDF ? "doc.richtext" : "doc.text")
+                      .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                  }
+                  .buttonStyle(.plain).help("预览文件：\(file.name)")
+                case .image(let image):
+                  Button { openImage(image, sourceImages) } label: {
+                    Label(image.name, systemImage: "photo")
+                      .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                  }
+                  .buttonStyle(.plain).help("预览图片：\(image.name)")
+                case .tool(_, let name):
+                  Label(name, systemImage: "puzzlepiece.extension")
+                    .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                case .webSearch:
+                  Label("网页搜索", systemImage: "globe")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+              }
+            }
+            .appFont(.callout)
           }
           if !runs.summaryArtifacts.isEmpty {
             Divider()
