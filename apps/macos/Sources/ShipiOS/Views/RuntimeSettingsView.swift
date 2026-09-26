@@ -48,7 +48,8 @@ struct RuntimeSettingsView: View {
     case .agent: AgentSettingsView(store: store)
     case .git: GitSettingsView(store: store)
     case .codeReview: CodeReviewSettingsView(store: store)
-    case .environments: LocalEnvironmentSettingsView(store: store)
+    case .environments: LocalEnvironmentSettingsView(store: store,
+      environment: store.environmentSettingsSession)
     case .usage: UsageSettingsView(store: store)
     case .general:
       Form {

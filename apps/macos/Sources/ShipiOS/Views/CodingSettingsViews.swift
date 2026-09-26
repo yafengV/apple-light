@@ -146,6 +146,7 @@ private enum EnvironmentPage: Equatable {
 
 struct LocalEnvironmentSettingsView: View {
   @Bindable var store: WorkspaceStore
+  @Bindable var environment: EnvironmentSettingsSession
   @State private var page = EnvironmentPage.projects
   @State private var inheritedExpanded = false
   @State private var expandedCatalogInherited: Set<String> = []
@@ -157,34 +158,34 @@ struct LocalEnvironmentSettingsView: View {
   @State private var showingDiscardConfirmation = false
 
   private var managedSnapshot: ManagedEnvironmentSnapshot? {
-    guard let path = store.project?.path else { return nil }
+    guard let path = environment.projectPath else { return nil }
     return store.library.managedWorktrees.first(where: { $0.path == path })?.environment
   }
 
   private var setupScript: Binding<String> {
     Binding(get: {
-      setupPlatform == .all ? store.worktreeSetupScript
-        : store.setupPlatformScripts.script(for: setupPlatform)
+      setupPlatform == .all ? environment.setupScript
+        : environment.setupPlatforms.script(for: setupPlatform)
     }, set: { value in
-      if setupPlatform == .all { store.worktreeSetupScript = value }
+      if setupPlatform == .all { environment.setupScript = value }
       else {
-        var scripts = store.setupPlatformScripts
+        var scripts = environment.setupPlatforms
         scripts.set(value, for: setupPlatform)
-        store.setupPlatformScripts = scripts
+        environment.setupPlatforms = scripts
       }
     })
   }
 
   private var cleanupScript: Binding<String> {
     Binding(get: {
-      cleanupPlatform == .all ? store.worktreeCleanupScript
-        : store.cleanupPlatformScripts.script(for: cleanupPlatform)
+      cleanupPlatform == .all ? environment.cleanupScript
+        : environment.cleanupPlatforms.script(for: cleanupPlatform)
     }, set: { value in
-      if cleanupPlatform == .all { store.worktreeCleanupScript = value }
+      if cleanupPlatform == .all { environment.cleanupScript = value }
       else {
-        var scripts = store.cleanupPlatformScripts
+        var scripts = environment.cleanupPlatforms
         scripts.set(value, for: cleanupPlatform)
-        store.cleanupPlatformScripts = scripts
+        environment.cleanupPlatforms = scripts
       }
     })
   }
@@ -198,7 +199,11 @@ struct LocalEnvironmentSettingsView: View {
       }
     }
     .task(id: store.settingsSearchRequest?.token) {
-      if store.settingsSearchRequest?.result.page == .environments { page = .editor }
+      if store.settingsSearchRequest?.result.page == .environments,
+        let path = store.project?.path {
+        await openEnvironmentProject(path)
+        page = .editor
+      }
     }
     .task(id: store.settingsPage) {
       if store.destination == .settings && store.settingsPage == .environments && page == .projects {
@@ -211,35 +216,27 @@ struct LocalEnvironmentSettingsView: View {
       }
     }
     .onAppear {
-      if store.environmentSettingsOpenProject {
-        let editor = store.environmentSettingsOpenEditor
-        store.environmentSettingsOpenProject = false
-        store.environmentSettingsOpenEditor = false
-        page = editor ? .editor : .overview
-      }
+      honorEnvironmentRoute()
     }
     .onChange(of: store.environmentSettingsOpenProject) { _, shouldOpen in
-      if shouldOpen && store.destination == .settings {
-        let editor = store.environmentSettingsOpenEditor
-        store.environmentSettingsOpenProject = false
-        store.environmentSettingsOpenEditor = false
-        page = editor ? .editor : .overview
-      }
+      if shouldOpen && store.destination == .settings { honorEnvironmentRoute() }
     }
     .onChange(of: store.destination) { _, destination in
       if destination == .settings && store.environmentSettingsOpenProject {
-        let editor = store.environmentSettingsOpenEditor
-        store.environmentSettingsOpenProject = false
-        store.environmentSettingsOpenEditor = false
-        page = editor ? .editor : .overview
+        honorEnvironmentRoute()
       } else if destination == .settings && store.settingsPage == .environments && page == .projects {
         Task { await store.refreshEnvironmentCatalog() }
       }
     }
     .confirmationDialog("放弃未保存的环境修改？", isPresented: $showingDiscardConfirmation) {
       Button("放弃修改并继续", role: .destructive) {
-        if returningToOverview { page = .overview }
-        else if reloadingEnvironment { Task { await store.refreshSharedEnvironments() } }
+        if returningToOverview {
+          Task {
+            await environment.load()
+            page = .overview
+          }
+        }
+        else if reloadingEnvironment { Task { await environment.refresh() } }
         clearPendingNavigation()
       }
       Button("取消", role: .cancel) { clearPendingNavigation() }
@@ -251,6 +248,28 @@ struct LocalEnvironmentSettingsView: View {
     returningToOverview = false
   }
 
+  private func saveEnvironment(returnToOverview: Bool = false) async {
+    guard await environment.save() else { return }
+    if store.project?.path == environment.projectPath && store.connected {
+      await store.refreshSharedEnvironments()
+    }
+    if returnToOverview && store.destination == .settings && store.settingsPage == .environments {
+      page = .overview
+    }
+  }
+
+  private func honorEnvironmentRoute() {
+    guard store.environmentSettingsOpenProject else { return }
+    let showEditor = store.environmentSettingsOpenEditor
+    store.environmentSettingsOpenProject = false
+    store.environmentSettingsOpenEditor = false
+    guard let path = store.project?.path else { page = .projects; return }
+    Task {
+      await openEnvironmentProject(path)
+      if showEditor { page = .editor }
+    }
+  }
+
   private var projectList: some View {
     Form {
       Section {
@@ -258,7 +277,7 @@ struct LocalEnvironmentSettingsView: View {
           Text("选择项目").appFont(.title2, weight: .semibold)
           Spacer()
           Button("添加项目") { chooseEnvironmentProject() }
-            .disabled(store.busy || store.activeLocalRun != nil)
+            .disabled(environment.loading || environment.saving)
         }
         Text("本地环境决定项目工作树的初始化、清理和快捷操作。")
           .foregroundStyle(.secondary)
@@ -326,6 +345,9 @@ struct LocalEnvironmentSettingsView: View {
       if let error = store.error {
         Text(error).foregroundStyle(.red).textSelection(.enabled)
       }
+      if !environment.connected && !environment.status.isEmpty {
+        Text(environment.status).foregroundStyle(.red).textSelection(.enabled)
+      }
     }.settingsFormStyle().appSurface()
   }
 
@@ -353,7 +375,7 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private func projectUnavailable(_ path: String) -> Bool {
-    store.busy || (store.activeLocalRun != nil && store.project?.path != path)
+    environment.loading || environment.saving
   }
 
   private var overview: some View {
@@ -361,9 +383,9 @@ struct LocalEnvironmentSettingsView: View {
       Section {
         Button("‹ 环境") { page = .projects }
           .buttonStyle(.plain)
-        if let project = store.project {
-          Text(store.library.projectTitle(project.path)).appFont(.title2, weight: .semibold)
-          Text(project.path).appFont(.caption).foregroundStyle(.secondary)
+        if let path = environment.projectPath {
+          Text(environment.projectTitle).appFont(.title2, weight: .semibold)
+          Text(path).appFont(.caption).foregroundStyle(.secondary)
             .textSelection(.enabled)
         }
       }
@@ -375,15 +397,15 @@ struct LocalEnvironmentSettingsView: View {
         }
       } else {
         Section("项目环境") {
-          ForEach(store.environmentFiles.filter { !$0.inherited }) { entry in
+          ForEach(environment.files.filter { !$0.inherited }) { entry in
             environmentRow(entry)
           }
           Button("新建本地环境") {
-            store.createSharedEnvironment()
+            environment.create()
             page = .editor
-          }.disabled(!store.connected || store.environmentSaving)
+          }.disabled(!environment.connected || environment.saving)
         }
-        let inherited = store.environmentFiles.filter(\.inherited)
+        let inherited = environment.files.filter(\.inherited)
         if !inherited.isEmpty {
           Section {
             DisclosureGroup("继承环境（\(inherited.count)）", isExpanded: $inheritedExpanded) {
@@ -392,19 +414,19 @@ struct LocalEnvironmentSettingsView: View {
           }
         }
         Section("当前环境") {
-          LabeledContent("名称", value: store.environmentName)
-          LabeledContent("配置文件", value: store.environmentFileName)
-          if !store.worktreeSetupScript.isEmpty {
-            LabeledContent("初始化脚本", value: store.worktreeSetupScript)
+          LabeledContent("名称", value: environment.name)
+          LabeledContent("配置文件", value: environment.fileName)
+          if !environment.setupScript.isEmpty {
+            LabeledContent("初始化脚本", value: environment.setupScript)
           }
-          LabeledContent("快捷操作", value: "\(store.environmentActions.count) 个")
-          Button(store.environmentExists ? "编辑本地环境" : "创建本地环境") {
+          LabeledContent("快捷操作", value: "\(environment.actions.count) 个")
+          Button(environment.exists ? "编辑本地环境" : "创建本地环境") {
             page = .editor
-          }.disabled(!store.connected)
+          }.disabled(!environment.connected)
         }
       }
-      if !store.environmentStatus.isEmpty {
-        Text(store.environmentStatus).appFont(.caption).foregroundStyle(.secondary)
+      if !environment.status.isEmpty {
+        Text(environment.status).appFont(.caption).foregroundStyle(.secondary)
       }
     }.settingsFormStyle().appSurface()
   }
@@ -412,8 +434,8 @@ struct LocalEnvironmentSettingsView: View {
   @ViewBuilder private func environmentRow(_ entry: LocalEnvironmentEntry) -> some View {
     Button {
       Task {
-        await store.selectSharedEnvironment(entry.id)
-        if store.environmentFileName == entry.id {
+        await environment.select(entry.id)
+        if environment.fileName == entry.id {
           page = entry.error == nil ? .overview : .editor
         }
       }
@@ -429,30 +451,31 @@ struct LocalEnvironmentSettingsView: View {
           }
         }
         Spacer()
-        if entry.id == store.environmentFileName { Image(systemName: "checkmark") }
+        if entry.id == environment.fileName { Image(systemName: "checkmark") }
         else { Image(systemName: "chevron.right").foregroundStyle(.tertiary) }
       }.contentShape(Rectangle())
-    }.buttonStyle(.plain).disabled(!store.connected)
+    }.buttonStyle(.plain).disabled(!environment.connected)
       .accessibilityLabel(entry.title)
   }
 
   private func openEnvironmentProject(_ path: String, selectionID: String? = nil,
     createNew: Bool = false) async {
-    if store.project?.path != path || !store.connected {
-      await store.open(URL(fileURLWithPath: path))
+    if environment.hasUnsavedChanges,
+      environment.projectPath != path || createNew || selectionID != nil {
+      environment.status = "当前环境有未保存的修改，请先保存或放弃。"
+      page = .editor
+      return
     }
-    let opened = store.connected && store.project?.path == path
-    if opened {
-      if createNew { store.createSharedEnvironment() }
-      else if let selectionID { await store.selectSharedEnvironment(selectionID) }
+    if environment.projectPath != path || !environment.connected {
+      await environment.open(path, title: store.library.projectTitle(path), executable: store.executable)
     }
+    guard environment.connected, environment.projectPath == path else { page = .projects; return }
+    if createNew { environment.create() }
+    else if let selectionID { await environment.select(selectionID) }
     let needsEditor = createNew || selectionID.flatMap { selected in
-      store.environmentFiles.first(where: { $0.id == selected })?.error
+      environment.files.first(where: { $0.id == selected })?.error
     } != nil
-    store.environmentSettingsOpenEditor = opened && needsEditor
-    store.environmentSettingsOpenProject = opened
-    store.openSettings(.environments)
-    page = opened ? (needsEditor ? .editor : .overview) : .projects
+    page = needsEditor ? .editor : .overview
   }
 
   private func chooseEnvironmentProject() {
@@ -463,25 +486,30 @@ struct LocalEnvironmentSettingsView: View {
     guard let window = NSApp.keyWindow else { return }
     panel.beginSheetModal(for: window) { response in
       guard response == .OK, let url = panel.url else { return }
-      Task { @MainActor in await openEnvironmentProject(url.path) }
+      Task { @MainActor in
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        store.library.visit(path)
+        store.saveLibrary()
+        await openEnvironmentProject(path)
+      }
     }
   }
 
   private var editor: some View {
     Form {
       Section {
-        Button("‹ \(store.project.map { store.library.projectTitle($0.path) } ?? "项目")") {
-          if store.environmentHasUnsavedChanges {
+        Button("‹ \(environment.projectTitle.isEmpty ? "项目" : environment.projectTitle)") {
+          if environment.hasUnsavedChanges {
             returningToOverview = true
             showingDiscardConfirmation = true
           } else { page = .overview }
-        }.buttonStyle(.plain)
+        }.buttonStyle(.plain).disabled(environment.saving)
         Text("编辑本地环境").appFont(.title2, weight: .semibold)
       }
-      if let project = store.project {
+      if let path = environment.projectPath {
         Section("当前项目") {
-          LabeledContent("项目", value: store.library.projectTitle(project.path))
-          Text(project.path).appFont(.caption).textSelection(.enabled)
+          LabeledContent("项目", value: environment.projectTitle)
+          Text(path).appFont(.caption).textSelection(.enabled)
           if let managedSnapshot {
             LabeledContent("任务环境", value: managedSnapshot.name)
             Text("此任务使用创建时保存的环境配置。新任务的环境请在来源项目中调整。")
@@ -489,31 +517,29 @@ struct LocalEnvironmentSettingsView: View {
           }
         }
         Section("本地环境") {
-          TextField("环境名称", text: $store.environmentName)
-          Text(store.environmentFileName.hasPrefix("/")
-            ? store.environmentFileName : ".codex/environments/\(store.environmentFileName)")
+          TextField("环境名称", text: $environment.name)
+          Text(environment.fileName.hasPrefix("/")
+            ? environment.fileName : ".codex/environments/\(environment.fileName)")
             .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
           HStack {
             Button("保存共享环境") {
-              Task {
-                if await store.saveSharedEnvironment(), store.destination == .settings,
-                  store.settingsPage == .environments { page = .overview }
-              }
+              Task { await saveEnvironment(returnToOverview: true) }
             }
-              .disabled(!store.connected || store.environmentSaving)
+              .disabled(!environment.connected || environment.saving)
             Button("重新载入环境") {
-              if store.environmentHasUnsavedChanges {
+              if environment.hasUnsavedChanges {
                 reloadingEnvironment = true
                 showingDiscardConfirmation = true
-              } else { Task { await store.refreshSharedEnvironments() } }
+              } else { Task { await environment.refresh() } }
             }
-              .disabled(!store.connected || store.environmentSaving)
+              .disabled(!environment.connected || environment.saving)
           }
-          if !store.environmentStatus.isEmpty {
-            Text(store.environmentStatus).appFont(.caption).foregroundStyle(.secondary)
+          if !environment.status.isEmpty {
+            Text(environment.status).appFont(.caption).foregroundStyle(.secondary)
           }
         }.disabled(managedSnapshot != nil)
-        Section("构建环境") {
+        if store.project?.path == path {
+          Section("构建环境") {
           TextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
           TextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
           SettingsMenuPicker("构建配置", selection: $store.configuration, options: [
@@ -524,6 +550,7 @@ struct LocalEnvironmentSettingsView: View {
           Button("保存项目环境") { store.saveProfile() }
           Text("这些值用于环境诊断和本地构建，并随项目保存在 ShipiOS 独立目录中。")
             .appFont(.caption).foregroundStyle(.secondary)
+          }
         }
         Section("工作树初始化") {
           Text("创建托管工作树后、首次发送任务前运行。命令在新工作树目录中执行。")
@@ -545,7 +572,7 @@ struct LocalEnvironmentSettingsView: View {
                 LabeledContent("工作树目录", value: "CODEX_WORKTREE_PATH")
               }.padding(16).frame(minWidth: 330).textSelection(.enabled)
             }
-          Button("保存初始化脚本") { Task { _ = await store.saveSharedEnvironment() } }
+          Button("保存初始化脚本") { Task { await saveEnvironment() } }
         }.disabled(managedSnapshot != nil)
         Section("工作树清理") {
           Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
@@ -559,12 +586,12 @@ struct LocalEnvironmentSettingsView: View {
             .font(.system(.body, design: .monospaced))
             .frame(minHeight: 100)
             .accessibilityLabel("\(cleanupPlatform.title) 工作树清理脚本")
-          Button("保存清理脚本") { Task { _ = await store.saveSharedEnvironment() } }
+          Button("保存清理脚本") { Task { await saveEnvironment() } }
         }.disabled(managedSnapshot != nil)
         Section("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
             .appFont(.caption).foregroundStyle(.secondary)
-          ForEach($store.environmentActions) { $action in
+          ForEach($environment.actions) { $action in
             VStack(alignment: .leading, spacing: 8) {
               HStack {
                 TextField("操作名称", text: $action.title)
@@ -575,7 +602,7 @@ struct LocalEnvironmentSettingsView: View {
                   Label("测试", systemImage: "checkmark.circle").tag("test")
                 }.frame(width: 135)
                 Button(role: .destructive) {
-                  store.environmentActions.removeAll { $0.id == action.id }
+                  environment.actions.removeAll { $0.id == action.id }
                 } label: { Image(systemName: "trash") }
                 .accessibilityLabel("删除操作 \(action.title)")
               }
@@ -590,8 +617,8 @@ struct LocalEnvironmentSettingsView: View {
                 .accessibilityLabel("\(action.title) 脚本")
             }
           }
-          Button("添加操作") { store.environmentActions.append(EnvironmentAction()) }
-          Button("保存快捷操作") { Task { _ = await store.saveSharedEnvironment() } }
+          Button("添加操作") { environment.actions.append(EnvironmentAction()) }
+          Button("保存快捷操作") { Task { await saveEnvironment() } }
         }.disabled(managedSnapshot != nil)
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))

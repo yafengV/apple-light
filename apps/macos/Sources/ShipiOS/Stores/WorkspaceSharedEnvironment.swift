@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 struct LocalEnvironmentEntry: Decodable, Identifiable {
   let id: String
@@ -10,6 +11,227 @@ struct LocalEnvironmentEntry: Decodable, Identifiable {
   var title: String {
     let label = name.map { "\($0) · \(fileName)" } ?? fileName
     return inherited ? "\(label) — 来自 \(sourceFolder)" : label
+  }
+}
+
+@MainActor @Observable
+final class EnvironmentSettingsSession {
+  var projectPath: String?
+  var projectTitle = ""
+  var files: [LocalEnvironmentEntry] = []
+  var fileName = "environment.toml"
+  var name = ""
+  var setupScript = ""
+  var setupPlatforms = EnvironmentPlatformScripts()
+  var cleanupScript = ""
+  var cleanupPlatforms = EnvironmentPlatformScripts()
+  var actions: [EnvironmentAction] = []
+  var revision: String?
+  var exists = false
+  var status = ""
+  var connected = false
+  var loading = false
+  var saving = false
+  var loadedState: LocalEnvironmentFormState?
+  @ObservationIgnored private var client: AgentClient?
+  @ObservationIgnored private var temporary: URL?
+  @ObservationIgnored private var generation = UUID()
+
+  var formState: LocalEnvironmentFormState {
+    LocalEnvironmentFormState(name: name, setup: setupScript, setupPlatforms: setupPlatforms,
+      cleanup: cleanupScript, cleanupPlatforms: cleanupPlatforms, actions: actions)
+  }
+  var hasUnsavedChanges: Bool { loadedState.map { $0 != formState } ?? false }
+
+  func open(_ path: String, title: String, executable: URL) async {
+    let token = UUID()
+    generation = token
+    loading = true
+    await stopClient()
+    guard generation == token else { return }
+    projectPath = path
+    projectTitle = title
+    files = []
+    fileName = "environment.toml"
+    clearForm()
+    status = ""
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("shipios-environment-editor-\(UUID())", isDirectory: true)
+    let next = AgentClient()
+    do {
+      try next.start(executable: executable, project: URL(fileURLWithPath: path),
+        dataDirectory: directory)
+      _ = try await next.request("initialize", ["protocolVersion": .number(1)])
+      guard generation == token else {
+        await next.stop()
+        try? FileManager.default.removeItem(at: directory)
+        return
+      }
+      client = next
+      temporary = directory
+      connected = true
+      await refresh()
+    } catch {
+      await next.stop()
+      try? FileManager.default.removeItem(at: directory)
+      if generation == token { status = "环境项目连接失败：\(error.localizedDescription)" }
+    }
+    if generation == token { loading = false }
+  }
+
+  func close() async {
+    generation = UUID()
+    await stopClient()
+    projectPath = nil
+    files = []
+    loading = false
+  }
+
+  private func stopClient() async {
+    let previous = client
+    let directory = temporary
+    client = nil
+    temporary = nil
+    connected = false
+    await previous?.stop()
+    if let directory { try? FileManager.default.removeItem(at: directory) }
+  }
+
+  func refresh() async {
+    guard let client, projectPath != nil else { return }
+    let token = generation
+    do {
+      let entries = try await client.request("environment.list").decode([LocalEnvironmentEntry].self)
+      guard generation == token else { return }
+      files = entries
+      let valid = entries.filter { $0.error == nil }
+      if !valid.contains(where: { $0.id == fileName }) {
+        fileName = valid.first(where: { !$0.inherited && $0.fileName == "environment.toml" })?.id
+          ?? valid.first(where: { $0.fileName == "environment.toml" })?.id
+          ?? valid.first?.id ?? "environment.toml"
+      }
+      await load()
+    } catch {
+      if generation == token { status = "环境目录读取失败：\(error.localizedDescription)" }
+    }
+  }
+
+  func select(_ id: String) async {
+    guard files.contains(where: { $0.id == id }) else { return }
+    fileName = id
+    await load()
+  }
+
+  func create() {
+    let occupied = Set(files.filter { !$0.inherited }.map(\.fileName))
+    if !occupied.contains("environment.toml") { fileName = "environment.toml" }
+    else {
+      var number = 2
+      while occupied.contains("environment-\(number).toml") { number += 1 }
+      fileName = "environment-\(number).toml"
+    }
+    clearForm()
+    name = projectTitle
+    loadedState = formState
+    status = "新环境 \(fileName) 尚未保存。"
+  }
+
+  private func clearForm() {
+    name = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+    setupScript = ""
+    setupPlatforms = .init()
+    cleanupScript = ""
+    cleanupPlatforms = .init()
+    actions = []
+    revision = nil
+    exists = false
+    loadedState = formState
+  }
+
+  func load() async {
+    guard let client else { return }
+    let token = generation
+    let selected = fileName
+    clearForm()
+    do {
+      let result = try await client.request("environment.load", ["fileName": .string(selected)])
+      guard generation == token, fileName == selected else { return }
+      exists = result["exists"].boolean == true
+      revision = result["revision"].text
+      if exists, result["error"].text == nil {
+        let config = result["config"]
+        name = config["name"].text ?? name
+        setupScript = config["setup"]["script"].text ?? ""
+        setupPlatforms = platformScripts(from: config["setup"])
+        cleanupScript = config["cleanup"]["script"].text ?? ""
+        cleanupPlatforms = platformScripts(from: config["cleanup"])
+        actions = config["actions"].items.map { action in
+          EnvironmentAction(title: action["name"].text ?? "",
+            symbol: action["icon"].text ?? "tool", script: action["command"].text ?? "",
+            platform: EnvironmentPlatform(rawValue: action["platform"].text ?? "all") ?? .all)
+        }
+        status = "已载入 \(selected)。"
+      } else if exists {
+        status = "环境文件无法解析。编辑并保存可替换该文件。"
+      } else { status = "\(selected) 尚未创建。" }
+      loadedState = formState
+    } catch {
+      if generation == token, fileName == selected {
+        status = "环境文件读取失败：\(error.localizedDescription)"
+      }
+    }
+  }
+
+  @discardableResult func save() async -> Bool {
+    guard let client, !saving else { return false }
+    let token = generation
+    let selected = fileName
+    let validName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !validName.isEmpty else { status = "请填写环境名称。"; return false }
+    guard actions.allSatisfy(\.isRunnable) else {
+      status = "请为每个操作填写名称和命令。"
+      return false
+    }
+    saving = true
+    defer { saving = false }
+    var config: [String: JSONValue] = [
+      "version": .number(1), "name": .string(validName),
+      "setup": .object(platformScripts(setupScript, setupPlatforms)),
+    ]
+    if !cleanupScript.isEmpty || cleanupPlatforms != .init() {
+      config["cleanup"] = .object(platformScripts(cleanupScript, cleanupPlatforms))
+    }
+    config["actions"] = .array(actions.map { action in
+      var fields: [String: JSONValue] = [
+        "name": .string(action.title.trimmingCharacters(in: .whitespacesAndNewlines)),
+        "command": .string(action.script.trimmingCharacters(in: .whitespacesAndNewlines)),
+        "icon": .string(action.symbol),
+      ]
+      if action.platform != .all { fields["platform"] = .string(action.platform.rawValue) }
+      return .object(fields)
+    })
+    do {
+      let result = try await client.request("environment.save", [
+        "fileName": .string(selected),
+        "expectedRevision": revision.map(JSONValue.string) ?? .null,
+        "config": .object(config),
+      ])
+      guard generation == token, fileName == selected else { return false }
+      revision = result["revision"].text
+      exists = result["exists"].boolean == true
+      loadedState = formState
+      status = "已保存至项目共享环境文件。"
+      if let entries = try? await client.request("environment.list")
+        .decode([LocalEnvironmentEntry].self) {
+        if generation == token { files = entries }
+      }
+      return generation == token
+    } catch {
+      if generation == token, fileName == selected {
+        status = "共享环境保存失败：\(error.localizedDescription)"
+      }
+      return false
+    }
   }
 }
 

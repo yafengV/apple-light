@@ -281,4 +281,55 @@ final class AgentTests: XCTestCase {
     }
     await store.shutdown()
   }
+
+  @MainActor func testEnvironmentEditorChangesOtherProjectWithoutSwitchingActiveTask() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-editor-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let active = root.appendingPathComponent("active")
+    let other = root.appendingPathComponent("other")
+    for (project, name) in [(active, "Active"), (other, "Other")] {
+      let directory = project.appendingPathComponent(".codex/environments")
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      try FileManager.default.createDirectory(at: project.appendingPathComponent(".git"),
+        withIntermediateDirectories: true)
+      try "version = 1\nname = '\(name)'\n[setup]\nscript = ''\n"
+        .write(to: directory.appendingPathComponent("environment.toml"), atomically: true,
+          encoding: .utf8)
+    }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"), agentExecutable: binary)
+    await store.open(active)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    let task = WorkspaceTask(id: "active-task", project: active.path,
+      title: "Keep selected", runIDs: [])
+    store.library.tasks.append(task)
+    store.selection = task.id
+    store.draft = "Keep this draft"
+    let originalSelection = store.selection
+    let editor = EnvironmentSettingsSession()
+    await editor.open(other.path, title: "Other", executable: binary)
+    XCTAssertTrue(editor.connected, editor.status)
+    XCTAssertEqual(editor.name, "Other")
+    editor.name = "Edited other"
+    let saved = await editor.save()
+    XCTAssertTrue(saved, editor.status)
+    editor.name = "Unsaved draft"
+    XCTAssertTrue(editor.hasUnsavedChanges)
+    await editor.load()
+    XCTAssertEqual(editor.name, "Edited other")
+    XCTAssertFalse(editor.hasUnsavedChanges)
+    XCTAssertEqual(store.project?.path, active.path)
+    XCTAssertEqual(store.selection, originalSelection)
+    XCTAssertEqual(store.draft, "Keep this draft")
+    XCTAssertEqual(store.environmentName, "Active")
+    XCTAssertTrue(try String(contentsOf: other.appendingPathComponent(
+      ".codex/environments/environment.toml"), encoding: .utf8).contains("Edited other"))
+    XCTAssertFalse(try String(contentsOf: active.appendingPathComponent(
+      ".codex/environments/environment.toml"), encoding: .utf8).contains("Edited other"))
+    await editor.close()
+    await store.shutdown()
+  }
 }

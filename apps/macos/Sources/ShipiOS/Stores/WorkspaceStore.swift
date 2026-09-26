@@ -290,6 +290,7 @@ final class WorkspaceStore {
   var environmentCatalogErrors: [String: String] = [:]
   var environmentCatalogLoading = false
   var environmentCatalogRequest = UUID()
+  var environmentSettingsSession = EnvironmentSettingsSession()
   var environmentSettingsOpenProject = false
   var environmentSettingsOpenEditor = false
   var environmentFileName = "environment.toml"
@@ -1185,6 +1186,7 @@ final class WorkspaceStore {
     connected = false
     session = UUID()
     codexTransport.reset(CancellationError())
+    await environmentSettingsSession.close()
     await client.stop()
   }
 }

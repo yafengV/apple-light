@@ -2,7 +2,7 @@
 
 2026-09-26。本页汇总当前实现，包含 [永久工作树与主窗口设置](38-permanent-worktrees.md)，避免将 [初始审计](11-codex-ui-parity-audit.md) 中的历史“缺失”状态误读为最新状态。**全产品 UI 对齐尚未完成；没有任何页面取得当前用户版本 Codex 的完整配对验收。**
 
-环境项目列表现直接显示各项目的本地与继承环境，见[第 241 篇](241-cross-project-environment-catalog.md)。环境设置按项目列表、环境概览、编辑器导航，损坏文件可显式修复，见[第 240 篇](240-local-environment-navigation-and-repair.md)。项目新任务的工作树入口可单次选择本地环境或“无环境”；所选配置固定在任务记录中供 setup、cleanup、重试和顶部 Actions 使用，见[第 238 篇](238-worktree-task-environment-selection.md)。环境页列出项目 `.codex/environments` 中的多个 TOML 环境，支持选择、新建、保存和重启恢复，见[第 237 篇](237-local-environment-catalog.md)；默认共享文件读写和外部修改冲突保护见[第 236 篇](236-shared-local-environment.md)。父目录环境的发现、编辑与新任务选择见[第 239 篇](239-inherited-local-environments.md)；云环境及原生页面配对仍缺。默认及分平台 cleanup 脚本会在托管工作树归档或超额清理前于来源项目运行，失败保留目录，成功记录执行状态并在恢复后重置，见[第 235 篇](235-managed-worktree-cleanup.md)。
+环境设置可独立查看和编辑其他项目，不切换主工作区，见[第 242 篇](242-independent-environment-editor.md)。环境项目列表直接显示各项目的本地与继承环境，见[第 241 篇](241-cross-project-environment-catalog.md)。环境设置按项目列表、环境概览、编辑器导航，损坏文件可显式修复，见[第 240 篇](240-local-environment-navigation-and-repair.md)。项目新任务的工作树入口可单次选择本地环境或“无环境”；所选配置固定在任务记录中供 setup、cleanup、重试和顶部 Actions 使用，见[第 238 篇](238-worktree-task-environment-selection.md)。环境页列出项目 `.codex/environments` 中的多个 TOML 环境，支持选择、新建、保存和重启恢复，见[第 237 篇](237-local-environment-catalog.md)；默认共享文件读写和外部修改冲突保护见[第 236 篇](236-shared-local-environment.md)。父目录环境的发现、编辑与新任务选择见[第 239 篇](239-inherited-local-environments.md)；云环境及原生页面配对仍缺。默认及分平台 cleanup 脚本会在托管工作树归档或超额清理前于来源项目运行，失败保留目录，成功记录执行状态并在恢复后重置，见[第 235 篇](235-managed-worktree-cleanup.md)。
 
 本机 Codex 静态资源的本地环境编辑器复核后，环境页补齐默认/macOS/Linux/Windows setup 脚本选择、Action 平台限制和四类图标；macOS 覆盖脚本及两个工作树路径变量进入真实初始化流程，见[第 234 篇](234-local-environment-platforms.md)。cleanup、共享环境文件和原生页面配对仍缺。
 
@@ -340,7 +340,7 @@ Option 回复链接下载见 [第 111 篇](111-message-link-downloads.md)：接�
 | Agent | 当前独立模型与推理默认值、空白任务建议开关 | Codex Core 自主工具循环、审批、沙箱、网络和 Web Search 策略尚缺 |
 | Git | 分支前缀、工作树根目录、当前项目 Git 状态、自动保存提交及 PR 指令、始终强制推送、默认创建草稿 PR；各偏好进入相应运行流程 | PR 合并策略、更多远程托管连接尚缺；提交、推送与 PR 的原生可见配对待完成 |
 | 代码审查 | 默认未暂存/已暂存/提交/分支范围、只读模式、当前项目审查入口；只读真实隐藏暂存、撤销与提交操作 | 云端自动 PR/安全审查、严重级别、额度和触发策略尚缺 |
-| 环境 | 项目列表直接显示各项目的本地与继承环境；环境概览与编辑器；当前项目构建配置；默认及各平台 setup/cleanup 编辑，macOS 覆盖执行和路径变量；按平台过滤的顶部 action 菜单；共享环境文件的选择、编辑、保存、冲突保护、损坏文件修复和选择持久化；项目环境新建；新工作树任务单次选择环境 | 跨项目编辑的工作区状态、其他平台实际执行及云环境创建、变量、Secrets、缓存和共享尚缺；原生视觉与交互待配对 |
+| 环境 | 项目列表直接显示各项目的本地与继承环境；独立于主工作区的跨项目概览与编辑器；当前项目构建配置；默认及各平台 setup/cleanup 编辑，macOS 覆盖执行和路径变量；按平台过滤的顶部 action 菜单；共享环境文件的选择、编辑、保存、冲突保护、损坏文件修复和选择持久化；项目环境新建；新工作树任务单次选择环境 | 其他平台实际执行及云环境创建、变量、Secrets、缓存和共享尚缺；原生视觉与交互待配对 |
 | 快捷键 | 多组绑定显示/增改删、按键搜索、全部绑定冲突检查、恢复与旧配置保护；任务/文件/浏览器备用切换已实测 | 不代表 Codex 全部命令已实现 |
 | 通知 | 提醒时机、系统权限、完成通知与任务目标 | 自动化采用可控投递；真实系统通知待解锁验收 |
 | 浏览器 | “历史与数据 / 下载 / 权限”子页；历史与网站数据管理，默认 Agent 访问策略及单站规则；页面元素/区域评论；默认/自定义下载位置、每次询问、进度/取消、同名保护和下载记录 | 真实 WebKit 与主窗口原生闭环已测；Agent 授权弹窗、持久登录、评论样式调整、站点工具、CDP 与 Codex 配对尚缺 |
