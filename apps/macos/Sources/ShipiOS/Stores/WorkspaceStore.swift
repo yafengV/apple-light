@@ -285,6 +285,11 @@ final class WorkspaceStore {
   var worktreeCleanupScript = ""
   var cleanupPlatformScripts = EnvironmentPlatformScripts()
   var environmentActions: [EnvironmentAction] = []
+  var environmentName = ""
+  var environmentRevision: String?
+  var environmentExists = false
+  var environmentStatus = ""
+  var environmentSaving = false
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
@@ -493,6 +498,10 @@ final class WorkspaceStore {
     worktreeCleanupScript = ""
     cleanupPlatformScripts = .init()
     environmentActions = []
+    environmentName = ""
+    environmentRevision = nil
+    environmentExists = false
+    environmentStatus = ""
     action = .chat
     events = []
     logText = ""
@@ -599,6 +608,15 @@ final class WorkspaceStore {
     container = ""
     scheme = ""
     configuration = "Debug"
+    worktreeSetupScript = ""
+    setupPlatformScripts = .init()
+    worktreeCleanupScript = ""
+    cleanupPlatformScripts = .init()
+    environmentActions = []
+    environmentName = library.projectTitle(canonical.path)
+    environmentRevision = nil
+    environmentExists = false
+    environmentStatus = ""
     defer { busy = false }
     do {
       let digest = SHA256.hash(data: Data(project!.path.utf8)).map { String(format: "%02x", $0) }
@@ -633,6 +651,7 @@ final class WorkspaceStore {
         cleanupPlatformScripts = profile.cleanupPlatformScripts
         environmentActions = profile.actions
       }
+      await loadSharedEnvironment()
       action = .chat
       library.lastWorkspace = project!.path
       library.visit(project!.path)

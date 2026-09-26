@@ -3,6 +3,7 @@ use crate::{
         CodexApproval, CodexBridge, CodexElicitation, CodexImage, CodexTextAttachment,
         CodexUserInputAnswer, StartThread,
     },
+    local_environment,
     service::{RunRequest, Service},
 };
 use anyhow::Result;
@@ -126,6 +127,23 @@ async fn dispatch(
         let invalid = || (-32602, "invalid method parameters".to_string());
         let failed = |e: anyhow::Error| (-32010, e.to_string());
         match method {
+            "environment.load" => {
+                if params != json!({}) {
+                    return Err(invalid());
+                }
+                Ok(serde_json::to_value(
+                    local_environment::load(&service.config.project).map_err(failed)?,
+                )
+                .unwrap())
+            }
+            "environment.save" => {
+                let request: local_environment::SaveRequest =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
+                Ok(serde_json::to_value(
+                    local_environment::save(&service.config.project, request).map_err(failed)?,
+                )
+                .unwrap())
+            }
             "config.get" => {
                 if params != json!({}) {
                     return Err(invalid());

@@ -180,6 +180,20 @@ struct LocalEnvironmentSettingsView: View {
           LabeledContent("项目", value: store.library.projectTitle(project.path))
           Text(project.path).appFont(.caption).textSelection(.enabled)
         }
+        Section("本地环境") {
+          TextField("环境名称", text: $store.environmentName)
+          Text(".codex/environments/environment.toml")
+            .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+          HStack {
+            Button("保存共享环境") { Task { await store.saveSharedEnvironment() } }
+              .disabled(!store.connected || store.environmentSaving)
+            Button("重新载入文件") { Task { await store.loadSharedEnvironment() } }
+              .disabled(!store.connected || store.environmentSaving)
+          }
+          if !store.environmentStatus.isEmpty {
+            Text(store.environmentStatus).appFont(.caption).foregroundStyle(.secondary)
+          }
+        }
         Section("构建环境") {
           TextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
           TextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
@@ -212,7 +226,7 @@ struct LocalEnvironmentSettingsView: View {
                 LabeledContent("工作树目录", value: "CODEX_WORKTREE_PATH")
               }.padding(16).frame(minWidth: 330).textSelection(.enabled)
             }
-          Button("保存初始化脚本") { store.saveProfile() }
+          Button("保存初始化脚本") { Task { await store.saveSharedEnvironment() } }
         }
         Section("工作树清理") {
           Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
@@ -226,7 +240,7 @@ struct LocalEnvironmentSettingsView: View {
             .font(.system(.body, design: .monospaced))
             .frame(minHeight: 100)
             .accessibilityLabel("\(cleanupPlatform.title) 工作树清理脚本")
-          Button("保存清理脚本") { store.saveProfile() }
+          Button("保存清理脚本") { Task { await store.saveSharedEnvironment() } }
         }
         Section("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
@@ -243,7 +257,6 @@ struct LocalEnvironmentSettingsView: View {
                 }.frame(width: 135)
                 Button(role: .destructive) {
                   store.environmentActions.removeAll { $0.id == action.id }
-                  store.saveProfile()
                 } label: { Image(systemName: "trash") }
                 .accessibilityLabel("删除操作 \(action.title)")
               }
@@ -259,7 +272,7 @@ struct LocalEnvironmentSettingsView: View {
             }
           }
           Button("添加操作") { store.environmentActions.append(EnvironmentAction()) }
-          Button("保存快捷操作") { store.saveProfile() }
+          Button("保存快捷操作") { Task { await store.saveSharedEnvironment() } }
         }
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))

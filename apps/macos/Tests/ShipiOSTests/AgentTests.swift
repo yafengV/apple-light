@@ -85,4 +85,58 @@ final class AgentTests: XCTestCase {
       throw error
     }
   }
+
+  @MainActor func testSharedCodexEnvironmentLoadsSavesAndRejectsExternalChanges() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-env-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("project")
+    let environment = project.appendingPathComponent(".codex/environments/environment.toml")
+    try FileManager.default.createDirectory(
+      at: environment.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("""
+      version = 1
+      name = "Shared"
+      [setup]
+      script = "echo default"
+      [setup.darwin]
+      script = "echo mac"
+      [[actions]]
+      name = "Run"
+      icon = "run"
+      command = "./run.sh"
+      platform = "darwin"
+      """.utf8).write(to: environment)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"), agentExecutable: binary)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    XCTAssertEqual(store.environmentName, "Shared")
+    XCTAssertEqual(store.worktreeSetupScript, "echo default")
+    XCTAssertEqual(store.setupPlatformScripts.darwin, "echo mac")
+    XCTAssertEqual(store.environmentActions.first?.title, "Run")
+    store.worktreeCleanupScript = "echo cleanup"
+    await store.saveSharedEnvironment()
+    XCTAssertTrue(store.environmentStatus.contains("已保存"), store.environmentStatus)
+    XCTAssertTrue(try String(contentsOf: environment).contains("echo cleanup"))
+    let external = try String(contentsOf: environment) + "\n# external edit\n"
+    try external.write(to: environment, atomically: true, encoding: .utf8)
+    store.worktreeCleanupScript = "echo changed"
+    await store.saveSharedEnvironment()
+    XCTAssertTrue(store.environmentStatus.contains("changed outside ShipiOS"), store.environmentStatus)
+    XCTAssertEqual(try String(contentsOf: environment), external)
+    await store.loadSharedEnvironment()
+    XCTAssertEqual(store.worktreeCleanupScript, "echo cleanup")
+    let privateProject = root.appendingPathComponent("private-project")
+    try FileManager.default.createDirectory(at: privateProject, withIntermediateDirectories: true)
+    store.library.profiles[privateProject.path] = BuildProfile(worktreeSetupScript: "echo private")
+    await store.open(privateProject)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    XCTAssertFalse(store.environmentExists)
+    XCTAssertEqual(store.worktreeSetupScript, "echo private")
+    await store.shutdown()
+  }
 }
