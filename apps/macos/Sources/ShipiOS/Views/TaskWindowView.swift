@@ -16,6 +16,7 @@ struct TaskWindowView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var forkError: String?
   @State private var handoffError: String?
+  @State private var actionError: String?
   @State private var mode = ChatMode.standard
   @State private var commandSelection = ComposerCommandSelection()
   @State private var pluginSelection = PluginMentionSelection()
@@ -185,6 +186,12 @@ struct TaskWindowView: View {
               }
               .help("显示或隐藏任务终端")
               .accessibilityLabel("任务终端")
+              let actions = (store.library.profiles[task.project]?.actions ?? []).filter(\.isRunnable)
+              if !actions.isEmpty {
+                EnvironmentActionsMenu(actions: actions) { action in
+                  runEnvironmentAction(action, task: task)
+                }
+              }
             }
             Menu {
               Button(tabs.showingTabs ? "隐藏标签页" : "显示标签页") { tabs.showingTabs.toggle() }
@@ -626,6 +633,16 @@ struct TaskWindowView: View {
     guard !task.project.isEmpty else { return }
     tabs.toggleTerminal(in: store.library.defaultTerminalLocation)
   }
+  private func runEnvironmentAction(_ action: EnvironmentAction, task: WorkspaceTask) {
+    guard !task.project.isEmpty,
+      store.library.profiles[task.project]?.actions.contains(action) == true,
+      action.isRunnable else { return }
+    guard tabs.runEnvironmentAction(action, in: store.library.defaultTerminalLocation) else {
+      actionError = "无法在终端启动操作：\(action.title)"
+      return
+    }
+    actionError = nil
+  }
   private func toggleReview() {
     if tabs.showingRight, tabs.selected(.right) == .review(owner: taskID) { tabs.hide(.right) }
     else { tabs.openReview(in: .right, defaultScope: store.library.gitPreferences.defaultReviewScope) }
@@ -650,6 +667,14 @@ struct TaskWindowView: View {
           Spacer()
           Button { self.handoffError = nil } label: { Image(systemName: "xmark") }
             .buttonStyle(.plain).accessibilityLabel("关闭移交错误")
+        }.padding(10)
+      }
+      if let actionError {
+        HStack {
+          Text(actionError).foregroundStyle(.red).textSelection(.enabled)
+          Spacer()
+          Button { self.actionError = nil } label: { Image(systemName: "xmark") }
+            .buttonStyle(.plain).accessibilityLabel("关闭操作错误")
         }.padding(10)
       }
       if let forkError {
@@ -1293,7 +1318,7 @@ private struct TaskWindowTerminalPanel: View {
         Label("终端", systemImage: "terminal").appFont(.caption, weight: .medium)
         Text(task.title).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
         Spacer()
-        Text(session.title).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+        Text(session.displayTitle).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
         if session.status == .running {
           Button { session.stop() } label: { Image(systemName: "stop") }
             .buttonStyle(.plain).help("结束此窗口的终端会话").accessibilityLabel("结束终端会话")

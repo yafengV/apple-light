@@ -98,7 +98,7 @@ import Observation
     switch tab {
     case .browser(let id, _): browser.session.tabs.first { $0.id == id }?.title ?? "浏览器"
     case .review: "审查"
-    case .terminal(let id, _): panels.terminals.first { $0.id == id }?.title ?? "终端"
+    case .terminal(let id, _): panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
     }
   }
 
@@ -158,6 +158,12 @@ import Observation
     guard place != .detached, let terminal = panels.newTerminal() else { return }
     let tab = WorkspaceContentTab.terminal(terminal.id, owner: taskID)
     tabs.append(tab); placements[tab.id] = place; activate(tab.id)
+  }
+  @discardableResult func runEnvironmentAction(_ action: EnvironmentAction,
+    in place: WorkspaceTabPlacement) -> Bool {
+    guard action.isRunnable, panels.workspace.root != nil else { return false }
+    newTerminal(in: place)
+    return panels.terminal?.run(action) == true
   }
   func restartTerminal(_ id: UUID) {
     guard let index = tabs.firstIndex(where: { $0.terminalID == id }),

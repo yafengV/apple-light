@@ -170,6 +170,34 @@ struct LocalEnvironmentSettingsView: View {
             .accessibilityLabel("工作树初始化脚本")
           Button("保存初始化脚本") { store.saveProfile() }
         }
+        Section("快捷操作") {
+          Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          ForEach($store.environmentActions) { $action in
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                TextField("操作名称", text: $action.title)
+                Picker("图标", selection: $action.symbol) {
+                  Label("运行", systemImage: "play.fill").tag("play.fill")
+                  Label("构建", systemImage: "hammer").tag("hammer")
+                  Label("测试", systemImage: "checkmark.circle").tag("checkmark.circle")
+                  Label("终端", systemImage: "terminal").tag("terminal")
+                }.frame(width: 135)
+                Button(role: .destructive) {
+                  store.environmentActions.removeAll { $0.id == action.id }
+                  store.saveProfile()
+                } label: { Image(systemName: "trash") }
+                .accessibilityLabel("删除操作 \(action.title)")
+              }
+              TextEditor(text: $action.script)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 72)
+                .accessibilityLabel("\(action.title) 脚本")
+            }
+          }
+          Button("添加操作") { store.environmentActions.append(EnvironmentAction()) }
+          Button("保存快捷操作") { store.saveProfile() }
+        }
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))
       }

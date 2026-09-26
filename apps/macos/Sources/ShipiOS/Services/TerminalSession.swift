@@ -8,6 +8,8 @@ final class TerminalSession {
   let root: URL
   private(set) var status: TerminalStatus = .running
   private(set) var title = "zsh"
+  private(set) var actionTitle: String?
+  var displayTitle: String { actionTitle ?? title }
   @ObservationIgnored let view: SessionTerminalView
   @ObservationIgnored private let delegate = TerminalSessionDelegate()
 
@@ -27,6 +29,17 @@ final class TerminalSession {
       "TERM=xterm-256color", "COLORTERM=truecolor", "PS1=%~ %# ",
     ], currentDirectory: root.path)
     if !view.process.running { status = .launchFailed }
+  }
+
+  @discardableResult func run(_ action: EnvironmentAction) -> Bool {
+    guard status == .running, view.process.running, action.isRunnable else { return false }
+    // Only base64 alphabet enters the interactive shell; the script can contain newlines,
+    // quotes and control characters without becoming multiple terminal submissions.
+    let payload = Data(action.script.utf8).base64EncodedString()
+    let command = "/bin/zsh -lc \"$(printf '%s' '\(payload)' | /usr/bin/base64 -D)\"\r"
+    actionTitle = action.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    view.process.send(data: Array(command.utf8)[...])
+    return true
   }
 
   func stop() {

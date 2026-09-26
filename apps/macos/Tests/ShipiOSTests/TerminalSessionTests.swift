@@ -4,6 +4,30 @@ import XCTest
 @testable import ShipiOS
 
 final class TerminalSessionTests: XCTestCase {
+  @MainActor func testEnvironmentActionRunsMultilineScriptInNewProjectTerminal() async throws {
+    let root = try folder()
+    let store = WorkspaceStore()
+    defer { store.workspace.terminals.shutdown() }
+    store.project = root
+    let action = EnvironmentAction(title: "Build", symbol: "hammer",
+      script: "printf '%s\\n' 'first' > action-result\nprintf '%s\\n' 'second' >> action-result\nprint -r -- ACTION_DONE")
+    store.library.profiles[root.path] = BuildProfile(actions: [action])
+    XCTAssertEqual(store.availableEnvironmentActions, [action])
+    store.runEnvironmentAction(action)
+    let tab = try XCTUnwrap(store.focusedWorkspaceContentTab)
+    let session = try XCTUnwrap(tab.terminalID.flatMap(store.terminalSession))
+    XCTAssertEqual(session.displayTitle, "Build")
+    try await eventually("Action did not run in the task terminal") {
+      FileManager.default.fileExists(atPath: root.appendingPathComponent("action-result").path)
+    }
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("action-result")),
+      "first\nsecond\n")
+    try await eventually("Action output was not visible in the terminal") {
+      self.output(session).contains("ACTION_DONE")
+    }
+    XCTAssertTrue(store.showingTerminal)
+  }
+
   @MainActor func testTerminalShortcutUsesConfiguredRightPanelAndTogglesIt() throws {
     let store = WorkspaceStore()
     store.project = URL(fileURLWithPath: "/tmp")

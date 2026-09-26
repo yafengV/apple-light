@@ -28,7 +28,7 @@ struct TerminalTabPanel: View {
           .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
         Spacer()
         if let session {
-          Text(session.title).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+          Text(session.displayTitle).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
           if session.status == .running {
             Button { session.stop() } label: { Image(systemName: "stop") }
               .buttonStyle(.plain).help("结束此任务的终端会话").accessibilityLabel("结束终端会话")

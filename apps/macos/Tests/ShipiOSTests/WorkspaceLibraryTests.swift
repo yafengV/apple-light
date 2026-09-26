@@ -134,7 +134,8 @@ final class WorkspaceLibraryTests: XCTestCase {
     library.tasks[0].archived = true
     library.drafts["one"] = "尚未发送的说明"
     library.profiles["/project"] = BuildProfile(
-      container: "Demo.xcodeproj", scheme: "Demo", configuration: "Release")
+      container: "Demo.xcodeproj", scheme: "Demo", configuration: "Release",
+      actions: [EnvironmentAction(title: "Build", symbol: "hammer", script: "swift build")])
     let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: temp) }
     let file = temp.appendingPathComponent("workspace.json")
@@ -146,6 +147,7 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertEqual(restored.drafts["one"], "尚未发送的说明")
     XCTAssertEqual(restored.profiles["/project"]?.configuration, "Release")
     XCTAssertEqual(restored.profiles["/project"]?.worktreeSetupScript, "")
+    XCTAssertEqual(restored.profiles["/project"]?.actions.first?.title, "Build")
     XCTAssertTrue(restored.tasks[0].pinned)
   }
 
@@ -153,6 +155,7 @@ final class WorkspaceLibraryTests: XCTestCase {
     let profile = try JSONDecoder().decode(BuildProfile.self,
       from: Data(#"{"container":"Demo.xcodeproj","scheme":"Demo","configuration":"Debug"}"#.utf8))
     XCTAssertEqual(profile.worktreeSetupScript, "")
+    XCTAssertEqual(profile.actions, [])
   }
 
   func testSlashActionsAreExplicitAndNeverTreatNotesAsModelPrompts() throws {

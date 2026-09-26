@@ -281,6 +281,7 @@ final class WorkspaceStore {
   var scheme = ""
   var configuration = "Debug"
   var worktreeSetupScript = ""
+  var environmentActions: [EnvironmentAction] = []
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
@@ -485,6 +486,7 @@ final class WorkspaceStore {
     scheme = ""
     configuration = "Debug"
     worktreeSetupScript = ""
+    environmentActions = []
     action = .chat
     events = []
     logText = ""
@@ -620,6 +622,7 @@ final class WorkspaceStore {
         scheme = profile.scheme
         configuration = profile.configuration
         worktreeSetupScript = profile.worktreeSetupScript
+        environmentActions = profile.actions
       }
       action = .chat
       library.lastWorkspace = project!.path
@@ -1039,7 +1042,7 @@ final class WorkspaceStore {
     guard libraryLoaded, let project else { return }
     library.profiles[project.path] = BuildProfile(
       container: container, scheme: scheme, configuration: configuration,
-      worktreeSetupScript: worktreeSetupScript)
+      worktreeSetupScript: worktreeSetupScript, actions: environmentActions)
     saveLibrary()
   }
 

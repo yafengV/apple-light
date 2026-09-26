@@ -35,17 +35,19 @@ struct BuildProfile: Codable {
   var scheme = ""
   var configuration = "Debug"
   var worktreeSetupScript = ""
+  var actions: [EnvironmentAction] = []
 
   init(container: String = "", scheme: String = "", configuration: String = "Debug",
-    worktreeSetupScript: String = "") {
+    worktreeSetupScript: String = "", actions: [EnvironmentAction] = []) {
     self.container = container
     self.scheme = scheme
     self.configuration = configuration
     self.worktreeSetupScript = worktreeSetupScript
+    self.actions = actions
   }
 
   enum CodingKeys: String, CodingKey {
-    case container, scheme, configuration, worktreeSetupScript
+    case container, scheme, configuration, worktreeSetupScript, actions
   }
 
   init(from decoder: Decoder) throws {
@@ -54,6 +56,26 @@ struct BuildProfile: Codable {
     scheme = try values.decodeIfPresent(String.self, forKey: .scheme) ?? ""
     configuration = try values.decodeIfPresent(String.self, forKey: .configuration) ?? "Debug"
     worktreeSetupScript = try values.decodeIfPresent(String.self, forKey: .worktreeSetupScript) ?? ""
+    actions = try values.decodeIfPresent([EnvironmentAction].self, forKey: .actions) ?? []
+  }
+}
+
+struct EnvironmentAction: Codable, Equatable, Identifiable {
+  var id = UUID()
+  var title = ""
+  var symbol = "play.fill"
+  var script = ""
+
+  init(id: UUID = UUID(), title: String = "", symbol: String = "play.fill", script: String = "") {
+    self.id = id
+    self.title = title
+    self.symbol = symbol
+    self.script = script
+  }
+
+  var isRunnable: Bool {
+    !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 }
 

@@ -60,6 +60,24 @@ final class TerminalSessions {
 }
 
 extension WorkspaceStore {
+  var availableEnvironmentActions: [EnvironmentAction] {
+    guard let project else { return [] }
+    return (library.profiles[project.path]?.actions ?? []).filter(\.isRunnable)
+  }
+
+  func runEnvironmentAction(_ action: EnvironmentAction) {
+    guard let project, destination == .workspace, !shuttingDown,
+      library.profiles[project.path]?.actions.contains(action) == true,
+      action.isRunnable else { return }
+    newTerminalTab(in: library.defaultTerminalLocation)
+    guard let id = focusedWorkspaceContentTab?.terminalID,
+      let session = terminalSession(id), session.run(action) else {
+      error = "无法在终端启动操作：\(action.title)"
+      return
+    }
+    error = nil
+  }
+
   func newTerminalTab(in placement: WorkspaceTabPlacement = .bottom) {
     guard let scope = terminalScope else { return }
     destination = .workspace

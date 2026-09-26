@@ -44,7 +44,7 @@ extension WorkspaceStore {
       return workspace.browser.tabs.first(where: { $0.id == id })?.title ?? "浏览器"
     case .review: return "审查"
     case .terminal(let id, _):
-      return terminalSession(id)?.title ?? "终端"
+      return terminalSession(id)?.displayTitle ?? "终端"
     }
   }
 

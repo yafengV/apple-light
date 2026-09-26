@@ -107,6 +107,11 @@ struct WorkspaceView: View {
                 Image(systemName: "folder")
               }.help("在 Finder 中打开项目")
             }
+            if !store.availableEnvironmentActions.isEmpty {
+              EnvironmentActionsMenu(actions: store.availableEnvironmentActions) {
+                store.runEnvironmentAction($0)
+              }
+            }
             Button {
               store.executeCommand("terminal")
             } label: {

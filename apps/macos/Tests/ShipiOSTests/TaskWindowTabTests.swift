@@ -3,6 +3,23 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class TaskWindowTabTests: XCTestCase {
+  func testEnvironmentActionUsesDetachedTasksOwnTerminal() async throws {
+    let (store, resources, tabs) = try fixture()
+    defer { resources.shutdown() }
+    let action = EnvironmentAction(title: "Test", symbol: "checkmark.circle",
+      script: "printf 'detached' > action-result")
+    XCTAssertTrue(tabs.runEnvironmentAction(action, in: .bottom))
+    let session = try XCTUnwrap(tabs.panels.terminal)
+    XCTAssertEqual(tabs.title(try XCTUnwrap(tabs.selected(.bottom))), "Test")
+    try await eventually("Detached action did not run") {
+      FileManager.default.fileExists(atPath: session.root.appendingPathComponent("action-result").path)
+    }
+    XCTAssertEqual(try String(contentsOf: session.root.appendingPathComponent("action-result")),
+      "detached")
+    XCTAssertEqual(tabs.selected(.bottom)?.terminalID, session.id)
+    XCTAssertNil(store.focusedWorkspaceContentTab)
+  }
+
   private func fixture() throws -> (WorkspaceStore, TaskWindowResources, TaskWindowTabs) {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("window-tabs-\(UUID())")
