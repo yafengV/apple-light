@@ -130,47 +130,51 @@ extension WorkspaceStore {
     else { return }
     // A temporary workspace transition must not consume the scheduled occurrence.
     guard !busy, !managedTaskPreparing, !shuttingDown,
-      !handoffBlocksProject(item.project) else { return }
+      !item.selectedProjects.contains(where: handoffBlocksProject) else { return }
     if let taskID = item.taskID, activeRun(taskID: taskID) != nil { return }
     automationRunningIDs.insert(id)
     defer { automationRunningIDs.remove(id) }
-    do {
-      guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
-      let ownerID = UUID().uuidString
-      var candidate = library
-      candidate.tasks.insert(WorkspaceTask(
-        id: ownerID, project: item.project, title: item.name, runIDs: []), at: 0)
-      try commitLibrary(candidate)
-      guard let runID = await startChat(item.prompt, taskID: ownerID, automationID: id) else {
+    var failures: [String] = []
+    for project in item.selectedProjects {
+      do {
+        guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
+        let ownerID = UUID().uuidString
         var candidate = library
-        candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
+        candidate.tasks.insert(WorkspaceTask(
+          id: ownerID, project: project, title: item.name, runIDs: []), at: 0)
         try commitLibrary(candidate)
-        throw AgentFailure(message: error ?? "自动化当前无法启动，请稍后重试。")
-      }
-      if var running = automationPreferences.items.first(where: { $0.id == id }) {
-        running.taskID = ownerID
-        _ = saveAutomation(running)
-      }
-      await modelTask(runID: runID)?.value
-      guard let run = library.chatRuns.first(where: { $0.id == runID }), !run.isActive else {
-        throw AgentFailure(message: "自动化运行尚未完成。")
-      }
-      guard var updated = automationPreferences.items.first(where: { $0.id == id }) else { return }
-      updated.lastRun = scheduledAt
-      updated.pendingRunIDs = updated.unresolvedRunIDs + [runID]
-      updated.lastRunID = runID
-      updated.taskID = ownerID
-      updated.nextRun = updated.nextDate(after: max(scheduledAt, .now))
-      _ = saveAutomation(updated)
-      library.unreadTasks.insert(ownerID)
-      saveLibrary()
-    } catch {
-      automationsError = error.localizedDescription
-      if var failed = automationPreferences.items.first(where: { $0.id == id }) {
-        failed.nextRun = failed.nextDate(after: max(scheduledAt, .now))
-        _ = saveAutomation(failed)
-        automationsError = error.localizedDescription
+        guard let runID = await startChat(item.prompt, taskID: ownerID, automationID: id) else {
+          var candidate = library
+          candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
+          try commitLibrary(candidate)
+          throw AgentFailure(message: error ?? "自动化当前无法启动，请稍后重试。")
+        }
+        if var running = automationPreferences.items.first(where: { $0.id == id }) {
+          running.taskID = ownerID
+          _ = saveAutomation(running)
+        }
+        await modelTask(runID: runID)?.value
+        guard let run = library.chatRuns.first(where: { $0.id == runID }), !run.isActive else {
+          throw AgentFailure(message: "自动化运行尚未完成。")
+        }
+        if var updated = automationPreferences.items.first(where: { $0.id == id }) {
+          updated.pendingRunIDs = updated.unresolvedRunIDs + [runID]
+          updated.lastRunID = runID
+          updated.taskID = ownerID
+          _ = saveAutomation(updated)
+        }
+        library.unreadTasks.insert(ownerID)
+        saveLibrary()
+      } catch {
+        let title = project.isEmpty ? "无项目" : library.projectTitle(project)
+        failures.append("\(title)：\(error.localizedDescription)")
       }
     }
+    if var updated = automationPreferences.items.first(where: { $0.id == id }) {
+      updated.lastRun = scheduledAt
+      updated.nextRun = updated.nextDate(after: max(scheduledAt, .now))
+      _ = saveAutomation(updated)
+    }
+    if !failures.isEmpty { automationsError = failures.joined(separator: "\n") }
   }
 }

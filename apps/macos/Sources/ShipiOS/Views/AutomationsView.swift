@@ -34,6 +34,13 @@ struct AutomationsView: View {
     }.sorted { $0.createdAt > $1.createdAt }
   }
 
+  private func projectLabel(for item: ShipAutomation) -> String {
+    let paths = item.selectedProjects.filter { !$0.isEmpty }
+    if paths.isEmpty { return "无项目" }
+    if paths.count == 1 { return store.library.projectTitle(paths[0]) }
+    return "\(paths.count) 个项目"
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
       HStack(spacing: 12) {
@@ -130,9 +137,7 @@ struct AutomationsView: View {
         Text(item.prompt).appFont(.caption).foregroundStyle(.secondary).lineLimit(2)
         HStack(spacing: 14) {
           Label(item.scheduleLabel, systemImage: "calendar")
-          Label(
-            item.project.isEmpty ? "无项目" : store.library.projectTitle(item.project),
-            systemImage: "folder")
+          Label(projectLabel(for: item), systemImage: "folder")
           if item.enabled {
             Text("下次 \(item.nextRun.formatted(date: .abbreviated, time: .shortened))")
           } else { Text("已暂停") }
@@ -222,10 +227,17 @@ private struct AutomationEditorView: View {
         .appFont(.title2, weight: .semibold)
       Form {
         TextField("名称", text: $item.name)
-        Picker("项目", selection: $item.project) {
-          Text("无项目").tag("")
+        VStack(alignment: .leading, spacing: 8) {
+          Text("项目")
+          Toggle("无项目", isOn: Binding(
+            get: { item.selectedProjects == [""] },
+            set: { item.setProject("", selected: $0) }))
+            .toggleStyle(.checkbox)
           ForEach(store.library.orderedProjects, id: \.self) { path in
-            Text(store.library.projectTitle(path)).tag(path)
+            Toggle(store.library.projectTitle(path), isOn: Binding(
+              get: { item.selectedProjects.contains(path) },
+              set: { item.setProject(path, selected: $0) }))
+              .toggleStyle(.checkbox)
           }
         }
         Picker("频率", selection: $item.cadence) {

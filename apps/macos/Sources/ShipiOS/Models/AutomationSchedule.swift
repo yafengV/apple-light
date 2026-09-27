@@ -18,6 +18,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var name = ""
   var prompt = ""
   var project = ""
+  /// Nil keeps the single-project format used by older saved automations.
+  var projects: [String]?
   var cadence = AutomationCadence.daily
   var hour = 9
   var minute = 0
@@ -43,6 +45,20 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   }
   var needsReview: Bool { !unresolvedRunIDs.isEmpty }
   var selectedWeekdays: [Int] { weekdays ?? [weekday] }
+  var selectedProjects: [String] { projects ?? [project] }
+
+  mutating func setProject(_ path: String, selected: Bool) {
+    if path.isEmpty {
+      guard selected else { return }
+      projects = [""]
+      project = ""
+      return
+    }
+    var values = Set(selectedProjects.filter { !$0.isEmpty })
+    if selected { values.insert(path) } else { values.remove(path) }
+    projects = values.isEmpty ? [""] : values.sorted()
+    project = projects?.first ?? ""
+  }
 
   mutating func setWeekday(_ day: Int, selected: Bool) {
     var days = Set(selectedWeekdays)
@@ -132,6 +148,12 @@ enum AutomationStorage {
           && item.weekdays == Array(Set(item.weekdays ?? []).sorted())
           && item.weekdays?.allSatisfy { (1...7).contains($0) } == true)
       else { throw AgentFailure(message: "自动化名称、指令或日程无效。") }
+      if let projects = item.projects {
+        guard !projects.isEmpty, projects == Array(Set(projects).sorted()),
+          (projects.count == 1 || !projects.contains("")), item.project == projects.first else {
+          throw AgentFailure(message: "自动化项目列表无效。")
+        }
+      }
       if item.cadence == .custom {
         guard let customRule = item.customRule, let anchor = item.scheduleAnchor else {
           throw AgentFailure(message: "自定义日程缺少 RRULE 或起始时间。")

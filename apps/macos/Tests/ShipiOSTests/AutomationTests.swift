@@ -80,6 +80,47 @@ final class AutomationTests: XCTestCase {
     }
   }
 
+  func testMultiProjectSelectionPersistsAndLegacyProjectMigrates() throws {
+    var item = ShipAutomation(name: "Projects", prompt: "Review")
+    XCTAssertEqual(item.selectedProjects, [""])
+    item.setProject("/tmp/First", selected: true)
+    item.setProject("/tmp/Second", selected: true)
+    XCTAssertEqual(item.selectedProjects, ["/tmp/First", "/tmp/Second"])
+    item.setProject("/tmp/First", selected: false)
+    XCTAssertEqual(item.selectedProjects, ["/tmp/Second"])
+    item.setProject("/tmp/Second", selected: false)
+    XCTAssertEqual(item.selectedProjects, [""])
+    item.setProject("/tmp/First", selected: true)
+    item.setProject("/tmp/Second", selected: true)
+
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    try AutomationStorage.save(AutomationPreferences(items: [item]), root: base)
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedProjects,
+      ["/tmp/First", "/tmp/Second"])
+    item.projects = nil
+    item.project = "/tmp/Legacy"
+    try JSONEncoder().encode(AutomationPreferences(items: [item])).write(
+      to: base.appendingPathComponent("automations.json"))
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedProjects,
+      ["/tmp/Legacy"])
+  }
+
+  func testInvalidMultiProjectListIsRejected() throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let valid = ShipAutomation(name: "Valid", prompt: "Review")
+    try AutomationStorage.save(AutomationPreferences(items: [valid]), root: base)
+    for paths in [[String](), ["", "/tmp/First"], ["/tmp/First", "/tmp/First"],
+      ["/tmp/Second", "/tmp/First"]] {
+      var invalid = valid
+      invalid.projects = paths
+      invalid.project = paths.first ?? ""
+      XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [invalid]), root: base))
+      XCTAssertEqual(try AutomationStorage.load(root: base).items, [valid])
+    }
+  }
+
   func testCustomMonthlyRulesFindFirstAndLastDayAcrossShortMonths() throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))

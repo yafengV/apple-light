@@ -3490,6 +3490,40 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
     await store.shutdown()
   }
+  @MainActor func testAutomationRunsIndependentlyInEverySelectedProject() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = root.appendingPathComponent("First", isDirectory: true)
+    let second = root.appendingPathComponent("Second", isDirectory: true)
+    try FileManager.default.createDirectory(at: first, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: second, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    await store.restore()
+    store.modelConfiguration = config
+    store.notificationPreferences = .init(timing: .never)
+    var automation = ShipAutomation(name: "Both projects", prompt: "automation project review")
+    automation.setProject(first.path, selected: true)
+    automation.setProject(second.path, selected: true)
+    XCTAssertEqual(Set(automation.selectedProjects), Set([first.path, second.path]))
+    XCTAssertTrue(store.saveAutomation(automation))
+
+    await store.runAutomation(automation.id)
+
+    let saved = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertEqual(saved.unresolvedRunIDs.count, 2)
+    XCTAssertGreaterThan(saved.nextRun, .now)
+    let runs = store.library.chatRuns.filter {
+      $0.request["automation_id"].text == automation.id.uuidString
+    }
+    XCTAssertEqual(Set(runs.map(\.project)), Set([first.path, second.path]))
+    XCTAssertEqual(Set(runs.map(\.id)), Set(saved.unresolvedRunIDs))
+    XCTAssertEqual(store.library.tasks.filter { task in
+      task.runIDs.contains { saved.unresolvedRunIDs.contains($0) }
+    }.count, 2)
+    XCTAssertEqual(try AutomationStorage.load(root: store.dataRoot).items[0].selectedProjects,
+      saved.selectedProjects)
+    await store.shutdown()
+  }
   @MainActor func testCodexAutomationRunsToolsInItsOwnProject() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
