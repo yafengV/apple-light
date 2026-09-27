@@ -26,7 +26,7 @@ extension WorkspaceStore {
   func choosePluginFolder() {
     guard pluginsLoaded, let window = NSApp.keyWindow else { return }
     let panel = NSOpenPanel()
-    panel.title = "选择包含 .codex-plugin/plugin.json 的插件文件夹"
+    panel.title = "选择包含 plugin.json 或 .codex-plugin/plugin.json 的插件文件夹"
     panel.canChooseDirectories = true
     panel.canChooseFiles = false
     panel.allowsMultipleSelection = false

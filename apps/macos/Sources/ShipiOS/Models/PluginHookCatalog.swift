@@ -8,22 +8,11 @@ struct PluginHookDeclaration: Equatable {
 
 enum PluginHookCatalog {
   static func declarations(pluginID: String, root: URL) throws -> [PluginHookDeclaration] {
+    try PluginStorage.validateID(pluginID)
     let package = PluginStorage.packageURL(root: root, id: pluginID).standardizedFileURL
-    let manifest = package.appendingPathComponent(".codex-plugin/plugin.json")
-    let data = try checkedData(at: manifest, inside: package)
-    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-      throw AgentFailure(message: "插件清单不是 JSON 对象。")
-    }
-    let portable = package.appendingPathComponent("plugin.json")
-    let portableObject: [String: Any]?
-    if FileManager.default.fileExists(atPath: portable.path) {
-      portableObject = try JSONSerialization.jsonObject(
-        with: checkedData(at: portable, inside: package)) as? [String: Any]
-    } else {
-      portableObject = nil
-    }
-    let extensionObject = (portableObject?["extensions"] as? [String: Any])?["com.openai"] as? [String: Any]
-    let configured = extensionObject?["hooks"] ?? object["hooks"]
+    let selection = try PluginStorage.selectedManifest(in: package)
+    let extensionObject = (selection.object["extensions"] as? [String: Any])?["com.openai"] as? [String: Any]
+    let configured = extensionObject?["hooks"] ?? selection.legacy?["hooks"]
     let configuredSource = extensionObject?["hooks"] == nil
       ? "./.codex-plugin/plugin.json" : "./plugin.json"
     let sources: [(String, Any)]

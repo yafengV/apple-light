@@ -207,6 +207,63 @@ enum PluginStorage {
   static let maximumManifestBytes = 256 * 1_024
   static let maximumPackageBytes = 50 * 1_024 * 1_024
   static let maximumFileCount = 2_000
+  static let portableSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+
+  struct ManifestSelection {
+    let object: [String: Any]
+    let legacy: [String: Any]?
+    let portable: Bool
+  }
+
+  static func selectedManifest(in source: URL) throws -> ManifestSelection {
+    let directory = try source.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+    guard directory.isDirectory == true, directory.isSymbolicLink != true else {
+      throw AgentFailure(message: "插件文件夹不能是符号链接。")
+    }
+    let portableURL = source.appendingPathComponent("plugin.json")
+    if FileManager.default.fileExists(atPath: portableURL.path) {
+      let object = try readManifestObject(at: portableURL)
+      if let schema = object["$schema"] as? String {
+        guard schema == portableSchema else {
+          if schema.hasPrefix("https://agent-plugins.org/schemas/") {
+            throw AgentFailure(message: "不支持此插件清单版本：\(schema)")
+          }
+          return try legacyManifest(in: source)
+        }
+        guard let name = object["name"] as? String,
+          !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+          throw AgentFailure(message: "便携版插件清单缺少名称。")
+        }
+        let legacyURL = source.appendingPathComponent(".codex-plugin/plugin.json")
+        let legacy = FileManager.default.fileExists(atPath: legacyURL.path)
+          ? try readManifestObject(at: legacyURL) : nil
+        return ManifestSelection(object: object, legacy: legacy, portable: true)
+      }
+    }
+    return try legacyManifest(in: source)
+  }
+
+  private static func legacyManifest(in source: URL) throws -> ManifestSelection {
+    let url = source.appendingPathComponent(".codex-plugin/plugin.json")
+    guard FileManager.default.fileExists(atPath: url.path) else {
+      throw AgentFailure(message: "请选择包含 plugin.json 或 .codex-plugin/plugin.json 的插件文件夹。")
+    }
+    let object = try readManifestObject(at: url)
+    return ManifestSelection(object: object, legacy: object, portable: false)
+  }
+
+  static func readManifestObject(at url: URL) throws -> [String: Any] {
+    let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+    guard values.isRegularFile == true, values.isSymbolicLink != true,
+      let size = values.fileSize, size <= maximumManifestBytes else {
+      throw AgentFailure(message: "插件清单无效或超过 256 KiB。")
+    }
+    let data = try Data(contentsOf: url)
+    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw AgentFailure(message: "插件清单必须是 JSON 对象。")
+    }
+    return object
+  }
 
   static func load(root: URL) throws -> PluginPreferences {
     let url = preferencesURL(root: root)
@@ -287,11 +344,8 @@ enum PluginStorage {
     guard rootValues.isDirectory == true, rootValues.isSymbolicLink != true else {
       throw AgentFailure(message: "请选择真实的插件文件夹。")
     }
-    let manifest = source.appendingPathComponent(".codex-plugin/plugin.json")
-    let data = try Data(contentsOf: manifest, options: .mappedIfSafe)
-    guard data.count <= maximumManifestBytes,
-      let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-    else { throw AgentFailure(message: "插件清单无效或超过 256 KiB。") }
+    let selection = try selectedManifest(in: source)
+    let object = selection.object
 
     var files = 0
     var bytes = 0
@@ -320,15 +374,30 @@ enum PluginStorage {
         components.hasBrowserExtension = true
       }
     }
-    components.mcpServers = dictionaryCount(object["mcp_servers"] ?? object["mcpServers"])
-    components.hasHooks = components.hasHooks || object["hooks"] != nil
+    if selection.portable {
+      let mcpFile = source.appendingPathComponent("mcp.json")
+      if FileManager.default.fileExists(atPath: mcpFile.path) {
+        let mcp = try readManifestObject(at: mcpFile)
+        components.mcpServers = dictionaryCount(mcp["mcpServers"])
+      }
+    } else {
+      components.mcpServers = dictionaryCount(object["mcp_servers"] ?? object["mcpServers"])
+    }
+    let openAI = (object["extensions"] as? [String: Any])?["com.openai"] as? [String: Any]
+    components.hasHooks = components.hasHooks || openAI?["hooks"] != nil
+      || selection.legacy?["hooks"] != nil
     components.hasBrowserExtension = components.hasBrowserExtension
       || object["browser_extension"] != nil || object["browserExtension"] != nil
 
     let fallbackID = source.lastPathComponent.lowercased().replacingOccurrences(of: " ", with: "-")
-    let id = string(object, keys: ["id", "plugin_id", "pluginId"]) ?? fallbackID
-    let name = string(object, keys: ["name", "display_name", "displayName"]) ?? source.lastPathComponent
-    let summary = string(object, keys: ["description", "summary"]) ?? ""
+    let id = selection.portable
+      ? (string(object, keys: ["name"]) ?? fallbackID)
+      : (string(object, keys: ["id", "plugin_id", "pluginId"]) ?? fallbackID)
+    let interface = openAI?["interface"] as? [String: Any]
+    let name = (selection.portable ? string(interface ?? [:], keys: ["displayName"]) : nil)
+      ?? string(object, keys: ["name", "display_name", "displayName"]) ?? source.lastPathComponent
+    let summary = (selection.portable ? string(interface ?? [:], keys: ["shortDescription"]) : nil)
+      ?? string(object, keys: ["description", "summary"]) ?? ""
     let version = string(object, keys: ["version"]) ?? "未注明"
     try validateID(id)
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

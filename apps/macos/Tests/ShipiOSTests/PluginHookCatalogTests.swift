@@ -62,7 +62,7 @@ final class PluginHookCatalogTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     try write(#"{"id":"hook-fixture","name":"Hook Fixture","hooks":{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"legacy"}]}]}}}"#,
       to: source.appendingPathComponent(".codex-plugin/plugin.json"))
-    try write(#"{"name":"hook-fixture","extensions":{"com.openai":{"hooks":{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"portable"}]}]}}}}}"#,
+    try write(#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"hook-fixture","extensions":{"com.openai":{"hooks":{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"portable"}]}]}}}}}"#,
       to: source.appendingPathComponent("plugin.json"))
     let dataRoot = root.appendingPathComponent("Data")
     _ = try PluginStorage.install(from: source, root: dataRoot)
@@ -84,5 +84,20 @@ final class PluginHookCatalogTests: XCTestCase {
     try FileManager.default.removeItem(at: installed)
     try FileManager.default.createSymbolicLink(at: installed, withDestinationURL: hook)
     XCTAssertThrowsError(try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot))
+  }
+
+  func testPortableOnlyPackageLoadsDefaultHookFile() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = root.appendingPathComponent("Portable")
+    try write(#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"portable-hooks"}"#,
+      to: source.appendingPathComponent("plugin.json"))
+    try write(#"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo ready"}]}]}}"#,
+      to: source.appendingPathComponent("hooks/hooks.json"))
+    let dataRoot = root.appendingPathComponent("Data")
+    let installed = try PluginStorage.install(from: source, root: dataRoot)
+    XCTAssertEqual(installed.installed.first?.id, "portable-hooks")
+    XCTAssertEqual(try PluginHookCatalog.declarations(pluginID: "portable-hooks", root: dataRoot)
+      .map(\.command), ["echo ready"])
   }
 }

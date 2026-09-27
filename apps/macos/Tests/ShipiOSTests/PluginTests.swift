@@ -3,6 +3,54 @@ import XCTest
 @testable import ShipiOS
 
 final class PluginTests: XCTestCase {
+  func testPortablePluginImportsMetadataSkillsAndMCPCount() throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let source = base.appendingPathComponent("Portable")
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try Data(#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"portable-plugin","version":"2.0.0","description":"Portable summary","extensions":{"com.openai":{"interface":{"displayName":"Portable Display","shortDescription":"Short summary"}}}}"#.utf8)
+      .write(to: source.appendingPathComponent("plugin.json"))
+    try Data(#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"docs":{"type":"streamable-http","url":"https://example.com/mcp"}}}"#.utf8)
+      .write(to: source.appendingPathComponent("mcp.json"))
+    let skill = source.appendingPathComponent("skills/review/SKILL.md")
+    try FileManager.default.createDirectory(at: skill.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("# Review\nPORTABLE-INSTRUCTIONS".utf8).write(to: skill)
+    let dataRoot = base.appendingPathComponent("Data")
+    let preferences = try PluginStorage.install(from: source, root: dataRoot)
+    let plugin = try XCTUnwrap(preferences.installed.first)
+    XCTAssertEqual(plugin.id, "portable-plugin")
+    XCTAssertEqual(plugin.name, "Portable Display")
+    XCTAssertEqual(plugin.summary, "Short summary")
+    XCTAssertEqual(plugin.version, "2.0.0")
+    XCTAssertEqual(plugin.components.skills, 1)
+    XCTAssertEqual(plugin.components.mcpServers, 1)
+    XCTAssertEqual(try PluginStorage.skills(preferences: preferences, root: dataRoot).map(\.skillID), ["review"])
+    XCTAssertTrue(try PluginStorage.promptContext(prompt: "$review", preferences: preferences, root: dataRoot)
+      .instructions.contains("PORTABLE-INSTRUCTIONS"))
+  }
+
+  func testUnsupportedPortableSchemaIsRejectedWithoutInstalling() throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let source = base.appendingPathComponent("Unsupported")
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try Data(#"{"$schema":"https://agent-plugins.org/schemas/2.0.0/plugin.schema.json","name":"future"}"#.utf8)
+      .write(to: source.appendingPathComponent("plugin.json"))
+    let dataRoot = base.appendingPathComponent("Data")
+    XCTAssertThrowsError(try PluginStorage.install(from: source, root: dataRoot))
+    XCTAssertTrue(try PluginStorage.load(root: dataRoot).installed.isEmpty)
+  }
+
+  func testPortableManifestRequiresName() throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let source = base.appendingPathComponent("MissingName")
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try Data(#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"}"#.utf8)
+      .write(to: source.appendingPathComponent("plugin.json"))
+    XCTAssertThrowsError(try PluginStorage.inspect(source: source))
+  }
+
   func testIndividualSkillDisablePersistsAndExcludesPluginAndSkillMentions() throws {
     let base = root()
     defer { try? FileManager.default.removeItem(at: base) }
