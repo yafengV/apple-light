@@ -93,6 +93,18 @@ import XCTest
     XCTAssertFalse(context.execute("browser-address"))
   }
 
+  func testDetachedReviewCopiesItsOwningProjectDirectory() throws {
+    let (store, _, _) = try fixture()
+    store.library.tasks[0].project = "/Projects/App"
+    let review = WorkspaceContentTab.review(owner: "a")
+    store.workspaceTabs.append(review); store.workspaceTabPlacements[review.id] = .detached
+    let context = store.detachedWindowCommands(review.id, close: {})
+    XCTAssertEqual(store.detachedCopyLocationTarget(review.id), .directory("/Projects/App"))
+    XCTAssertEqual(context.copyLocationTitle, "复制工作目录")
+    XCTAssertTrue(context.enabled.contains("copy-location"))
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘⇧C"), shortcuts: store.shortcuts), "copy-location")
+  }
+
   func testMountedDetachedBrowserAddressFocusDoesNotSelectMainPage() async throws {
     let (store, a, b) = try fixture()
     let window = TestWindow(contentRect: .init(x: 0, y: 0, width: 850, height: 600),

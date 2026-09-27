@@ -64,6 +64,12 @@ struct TaskWindowView: View {
   private var browsers: TaskWindowBrowsers { resources.browsers }
   private var taskWorkspace: DeveloperWorkspace { panels.workspace }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
+  private var copyLocationTarget: CopyLocationTarget? {
+    let id = tabs.focused?.browserID
+    let page = id.flatMap { id in browser.session.tabs.first { $0.id == id } }
+    return CopyLocationTarget.resolve(browserFocused: page != nil && browser.session.hasNativeFocus(tabID: id),
+      browserURL: page?.committedURL, workingDirectory: task?.project)
+  }
   private var recentWindowTasks: [WorkspaceTask] {
     Array(CommandMenuSearch.recent(library: store.library, currentID: taskID).prefix(6)).map(\.task)
   }
@@ -623,6 +629,7 @@ struct TaskWindowView: View {
       enabled.formUnion(["find", "plan", "model", "open-task-window", "task-summary"])
       if !task.isPopoutDraft { enabled.insert("copy-task-link") }
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
+      if copyLocationTarget != nil { enabled.insert("copy-location") }
       if store.commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
@@ -655,7 +662,8 @@ struct TaskWindowView: View {
 
   private var windowCommandContext: TaskWindowCommandContext {
     TaskWindowCommandContext(enabled: windowCommandsBlocked ? [] : availableWindowCommands,
-      perform: performWindowCommand, keyboardAllowed: { id in
+      perform: performWindowCommand, copyLocationTitle: copyLocationTarget?.menuTitle,
+      keyboardAllowed: { id in
         if ["browser-back", "browser-forward", "back", "forward"].contains(id),
           browser.session.hasEditableFocus { return false }
         if BrowserKeyboardBridge.contextualCommands.contains(id) {
@@ -709,6 +717,7 @@ struct TaskWindowView: View {
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
     case "copy-task-link": if !task.isPopoutDraft { store.copyTaskDeepLink(task) }
     case "copy-session-id": if !task.isPopoutDraft { store.copyCodexSessionID(task) }
+    case "copy-location": if let target = copyLocationTarget { store.copyLocation(target) }
     case "task-summary": taskSummary.toggle()
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title

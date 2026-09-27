@@ -73,6 +73,7 @@ struct WorkspaceCommands: Commands {
       command("review-open")
       command("browser-address")
       command("branch")
+      command("copy-location")
       command("terminal")
       command("bottom-panel")
       command("browser")
@@ -108,7 +109,10 @@ struct WorkspaceCommands: Commands {
   }
   private func command(_ id: String) -> some View {
     let item = DesktopCommand.all.first { $0.id == id }!
-    return Button(item.title) {
+    let title = id == "copy-location"
+      ? taskWindowCommands?.copyLocationTitle ?? store.copyLocationTarget?.menuTitle ?? item.title
+      : item.title
+    return Button(title) {
       guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return }
       perform(id)
     }

@@ -1,11 +1,21 @@
 import AppKit
 
 extension WorkspaceStore {
+  func detachedCopyLocationTarget(_ tabID: String) -> CopyLocationTarget? {
+    guard let tab = workspaceTabs.first(where: { $0.id == tabID }),
+      workspaceTabPlacement(tabID) == .detached else { return nil }
+    let browserID = tab.browserID
+    let page = browserID.flatMap { id in workspace.browser.tabs.first { $0.id == id } }
+    return CopyLocationTarget.resolve(browserFocused: page != nil && workspace.browser.hasNativeFocus(tabID: browserID),
+      browserURL: page?.committedURL, workingDirectory: workspaceTabProject(owner: tab.owner)?.path)
+  }
+
   func detachedWindowCommands(_ tabID: String, close: @escaping () -> Void) -> TaskWindowCommandContext {
     var enabled: Set<String> = []
     if !shuttingDown, let tab = workspaceTabs.first(where: { $0.id == tabID }),
       workspaceTabPlacement(tabID) == .detached {
       enabled.insert("tab-close")
+      if detachedCopyLocationTarget(tabID) != nil { enabled.insert("copy-location") }
       if commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if let id = tab.browserID, let page = workspace.browser.tabs.first(where: { $0.id == id }) {
         enabled.formUnion(["browser-address", "browser-reload", "browser-reload-origin", "browser-close", "browser-new", "find"])
@@ -22,6 +32,10 @@ extension WorkspaceStore {
         self.workspaceTabPlacement(tabID) == .detached,
         let tab = self.workspaceTabs.first(where: { $0.id == tabID }) else { return }
       if id == "tab-close" { close(); return }
+      if id == "copy-location" {
+        if let target = self.detachedCopyLocationTarget(tabID) { self.copyLocation(target) }
+        return
+      }
       if id == "new" || id == "new-alternate" {
         Task {
           if let root = self.workspaceTabProject(owner: tab.owner) { await self.newTask(in: root.path) }
@@ -45,7 +59,8 @@ extension WorkspaceStore {
       case "browser-close": self.closeBrowserTab(browserID); close()
       default: break
       }
-    }, closeTitle: "关闭标签页窗口", keyboardAllowed: { [weak self] id in
+    }, closeTitle: "关闭标签页窗口", copyLocationTitle: detachedCopyLocationTarget(tabID)?.menuTitle,
+      keyboardAllowed: { [weak self] id in
       if ["browser-back", "browser-forward", "back", "forward"].contains(id),
         let browserID = self?.workspaceTabs.first(where: { $0.id == tabID })?.browserID,
         self?.workspace.browser.hasEditableFocus(tabID: browserID) == true { return false }

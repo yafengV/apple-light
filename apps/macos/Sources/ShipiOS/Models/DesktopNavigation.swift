@@ -107,7 +107,8 @@ struct DesktopCommand: Identifiable {
     .init(id: "browser-forward", title: "浏览器前进", icon: "chevron.right", shortcut: "⌘→"),
     .init(id: "browser-reload", title: "重新加载网页", icon: "arrow.clockwise", shortcut: "⌘R"),
     .init(id: "browser-reload-origin", title: "忽略缓存重新加载网页", icon: "arrow.clockwise", shortcut: "⌘⇧R"),
-    .init(id: "browser-copy", title: "复制浏览器网址", icon: "doc.on.doc", shortcut: "⌘⇧C"),
+    .init(id: "browser-copy", title: "复制浏览器网址", icon: "doc.on.doc", shortcut: ""),
+    .init(id: "copy-location", title: "复制工作目录或浏览器网址", icon: "doc.on.doc", shortcut: "⌘⇧C"),
     .init(id: "browser-close", title: "关闭浏览器标签", icon: "xmark", shortcut: ""),
     .init(id: "browser-reopen", title: "重新打开关闭的浏览器标签", icon: "arrow.uturn.backward", shortcut: "⌘⇧T"),
     .init(id: "find", title: "在任务中查找", icon: "text.magnifyingglass", shortcut: "⌘F"),
@@ -150,7 +151,7 @@ extension DesktopCommand {
       "search", "sidebar": .navigation
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
-    case "projects", "project-picker", "open", "branch", "environment-action-1", "doctor", "build": .project
+    case "projects", "project-picker", "open", "branch", "environment-action-1", "doctor", "build", "copy-location": .project
     case "settings", "shortcuts", "plugins", "automations": .configure
     case "open-skills", "reload-skills": .skills
     default: .app

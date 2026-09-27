@@ -22,6 +22,10 @@ struct BrowserKeyboardBridge: NSViewRepresentable {
         if binding == ShortcutBinding("⌘W") {
           store.closeActiveWorkspaceTab(); return nil
         }
+        if store.shortcuts.matches("copy-location", binding),
+          let target = store.copyLocationTarget, case .browser = target {
+          store.copyCurrentLocation(); return nil
+        }
         for id in BrowserKeyboardBridge.contextualCommands where store.shortcuts.matches(id, binding) {
           if (id == "browser-back" || id == "browser-forward"),
             store.workspace.browser.hasEditableFocus { return event }

@@ -8,6 +8,20 @@ extension WorkspaceStore {
   }
   var browserFocused: Bool { browserVisible && presentedOverlay == nil && !showingModelPicker
     && !showingBranchPicker && workspace.browser.hasNativeFocus }
+  var copyLocationTarget: CopyLocationTarget? {
+    guard destination == .workspace else { return nil }
+    let directory = selectedTask == nil || selectedTask?.project == project?.path ? project?.path : nil
+    return CopyLocationTarget.resolve(browserFocused: browserFocused,
+      browserURL: workspace.browser.selected?.committedURL, workingDirectory: directory)
+  }
+  func copyLocation(_ target: CopyLocationTarget, to pasteboard: NSPasteboard = .general) {
+    pasteboard.clearContents()
+    pasteboard.setString(target.text, forType: .string)
+  }
+  func copyCurrentLocation(to pasteboard: NSPasteboard = .general) {
+    guard let target = copyLocationTarget else { return }
+    copyLocation(target, to: pasteboard)
+  }
   var pageFindTab: BrowserTab? {
     guard browserVisible else { return nil }
     let id: UUID?
