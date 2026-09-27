@@ -15,8 +15,9 @@ final class TaskWindowCommandTests: XCTestCase {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
-    let context = TaskWindowCommandContext(enabled: ["find", "pin", "send"], perform: { _ in })
+    let context = TaskWindowCommandContext(enabled: ["find", "pin", "send", "browser", "workspace-tabs"], perform: { _ in })
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘F"), shortcuts: shortcuts), "find")
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘⇧B"), shortcuts: shortcuts), "browser")
     try shortcuts.set(ShortcutBinding("⌃⌥F"), for: "find")
     XCTAssertNil(context.command(for: ShortcutBinding("⌘F"), shortcuts: shortcuts))
     XCTAssertEqual(context.command(for: ShortcutBinding("⌃⌥F"), shortcuts: shortcuts), "find")

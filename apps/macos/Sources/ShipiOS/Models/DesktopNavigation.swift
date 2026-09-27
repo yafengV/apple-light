@@ -61,10 +61,10 @@ struct DesktopCommand: Identifiable {
     .init(
       id: "review", title: "切换审查面板", icon: "point.3.connected.trianglepath.dotted", shortcut: "⌘⌥B"),
     .init(id: "review-open", title: "打开审查标签", icon: "square.stack.3d.up", shortcut: "⌃⇧G"),
-    .init(id: "browser", title: "显示或隐藏浏览器标签", icon: "globe", shortcut: ""),
+    .init(id: "browser", title: "显示或隐藏浏览器标签", icon: "globe", shortcut: "⌘⇧B"),
     .init(id: "browser-new", title: "新建浏览器标签", icon: "plus", shortcut: "⌘T"),
     .init(id: "workspace-view", title: "切换完整与分栏视图", icon: "rectangle.split.2x1", shortcut: "⌘⇧F"),
-    .init(id: "workspace-tabs", title: "显示或隐藏内容标签", icon: "rectangle.topthird.inset.filled", shortcut: "⌘⇧B"),
+    .init(id: "workspace-tabs", title: "显示或隐藏内容标签", icon: "rectangle.topthird.inset.filled", shortcut: ""),
     .init(id: "workspace-swap-panes", title: "交换左侧和右侧面板", icon: "arrow.left.arrow.right", shortcut: ""),
     .init(id: "tab-close", title: "关闭当前标签", icon: "xmark", shortcut: ""),
     .init(id: "tab-close-others", title: "关闭其他标签", icon: "xmark.circle", shortcut: "⌘⌥W"),

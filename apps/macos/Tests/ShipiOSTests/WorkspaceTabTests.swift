@@ -48,6 +48,19 @@ import XCTest
     XCTAssertEqual(store.activeWorkspaceTabID, "review:task")
   }
 
+  func testBrowserPanelCommandCreatesThenTogglesExistingTab() throws {
+    let store = storeWithTask()
+    defer { store.workspace.browser.shutdown() }
+    XCTAssertEqual(store.shortcuts.binding("browser"), ShortcutBinding("⌘⇧B"))
+    store.executeCommand("browser")
+    let browserID = try XCTUnwrap(store.activeBrowserTabID)
+    store.executeCommand("browser")
+    XCTAssertNil(store.activeBrowserTabID)
+    store.executeCommand("browser")
+    XCTAssertEqual(store.activeBrowserTabID, browserID)
+    XCTAssertEqual(store.workspace.browser.tabs.count, 1)
+  }
+
   func testContentTabsReorderCloseRightCloseOthersAndReopen() throws {
     let store = storeWithTask()
     defer { store.workspace.browser.shutdown() }

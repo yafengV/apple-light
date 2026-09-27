@@ -17,6 +17,8 @@ final class ShortcutPreferencesTests: XCTestCase {
     XCTAssertEqual(Set(bindings).count, bindings.count)
     XCTAssertEqual(preferences.binding("send"), ShortcutBinding("⌘↵"))
     XCTAssertEqual(preferences.binding("next-task"), ShortcutBinding("⌃⇥"))
+    XCTAssertEqual(preferences.binding("browser"), ShortcutBinding("⌘⇧B"))
+    XCTAssertNil(preferences.binding("workspace-tabs"))
     XCTAssertNil(preferences.binding("search"))
     for command in commands {
       for binding in command.defaultBindings { XCTAssertNil(binding.validationMessage(for: command.id), binding.display) }
