@@ -30,6 +30,13 @@ extension WorkspaceStore {
       }
     case "task-summary": taskSummaryToggleRequest = UUID()
     case "status": showingTaskStatus = true
+    case "worktree":
+      if let task = selectedTask { Task { await handOffTaskToWorktree(task.id) } }
+      else {
+        action = .chat
+        newTaskExecution = .worktree
+        focusComposer = UUID()
+      }
     case "plan":
       action = .chat
       chatMode = .plan
@@ -188,6 +195,12 @@ extension WorkspaceStore {
     case "copy-location": return copyLocationTarget != nil
     case "task-summary": return destination == .workspace && selectedTask != nil
     case "status": return destination == .workspace && selectedTask != nil
+    case "worktree":
+      guard destination == .workspace else { return false }
+      if let task = selectedTask { return canHandOffToWorktree(task) }
+      return libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil
+        && project != nil && connected && workspace.gitAvailable
+        && !library.managedWorktrees.contains(where: { $0.path == project?.path })
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty

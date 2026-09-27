@@ -98,6 +98,9 @@ struct TaskWindowView: View {
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.status.token {
       return !windowCommandsBlocked
     }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.worktree.token {
+      return !windowCommandsBlocked && task.map(store.canHandOffToWorktree) == true
+    }
     return (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
@@ -548,6 +551,8 @@ struct TaskWindowView: View {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     } else if command == ComposerCommand.status.token {
       selectTaskWindowCommand(.status)
+    } else if command == ComposerCommand.worktree.token {
+      selectTaskWindowCommand(.worktree)
     } else {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     }
@@ -645,7 +650,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "worktree", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -697,6 +702,7 @@ struct TaskWindowView: View {
       if !task.isTransient { enabled.formUnion(["pin", "unread", "rename"]) }
       if !task.isTransient, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
       if store.canOpenSideChat(from: taskID) { enabled.insert("open-side-chat") }
+      if store.canHandOffToWorktree(task) { enabled.insert("worktree") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
       if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }),
@@ -787,6 +793,11 @@ struct TaskWindowView: View {
     case "copy-location": if let target = copyLocationTarget { store.copyLocation(target) }
     case "task-summary": taskSummary.toggle()
     case "status": showingTaskStatus = true
+    case "worktree":
+      Task {
+        if await store.handOffTaskToWorktree(taskID) { handoffError = nil }
+        else { handoffError = store.worktreeError }
+      }
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next":
@@ -1288,6 +1299,7 @@ struct TaskWindowView: View {
         return store.commandEnabled(command.actionID)
       }
       if command == .status { return true }
+      if command == .worktree { return store.canHandOffToWorktree(task) }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -1361,6 +1373,9 @@ struct TaskWindowView: View {
     case .status:
       setDraft("")
       showingTaskStatus = true
+    case .worktree:
+      setDraft("")
+      performWindowCommand("worktree")
     default:
       guard let task else { return }
       setDraft("")

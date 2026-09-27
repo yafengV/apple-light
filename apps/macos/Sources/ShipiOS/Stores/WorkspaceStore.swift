@@ -259,6 +259,8 @@ final class WorkspaceStore {
     destination == .workspace && !importingImages && !importingFiles && !managedTaskPreparing
       && ((draft.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.status.token
             && selectedTask != nil)
+        || (draft.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.worktree.token
+            && commandEnabled("worktree"))
         || (action == .chat ? canStartChat : canStart)
         || selectedActiveRun?.kind == "chat")
   }
