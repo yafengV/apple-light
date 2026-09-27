@@ -12,6 +12,9 @@ extension WorkspaceStore {
     case "palette", "palette-alternate": showingCommands = true
     case "shortcuts": openSettings(.shortcuts)
     case "model": openModelPicker()
+    case "dictation":
+      let target = draftKey
+      Task { await toggleDictation(target: target) }
     case "branch": openBranchPicker()
     case "fork": forkConversation()
     case "open-task-window":
@@ -149,6 +152,7 @@ extension WorkspaceStore {
     case "activity": return libraryLoaded
     case "clear-unread": return libraryLoaded && !library.unreadTasks.isEmpty
     case "send": return canSend
+    case "dictation": return destination == .workspace && action == .chat && !shuttingDown
     case "branch": return canChangeBranch && workspace.gitAvailable
     case "browser-address": return (filesVisible && workspace.selectedFile != nil && !workspace.fileLoading && workspace.fileError == nil)
       || (browserVisible && workspace.browser.selected != nil)

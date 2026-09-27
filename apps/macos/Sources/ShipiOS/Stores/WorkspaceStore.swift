@@ -7,6 +7,8 @@ import WebKit
 @MainActor @Observable
 final class WorkspaceStore {
   var library = WorkspaceLibrary()
+  var dictation = SpeechDictation()
+  @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences
   @ObservationIgnored var shortcutCaptureCount = 0
   @ObservationIgnored private let root: URL
@@ -1188,6 +1190,7 @@ final class WorkspaceStore {
     await managedLimitCleanupTask?.value
     await managedDeletionCleanupTask?.value
     captureWorkspaceTabLayout()
+    dictation.stop()
     shuttingDown = true
     await shutdownMCPConnections()
     for id in Array(codexPendingQuestions.keys) { cancelCodexQuestion(id) }

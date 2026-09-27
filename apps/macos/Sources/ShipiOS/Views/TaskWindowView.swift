@@ -454,6 +454,8 @@ struct TaskWindowView: View {
       else { composerFocused = true; taskComposerFocusRequest = UUID() }
     }
     .onDisappear {
+      store.dictation.stop(target: taskID)
+      store.dictationCarets[taskID] = nil
       tabs.endDrag()
       resources.captureLayouts()
       store.saveLibrary()
@@ -468,6 +470,12 @@ struct TaskWindowView: View {
       else if mode == .goal { mode = .standard }
     }
     .onChange(of: store.taskWindowDraft(taskID), initial: true) { _, _ in updateCandidates() }
+    .onChange(of: store.dictation.completionID) { _, _ in
+      if store.dictation.completedTarget == taskID {
+        composerFocused = true
+        taskComposerFocusRequest = UUID()
+      }
+    }
     .onChange(of: store.enabledComposerCommands) { _, _ in updateCandidates() }
     .onChange(of: store.pluginPreferences) { _, _ in updateCandidates() }
     .onChange(of: store.pluginSkills) { _, _ in updateCandidates() }
@@ -626,7 +634,7 @@ struct TaskWindowView: View {
       if canGoForward { enabled.insert("forward") }
     }
     if !otherWindowModalActive, let task {
-      enabled.formUnion(["find", "plan", "model", "open-task-window", "task-summary"])
+      enabled.formUnion(["find", "plan", "model", "dictation", "open-task-window", "task-summary"])
       if !task.isPopoutDraft { enabled.insert("copy-task-link") }
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
       if copyLocationTarget != nil { enabled.insert("copy-location") }
@@ -703,6 +711,7 @@ struct TaskWindowView: View {
     case "palette", "palette-alternate": openSearch(.commands)
     case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
+    case "dictation": Task { await store.toggleDictation(target: taskID) }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find":
       if let id = tabs.focused?.browserID,
@@ -1139,8 +1148,13 @@ struct TaskWindowView: View {
           accessibilityLabel: "任务窗口输入",
           focusRequest: taskComposerFocusRequest,
           onKey: handleCandidateKey,
-          onPasteAttachments: { store.pasteAttachments($0, draft: taskID) }
+          onPasteAttachments: { store.pasteAttachments($0, draft: taskID) },
+          onSelectionChange: { range in
+            store.dictationCarets[taskID] = DictationCaret(text: store.taskWindowDraft(taskID), range: range)
+          }
         ).frame(minHeight: 42, maxHeight: 118)
+
+        DictationButton(store: store, target: taskID)
 
         if store.taskWindowOwnsActiveRun(taskID) {
           Button {
@@ -1164,6 +1178,7 @@ struct TaskWindowView: View {
       .padding(14)
       .background(.background, in: RoundedRectangle(cornerRadius: 16))
       .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.12)))
+      DictationStatusView(store: store, target: taskID)
       HStack {
         Button(store.modelConfiguration(for: taskID).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: taskID).model) {
           openTaskModelPicker()

@@ -27,6 +27,7 @@ struct WorkspaceCommands: Commands {
     }
     CommandMenu("任务") {
       command("send")
+      command("dictation")
       command("stop")
       Button("批准当前请求") { performApproval { approvalCommands?.approve() } }.disabled(searchDialogActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)
       Button("拒绝当前请求") { performApproval { approvalCommands?.decline() } }.disabled(searchDialogActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)

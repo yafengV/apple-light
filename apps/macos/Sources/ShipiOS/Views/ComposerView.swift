@@ -64,6 +64,7 @@ struct ComposerView: View {
           ProgressView("正在添加图片…").controlSize(.small).appFont(.caption)
         }
         editor
+        DictationStatusView(store: store, target: store.draftKey)
         controls
         if store.action == .chat, store.selectedTask == nil, let project = store.project,
           store.workspace.gitAvailable,
@@ -184,7 +185,9 @@ struct ComposerView: View {
     .onChange(of: store.pluginPreferences) { _, _ in updateCommands() }
     .onChange(of: store.pluginSkills) { _, _ in updateCommands() }
     .onChange(of: store.pluginsEnabled) { _, _ in updateCommands() }
-    .onChange(of: store.draftKey) { _, _ in
+    .onChange(of: store.draftKey) { previous, _ in
+      store.dictation.stop(target: previous)
+      store.dictationCarets[previous] = nil
       commandSelection = ComposerCommandSelection()
       pluginSelection = PluginMentionSelection()
       skillSelection = SkillMentionSelection()
@@ -197,6 +200,7 @@ struct ComposerView: View {
     }
     .onChange(of: store.action) { _, action in
       if action != .chat {
+        store.dictation.stop(target: store.draftKey)
         if store.chatMode == .goal { store.leaveGoalMode() }
         store.chatMode = .standard
         store.showingModelPicker = false
@@ -204,6 +208,7 @@ struct ComposerView: View {
     }
     .onChange(of: store.destination) { _, destination in
       if destination != .workspace {
+        store.dictation.stop(target: store.draftKey)
         store.showingModelPicker = false
         store.dismissCodeReviewMode()
         showingBuildOptions = false
@@ -213,6 +218,12 @@ struct ComposerView: View {
     .onChange(of: store.container) { _, _ in store.saveProfile() }
     .onChange(of: store.scheme) { _, _ in store.saveProfile() }
     .onChange(of: store.configuration) { _, _ in store.saveProfile() }
+    .onChange(of: store.dictation.completionID) { _, _ in
+      if store.dictation.completedTarget == store.draftKey, store.destination == .workspace {
+        focused = true
+        store.focusComposer = UUID()
+      }
+    }
     .sheet(isPresented: $store.showingGoalEditor) {
       GoalEditorView(initial: store.composerGoalDefinition) { store.configureGoal($0) }
     }
@@ -226,7 +237,10 @@ struct ComposerView: View {
       accessibilityLabel: "任务输入",
       focusRequest: store.focusComposer,
       onKey: handleEditorKey,
-      onPasteAttachments: { store.pasteAttachments($0) }
+      onPasteAttachments: { store.pasteAttachments($0) },
+      onSelectionChange: { range in
+        store.dictationCarets[store.draftKey] = DictationCaret(text: store.draft, range: range)
+      }
     )
     .frame(minHeight: 50, maxHeight: 118)
   }
@@ -384,6 +398,9 @@ struct ComposerView: View {
         Label(tokens.formatted() + " tokens", systemImage: "gauge.with.dots.needle.33percent")
           .appFont(.caption).foregroundStyle(.secondary)
           .help("最近一轮请求使用的上下文输入 token")
+      }
+      if store.action == .chat {
+        DictationButton(store: store, target: store.draftKey, enabled: store.destination == .workspace)
       }
       if store.selectedActiveRun?.kind == "chat", store.canSend, !store.draft.isEmpty || !store.draftImages.isEmpty || !store.draftFiles.isEmpty {
         Button(store.followUpBehavior.composerLabel) { Task { await store.sendDraft() } }

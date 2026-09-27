@@ -91,6 +91,7 @@ struct ComposerTextEditor: NSViewRepresentable {
   let focusRequest: UUID
   let onKey: (ComposerEditorKey, NSEvent.ModifierFlags, Bool) -> Bool
   let onPasteAttachments: ([NSItemProvider]) -> Void
+  var onSelectionChange: ((NSRange) -> Void)? = nil
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -210,7 +211,13 @@ struct ComposerTextEditor: NSViewRepresentable {
 
     func textViewDidChangeSelection(_ notification: Notification) {
       guard !applying, let editor = notification.object as? NSTextView,
-        !editor.hasMarkedText(), !parent.plainTextMode else { return }
+        !editor.hasMarkedText() else { return }
+      let selection = editor.selectedRange()
+      DispatchQueue.main.async { [weak self] in
+        guard let self, self.active else { return }
+        self.parent.onSelectionChange?(selection)
+      }
+      guard !parent.plainTextMode else { return }
       applyStyles(in: editor)
     }
 
