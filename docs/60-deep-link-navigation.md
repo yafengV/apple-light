@@ -7,6 +7,7 @@
 - `shipios://workspace`：返回当前任务工作区。
 - `shipios://projects`、`shipios://plugins`：打开相应主窗口页面。
 - `shipios://automations`：打开主窗口自动化页及创建表单；`shipios://automations/list`：只打开列表。见[第 325 篇](325-automation-create-deep-link.md)。
+- `shipios://threads/new`、`shipios://new?prompt=<文本>`：打开新任务；支持 `prompt`、`path`、`originUrl`，仅预填不发送，见[第 326 篇](326-new-task-deep-links.md)。
 - `shipios://settings` 或 `shipios://settings/<分类>`：打开主窗口设置及指定分类，例如 `appearance`、`connections`。
 - `shipios://task/<任务或运行标识>`：在现有任务库中定位任务；跨项目时先切换项目作用域，再打开对应任务。
 

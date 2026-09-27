@@ -297,6 +297,8 @@ struct WorkspaceLibrary: Codable {
   var notes: [String: String] = [:]
   var runBranches: [String: String] = [:]
   var drafts: [String: String] = [:]
+  /// A deep-linked, unsent new task keeps its own draft instead of replacing the usual project draft.
+  var linkedNewTaskDraftIDs: [String: UUID] = [:]
   var draftImages: [String: [ImageAttachment]] = [:]
   var runImages: [String: [ImageAttachment]] = [:]
   var draftFiles: [String: [FileAttachment]] = [:]
@@ -371,7 +373,7 @@ struct WorkspaceLibrary: Codable {
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case tasks, projects, lastWorkspace, notes, runBranches, drafts, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
+    case tasks, projects, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
@@ -404,6 +406,8 @@ struct WorkspaceLibrary: Codable {
     draftFiles = try c.decodeIfPresent([String: [FileAttachment]].self, forKey: .draftFiles) ?? [:]
     runFiles = try c.decodeIfPresent([String: [FileAttachment]].self, forKey: .runFiles) ?? [:]
     drafts = try c.decodeIfPresent([String: String].self, forKey: .drafts) ?? [:]
+    linkedNewTaskDraftIDs =
+      try c.decodeIfPresent([String: UUID].self, forKey: .linkedNewTaskDraftIDs) ?? [:]
     profiles = try c.decodeIfPresent([String: BuildProfile].self, forKey: .profiles) ?? [:]
     projectNames = try c.decodeIfPresent([String: String].self, forKey: .projectNames) ?? [:]
     pinnedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .pinnedProjects) ?? []

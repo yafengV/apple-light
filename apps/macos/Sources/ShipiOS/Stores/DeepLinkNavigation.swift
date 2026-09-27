@@ -9,6 +9,8 @@ extension WorkspaceStore {
     case .plugins: showPlugins()
     case .automations: showAutomations(create: true)
     case .automationsList: showAutomations()
+    case .newTask(let prompt, let path, let originURL):
+      await openNewTaskDeepLink(prompt: prompt, path: path, originURL: originURL)
     case .settings(let page): openSettings(page)
     case .task(let id):
       guard let task = library.tasks.first(where: { $0.id == id || $0.runIDs.contains(id) }) else {
@@ -22,6 +24,57 @@ extension WorkspaceStore {
       if task.project == currentProjectKey { applyTaskSelection(task) }
       else if await openTaskScope(task.project) { applyTaskSelection(task) }
     }
+  }
+
+  private func openNewTaskDeepLink(prompt: String?, path: String?, originURL: String?) async {
+    guard libraryLoaded, !busy, activeLocalRun == nil else {
+      error = "当前工作区尚未就绪，无法打开新任务链接。"
+      return
+    }
+    var target: String?
+    if let path {
+      guard path.hasPrefix("/"), !path.utf8.contains(0) else {
+        error = "新任务链接中的项目路径必须是本地绝对路径。"
+        return
+      }
+      let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL
+      var isDirectory: ObjCBool = false
+      guard FileManager.default.fileExists(atPath: canonical.path, isDirectory: &isDirectory),
+        isDirectory.boolValue else {
+        error = "新任务链接中的项目目录不存在。"
+        return
+      }
+      target = canonical.path
+    } else if let originURL {
+      for candidate in library.orderedProjects {
+        guard let remote = try? await GitReviewService.checked(
+          ["remote", "get-url", "origin"], at: URL(fileURLWithPath: candidate)) else { continue }
+        if remote.trimmingCharacters(in: .whitespacesAndNewlines) == originURL {
+          target = candidate
+          break
+        }
+      }
+      guard target != nil else {
+        error = "找不到与链接 Git 远端匹配的已保存项目。"
+        return
+      }
+    } else if let current = project?.path,
+      let managed = library.managedWorktrees.first(where: { $0.path == current }) {
+      target = managed.source
+    }
+    if let selected = target, let managed = library.managedWorktrees.first(where: { $0.path == selected }) {
+      target = managed.source
+    }
+    if let target { await newTask(in: target) }
+    else { await newChat() }
+    guard destination == .workspace, selectedTask == nil,
+      target == nil || project?.path == target else {
+      error = error ?? "无法打开新任务链接。"
+      return
+    }
+    library.linkedNewTaskDraftIDs[currentProjectKey] = UUID()
+    draft = prompt ?? ""
+    focusComposer = UUID()
   }
 
   func copyTaskDeepLink(_ task: WorkspaceTask) {

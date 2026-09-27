@@ -346,7 +346,12 @@ final class WorkspaceStore {
   var visibleTasks: [WorkspaceTask] {
     library.visible(project: project?.path ?? "", query: query, archived: showingArchived)
   }
-  var draftKey: String { selectedTask?.id ?? "new:\(project?.path ?? "none")" }
+  var draftKey: String {
+    if let selectedTask { return selectedTask.id }
+    let base = "new:\(project?.path ?? "none")"
+    return library.linkedNewTaskDraftIDs[currentProjectKey]
+      .map { "\(base):link:\($0.uuidString)" } ?? base
+  }
   var draft: String {
     get { library.drafts[draftKey] ?? "" }
     set {
@@ -912,6 +917,7 @@ final class WorkspaceStore {
       return
     }
     destination = .workspace
+    library.linkedNewTaskDraftIDs[currentProjectKey] = nil
     dismissCodeReviewMode()
     if recordHistory { recordNavigation() }
     selection = nil
