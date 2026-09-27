@@ -34,6 +34,8 @@ import Observation
   var showingReview = false
   var showingTerminal = false
   private(set) var terminals: [TerminalSession] = []
+  private(set) var splitTerminals: [UUID: TerminalSession] = [:]
+  private var splitFractions: [UUID: Double] = [:]
   private(set) var selectedTerminalID: UUID?
   var terminal: TerminalSession? { terminals.first { $0.id == selectedTerminalID } }
   var terminalFocus: TerminalFocusRequest?
@@ -55,7 +57,10 @@ import Observation
     let root = project.isEmpty ? nil : GitBranchService.canonicalRoot(URL(fileURLWithPath: project))
     guard root != workspace.root else { return }
     terminals.forEach { $0.stop() }
+    splitTerminals.values.forEach { $0.stop() }
     terminals = []
+    splitTerminals = [:]
+    splitFractions = [:]
     selectedTerminalID = nil
     terminalFocus = nil
     showingFiles = false
@@ -95,6 +100,7 @@ import Observation
 
   func closeTerminal(_ id: UUID) {
     guard let index = terminals.firstIndex(where: { $0.id == id }) else { return }
+    closeTerminalSplit(id)
     terminals.remove(at: index).stop()
     if selectedTerminalID == id {
       selectedTerminalID = terminals.isEmpty ? nil : terminals[min(index, terminals.count - 1)].id
@@ -107,8 +113,45 @@ import Observation
     terminals[index].stop()
     let replacement = TerminalSession(root: root)
     terminals[index] = replacement
+    if let split = splitTerminals.removeValue(forKey: id) { splitTerminals[replacement.id] = split }
+    if let fraction = splitFractions.removeValue(forKey: id) { splitFractions[replacement.id] = fraction }
     selectTerminal(replacement.id)
     return replacement
+  }
+
+  @discardableResult func splitTerminal(_ id: UUID) -> TerminalSession? {
+    guard terminals.contains(where: { $0.id == id }), let root = workspace.root else { return nil }
+    if let split = splitTerminals[id] { return split }
+    let split = TerminalSession(root: root)
+    splitTerminals[id] = split
+    terminalFocus = TerminalFocusRequest(
+      scope: TerminalScope(root: root, conversation: taskID), sessionID: split.id)
+    return split
+  }
+
+  func closeTerminalSplit(_ id: UUID) {
+    let splitID = splitTerminals[id]?.id
+    splitTerminals.removeValue(forKey: id)?.stop()
+    splitFractions[id] = nil
+    if let splitID, terminalFocus?.sessionID == splitID, let primary = terminals.first(where: { $0.id == id }) {
+      terminalFocus = TerminalFocusRequest(
+        scope: TerminalScope(root: primary.root, conversation: taskID), sessionID: primary.id)
+    }
+  }
+
+  @discardableResult func restartTerminalSplit(_ id: UUID) -> TerminalSession? {
+    guard splitTerminals[id] != nil else { return nil }
+    let fraction = splitFraction(for: id)
+    closeTerminalSplit(id)
+    let session = splitTerminal(id)
+    setSplitFraction(fraction, for: id)
+    return session
+  }
+
+  func splitFraction(for id: UUID) -> Double { splitFractions[id] ?? 0.5 }
+  func setSplitFraction(_ fraction: Double, for id: UUID) {
+    guard fraction.isFinite, splitTerminals[id] != nil else { return }
+    splitFractions[id] = min(0.8, max(0.2, fraction))
   }
 
   func restartTerminal() {
@@ -120,7 +163,10 @@ import Observation
 
   func shutdown() {
     terminals.forEach { $0.stop() }
+    splitTerminals.values.forEach { $0.stop() }
     terminals = []
+    splitTerminals = [:]
+    splitFractions = [:]
     selectedTerminalID = nil
     terminalFocus = nil
     showingFiles = false

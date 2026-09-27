@@ -880,6 +880,11 @@ struct TaskWindowView: View {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,
             canFocus: { tabs.isVisible(tab.id) && tabs.focusedID == tab.id && !windowCommandsBlocked },
             hide: { tabs.hide(tabs.placement(tab.id)) }, restart: { tabs.restartTerminal(id) },
+            split: panels.splitTerminals[id], openSplit: { _ = panels.splitTerminal(id) },
+            closeSplit: { panels.closeTerminalSplit(id) },
+            restartSplit: { _ = panels.restartTerminalSplit(id) },
+            splitFraction: panels.splitFraction(for: id),
+            setSplitFraction: { panels.setSplitFraction($0, for: id) },
             showsHide: tabs.placement(tab.id) == .bottom).id(id)
         }
       }
@@ -1439,6 +1444,12 @@ private struct TaskWindowTerminalPanel: View {
   let canFocus: () -> Bool
   let hide: () -> Void
   let restart: () -> Void
+  let split: TerminalSession?
+  let openSplit: () -> Void
+  let closeSplit: () -> Void
+  let restartSplit: () -> Void
+  let splitFraction: Double
+  let setSplitFraction: (Double) -> Void
   var showsHide = true
 
   var body: some View {
@@ -1448,6 +1459,11 @@ private struct TaskWindowTerminalPanel: View {
         Text(task.title).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
         Spacer()
         Text(session.displayTitle).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+        Button(action: split == nil ? openSplit : closeSplit) {
+          Image(systemName: split == nil ? "rectangle.split.2x1" : "rectangle")
+        }.buttonStyle(.plain)
+          .help(split == nil ? "向右拆分终端" : "关闭拆分终端")
+          .accessibilityLabel(split == nil ? "向右拆分终端" : "关闭拆分终端")
         if session.status == .running {
           Button { session.stop() } label: { Image(systemName: "stop") }
             .buttonStyle(.plain).help("结束此窗口的终端会话").accessibilityLabel("结束终端会话")
@@ -1460,15 +1476,20 @@ private struct TaskWindowTerminalPanel: View {
         }
       }.padding(10)
       Divider()
-      TerminalHost(session: session, focus: focus) { request in
-        focus == request && canFocus()
-      }
-      if session.status != .running {
-        HStack {
-          Text(session.status.label).appFont(.caption).foregroundStyle(.secondary)
-          Spacer()
-          Button("重新打开", action: restart).controlSize(.small)
-        }.padding(.horizontal, 10).padding(.vertical, 6)
+      if let split {
+        TerminalSplitLayout(fraction: splitFraction, onChange: setSplitFraction) {
+          TerminalSessionPane(session: session, focus: focus,
+            canFocus: { request in focus == request && request.sessionID == session.id && canFocus() },
+            restart: restart)
+        } trailing: {
+          TerminalSessionPane(session: split, focus: focus,
+            canFocus: { request in focus == request && request.sessionID == split.id && canFocus() },
+            restart: restartSplit, close: closeSplit)
+        }
+      } else {
+        TerminalSessionPane(session: session, focus: focus,
+          canFocus: { request in focus == request && request.sessionID == session.id && canFocus() },
+          restart: restart)
       }
     }
   }

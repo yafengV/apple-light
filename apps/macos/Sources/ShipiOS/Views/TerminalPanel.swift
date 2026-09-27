@@ -17,6 +17,7 @@ struct TerminalTabPanel: View {
   let terminalID: UUID
   @State private var detachedFocus: TerminalFocusRequest?
   private var session: TerminalSession? { store.workspace.terminals.session(terminalID, for: scope) }
+  private var split: TerminalSession? { store.workspace.terminals.splitSession(for: terminalID, in: scope) }
   private var detached: Bool {
     store.workspaceTabPlacement(WorkspaceContentTab.terminal(terminalID, owner: scope.conversation).id) == .detached
   }
@@ -29,6 +30,11 @@ struct TerminalTabPanel: View {
         Spacer()
         if let session {
           Text(session.displayTitle).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+          Button { split == nil ? openSplit() : closeSplit() } label: {
+            Image(systemName: split == nil ? "rectangle.split.2x1" : "rectangle")
+          }.buttonStyle(.plain)
+            .help(split == nil ? "向右拆分终端" : "关闭拆分终端")
+            .accessibilityLabel(split == nil ? "向右拆分终端" : "关闭拆分终端")
           if session.status == .running {
             Button { session.stop() } label: { Image(systemName: "stop") }
               .buttonStyle(.plain).help("结束此任务的终端会话").accessibilityLabel("结束终端会话")
@@ -46,14 +52,22 @@ struct TerminalTabPanel: View {
         .contextMenu { Button("恢复默认终端高度") { store.resetTerminalSize() } }
       Divider()
       if let session {
-        TerminalHost(session: session, focus: detached ? detachedFocus : store.terminalFocusRequest,
-          canFocus: canFocus).id(ObjectIdentifier(session))
-        if session.status != .running {
-          HStack {
-            Text(session.status.label).appFont(.caption).foregroundStyle(.secondary)
-            Spacer()
-            Button("重新打开") { restart() }.controlSize(.small)
-          }.padding(.horizontal, 10).padding(.vertical, 6)
+        if let split {
+          TerminalSplitLayout(fraction: store.workspace.terminals.splitFraction(for: terminalID, in: scope),
+            onChange: { store.workspace.terminals.setSplitFraction($0, for: terminalID, in: scope) }) {
+            TerminalSessionPane(session: session,
+              focus: detached ? detachedFocus : store.terminalFocusRequest,
+              canFocus: { canFocus($0, sessionID: session.id) }, restart: restart)
+          } trailing: {
+            TerminalSessionPane(session: split,
+              focus: detached ? detachedFocus : store.terminalFocusRequest,
+              canFocus: { canFocus($0, sessionID: split.id) },
+              restart: restartSplit, close: closeSplit)
+          }
+        } else {
+          TerminalSessionPane(session: session,
+            focus: detached ? detachedFocus : store.terminalFocusRequest,
+            canFocus: { canFocus($0, sessionID: session.id) }, restart: restart)
         }
       } else { ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity) }
     }.frame(maxHeight: .infinity).task(id: session.map(ObjectIdentifier.init)) {
@@ -65,15 +79,27 @@ struct TerminalTabPanel: View {
       }
     }
   }
-  private func canFocus(_ request: TerminalFocusRequest) -> Bool {
+  private func canFocus(_ request: TerminalFocusRequest, sessionID: UUID) -> Bool {
     guard isEnabled else { return false }
     if detached {
       return !store.shuttingDown && detachedFocus == request && request.scope == scope
-        && request.sessionID == session?.id
+        && request.sessionID == sessionID
     }
-    return store.canFocusTerminal(request)
+    return request.sessionID == sessionID && store.canFocusTerminal(request)
   }
   private func restart() {
     _ = store.restartTerminalTab(terminalID)
+  }
+  private func openSplit() {
+    guard let split = store.splitTerminalTab(terminalID) else { return }
+    if detached { detachedFocus = TerminalFocusRequest(scope: scope, sessionID: split.id) }
+  }
+  private func closeSplit() {
+    store.closeTerminalSplit(terminalID)
+    if detached { detachedFocus = TerminalFocusRequest(scope: scope, sessionID: terminalID) }
+  }
+  private func restartSplit() {
+    guard let split = store.restartTerminalSplit(terminalID) else { return }
+    if detached { detachedFocus = TerminalFocusRequest(scope: scope, sessionID: split.id) }
   }
 }

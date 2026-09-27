@@ -130,6 +130,90 @@ final class TerminalSessionTests: XCTestCase {
     XCTAssertEqual(GitBranchService.canonicalRoot(URL(fileURLWithPath: actual)), worktree)
   }
 
+  @MainActor func testSplitTerminalKeepsIndependentShellAndFollowsTaskLifecycle() async throws {
+    let root = try folder()
+    let manager = TerminalSessions()
+    defer { manager.shutdown() }
+    let draft = TerminalScope(root: root, conversation: "draft")
+    let task = TerminalScope(root: root, conversation: "task")
+    let primary = manager.session(for: draft)
+    let split = try XCTUnwrap(manager.split(primary.id, in: draft))
+    manager.setSplitFraction(0.68, for: primary.id, in: draft)
+    XCTAssertNotEqual(primary.view.process.shellPid, split.view.process.shellPid)
+    XCTAssertTrue(manager.split(primary.id, in: draft) === split)
+    send("export SHIPIOS_SPLIT=left; print -r -- LEFT:$SHIPIOS_SPLIT\r", to: primary)
+    send("print -r -- RIGHT:${SHIPIOS_SPLIT-unset}\r", to: split)
+    try await eventually("Primary split pane did not run") { self.output(primary).contains("LEFT:left") }
+    try await eventually("Split shell inherited primary environment") { self.output(split).contains("RIGHT:unset") }
+    manager.adopt(from: draft, to: task)
+    XCTAssertTrue(manager.session(primary.id, for: task) === primary)
+    XCTAssertTrue(manager.splitSession(for: primary.id, in: task) === split)
+    XCTAssertEqual(manager.splitFraction(for: primary.id, in: task), 0.68)
+    let moved = TerminalScope(root: root, conversation: "moved")
+    XCTAssertTrue(manager.move(primary.id, from: task, to: moved))
+    XCTAssertTrue(manager.splitSession(for: primary.id, in: moved) === split)
+    XCTAssertEqual(manager.splitFraction(for: primary.id, in: moved), 0.68)
+    let restarted = manager.restart(primary.id, for: moved)
+    XCTAssertEqual(restarted.id, primary.id)
+    XCTAssertTrue(manager.splitSession(for: primary.id, in: moved) === split)
+    XCTAssertEqual(split.status, .running)
+    let newSplit = try XCTUnwrap(manager.restartSplit(primary.id, in: moved))
+    XCTAssertFalse(newSplit === split)
+    XCTAssertEqual(split.status, .stopped)
+    XCTAssertEqual(manager.splitFraction(for: primary.id, in: moved), 0.68)
+    manager.close(primary.id, for: moved)
+    XCTAssertEqual(newSplit.status, .stopped)
+    XCTAssertNil(manager.splitSession(for: primary.id, in: moved))
+    XCTAssertEqual(manager.splitFraction(for: primary.id, in: moved), 0.5)
+  }
+
+  @MainActor func testWorkspaceSplitFocusStaysWithinVisibleTerminalTab() throws {
+    let root = try folder()
+    let store = WorkspaceStore()
+    defer { store.workspace.terminals.shutdown() }
+    store.project = root
+    store.newTerminalTab()
+    let id = try XCTUnwrap(store.focusedWorkspaceContentTab?.terminalID)
+    let split = try XCTUnwrap(store.splitTerminalTab(id))
+    let scope = try XCTUnwrap(store.terminalScope)
+    store.workspace.terminals.setSplitFraction(0.7, for: id, in: scope)
+    let request = try XCTUnwrap(store.terminalFocusRequest)
+    XCTAssertEqual(request.sessionID, split.id)
+    XCTAssertTrue(store.canFocusTerminal(request))
+    store.hideTerminalPanel()
+    XCTAssertFalse(store.canFocusTerminal(request))
+    store.toggleTerminalPanel()
+    XCTAssertEqual(store.workspace.terminals.splitFraction(for: id, in: scope), 0.7)
+    store.focusTerminal(split.id)
+    XCTAssertTrue(store.canFocusTerminal(try XCTUnwrap(store.terminalFocusRequest)))
+    store.closeTerminalSplit(id)
+    XCTAssertEqual(split.status, .stopped)
+    XCTAssertEqual(store.terminalFocusRequest?.sessionID, id)
+  }
+
+  @MainActor func testTaskWindowSplitSurvivesPrimaryRestartAndClosesWithTab() throws {
+    let root = try folder()
+    let panels = TaskWindowPanels(taskID: "task")
+    defer { panels.shutdown() }
+    panels.configure(project: root.path)
+    let primary = try XCTUnwrap(panels.newTerminal())
+    let split = try XCTUnwrap(panels.splitTerminal(primary.id))
+    panels.setSplitFraction(0.72, for: primary.id)
+    XCTAssertNotEqual(primary.view.process.shellPid, split.view.process.shellPid)
+    XCTAssertEqual(panels.terminalFocus?.sessionID, split.id)
+    let replacement = try XCTUnwrap(panels.restartTerminal(primary.id))
+    XCTAssertTrue(panels.splitTerminals[replacement.id] === split)
+    XCTAssertEqual(panels.splitFraction(for: replacement.id), 0.72)
+    XCTAssertEqual(split.status, .running)
+    let restartedSplit = try XCTUnwrap(panels.restartTerminalSplit(replacement.id))
+    XCTAssertFalse(restartedSplit === split)
+    XCTAssertEqual(split.status, .stopped)
+    XCTAssertEqual(panels.splitFraction(for: replacement.id), 0.72)
+    panels.closeTerminal(replacement.id)
+    XCTAssertEqual(restartedSplit.status, .stopped)
+    XCTAssertTrue(panels.splitTerminals.isEmpty)
+  }
+
   @MainActor func testNaturalExitRetainsOutputAndExplicitRestartCreatesNewShell() async throws {
     let root = try folder()
     let manager = TerminalSessions()
