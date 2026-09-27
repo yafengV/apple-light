@@ -67,12 +67,14 @@ final class PluginSettingsNavigationTests: XCTestCase {
     store.showProjects()
     XCTAssertTrue(store.commandEnabled("open-skills"))
     store.executeCommand("open-skills")
+    XCTAssertEqual(store.destination, .skills)
+    XCTAssertTrue(store.retainsSkillsPage)
+    store.openSettings(.plugins)
     XCTAssertEqual(store.destination, .settings)
-    XCTAssertEqual(store.settingsPage, .plugins)
-    XCTAssertEqual(store.activePluginSettingsSection, .skills)
-    XCTAssertTrue(store.visiblePluginSettingsSections.contains(.skills))
     store.closeSettings()
-    XCTAssertEqual(store.destination, .projects)
+    XCTAssertEqual(store.destination, .skills)
+    store.returnToWorkspace()
+    XCTAssertEqual(store.destination, .workspace)
     store.libraryLoaded = true
     store.restoringLibrary = false
     store.pluginsEnabled = false

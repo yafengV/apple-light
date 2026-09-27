@@ -39,6 +39,7 @@ struct TaskSidebarView: View {
         }.disabled(!store.libraryLoaded)
         navButton("项目", "folder", selected: store.destination == .projects) { store.showProjects() }
         navButton("插件", "shippingbox", selected: store.destination == .plugins || store.destination == .pluginDetail) { store.showPlugins() }
+        navButton("技能", "wand.and.stars", selected: store.destination == .skills) { store.showSkills() }
         navButton("自动化", "clock.arrow.circlepath", selected: store.destination == .automations) {
           store.showAutomations()
         }

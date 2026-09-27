@@ -4,6 +4,7 @@ enum ShipiOSDeepLink: Equatable {
   case workspace
   case projects
   case plugins
+  case skills
   case plugin(String)
   case automations
   case automationsList
@@ -30,6 +31,9 @@ enum ShipiOSDeepLink: Equatable {
         else { return nil }
         self = .plugin(id)
       }
+    case "skills":
+      guard parts.isEmpty, url.query == nil else { return nil }
+      self = .skills
     case "automations":
       if parts.isEmpty { self = .automations }
       else if parts == ["list"] { self = .automationsList }
@@ -81,6 +85,7 @@ enum ShipiOSDeepLink: Equatable {
     case .workspace: return URL(string: "shipios://workspace")
     case .projects: return URL(string: "shipios://projects")
     case .plugins: return URL(string: "shipios://plugins")
+    case .skills: return URL(string: "shipios://skills")
     case .plugin(let id):
       guard (try? PluginStorage.validateID(id)) != nil,
         let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)

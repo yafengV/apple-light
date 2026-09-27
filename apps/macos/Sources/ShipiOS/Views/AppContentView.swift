@@ -30,6 +30,7 @@ struct AppContentView: View {
         } else if store.destination == .settings {
           store.closeSettingsFromKeyboard()
         } else if store.destination == .activity || store.destination == .projects || store.destination == .plugins
+          || store.destination == .skills
           || store.destination == .automations
         {
           store.returnToWorkspace()

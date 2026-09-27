@@ -5,7 +5,7 @@
 ## 支持的链接
 
 - `shipios://workspace`：返回当前任务工作区。
-- `shipios://projects`、`shipios://plugins`：打开相应主窗口页面；`shipios://plugins/<已安装插件ID>` 打开详情，见[第 330 篇](330-connection-and-plugin-deep-links.md)。
+- `shipios://projects`、`shipios://plugins`、`shipios://skills`：打开相应主窗口页面；`shipios://plugins/<已安装插件ID>` 打开详情，见[第 330 篇](330-connection-and-plugin-deep-links.md)及[第 331 篇](331-main-window-skills.md)。
 - `shipios://automations`：打开主窗口自动化页及创建表单；`shipios://automations/list`：只打开列表。见[第 325 篇](325-automation-create-deep-link.md)。
 - `shipios://threads/new`、`shipios://new?prompt=<文本>`：打开新任务；支持 `prompt`、`path`、`originUrl`，仅预填不发送，见[第 326 篇](326-new-task-deep-links.md)。
 - `shipios://settings` 或 `shipios://settings/<分类>`：打开主窗口设置及指定分类，例如 `appearance`、`connections`；`shipios://settings/connections/computer|devices|ssh` 打开连接子页，见[第 330 篇](330-connection-and-plugin-deep-links.md)。

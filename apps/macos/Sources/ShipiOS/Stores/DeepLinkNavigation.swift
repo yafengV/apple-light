@@ -7,6 +7,7 @@ extension WorkspaceStore {
     case .workspace: returnToWorkspace()
     case .projects: showProjects()
     case .plugins: showPlugins()
+    case .skills: showSkills()
     case .plugin(let id):
       showPlugins()
       if pluginPreferences.installed.contains(where: { $0.id == id }) { openPluginDetail(id) }

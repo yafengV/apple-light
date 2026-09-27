@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+技能现有独立主窗口页面，侧栏、命令和 `shipios://skills` 可进入，复用已安装技能的搜索、预览、启停、尝试和导入；设置内分类仍可使用，见[第 331 篇](331-main-window-skills.md)。原生双端页面与交互尚待配对。
+
 连接设置子页与本地已安装插件详情现在可由独立深链接直达并返回来源，见[第 330 篇](330-connection-and-plugin-deep-links.md)。原生窗口及焦点配对仍待完成。
 
 自动化自定义日程已扩展每年频率、月份、序号星期、位置筛选和多时间值，见[第 327 篇](327-automation-rrule-yearly-setpos.md)；有限次数与截止时间及完成状态见[第 328 篇](328-automation-finite-rrule.md)，分钟频率与秒值见[第 329 篇](329-automation-minute-rrule.md)。其他 RFC 字段及原生编辑器配对仍待完成。

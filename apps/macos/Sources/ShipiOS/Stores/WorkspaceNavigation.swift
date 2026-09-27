@@ -77,7 +77,7 @@ extension WorkspaceStore {
     case "projects": showProjects()
     case "plugins": showPlugins()
     case "mcp-status": openSettings(.mcpServers)
-    case "open-skills": openSettings(.skills)
+    case "open-skills": showSkills()
     case "reload-skills": Task { await loadPlugins() }
     case "automations": showAutomations()
     case "settings": openSettings()
@@ -374,6 +374,10 @@ extension WorkspaceStore {
       return
     }
     if back, destination == .plugins {
+      returnToWorkspace()
+      return
+    }
+    if back, destination == .skills {
       returnToWorkspace()
       return
     }

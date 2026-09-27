@@ -5,7 +5,7 @@ import XCTest
 final class DeepLinkTests: XCTestCase {
   func testSupportedDeepLinksParseAndRoundTrip() throws {
     let links: [ShipiOSDeepLink] = [
-      .workspace, .projects, .plugins, .plugin("demo_local"), .automations, .automationsList,
+      .workspace, .projects, .plugins, .skills, .plugin("demo_local"), .automations, .automationsList,
       .newTask(prompt: "检查中文与 Markdown\n- item", path: "/tmp/My Project", originURL: nil),
       .newTask(prompt: nil, path: nil, originURL: "git@example.com:team/repo.git"),
       .newTask(prompt: nil, path: nil, originURL: nil), .settings(nil),
@@ -38,6 +38,7 @@ final class DeepLinkTests: XCTestCase {
       "shipios://settings/appearance/extra", "shipios://task", "shipios://user:pass@plugins",
       "shipios://settings/connections/unknown", "shipios://settings/connections/ssh/add",
       "shipios://settings/connections/computer?unexpected=1", "shipios://plugins/a/b",
+      "shipios://skills/unknown", "shipios://skills?unexpected=1",
       "shipios://plugins/install/demo?marketplace=remote", "shipios://plugins/a%252Fb",
       "shipios://plugins/..", "shipios://plugins/%2500", "shipios://plugins/demo%40local",
       "shipios://task/id%20with%20spaces", "shipios://automations/unknown",
@@ -50,6 +51,12 @@ final class DeepLinkTests: XCTestCase {
 
   @MainActor func testPageAndTaskLinksUseExistingMainWindowNavigation() async {
     let store = WorkspaceStore()
+    store.showPlugins()
+    await store.openDeepLink(.skills)
+    XCTAssertEqual(store.destination, .skills)
+    store.openSettings(.plugins)
+    store.closeSettings()
+    XCTAssertEqual(store.destination, .skills)
     store.showPlugins()
     await store.openDeepLink(.settings(.connections))
     XCTAssertEqual(store.destination, .settings)

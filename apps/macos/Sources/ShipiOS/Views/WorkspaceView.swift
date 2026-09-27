@@ -123,6 +123,8 @@ struct WorkspaceView: View {
             ? "项目"
             : store.destination == .plugins
               ? "插件"
+              : store.destination == .skills
+                ? "技能"
               : store.destination == .automations ? "自动化" : store.selectedTask?.title ?? "新任务"
       )
   }
@@ -390,6 +392,7 @@ struct WorkspaceView: View {
                   if store.retainsActivityPage { ActivityView(store: store) }
                   else if store.retainsProjectsPage { ProjectLibraryView(store: store) }
                   else if store.retainsPluginsPage { PluginsView(store: store) }
+                  else if store.retainsSkillsPage { SkillsView(store: store) }
                   else if store.retainsAutomationsPage { AutomationsView(store: store) }
                 }
                 .opacity(store.destination == .pluginDetail ? 0 : 1)
