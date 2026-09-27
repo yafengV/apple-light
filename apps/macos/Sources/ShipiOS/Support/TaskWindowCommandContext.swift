@@ -11,7 +11,7 @@ struct TaskWindowCommandContext {
   static func owns(_ id: String) -> Bool {
     let taskCommands: Set<String> = [
       "new", "new-alternate", "send", "dictation", "stop", "find", "find-next", "find-previous", "rename", "pin", "unread", "archive",
-      "plan", "model", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "copy-location", "task-summary", "status", "worktree", "environment-action-1", "doctor", "build", "files", "tree", "review", "review-open",
+      "plan", "model", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "copy-location", "task-summary", "status", "local", "worktree", "environment-action-1", "doctor", "build", "files", "tree", "review", "review-open",
       "terminal", "bottom-panel", "branch", "sidebar", "tab-close", "tab-close-others",
       "workspace-tabs", "workspace-view", "workspace-swap-panes", "previous-task", "next-task",
       "back", "forward", "palette", "palette-alternate", "search",

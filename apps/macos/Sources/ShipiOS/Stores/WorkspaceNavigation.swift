@@ -37,6 +37,13 @@ extension WorkspaceStore {
         newTaskExecution = .worktree
         focusComposer = UUID()
       }
+    case "local":
+      if let task = selectedTask { Task { await handOffTaskToLocal(task.id) } }
+      else {
+        action = .chat
+        newTaskExecution = .local
+        focusComposer = UUID()
+      }
     case "plan":
       action = .chat
       chatMode = .plan
@@ -201,6 +208,11 @@ extension WorkspaceStore {
       return libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil
         && project != nil && connected && workspace.gitAvailable
         && !library.managedWorktrees.contains(where: { $0.path == project?.path })
+    case "local":
+      guard destination == .workspace else { return false }
+      if let task = selectedTask { return canHandOffToLocal(task) }
+      return libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil
+        && project != nil && !library.managedWorktrees.contains(where: { $0.path == project?.path })
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty

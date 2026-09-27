@@ -261,6 +261,8 @@ final class WorkspaceStore {
             && selectedTask != nil)
         || (draft.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.worktree.token
             && commandEnabled("worktree"))
+        || (draft.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.local.token
+            && commandEnabled("local"))
         || (action == .chat ? canStartChat : canStart)
         || selectedActiveRun?.kind == "chat")
   }

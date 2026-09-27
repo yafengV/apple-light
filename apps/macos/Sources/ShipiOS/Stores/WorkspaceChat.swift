@@ -1075,7 +1075,7 @@ extension WorkspaceStore {
     }
     let actions = [
       "/task": "new-standalone", "/new": "new", "/files": "files",
-      "/terminal": "terminal", "/pet": "pet", "/plugins": "plugins", "/mcp": "mcp-status", "/status": "status", "/worktree": "worktree",
+      "/terminal": "terminal", "/pet": "pet", "/plugins": "plugins", "/mcp": "mcp-status", "/status": "status", "/local": "local", "/worktree": "worktree",
       "/automations": "automations",
       "/model": "model", "/reasoning": "model",
     ]

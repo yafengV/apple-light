@@ -101,6 +101,9 @@ struct TaskWindowView: View {
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.worktree.token {
       return !windowCommandsBlocked && task.map(store.canHandOffToWorktree) == true
     }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.local.token {
+      return !windowCommandsBlocked && task.map(store.canHandOffToLocal) == true
+    }
     return (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
@@ -553,6 +556,8 @@ struct TaskWindowView: View {
       selectTaskWindowCommand(.status)
     } else if command == ComposerCommand.worktree.token {
       selectTaskWindowCommand(.worktree)
+    } else if command == ComposerCommand.local.token {
+      selectTaskWindowCommand(.local)
     } else {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     }
@@ -650,7 +655,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "worktree", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "local", "worktree", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -703,6 +708,7 @@ struct TaskWindowView: View {
       if !task.isTransient, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
       if store.canOpenSideChat(from: taskID) { enabled.insert("open-side-chat") }
       if store.canHandOffToWorktree(task) { enabled.insert("worktree") }
+      if store.canHandOffToLocal(task) { enabled.insert("local") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
       if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }),
@@ -796,6 +802,11 @@ struct TaskWindowView: View {
     case "worktree":
       Task {
         if await store.handOffTaskToWorktree(taskID) { handoffError = nil }
+        else { handoffError = store.worktreeError }
+      }
+    case "local":
+      Task {
+        if await store.handOffTaskToLocal(taskID) { handoffError = nil }
         else { handoffError = store.worktreeError }
       }
     case "files": openTaskFileSearch()
@@ -1300,6 +1311,7 @@ struct TaskWindowView: View {
       }
       if command == .status { return true }
       if command == .worktree { return store.canHandOffToWorktree(task) }
+      if command == .local { return store.canHandOffToLocal(task) }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -1376,6 +1388,9 @@ struct TaskWindowView: View {
     case .worktree:
       setDraft("")
       performWindowCommand("worktree")
+    case .local:
+      setDraft("")
+      performWindowCommand("local")
     default:
       guard let task else { return }
       setDraft("")
