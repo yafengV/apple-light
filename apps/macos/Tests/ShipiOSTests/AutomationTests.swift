@@ -204,6 +204,74 @@ final class AutomationTests: XCTestCase {
       DateComponents(day: 15, hour: 10, minute: 20))
   }
 
+  func testCustomYearlyMonthsAndOrdinalWeekdays() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    let anchor = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 1, day: 15, hour: 8)))
+    let yearly = try AutomationRecurrenceRule.parse(
+      "FREQ=YEARLY;BYMONTH=3,6;BYMONTHDAY=10;BYHOUR=9;BYMINUTE=0")
+    let march = try XCTUnwrap(yearly.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.year, .month, .day, .hour], from: march),
+      DateComponents(year: 2026, month: 3, day: 10, hour: 9))
+    let june = try XCTUnwrap(yearly.nextDate(after: march, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: june),
+      DateComponents(month: 6, day: 10))
+
+    let firstMonday = try AutomationRecurrenceRule.parse(
+      "FREQ=MONTHLY;BYDAY=1MO;BYHOUR=9;BYMINUTE=0")
+    let first = try XCTUnwrap(firstMonday.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: first),
+      DateComponents(month: 2, day: 2))
+    let lastFriday = try AutomationRecurrenceRule.parse(
+      "FREQ=MONTHLY;BYDAY=-1FR;BYHOUR=9;BYMINUTE=0")
+    let last = try XCTUnwrap(lastFriday.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: last),
+      DateComponents(month: 1, day: 30))
+    let firstMondayOfYear = try AutomationRecurrenceRule.parse(
+      "FREQ=YEARLY;BYDAY=1MO;BYHOUR=9;BYMINUTE=0")
+    let nextYear = try XCTUnwrap(firstMondayOfYear.nextDate(
+      after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.year, .month, .day], from: nextYear),
+      DateComponents(year: 2027, month: 1, day: 4))
+  }
+
+  func testCustomSetPositionAndMultipleTimes() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    let anchor = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 1, day: 15, hour: 8)))
+    let lastWeekday = try AutomationRecurrenceRule.parse(
+      "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1;BYHOUR=9;BYMINUTE=0")
+    let january = try XCTUnwrap(lastWeekday.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: january),
+      DateComponents(month: 1, day: 30))
+    let february = try XCTUnwrap(lastWeekday.nextDate(after: january, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: february),
+      DateComponents(month: 2, day: 27))
+    let firstMonday = try AutomationRecurrenceRule.parse(
+      "FREQ=MONTHLY;BYDAY=MO;BYSETPOS=1;BYHOUR=9;BYMINUTE=0")
+    let nextFirstMonday = try XCTUnwrap(firstMonday.nextDate(
+      after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: nextFirstMonday),
+      DateComponents(month: 2, day: 2),
+      "The first Monday of January is before the anchor; later January Mondays are not first")
+
+    let multiple = try AutomationRecurrenceRule.parse(
+      "FREQ=DAILY;BYHOUR=8,9;BYMINUTE=15,45")
+    let first = try XCTUnwrap(multiple.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute], from: first),
+      DateComponents(hour: 8, minute: 15))
+    let second = try XCTUnwrap(multiple.nextDate(after: first, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute], from: second),
+      DateComponents(hour: 8, minute: 45))
+    let hourly = try AutomationRecurrenceRule.parse(
+      "FREQ=HOURLY;BYMINUTE=10,20;BYSETPOS=-1")
+    let hourlyFirst = try XCTUnwrap(hourly.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute], from: hourlyFirst),
+      DateComponents(hour: 8, minute: 20))
+  }
+
   func testCustomDailyScheduleSkipsNonexistentDSTLocalTime() throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
@@ -218,9 +286,11 @@ final class AutomationTests: XCTestCase {
 
   func testCustomRuleValidationRejectsUnsupportedOrImpossibleSchedules() throws {
     for text in [
-      "RRULE:FREQ=YEARLY;BYHOUR=9", "RRULE:FREQ=DAILY;COUNT=5;BYHOUR=9",
+      "RRULE:FREQ=MINUTELY", "RRULE:FREQ=DAILY;COUNT=5;BYHOUR=9",
       "RRULE:FREQ=MONTHLY;BYMONTHDAY=0;BYHOUR=9", "RRULE:FREQ=DAILY;BYHOUR=25",
       "RRULE:FREQ=DAILY;BYHOUR=9;BYHOUR=10", "RRULE:FREQ=WEEKLY;BYDAY=MO,MO;BYHOUR=9",
+      "RRULE:FREQ=MONTHLY;BYSETPOS=-1", "RRULE:FREQ=MONTHLY;BYDAY=MO;BYSETPOS=0",
+      "RRULE:FREQ=DAILY;BYDAY=1MO", "RRULE:FREQ=YEARLY;BYMONTH=1,1",
     ] { XCTAssertThrowsError(try AutomationRecurrenceRule.parse(text), text) }
 
     let base = root()
@@ -256,6 +326,14 @@ final class AutomationTests: XCTestCase {
     let changed = store.automationPreferences.items[0]
     XCTAssertEqual(Calendar.current.component(.hour, from: changed.nextRun), 18)
     XCTAssertNotEqual(changed.customRule, saved.customRule)
+
+    item = changed
+    item.customRule = "RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=TH;BYSETPOS=4;BYHOUR=9;BYMINUTE=0"
+    XCTAssertTrue(store.saveEditedAutomation(item))
+    let yearly = store.automationPreferences.items[0]
+    XCTAssertEqual(Calendar.current.component(.month, from: yearly.nextRun), 11)
+    XCTAssertEqual(Calendar.current.component(.weekday, from: yearly.nextRun), 5)
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0], yearly)
   }
 
   func testInvalidAutomationIsRejectedWithoutReplacingStoredState() throws {

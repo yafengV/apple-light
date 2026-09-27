@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+自动化自定义日程已扩展每年频率、月份、序号星期、位置筛选和多时间值，见[第 327 篇](327-automation-rrule-yearly-setpos.md)。`COUNT/UNTIL` 等 RFC 字段及原生编辑器配对仍待完成。
+
 新任务深链接现支持提示预填、本地路径、Git 远端定位和独立持久草稿，不自动发送，见[第 326 篇](326-new-task-deep-links.md)。实际 LaunchServices 窗口激活、输入框焦点与当前 Codex 的双端交互仍待验收。
 
 自动化深链接现按官方 Scheduled 入口打开创建表单，并提供只看列表的独立路径，见[第 325 篇](325-automation-create-deep-link.md)。实际窗口激活、表单焦点及与当前 Codex 的双端行为仍待原生验收。
