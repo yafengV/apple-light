@@ -188,6 +188,8 @@ final class WorkspaceStore {
   var automationsLoading = false
   var automationsError: String?
   var automationRunningIDs: Set<UUID> = []
+  var automationCreateRequest: UUID?
+  var automationListRequest: UUID?
   var sshHosts: [SSHHost] = []
   var sshHostsLoaded = false
   var sshHostsLoading = false

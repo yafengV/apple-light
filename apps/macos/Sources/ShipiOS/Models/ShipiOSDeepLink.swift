@@ -5,6 +5,7 @@ enum ShipiOSDeepLink: Equatable {
   case projects
   case plugins
   case automations
+  case automationsList
   case settings(SettingsPage?)
   case task(String)
 
@@ -17,7 +18,10 @@ enum ShipiOSDeepLink: Equatable {
     case "workspace": self = .workspace
     case "projects": self = .projects
     case "plugins": self = .plugins
-    case "automations": self = .automations
+    case "automations":
+      if parts.isEmpty { self = .automations }
+      else if parts == ["list"] { self = .automationsList }
+      else { return nil }
     case "settings":
       guard parts.count <= 1 else { return nil }
       if let raw = parts.first {
@@ -40,6 +44,7 @@ enum ShipiOSDeepLink: Equatable {
     case .projects: return URL(string: "shipios://projects")
     case .plugins: return URL(string: "shipios://plugins")
     case .automations: return URL(string: "shipios://automations")
+    case .automationsList: return URL(string: "shipios://automations/list")
     case .settings(let page):
       return URL(string: "shipios://settings" + (page.map { "/\($0.rawValue)" } ?? ""))
     case .task(let id):

@@ -7,7 +7,8 @@ extension WorkspaceStore {
     case .workspace: returnToWorkspace()
     case .projects: showProjects()
     case .plugins: showPlugins()
-    case .automations: showAutomations()
+    case .automations: showAutomations(create: true)
+    case .automationsList: showAutomations()
     case .settings(let page): openSettings(page)
     case .task(let id):
       guard let task = library.tasks.first(where: { $0.id == id || $0.runIDs.contains(id) }) else {

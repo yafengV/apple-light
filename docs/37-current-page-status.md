@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+自动化深链接现按官方 Scheduled 入口打开创建表单，并提供只看列表的独立路径，见[第 325 篇](325-automation-create-deep-link.md)。实际窗口激活、表单焦点及与当前 Codex 的双端行为仍待原生验收。
+
 自动化页的等待审查区域现有「全部标为已读」，批量清除所有日程待审运行及对应任务未读状态，其他任务未读和原有日程不受影响，见[第 324 篇](324-automation-mark-all-read.md)。按钮的当前 Codex Mac 原生布局与交互仍待配对。
 
 Hooks 设置现完整展示命令、MCP 工具、Prompt 和 Agent 声明，标识当前版本不支持或会跳过的定义，并将损坏配置明确报错，见[第 315 篇](315-hook-declaration-coverage.md)。固定 Codex Core 对便携插件直接跳过 Hook 来源的边界见[第 316 篇](316-automation-weekday-selection-and-hook-runtime-boundary.md)。实际 Hook 运行、逐定义信任与审计仍缺。

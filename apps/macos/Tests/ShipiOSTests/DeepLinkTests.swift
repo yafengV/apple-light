@@ -5,7 +5,7 @@ import XCTest
 final class DeepLinkTests: XCTestCase {
   func testSupportedDeepLinksParseAndRoundTrip() throws {
     let links: [ShipiOSDeepLink] = [
-      .workspace, .projects, .plugins, .automations, .settings(nil),
+      .workspace, .projects, .plugins, .automations, .automationsList, .settings(nil),
       .settings(.appearance), .settings(.connections), .task("task-123"),
     ]
     for link in links {
@@ -15,13 +15,16 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(
       ShipiOSDeepLink(url: try XCTUnwrap(URL(string: "shipios://task/run%2D123"))),
       .task("run-123"))
+    XCTAssertEqual(ShipiOSDeepLink.automations.url?.absoluteString, "shipios://automations")
+    XCTAssertEqual(ShipiOSDeepLink.automationsList.url?.absoluteString,
+      "shipios://automations/list")
   }
 
   func testMalformedOrForeignDeepLinksAreRejected() throws {
     for value in [
       "https://settings/appearance", "shipios://unknown", "shipios://settings/missing",
       "shipios://settings/appearance/extra", "shipios://task", "shipios://user:pass@plugins",
-      "shipios://task/id%20with%20spaces",
+      "shipios://task/id%20with%20spaces", "shipios://automations/unknown",
     ] {
       XCTAssertNil(ShipiOSDeepLink(url: try XCTUnwrap(URL(string: value))), value)
     }
@@ -35,6 +38,15 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(store.settingsPage, .connections)
     store.closeSettings()
     XCTAssertEqual(store.destination, .plugins)
+
+    await store.openDeepLink(.automations)
+    XCTAssertEqual(store.destination, .automations)
+    XCTAssertNotNil(store.automationCreateRequest)
+    store.automationCreateRequest = nil
+    await store.openDeepLink(.automationsList)
+    XCTAssertEqual(store.destination, .automations)
+    XCTAssertNil(store.automationCreateRequest)
+    XCTAssertNotNil(store.automationListRequest)
 
     let run = AgentRun(
       id: "run-link", kind: "chat", project: "", status: "succeeded",

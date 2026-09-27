@@ -106,12 +106,14 @@ extension WorkspaceStore {
     destination = .plugins
   }
 
-  func showAutomations() {
+  func showAutomations(create: Bool = false) {
     pluginDetailForwardRoute = nil
     pluginDetailRoute = nil
     showingBranchPicker = false
     presentedOverlay = nil
     destination = .automations
+    automationCreateRequest = create ? UUID() : nil
+    automationListRequest = create ? nil : UUID()
   }
 
   func toggleActivity() {

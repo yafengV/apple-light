@@ -41,6 +41,25 @@ struct AutomationsView: View {
     return "\(paths.count) 个项目"
   }
 
+  private func beginCreate() {
+    var item = ShipAutomation()
+    item.environmentSelections = [:]
+    item.nextRun = item.nextDate(after: .now)
+    editing = item
+  }
+
+  private func openRequestedCreation() {
+    guard store.automationsLoaded, store.automationCreateRequest != nil else { return }
+    store.automationCreateRequest = nil
+    beginCreate()
+  }
+
+  private func openRequestedList() {
+    guard store.automationListRequest != nil else { return }
+    store.automationListRequest = nil
+    editing = nil
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
       HStack(spacing: 12) {
@@ -49,12 +68,7 @@ struct AutomationsView: View {
           ForEach(Filter.allCases) { Text($0.title).tag($0) }
         }.pickerStyle(.segmented).frame(width: 230)
         Spacer()
-        Button("新建自动化") {
-          var item = ShipAutomation()
-          item.environmentSelections = [:]
-          item.nextRun = item.nextDate(after: .now)
-          editing = item
-        }.disabled(!store.automationsLoaded)
+        Button("新建自动化") { beginCreate() }.disabled(!store.automationsLoaded)
         Button("返回任务") { store.returnToWorkspace() }.keyboardShortcut(.cancelAction)
       }
       TextField("搜索自动化", text: $query).textFieldStyle(.roundedBorder)
@@ -115,6 +129,13 @@ struct AutomationsView: View {
       } message: {
         Text("将删除日程“\(deleting?.name ?? "")”。已经生成的任务和结果会保留。")
       }
+      .onAppear {
+        openRequestedList()
+        openRequestedCreation()
+      }
+      .onChange(of: store.automationCreateRequest) { _, _ in openRequestedCreation() }
+      .onChange(of: store.automationListRequest) { _, _ in openRequestedList() }
+      .onChange(of: store.automationsLoaded) { _, _ in openRequestedCreation() }
   }
 
   private func reviewRow(_ item: ShipAutomation) -> some View {
