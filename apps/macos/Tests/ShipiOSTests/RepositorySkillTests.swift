@@ -21,7 +21,7 @@ final class RepositorySkillTests: XCTestCase {
     let root = base.appendingPathComponent("ShipiOS")
     let preferences = try PluginStorage.load(root: root)
     let firstSkill = try XCTUnwrap(PluginStorage.repositorySkills(project: first).first)
-    XCTAssertEqual(firstSkill.id, "repo:review")
+    XCTAssertEqual(firstSkill.id, "repo:\(first.path)/review")
     XCTAssertEqual(firstSkill.mention, "repo/review")
     XCTAssertEqual(firstSkill.title, "first-review")
     XCTAssertEqual(firstSkill.summary, "Review First only")
@@ -34,7 +34,7 @@ final class RepositorySkillTests: XCTestCase {
     XCTAssertTrue(firstContext.instructions.contains("FIRST-INSTRUCTIONS"))
     XCTAssertFalse(firstContext.instructions.contains("SECOND-INSTRUCTIONS"))
     XCTAssertTrue(firstContext.ids.isEmpty)
-    XCTAssertEqual(firstContext.skillIDs, ["repo/review"])
+    XCTAssertEqual(firstContext.skillIDs, [firstSkill.id])
     let secondContext = try PluginStorage.promptContext(prompt: "$repo/review", preferences: preferences,
       root: root, repositoryRoot: second)
     XCTAssertTrue(secondContext.instructions.contains("SECOND-INSTRUCTIONS"))
@@ -125,6 +125,45 @@ final class RepositorySkillTests: XCTestCase {
       .instructions.contains("PRIVATE-INSTRUCTIONS"))
   }
 
+  func testNestedGitProjectFindsEachApplicableScopeAndKeepsNamesDistinct() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let root = try project(at: base, name: "Repository", text: "# Shared\nROOT-INSTRUCTIONS")
+    try FileManager.default.createDirectory(at: root.appendingPathComponent(".git"),
+      withIntermediateDirectories: true)
+    let app = try project(at: root, name: "App", text: "# Local\nAPP-INSTRUCTIONS")
+    let nested = app.appendingPathComponent("Sources", isDirectory: true)
+    let sibling = root.appendingPathComponent("Other", isDirectory: true)
+    try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: sibling, withIntermediateDirectories: true)
+    let skills = try PluginStorage.repositorySkills(project: nested)
+    XCTAssertEqual(skills.count, 2)
+    XCTAssertEqual(skills.map(\.repositoryRoot), [app, root])
+    XCTAssertEqual(Set(skills.map(\.id)).count, 2)
+    XCTAssertEqual(try PluginStorage.repositorySkills(project: sibling).map(\.repositoryRoot), [root])
+    let privateRoot = base.appendingPathComponent("Data")
+    let preferences = try PluginStorage.load(root: privateRoot)
+    XCTAssertTrue(try PluginStorage.promptContext(prompt: "$repo/review", preferences: preferences,
+      root: privateRoot, repositoryRoot: nested).instructions.isEmpty)
+    let context = try PluginStorage.promptContext(
+      prompt: skills.map(\.promptReference).joined(separator: " "), preferences: preferences,
+      root: privateRoot, repositoryRoot: nested)
+    XCTAssertTrue(context.instructions.contains("ROOT-INSTRUCTIONS"))
+    XCTAssertTrue(context.instructions.contains("APP-INSTRUCTIONS"))
+    XCTAssertEqual(context.skillIDs, skills.map(\.id))
+    XCTAssertEqual(try PluginStorage.readSkill(id: skills[0].id, root: privateRoot,
+      repositoryRoot: nested), try String(contentsOf: skills[0].fileURL))
+  }
+
+  func testUnrelatedParentWithoutGitDoesNotLeakSkills() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let parent = try project(at: base, name: "Parent", text: "# Parent\n")
+    let child = parent.appendingPathComponent("Child", isDirectory: true)
+    try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+    XCTAssertTrue(try PluginStorage.repositorySkills(project: child).isEmpty)
+  }
+
   @MainActor func testComposerAndTrialUseProjectScopeAndReloadChanges() async throws {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: base) }
@@ -136,9 +175,9 @@ final class RepositorySkillTests: XCTestCase {
     store.scopeLoaded = true
     await store.loadPlugins()
     store.project = first
-    XCTAssertEqual(store.composerSkills.map(\.id), ["repo:review"])
+    XCTAssertEqual(store.composerSkills.map(\.id), ["repo:\(first.path)/review"])
     XCTAssertEqual(store.composerSkills(for: second.path).first?.title, "Second Review")
-    XCTAssertTrue(store.trySkill("repo:review"))
+    XCTAssertTrue(store.trySkill("repo:\(first.path)/review"))
     XCTAssertEqual(store.selectedTask?.project, first.path)
     XCTAssertTrue(store.draft.contains("[$review]"))
     let file = first.appendingPathComponent(".agents/skills/review/SKILL.md")
@@ -161,7 +200,7 @@ final class RepositorySkillTests: XCTestCase {
     await store.loadPlugins()
     XCTAssertTrue(store.createRepositorySkill(id: "review", description: "Review code",
       instructions: "Check changes.", projectPath: project.path))
-    XCTAssertEqual(store.composerSkills.map(\.id), ["repo:review"])
+    XCTAssertEqual(store.composerSkills.map(\.id), ["repo:\(project.path)/review"])
     XCTAssertTrue(store.installedPluginSkills.isEmpty)
     let skill = try XCTUnwrap(store.repositorySkills(for: project.path).first)
     let original = try PluginStorage.readSkill(id: skill.id, root: store.dataRoot, repositoryRoot: project)
@@ -173,5 +212,28 @@ final class RepositorySkillTests: XCTestCase {
     XCTAssertFalse(store.updateRepositorySkill(id: skill.id, text: "wrong project",
       expectedOriginal: "# Updated\nNew instructions.", project: project))
     XCTAssertTrue(store.composerSkills.isEmpty)
+  }
+
+  @MainActor func testNestedProjectCanEditAncestorSkillButOtherProjectCannot() async throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let root = try project(at: base, name: "Repository", text: "# Shared\nOLD")
+    try FileManager.default.createDirectory(at: root.appendingPathComponent(".git"),
+      withIntermediateDirectories: true)
+    let child = root.appendingPathComponent("App", isDirectory: true)
+    let other = base.appendingPathComponent("Other", isDirectory: true)
+    try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("Data"))
+    store.project = child
+    await store.loadPlugins()
+    let skill = try XCTUnwrap(store.repositorySkills(for: child.path).first)
+    let original = try String(contentsOf: skill.fileURL)
+    XCTAssertTrue(store.updateRepositorySkill(id: skill.id, text: "# Shared\nNEW",
+      expectedOriginal: original, project: root))
+    XCTAssertTrue(try String(contentsOf: skill.fileURL).contains("NEW"))
+    store.project = other
+    XCTAssertFalse(store.updateRepositorySkill(id: skill.id, text: "wrong project",
+      expectedOriginal: "# Shared\nNEW", project: root))
   }
 }

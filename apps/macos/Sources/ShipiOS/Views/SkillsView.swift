@@ -38,7 +38,7 @@ struct SkillsView: View {
       ScrollView {
         if let project = store.project {
           HStack {
-            Text("当前项目").appFont(.headline)
+            Text("当前项目与仓库").appFont(.headline)
             Text(project.lastPathComponent).appFont(.caption).foregroundStyle(.secondary)
             Spacer()
           }.padding(.bottom, 8)
@@ -52,8 +52,8 @@ struct SkillsView: View {
             }
           } else {
             PluginSkillsView(store: store, query: query, layout: .cards,
-              sourceSkills: projectSkills, emptyTitle: "当前项目没有技能",
-              emptyDescription: "项目根目录的 .agents/skills 中尚无可用技能。")
+              sourceSkills: projectSkills, emptyTitle: "当前项目与仓库没有技能",
+              emptyDescription: "项目目录及适用的仓库上级目录中尚无 .agents/skills 技能。")
               .frame(maxWidth: .infinity, alignment: .leading)
           }
           Divider().padding(.vertical, 16)

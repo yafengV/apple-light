@@ -39,7 +39,7 @@ struct PluginSkillReference: Equatable, Identifiable {
 
   var isRepository: Bool { repositoryRoot != nil }
   var id: String {
-    if isRepository { return "repo:" + skillID }
+    if let repositoryRoot { return "repo:" + repositoryRoot.standardizedFileURL.path + "/" + skillID }
     return isStandalone ? "user:" + skillID : "\(pluginID)/\(skillID)"
   }
   var promptReference: String {
@@ -482,7 +482,8 @@ enum PluginStorage {
     var total = 0
     for skill in requestedSkills {
       let text = try skillText(skill, total: &total)
-      let origin = skill.isRepository ? "项目技能" : skill.isStandalone ? "本地技能" : "插件 \(skill.pluginName)"
+      let origin = skill.repositoryRoot.map { "项目技能 \($0.path)" }
+        ?? (skill.isStandalone ? "本地技能" : "插件 \(skill.pluginName)")
       sections.append(
         "技能 \(skill.title)（$\(skill.mention)，来自\(origin)）的说明：\n" + text)
     }
@@ -492,7 +493,8 @@ enum PluginStorage {
       \(sections.joined(separator: "\n\n---\n\n"))
       """
     return PluginPromptContext(
-      ids: ids, skillIDs: selectedSkills.map(\.mention), instructions: instructions)
+      ids: ids, skillIDs: selectedSkills.map { $0.isRepository ? $0.id : $0.mention },
+      instructions: instructions)
   }
 
   static func setSkillEnabled(_ enabled: Bool, id: String, root: URL) throws -> PluginPreferences {

@@ -65,10 +65,10 @@ extension PluginStorage {
   static func updateRepositorySkill(
     id: String, text: String, expectedOriginal: String, project: URL
   ) throws {
-    guard id.hasPrefix("repo:") else {
+    guard id == "repo:" + project.standardizedFileURL.path + "/" + projectSkillID(from: id) else {
       throw AgentFailure(message: "只能编辑项目技能。")
     }
-    let skillID = String(id.dropFirst(5))
+    let skillID = projectSkillID(from: id)
     try validateID(skillID)
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
       text.utf8.count <= 65_536, !text.contains("\0") else {
@@ -92,6 +92,34 @@ extension PluginStorage {
     try Data(text.utf8).write(to: file, options: .atomic)
   }
 
+  private static func projectSkillID(from id: String) -> String {
+    String(id.split(separator: "/", omittingEmptySubsequences: false).last ?? "")
+  }
+
+  private static func repositoryScopes(project: URL) -> [URL] {
+    let project = project.standardizedFileURL
+    var scopes = [project]
+    var cursor = project
+    var root: URL?
+    while true {
+      if FileManager.default.fileExists(atPath: cursor.appendingPathComponent(".git").path) {
+        root = cursor
+        break
+      }
+      if cursor.path == "/" { break }
+      let parent = cursor.deletingLastPathComponent()
+      if parent.path == cursor.path { break }
+      cursor = parent
+    }
+    guard let root else { return scopes }
+    cursor = project
+    while cursor.path != root.path {
+      cursor = cursor.deletingLastPathComponent()
+      scopes.append(cursor)
+    }
+    return scopes
+  }
+
   static func repositorySkills(project: URL) throws -> [PluginSkillReference] {
     let project = project.standardizedFileURL
     guard FileManager.default.fileExists(atPath: project.path) else { return [] }
@@ -99,11 +127,15 @@ extension PluginStorage {
     guard rootValues.isDirectory == true else {
       throw AgentFailure(message: "项目目录不可用，无法读取项目技能。")
     }
-    let agents = project.appendingPathComponent(".agents", isDirectory: true)
+    return try repositoryScopes(project: project).flatMap { try repositorySkills(in: $0) }
+  }
+
+  private static func repositorySkills(in scope: URL) throws -> [PluginSkillReference] {
+    let agents = scope.appendingPathComponent(".agents", isDirectory: true)
     guard FileManager.default.fileExists(atPath: agents.path) else { return [] }
     let skills = agents.appendingPathComponent("skills", isDirectory: true)
     guard FileManager.default.fileExists(atPath: skills.path) else { return [] }
-    let canonical = project.resolvingSymlinksInPath()
+    let canonical = scope.resolvingSymlinksInPath()
     guard agents.resolvingSymlinksInPath().path == canonical.appendingPathComponent(".agents").path,
       skills.resolvingSymlinksInPath().path == canonical.appendingPathComponent(".agents/skills").path,
       try skills.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
@@ -127,9 +159,9 @@ extension PluginStorage {
       guard FileManager.default.fileExists(atPath: file.path) else { continue }
       let metadata = try skillMetadata(file, fallback: id, sourceName: id)
       found.append(PluginSkillReference(
-        pluginID: "", pluginName: "项目技能", skillID: id,
+        pluginID: "", pluginName: "项目技能 · \(scope.lastPathComponent)", skillID: id,
         title: metadata.title, fileURL: file, mention: "repo/" + id,
-        summary: metadata.summary, repositoryRoot: project))
+        summary: metadata.summary, repositoryRoot: scope))
     }
     return found.sorted {
       $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending

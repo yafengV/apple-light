@@ -58,11 +58,15 @@ extension WorkspaceStore {
   @discardableResult func updateRepositorySkill(
     id: String, text: String, expectedOriginal: String, project: URL
   ) -> Bool {
-    guard currentProjectKey == project.standardizedFileURL.path else {
-      pluginsError = "项目已切换，请回到原项目后再保存技能。"
-      return false
-    }
     do {
+      guard !currentProjectKey.isEmpty,
+        try repositorySkills(for: currentProjectKey).contains(where: {
+          $0.id == id && $0.repositoryRoot?.standardizedFileURL.path == project.standardizedFileURL.path
+        })
+      else {
+        pluginsError = "项目已切换，请回到可使用此技能的项目后再保存。"
+        return false
+      }
       try PluginStorage.updateRepositorySkill(id: id, text: text,
         expectedOriginal: expectedOriginal, project: project)
       refreshRepositorySkills(for: currentProjectKey)
