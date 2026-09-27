@@ -139,6 +139,9 @@ struct AutomationsView: View {
         .labelsHidden().help(item.enabled ? "暂停自动化" : "恢复自动化")
       Menu {
         Button("编辑…") { editing = item }
+        if store.automationRunningIDs.contains(item.id), item.taskID != nil {
+          Button("打开运行中的任务") { store.openAutomationResult(item.id) }
+        }
         if item.lastRunID != nil { Button("打开上次结果") { store.openAutomationResult(item.id) } }
         Divider()
         Button("删除", role: .destructive) { deleting = item }

@@ -3461,6 +3461,46 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
     await store.shutdown()
   }
+  @MainActor func testCodexAutomationRunsToolsInItsOwnProject() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let current = root.appendingPathComponent("Current", isDirectory: true)
+    let scheduled = root.appendingPathComponent("Scheduled", isDirectory: true)
+    try FileManager.default.createDirectory(at: current, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: scheduled, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(current)
+    var automation = ShipAutomation(name: "Codex fixture", prompt: "codex-patch")
+    automation.project = scheduled.path
+    automation.nextRun = Date().addingTimeInterval(60)
+    XCTAssertTrue(store.saveAutomation(automation))
+
+    await store.runAutomation(automation.id)
+
+    let saved = try XCTUnwrap(store.automationPreferences.items.first)
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == saved.lastRunID })
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    XCTAssertEqual(run.request["automation_id"].text, automation.id.uuidString)
+    XCTAssertEqual(run.request["api_protocol"].text, ModelAPIProtocol.codexResponses.rawValue)
+    XCTAssertEqual(store.library.tasks.first { $0.id == saved.taskID }?.project, scheduled.path)
+    XCTAssertFalse(store.runs.contains { $0.id == run.id })
+    XCTAssertTrue(saved.needsReview)
+    XCTAssertTrue(store.library.unreadTasks.contains(try XCTUnwrap(saved.taskID)))
+    XCTAssertTrue(FileManager.default.fileExists(atPath:
+      scheduled.appendingPathComponent("patch-proof.txt").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      current.appendingPathComponent("patch-proof.txt").path))
+    await store.shutdown()
+  }
   @MainActor func testTaskWindowSubmissionConsumesOnlyItsDraftAndUsesTaskProject() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

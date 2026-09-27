@@ -102,5 +102,39 @@ final class AutomationTests: XCTestCase {
     XCTAssertNotNil(store.automationsError)
     XCTAssertGreaterThan(store.automationPreferences.items[0].nextRun, .now)
     XCTAssertTrue(store.library.chatRuns.isEmpty)
+    XCTAssertTrue(store.library.tasks.isEmpty)
+  }
+
+  @MainActor func testBusyWorkspaceKeepsDueAutomationForNextPoll() async {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.restore()
+    var item = ShipAutomation(name: "Wait for workspace", prompt: "run later")
+    item.nextRun = Date().addingTimeInterval(3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    let due = Date().addingTimeInterval(-60)
+    store.automationPreferences.items[0].nextRun = due
+    store.busy = true
+    await store.runDueAutomations()
+    XCTAssertEqual(store.automationPreferences.items[0].nextRun, due)
+    XCTAssertTrue(store.library.chatRuns.isEmpty)
+    store.busy = false
+  }
+
+  @MainActor func testReviewStateDoesNotConsumeAnOverdueSchedule() async {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.restore()
+    var item = ShipAutomation(name: "Due review", prompt: "inspect")
+    item.nextRun = Date().addingTimeInterval(3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    let due = Date().addingTimeInterval(-60)
+    store.automationPreferences.items[0].nextRun = due
+    store.automationPreferences.items[0].lastRunID = "previous"
+    store.markAutomationReviewed(item.id)
+    XCTAssertEqual(store.automationPreferences.items[0].nextRun, due)
+    XCTAssertFalse(store.automationPreferences.items[0].needsReview)
   }
 }

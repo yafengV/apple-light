@@ -58,37 +58,38 @@ extension WorkspaceStore {
     }
     saveLibrary()
   }
-  func startChat(
+  @discardableResult func startChat(
     _ prompt: String, taskID explicitTaskID: String? = nil, consumeDraft: Bool = false,
     images: [ImageAttachment] = [], files: [FileAttachment] = [],
     queuedMessageID: UUID? = nil, mode: ChatMode = .standard,
-    review: ModelCodeReviewContext? = nil, compact: Bool = false
+    review: ModelCodeReviewContext? = nil, compact: Bool = false,
+    automationID: UUID? = nil
   )
-    async
+    async -> String?
   {
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
-    guard canStartChat(taskID: requestedTaskID) else { return }
+    guard canStartChat(taskID: requestedTaskID) else { return nil }
     if requestedTaskID == nil,
       library.managedWorktrees.contains(where: { $0.path == currentProjectKey }) {
       error = "此工作树仅属于原任务。请返回来源项目创建新任务。"
-      return
+      return nil
     }
     if compact, !canCompactConversation(taskID: requestedTaskID) {
       error = "只有已有的空闲 Codex 会话可以整理上下文。"
-      return
+      return nil
     }
     let goalDefinition = mode == .goal
       ? (requestedTaskID.flatMap { library.goalSessions[$0]?.definition } ?? pendingGoal)?.normalized
       : nil
     if mode == .goal, goalDefinition == nil {
       error = "请先定义目标和成功标准。"
-      return
+      return nil
     }
     var prompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
     if prompt.isEmpty, let goalDefinition {
       prompt = "开始执行目标：\(goalDefinition.objective)"
     }
-    guard !prompt.isEmpty || !images.isEmpty || !files.isEmpty else { return }
+    guard !prompt.isEmpty || !images.isEmpty || !files.isEmpty else { return nil }
     busy = true
     defer { busy = false }
     do {
@@ -129,7 +130,7 @@ extension WorkspaceStore {
       let submittedTerminal = taskID == nil ? terminalScope : nil
       let branch = taskProject == nil || taskProject == currentProjectKey
         ? await branchForTaskHistory() : nil
-      guard !shuttingDown, !Task.isCancelled else { return }
+      guard !shuttingDown, !Task.isCancelled else { return nil }
       let pluginContext = try PluginStorage.promptContext(
         prompt: prompt, preferences: activePluginPreferences, root: dataRoot)
       let runID = UUID().uuidString
@@ -182,6 +183,7 @@ extension WorkspaceStore {
       }
       if compact { request["conversation_kind"] = .string("compact") }
       if isSideChat { request["conversation_kind"] = .string("side") }
+      if let automationID { request["automation_id"] = .string(automationID.uuidString) }
       if !pluginContext.ids.isEmpty {
         request["plugins"] = .array(pluginContext.ids.map(JSONValue.string))
       }
@@ -249,7 +251,7 @@ extension WorkspaceStore {
       if mode == .goal { pendingGoal = nil }
       adoptDraftTerminal(submittedTerminal, run: run)
       completionTracker.begin(run.id)
-      runs.insert(run, at: 0)
+      if effectiveProject == currentProjectKey { runs.insert(run, at: 0) }
       if explicitTaskID == nil || selectedTask?.id == taskID { selection = run.id }
       error = nil
       let requestTask = Task { [weak self] in
@@ -291,7 +293,11 @@ extension WorkspaceStore {
         }
       }
       installModelTask(requestTask, runID: run.id)
-    } catch { self.error = error.localizedDescription }
+      return run.id
+    } catch {
+      self.error = error.localizedDescription
+      return nil
+    }
   }
   func appendChat(_ id: String, delta: String) {
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return }
