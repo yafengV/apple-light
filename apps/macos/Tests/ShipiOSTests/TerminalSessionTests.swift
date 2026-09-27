@@ -4,6 +4,40 @@ import XCTest
 @testable import ShipiOS
 
 final class TerminalSessionTests: XCTestCase {
+  @MainActor func testClearTerminalShortcutsOnlyEraseFocusedPaneAndKeepShellsAlive() throws {
+    let root = try folder()
+    let manager = TerminalSessions()
+    defer { manager.shutdown() }
+    let scope = TerminalScope(root: root, conversation: "clear-test")
+    let first = manager.session(for: scope)
+    let second = try XCTUnwrap(manager.split(first.id, in: scope))
+    let firstPID = first.view.process.shellPid
+    let secondPID = second.view.process.shellPid
+    first.view.feed(text: "FIRST-PANE-MARKER")
+    second.view.feed(text: "SECOND-PANE-MARKER")
+    XCTAssertTrue(output(first).contains("FIRST-PANE-MARKER"))
+    XCTAssertTrue(output(second).contains("SECOND-PANE-MARKER"))
+
+    func key(_ character: String, modifiers: NSEvent.ModifierFlags) throws -> NSEvent {
+      try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: modifiers, timestamp: 0, windowNumber: 0, context: nil,
+        characters: character, charactersIgnoringModifiers: character,
+        isARepeat: false, keyCode: 0))
+    }
+    XCTAssertTrue(SessionTerminalView.isClearShortcut(try key("k", modifiers: .command)))
+    XCTAssertTrue(SessionTerminalView.isClearShortcut(try key("l", modifiers: .control)))
+    XCTAssertFalse(SessionTerminalView.isClearShortcut(try key("k", modifiers: [.command, .shift])))
+    XCTAssertFalse(SessionTerminalView.isClearShortcut(try key("k", modifiers: [])))
+
+    first.view.clearContents()
+    XCTAssertFalse(output(first).contains("FIRST-PANE-MARKER"))
+    XCTAssertTrue(output(second).contains("SECOND-PANE-MARKER"))
+    XCTAssertEqual(first.view.process.shellPid, firstPID)
+    XCTAssertEqual(second.view.process.shellPid, secondPID)
+    XCTAssertTrue(first.view.process.running)
+    XCTAssertTrue(second.view.process.running)
+  }
+
   @MainActor func testEnvironmentActionRunsMultilineScriptInNewProjectTerminal() async throws {
     let root = try folder()
     let store = WorkspaceStore()

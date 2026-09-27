@@ -28,6 +28,19 @@ final class SessionTerminalView: LocalProcessTerminalView {
     applyZoomedFont()
   }
 
+  func clearContents() {
+    clearScrollback()
+    // Clear the emulator, not the child process: a running command keeps its input and state.
+    feed(text: "\u{1B}[2J\u{1B}[H")
+  }
+
+  static func isClearShortcut(_ event: NSEvent) -> Bool {
+    let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+    let key = event.charactersIgnoringModifiers?.lowercased()
+    return (key == "k" && modifiers == [.command])
+      || (key == "l" && modifiers == [.control])
+  }
+
   private func applyZoomedFont() {
     let desired = NSFontManager.shared.convert(baseFont, toSize: baseFont.pointSize + fontZoomOffset)
     if self.font != desired { self.font = desired }
@@ -44,6 +57,9 @@ final class SessionTerminalView: LocalProcessTerminalView {
     let selectItem = menu.addItem(withTitle: "全选", action: #selector(selectAll(_:)), keyEquivalent: "")
     selectItem.target = self
     menu.addItem(.separator())
+    let clearItem = menu.addItem(withTitle: "清除终端", action: #selector(clearTerminal(_:)), keyEquivalent: "")
+    clearItem.target = self
+    menu.addItem(.separator())
     for (title, action) in [
       ("放大字体", #selector(increaseFont(_:))),
       ("缩小字体", #selector(decreaseFont(_:))),
@@ -57,7 +73,8 @@ final class SessionTerminalView: LocalProcessTerminalView {
 
   override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
     switch item.action {
-    case #selector(increaseFont(_:)), #selector(decreaseFont(_:)), #selector(resetFontSize(_:)):
+    case #selector(increaseFont(_:)), #selector(decreaseFont(_:)), #selector(resetFontSize(_:)),
+      #selector(clearTerminal(_:)):
       return true
     default:
       return super.validateUserInterfaceItem(item)
@@ -68,6 +85,7 @@ final class SessionTerminalView: LocalProcessTerminalView {
     guard let window, window.isKeyWindow, window.firstResponder === self else {
       return super.performKeyEquivalent(with: event)
     }
+    if Self.isClearShortcut(event) { clearContents(); return true }
     let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
     let key = event.charactersIgnoringModifiers?.lowercased()
     switch (key, modifiers) {
@@ -85,6 +103,7 @@ final class SessionTerminalView: LocalProcessTerminalView {
   @objc private func increaseFont(_ sender: Any?) { zoomFont(by: 1) }
   @objc private func decreaseFont(_ sender: Any?) { zoomFont(by: -1) }
   @objc private func resetFontSize(_ sender: Any?) { resetFontZoom() }
+  @objc private func clearTerminal(_ sender: Any?) { clearContents() }
 }
 
 struct TerminalHost: NSViewRepresentable {
@@ -94,13 +113,26 @@ struct TerminalHost: NSViewRepresentable {
   let canFocus: (TerminalFocusRequest) -> Bool
   @MainActor final class Coordinator {
     private weak var view: SessionTerminalView?
+    private var clearShortcutMonitor: Any?
     private var request: TerminalFocusRequest?
     private var canFocus: ((TerminalFocusRequest) -> Bool)?
     private(set) var handled: UUID?
 
     func update(view: SessionTerminalView, request: TerminalFocusRequest?,
       canFocus: @escaping (TerminalFocusRequest) -> Bool) {
-      if self.view !== view { detach() }
+      if self.view !== view {
+        detach()
+        clearShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak view] event in
+          MainActor.assumeIsolated {
+            guard let view, let window = view.window, window.isKeyWindow,
+              event.window === window, window.firstResponder === view,
+              window.attachedSheet == nil, NSApp.modalWindow == nil,
+              SessionTerminalView.isClearShortcut(event) else { return event }
+            view.clearContents()
+            return nil
+          }
+        }
+      }
       self.view = view
       self.request = request
       self.canFocus = canFocus
@@ -120,10 +152,15 @@ struct TerminalHost: NSViewRepresentable {
     }
 
     func detach() {
+      if let clearShortcutMonitor { NSEvent.removeMonitor(clearShortcutMonitor) }
+      clearShortcutMonitor = nil
       if view?.focusCoordinator === self { view?.focusCoordinator = nil }
       view = nil
       request = nil
       canFocus = nil
+    }
+    deinit {
+      if let clearShortcutMonitor { NSEvent.removeMonitor(clearShortcutMonitor) }
     }
   }
   func makeCoordinator() -> Coordinator { Coordinator() }
