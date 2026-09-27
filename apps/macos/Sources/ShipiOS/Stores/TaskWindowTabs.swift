@@ -321,10 +321,13 @@ import Observation
   var layoutSnapshot: TaskWindowTabLayout {
     let saved = tabs.map { tab in
       let page = tab.browserID.flatMap { id in browser.session.tabs.first { $0.id == id } }
+      let splitFraction = tab.terminalID.flatMap { id in
+        panels.splitTerminals[id] == nil ? nil : panels.splitFraction(for: id)
+      }
       return SavedWorkspaceTab(id: tab.id,
         kind: tab.kind,
         placement: placement(tab.id), address: page?.address,
-        committedURL: page?.committedURL?.absoluteString)
+        committedURL: page?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
     }
     return TaskWindowTabLayout(project: panels.workspace.root?.path,
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
@@ -372,6 +375,11 @@ import Observation
       case .terminal:
         guard sameProject, entry.id.hasPrefix("terminal:"),
           let id = UUID(uuidString: String(entry.id.dropFirst(9))), panels.newTerminal(id: id) != nil else { continue }
+        if let fraction = entry.terminalSplitFraction {
+          _ = panels.splitTerminal(id)
+          panels.setSplitFraction(fraction, for: id)
+          panels.terminalFocus = nil
+        }
         tab = .terminal(id, owner: taskID)
         tabs.append(tab)
       }

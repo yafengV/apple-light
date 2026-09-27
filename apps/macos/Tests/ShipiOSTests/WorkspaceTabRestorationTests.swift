@@ -73,6 +73,30 @@ import XCTest
     XCTAssertTrue(newTerminal.view.process.running)
   }
 
+  func testSplitTerminalRestoresBothFreshShellsAndWidthWithoutStealingFocus() throws {
+    let original = try fixture()
+    original.newTerminalTab(in: .bottom)
+    let id = try XCTUnwrap(original.activeBottomWorkspaceContentTab?.terminalID)
+    let scope = try XCTUnwrap(original.terminalScope)
+    let primary = try XCTUnwrap(original.workspace.terminals.session(id, for: scope))
+    let secondary = try XCTUnwrap(original.splitTerminalTab(id))
+    original.workspace.terminals.setSplitFraction(0.7, for: id, in: scope)
+    original.terminalFocusRequest = nil
+    original.saveLibrary()
+
+    let restored = try restarted(original)
+    let newScope = try XCTUnwrap(restored.terminalScope)
+    let newPrimary = try XCTUnwrap(restored.workspace.terminals.session(id, for: newScope))
+    let newSecondary = try XCTUnwrap(restored.workspace.terminals.splitSession(for: id, in: newScope))
+    XCTAssertEqual(restored.workspace.terminals.splitFraction(for: id, in: newScope), 0.7)
+    XCTAssertEqual(newPrimary.id, primary.id)
+    XCTAssertNotEqual(newPrimary.view.process.shellPid, primary.view.process.shellPid)
+    XCTAssertNotEqual(newSecondary.view.process.shellPid, secondary.view.process.shellPid)
+    XCTAssertTrue(newPrimary.view.process.running)
+    XCTAssertTrue(newSecondary.view.process.running)
+    XCTAssertNil(restored.terminalFocusRequest)
+  }
+
   func testLazyTaskRestoreDoesNotLoseUnvisitedCacheOrDuplicateLiveTabs() throws {
     let original = try fixture(project: false)
     original.newBrowserTab()

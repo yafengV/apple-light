@@ -63,6 +63,28 @@ import XCTest
     XCTAssertTrue(result.panels.terminal === replacement)
   }
 
+  func testSplitTerminalRestoresInItsWindowWithFreshShellsAndWidth() throws {
+    let store = try fixture(), source = window(store)
+    let tabs = try XCTUnwrap(source.tasks["a"])
+    tabs.newTerminal()
+    let primary = try XCTUnwrap(tabs.panels.terminal)
+    let secondary = try XCTUnwrap(tabs.panels.splitTerminal(primary.id))
+    tabs.panels.setSplitFraction(0.65, for: primary.id)
+    store.saveLibrary()
+
+    let loaded = try cold(store), restored = window(loaded)
+    let result = try XCTUnwrap(restored.tasks["a"])
+    let newPrimary = try XCTUnwrap(result.panels.terminal)
+    let newSecondary = try XCTUnwrap(result.panels.splitTerminals[primary.id])
+    XCTAssertEqual(result.panels.splitFraction(for: primary.id), 0.65)
+    XCTAssertEqual(newPrimary.id, primary.id)
+    XCTAssertNotEqual(newPrimary.view.process.shellPid, primary.view.process.shellPid)
+    XCTAssertNotEqual(newSecondary.view.process.shellPid, secondary.view.process.shellPid)
+    XCTAssertTrue(newPrimary.view.process.running)
+    XCTAssertTrue(newSecondary.view.process.running)
+    XCTAssertNil(result.panels.terminalFocus)
+  }
+
   func testDifferentWindowsAndMainWorkspaceDoNotOverwriteSameTask() throws {
     let store = try fixture(), first = window(store, id: "first"), second = window(store, id: "second")
     let a = try XCTUnwrap(first.tasks["a"]), b = try XCTUnwrap(second.tasks["a"])

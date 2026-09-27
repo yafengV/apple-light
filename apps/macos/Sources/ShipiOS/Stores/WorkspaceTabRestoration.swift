@@ -4,10 +4,14 @@ extension WorkspaceStore {
   var workspaceTabLayoutSnapshot: WorkspaceTabLayout {
     WorkspaceTabLayout(tabs: visibleWorkspaceContentTabs.map { tab in
       let browser = tab.browserID.flatMap { id in workspace.browser.tabs.first { $0.id == id } }
+      let splitFraction = tab.terminalID.flatMap { id -> Double? in
+        guard let scope = terminalScope(for: tab), workspace.terminals.splitSession(for: id, in: scope) != nil else { return nil }
+        return workspace.terminals.splitFraction(for: id, in: scope)
+      }
       return SavedWorkspaceTab(id: tab.id,
         kind: tab.kind,
         placement: workspaceTabPlacement(tab.id), address: browser?.address,
-        committedURL: browser?.committedURL?.absoluteString)
+        committedURL: browser?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
     }, active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
       bottom: activeBottomWorkspaceTabID, focused: focusedWorkspaceTabID,
       showingInspector: showingInspector, showingTerminal: showingTerminal,
@@ -100,7 +104,12 @@ extension WorkspaceStore {
     case .terminal:
       guard let root = workspaceTabProject(owner: owner),
         saved.id.hasPrefix("terminal:"), let id = UUID(uuidString: String(saved.id.dropFirst(9))) else { return nil }
-      _ = workspace.terminals.newSession(for: TerminalScope(root: root, conversation: owner), id: id)
+      let scope = TerminalScope(root: root, conversation: owner)
+      _ = workspace.terminals.newSession(for: scope, id: id)
+      if let fraction = saved.terminalSplitFraction {
+        _ = workspace.terminals.split(id, in: scope)
+        workspace.terminals.setSplitFraction(fraction, for: id, in: scope)
+      }
       tab = .terminal(id, owner: owner)
       workspaceTabs.append(tab)
     }

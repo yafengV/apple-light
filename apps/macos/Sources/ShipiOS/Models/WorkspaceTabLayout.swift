@@ -8,6 +8,8 @@ struct SavedWorkspaceTab: Codable, Equatable {
   var placement: WorkspaceTabPlacement
   var address: String?
   var committedURL: String?
+  /// Present only for a split terminal. The shell process itself is never restored.
+  var terminalSplitFraction: Double? = nil
 }
 
 struct WorkspaceTabLayout: Codable, Equatable {
