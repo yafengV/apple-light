@@ -16,7 +16,7 @@ struct TaskWindowCommandContext {
       "back", "forward", "palette", "palette-alternate", "search",
     ]
     return taskCommands.contains(id) || id.hasPrefix("browser-") || id == "browser"
-      || DesktopCommand.numberSlot(id) != nil
+      || DesktopCommand.numberSlot(id) != nil || DesktopCommand.recentChatSlot(id) != nil
   }
 
   @discardableResult func execute(_ id: String) -> Bool {

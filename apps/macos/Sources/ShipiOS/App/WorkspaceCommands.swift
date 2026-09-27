@@ -47,6 +47,7 @@ struct WorkspaceCommands: Commands {
       command("next-task")
       command("next-attention")
       ForEach(1...9, id: \.self) { command("focus-chat-\($0)") }
+      ForEach(1...6, id: \.self) { command("recent-chat-\($0)") }
       command("back")
       command("forward")
     }

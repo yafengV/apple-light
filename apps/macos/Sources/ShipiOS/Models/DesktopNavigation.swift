@@ -20,6 +20,13 @@ struct DesktopCommand: Identifiable {
     return (isTab, index)
   }
 
+  static func recentChatSlot(_ id: String) -> Int? {
+    let prefix = "recent-chat-"
+    guard id.hasPrefix(prefix), let number = Int(id.dropFirst(prefix.count)),
+      (1...6).contains(number) else { return nil }
+    return number - 1
+  }
+
   static let all: [Self] = [
     .init(id: "palette", title: "命令菜单", icon: "command", shortcut: "⌘K"),
     .init(id: "palette-alternate", title: "命令菜单（备用）", icon: "command", shortcut: "⌘⇧P"),
@@ -89,6 +96,12 @@ struct DesktopCommand: Identifiable {
     .init(id: "focus-chat-8", title: "切换到聊天 8", icon: "8.square", shortcut: "⌃8"),
     .init(id: "focus-tab-9", title: "聚焦标签 9", icon: "9.square", shortcut: "⌘9"),
     .init(id: "focus-chat-9", title: "切换到聊天 9", icon: "9.square", shortcut: "⌃9"),
+    .init(id: "recent-chat-1", title: "打开最近任务 1", icon: "1.square", shortcut: "⌘⌥1"),
+    .init(id: "recent-chat-2", title: "打开最近任务 2", icon: "2.square", shortcut: "⌘⌥2"),
+    .init(id: "recent-chat-3", title: "打开最近任务 3", icon: "3.square", shortcut: "⌘⌥3"),
+    .init(id: "recent-chat-4", title: "打开最近任务 4", icon: "4.square", shortcut: "⌘⌥4"),
+    .init(id: "recent-chat-5", title: "打开最近任务 5", icon: "5.square", shortcut: "⌘⌥5"),
+    .init(id: "recent-chat-6", title: "打开最近任务 6", icon: "6.square", shortcut: "⌘⌥6"),
     .init(id: "browser-address", title: "跳转到行或浏览器地址栏", icon: "link", shortcut: "⌘L"),
     .init(id: "browser-back", title: "浏览器后退", icon: "chevron.left", shortcut: "⌘←"),
     .init(id: "browser-forward", title: "浏览器前进", icon: "chevron.right", shortcut: "⌘→"),
@@ -128,7 +141,7 @@ enum DesktopCommandGroup: String, CaseIterable {
 
 extension DesktopCommand {
   var group: DesktopCommandGroup {
-    if id.hasPrefix("focus-chat-") { return .navigation }
+    if id.hasPrefix("focus-chat-") || Self.recentChatSlot(id) != nil { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
     case "new", "new-alternate", "new-standalone", "send", "model", "fork", "open-task-window", "copy-task-link", "copy-session-id", "find", "find-next", "find-previous",

@@ -80,6 +80,11 @@ extension WorkspaceStore {
       if let slot = DesktopCommand.numberSlot(value), let task = numberedSidebarTask(at: slot.index) {
         selectTask(task)
       }
+    case let value where value.hasPrefix("recent-chat-"):
+      if let slot = DesktopCommand.recentChatSlot(value),
+        let task = recentCommandTasks.indices.contains(slot) ? recentCommandTasks[slot] : nil {
+        selectTask(task)
+      }
     case "find":
       if destination == .settings {
         settingsSearchFocusRequest = UUID()
@@ -169,6 +174,10 @@ extension WorkspaceStore {
       guard destination != .settings, let slot = DesktopCommand.numberSlot(value),
         let task = numberedSidebarTask(at: slot.index) else { return false }
       return canSelectTask(task)
+    case let value where value.hasPrefix("recent-chat-"):
+      guard destination == .workspace, let slot = DesktopCommand.recentChatSlot(value),
+        recentCommandTasks.indices.contains(slot) else { return false }
+      return canSelectTask(recentCommandTasks[slot])
     case "plan": return destination == .workspace && canStartChat
     case "compact": return destination == .workspace && canCompactConversation
     case "find-next", "find-previous":
@@ -320,6 +329,10 @@ extension WorkspaceStore {
     guard (1...9).contains(number) else { return nil }
     let tasks = library.visibleSidebarTasks
     return tasks.indices.contains(number - 1) ? tasks[number - 1] : nil
+  }
+
+  var recentCommandTasks: [WorkspaceTask] {
+    Array(CommandMenuSearch.recent(library: library, currentID: selectedTask?.id).prefix(6)).map(\.task)
   }
 
   func adjacentTask(_ offset: Int) {

@@ -64,6 +64,9 @@ struct TaskWindowView: View {
   private var browsers: TaskWindowBrowsers { resources.browsers }
   private var taskWorkspace: DeveloperWorkspace { panels.workspace }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
+  private var recentWindowTasks: [WorkspaceTask] {
+    Array(CommandMenuSearch.recent(library: store.library, currentID: taskID).prefix(6)).map(\.task)
+  }
   private var taskRuns: [AgentRun] { store.taskWindowRuns(taskID) }
   private var draft: Binding<String> {
     Binding(
@@ -643,6 +646,7 @@ struct TaskWindowView: View {
       if !tabs.tabs.isEmpty {
         for index in 1...9 where index <= tabs.tabs.count + 1 { enabled.insert("focus-tab-\(index)") }
       }
+      for index in recentWindowTasks.indices { enabled.insert("recent-chat-\(index + 1)") }
       if panels.showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
         taskWorkspace.fileError == nil { enabled.insert("browser-address") }
     }
@@ -674,6 +678,9 @@ struct TaskWindowView: View {
     if tabs.perform(id) { return }
     if id.hasPrefix("focus-tab-"), let slot = DesktopCommand.numberSlot(id) {
       tabs.focusSlot(slot.index); return
+    }
+    if let slot = DesktopCommand.recentChatSlot(id), recentWindowTasks.indices.contains(slot) {
+      onNavigate(recentWindowTasks[slot].id); return
     }
     if id == "back" { if canGoBack { onMove(true) }; return }
     if id == "forward" { if canGoForward { onMove(false) }; return }

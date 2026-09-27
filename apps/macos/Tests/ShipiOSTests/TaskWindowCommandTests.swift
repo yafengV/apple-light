@@ -15,11 +15,12 @@ final class TaskWindowCommandTests: XCTestCase {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
-    let context = TaskWindowCommandContext(enabled: ["find", "pin", "send", "browser", "workspace-tabs", "copy-task-link", "copy-session-id"], perform: { _ in })
+    let context = TaskWindowCommandContext(enabled: ["find", "pin", "send", "browser", "workspace-tabs", "copy-task-link", "copy-session-id", "recent-chat-1"], perform: { _ in })
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘F"), shortcuts: shortcuts), "find")
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘⇧B"), shortcuts: shortcuts), "browser")
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘⌥L"), shortcuts: shortcuts), "copy-task-link")
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘⌥C"), shortcuts: shortcuts), "copy-session-id")
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘⌥1"), shortcuts: shortcuts), "recent-chat-1")
     try shortcuts.set(ShortcutBinding("⌃⌥F"), for: "find")
     XCTAssertNil(context.command(for: ShortcutBinding("⌘F"), shortcuts: shortcuts))
     XCTAssertEqual(context.command(for: ShortcutBinding("⌃⌥F"), shortcuts: shortcuts), "find")
@@ -95,7 +96,7 @@ final class TaskWindowCommandTests: XCTestCase {
   }
 
   func testTaskCommandsStayLocalIncludingUnavailablePanelAndNumberNavigation() {
-    for id in ["new", "new-alternate", "palette", "palette-alternate", "search", "send", "stop", "find", "pin", "archive", "rename", "fork", "open-task-window", "copy-task-link", "copy-session-id", "task-summary", "environment-action-1", "tree", "browser-copy", "tab-close", "focus-tab-1", "focus-chat-9"] {
+    for id in ["new", "new-alternate", "palette", "palette-alternate", "search", "send", "stop", "find", "pin", "archive", "rename", "fork", "open-task-window", "copy-task-link", "copy-session-id", "task-summary", "environment-action-1", "tree", "browser-copy", "tab-close", "focus-tab-1", "focus-chat-9", "recent-chat-1"] {
       XCTAssertTrue(TaskWindowCommandContext.owns(id), id)
     }
     for id in ["settings", "shortcuts", "open", "projects", "plugins", "automations", "new-standalone"] {

@@ -50,12 +50,39 @@ final class CommandMenuSearchTests: XCTestCase {
       ["recent"])
   }
 
+  @MainActor func testRecentTaskNumberCommandsFollowVisibleRecentList() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.library.tasks = [task("current", updated: 10), task("visited", updated: 1),
+      task("unread", updated: 2), task("pinned", updated: 20)]
+    store.library.tasks[3].pinned = true
+    store.library.recentTaskIDs = ["visited", "current"]
+    store.library.unreadTasks = ["unread"]
+    store.selection = "current"
+    XCTAssertEqual(store.recentCommandTasks.map(\.id), ["unread", "visited"])
+    XCTAssertEqual(DesktopCommand.recentChatSlot("recent-chat-1"), 0)
+    XCTAssertEqual(DesktopCommand.recentChatSlot("recent-chat-6"), 5)
+    XCTAssertNil(DesktopCommand.recentChatSlot("recent-chat-7"))
+    XCTAssertTrue(store.commandEnabled("recent-chat-1"))
+    XCTAssertFalse(store.commandEnabled("recent-chat-3"))
+    store.executeCommand("recent-chat-1")
+    XCTAssertEqual(store.selectedTask?.id, "unread")
+    XCTAssertFalse(store.library.unreadTasks.contains("unread"))
+    XCTAssertEqual(store.recentCommandTasks.map(\.id), ["current", "visited"])
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("recent-chat-1"))
+    await store.shutdown()
+  }
+
   func testCommandGroupsFollowCurrentCodexMenuCategories() {
     let groups = Dictionary(uniqueKeysWithValues: DesktopCommand.all.map { ($0.id, $0.group) })
     XCTAssertEqual(groups["archive"], .chat)
     XCTAssertEqual(groups["open-task-window"], .chat)
     XCTAssertEqual(groups["next-task"], .navigation)
     XCTAssertEqual(groups["focus-chat-1"], .navigation)
+    XCTAssertEqual(groups["recent-chat-1"], .navigation)
     XCTAssertEqual(groups["browser-new"], .panels)
     XCTAssertEqual(groups["task-summary"], .panels)
     XCTAssertEqual(groups["focus-tab-1"], .panels)
