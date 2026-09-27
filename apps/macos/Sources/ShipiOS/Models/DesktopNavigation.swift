@@ -112,6 +112,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "browser-reload", title: "重新加载网页", icon: "arrow.clockwise", shortcut: "⌘R"),
     .init(id: "browser-reload-origin", title: "忽略缓存重新加载网页", icon: "arrow.clockwise", shortcut: "⌘⇧R"),
     .init(id: "browser-copy", title: "复制浏览器网址", icon: "doc.on.doc", shortcut: ""),
+    .init(id: "browser-comment-mode", title: "切换浏览或评论模式", icon: "scope", shortcut: ""),
     .init(id: "copy-location", title: "复制工作目录或浏览器网址", icon: "doc.on.doc", shortcut: "⌘⇧C"),
     .init(id: "browser-close", title: "关闭浏览器标签", icon: "xmark", shortcut: ""),
     .init(id: "browser-reopen", title: "重新打开关闭的浏览器标签", icon: "arrow.uturn.backward", shortcut: "⌘⇧T"),

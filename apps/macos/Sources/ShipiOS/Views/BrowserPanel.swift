@@ -136,13 +136,16 @@ struct BrowserPanel: View {
               }
           }.help("显示下载").accessibilityLabel("显示下载")
           if tab.selectingElement {
-            Button { tab.cancelElementSelection() } label: { Image(systemName: "xmark.circle.fill") }
-              .help("取消选择网页元素 Esc").accessibilityLabel("取消选择网页元素")
+            Button { tab.toggleCommentMode() } label: { Image(systemName: "cursorarrow") }
+              .help("切换到浏览模式 ⌘.").accessibilityLabel("切换到浏览模式")
               .keyboardShortcut(.escape, modifiers: [])
           } else {
-            Button { Task { await tab.selectElement() } } label: { Image(systemName: "scope") }
-              .disabled(tab.committedURL == nil || tab.loading)
-              .help("选择网页元素").accessibilityLabel("选择网页元素")
+            Button { tab.toggleCommentMode() } label: {
+              Image(systemName: tab.commenting ? "cursorarrow" : "scope")
+            }
+              .disabled(!tab.canToggleCommentMode)
+              .help(tab.commenting ? "切换到浏览模式 ⌘." : "切换到评论模式 ⌘.")
+              .accessibilityLabel(tab.commenting ? "切换到浏览模式" : "切换到评论模式")
           }
           Menu {
             Button("复制网址") { session.copyURL(tabID: tab.id) }.disabled(tab.committedURL == nil)
@@ -226,6 +229,8 @@ struct BrowserPanel: View {
       }
     }.background {
       if context == nil { BrowserKeyboardBridge(store: store).frame(width: 0, height: 0) }
+      BrowserCommentModeKeyboardBridge(tab: displayedTab, session: session,
+        canFocus: canFocus).frame(width: 0, height: 0)
     }
       .onAppear {
         // Explicit content panes can appear in the background. Their layout

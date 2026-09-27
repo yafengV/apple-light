@@ -41,5 +41,5 @@ struct BrowserKeyboardBridge: NSViewRepresentable {
     deinit { stop() }
   }
   static let contextualCommands = ["browser-address", "browser-back", "browser-forward", "browser-reload",
-    "browser-reload-origin", "browser-copy", "browser-close"]
+    "browser-reload-origin", "browser-copy", "browser-comment-mode", "browser-close"]
 }

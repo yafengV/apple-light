@@ -77,7 +77,8 @@ extension WorkspaceStore {
     case "browser-address":
       if filesVisible { workspace.showingFileLine = true }
       else { performBrowserCommand(id) }
-    case "browser-back", "browser-forward", "browser-reload", "browser-reload-origin", "browser-copy", "browser-close",
+    case "browser-back", "browser-forward", "browser-reload", "browser-reload-origin", "browser-copy",
+      "browser-comment-mode", "browser-close",
       "browser-reopen":
       performBrowserCommand(id)
     case "tab-close": closeActiveWorkspaceTab()
@@ -171,6 +172,8 @@ extension WorkspaceStore {
     case "browser-forward": return browserVisible && workspace.browser.selected?.canGoForward == true
     case "browser-reload", "browser-reload-origin": return browserVisible && workspace.browser.selected != nil
     case "browser-copy": return browserVisible && workspace.browser.selected?.committedURL != nil
+    case "browser-comment-mode": return browserVisible
+      && workspace.browser.selected?.canToggleCommentMode == true
     case "fork": return destination == .workspace && canForkConversation
     case "open-side-chat": return destination == .workspace && selectedTask.map {
       canOpenSideChat(from: $0.id)

@@ -87,6 +87,7 @@ extension WorkspaceStore {
     case "browser-reload": browser.selected?.reload()
     case "browser-reload-origin": browser.selected?.reload(bypassCache: true)
     case "browser-copy": copyBrowserURL()
+    case "browser-comment-mode": browser.selected?.toggleCommentMode()
     case "browser-close":
       if activeBrowserTabID != nil { closeActiveWorkspaceTab() }
       else if let id = browser.selection { closeBrowserTab(id) }

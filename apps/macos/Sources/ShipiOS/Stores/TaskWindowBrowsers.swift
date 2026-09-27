@@ -82,6 +82,7 @@ import WebKit
     case "browser-back": return visible && session.selected?.canGoBack == true
     case "browser-forward": return visible && session.selected?.canGoForward == true
     case "browser-copy": return visible && session.selected?.committedURL != nil
+    case "browser-comment-mode": return visible && session.selected?.canToggleCommentMode == true
     case "browser-reload", "browser-reload-origin": return visible && session.selected != nil
     case "workspace-view": return visible
     case "tab-close-others": return visible && session.tabs.count > 1
@@ -102,6 +103,7 @@ import WebKit
     case "browser-reload": session.selected?.reload()
     case "browser-reload-origin": session.selected?.reload(bypassCache: true)
     case "browser-copy": session.copyURL()
+    case "browser-comment-mode": session.selected?.toggleCommentMode()
     case "browser-close": if let id = session.selection { session.close(id) }
     case "workspace-view": fullWidth.toggle()
     case "tab-close-others": if let id = session.selection { session.closeOtherTabs(keeping: id) }

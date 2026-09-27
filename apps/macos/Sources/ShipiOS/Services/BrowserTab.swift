@@ -239,6 +239,15 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       return nil
     }
   }
+  var canToggleCommentMode: Bool {
+    selectingElement || selectedElement != nil || (!closed && committedURL != nil && !loading)
+  }
+  var commenting: Bool { selectingElement || selectedElement != nil }
+  func toggleCommentMode() {
+    if selectingElement { cancelElementSelection() }
+    else if selectedElement != nil { clearSelectedElement() }
+    else if canToggleCommentMode { Task { [weak self] in _ = await self?.selectElement() } }
+  }
   func cancelElementSelection() {
     guard selectingElement else { return }
     view.evaluateJavaScript("window.__shipiosElementPicker?.cancel?.(); undefined")

@@ -10,6 +10,7 @@ extension TaskWindowTabs {
     case "browser-back": return page?.canGoBack == true
     case "browser-forward": return page?.canGoForward == true
     case "browser-copy": return page?.committedURL != nil
+    case "browser-comment-mode": return page?.canToggleCommentMode == true
     case "workspace-view": return focused != nil || tabs.contains(where: { $0.id == lastContentForCommand })
     case "workspace-swap-panes": return showingRight || panels.showingFiles
     case "tab-close-others":
@@ -37,6 +38,7 @@ extension TaskWindowTabs {
     case "browser-reload": page?.reload()
     case "browser-reload-origin": page?.reload(bypassCache: true)
     case "browser-copy": browser.session.copyURL()
+    case "browser-comment-mode": page?.toggleCommentMode()
     case "browser-close": if let id = focusedID { close(id) }
     case "workspace-view": toggleFullWidth()
     case "workspace-tabs": showingTabs.toggle()

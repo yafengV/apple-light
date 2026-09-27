@@ -710,6 +710,9 @@ struct TaskWindowView: View {
     TaskWindowCommandContext(enabled: windowCommandsBlocked ? [] : availableWindowCommands,
       perform: performWindowCommand, copyLocationTitle: copyLocationTarget?.menuTitle,
       keyboardAllowed: { id in
+        if id == "stop", browser.session.hasNativeFocus(tabID: tabs.focused?.browserID) {
+          return false
+        }
         if ["browser-back", "browser-forward", "back", "forward"].contains(id),
           browser.session.hasEditableFocus { return false }
         if BrowserKeyboardBridge.contextualCommands.contains(id) {

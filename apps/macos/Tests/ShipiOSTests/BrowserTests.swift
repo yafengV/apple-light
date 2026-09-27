@@ -1388,14 +1388,30 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(tab.selectedElement, reference)
     XCTAssertEqual(tab.committedURL?.path, "/one")
 
-    tab.clearSelectedElement()
-    let cancellation = Task { @MainActor in await tab.selectElement() }
+    XCTAssertTrue(tab.commenting)
+    tab.toggleCommentMode()
+    XCTAssertFalse(tab.commenting)
+    XCTAssertNil(tab.selectedElement)
+    tab.toggleCommentMode()
     try await eventually("Second element picker did not start") { tab.selectingElement }
-    tab.cancelElementSelection()
-    let cancelledReference = await cancellation.value
-    XCTAssertNil(cancelledReference)
-    XCTAssertFalse(tab.selectingElement)
+    tab.toggleCommentMode()
+    try await eventually("Element picker did not stop") { !tab.selectingElement }
+    XCTAssertNil(tab.selectedElement)
     XCTAssertNil(tab.elementSelectionError)
+  }
+  @MainActor func testBrowserCommentModeCommandTogglesOnlyAnAvailablePage() async throws {
+    let store = WorkspaceStore()
+    defer { store.workspace.browser.shutdown() }
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    XCTAssertFalse(store.commandEnabled("browser-comment-mode"))
+    try await load(tab, "/one", title: "One")
+    XCTAssertTrue(store.commandEnabled("browser-comment-mode"))
+    store.executeCommand("browser-comment-mode")
+    try await eventually("Comment picker did not start") { tab.selectingElement }
+    store.executeCommand("browser-comment-mode")
+    try await eventually("Comment picker did not stop") { !tab.selectingElement }
+    XCTAssertNil(tab.selectedElement)
   }
   @MainActor func testContextMenuResolvesClickedLinkAndMatchesCodexActions() async throws {
     _ = NSApplication.shared
