@@ -24,6 +24,8 @@ extension WorkspaceStore {
       var normalized = item
       normalized.name = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
       normalized.prompt = item.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+      normalized.modelID = item.modelID?.trimmingCharacters(in: .whitespacesAndNewlines)
+      if normalized.modelID?.isEmpty == true { normalized.modelID = nil }
       if let index = candidate.items.firstIndex(where: { $0.id == item.id }) {
         candidate.items[index] = normalized
       } else {
@@ -43,6 +45,15 @@ extension WorkspaceStore {
   @discardableResult func saveEditedAutomation(_ item: ShipAutomation) -> Bool {
     var edited = item
     if let previous = automationPreferences.items.first(where: { $0.id == item.id }) {
+      // The editor may have opened before a run completed. Keep runtime state from storage.
+      edited.lastRun = previous.lastRun
+      edited.taskID = previous.taskID
+      edited.lastRunID = previous.lastRunID
+      edited.reviewedRunID = previous.reviewedRunID
+      edited.pendingRunIDs = previous.pendingRunIDs
+      edited.preparingTaskIDs = previous.preparingTaskIDs
+      edited.activeOccurrenceAt = previous.activeOccurrenceAt
+      edited.completedProjectsForOccurrence = previous.completedProjectsForOccurrence
       let scheduleChanged = previous.cadence != item.cadence || previous.hour != item.hour
         || previous.minute != item.minute || previous.selectedWeekdays != item.selectedWeekdays
         || previous.customRule != item.customRule
@@ -162,9 +173,14 @@ extension WorkspaceStore {
         var candidate = library
         if let index = candidate.tasks.firstIndex(where: { $0.id == ownerID }) {
           candidate.tasks[index].project = runProject
+          if candidate.tasks[index].runIDs.isEmpty,
+            candidate.tasks[index].modelSelection == nil {
+            candidate.tasks[index].modelSelection = automationModelSelection(state)
+          }
         } else {
-          candidate.tasks.insert(WorkspaceTask(
-            id: ownerID, project: runProject, title: item.name, runIDs: []), at: 0)
+          var task = WorkspaceTask(id: ownerID, project: runProject, title: item.name, runIDs: [])
+          task.modelSelection = automationModelSelection(state)
+          candidate.tasks.insert(task, at: 0)
         }
         if let record {
           var profile = candidate.profiles[project] ?? BuildProfile()
@@ -245,5 +261,13 @@ extension WorkspaceStore {
     }
     library.unreadTasks.insert(taskID)
     saveLibrary()
+  }
+
+  private func automationModelSelection(_ item: ShipAutomation) -> TaskModelSelection? {
+    guard item.modelID != nil || item.reasoning != nil else { return nil }
+    return TaskModelSelection(model: item.modelID ?? modelConfiguration.model,
+      reasoning: item.reasoning ?? modelConfiguration.reasoning,
+      providerAccount: modelConfiguration.credentialAccount,
+      apiProtocol: modelConfiguration.apiProtocol)
   }
 }

@@ -3437,10 +3437,13 @@ final class ModelTransportTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
+    config.reasoning = "low"
     store.modelConfiguration = config
     store.notificationPreferences = .init(timing: .never)
     var automation = ShipAutomation(
       name: "Fixture automation", prompt: "automation plugin-context")
+    automation.modelID = "fixture-special"
+    automation.reasoning = "high"
     automation.nextRun = Date().addingTimeInterval(60)
     XCTAssertTrue(store.saveAutomation(automation))
 
@@ -3453,6 +3456,10 @@ final class ModelTransportTests: XCTestCase {
     let run = try XCTUnwrap(store.library.chatRuns.first(where: { $0.id == saved.lastRunID }))
     XCTAssertEqual(run.status, "succeeded")
     XCTAssertEqual(run.request["automation_id"].text, automation.id.uuidString)
+    XCTAssertEqual(run.request["model"].text, "fixture-special")
+    XCTAssertEqual(run.request["reasoning_effort"].text, "high")
+    XCTAssertEqual(store.library.tasks.first { $0.id == saved.taskID }?.modelSelection?.model,
+      "fixture-special")
     let request = try JSONDecoder().decode(JSONValue.self, from: Data(try XCTUnwrap(run.result?["response"].text).utf8))
     XCTAssertEqual(request["messages"].items.last?["content"].text, "automation plugin-context")
     store.openAutomationResult(automation.id)
@@ -3460,6 +3467,10 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(store.selectedTask?.id, saved.taskID)
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
 
+    var edited = saved // An editor opened before review must not restore stale pending runs.
+    edited.modelID = nil
+    edited.reasoning = nil
+    XCTAssertTrue(store.saveEditedAutomation(edited))
     await store.runAutomation(automation.id)
     let second = try XCTUnwrap(store.automationPreferences.items.first)
     XCTAssertNotEqual(second.taskID, saved.taskID)
@@ -3468,12 +3479,21 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(store.library.tasks.first { $0.id == second.taskID }?.runIDs.contains(
       try XCTUnwrap(second.lastRunID)) == true)
     XCTAssertTrue(second.needsReview)
+    let secondRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == second.lastRunID })
+    XCTAssertEqual(secondRun.request["model"].text, config.model)
+    XCTAssertEqual(secondRun.request["reasoning_effort"].text, "low")
 
+    edited = second
+    edited.reasoning = ""
+    XCTAssertTrue(store.saveEditedAutomation(edited))
     await store.runAutomation(automation.id)
     let third = try XCTUnwrap(store.automationPreferences.items.first)
     XCTAssertNotEqual(third.taskID, second.taskID)
     XCTAssertEqual(third.unresolvedRunIDs, [try XCTUnwrap(second.lastRunID),
       try XCTUnwrap(third.lastRunID)])
+    let thirdRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == third.lastRunID })
+    XCTAssertEqual(thirdRun.request["model"].text, config.model)
+    XCTAssertNil(thirdRun.request["reasoning_effort"].text)
     XCTAssertEqual(try AutomationStorage.load(root: root).items[0].unresolvedRunIDs,
       third.unresolvedRunIDs)
     store.openAutomationResult(automation.id)
@@ -3558,6 +3578,8 @@ final class ModelTransportTests: XCTestCase {
     await store.open(current)
     var automation = ShipAutomation(name: "Codex fixture", prompt: "codex-patch")
     automation.project = scheduled.path
+    automation.modelID = "gpt-5.4"
+    automation.reasoning = "high"
     automation.nextRun = Date().addingTimeInterval(60)
     XCTAssertTrue(store.saveAutomation(automation))
 
@@ -3568,6 +3590,8 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
     XCTAssertEqual(run.request["automation_id"].text, automation.id.uuidString)
     XCTAssertEqual(run.request["api_protocol"].text, ModelAPIProtocol.codexResponses.rawValue)
+    XCTAssertEqual(run.request["model"].text, "gpt-5.4")
+    XCTAssertEqual(run.request["reasoning_effort"].text, "high")
     XCTAssertEqual(store.library.tasks.first { $0.id == saved.taskID }?.project, scheduled.path)
     XCTAssertFalse(store.runs.contains { $0.id == run.id })
     XCTAssertTrue(saved.needsReview)

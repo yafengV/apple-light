@@ -21,6 +21,8 @@ final class AutomationTests: XCTestCase {
       DateComponents(hour: 9, minute: 15))
     item.cadence = .hourly
     item.minute = 20
+    item.modelID = "chosen-model"
+    item.reasoning = "high"
     let hourly = item.nextDate(after: start, calendar: calendar)
     XCTAssertEqual(calendar.component(.hour, from: hourly), 9)
     XCTAssertEqual(calendar.component(.minute, from: hourly), 20)
@@ -33,6 +35,22 @@ final class AutomationTests: XCTestCase {
     let attributes = try FileManager.default.attributesOfItem(
       atPath: base.appendingPathComponent("automations.json").path)
     XCTAssertEqual(attributes[.posixPermissions] as? Int, 0o600)
+  }
+
+  func testInvalidAutomationModelOrReasoningDoesNotReplaceSavedSchedule() throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let valid = ShipAutomation(name: "Valid", prompt: "Review")
+    try AutomationStorage.save(AutomationPreferences(items: [valid]), root: base)
+    for model in ["", "two words", "bad\nmodel", String(repeating: "x", count: 201)] {
+      var invalid = valid
+      invalid.modelID = model
+      XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [invalid]), root: base))
+    }
+    var invalid = valid
+    invalid.reasoning = "unsupported"
+    XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [invalid]), root: base))
+    XCTAssertEqual(try AutomationStorage.load(root: base).items, [valid])
   }
 
   func testWeeklyScheduleUsesEverySelectedDayAndPersistsLegacySchedules() throws {

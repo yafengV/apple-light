@@ -192,6 +192,7 @@ private struct AutomationEditorView: View {
   private static let defaultCustomRule = "RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=9;BYMINUTE=0"
   @Bindable var store: WorkspaceStore
   @State var item: ShipAutomation
+  @State private var modelCatalog = ModelCatalog()
   let save: (ShipAutomation) -> Void
   @Environment(\.dismiss) private var dismiss
 
@@ -247,6 +248,39 @@ private struct AutomationEditorView: View {
         if item.selectedExecution == .worktree {
           Text("Git 仓库根目录中的任务将在独立工作树运行；非 Git 项目仍在原目录运行。")
             .appFont(.caption).foregroundStyle(.secondary)
+        }
+        Picker("模型", selection: Binding(
+          get: { item.modelID ?? "" },
+          set: { item.modelID = $0.isEmpty ? nil : $0 })) {
+          Text("沿用服务配置（\(store.modelConfiguration.model)）").tag("")
+          ForEach(modelCatalog.choices(
+            current: item.modelID ?? store.modelConfiguration.model, query: ""), id: \.self) { model in
+            Text(modelCatalog.title(for: model)).tag(model)
+          }
+        }
+        TextField("或输入模型 ID（留空沿用服务配置）", text: Binding(
+          get: { item.modelID ?? "" },
+          set: { item.modelID = $0.isEmpty ? nil : $0 }))
+        Picker("推理强度", selection: Binding(
+          get: { item.reasoning ?? "__follow_service__" },
+          set: { item.reasoning = $0 == "__follow_service__" ? nil : $0 })) {
+          Text("沿用服务配置").tag("__follow_service__")
+          ForEach(modelCatalog.availableReasoning(
+            for: item.modelID ?? store.modelConfiguration.model,
+            advanced: store.library.enabledAdvancedReasoningEfforts), id: \.self) { effort in
+            Text(AgentReasoningEfforts.titles[effort] ?? effort).tag(effort)
+          }
+          if let reasoning = item.reasoning,
+            !modelCatalog.availableReasoning(for: item.modelID ?? store.modelConfiguration.model,
+              advanced: store.library.enabledAdvancedReasoningEfforts).contains(reasoning) {
+            Text(AgentReasoningEfforts.titles[reasoning] ?? reasoning).tag(reasoning)
+          }
+        }
+        if let reasoning = item.reasoning,
+          modelCatalog.isCurrentReasoningUnsupported(
+            for: item.modelID ?? store.modelConfiguration.model, reasoning: reasoning) {
+          Text("所选模型未声明支持此推理强度，请选择其他等级或服务默认。")
+            .appFont(.caption).foregroundStyle(.orange)
         }
         Picker("频率", selection: $item.cadence) {
           ForEach(AutomationCadence.allCases) { Text($0.title).tag($0) }
@@ -310,8 +344,10 @@ private struct AutomationEditorView: View {
         }.keyboardShortcut(.defaultAction)
           .disabled(item.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || item.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || (item.modelID?.contains(where: { $0.isWhitespace || $0.isNewline }) == true)
             || ruleError != nil)
       }
-    }.padding(24).frame(width: 630, height: 640)
+    }.padding(24).frame(width: 630, height: 680)
+      .task { await modelCatalog.load(config: store.modelConfiguration) }
   }
 }

@@ -22,6 +22,10 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var projects: [String]?
   /// Nil keeps the local execution mode used by older saved automations.
   var execution: NewTaskExecution?
+  /// Nil follows the current independent API service setting for each new run.
+  var modelID: String?
+  /// Nil follows the current setting; an empty string asks the service to use its default.
+  var reasoning: String?
   var cadence = AutomationCadence.daily
   var hour = 9
   var minute = 0
@@ -164,6 +168,14 @@ enum AutomationStorage {
       if let preparingTaskIDs = item.preparingTaskIDs,
         !preparingTaskIDs.values.allSatisfy({ UUID(uuidString: $0) != nil }) {
         throw AgentFailure(message: "自动化待准备任务标识无效。")
+      }
+      if let modelID = item.modelID,
+        (modelID.isEmpty || modelID.utf8.count > 200
+          || modelID.rangeOfCharacter(from: .whitespacesAndNewlines) != nil) {
+        throw AgentFailure(message: "自动化模型 ID 无效。")
+      }
+      if let reasoning = item.reasoning, AgentReasoningEfforts.titles[reasoning] == nil {
+        throw AgentFailure(message: "自动化推理强度无效。")
       }
       if item.cadence == .custom {
         guard let customRule = item.customRule, let anchor = item.scheduleAnchor else {
