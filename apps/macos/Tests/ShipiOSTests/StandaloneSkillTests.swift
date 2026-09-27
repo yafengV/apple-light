@@ -19,6 +19,7 @@ final class StandaloneSkillTests: XCTestCase {
     XCTAssertEqual(try PluginStorage.load(root: root), preferences)
     let skill = try XCTUnwrap(PluginStorage.skills(preferences: preferences, root: root).first)
     XCTAssertEqual(skill.id, "user:review")
+    XCTAssertEqual(skill.summary, "Review code when requested")
     let document = try PluginStorage.readSkill(id: skill.id, root: root)
     XCTAssertTrue(document.contains("name: review"))
     XCTAssertTrue(document.contains("description: \"Review code when requested\""))
@@ -47,6 +48,18 @@ final class StandaloneSkillTests: XCTestCase {
     XCTAssertEqual(try PluginStorage.load(root: root), first)
     XCTAssertTrue(try PluginStorage.readSkill(id: "user:review", root: root).contains("Keep this instruction."))
     XCTAssertFalse(FileManager.default.fileExists(atPath: PluginStorage.standaloneSkillURL(root: root, id: "injected").path))
+  }
+
+  func testSkillMetadataReadsQuotedAndFoldedDescriptions() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    let file = base.appendingPathComponent("SKILL.md")
+    try Data("---\nname: 'Review ''Code'''\ndescription: >-\n  Review code and\n  explain findings.\n---\n\nInstructions.\n".utf8)
+      .write(to: file)
+    let metadata = try PluginStorage.skillMetadata(file, fallback: "review", sourceName: "review")
+    XCTAssertEqual(metadata.title, "Review 'Code'")
+    XCTAssertEqual(metadata.summary, "Review code and explain findings.")
   }
 
   @MainActor func testStoreCreationRefreshesInstalledSkillsWithoutChangingDraft() async throws {

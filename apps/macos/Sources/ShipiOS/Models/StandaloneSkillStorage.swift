@@ -185,9 +185,10 @@ extension PluginStorage {
         throw AgentFailure(message: "独立技能目录不能使用符号链接。")
       }
       let file = directory.appendingPathComponent("SKILL.md")
-      let title = try skillTitle(file, fallback: id, sourceName: id)
+      let metadata = try skillMetadata(file, fallback: id, sourceName: id)
       return PluginSkillReference(pluginID: "", pluginName: "本地技能", skillID: id,
-        title: title, fileURL: file, mention: id, isStandalone: true)
+        title: metadata.title, fileURL: file, mention: id, summary: metadata.summary,
+        isStandalone: true)
     }
   }
 

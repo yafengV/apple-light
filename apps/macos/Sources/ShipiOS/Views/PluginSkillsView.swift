@@ -11,7 +11,7 @@ struct PluginSkillsView: View {
 
   private var skills: [PluginSkillReference] {
     store.installedPluginSkills.filter { skill in
-      let document = [skill.title, skill.id, skill.pluginName].joined(separator: " ")
+      let document = [skill.title, skill.summary, skill.id, skill.pluginName].joined(separator: " ")
       return (pluginID == nil || pluginID == skill.pluginID)
         && query.split(whereSeparator: \.isWhitespace).allSatisfy { document.localizedStandardContains(String($0)) }
     }
@@ -31,6 +31,10 @@ struct PluginSkillsView: View {
             Button { preview = skill } label: {
               VStack(alignment: .leading, spacing: 4) {
                 Text(skill.title).appFont(.headline)
+                if !skill.summary.isEmpty {
+                  Text(skill.summary).appFont(.subheadline).foregroundStyle(.secondary)
+                    .lineLimit(2)
+                }
                 Text(skill.pluginName + " · $" + skill.mention)
                   .appFont(.caption).foregroundStyle(.secondary)
               }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
@@ -179,6 +183,9 @@ private struct PluginSkillPreview: View {
         Button("关闭") { dismiss() }.keyboardShortcut(.cancelAction)
       }
       Text(skill.pluginName + " · $" + skill.mention).foregroundStyle(.secondary).textSelection(.enabled)
+      if !skill.summary.isEmpty {
+        Text(skill.summary).foregroundStyle(.secondary).textSelection(.enabled)
+      }
       ScrollView {
         if let source {
           if showSource {

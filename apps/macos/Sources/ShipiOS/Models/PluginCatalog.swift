@@ -33,6 +33,7 @@ struct PluginSkillReference: Equatable, Identifiable {
   let title: String
   let fileURL: URL
   let mention: String
+  var summary = ""
   var isStandalone = false
 
   var id: String { isStandalone ? "user:" + skillID : "\(pluginID)/\(skillID)" }
@@ -507,7 +508,7 @@ enum PluginStorage {
   static func skills(
     preferences: PluginPreferences, root: URL, includeDisabled: Bool = false
   ) throws -> [PluginSkillReference] {
-    var values: [(plugin: PluginInstallation, id: String, title: String, url: URL)] = []
+    var values: [(plugin: PluginInstallation, id: String, metadata: SkillMetadata, url: URL)] = []
     for plugin in preferences.installed where plugin.enabled || includeDisabled {
       for file in try skillFiles(in: packageURL(root: root, id: plugin.id)) {
         let id = file.deletingLastPathComponent().lastPathComponent
@@ -521,8 +522,8 @@ enum PluginStorage {
           file.resolvingSymlinksInPath().path == trustedPackage.path + String(filePath.dropFirst(package.path.count)) else {
           throw AgentFailure(message: "技能文件必须位于已安装插件内，不能使用符号链接。")
         }
-        let title = try skillTitle(file, fallback: id, sourceName: plugin.name)
-        values.append((plugin, id, title, file))
+        let metadata = try skillMetadata(file, fallback: id, sourceName: plugin.name)
+        values.append((plugin, id, metadata, file))
       }
     }
     guard Set(values.map { $0.plugin.id + "/" + $0.id }).count == values.count else {
@@ -533,9 +534,10 @@ enum PluginStorage {
     let packaged = values.map { value in
       PluginSkillReference(
         pluginID: value.plugin.id, pluginName: value.plugin.name, skillID: value.id,
-        title: value.title, fileURL: value.url,
+        title: value.metadata.title, fileURL: value.url,
         mention: counts[value.id.lowercased(), default: 0] > 1
-          ? "\(value.plugin.id)/\(value.id)" : value.id)
+          ? "\(value.plugin.id)/\(value.id)" : value.id,
+        summary: value.metadata.summary)
     }
     return (packaged + standalone).sorted {
       $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
@@ -612,9 +614,18 @@ enum PluginStorage {
     if let value = value as? [Any] { return value.count }
     return 0
   }
-  static func skillTitle(
+  struct SkillMetadata {
+    let title: String
+    let summary: String
+  }
+
+  static func skillTitle(_ file: URL, fallback: String, sourceName: String) throws -> String {
+    try skillMetadata(file, fallback: fallback, sourceName: sourceName).title
+  }
+
+  static func skillMetadata(
     _ file: URL, fallback: String, sourceName: String
-  ) throws -> String {
+  ) throws -> SkillMetadata {
     let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
     guard values.isRegularFile == true, values.isSymbolicLink != true,
       let size = values.fileSize, size <= 65_536
@@ -624,22 +635,51 @@ enum PluginStorage {
       throw AgentFailure(message: "\(sourceName) 的技能文件不是 UTF-8。")
     }
     let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+    var title: String?
+    var summary = ""
     if lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == "---" {
-      for line in lines.dropFirst().prefix(40) {
+      let metadataLines = Array(lines.dropFirst().prefix(40))
+      for (index, line) in metadataLines.enumerated() {
         let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if value == "---" { break }
         if value.lowercased().hasPrefix("name:") {
-          let title = value.dropFirst(5).trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-          if !title.isEmpty { return String(title.prefix(120)) }
+          let name = scalarMetadataValue(String(value.dropFirst(5)))
+          if !name.isEmpty { title = String(name.prefix(120)) }
+        } else if value.lowercased().hasPrefix("description:") {
+          let raw = String(value.dropFirst(12)).trimmingCharacters(in: .whitespacesAndNewlines)
+          if [">", ">-", "|", "|-"].contains(raw) {
+            var parts: [String] = []
+            for next in metadataLines.dropFirst(index + 1) {
+              let line = String(next)
+              guard line.first == " " || line.first == "\t" else { break }
+              let part = line.trimmingCharacters(in: .whitespacesAndNewlines)
+              if !part.isEmpty { parts.append(part) }
+            }
+            summary = String(parts.joined(separator: " ").prefix(500))
+          } else {
+            summary = String(scalarMetadataValue(raw).prefix(500))
+          }
         }
       }
     }
-    if let heading = lines.first(where: { $0.hasPrefix("# ") }) {
-      let title = heading.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines)
-      if !title.isEmpty { return String(title.prefix(120)) }
+    if title == nil, let heading = lines.first(where: { $0.hasPrefix("# ") }) {
+      let headingTitle = heading.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines)
+      if !headingTitle.isEmpty { title = String(headingTitle.prefix(120)) }
     }
-    return fallback
+    return SkillMetadata(title: title ?? fallback, summary: summary)
+  }
+
+  private static func scalarMetadataValue(_ value: String) -> String {
+    let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    if value.first == "\"", let data = value.data(using: .utf8),
+      let decoded = try? JSONDecoder().decode(String.self, from: data) {
+      return decoded.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    if value.count >= 2, value.first == "'", value.last == "'" {
+      return String(value.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    return value
   }
   private static func skillText(_ skill: PluginSkillReference, total: inout Int) throws -> String {
     let values = try skill.fileURL.resourceValues(
