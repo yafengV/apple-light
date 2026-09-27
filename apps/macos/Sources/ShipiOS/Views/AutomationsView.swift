@@ -152,6 +152,7 @@ struct AutomationsView: View {
 }
 
 private struct AutomationEditorView: View {
+  private static let defaultCustomRule = "RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=9;BYMINUTE=0"
   @Bindable var store: WorkspaceStore
   @State var item: ShipAutomation
   let save: (ShipAutomation) -> Void
@@ -165,6 +166,22 @@ private struct AutomationEditorView: View {
       item.hour = components.hour ?? 9
       item.minute = components.minute ?? 0
     }
+  }
+
+  private var ruleText: Binding<String> {
+    Binding(get: { item.customRule ?? "" }, set: { item.customRule = $0 })
+  }
+
+  private var ruleError: String? {
+    guard item.cadence == .custom else { return nil }
+    do {
+      let rule = try AutomationRecurrenceRule.parse(item.customRule ?? "")
+      guard rule.nextDate(after: .now, anchor: item.scheduleAnchor ?? .now,
+        calendar: .current) != nil else {
+        return "未来十年内找不到该 RRULE 的下次运行时间。"
+      }
+      return nil
+    } catch { return error.localizedDescription }
   }
 
   var body: some View {
@@ -182,6 +199,11 @@ private struct AutomationEditorView: View {
         Picker("频率", selection: $item.cadence) {
           ForEach(AutomationCadence.allCases) { Text($0.title).tag($0) }
         }
+        .onChange(of: item.cadence) { _, cadence in
+          if cadence == .custom && item.customRule == nil {
+            item.customRule = Self.defaultCustomRule
+          }
+        }
         if item.cadence == .weekly {
           HStack {
             Text("星期")
@@ -198,7 +220,19 @@ private struct AutomationEditorView: View {
             }
           }
         }
-        if item.cadence == .hourly {
+        if item.cadence == .custom {
+          TextField("RRULE", text: ruleText)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityLabel("自定义日程 RRULE")
+          Text("支持小时、天、周、月频率与间隔，以及 BYDAY、BYMONTHDAY、BYHOUR、BYMINUTE 和 WKST。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          if let ruleError {
+            Text(ruleError).appFont(.caption).foregroundStyle(.red)
+          } else {
+            Text("下次运行：\(item.nextDate(after: .now).formatted(date: .abbreviated, time: .shortened))")
+              .appFont(.caption).foregroundStyle(.secondary)
+          }
+        } else if item.cadence == .hourly {
           Picker("每小时的分钟", selection: $item.minute) {
             ForEach(0..<60, id: \.self) { minute in
               Text(String(format: "%02d", minute)).tag(minute)
@@ -223,8 +257,9 @@ private struct AutomationEditorView: View {
           save(item)
         }.keyboardShortcut(.defaultAction)
           .disabled(item.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || item.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            || item.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || ruleError != nil)
       }
-    }.padding(24).frame(width: 590, height: 600)
+    }.padding(24).frame(width: 630, height: 640)
   }
 }

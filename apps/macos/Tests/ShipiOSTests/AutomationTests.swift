@@ -80,6 +80,112 @@ final class AutomationTests: XCTestCase {
     }
   }
 
+  func testCustomMonthlyRulesFindFirstAndLastDayAcrossShortMonths() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    let anchor = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 1, day: 15, hour: 8)))
+    let from = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 2, day: 1, hour: 10)))
+    let firstDay = try AutomationRecurrenceRule.parse(
+      "RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=9;BYMINUTE=0")
+    let first = try XCTUnwrap(firstDay.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day, .hour], from: first),
+      DateComponents(month: 2, day: 1, hour: 9))
+    let lastDay = try AutomationRecurrenceRule.parse(
+      "FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=17;BYMINUTE=30")
+    let last = try XCTUnwrap(lastDay.nextDate(after: from, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day, .hour, .minute], from: last),
+      DateComponents(month: 2, day: 28, hour: 17, minute: 30))
+  }
+
+  func testCustomWeeklyIntervalAndDayFilter() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    let anchor = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 9, day: 21, hour: 8))) // Monday
+    let rule = try AutomationRecurrenceRule.parse(
+      "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;BYHOUR=9;BYMINUTE=15")
+    let first = try XCTUnwrap(rule.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.day, .hour], from: first),
+      DateComponents(day: 21, hour: 9))
+    let wednesday = try XCTUnwrap(rule.nextDate(after: first, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.component(.day, from: wednesday), 23)
+    let nextWeek = try XCTUnwrap(rule.nextDate(after: wednesday, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day], from: nextWeek),
+      DateComponents(month: 10, day: 5))
+  }
+
+  func testCustomMonthlyWeekdayAndHourlyInterval() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    let anchor = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 1, day: 15, hour: 8, minute: 45)))
+    let monday = try AutomationRecurrenceRule.parse("FREQ=MONTHLY;BYDAY=MO;BYHOUR=9;BYMINUTE=0")
+    let mondayRun = try XCTUnwrap(monday.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.month, .day, .hour], from: mondayRun),
+      DateComponents(month: 1, day: 19, hour: 9))
+
+    let hourly = try AutomationRecurrenceRule.parse("FREQ=HOURLY;INTERVAL=2;BYMINUTE=20")
+    let hourlyRun = try XCTUnwrap(hourly.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.day, .hour, .minute], from: hourlyRun),
+      DateComponents(day: 15, hour: 10, minute: 20))
+  }
+
+  func testCustomDailyScheduleSkipsNonexistentDSTLocalTime() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+    let anchor = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 3, day: 7, hour: 2, minute: 30)))
+    let rule = try AutomationRecurrenceRule.parse("FREQ=DAILY;BYHOUR=2;BYMINUTE=30")
+    let first = try XCTUnwrap(rule.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.day, .hour, .minute], from: first),
+      DateComponents(day: 9, hour: 2, minute: 30),
+      "March 8 has no 02:30 in this time zone")
+  }
+
+  func testCustomRuleValidationRejectsUnsupportedOrImpossibleSchedules() throws {
+    for text in [
+      "RRULE:FREQ=YEARLY;BYHOUR=9", "RRULE:FREQ=DAILY;COUNT=5;BYHOUR=9",
+      "RRULE:FREQ=MONTHLY;BYMONTHDAY=0;BYHOUR=9", "RRULE:FREQ=DAILY;BYHOUR=25",
+      "RRULE:FREQ=DAILY;BYHOUR=9;BYHOUR=10", "RRULE:FREQ=WEEKLY;BYDAY=MO,MO;BYHOUR=9",
+    ] { XCTAssertThrowsError(try AutomationRecurrenceRule.parse(text), text) }
+
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    var item = ShipAutomation(name: "Impossible", prompt: "Review")
+    item.cadence = .custom
+    item.scheduleAnchor = .now
+    item.customRule = "RRULE:FREQ=MONTHLY;INTERVAL=12;BYMONTHDAY=31;BYHOUR=9"
+    // The anchor month may have a 31st; choose February to make every scheduled month impossible.
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = .current
+    item.scheduleAnchor = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 2, day: 1)))
+    XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [item]), root: base))
+  }
+
+  @MainActor func testCustomRuleEditingReschedulesAndPersists() async throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.loadAutomations()
+    var item = ShipAutomation(name: "Custom", prompt: "Review")
+    item.cadence = .custom
+    item.customRule = "RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=9;BYMINUTE=0"
+    XCTAssertTrue(store.saveEditedAutomation(item))
+    let saved = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertNotNil(saved.scheduleAnchor)
+    XCTAssertGreaterThan(saved.nextRun, .now)
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0], saved)
+
+    item = saved
+    item.customRule = "RRULE:FREQ=DAILY;BYHOUR=18;BYMINUTE=0"
+    XCTAssertTrue(store.saveEditedAutomation(item))
+    let changed = store.automationPreferences.items[0]
+    XCTAssertEqual(Calendar.current.component(.hour, from: changed.nextRun), 18)
+    XCTAssertNotEqual(changed.customRule, saved.customRule)
+  }
+
   func testInvalidAutomationIsRejectedWithoutReplacingStoredState() throws {
     let base = root()
     defer { try? FileManager.default.removeItem(at: base) }

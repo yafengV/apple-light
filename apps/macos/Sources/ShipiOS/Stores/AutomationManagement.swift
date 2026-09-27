@@ -45,11 +45,16 @@ extension WorkspaceStore {
     if let previous = automationPreferences.items.first(where: { $0.id == item.id }) {
       let scheduleChanged = previous.cadence != item.cadence || previous.hour != item.hour
         || previous.minute != item.minute || previous.selectedWeekdays != item.selectedWeekdays
+        || previous.customRule != item.customRule
       if scheduleChanged || !previous.enabled && item.enabled {
+        if scheduleChanged && item.cadence == .custom { edited.scheduleAnchor = .now }
         edited.nextRun = edited.nextDate(after: .now)
       } else {
         edited.nextRun = previous.nextRun
       }
+    } else {
+      if item.cadence == .custom { edited.scheduleAnchor = .now }
+      edited.nextRun = edited.nextDate(after: .now)
     }
     return saveAutomation(edited)
   }

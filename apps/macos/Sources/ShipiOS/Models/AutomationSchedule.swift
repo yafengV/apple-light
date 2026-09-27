@@ -1,13 +1,14 @@
 import Foundation
 
 enum AutomationCadence: String, Codable, CaseIterable, Identifiable {
-  case hourly, daily, weekly
+  case hourly, daily, weekly, custom
   var id: String { rawValue }
   var title: String {
     switch self {
     case .hourly: "每小时"
     case .daily: "每天"
     case .weekly: "每周"
+    case .custom: "自定义"
     }
   }
 }
@@ -24,6 +25,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var weekday = 2
   /// Nil preserves schedules written before multi-day selection was available.
   var weekdays: [Int]?
+  var customRule: String?
+  var scheduleAnchor: Date?
   var enabled = true
   var nextRun: Date = .now
   var lastRun: Date?
@@ -61,6 +64,12 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
           after: date, matching: DateComponents(hour: hour, minute: minute, weekday: day),
           matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)
       }.min() ?? date.addingTimeInterval(604_800)
+    case .custom:
+      guard let customRule, let rule = try? AutomationRecurrenceRule.parse(customRule) else {
+        return date.addingTimeInterval(86_400)
+      }
+      return rule.nextDate(after: date, anchor: scheduleAnchor ?? date, calendar: calendar)
+        ?? date.addingTimeInterval(86_400)
     }
   }
 
@@ -73,6 +82,7 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
       let symbols = Calendar.current.shortWeekdaySymbols
       let days = selectedWeekdays.map { symbols[min(max($0 - 1, 0), symbols.count - 1)] }
       return "每周\(days.joined(separator: "、")) \(time)"
+    case .custom: return "自定义 · \(customRule ?? "")"
     }
   }
 }
@@ -115,6 +125,15 @@ enum AutomationStorage {
           && item.weekdays == Array(Set(item.weekdays ?? []).sorted())
           && item.weekdays?.allSatisfy { (1...7).contains($0) } == true)
       else { throw AgentFailure(message: "自动化名称、指令或日程无效。") }
+      if item.cadence == .custom {
+        guard let customRule = item.customRule, let anchor = item.scheduleAnchor else {
+          throw AgentFailure(message: "自定义日程缺少 RRULE 或起始时间。")
+        }
+        let rule = try AutomationRecurrenceRule.parse(customRule)
+        guard rule.nextDate(after: anchor, anchor: anchor, calendar: .current) != nil else {
+          throw AgentFailure(message: "未来十年内找不到该 RRULE 的下次运行时间。")
+        }
+      }
     }
   }
 }
