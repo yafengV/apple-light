@@ -283,6 +283,8 @@ struct WorkspaceView: View {
               }
               Divider()
               Button("分叉到新任务") { store.forkConversation() }.disabled(!store.canForkConversation)
+              Button("打开临时侧聊") { store.executeCommand("open-side-chat") }
+                .disabled(!store.commandEnabled("open-side-chat"))
               Button("刷新任务") { Task { await store.reload() } }.disabled(store.project != nil && !store.connected)
               Button("导出报告…") { Task { await store.exportReport() } }.disabled(
                 store.selectedRun == nil || store.selectedRun?.isActive == true || (store.selectedRun?.kind != "chat" && !store.connected))

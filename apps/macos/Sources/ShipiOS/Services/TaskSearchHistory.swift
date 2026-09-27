@@ -15,7 +15,7 @@ enum TaskSearchHistory {
     var result = Result()
     let localIDs = Set(library.localRuns.map(\.id))
     let groups = Dictionary(
-      grouping: library.tasks.filter { !$0.project.isEmpty && !$0.isPopoutDraft }, by: \.project)
+      grouping: library.tasks.filter { !$0.project.isEmpty && !$0.isTransient }, by: \.project)
     for (project, tasks) in groups.sorted(by: { $0.key < $1.key }) {
       if Task.isCancelled { break }
       let ids = Set(tasks.flatMap(\.runIDs)).subtracting(localIDs)

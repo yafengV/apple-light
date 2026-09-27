@@ -1060,6 +1060,59 @@ final class ModelTransportTests: XCTestCase {
     await restored.shutdown()
   }
 
+  @MainActor func testTemporarySideChatRunsSeparatelyAndRejectsWrites() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+
+    await store.startChat("slow-codex")
+    let parentRun = try XCTUnwrap(store.library.chatRuns.last)
+    let parent = try XCTUnwrap(store.library.task(containing: parentRun.id))
+    let selected = store.selection
+    let side = try store.createSideChat(from: parent.id)
+    XCTAssertTrue(side.sideChatSourceRunIDs?.isEmpty == true)
+    await store.startChat("Codex fixture request", taskID: side.id)
+    let sideRun = try XCTUnwrap(store.library.chatRuns.last)
+    XCTAssertEqual(sideRun.request["conversation_kind"].text, "side")
+    XCTAssertEqual(store.selection, selected)
+    XCTAssertEqual(store.library.tasks.first(where: { $0.id == parent.id })?.runIDs, [parentRun.id])
+    await store.modelTask(runID: sideRun.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == sideRun.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Codex fixture reply")
+    XCTAssertFalse(store.library.visible(project: project.path, query: "", archived: false)
+      .contains(where: { $0.id == side.id }))
+
+    await store.startChat("codex-approval", taskID: side.id)
+    let blockedRun = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: blockedRun.id)?.value
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      project.appendingPathComponent("approval-proof.txt").path))
+    XCTAssertFalse(store.mcpPendingApprovals.values.contains(where: { $0.runID == blockedRun.id }))
+    await store.modelTask(runID: parentRun.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first(where: { $0.id == parentRun.id })?.status, "succeeded")
+    let sideHome = try XCTUnwrap(store.dataDirectory)
+      .appendingPathComponent("Codex/Tasks/\(side.id.lowercased())")
+    XCTAssertTrue(FileManager.default.fileExists(atPath: sideHome.path))
+    await store.closeSideChat(side.id)
+    XCTAssertFalse(store.library.tasks.contains(where: { $0.id == side.id }))
+    XCTAssertTrue(store.library.tasks.contains(where: { $0.id == parent.id }))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: sideHome.path))
+    await store.shutdown()
+  }
+
   @MainActor func testCodexCompactCommandUsesCoreAndKeepsNextTurnContext() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

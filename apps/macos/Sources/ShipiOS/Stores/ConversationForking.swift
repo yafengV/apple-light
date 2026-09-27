@@ -2,13 +2,15 @@ import Foundation
 
 extension WorkspaceStore {
   var canForkConversation: Bool {
-    guard !busy, let task = selectedTask, task.project == currentProjectKey else { return false }
+    guard !busy, let task = selectedTask, !task.isSideChat,
+      task.project == currentProjectKey else { return false }
     guard !library.managedWorktrees.contains(where: { $0.taskID == task.id }) else { return false }
     return (try? library.forkHistory(taskID: task.id, availableRuns: runs)) != nil
   }
 
   func canForkTaskWindow(_ taskID: String, through runID: String? = nil) -> Bool {
-    guard libraryLoaded, !busy else { return false }
+    guard libraryLoaded, !busy,
+      library.tasks.contains(where: { $0.id == taskID && !$0.isSideChat }) else { return false }
     guard !library.managedWorktrees.contains(where: { $0.taskID == taskID }) else { return false }
     return (try? library.forkHistory(taskID: taskID, through: runID,
       availableRuns: taskWindowRuns(taskID))) != nil

@@ -40,6 +40,7 @@ struct WorkspaceCommands: Commands {
       command("copy-task-link")
       command("copy-session-id")
       command("copy-conversation-path")
+      command("open-side-chat")
       Divider()
       command("find")
       command("find-next")

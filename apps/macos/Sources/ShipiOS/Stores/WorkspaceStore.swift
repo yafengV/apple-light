@@ -1144,6 +1144,7 @@ final class WorkspaceStore {
         library.appearance = appearance.normalized()
       }
       libraryLoaded = true
+      discardRestoredSideChats()
       if error == previousReadError { error = nil }
       return true
     } catch {

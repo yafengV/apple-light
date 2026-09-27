@@ -13,6 +13,7 @@ struct TaskWindowSceneView: View {
   @State private var restoringWorktree = false
   @State private var worktreeRestoreRequest: UUID?
   @State private var worktreeRestoreError: String?
+  @State private var startedSideChatPrompts: Set<String> = []
   @Environment(\.dismiss) private var dismiss
 
   private var availableTasks: Set<String> { Set(store.library.tasks.map(\.id)) }
@@ -42,7 +43,13 @@ struct TaskWindowSceneView: View {
     .background(TaskWindowResourceAttachment(resources: resources).frame(width: 0, height: 0))
     .onAppear { resources.navigate = visit }
     .onChange(of: route) { _, _ in resources.navigate = visit }
-    .onDisappear { resources.shutdown() }
+    .onDisappear {
+      let closedTaskID = route?.taskID
+      resources.shutdown()
+      if let closedTaskID, store.library.tasks.contains(where: { $0.id == closedTaskID && $0.isSideChat }) {
+        Task { await store.closeSideChat(closedTaskID) }
+      }
+    }
     .onChange(of: availableTasks) { _, available in
       resources.retainTasks(available, displaying: route?.taskID)
     }
@@ -110,6 +117,11 @@ struct TaskWindowSceneView: View {
     resources.prepare(taskID, store: store, windowID: route?.id)
     if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
     hasPresentedTask = true
+    if store.library.tasks.contains(where: { $0.id == taskID && $0.isSideChat && $0.runIDs.isEmpty }),
+      !store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      startedSideChatPrompts.insert(taskID).inserted {
+      await store.startChat(store.taskWindowDraft(taskID), taskID: taskID, consumeDraft: true)
+    }
     if route?.dataRoot == nil || route?.windowID == nil {
       route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
     }

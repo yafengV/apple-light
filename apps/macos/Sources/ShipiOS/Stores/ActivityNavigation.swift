@@ -55,7 +55,7 @@ extension WorkspaceStore {
     let knownRuns = Dictionary((library.localRuns + runs).map { ($0.id, $0) },
       uniquingKeysWith: { _, last in last })
     return library.tasks.compactMap { task in
-      guard !task.archived, !task.isPopoutDraft else { return nil }
+      guard !task.archived, !task.isTransient else { return nil }
       let kind = taskAttentionKind(for: task)
       let attention = kind?.requiresAction == true ? kind : nil
       let running = task.runIDs.contains { knownRuns[$0]?.isActive == true }

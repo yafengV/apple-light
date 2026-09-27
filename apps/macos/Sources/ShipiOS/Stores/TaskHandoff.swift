@@ -4,7 +4,7 @@ extension WorkspaceStore {
   func canHandOffToWorktree(_ task: WorkspaceTask) -> Bool {
     libraryLoaded && !busy && !managedTaskPreparing && recoveringHandoffTaskIDs.isEmpty
       && activeLocalRun == nil
-      && activeRun(taskID: task.id) == nil && !task.archived && !task.isPopoutDraft
+      && activeRun(taskID: task.id) == nil && !task.archived && !task.isTransient
       && !task.project.isEmpty && library.projects.contains(task.project)
       && !library.isPermanentWorktree(task.project)
       && !library.managedWorktrees.contains { $0.path == task.project }
@@ -13,7 +13,7 @@ extension WorkspaceStore {
   func canHandOffToLocal(_ task: WorkspaceTask) -> Bool {
     guard libraryLoaded, !busy, !managedTaskPreparing,
       recoveringHandoffTaskIDs.isEmpty, activeLocalRun == nil,
-      activeRun(taskID: task.id) == nil, !task.archived, !task.isPopoutDraft,
+      activeRun(taskID: task.id) == nil, !task.archived, !task.isTransient,
       let record = library.managedWorktrees.first(where: { $0.taskID == task.id }) else {
       return false
     }

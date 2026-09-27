@@ -76,7 +76,8 @@ extension WorkspaceLibrary {
   }
 
   func chatContext(taskID: String?) -> [ChatMessage] {
-    let ids = tasks.first(where: { $0.id == taskID })?.runIDs ?? []
+    let task = tasks.first(where: { $0.id == taskID })
+    let ids = (task?.sideChatSourceRunIDs ?? []) + (task?.runIDs ?? [])
     let stored = Dictionary(localRuns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     return ids.flatMap { id -> [ChatMessage] in
       guard let run = stored[id], run.kind == "chat",

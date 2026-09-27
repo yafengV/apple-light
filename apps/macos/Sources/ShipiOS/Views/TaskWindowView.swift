@@ -81,6 +81,10 @@ struct TaskWindowView: View {
   }
   private var canSend: Bool {
     guard task != nil else { return false }
+    if task?.isSideChat == true, mode != .standard { return false }
+    if SideChatCommand.prompt(in: store.taskWindowDraft(taskID)) != nil {
+      return store.canOpenSideChat(from: taskID)
+    }
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.files.token {
       return task?.project.isEmpty == false
     }
@@ -110,6 +114,21 @@ struct TaskWindowView: View {
         GeometryReader { geometry in
           let summaryInline = taskSummary.showsInline
           VStack(spacing: 0) {
+            if let parentID = task.sideChatParentID {
+              HStack(spacing: 10) {
+                Label("临时侧聊", systemImage: "bubble.left.and.bubble.right")
+                  .appFont(.callout, weight: .semibold)
+                Text(store.library.tasks.first(where: { $0.id == parentID })?.title ?? "主会话")
+                  .lineLimit(1).foregroundStyle(.secondary)
+                if store.activeRun(taskID: parentID) != nil {
+                  Label("主会话运行中", systemImage: "circle.dotted")
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("返回主会话") { dismiss() }
+              }.appFont(.caption).padding(.horizontal, 18).padding(.vertical, 9)
+              Divider()
+            }
             HStack(spacing: 0) {
               if showsSidePanel && tabs.primarySide == .right {
                 rightContent(geometry)
@@ -289,7 +308,7 @@ struct TaskWindowView: View {
                 .disabled(!tabs.showingRight && !panels.showingFiles)
             } label: { Image(systemName: "rectangle.split.2x1") }
               .accessibilityLabel("任务布局")
-            if !task.isPopoutDraft {
+            if !task.isTransient {
               if let pending = store.library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff {
                 Button {
                   Task {
@@ -329,6 +348,8 @@ struct TaskWindowView: View {
               Menu {
                 Button("分叉到新任务") { forkTask() }
                   .disabled(!store.canForkTaskWindow(taskID) || windowCommandsBlocked)
+                Button("打开临时侧聊") { openSideChat() }
+                  .disabled(!store.canOpenSideChat(from: taskID) || windowCommandsBlocked)
                 Button("重命名任务") { performWindowCommand("rename") }
                 Button(task.pinned ? "取消置顶" : "置顶任务") { performWindowCommand("pin") }
                 Button("标为未读") { performWindowCommand("unread") }
@@ -347,7 +368,7 @@ struct TaskWindowView: View {
             }
             .help("在主窗口中打开设置 ⌘,")
             .keyboardShortcut(",", modifiers: .command)
-            if !task.isPopoutDraft {
+            if !task.isTransient {
               Button {
                 store.selectTask(task)
                 openWindow(id: "main")
@@ -503,7 +524,9 @@ struct TaskWindowView: View {
 
   private func submitTaskDraft() {
     let command = store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines)
-    if command == ComposerCommand.files.token {
+    if let prompt = SideChatCommand.prompt(in: command) {
+      openSideChat(prompt: prompt, consumeCommand: true)
+    } else if command == ComposerCommand.files.token {
       guard !windowCommandsBlocked, task?.project.isEmpty == false else { return }
       selectTaskWindowCommand(.files)
     } else if command == ComposerCommand.fork.token {
@@ -526,6 +549,19 @@ struct TaskWindowView: View {
       composerFocused = true
       taskComposerFocusRequest = UUID()
       if consumeCommand { commandSelection = ComposerCommandSelection(); updateCandidates() }
+    }
+  }
+
+  private func openSideChat(prompt: String = "", consumeCommand: Bool = false) {
+    guard !windowCommandsBlocked else { return }
+    do {
+      let side = try store.createSideChat(from: taskID, prompt: prompt)
+      if consumeCommand { setDraft("") }
+      openWindow(value: TaskWindowRoute.newWindow(taskID: side.id, dataRoot: store.dataRoot))
+    } catch {
+      actionError = error.localizedDescription
+      composerFocused = true
+      taskComposerFocusRequest = UUID()
     }
   }
 
@@ -635,7 +671,7 @@ struct TaskWindowView: View {
     }
     if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model", "dictation", "open-task-window", "task-summary"])
-      if !task.isPopoutDraft { enabled.insert("copy-task-link") }
+      if !task.isTransient { enabled.insert("copy-task-link") }
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
       if store.codexConversationPath(for: task) != nil { enabled.insert("copy-conversation-path") }
       if copyLocationTarget != nil { enabled.insert("copy-location") }
@@ -643,8 +679,9 @@ struct TaskWindowView: View {
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
-      if !task.isPopoutDraft { enabled.formUnion(["pin", "unread", "rename"]) }
-      if !task.isPopoutDraft, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
+      if !task.isTransient { enabled.formUnion(["pin", "unread", "rename"]) }
+      if !task.isTransient, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
+      if store.canOpenSideChat(from: taskID) { enabled.insert("open-side-chat") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
       if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }),
@@ -724,10 +761,11 @@ struct TaskWindowView: View {
         runEnvironmentAction(action, task: task)
       }
     case "fork": forkTask()
+    case "open-side-chat": openSideChat()
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
-    case "copy-task-link": if !task.isPopoutDraft { store.copyTaskDeepLink(task) }
-    case "copy-session-id": if !task.isPopoutDraft { store.copyCodexSessionID(task) }
-    case "copy-conversation-path": if !task.isPopoutDraft { store.copyCodexConversationPath(task) }
+    case "copy-task-link": if !task.isTransient { store.copyTaskDeepLink(task) }
+    case "copy-session-id": if !task.isTransient { store.copyCodexSessionID(task) }
+    case "copy-conversation-path": if !task.isTransient { store.copyCodexConversationPath(task) }
     case "copy-location": if let target = copyLocationTarget { store.copyLocation(target) }
     case "task-summary": taskSummary.toggle()
     case "files": openTaskFileSearch()
@@ -1127,20 +1165,22 @@ struct TaskWindowView: View {
         .accessibilityLabel("任务窗口添加附件")
         .disabled(store.importingImages || store.importingFiles)
 
-        Menu {
-          Button("模型会话", systemImage: ChatMode.standard.icon) {
-            if mode == .goal { store.pauseGoal(taskID) }
-            mode = .standard
+        if !task.isSideChat {
+          Menu {
+            Button("模型会话", systemImage: ChatMode.standard.icon) {
+              if mode == .goal { store.pauseGoal(taskID) }
+              mode = .standard
+            }
+            Button("计划模式", systemImage: ChatMode.plan.icon) {
+              if mode == .goal { store.pauseGoal(taskID) }
+              mode = .plan
+            }
+            Button("目标模式…", systemImage: ChatMode.goal.icon) { showingGoalEditor = true }
+          } label: {
+            Image(systemName: mode.icon)
           }
-          Button("计划模式", systemImage: ChatMode.plan.icon) {
-            if mode == .goal { store.pauseGoal(taskID) }
-            mode = .plan
-          }
-          Button("目标模式…", systemImage: ChatMode.goal.icon) { showingGoalEditor = true }
-        } label: {
-          Image(systemName: mode.icon)
+          .menuStyle(.borderlessButton).fixedSize().help(mode.title)
         }
-        .menuStyle(.borderlessButton).fixedSize().help(mode.title)
 
         ComposerTextEditor(
           text: draft,
@@ -1221,6 +1261,7 @@ struct TaskWindowView: View {
 
   private var taskWindowCommands: Set<ComposerCommand> {
     guard let task else { return [] }
+    if task.isSideChat { return [.chat, .model, .reasoning] }
     return Set(ComposerCommand.allCases.filter { command in
       if command == .fork { return store.canForkTaskWindow(taskID) }
       if command == .compact { return mode == .standard && store.canCompactConversation(taskID: taskID) }
@@ -1253,6 +1294,9 @@ struct TaskWindowView: View {
 
   private func selectTaskWindowCommand(_ command: ComposerCommand) {
     switch command {
+    case .side:
+      openSideChat(consumeCommand: true)
+      return
     case .fork:
       forkTask(consumeCommand: true)
       return

@@ -17,6 +17,13 @@ extension WorkspaceStore {
       Task { await toggleDictation(target: target) }
     case "branch": openBranchPicker()
     case "fork": forkConversation()
+    case "open-side-chat":
+      if let parent = selectedTask {
+        do {
+          let side = try createSideChat(from: parent.id)
+          taskWindowOpenRequest = .newWindow(taskID: side.id, dataRoot: dataRoot)
+        } catch { self.error = error.localizedDescription }
+      }
     case "open-task-window":
       if let task = selectedTask {
         taskWindowOpenRequest = .newWindow(taskID: task.id, dataRoot: dataRoot)
@@ -165,6 +172,9 @@ extension WorkspaceStore {
     case "browser-reload", "browser-reload-origin": return browserVisible && workspace.browser.selected != nil
     case "browser-copy": return browserVisible && workspace.browser.selected?.committedURL != nil
     case "fork": return destination == .workspace && canForkConversation
+    case "open-side-chat": return destination == .workspace && selectedTask.map {
+      canOpenSideChat(from: $0.id)
+    } == true
     case "open-task-window": return destination == .workspace && selectedTask != nil
     case "copy-task-link": return destination == .workspace && selectedTask != nil
     case "copy-session-id": return destination == .workspace && selectedTask?.copyableCodexThreadID != nil

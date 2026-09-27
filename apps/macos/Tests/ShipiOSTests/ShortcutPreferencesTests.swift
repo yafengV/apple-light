@@ -24,6 +24,7 @@ final class ShortcutPreferencesTests: XCTestCase {
     XCTAssertEqual(preferences.binding("recent-chat-6"), ShortcutBinding("⌘⌥6"))
     XCTAssertEqual(preferences.binding("copy-location"), ShortcutBinding("⌘⇧C"))
     XCTAssertEqual(preferences.binding("dictation"), ShortcutBinding("⌃⇧D"))
+    XCTAssertEqual(preferences.binding("open-side-chat"), ShortcutBinding("⌘⌥S"))
     XCTAssertNil(preferences.binding("browser-copy"))
     XCTAssertNil(preferences.binding("workspace-tabs"))
     XCTAssertNil(preferences.binding("search"))

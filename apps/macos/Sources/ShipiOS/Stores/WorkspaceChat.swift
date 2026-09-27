@@ -94,6 +94,12 @@ extension WorkspaceStore {
     do {
       let config = modelConfiguration(for: requestedTaskID)
       let usesCodex = config.apiProtocol == .codexResponses
+      let isSideChat = requestedTaskID.flatMap { id in
+        library.tasks.first(where: { $0.id == id })?.isSideChat
+      } == true
+      if isSideChat, mode != .standard || review != nil || compact {
+        throw AgentFailure(message: "临时侧聊只支持普通问答。")
+      }
       if compact {
         guard usesCodex, requestedTaskID != nil, mode == .standard, review == nil,
           images.isEmpty, files.isEmpty else {
@@ -103,7 +109,7 @@ extension WorkspaceStore {
       let initialModelSelection = requestedTaskID.flatMap { id in
         library.tasks.first(where: { $0.id == id })?.modelSelection
       }
-      let tools = usesCodex || mode == .plan || review != nil ? [] : try availableMCPTools()
+      let tools = usesCodex || mode == .plan || review != nil || isSideChat ? [] : try availableMCPTools()
       try config.validateEndpoint()
       guard !config.model.isEmpty else { throw AgentFailure(message: "请在设置 → 模型与 API 中配置独立服务。") }
       guard personalizationLoaded else {
@@ -149,6 +155,7 @@ extension WorkspaceStore {
       } ?? ""
       let instructions = [
         systemInstructions, modeInstructions, review == nil ? "" : ModelCodeReviewContext.instructions,
+        isSideChat ? "这是临时只读侧聊。只回答当前问题，不修改文件或运行有副作用的操作。主会话正在独立继续。" : "",
         pluginContext.instructions, workspaceInstructions,
       ]
         .filter { !$0.isEmpty }.joined(separator: "\n\n")
@@ -177,6 +184,7 @@ extension WorkspaceStore {
         }
       }
       if compact { request["conversation_kind"] = .string("compact") }
+      if isSideChat { request["conversation_kind"] = .string("side") }
       if !pluginContext.ids.isEmpty {
         request["plugins"] = .array(pluginContext.ids.map(JSONValue.string))
       }
@@ -256,7 +264,7 @@ extension WorkspaceStore {
               taskID: review == nil ? (taskID ?? run.id) : run.id,
               config: config, key: key, messages: messages, mode: mode,
               goalInstructions: mode == .goal ? modeInstructions : nil, review: review,
-              compact: compact)
+              compact: compact, sideChat: isSideChat)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
               messages: messages, bindings: tools)
@@ -306,7 +314,8 @@ extension WorkspaceStore {
   }
   private func streamCodexChat(
     runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage],
-    mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?, compact: Bool = false
+    mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?, compact: Bool = false,
+    sideChat: Bool = false
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
@@ -324,7 +333,7 @@ extension WorkspaceStore {
     let stream = try await codexTransport.startTurn(
       taskID: taskID, config: config, key: key,
       initialText: initialText, continuationText: continuationText, images: images,
-      fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil,
+      fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat,
       planMode: mode == .plan, goalInstructions: goalInstructions,
       mcpServers: mcpServers, permissions: library.agentRuntimePreferences,
       responses: library.agentResponsePreferences,
@@ -364,14 +373,16 @@ extension WorkspaceStore {
             if event["request"]["_meta"]["codex_approval_kind"].text == "mcp_tool_call",
               event["id"].text?.hasPrefix("mcp_tool_call_approval_") == true {
               try await resolveCodexMCPElicitation(runID: runID, taskID: taskID, event: event,
-                readOnlyReason: review != nil ? "代码审查为只读，已拒绝 MCP 工具调用。"
+                readOnlyReason: sideChat ? "侧聊为只读，已拒绝 MCP 工具调用。"
+                  : review != nil ? "代码审查为只读，已拒绝 MCP 工具调用。"
                   : mode == .plan ? "计划模式为只读，已拒绝 MCP 工具调用。" : nil)
             } else {
               try await handleCodexElicitation(runID: runID, taskID: taskID, event: event)
             }
           case "exec_approval_request", "apply_patch_approval_request":
             try await resolveCodexApproval(runID: runID, taskID: taskID, event: event,
-              readOnlyReason: review != nil ? "代码审查为只读，已拒绝写入操作。"
+              readOnlyReason: sideChat ? "侧聊为只读，已拒绝写入操作。"
+                : review != nil ? "代码审查为只读，已拒绝写入操作。"
                 : mode == .plan ? "计划模式为只读，已拒绝写入操作。" : nil)
           case "request_user_input":
             try await handleCodexQuestion(runID: runID, taskID: taskID, event: event)
@@ -997,6 +1008,18 @@ extension WorkspaceStore {
 
   func handleComposerCommand() -> Bool {
     let command = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let prompt = SideChatCommand.prompt(in: command) {
+      guard let parent = selectedTask else {
+        error = "请先打开主会话，再开启侧聊。"
+        return true
+      }
+      do {
+        let side = try createSideChat(from: parent.id, prompt: prompt)
+        draft = ""
+        taskWindowOpenRequest = .newWindow(taskID: side.id, dataRoot: dataRoot)
+      } catch { self.error = error.localizedDescription }
+      return true
+    }
     if command == "/compact" {
       guard canCompactConversation else {
         error = "只有已有的空闲 Codex 会话可以整理上下文；请先移除草稿附件或结束当前回合。"

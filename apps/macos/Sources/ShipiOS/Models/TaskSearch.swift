@@ -31,7 +31,7 @@ struct TaskSearchRequest: Equatable {
       let position: Int
     }
     let found: [Ranked] = tasks.enumerated().compactMap { position, task in
-      guard !Task.isCancelled, !task.isPopoutDraft else { return nil }
+      guard !Task.isCancelled, !task.isTransient else { return nil }
       let project = task.project.isEmpty ? "无项目" : names[task.project] ?? URL(fileURLWithPath: task.project).lastPathComponent
       func result(_ priority: Int, _ score: Int, _ source: String? = nil, _ text: String? = nil) -> Ranked {
         Ranked(result: TaskSearchResult(task: task, projectTitle: project, source: source,

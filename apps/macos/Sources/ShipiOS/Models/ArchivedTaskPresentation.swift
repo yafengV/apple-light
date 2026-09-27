@@ -42,7 +42,7 @@ struct ArchivedTaskPresentation {
       uniquingKeysWith: { first, _ in first })
     let byID = Dictionary((library.localRuns + runs).map { ($0.id, $0) },
       uniquingKeysWith: { first, last in first.updatedAt > last.updatedAt ? first : last })
-    entries = library.tasks.filter { $0.archived && !$0.isPopoutDraft }.map { original in
+    entries = library.tasks.filter { $0.archived && !$0.isTransient }.map { original in
       var task = original
       task.title = task.title.trimmingCharacters(in: .whitespacesAndNewlines)
       for id in task.runIDs { if let run = byID[id] { task.includeDates(from: run) } }

@@ -14,6 +14,10 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   var codexThreadID: String?
   /// Present only while a newly opened task window has not submitted its first message.
   var popoutDraft: Bool?
+  /// Temporary, window-only conversation linked to an ordinary parent task.
+  var sideChatParentID: String?
+  /// Completed parent turns captured when the side chat opens.
+  var sideChatSourceRunIDs: [String]?
   var createdAt: Date?
   var updatedAt: Date?
 
@@ -29,8 +33,10 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   }
 
   var isPopoutDraft: Bool { popoutDraft == true }
+  var isSideChat: Bool { sideChatParentID != nil }
+  var isTransient: Bool { isPopoutDraft || isSideChat }
   var copyableCodexThreadID: String? {
-    guard !isPopoutDraft, let codexThreadID,
+    guard !isTransient, let codexThreadID,
       UUID(uuidString: codexThreadID) != nil else { return nil }
     return codexThreadID
   }
@@ -519,7 +525,7 @@ struct WorkspaceLibrary: Codable {
       if saved.isEmpty { return nil }
       if tasks.contains(where: {
         $0.project == project && !$0.archived
-          && ($0.runIDs.contains(saved) || (!$0.isPopoutDraft && $0.runIDs.isEmpty && $0.id == saved))
+          && ($0.runIDs.contains(saved) || (!$0.isTransient && $0.runIDs.isEmpty && $0.id == saved))
       }) {
         return saved
       }
@@ -627,14 +633,14 @@ struct WorkspaceLibrary: Codable {
   func task(containing runID: String?) -> WorkspaceTask? {
     guard let runID else { return nil }
     return tasks.first {
-      $0.runIDs.contains(runID) || (!$0.isPopoutDraft && $0.runIDs.isEmpty && $0.id == runID)
+      $0.runIDs.contains(runID) || (!$0.isTransient && $0.runIDs.isEmpty && $0.id == runID)
     }
   }
 
   func visible(project: String, query: String, archived: Bool) -> [WorkspaceTask] {
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
     return tasks.filter {
-      !$0.isPopoutDraft && ($0.project == project || sidebarProject(for: $0) == project)
+      !$0.isTransient && ($0.project == project || sidebarProject(for: $0) == project)
         && $0.archived == archived
         && (query.isEmpty
           || $0.title.localizedCaseInsensitiveContains(query)

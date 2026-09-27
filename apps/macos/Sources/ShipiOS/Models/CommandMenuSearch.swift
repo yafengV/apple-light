@@ -7,7 +7,7 @@ enum CommandMenuSearch {
 
   static func pinned(library: WorkspaceLibrary, currentID: String?) -> [TaskSearchResult] {
     let byID = Dictionary(library.tasks.filter {
-      $0.pinned && !$0.archived && !$0.isPopoutDraft && $0.id != currentID
+      $0.pinned && !$0.archived && !$0.isTransient && $0.id != currentID
     }.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     return library.sidebarItems(in: SidebarLayout.pinned).compactMap { item -> TaskSearchResult? in
       guard case .task(let id) = item, let task = byID[id] else { return nil }
@@ -19,7 +19,7 @@ enum CommandMenuSearch {
 
   static func recent(library: WorkspaceLibrary, currentID: String?) -> [TaskSearchResult] {
     let eligible = library.tasks.filter {
-      !$0.archived && !$0.isPopoutDraft && !$0.pinned && $0.id != currentID
+      !$0.archived && !$0.isTransient && !$0.pinned && $0.id != currentID
     }
     let byID = Dictionary(eligible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let chronological = eligible.enumerated().sorted {
@@ -38,8 +38,8 @@ enum CommandMenuSearch {
 
 extension WorkspaceLibrary {
   @discardableResult mutating func recordTaskVisit(_ id: String) -> Bool {
-    guard tasks.contains(where: { $0.id == id && !$0.isPopoutDraft }) else { return false }
-    let valid = Set(tasks.filter { !$0.isPopoutDraft }.map(\.id))
+    guard tasks.contains(where: { $0.id == id && !$0.isTransient }) else { return false }
+    let valid = Set(tasks.filter { !$0.isTransient }.map(\.id))
     var seen: Set<String> = [id]
     let next = [id] + recentTaskIDs.filter { valid.contains($0) && seen.insert($0).inserted }
     guard next != recentTaskIDs else { return false }

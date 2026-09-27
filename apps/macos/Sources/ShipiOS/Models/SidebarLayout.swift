@@ -84,7 +84,7 @@ extension WorkspaceLibrary {
     let candidates =
       projects.filter { path in !managedWorktrees.contains(where: { $0.path == path }) }
         .map(SidebarItem.project)
-      + tasks.filter { !$0.archived && !$0.isPopoutDraft }.map { SidebarItem.task($0.id) }
+      + tasks.filter { !$0.archived && !$0.isTransient }.map { SidebarItem.task($0.id) }
       + pinnedContentTabs.map { SidebarItem.contentTab($0.id) }
     let visible = candidates.filter { sidebarSection(for: $0) == section }
     let saved = sidebar.order[section] ?? []
