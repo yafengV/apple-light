@@ -95,6 +95,8 @@ extension WorkspaceStore {
     case "archive": if let t = selectedTask { updateTask(t.id, archive: true) }
     case "doctor": Task { await start("doctor") }
     case "build": Task { await start("build") }
+    case "environment-action-1":
+      if let action = availableEnvironmentActions.first { runEnvironmentAction(action) }
     case "stop": Task { await cancel() }
     default: break
     }
@@ -181,6 +183,7 @@ extension WorkspaceStore {
     case "open": return activeLocalRun == nil && !busy
     case "doctor": return destination == .workspace && canStart
     case "build": return destination == .workspace && canBuild
+    case "environment-action-1": return destination == .workspace && !availableEnvironmentActions.isEmpty
     case "stop": return selectedActiveRun != nil || activeLocalRun != nil
     case "pet": return petsLoaded
     case "open-skills": return pluginsEnabled

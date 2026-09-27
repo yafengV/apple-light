@@ -92,7 +92,7 @@ final class TaskWindowCommandTests: XCTestCase {
   }
 
   func testTaskCommandsStayLocalIncludingUnavailablePanelAndNumberNavigation() {
-    for id in ["new", "new-alternate", "palette", "palette-alternate", "search", "send", "stop", "find", "pin", "archive", "rename", "fork", "open-task-window", "task-summary", "tree", "browser-copy", "tab-close", "focus-tab-1", "focus-chat-9"] {
+    for id in ["new", "new-alternate", "palette", "palette-alternate", "search", "send", "stop", "find", "pin", "archive", "rename", "fork", "open-task-window", "task-summary", "environment-action-1", "tree", "browser-copy", "tab-close", "focus-tab-1", "focus-chat-9"] {
       XCTAssertTrue(TaskWindowCommandContext.owns(id), id)
     }
     for id in ["settings", "shortcuts", "open", "projects", "plugins", "automations", "new-standalone"] {

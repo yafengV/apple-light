@@ -30,6 +30,30 @@ final class TerminalSessionTests: XCTestCase {
     XCTAssertTrue(store.showingTerminal)
   }
 
+  @MainActor func testPrimaryEnvironmentShortcutRunsFirstMacActionInsteadOfFixedBuild() async throws {
+    let root = try folder()
+    let store = WorkspaceStore()
+    defer { store.workspace.terminals.shutdown() }
+    store.project = root
+    let linux = EnvironmentAction(title: "Linux", script: "exit 3", platform: .linux)
+    let first = EnvironmentAction(title: "First", script: "printf first > first-action")
+    let second = EnvironmentAction(title: "Second", script: "printf second > second-action")
+    store.library.profiles[root.path] = BuildProfile(actions: [linux, first, second])
+
+    XCTAssertEqual(store.shortcuts.binding("environment-action-1"), ShortcutBinding("⌘⇧D"))
+    XCTAssertNil(store.shortcuts.binding("build"))
+    XCTAssertTrue(store.commandEnabled("environment-action-1"))
+    store.executeCommand("environment-action-1")
+    let session = try XCTUnwrap(store.focusedWorkspaceContentTab?.terminalID.flatMap(store.terminalSession))
+    XCTAssertEqual(session.displayTitle, "First")
+    try await eventually("Primary action did not run") {
+      FileManager.default.fileExists(atPath: root.appendingPathComponent("first-action").path)
+    }
+    XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("second-action").path))
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("environment-action-1"))
+  }
+
   @MainActor func testTerminalShortcutUsesConfiguredRightPanelAndTogglesIt() throws {
     let store = WorkspaceStore()
     store.project = URL(fileURLWithPath: "/tmp")

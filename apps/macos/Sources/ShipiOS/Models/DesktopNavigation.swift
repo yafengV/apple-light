@@ -54,6 +54,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "reload-skills", title: "重新加载技能", icon: "arrow.clockwise", shortcut: ""),
     .init(id: "automations", title: "自动化", icon: "clock.arrow.circlepath", shortcut: ""),
     .init(id: "open", title: "打开文件夹…", icon: "folder.badge.plus", shortcut: "⌘O"),
+    .init(id: "environment-action-1", title: "运行首个环境操作", icon: "play.square", shortcut: "⌘⇧D"),
     .init(id: "files", title: "搜索文件", icon: "doc.text.magnifyingglass", shortcut: "⌘P"),
     .init(id: "tree", title: "切换文件树", icon: "sidebar.right", shortcut: "⌘⇧E"),
     .init(id: "terminal", title: "切换终端", icon: "terminal", shortcut: "⌃`"),
@@ -99,7 +100,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "unread", title: "标记为未读", icon: "circle.fill", shortcut: "⌘⇧U"),
     .init(id: "archive", title: "归档任务", icon: "archivebox", shortcut: "⌘⇧A"),
     .init(id: "doctor", title: "检查开发环境", icon: "stethoscope", shortcut: ""),
-    .init(id: "build", title: "构建 iOS 项目", icon: "hammer", shortcut: "⌘⇧D"),
+    .init(id: "build", title: "构建 iOS 项目", icon: "hammer", shortcut: ""),
     .init(id: "stop", title: "停止执行", icon: "stop", shortcut: "⌘."),
     .init(id: "approval-approve", title: "批准当前请求", icon: "checkmark.shield", shortcut: "↵"),
     .init(id: "approval-decline", title: "拒绝当前请求", icon: "xmark.shield", shortcut: "⎋"),
@@ -133,7 +134,7 @@ extension DesktopCommand {
       "search", "sidebar": .navigation
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
-    case "projects", "open", "branch", "doctor", "build": .project
+    case "projects", "open", "branch", "environment-action-1", "doctor", "build": .project
     case "settings", "shortcuts", "plugins", "automations": .configure
     case "open-skills", "reload-skills": .skills
     default: .app

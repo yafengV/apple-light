@@ -631,6 +631,10 @@ struct TaskWindowView: View {
         enabled.formUnion(["find-next", "find-previous"])
       }
       if !task.project.isEmpty { enabled.formUnion(["files", "tree", "review", "review-open", "terminal", "bottom-panel"]) }
+      if panels.workspace.root != nil,
+        store.library.profiles[task.project]?.actions.contains(where: \.isRunnableOnMac) == true {
+        enabled.insert("environment-action-1")
+      }
       for command in DesktopCommand.all where tabs.commandEnabled(command.id) {
         enabled.insert(command.id)
       }
@@ -688,6 +692,10 @@ struct TaskWindowView: View {
         let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
       else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
     case "model": openTaskModelPicker()
+    case "environment-action-1":
+      if let action = store.library.profiles[task.project]?.actions.first(where: \.isRunnableOnMac) {
+        runEnvironmentAction(action, task: task)
+      }
     case "fork": forkTask()
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
     case "task-summary": taskSummary.toggle()

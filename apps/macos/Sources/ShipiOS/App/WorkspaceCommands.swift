@@ -80,6 +80,7 @@ struct WorkspaceCommands: Commands {
       command("plugins")
       command("automations")
       Divider()
+      command("environment-action-1")
       command("doctor")
       command("build")
       command("model")
