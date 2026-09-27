@@ -5,9 +5,9 @@ enum AppDestination: Equatable {
 }
 
 enum WorkspaceOverlay: String, Identifiable, CaseIterable {
-  case commands, taskSearch, fileSearch, imagePreview, filePreview, worktreeCreation
+  case commands, taskSearch, fileSearch, projectPicker, imagePreview, filePreview, worktreeCreation
   var id: String { rawValue }
-  var isSearchDialog: Bool { self == .commands || self == .taskSearch || self == .fileSearch }
+  var isSearchDialog: Bool { self == .commands || self == .taskSearch || self == .fileSearch || self == .projectPicker }
   var usesWindowOverlay: Bool { self == .imagePreview || isSearchDialog }
 }
 

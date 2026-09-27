@@ -50,6 +50,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "new", title: "新任务", icon: "square.and.pencil", shortcut: "⌘N"),
     .init(id: "search", title: "搜索任务", icon: "magnifyingglass", shortcut: ""),
     .init(id: "projects", title: "项目", icon: "folder", shortcut: ""),
+    .init(id: "project-picker", title: "选择项目", icon: "folder.badge.gearshape", shortcut: "⌘⌥⇧O"),
     .init(id: "plugins", title: "插件", icon: "shippingbox", shortcut: ""),
     .init(id: "open-skills", title: "打开技能", icon: "wand.and.stars", shortcut: ""),
     .init(id: "reload-skills", title: "重新加载技能", icon: "arrow.clockwise", shortcut: ""),
@@ -135,7 +136,7 @@ extension DesktopCommand {
       "search", "sidebar": .navigation
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
-    case "projects", "open", "branch", "environment-action-1", "doctor", "build": .project
+    case "projects", "project-picker", "open", "branch", "environment-action-1", "doctor", "build": .project
     case "settings", "shortcuts", "plugins", "automations": .configure
     case "open-skills", "reload-skills": .skills
     default: .app

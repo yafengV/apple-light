@@ -48,6 +48,7 @@ extension WorkspaceStore {
     case "settings": openSettings()
     case "pet": togglePet()
     case "open": chooseProject()
+    case "project-picker": setOverlay(.projectPicker, presented: true)
     case "files":
       destination = .workspace
       showingFileSearch = true
@@ -183,6 +184,7 @@ extension WorkspaceStore {
     case "bottom-panel": return project != nil
     case "new", "new-alternate", "new-standalone": return !busy && (project == nil || activeLocalRun == nil)
     case "open": return activeLocalRun == nil && !busy
+    case "project-picker": return destination == .workspace && activeLocalRun == nil && !busy && libraryLoaded
     case "doctor": return destination == .workspace && canStart
     case "build": return destination == .workspace && canBuild
     case "environment-action-1": return destination == .workspace && !availableEnvironmentActions.isEmpty

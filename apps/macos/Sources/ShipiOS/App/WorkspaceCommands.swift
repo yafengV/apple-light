@@ -23,6 +23,7 @@ struct WorkspaceCommands: Commands {
       command("new-alternate")
       command("new-standalone")
       command("open")
+      command("project-picker")
     }
     CommandMenu("任务") {
       command("send")
@@ -127,7 +128,8 @@ struct WorkspaceCommands: Commands {
       if id == "new" || id == "new-alternate" { openWindow(id: "main") }
     } else {
       store.executeCommand(id)
-      if id == "settings" || id == "shortcuts" || id == "new-standalone" { openWindow(id: "main") }
+      if id == "project-picker", taskWindowCommands != nil { store.searchDialogReturnFocus = nil }
+      if id == "settings" || id == "shortcuts" || id == "new-standalone" || id == "project-picker" { openWindow(id: "main") }
     }
   }
   private func performApproval(_ action: () -> Void) {

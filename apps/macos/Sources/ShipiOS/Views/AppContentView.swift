@@ -82,6 +82,7 @@ struct AppContentView: View {
         case .commands: CommandPaletteView(store: store)
         case .taskSearch: TaskSearchView(store: store)
         case .fileSearch: FileSearchView(store: store)
+        case .projectPicker: ProjectPickerView(store: store)
         default: EmptyView()
         }
       }
@@ -106,7 +107,7 @@ struct AppContentView: View {
         store.restoreOverlayFocus()
       }) { overlay in
         switch overlay {
-        case .commands, .taskSearch, .fileSearch: EmptyView()
+        case .commands, .taskSearch, .fileSearch, .projectPicker: EmptyView()
         case .worktreeCreation:
           if let path = store.worktreeSource {
             WorktreeCreationView(store: store, root: URL(fileURLWithPath: path))

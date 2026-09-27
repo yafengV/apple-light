@@ -3,6 +3,41 @@ import XCTest
 @testable import ShipiOS
 
 final class ProjectNavigationTests: XCTestCase {
+  func testProjectPickerFiltersSavedProjectsAndKeepsLibraryOrder() {
+    var library = WorkspaceLibrary()
+    library.projects = ["/projects/App", "/projects/Backend"]
+    library.pinnedProjects.insert("/projects/Backend")
+    library.projectNames["/projects/App"] = "My App"
+    XCTAssertEqual(ProjectPickerOption.options(in: library, query: ""), [
+      .projectless, .project("/projects/Backend"), .project("/projects/App"), .addFolder,
+    ])
+    XCTAssertEqual(ProjectPickerOption.options(in: library, query: "my app"), [
+      .project("/projects/App"), .addFolder,
+    ])
+    XCTAssertEqual(ProjectPickerOption.options(in: library, query: "backend"), [
+      .project("/projects/Backend"), .addFolder,
+    ])
+  }
+
+  @MainActor func testProjectPickerCommandOpensSearchOverlayOnlyWhenWorkspaceCanSwitch() {
+    let store = WorkspaceStore()
+    store.libraryLoaded = true
+    XCTAssertEqual(DesktopCommand.all.first(where: { $0.id == "project-picker" })?.defaultBinding,
+      ShortcutBinding("⌘⌥⇧O"))
+    XCTAssertTrue(store.commandEnabled("project-picker"))
+    store.executeCommand("project-picker")
+    XCTAssertEqual(store.presentedOverlay, .projectPicker)
+    XCTAssertTrue(WorkspaceOverlay.projectPicker.isSearchDialog)
+    XCTAssertFalse(store.commandEnabled("project-picker"))
+    store.setOverlay(.projectPicker, presented: false)
+    store.busy = true
+    XCTAssertFalse(store.commandEnabled("project-picker"))
+    store.busy = false
+    store.destination = .settings
+    XCTAssertFalse(store.commandEnabled("project-picker"))
+    XCTAssertFalse(TaskWindowCommandContext.owns("project-picker"))
+  }
+
   @MainActor func testRenameReentrySeedsEachTargetBeforePresenting() {
     let store = WorkspaceStore()
     store.library.projects = ["/a", "/b"]
