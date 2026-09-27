@@ -28,6 +28,8 @@ struct TaskWindowView: View {
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
   @State private var showingTaskStatus = false
+  @State private var executionRunID: String?
+  @State private var executionInspectorTab = "overview"
   @State private var taskSummary = TaskSummaryPresentation()
   @State private var renameTitle: String?
   @State private var dropTargeted = false
@@ -65,6 +67,9 @@ struct TaskWindowView: View {
   private var browsers: TaskWindowBrowsers { resources.browsers }
   private var taskWorkspace: DeveloperWorkspace { panels.workspace }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
+  private var inspectedRun: AgentRun? {
+    taskRuns.first { $0.id == executionRunID && $0.kind == "chat" }
+  }
   private var copyLocationTarget: CopyLocationTarget? {
     let id = tabs.focused?.browserID
     let page = id.flatMap { id in browser.session.tabs.first { $0.id == id } }
@@ -286,6 +291,7 @@ struct TaskWindowView: View {
               Button { openTaskFileSearch() } label: { Image(systemName: "doc.text.magnifyingglass") }
                 .help("搜索任务文件 " + store.shortcuts.label("files")).accessibilityLabel("搜索任务文件")
               Button {
+                executionRunID = nil
                 panels.showingFiles.toggle()
               } label: {
                 Image(systemName: "doc")
@@ -446,6 +452,7 @@ struct TaskWindowView: View {
 
   var body: some View {
     routedTaskContent
+    .onChange(of: taskID) { _, _ in executionRunID = nil }
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
@@ -946,7 +953,7 @@ struct TaskWindowView: View {
   }
 
   private var showsSidePanel: Bool {
-    panels.showingFiles || (tabs.showingRight && tabs.selected(.right) != nil)
+    inspectedRun != nil || panels.showingFiles || (tabs.showingRight && tabs.selected(.right) != nil)
   }
 
   private func hiddenPanelDropTarget(_ placement: WorkspaceTabPlacement, title: String, icon: String) -> some View {
@@ -980,7 +987,11 @@ struct TaskWindowView: View {
   }
 
   @ViewBuilder private func rightContent(_ geometry: GeometryProxy) -> some View {
-    if panels.showingFiles {
+    if let run = inspectedRun {
+      ChatRunInspectorView(store: store, run: run, tab: $executionInspectorTab,
+        close: { executionRunID = nil })
+        .frame(width: panels.panelSizes.inspector(available: geometry.size.width))
+    } else if panels.showingFiles {
       TaskWindowFilesPanel(store: store, workspace: taskWorkspace, close: { panels.showingFiles = false })
         .frame(width: panels.panelSizes.inspector(available: geometry.size.width))
         .taskWindowDropDestination(tabs: tabs, placement: .right)
@@ -1049,6 +1060,10 @@ struct TaskWindowView: View {
             TaskWindowMessageView(
               store: store, run: run,
               onPreviewFile: { previewFile = $0 },
+              onInspect: { selected in
+                executionRunID = selected.id
+                executionInspectorTab = "overview"
+              },
               canFork: !windowCommandsBlocked && store.canForkTaskWindow(taskID, through: run.id),
               onFork: { forkTask(through: run.id) }
             ).id(run.id)
@@ -1500,6 +1515,7 @@ private struct TaskWindowMessageView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
   let onPreviewFile: (FileAttachment) -> Void
+  let onInspect: (AgentRun) -> Void
   let canFork: Bool
   let onFork: () -> Void
   @State private var copied = false
@@ -1525,6 +1541,12 @@ private struct TaskWindowMessageView: View {
           Text(run.kind == "chat" ? (run.request["model"].text ?? "模型") : "本地执行")
             .appFont(.caption).foregroundStyle(.tertiary)
           Spacer()
+          if run.kind == "chat" {
+            Button { onInspect(run) } label: {
+              Image(systemName: "list.bullet.rectangle")
+            }.buttonStyle(.plain).help("查看执行详情")
+              .accessibilityLabel("查看模型执行详情")
+          }
           StatusLabel(run: run).appFont(.caption)
         }
         if run.kind == "chat" {

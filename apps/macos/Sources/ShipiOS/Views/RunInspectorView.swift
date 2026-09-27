@@ -4,7 +4,8 @@ struct RunInspectorView: View {
   @Bindable var store: WorkspaceStore
   var body: some View {
     if let run = store.selectedRun, run.kind == "chat" {
-      ChatRunInspectorView(store: store, run: run)
+      ChatRunInspectorView(store: store, run: run, tab: $store.inspectorTab,
+        close: { store.showingInspector = false })
     } else {
       localRunInspector
     }

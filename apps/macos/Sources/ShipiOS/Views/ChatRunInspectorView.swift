@@ -4,12 +4,13 @@ import SwiftUI
 struct ChatRunInspectorView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
+  @Binding var tab: String
+  let close: () -> Void
 
   private var selectedTab: Binding<String> {
     Binding {
-      ["overview", "tools", "output"].contains(store.inspectorTab)
-        ? store.inspectorTab : "overview"
-    } set: { store.inspectorTab = $0 }
+      ["overview", "tools", "output"].contains(tab) ? tab : "overview"
+    } set: { tab = $0 }
   }
 
   var body: some View {
@@ -17,9 +18,7 @@ struct ChatRunInspectorView: View {
       HStack {
         Text("执行详情").appFont(.headline)
         Spacer()
-        Button {
-          store.showingInspector = false
-        } label: {
+        Button(action: close) {
           Image(systemName: "xmark")
         }.buttonStyle(.plain).help("关闭详情")
       }.padding(16)
