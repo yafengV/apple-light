@@ -94,6 +94,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         if path == '/cookie':
             self.send_header('Set-Cookie', 'fixture=yes; Path=/')
+        if path == '/persistent-cookie':
+            self.send_header('Set-Cookie', 'fixture=yes; Max-Age=3600; Path=/')
         self.send_header('Cache-Control', 'max-age=3600' if path == '/cache' else 'no-store')
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()

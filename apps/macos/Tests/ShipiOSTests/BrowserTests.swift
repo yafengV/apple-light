@@ -1868,6 +1868,36 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(mainAfterClear, "")
     XCTAssertEqual(taskAfterClear, "")
   }
+  @MainActor func testPersistentBrowserProfileRestoresCookiesInANewWorkspaceSession() async throws {
+    let identifier = UUID()
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    var first: WorkspaceStore? = WorkspaceStore(dataRoot: root,
+      browserDataStore: WKWebsiteDataStore(forIdentifier: identifier))
+    await first?.restore()
+    do {
+      let initialTab = try XCTUnwrap(first?.workspace.browser.newTab())
+      try await load(initialTab, "/persistent-cookie", title: "/persistent-cookie")
+      let initialCookie = try await initialTab.view.evaluateJavaScript("document.cookie") as? String
+      XCTAssertEqual(initialCookie, "fixture=yes")
+      first?.workspace.browser.shutdown()
+    }
+    first = nil
+
+    let reopened = WorkspaceStore(dataRoot: root,
+      browserDataStore: WKWebsiteDataStore(forIdentifier: identifier))
+    await reopened.restore()
+    let restoredTab = reopened.workspace.browser.newTab()
+    try await load(restoredTab, "/one", title: "One")
+    let restoredCookie = try await restoredTab.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(restoredCookie, "fixture=yes")
+
+    await reopened.clearBrowserData(includeHistory: false)
+    let clearedCookie = try await restoredTab.view.evaluateJavaScript("document.cookie") as? String
+    XCTAssertEqual(clearedCookie, "")
+    reopened.workspace.browser.shutdown()
+  }
   func testArrowShortcutsMatchNativeKeyEvents() throws {
     let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
       modifierFlags: [.command], timestamp: 0, windowNumber: 0, context: nil,
