@@ -37,10 +37,13 @@ struct FileWorkspaceView: View {
           Spacer()
           Button("跳转到行…") { workspace.showingFileLine = true }
             .disabled(workspace.fileLoading || workspace.fileError != nil).help("跳转到行 \(store.shortcuts.label("browser-address"))")
-          Button("打开") {
-            if let root = workspace.root { Task { await store.openProjectFile(file, root: root) } }
-          }
+          Button("在编辑器中打开") { Task { await store.openProjectFile(file, in: workspace) } }
+            .help("在\(store.preferredEditor.title)中打开")
         }.buttonStyle(.plain).appFont(.caption).padding(10)
+        if let error = workspace.fileOpenError {
+          Text(error).foregroundStyle(.orange).textSelection(.enabled).appFont(.caption)
+            .padding(.horizontal, 10).padding(.bottom, 8)
+        }
         Divider()
         if workspace.showingFileLine { linePicker }
         if let error = workspace.fileError {

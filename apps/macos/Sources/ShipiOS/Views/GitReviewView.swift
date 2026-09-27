@@ -102,6 +102,9 @@ struct GitReviewView: View {
         if let error = workspace.error {
           Text(error).appFont(.caption).foregroundStyle(.orange).padding(10)
         }
+        if let error = workspace.fileOpenError {
+          Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(10)
+        }
         if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
           if !workspace.canCommit {
             Text("提交整个仓库前，请先打开仓库根目录以审查全部暂存内容。").appFont(.caption).foregroundStyle(.secondary)

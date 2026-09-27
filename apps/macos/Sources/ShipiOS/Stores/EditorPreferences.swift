@@ -125,10 +125,17 @@ extension WorkspaceStore {
       saveLibrary()
     }
   }
-  func openProjectFile(_ path: String, root: URL, line: Int? = nil) async {
-    workspace.error = nil
+  func openProjectFile(_ path: String, in target: DeveloperWorkspace, line: Int? = nil) async {
+    guard let root = target.root else { return }
+    let request = UUID()
+    target.fileOpenRequest = request
+    target.fileOpenError = nil
     do {
       try await ExternalEditorService.open(path, root: root, line: line, editor: preferredEditor)
-    } catch { if workspace.root == root { workspace.error = error.localizedDescription } }
+    } catch {
+      if target.root == root, target.fileOpenRequest == request {
+        target.fileOpenError = error.localizedDescription
+      }
+    }
   }
 }

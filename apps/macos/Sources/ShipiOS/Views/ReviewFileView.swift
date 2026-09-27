@@ -126,7 +126,7 @@ struct ReviewFileView: View {
     }
   }
   private func openFile(line: Int? = nil) {
-    Task { await store.openProjectFile(file.path, root: root, line: line) }
+    Task { await store.openProjectFile(file.path, in: workspace, line: line) }
   }
   private func anchor(_ line: ReviewDiffLine, patch: ReviewDiff) -> ReviewAnchor {
     .init(

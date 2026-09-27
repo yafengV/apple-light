@@ -11,6 +11,8 @@ final class DeveloperWorkspace {
   var fileText = ""
   var fileLoading = false
   var fileError: String?
+  var fileOpenError: String?
+  var fileOpenRequest = UUID()
   var filesError: String?
   var fileFocusRequest = UUID()
   var showingFileLine = false
@@ -92,6 +94,8 @@ final class DeveloperWorkspace {
     fileText = ""
     fileLoading = false
     fileError = nil
+    fileOpenError = nil
+    fileOpenRequest = UUID()
     filesError = nil
     showingFileLine = false
     fileLineRange = nil
@@ -148,6 +152,8 @@ final class DeveloperWorkspace {
     if !openFiles.contains(path) { openFiles.append(path) }
     fileText = ""
     fileError = nil
+    fileOpenError = nil
+    fileOpenRequest = UUID()
     fileLoading = true
     showingFileLine = false
     fileLineRange = nil
@@ -176,6 +182,8 @@ final class DeveloperWorkspace {
     selectedFile = nil
     fileText = ""
     fileError = nil
+    fileOpenError = nil
+    fileOpenRequest = UUID()
     fileLoading = false
     showingFileLine = false
     fileLineRange = nil

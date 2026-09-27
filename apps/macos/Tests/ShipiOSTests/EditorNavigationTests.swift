@@ -55,4 +55,21 @@ final class EditorNavigationTests: XCTestCase {
     XCTAssertNil(removed.newLine)
     XCTAssertEqual(removed.workingLine, 8)
   }
+
+  @MainActor func testEditorOpenFailureStaysWithOwningWorkspaceAndClearsOnFileSwitch() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"))
+    let taskWorkspace = DeveloperWorkspace()
+    taskWorkspace.root = root
+    taskWorkspace.selectedFile = "Missing.swift"
+    taskWorkspace.openFiles = ["Missing.swift"]
+    await store.openProjectFile("Missing.swift", in: taskWorkspace)
+    XCTAssertNotNil(taskWorkspace.fileOpenError)
+    XCTAssertNil(store.workspace.fileOpenError)
+    XCTAssertNil(store.workspace.error)
+    await taskWorkspace.selectFile("Other.swift")?.value
+    XCTAssertNil(taskWorkspace.fileOpenError)
+  }
 }
