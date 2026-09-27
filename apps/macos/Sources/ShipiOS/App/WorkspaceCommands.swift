@@ -67,6 +67,7 @@ struct WorkspaceCommands: Commands {
       command("shortcuts")
       Divider()
       command("sidebar")
+      command("activity")
       command("files")
       command("tree")
       command("review")
@@ -135,7 +136,8 @@ struct WorkspaceCommands: Commands {
     } else {
       store.executeCommand(id)
       if id == "project-picker", taskWindowCommands != nil { store.searchDialogReturnFocus = nil }
-      if id == "settings" || id == "shortcuts" || id == "new-standalone" || id == "project-picker" { openWindow(id: "main") }
+      if id == "settings" || id == "shortcuts" || id == "new-standalone" || id == "project-picker"
+        || id == "activity" { openWindow(id: "main") }
     }
   }
   private func performApproval(_ action: () -> Void) {

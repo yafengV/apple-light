@@ -576,7 +576,7 @@ struct TaskWindowView: View {
     SearchDialogContext(currentTaskID: taskID, commandEnabled: { id in
       guard searchMode == .commands, !otherWindowModalActive else { return false }
       if TaskWindowCommandContext.owns(id) { return availableWindowCommands.contains(id) }
-      return ["settings", "shortcuts", "projects", "plugins", "open-skills", "reload-skills", "automations", "new-standalone", "open", "pet", "clear-unread"].contains(id)
+      return ["settings", "shortcuts", "projects", "plugins", "open-skills", "reload-skills", "automations", "activity", "new-standalone", "open", "pet", "clear-unread"].contains(id)
         && store.commandEnabled(id)
     }, performCommand: { id in
       switch id {

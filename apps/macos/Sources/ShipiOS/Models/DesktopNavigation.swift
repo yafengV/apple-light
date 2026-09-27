@@ -40,6 +40,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "previous-task", title: "上一个任务或标签", icon: "arrow.up", shortcut: "⌃⇧⇥", alternates: ["⌘⇧[", "⌘⌥←"]),
     .init(id: "next-task", title: "下一个任务或标签", icon: "arrow.down", shortcut: "⌃⇥", alternates: ["⌘⇧]", "⌘⌥→"]),
     .init(id: "next-attention", title: "下一个需关注的任务", icon: "circle.badge.exclamationmark", shortcut: "⌘⌥A"),
+    .init(id: "activity", title: "显示或隐藏活动", icon: "bell", shortcut: "⌘⌥U"),
     .init(id: "clear-unread", title: "清除全部未读标记", icon: "checkmark.circle", shortcut: "⇧⎋"),
     .init(id: "back", title: "返回", icon: "arrow.left", shortcut: "⌘["),
     .init(id: "forward", title: "前进", icon: "arrow.right", shortcut: "⌘]"),
@@ -147,7 +148,7 @@ extension DesktopCommand {
     return switch id {
     case "new", "new-alternate", "new-standalone", "send", "model", "fork", "open-task-window", "copy-task-link", "copy-session-id", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
-    case "previous-task", "next-task", "next-attention", "clear-unread", "back", "forward",
+    case "previous-task", "next-task", "next-attention", "activity", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels

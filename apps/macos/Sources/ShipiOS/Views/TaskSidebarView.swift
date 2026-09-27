@@ -32,6 +32,10 @@ struct TaskSidebarView: View {
         navButton("搜索任务", "magnifyingglass", shortcut: store.shortcuts.label("search")) {
           store.showingSearch = true
         }
+        navButton("活动", store.activityBadgeCount > 0 ? "bell.badge" : "bell",
+          shortcut: store.shortcuts.label("activity"), selected: store.destination == .activity) {
+          store.toggleActivity()
+        }.disabled(!store.libraryLoaded)
         navButton("项目", "folder", selected: store.destination == .projects) { store.showProjects() }
         navButton("插件", "shippingbox", selected: store.destination == .plugins || store.destination == .pluginDetail) { store.showPlugins() }
         navButton("自动化", "clock.arrow.circlepath", selected: store.destination == .automations) {

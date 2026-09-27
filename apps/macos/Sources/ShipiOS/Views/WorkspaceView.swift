@@ -114,6 +114,8 @@ struct WorkspaceView: View {
           ? "设置"
           : store.destination == .pluginDetail
             ? store.currentPluginDetail?.name ?? "插件详情"
+          : store.destination == .activity
+            ? "活动"
           : store.destination == .projects
             ? "项目"
             : store.destination == .plugins
@@ -380,7 +382,8 @@ struct WorkspaceView: View {
             .overlay {
               ZStack {
                 Group {
-                  if store.retainsProjectsPage { ProjectLibraryView(store: store) }
+                  if store.retainsActivityPage { ActivityView(store: store) }
+                  else if store.retainsProjectsPage { ProjectLibraryView(store: store) }
                   else if store.retainsPluginsPage { PluginsView(store: store) }
                   else if store.retainsAutomationsPage { AutomationsView(store: store) }
                 }

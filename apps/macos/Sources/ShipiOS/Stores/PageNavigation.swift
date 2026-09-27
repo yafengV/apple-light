@@ -1,7 +1,7 @@
 import AppKit
 
 enum AppDestination: Equatable {
-  case workspace, projects, plugins, pluginDetail, automations, settings
+  case workspace, activity, projects, plugins, pluginDetail, automations, settings
 }
 
 enum WorkspaceOverlay: String, Identifiable, CaseIterable {
@@ -45,8 +45,10 @@ extension WorkspaceStore {
     destination == .settings || (destination == .pluginDetail && pluginDetailRoute?.origin == .settings)
   }
   var retainsAutomationsPage: Bool { retainedPageDestination == .automations }
+  var retainsActivityPage: Bool { retainedPageDestination == .activity }
   var retainsStandalonePage: Bool {
-    retainsProjectsPage || retainsPluginsPage || retainsAutomationsPage || destination == .pluginDetail
+    retainsProjectsPage || retainsPluginsPage || retainsAutomationsPage || retainsActivityPage
+      || destination == .pluginDetail
   }
   func openSettings(_ page: SettingsPage? = nil) {
     guard !hasSettingsConfirmation else { return }
@@ -109,6 +111,17 @@ extension WorkspaceStore {
     showingBranchPicker = false
     presentedOverlay = nil
     destination = .automations
+  }
+
+  func toggleActivity() {
+    guard libraryLoaded else { return }
+    if destination == .activity { returnToWorkspace(); return }
+    pluginDetailForwardRoute = nil
+    pluginDetailRoute = nil
+    showingBranchPicker = false
+    showingModelPicker = false
+    presentedOverlay = nil
+    destination = .activity
   }
 
   func returnToWorkspace() {

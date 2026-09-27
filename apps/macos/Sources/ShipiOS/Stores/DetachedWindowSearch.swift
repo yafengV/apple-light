@@ -5,7 +5,7 @@ import Observation
   private(set) var mode: TaskWindowSearchMode?
   @ObservationIgnored private var returnFocus: SearchDialogReturnFocus?
   private static let globalCommands: Set<String> = [
-    "settings", "shortcuts", "projects", "plugins", "automations", "new-standalone", "open", "pet", "clear-unread"
+    "settings", "shortcuts", "projects", "plugins", "automations", "activity", "new-standalone", "open", "pet", "clear-unread"
   ]
 
   func open(_ mode: TaskWindowSearchMode, window: NSWindow?) {

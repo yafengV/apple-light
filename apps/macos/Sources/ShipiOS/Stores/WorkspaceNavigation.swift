@@ -34,6 +34,7 @@ extension WorkspaceStore {
     case "previous-task": adjacentTaskOrTab(-1)
     case "next-task": adjacentTaskOrTab(1)
     case "next-attention": Task { await openNextAttentionTask() }
+    case "activity": toggleActivity()
     case "clear-unread": clearUnreadTasks()
     case "back": Task { await navigate(back: true) }
     case "forward": Task { await navigate(back: false) }
@@ -145,6 +146,7 @@ extension WorkspaceStore {
       return destination == .workspace && activeWorkspaceContentTab == nil
         && activeMCPApproval(taskID: selectedTask?.id) != nil
     case "next-attention": return nextAttentionTask != nil
+    case "activity": return libraryLoaded
     case "clear-unread": return libraryLoaded && !library.unreadTasks.isEmpty
     case "send": return canSend
     case "branch": return canChangeBranch && workspace.gitAvailable
@@ -302,6 +304,10 @@ extension WorkspaceStore {
     }
     if back, destination == .settings {
       closeSettings()
+      return
+    }
+    if back, destination == .activity {
+      returnToWorkspace()
       return
     }
     if back, destination == .projects {

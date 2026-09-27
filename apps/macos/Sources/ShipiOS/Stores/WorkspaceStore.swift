@@ -25,6 +25,7 @@ final class WorkspaceStore {
     set { setOverlay(.commands, presented: newValue) }
   }
   var destination: AppDestination = .workspace
+  var activityError: String?
   var taskWindowOpenRequest: TaskWindowRoute?
   var taskSummaryToggleRequest = UUID()
   var settingsReturnDestination: AppDestination = .workspace
