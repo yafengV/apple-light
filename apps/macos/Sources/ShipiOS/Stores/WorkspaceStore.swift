@@ -564,6 +564,11 @@ final class WorkspaceStore {
     return currentProjectKey == key && (key.isEmpty || connected)
   }
 
+  func newChat() async {
+    if let project { await newTask(in: project.path) }
+    else { await newProjectlessTask() }
+  }
+
   func newProjectlessTask() async {
     guard !busy, project == nil || activeLocalRun == nil else { return }
     recordNavigation()

@@ -5,7 +5,7 @@ import Observation
   private(set) var mode: TaskWindowSearchMode?
   @ObservationIgnored private var returnFocus: SearchDialogReturnFocus?
   private static let globalCommands: Set<String> = [
-    "settings", "shortcuts", "projects", "plugins", "automations", "new", "new-alternate", "open", "pet", "clear-unread"
+    "settings", "shortcuts", "projects", "plugins", "automations", "new-standalone", "open", "pet", "clear-unread"
   ]
 
   func open(_ mode: TaskWindowSearchMode, window: NSWindow?) {
@@ -55,6 +55,7 @@ import Observation
         if TaskWindowCommandContext.owns(id) {
           self.close(restoreFocus: !["tab-close", "browser-close", "browser-new", "browser-address"].contains(id))
           store.detachedWindowCommands(tabID, close: closeWindow).execute(id)
+          if id == "new" || id == "new-alternate" { showMain() }
         } else {
           let staysHere = id == "pet" || id == "clear-unread"
           self.close(restoreFocus: staysHere)

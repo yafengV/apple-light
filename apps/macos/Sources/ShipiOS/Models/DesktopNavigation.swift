@@ -27,6 +27,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "sidebar", title: "显示或隐藏侧栏", icon: "sidebar.left", shortcut: "⌘B"),
     .init(id: "send", title: "发送消息", icon: "arrow.up", shortcut: "⌘↵"),
     .init(id: "new-alternate", title: "新任务（备用）", icon: "square.and.pencil", shortcut: "⌘⇧O"),
+    .init(id: "new-standalone", title: "无项目新任务", icon: "square.and.pencil", shortcut: "⌘⌥O"),
     .init(id: "find-next", title: "下一个匹配", icon: "arrow.down", shortcut: "⌘G"),
     .init(id: "find-previous", title: "上一个匹配", icon: "arrow.up", shortcut: "⌘⇧G"),
     .init(id: "previous-task", title: "上一个任务或标签", icon: "arrow.up", shortcut: "⌃⇧⇥", alternates: ["⌘⇧[", "⌘⌥←"]),
@@ -126,7 +127,7 @@ extension DesktopCommand {
     if id.hasPrefix("focus-chat-") { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
-    case "new", "new-alternate", "send", "model", "fork", "open-task-window", "find", "find-next", "find-previous",
+    case "new", "new-alternate", "new-standalone", "send", "model", "fork", "open-task-window", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation

@@ -21,6 +21,7 @@ struct WorkspaceCommands: Commands {
     CommandGroup(replacing: .newItem) {
       command("new")
       command("new-alternate")
+      command("new-standalone")
       command("open")
     }
     CommandMenu("任务") {
@@ -121,9 +122,10 @@ struct WorkspaceCommands: Commands {
     guard commandEnabled(id) else { return }
     if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       taskWindowCommands.execute(id)
+      if id == "new" || id == "new-alternate" { openWindow(id: "main") }
     } else {
       store.executeCommand(id)
-      if id == "settings" || id == "shortcuts" { openWindow(id: "main") }
+      if id == "settings" || id == "shortcuts" || id == "new-standalone" { openWindow(id: "main") }
     }
   }
   private func performApproval(_ action: () -> Void) {

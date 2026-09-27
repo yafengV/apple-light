@@ -6,7 +6,7 @@ struct TaskSidebarView: View {
     VStack(spacing: 0) {
       VStack(spacing: 2) {
         navButton("新任务", "square.and.pencil", shortcut: store.shortcuts.label("new")) {
-          Task { await store.newProjectlessTask() }
+          Task { await store.newChat() }
         }
         .disabled(!store.commandEnabled("new"))
         .overlay {

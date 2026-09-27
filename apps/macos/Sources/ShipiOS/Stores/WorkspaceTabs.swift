@@ -449,8 +449,9 @@ extension WorkspaceStore {
 
   @discardableResult func moveWorkspaceTabToNewTask(_ id: String) async -> Bool {
     guard workspaceTabs.contains(where: { $0.id == id }) else { return false }
-    await newProjectlessTask()
-    guard selectedTask == nil, currentProjectKey.isEmpty,
+    let targetProject = currentProjectKey
+    await newChat()
+    guard selectedTask == nil, currentProjectKey == targetProject,
       let migratedID = moveWorkspaceTab(id, toOwner: draftKey)
     else { return false }
     activateWorkspaceTab(migratedID)

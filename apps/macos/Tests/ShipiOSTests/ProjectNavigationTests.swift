@@ -141,4 +141,24 @@ final class ProjectNavigationTests: XCTestCase {
     XCTAssertEqual(store.library.drafts["previous"], "previous draft")
     XCTAssertEqual(store.library.drafts["new:/a"], "new draft")
   }
+
+  @MainActor func testNewChatKeepsCurrentProjectAndStandaloneHasSeparateShortcut() async {
+    let store = WorkspaceStore()
+    store.connected = true
+    store.project = URL(fileURLWithPath: "/a")
+    store.library.tasks = [task("previous", project: "/a")]
+    store.selection = "previous"
+    store.draft = "unfinished project prompt"
+
+    await store.newChat()
+    XCTAssertEqual(store.project?.path, "/a")
+    XCTAssertNil(store.selection)
+    XCTAssertEqual(store.library.drafts["previous"], "unfinished project prompt")
+    XCTAssertEqual(store.library.projectSelections["/a"], "")
+    XCTAssertEqual(DesktopCommand.all.first(where: { $0.id == "new-standalone" })?.defaultBinding,
+      ShortcutBinding("⌘⌥O"))
+    XCTAssertTrue(TaskWindowCommandContext.owns("new"))
+    XCTAssertTrue(TaskWindowCommandContext.owns("new-alternate"))
+    XCTAssertFalse(TaskWindowCommandContext.owns("new-standalone"))
+  }
 }

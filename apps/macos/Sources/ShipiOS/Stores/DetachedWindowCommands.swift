@@ -6,6 +6,7 @@ extension WorkspaceStore {
     if !shuttingDown, let tab = workspaceTabs.first(where: { $0.id == tabID }),
       workspaceTabPlacement(tabID) == .detached {
       enabled.insert("tab-close")
+      if commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if let id = tab.browserID, let page = workspace.browser.tabs.first(where: { $0.id == id }) {
         enabled.formUnion(["browser-address", "browser-reload", "browser-reload-origin", "browser-close", "browser-new", "find"])
         if page.showingPageFind, !page.pageFindQuery.isEmpty {
@@ -21,6 +22,13 @@ extension WorkspaceStore {
         self.workspaceTabPlacement(tabID) == .detached,
         let tab = self.workspaceTabs.first(where: { $0.id == tabID }) else { return }
       if id == "tab-close" { close(); return }
+      if id == "new" || id == "new-alternate" {
+        Task {
+          if let root = self.workspaceTabProject(owner: tab.owner) { await self.newTask(in: root.path) }
+          else { await self.newProjectlessTask() }
+        }
+        return
+      }
       guard let browserID = tab.browserID,
         let page = self.workspace.browser.tabs.first(where: { $0.id == browserID }) else { return }
       switch id {

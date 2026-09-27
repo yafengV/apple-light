@@ -255,6 +255,7 @@ import XCTest
     let store = WorkspaceStore(dataRoot: root)
     store.libraryLoaded = true
     store.project = URL(fileURLWithPath: "/project")
+    store.connected = true
     store.library.tasks = [
       .init(id: "task", project: "/project", title: "Task", runIDs: ["run"])
     ]
@@ -268,10 +269,10 @@ import XCTest
     let moved = await store.moveWorkspaceTabToNewTask(source.id)
 
     XCTAssertTrue(moved)
-    XCTAssertNil(store.project)
+    XCTAssertEqual(store.project?.path, "/project")
     XCTAssertNil(store.selectedTask)
-    XCTAssertEqual(store.currentWorkspaceTabOwner, "new:none")
-    XCTAssertEqual(store.visibleWorkspaceContentTabs, [.browser(browserID, owner: "new:none")])
+    XCTAssertEqual(store.currentWorkspaceTabOwner, "new:/project")
+    XCTAssertEqual(store.visibleWorkspaceContentTabs, [.browser(browserID, owner: "new:/project")])
     XCTAssertTrue(store.workspace.browser.tabs.first { $0.id == browserID } === browser)
     XCTAssertEqual(store.focusedWorkspaceTabID, source.id)
   }

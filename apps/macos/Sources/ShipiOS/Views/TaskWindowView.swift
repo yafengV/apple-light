@@ -567,7 +567,7 @@ struct TaskWindowView: View {
     SearchDialogContext(currentTaskID: taskID, commandEnabled: { id in
       guard searchMode == .commands, !otherWindowModalActive else { return false }
       if TaskWindowCommandContext.owns(id) { return availableWindowCommands.contains(id) }
-      return ["settings", "shortcuts", "projects", "plugins", "open-skills", "reload-skills", "automations", "new", "new-alternate", "open", "pet", "clear-unread"].contains(id)
+      return ["settings", "shortcuts", "projects", "plugins", "open-skills", "reload-skills", "automations", "new-standalone", "open", "pet", "clear-unread"].contains(id)
         && store.commandEnabled(id)
     }, performCommand: { id in
       switch id {
@@ -618,6 +618,7 @@ struct TaskWindowView: View {
     }
     if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model", "open-task-window", "task-summary"])
+      if store.commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
@@ -672,6 +673,12 @@ struct TaskWindowView: View {
     if id == "forward" { if canGoForward { onMove(false) }; return }
     guard let task else { return }
     switch id {
+    case "new", "new-alternate":
+      Task {
+        if task.project.isEmpty { await store.newProjectlessTask() }
+        else { await store.newTask(in: task.project) }
+        openWindow(id: "main")
+      }
     case "palette", "palette-alternate": openSearch(.commands)
     case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
