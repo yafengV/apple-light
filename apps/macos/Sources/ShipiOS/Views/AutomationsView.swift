@@ -183,9 +183,18 @@ private struct AutomationEditorView: View {
           ForEach(AutomationCadence.allCases) { Text($0.title).tag($0) }
         }
         if item.cadence == .weekly {
-          Picker("星期", selection: $item.weekday) {
-            ForEach(Array(Calendar.current.weekdaySymbols.enumerated()), id: \.offset) { index, title in
-              Text(title).tag(index + 1)
+          HStack {
+            Text("星期")
+            Spacer()
+            ForEach(0..<7, id: \.self) { offset in
+              let day = (Calendar.current.firstWeekday + offset - 1) % 7 + 1
+              Button(Calendar.current.veryShortWeekdaySymbols[day - 1]) {
+                item.setWeekday(day, selected: !item.selectedWeekdays.contains(day))
+              }
+              .buttonStyle(.bordered)
+              .tint(item.selectedWeekdays.contains(day) ? store.appearance.accentColor : .gray)
+              .accessibilityLabel(Calendar.current.weekdaySymbols[day - 1])
+              .accessibilityAddTraits(item.selectedWeekdays.contains(day) ? .isSelected : [])
             }
           }
         }

@@ -22,6 +22,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var minute = 0
   /// Calendar weekday: 1 = Sunday, 7 = Saturday.
   var weekday = 2
+  /// Nil preserves schedules written before multi-day selection was available.
+  var weekdays: [Int]?
   var enabled = true
   var nextRun: Date = .now
   var lastRun: Date?
@@ -30,6 +32,15 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var reviewedRunID: String?
 
   var needsReview: Bool { lastRunID != nil && reviewedRunID != lastRunID }
+  var selectedWeekdays: [Int] { weekdays ?? [weekday] }
+
+  mutating func setWeekday(_ day: Int, selected: Bool) {
+    var days = Set(selectedWeekdays)
+    if selected { days.insert(day) } else { days.remove(day) }
+    guard !days.isEmpty else { return }
+    weekdays = days.sorted()
+    weekday = weekdays?.first ?? weekday
+  }
 
   func nextDate(after date: Date, calendar: Calendar = .current) -> Date {
     switch cadence {
@@ -45,10 +56,11 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
         matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)
         ?? date.addingTimeInterval(86_400)
     case .weekly:
-      return calendar.nextDate(
-        after: date, matching: DateComponents(hour: hour, minute: minute, weekday: weekday),
-        matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)
-        ?? date.addingTimeInterval(604_800)
+      return selectedWeekdays.compactMap { day in
+        calendar.nextDate(
+          after: date, matching: DateComponents(hour: hour, minute: minute, weekday: day),
+          matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)
+      }.min() ?? date.addingTimeInterval(604_800)
     }
   }
 
@@ -59,8 +71,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
     case .daily: return "每天 \(time)"
     case .weekly:
       let symbols = Calendar.current.shortWeekdaySymbols
-      let index = min(max(weekday - 1, 0), symbols.count - 1)
-      return "每周\(symbols[index]) \(time)"
+      let days = selectedWeekdays.map { symbols[min(max($0 - 1, 0), symbols.count - 1)] }
+      return "每周\(days.joined(separator: "、")) \(time)"
     }
   }
 }
@@ -98,7 +110,10 @@ enum AutomationStorage {
         !item.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
         item.prompt.utf8.count <= 20_000,
         (0...23).contains(item.hour), (0...59).contains(item.minute),
-        (1...7).contains(item.weekday)
+        (1...7).contains(item.weekday),
+        item.weekdays == nil || (item.weekdays?.isEmpty == false
+          && item.weekdays == Array(Set(item.weekdays ?? []).sorted())
+          && item.weekdays?.allSatisfy { (1...7).contains($0) } == true)
       else { throw AgentFailure(message: "自动化名称、指令或日程无效。") }
     }
   }

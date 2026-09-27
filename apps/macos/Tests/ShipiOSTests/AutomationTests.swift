@@ -35,6 +35,51 @@ final class AutomationTests: XCTestCase {
     XCTAssertEqual(attributes[.posixPermissions] as? Int, 0o600)
   }
 
+  func testWeeklyScheduleUsesEverySelectedDayAndPersistsLegacySchedules() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    var item = ShipAutomation(name: "Workdays", prompt: "Review")
+    item.cadence = .weekly
+    item.hour = 9
+    item.minute = 15
+    item.setWeekday(4, selected: true) // Wednesday alongside the default Monday.
+    XCTAssertEqual(item.selectedWeekdays, [2, 4])
+    let monday = try XCTUnwrap(calendar.date(from: DateComponents(
+      year: 2026, month: 9, day: 21, hour: 9, minute: 15)))
+    let next = item.nextDate(after: monday, calendar: calendar)
+    XCTAssertEqual(calendar.dateComponents([.weekday, .hour, .minute], from: next),
+      DateComponents(hour: 9, minute: 15, weekday: 4))
+    item.setWeekday(2, selected: false)
+    XCTAssertEqual(item.selectedWeekdays, [4])
+    item.setWeekday(4, selected: false)
+    XCTAssertEqual(item.selectedWeekdays, [4], "The last selected day cannot be removed")
+
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    try AutomationStorage.save(AutomationPreferences(items: [item]), root: base)
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedWeekdays, [4])
+
+    var legacy = item
+    legacy.weekdays = nil
+    legacy.weekday = 6
+    let legacyData = try JSONEncoder().encode(AutomationPreferences(items: [legacy]))
+    try legacyData.write(to: base.appendingPathComponent("automations.json"))
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedWeekdays, [6])
+  }
+
+  func testInvalidWeeklyDaysDoNotReplaceStoredSchedule() throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let valid = ShipAutomation(name: "Valid", prompt: "Review")
+    try AutomationStorage.save(AutomationPreferences(items: [valid]), root: base)
+    for days in [[Int](), [2, 2], [0], [8], [4, 2]] {
+      var invalid = valid
+      invalid.weekdays = days
+      XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [invalid]), root: base))
+      XCTAssertEqual(try AutomationStorage.load(root: base).items, [valid])
+    }
+  }
+
   func testInvalidAutomationIsRejectedWithoutReplacingStoredState() throws {
     let base = root()
     defer { try? FileManager.default.removeItem(at: base) }
@@ -109,6 +154,23 @@ final class AutomationTests: XCTestCase {
     let scheduled = store.automationPreferences.items[0].nextRun
     XCTAssertGreaterThanOrEqual(scheduled, item.nextDate(after: beforeSave))
     XCTAssertLessThanOrEqual(scheduled, item.nextDate(after: .now))
+  }
+
+  @MainActor func testEditingWeeklyDaysRecomputesNextRun() async {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.loadAutomations()
+    var item = ShipAutomation(name: "Weekly", prompt: "Review")
+    item.cadence = .weekly
+    item.nextRun = Date().addingTimeInterval(3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    item.setWeekday(4, selected: true)
+    XCTAssertTrue(store.saveEditedAutomation(item))
+    XCTAssertEqual(store.automationPreferences.items[0].selectedWeekdays, [2, 4])
+    XCTAssertEqual(store.automationPreferences.items[0].nextRun,
+      item.nextDate(after: store.automationPreferences.items[0].nextRun.addingTimeInterval(-1)),
+      "The saved date remains a valid occurrence")
   }
 
   @MainActor func testEnablingFromEditorRearmsPausedSchedule() async {

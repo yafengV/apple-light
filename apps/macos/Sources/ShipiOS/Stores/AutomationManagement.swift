@@ -44,7 +44,7 @@ extension WorkspaceStore {
     var edited = item
     if let previous = automationPreferences.items.first(where: { $0.id == item.id }) {
       let scheduleChanged = previous.cadence != item.cadence || previous.hour != item.hour
-        || previous.minute != item.minute || previous.weekday != item.weekday
+        || previous.minute != item.minute || previous.selectedWeekdays != item.selectedWeekdays
       if scheduleChanged || !previous.enabled && item.enabled {
         edited.nextRun = edited.nextDate(after: .now)
       } else {
