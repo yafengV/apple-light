@@ -16,19 +16,24 @@ final class AgentClient {
   private var stopping = false
   private(set) var stderrTail = ""
 
-  func start(executable: URL, project: URL, dataDirectory: URL) throws {
+  func start(executable: URL, project: URL, dataDirectory: URL,
+    codexDataDirectory: URL? = nil) throws {
     guard process == nil else { throw AgentFailure(message: "Agent 仍在运行") }
     let child = Process()
     let stdin = Pipe()
     let stdout = Pipe()
     let stderr = Pipe()
     child.executableURL = executable
-    child.arguments = ["--project", project.path, "--data-dir", dataDirectory.path, "serve"]
+    var arguments = ["--project", project.path, "--data-dir", dataDirectory.path]
+    if let codexDataDirectory {
+      arguments += ["--codex-data-dir", codexDataDirectory.path]
+    }
+    child.arguments = arguments + ["serve"]
     // The GUI does not forward Codex settings, model keys, proxy settings or shell initialization.
     child.environment = [
       "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory(),
       "TMPDIR": NSTemporaryDirectory(), "LANG": "en_US.UTF-8",
-      "CODEX_HOME": dataDirectory.appendingPathComponent("Codex").path,
+      "CODEX_HOME": (codexDataDirectory ?? dataDirectory).appendingPathComponent("Codex").path,
     ]
     child.standardInput = stdin
     child.standardOutput = stdout

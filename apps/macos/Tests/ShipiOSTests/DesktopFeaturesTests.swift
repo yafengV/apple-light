@@ -722,6 +722,127 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testCodexTaskWindowContinuesAcrossMainWorkspaceSwitches() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let firstProject = root.appendingPathComponent("First", isDirectory: true)
+    let otherProject = root.appendingPathComponent("Other", isDirectory: true)
+    try FileManager.default.createDirectory(at: firstProject, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: otherProject, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(firstProject)
+    await store.startChat("Initial handoff turn")
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: first.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first.id }?.status, "succeeded",
+      store.library.chatRuns.first { $0.id == first.id }?.result?["message"].text ?? "")
+    let taskID = try XCTUnwrap(store.library.task(containing: first.id)?.id)
+    let threadID = try XCTUnwrap(store.library.tasks.first { $0.id == taskID }?.codexThreadID)
+
+    await store.open(otherProject)
+    XCTAssertTrue(store.connected)
+    store.setTaskWindowDraft("codex-handoff-cwd-probe", taskID: taskID)
+    await store.sendTaskWindowDraft(taskID, mode: .standard)
+    let second = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: second.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == second.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    let command = try XCTUnwrap(finished.toolExecutions.first { $0.toolName == "命令" })
+    let directory = try XCTUnwrap(command.output?.trimmingCharacters(in: .whitespacesAndNewlines))
+    XCTAssertEqual(URL(fileURLWithPath: directory).resolvingSymlinksInPath().path,
+      firstProject.resolvingSymlinksInPath().path)
+    XCTAssertEqual(store.project, otherProject)
+    XCTAssertEqual(store.library.tasks.first { $0.id == taskID }?.codexThreadID, threadID)
+
+    store.followUpBehavior = .steer
+    await store.startChat("slow-codex", taskID: taskID)
+    let active = try XCTUnwrap(store.library.chatRuns.last)
+    for _ in 0..<150 {
+      if store.codexTransport.canSteer(taskID: taskID) { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    XCTAssertTrue(store.codexTransport.canSteer(taskID: taskID))
+    await store.openProjectless()
+    XCTAssertTrue(store.codexTransport.canSteer(taskID: taskID))
+    store.setTaskWindowDraft("steered-inflight-proof", taskID: taskID)
+    await store.sendTaskWindowDraft(taskID, mode: .standard)
+    await store.modelTask(runID: active.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == active.id }?.status, "succeeded")
+    XCTAssertTrue(store.library.chatRuns.first { $0.id == active.id }?
+      .result?["response"].text?.contains("Steered fixture reply") == true,
+      store.library.chatRuns.first { $0.id == active.id }?.result?["response"].text ?? "")
+    store.setTaskWindowDraft("codex-handoff-cwd-probe", taskID: taskID)
+    await store.sendTaskWindowDraft(taskID, mode: .standard)
+    let final = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: final.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == final.id }?.status, "succeeded")
+    XCTAssertNil(store.project)
+    await store.shutdown()
+  }
+  @MainActor func testParallelCodexTasksShareOneProjectAgentStartup() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    await store.startChat("First parallel Codex task")
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    store.newTask()
+    await store.startChat("Second parallel Codex task")
+    let second = try XCTUnwrap(store.library.chatRuns.last)
+    XCTAssertNotEqual(first.id, second.id)
+    await store.modelTask(runID: first.id)?.value
+    await store.modelTask(runID: second.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first.id }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == second.id }?.status, "succeeded")
+    await store.shutdown()
+  }
+  @MainActor func testCodexProjectlessTaskRunsInItsDedicatedDirectory() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.openProjectless()
+    await store.startChat("codex-handoff-cwd-probe")
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
+    let path = try XCTUnwrap(store.library.projectlessTaskDirectories[taskID])
+    let command = try XCTUnwrap(finished.toolExecutions.first { $0.toolName == "命令" })
+    let directory = try XCTUnwrap(command.output?.trimmingCharacters(in: .whitespacesAndNewlines))
+    XCTAssertEqual(URL(fileURLWithPath: directory).resolvingSymlinksInPath().path,
+      URL(fileURLWithPath: path).resolvingSymlinksInPath().path)
+    await store.shutdown()
+  }
   @MainActor func testCodexResumedTaskUsesNewWorktreeAsCommandDirectory() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

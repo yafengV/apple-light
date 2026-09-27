@@ -433,7 +433,7 @@ final class WorkspaceStore {
     shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
     let agentClient = AgentClient()
     client = agentClient
-    codexTransport = CodexChatTransport(client: agentClient, dataRoot: root)
+    codexTransport = CodexChatTransport(dataRoot: root)
     codexTransport.onThreadStarted = { [weak self] taskID, threadID in
       self?.recordCodexThreadID(taskID: taskID, threadID: threadID)
     }
@@ -476,7 +476,6 @@ final class WorkspaceStore {
     client.onDisconnect = { [weak self] message in
       self?.connected = false
       self?.error = message
-      self?.codexTransport.reset(AgentFailure(message: message))
     }
   }
 
@@ -645,7 +644,6 @@ final class WorkspaceStore {
     error = nil
     session = UUID()
     let token = session
-    codexTransport.reset(AgentFailure(message: "项目已切换，Codex 回合已中断。"))
     await client.stop()
     project = canonical
     runs = library.localRuns.filter { $0.project == canonical.path }
@@ -1225,7 +1223,7 @@ final class WorkspaceStore {
     saveLibrary()
     connected = false
     session = UUID()
-    codexTransport.reset(CancellationError())
+    await codexTransport.shutdown()
     await environmentSettingsSession.close()
     await client.stop()
   }

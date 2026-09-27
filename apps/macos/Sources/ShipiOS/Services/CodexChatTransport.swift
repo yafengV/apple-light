@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-/// Routes one live Codex turn per task through the project Agent's private stdio channel.
+/// Routes Codex turns through independent, project-owned Agent processes.
 @MainActor
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
@@ -18,8 +18,10 @@ final class CodexChatTransport {
     }
   }
 
-  private let client: AgentClient
   private let dataRoot: URL
+  private var clients: [String: AgentClient] = [:]
+  private var startingClients: [String: Task<AgentClient, Error>] = [:]
+  private var taskProjects: [String: String] = [:]
   private var generation = UUID()
   private var activeThreads: Set<String> = []
   private var serviceIdentities: [String: ServiceIdentity] = [:]
@@ -28,17 +30,88 @@ final class CodexChatTransport {
   private var activeTurnIDs: [String: String] = [:]
   private var browserTurnTokens: [String: UUID] = [:]
 
-  init(client: AgentClient, dataRoot: URL) {
-    self.client = client
+  init(dataRoot: URL) {
     self.dataRoot = dataRoot
+  }
+
+  private func client(for taskID: String) throws -> AgentClient {
+    guard let project = taskProjects[taskID], let client = clients[project] else {
+      throw AgentFailure(message: "Codex 会话所属项目已断开。")
+    }
+    return client
+  }
+
+  private func prepareClient(taskID: String, workspace: URL,
+    executable: URL) async throws -> AgentClient {
+    let canonical = workspace.resolvingSymlinksInPath().standardizedFileURL
+    var directory: ObjCBool = false
+    guard canonical.isFileURL, canonical.path.hasPrefix("/"),
+      FileManager.default.fileExists(atPath: canonical.path, isDirectory: &directory),
+      directory.boolValue else {
+      throw AgentFailure(message: "Codex 任务目录不可用，请检查项目或工作树。")
+    }
+    let path = canonical.path
+    guard taskProjects[taskID].map({ $0 == path }) ?? true else {
+      throw AgentFailure(message: "已有 Codex 会话不能更换任务目录。")
+    }
+    if let client = clients[path] {
+      taskProjects[taskID] = path
+      return client
+    }
+    let token = generation
+    if let starting = startingClients[path] {
+      let client = try await starting.value
+      guard generation == token else { throw CancellationError() }
+      clients[path] = client
+      taskProjects[taskID] = path
+      return client
+    }
+    let starting = Task { try await launchClient(path: path, workspace: canonical,
+      executable: executable) }
+    startingClients[path] = starting
+    defer { startingClients.removeValue(forKey: path) }
+    let client = try await starting.value
+    guard generation == token else {
+      await client.stop()
+      throw CancellationError()
+    }
+    clients[path] = client
+    taskProjects[taskID] = path
+    return client
+  }
+
+  private func launchClient(path: String, workspace: URL,
+    executable: URL) async throws -> AgentClient {
+    let digest = SHA256.hash(data: Data(path.utf8))
+      .map { String(format: "%02x", $0) }.joined()
+    let projectData = dataRoot.appendingPathComponent("Projects/\(digest)", isDirectory: true)
+    let processData = dataRoot.appendingPathComponent("CodexAgents/\(digest)", isDirectory: true)
+    let client = AgentClient()
     client.onCodexEvent = { [weak self] event in self?.receive(event) }
     client.onCodexGap = { [weak self] in
-      self?.reset(AgentFailure(message: "Codex 事件流中断，本轮回复无法完整确认。"))
+      self?.reset(project: path,
+        error: AgentFailure(message: "Codex 事件流中断，本轮回复无法完整确认。"))
     }
+    client.onDisconnect = { [weak self] message in
+      self?.reset(project: path, error: AgentFailure(message: message))
+    }
+    try client.start(executable: executable, project: workspace,
+      dataDirectory: processData, codexDataDirectory: projectData)
+    do {
+      let hello = try await client.request("initialize", ["protocolVersion": .number(1)])
+      guard hello["protocolVersion"].int == 1 else {
+        throw AgentFailure(message: "不支持的 Agent 协议版本")
+      }
+    } catch {
+      await client.stop()
+      throw error
+    }
+    return client
   }
 
   func startTurn(
-    taskID: String, config: ModelConfiguration, key: String?,
+    taskID: String, workspace: URL, executable: URL,
+    config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
@@ -50,6 +123,13 @@ final class CodexChatTransport {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
     defer { preparingTasks.remove(taskID) }
+    let path = workspace.resolvingSymlinksInPath().standardizedFileURL.path
+    if let previous = taskProjects[taskID], previous != path {
+      await stop(taskID: taskID)
+      taskProjects.removeValue(forKey: taskID)
+    }
+    let client = try await prepareClient(taskID: taskID, workspace: workspace,
+      executable: executable)
     guard continuationText.utf8.count <= 48_000 else {
       throw AgentFailure(message: "本轮文字超过 Codex 通道的 48 KiB 上限，请缩短后重试。")
     }
@@ -171,7 +251,7 @@ final class CodexChatTransport {
         "id": .string(staged.id.uuidString), "byteCount": .number(Double(staged.byteCount)),
       ])
     }
-    let result = try await client.request("codex.turn.steer", request)
+    let result = try await client(for: taskID).request("codex.turn.steer", request)
     guard generation == token else { throw CancellationError() }
     return result["steered"].boolean == true
   }
@@ -183,13 +263,13 @@ final class CodexChatTransport {
   func interrupt(taskID: String) async {
     browserTurnTokens.removeValue(forKey: taskID)
     guard activeThreads.contains(taskID) else { return }
-    _ = try? await client.request("codex.turn.interrupt", ["taskId": .string(taskID)])
+    _ = try? await client(for: taskID).request("codex.turn.interrupt", ["taskId": .string(taskID)])
   }
 
   func stop(taskID: String) async {
     browserTurnTokens.removeValue(forKey: taskID)
     guard activeThreads.contains(taskID) else { return }
-    _ = try? await client.request("codex.thread.stop", ["taskId": .string(taskID)])
+    _ = try? await client(for: taskID).request("codex.thread.stop", ["taskId": .string(taskID)])
     activeThreads.remove(taskID)
     serviceIdentities.removeValue(forKey: taskID)
     activeTurnIDs.removeValue(forKey: taskID)
@@ -207,7 +287,7 @@ final class CodexChatTransport {
     case .allowTask: choice = "allow_for_session"
     case .deny: choice = "deny"
     }
-    _ = try await client.request("codex.turn.approve", [
+    _ = try await client(for: taskID).request("codex.turn.approve", [
       "taskId": .string(taskID), "id": .string(id),
       "turnId": turnID.map(JSONValue.string) ?? .null,
       "kind": .string(patch ? "patch" : "exec"),
@@ -221,7 +301,7 @@ final class CodexChatTransport {
       requestID.text != nil || requestID.int != nil else {
       throw AgentFailure(message: "Codex MCP 审批所属任务已断开。")
     }
-    _ = try await client.request("codex.elicitation.resolve", [
+    _ = try await client(for: taskID).request("codex.elicitation.resolve", [
       "taskId": .string(taskID), "serverName": .string(serverName),
       "requestId": requestID, "decision": .string(decision.rawValue),
       "content": content ?? .null,
@@ -232,7 +312,7 @@ final class CodexChatTransport {
     guard activeThreads.contains(taskID), !turnID.isEmpty else {
       throw AgentFailure(message: "Codex 提问所属任务已断开。")
     }
-    _ = try await client.request("codex.turn.answer", [
+    _ = try await client(for: taskID).request("codex.turn.answer", [
       "taskId": .string(taskID), "turnId": .string(turnID),
       "answers": .object(answers.mapValues { .array($0.map(JSONValue.string)) }),
     ])
@@ -261,19 +341,41 @@ final class CodexChatTransport {
     return (id, url, bytes.count)
   }
 
-  func reset(_ error: Error) {
+  private func reset(_ error: Error) {
     generation = UUID()
     activeThreads.removeAll()
     serviceIdentities.removeAll()
     activeTurnIDs.removeAll()
     browserTurnTokens.removeAll()
+    taskProjects.removeAll()
     let pending = Array(streams.values)
     streams.removeAll()
     for stream in pending { stream.finish(throwing: error) }
   }
 
+  private func reset(project: String, error: Error) {
+    if let client = clients.removeValue(forKey: project) {
+      Task { await client.stop() }
+    }
+    for taskID in taskProjects.filter({ $0.value == project }).map(\.key) {
+      taskProjects.removeValue(forKey: taskID)
+      activeThreads.remove(taskID)
+      serviceIdentities.removeValue(forKey: taskID)
+      activeTurnIDs.removeValue(forKey: taskID)
+      browserTurnTokens.removeValue(forKey: taskID)
+      streams.removeValue(forKey: taskID)?.finish(throwing: error)
+    }
+  }
+
+  func shutdown() async {
+    reset(CancellationError())
+    let running = Array(clients.values)
+    clients.removeAll()
+    for client in running { await client.stop() }
+  }
+
   func resolveBrowserRequest(taskID: String, requestID: String, result: JSONValue) async throws {
-    _ = try await client.request("codex.browser.resolve", [
+    _ = try await client(for: taskID).request("codex.browser.resolve", [
       "taskId": .string(taskID), "requestId": .string(requestID), "result": result,
     ])
   }

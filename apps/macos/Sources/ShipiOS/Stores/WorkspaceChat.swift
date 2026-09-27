@@ -125,9 +125,6 @@ extension WorkspaceStore {
         guard review == nil || mode == .standard else {
           throw AgentFailure(message: "代码审查不能与计划或目标模式同时使用。")
         }
-        guard connected, let project, (taskProject ?? currentProjectKey) == project.path else {
-          throw AgentFailure(message: "Codex Responses 当前仅支持已连接项目中的任务，请先打开对应项目。")
-        }
       }
       let submittedTerminal = taskID == nil ? terminalScope : nil
       let branch = taskProject == nil || taskProject == currentProjectKey
@@ -260,8 +257,10 @@ extension WorkspaceStore {
         do {
           let usage: ModelTokenUsage?
           if usesCodex {
+            let workspace = projectlessDirectory ?? URL(
+              fileURLWithPath: effectiveProject, isDirectory: true)
             usage = try await streamCodexChat(runID: run.id,
-              taskID: review == nil ? (taskID ?? run.id) : run.id,
+              taskID: review == nil ? (taskID ?? run.id) : run.id, workspace: workspace,
               config: config, key: key, messages: messages, mode: mode,
               goalInstructions: mode == .goal ? modeInstructions : nil, review: review,
               compact: compact, sideChat: isSideChat)
@@ -313,7 +312,8 @@ extension WorkspaceStore {
     }
   }
   private func streamCodexChat(
-    runID: String, taskID: String, config: ModelConfiguration, key: String?, messages: [ChatMessage],
+    runID: String, taskID: String, workspace: URL,
+    config: ModelConfiguration, key: String?, messages: [ChatMessage],
     mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?, compact: Bool = false,
     sideChat: Bool = false
   ) async throws -> ModelTokenUsage? {
@@ -331,7 +331,7 @@ extension WorkspaceStore {
       throw AgentFailure(message: "Codex 回合缺少输入。")
     }
     let stream = try await codexTransport.startTurn(
-      taskID: taskID, config: config, key: key,
+      taskID: taskID, workspace: workspace, executable: executable, config: config, key: key,
       initialText: initialText, continuationText: continuationText, images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat,
       planMode: mode == .plan, goalInstructions: goalInstructions,

@@ -281,9 +281,12 @@ async fn dispatch(
     })
 }
 
-pub async fn serve(service: Arc<Service>) -> Result<()> {
+pub async fn serve(
+    service: Arc<Service>,
+    codex_data_dir: Option<std::path::PathBuf>,
+) -> Result<()> {
     let codex = Arc::new(CodexBridge::new(
-        service.config.data_dir.clone(),
+        codex_data_dir.unwrap_or_else(|| service.config.data_dir.clone()),
         service.config.project.clone(),
     ));
     let (sender, mut receiver) = mpsc::channel::<Value>(128);

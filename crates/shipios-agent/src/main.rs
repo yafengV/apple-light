@@ -17,6 +17,10 @@ use std::{path::PathBuf, sync::Arc};
 struct Args {
     #[arg(long, global = true)]
     data_dir: Option<PathBuf>,
+    /// Store Codex threads in an existing project data directory while this
+    /// process keeps its own run database and lock.
+    #[arg(long, global = true)]
+    codex_data_dir: Option<PathBuf>,
     #[arg(long, global = true, default_value = ".")]
     project: PathBuf,
     #[arg(long, global = true)]
@@ -126,7 +130,7 @@ async fn run() -> Result<()> {
         action => {
             let service = Arc::new(service::Service::new(config)?);
             match action {
-                Action::Serve => rpc::serve(service).await?,
+                Action::Serve => rpc::serve(service, args.codex_data_dir).await?,
                 Action::Runs => println!("{}", serde_json::to_string_pretty(&service.list()?)?),
                 action => {
                     let request = match action {
