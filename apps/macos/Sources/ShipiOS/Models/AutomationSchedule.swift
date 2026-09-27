@@ -42,6 +42,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var customRule: String?
   var scheduleAnchor: Date?
   var enabled = true
+  /// Set when a finite custom schedule has exhausted its occurrences.
+  var completedAt: Date?
   var nextRun: Date = .now
   var lastRun: Date?
   var taskID: String?
@@ -102,6 +104,10 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   }
 
   func nextDate(after date: Date, calendar: Calendar = .current) -> Date {
+    nextScheduledDate(after: date, calendar: calendar) ?? date.addingTimeInterval(86_400)
+  }
+
+  func nextScheduledDate(after date: Date, calendar: Calendar = .current) -> Date? {
     switch cadence {
     case .hourly:
       var components = calendar.dateComponents([.year, .month, .day, .hour], from: date)
@@ -122,10 +128,9 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
       }.min() ?? date.addingTimeInterval(604_800)
     case .custom:
       guard let customRule, let rule = try? AutomationRecurrenceRule.parse(customRule) else {
-        return date.addingTimeInterval(86_400)
+        return nil
       }
       return rule.nextDate(after: date, anchor: scheduleAnchor ?? date, calendar: calendar)
-        ?? date.addingTimeInterval(86_400)
     }
   }
 

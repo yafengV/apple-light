@@ -18,7 +18,8 @@ struct AutomationsView: View {
 
   private var items: [ShipAutomation] {
     store.automationPreferences.items.filter { item in
-      let stateMatches = filter == .all || (filter == .active) == item.enabled
+      let stateMatches = filter == .all || filter == .active && item.enabled
+        || filter == .paused && !item.enabled && item.completedAt == nil
       let textMatches = query.isEmpty || item.name.localizedCaseInsensitiveContains(query)
         || item.prompt.localizedCaseInsensitiveContains(query)
       return stateMatches && textMatches
@@ -157,7 +158,7 @@ struct AutomationsView: View {
     let history = runs(for: item)
     return VStack(alignment: .leading, spacing: 12) {
     HStack(alignment: .top, spacing: 14) {
-      Image(systemName: item.enabled ? "clock.badge.checkmark" : "pause.circle")
+      Image(systemName: item.enabled ? "clock.badge.checkmark" : item.completedAt == nil ? "pause.circle" : "checkmark.circle")
         .font(.title2).frame(width: 32).foregroundStyle(item.enabled ? store.appearance.accentColor : .secondary)
       VStack(alignment: .leading, spacing: 7) {
         Text(item.name).appFont(.headline)
@@ -167,7 +168,7 @@ struct AutomationsView: View {
           Label(projectLabel(for: item), systemImage: "folder")
           if item.enabled {
             Text("下次 \(item.nextRun.formatted(date: .abbreviated, time: .shortened))")
-          } else { Text("已暂停") }
+          } else { Text(item.completedAt == nil ? "已暂停" : "已完成") }
         }.appFont(.caption2).foregroundStyle(.tertiary)
         if !history.isEmpty {
           Button(expandedHistories.contains(item.id) ? "收起运行记录" : "运行记录（\(history.count)）") {
@@ -182,7 +183,7 @@ struct AutomationsView: View {
       }
       Toggle("启用", isOn: Binding(
         get: { item.enabled }, set: { store.setAutomationEnabled($0, id: item.id) }))
-        .labelsHidden().help(item.enabled ? "暂停自动化" : "恢复自动化")
+        .labelsHidden().help(item.enabled ? "暂停自动化" : item.completedAt == nil ? "恢复自动化" : "重新开始自动化")
       Menu {
         Button("编辑…") { editing = item }
         if store.automationRunningIDs.contains(item.id), item.taskID != nil {
@@ -241,12 +242,23 @@ private struct AutomationEditorView: View {
     guard item.cadence == .custom else { return nil }
     do {
       let rule = try AutomationRecurrenceRule.parse(item.customRule ?? "")
-      guard rule.nextDate(after: .now, anchor: item.scheduleAnchor ?? .now,
+      let anchor = item.completedAt == nil ? item.scheduleAnchor ?? .now : .now
+      guard rule.nextDate(after: .now, anchor: anchor,
         calendar: .current) != nil else {
+        if item.completedAt != nil && !item.enabled,
+          store.automationPreferences.items.first(where: { $0.id == item.id })?.customRule == item.customRule {
+          return nil
+        }
         return "未来十年内找不到该 RRULE 的下次运行时间。"
       }
       return nil
     } catch { return error.localizedDescription }
+  }
+
+  private var nextPreviewDate: Date? {
+    var preview = item
+    if preview.completedAt != nil { preview.scheduleAnchor = .now }
+    return preview.nextScheduledDate(after: .now)
   }
 
   var body: some View {
@@ -364,13 +376,18 @@ private struct AutomationEditorView: View {
           TextField("RRULE", text: ruleText)
             .textFieldStyle(.roundedBorder)
             .accessibilityLabel("自定义日程 RRULE")
-          Text("支持小时、天、周、月频率与间隔，以及 BYDAY、BYMONTHDAY、BYHOUR、BYMINUTE 和 WKST。")
+          Text("支持小时、天、周、月、年频率，以及 BYDAY、BYMONTHDAY、BYMONTH、BYSETPOS、BYHOUR、BYMINUTE、WKST、COUNT 或 UNTIL。")
             .appFont(.caption).foregroundStyle(.secondary)
           if let ruleError {
             Text(ruleError).appFont(.caption).foregroundStyle(.red)
-          } else {
-            Text("下次运行：\(item.nextDate(after: .now).formatted(date: .abbreviated, time: .shortened))")
+          } else if item.completedAt != nil && !item.enabled {
+            Text("日程已完成；启用后会重新开始。")
               .appFont(.caption).foregroundStyle(.secondary)
+          } else {
+            if let next = nextPreviewDate {
+              Text("下次运行：\(next.formatted(date: .abbreviated, time: .shortened))")
+                .appFont(.caption).foregroundStyle(.secondary)
+            }
           }
         } else if item.cadence == .hourly {
           Picker("每小时的分钟", selection: $item.minute) {

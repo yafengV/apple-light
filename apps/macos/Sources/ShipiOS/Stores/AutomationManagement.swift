@@ -54,18 +54,22 @@ extension WorkspaceStore {
       edited.preparingTaskIDs = previous.preparingTaskIDs
       edited.activeOccurrenceAt = previous.activeOccurrenceAt
       edited.completedProjectsForOccurrence = previous.completedProjectsForOccurrence
+      edited.completedAt = previous.completedAt
       let scheduleChanged = previous.cadence != item.cadence || previous.hour != item.hour
         || previous.minute != item.minute || previous.selectedWeekdays != item.selectedWeekdays
         || previous.customRule != item.customRule
       if scheduleChanged || !previous.enabled && item.enabled {
-        if scheduleChanged && item.cadence == .custom { edited.scheduleAnchor = .now }
-        edited.nextRun = edited.nextDate(after: .now)
+        if (scheduleChanged || previous.completedAt != nil) && item.cadence == .custom {
+          edited.scheduleAnchor = .now
+        }
+        edited.completedAt = nil
+        if let next = edited.nextScheduledDate(after: .now) { edited.nextRun = next }
       } else {
         edited.nextRun = previous.nextRun
       }
     } else {
       if item.cadence == .custom { edited.scheduleAnchor = .now }
-      edited.nextRun = edited.nextDate(after: .now)
+      if let next = edited.nextScheduledDate(after: .now) { edited.nextRun = next }
     }
     return saveAutomation(edited)
   }
@@ -73,7 +77,12 @@ extension WorkspaceStore {
   func setAutomationEnabled(_ enabled: Bool, id: UUID) {
     guard var item = automationPreferences.items.first(where: { $0.id == id }) else { return }
     item.enabled = enabled
-    if enabled { item.nextRun = item.nextDate(after: .now) }
+    if enabled {
+      if item.completedAt != nil && item.cadence == .custom { item.scheduleAnchor = .now }
+      item.completedAt = nil
+      guard let next = item.nextScheduledDate(after: .now) else { return }
+      item.nextRun = next
+    }
     _ = saveAutomation(item)
   }
 
@@ -260,7 +269,12 @@ extension WorkspaceStore {
     if var updated = automationPreferences.items.first(where: { $0.id == id }) {
       if Set(updated.selectedProjects).isSubset(of: Set(updated.completedProjectsForOccurrence ?? [])) {
         updated.lastRun = occurrence
-        updated.nextRun = updated.nextDate(after: max(occurrence, .now))
+        if let next = updated.nextScheduledDate(after: max(occurrence, .now)) {
+          updated.nextRun = next
+        } else {
+          updated.enabled = false
+          updated.completedAt = occurrence
+        }
         updated.activeOccurrenceAt = nil
         updated.completedProjectsForOccurrence = nil
         _ = saveAutomation(updated)

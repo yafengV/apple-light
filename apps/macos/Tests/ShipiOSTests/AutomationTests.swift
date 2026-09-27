@@ -286,7 +286,9 @@ final class AutomationTests: XCTestCase {
 
   func testCustomRuleValidationRejectsUnsupportedOrImpossibleSchedules() throws {
     for text in [
-      "RRULE:FREQ=MINUTELY", "RRULE:FREQ=DAILY;COUNT=5;BYHOUR=9",
+      "RRULE:FREQ=MINUTELY", "RRULE:FREQ=DAILY;COUNT=0;BYHOUR=9",
+      "RRULE:FREQ=DAILY;COUNT=2;UNTIL=20261001T090000Z",
+      "RRULE:FREQ=DAILY;UNTIL=20261001", "RRULE:FREQ=DAILY;UNTIL=20261301T090000Z",
       "RRULE:FREQ=MONTHLY;BYMONTHDAY=0;BYHOUR=9", "RRULE:FREQ=DAILY;BYHOUR=25",
       "RRULE:FREQ=DAILY;BYHOUR=9;BYHOUR=10", "RRULE:FREQ=WEEKLY;BYDAY=MO,MO;BYHOUR=9",
       "RRULE:FREQ=MONTHLY;BYSETPOS=-1", "RRULE:FREQ=MONTHLY;BYDAY=MO;BYSETPOS=0",
@@ -304,6 +306,25 @@ final class AutomationTests: XCTestCase {
     calendar.timeZone = .current
     item.scheduleAnchor = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 2, day: 1)))
     XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [item]), root: base))
+  }
+
+  func testFiniteCustomRulesStopAfterCountOrInclusiveUntil() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let anchor = try XCTUnwrap(calendar.date(from:
+      DateComponents(year: 2026, month: 9, day: 28, hour: 8)))
+    let first = try XCTUnwrap(calendar.date(from:
+      DateComponents(year: 2026, month: 9, day: 28, hour: 9)))
+    let second = try XCTUnwrap(calendar.date(from:
+      DateComponents(year: 2026, month: 9, day: 29, hour: 9)))
+    let counted = try AutomationRecurrenceRule.parse("FREQ=DAILY;BYHOUR=9;COUNT=2")
+    XCTAssertEqual(counted.nextDate(after: anchor, anchor: anchor, calendar: calendar), first)
+    XCTAssertEqual(counted.nextDate(after: first, anchor: anchor, calendar: calendar), second)
+    XCTAssertNil(counted.nextDate(after: second, anchor: anchor, calendar: calendar))
+    let bounded = try AutomationRecurrenceRule.parse(
+      "FREQ=DAILY;BYHOUR=9;UNTIL=20260929T090000Z")
+    XCTAssertEqual(bounded.nextDate(after: first, anchor: anchor, calendar: calendar), second)
+    XCTAssertNil(bounded.nextDate(after: second, anchor: anchor, calendar: calendar))
   }
 
   @MainActor func testCustomRuleEditingReschedulesAndPersists() async throws {
@@ -459,6 +480,42 @@ final class AutomationTests: XCTestCase {
     XCTAssertGreaterThan(store.automationPreferences.items[0].nextRun, .now)
     XCTAssertTrue(store.library.chatRuns.isEmpty)
     XCTAssertTrue(store.library.tasks.isEmpty)
+  }
+
+  @MainActor func testFiniteDueRunCompletesAndCanRestart() async throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.restore()
+    var item = ShipAutomation(name: "Finite", prompt: "run once")
+    item.cadence = .custom
+    item.customRule = "FREQ=DAILY;COUNT=1;BYHOUR=9"
+    item.scheduleAnchor = Date().addingTimeInterval(-3 * 86_400)
+    item.nextRun = Date().addingTimeInterval(3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    var due = store.automationPreferences.items[0]
+    due.nextRun = Date().addingTimeInterval(-60)
+    XCTAssertTrue(store.saveAutomation(due))
+    await store.runDueAutomations()
+    let completed = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertFalse(completed.enabled)
+    XCTAssertNotNil(completed.completedAt)
+    XCTAssertNotNil(completed.lastRun)
+    XCTAssertEqual(try AutomationStorage.load(root: base).items.first?.completedAt, completed.completedAt)
+    let lastRun = completed.lastRun
+    await store.runDueAutomations()
+    XCTAssertEqual(store.automationPreferences.items.first?.lastRun, lastRun)
+    var renamed = completed
+    renamed.name = "Finite renamed"
+    renamed.prompt = "new instructions"
+    XCTAssertTrue(store.saveEditedAutomation(renamed))
+    XCTAssertEqual(store.automationPreferences.items.first?.completedAt, completed.completedAt)
+    store.setAutomationEnabled(true, id: item.id)
+    let restarted = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertTrue(restarted.enabled)
+    XCTAssertNil(restarted.completedAt)
+    XCTAssertGreaterThan(restarted.nextRun, .now)
+    XCTAssertGreaterThan(restarted.scheduleAnchor ?? .distantPast, completed.scheduleAnchor ?? .distantPast)
   }
 
   @MainActor func testBusyWorkspaceKeepsDueAutomationForNextPoll() async {

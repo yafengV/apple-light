@@ -20,12 +20,14 @@ struct AutomationRecurrenceRule: Equatable {
   let hours: [Int]
   let minutes: [Int]
   let weekStart: Int
+  let count: Int?
+  let until: Date?
 
   static func parse(_ text: String) throws -> Self {
     var source = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if source.hasPrefix("RRULE:") { source.removeFirst(6) }
     let allowed: Set<String> = ["FREQ", "INTERVAL", "BYDAY", "BYMONTHDAY", "BYMONTH",
-      "BYSETPOS", "BYHOUR", "BYMINUTE", "WKST"]
+      "BYSETPOS", "BYHOUR", "BYMINUTE", "WKST", "COUNT", "UNTIL"]
     var fields: [String: String] = [:]
     for part in source.split(separator: ";", omittingEmptySubsequences: false) {
       let pair = part.split(separator: "=", omittingEmptySubsequences: false)
@@ -37,6 +39,23 @@ struct AutomationRecurrenceRule: Equatable {
       throw AgentFailure(message: "RRULE 频率需为 HOURLY、DAILY、WEEKLY、MONTHLY 或 YEARLY。")
     }
     let interval = try number(fields["INTERVAL"] ?? "1", range: 1...366, name: "INTERVAL")
+    guard fields["COUNT"] == nil || fields["UNTIL"] == nil else {
+      throw AgentFailure(message: "COUNT 与 UNTIL 不能同时使用。")
+    }
+    let count = try fields["COUNT"].map { try number($0, range: 1...100_000, name: "COUNT") }
+    let until: Date?
+    if let text = fields["UNTIL"] {
+      let formatter = DateFormatter()
+      formatter.locale = Locale(identifier: "en_US_POSIX")
+      formatter.timeZone = TimeZone(secondsFromGMT: 0)!
+      formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+      formatter.isLenient = false
+      guard text.range(of: #"^\d{8}T\d{6}Z$"#, options: .regularExpression) != nil,
+        let parsed = formatter.date(from: text), formatter.string(from: parsed) == text else {
+        throw AgentFailure(message: "UNTIL 必须是 UTC 时间，例如 20261001T090000Z。")
+      }
+      until = parsed
+    } else { until = nil }
     let minutes = try list(fields["BYMINUTE"], name: "BYMINUTE") {
       try number($0, range: 0...59, name: "BYMINUTE")
     }
@@ -74,7 +93,8 @@ struct AutomationRecurrenceRule: Equatable {
     }
     return Self(frequency: frequency, interval: interval, weekdays: weekdays,
       monthDays: monthDays, months: months, setPositions: setPositions,
-      hours: hours, minutes: minutes, weekStart: weekStartIndex + 1)
+      hours: hours, minutes: minutes, weekStart: weekStartIndex + 1,
+      count: count, until: until)
   }
 
   func nextDate(after date: Date, anchor: Date, calendar: Calendar) -> Date? {
@@ -84,14 +104,16 @@ struct AutomationRecurrenceRule: Equatable {
     let anchorWeek = workingCalendar.dateInterval(of: .weekOfYear, for: anchor)?.start
     let anchorHour = workingCalendar.dateInterval(of: .hour, for: anchor)?.start
     let anchorParts = workingCalendar.dateComponents([.year, .month, .day, .weekday, .hour], from: anchor)
-    var day = workingCalendar.startOfDay(for: date)
+    var day = count == nil ? workingCalendar.startOfDay(for: date) : anchorDay
+    var occurrenceCount = 0
     var selectedPeriodStart: Date?
     var selectedPeriodDates: Set<Date> = []
     for _ in 0..<(366 * 10) {
       if day >= anchorDay, matchesDay(day, anchorDay: anchorDay, anchorWeek: anchorWeek,
         anchorParts: anchorParts, calendar: workingCalendar) {
         for candidate in candidateTimes(on: day, anchorHour: anchorHour,
-          anchorParts: anchorParts, calendar: workingCalendar) where candidate > date && candidate >= anchor {
+          anchorParts: anchorParts, calendar: workingCalendar) where candidate >= anchor {
+          if let until, candidate > until { return nil }
           if !setPositions.isEmpty {
             guard let period = workingCalendar.dateInterval(of: periodComponent, for: candidate) else { continue }
             if selectedPeriodStart != period.start {
@@ -102,9 +124,12 @@ struct AutomationRecurrenceRule: Equatable {
             }
             if !selectedPeriodDates.contains(candidate) { continue }
           }
-          return candidate
+          occurrenceCount += 1
+          if let count, occurrenceCount > count { return nil }
+          if candidate > date { return candidate }
         }
       }
+      if let until, day > until { return nil }
       guard let followingDay = workingCalendar.date(byAdding: .day, value: 1, to: day) else { return nil }
       day = followingDay
     }
