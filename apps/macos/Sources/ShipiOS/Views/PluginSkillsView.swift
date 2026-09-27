@@ -2,9 +2,12 @@ import AppKit
 import SwiftUI
 
 struct PluginSkillsView: View {
+  enum Layout { case rows, cards }
+
   @Bindable var store: WorkspaceStore
   var pluginID: String?
   var query = ""
+  var layout: Layout = .rows
   @State private var preview: PluginSkillReference?
   @State private var editing: PluginSkillReference?
   @State private var removing: PluginSkillReference?
@@ -25,6 +28,10 @@ struct PluginSkillsView: View {
         ContentUnavailableView(query.isEmpty ? "尚未安装技能" : "没有匹配的技能",
           systemImage: "sparkles", description: Text("导入技能文件夹或包含技能的插件后，可以在这里查看和启停单个技能。"))
           .frame(maxWidth: .infinity)
+      } else if layout == .cards {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14)], spacing: 14) {
+          ForEach(skills) { skill in skillCard(skill) }
+        }
       } else {
         ForEach(skills) { skill in
           HStack(spacing: 12) {
@@ -77,6 +84,56 @@ struct PluginSkillsView: View {
         removing = nil
       }
     } message: { Text("仅移除 ShipiOS 中的副本，原始技能文件夹保持不变。") }
+  }
+
+  private func skillCard(_ skill: PluginSkillReference) -> some View {
+    let parentEnabled = skill.isStandalone || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
+    return VStack(alignment: .leading, spacing: 12) {
+      Button { preview = skill } label: {
+        HStack(alignment: .top, spacing: 12) {
+          Image(systemName: "wand.and.stars")
+            .font(.title3)
+            .foregroundStyle(store.appearance.accentColor)
+            .frame(width: 38, height: 38)
+            .background(store.appearance.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+          VStack(alignment: .leading, spacing: 6) {
+            Text(skill.title).appFont(.headline)
+            if !skill.summary.isEmpty {
+              Text(skill.summary).appFont(.subheadline).foregroundStyle(.secondary)
+                .lineLimit(2)
+            }
+          }.frame(maxWidth: .infinity, alignment: .leading)
+        }.contentShape(Rectangle())
+      }.buttonStyle(.plain).accessibilityLabel("查看技能：\(skill.title)")
+
+      Spacer(minLength: 0)
+      Text(skill.pluginName + " · $" + skill.mention)
+        .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+      HStack {
+        if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
+        Toggle("启用技能", isOn: Binding(
+          get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
+          set: { _ = store.setSkillEnabled($0, id: skill.id) }))
+          .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
+          .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
+        Spacer()
+        Button("立即尝试") { _ = store.trySkill(skill.id) }
+          .disabled(!store.canTrySkill(skill.id))
+        if skill.isStandalone {
+          Button("编辑") { editing = skill }
+            .disabled(!store.pluginsLoaded)
+            .accessibilityLabel("编辑技能：\(skill.title)")
+          Menu {
+            Button("卸载技能", role: .destructive) { removing = skill }
+          } label: { Image(systemName: "ellipsis") }
+            .menuStyle(.borderlessButton).fixedSize()
+            .accessibilityLabel("技能菜单：\(skill.title)")
+        }
+      }
+    }
+    .padding(16)
+    .frame(maxWidth: .infinity, minHeight: 165, alignment: .leading)
+    .background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
   }
 }
 

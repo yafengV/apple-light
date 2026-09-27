@@ -32,7 +32,10 @@ struct SkillsView: View {
       }
 
       ScrollView {
-        PluginSkillsView(store: store, query: query)
+        Text("已安装").appFont(.headline)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.bottom, 8)
+        PluginSkillsView(store: store, query: query, layout: .cards)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
 
