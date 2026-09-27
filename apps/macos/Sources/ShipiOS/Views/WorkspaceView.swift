@@ -98,12 +98,6 @@ struct WorkspaceView: View {
         guard store.destination != .settings else { return }
         withAnimation { columns = columns == .detailOnly ? .all : .detailOnly }
       }
-      .task {
-        while !Task.isCancelled {
-          await store.runDueAutomations()
-          try? await Task.sleep(for: .seconds(30))
-        }
-      }
     }
   }
 

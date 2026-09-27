@@ -137,4 +137,25 @@ final class AutomationTests: XCTestCase {
     XCTAssertEqual(store.automationPreferences.items[0].nextRun, due)
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
   }
+
+  @MainActor func testAppLifecyclePollsDueAutomationWithoutWorkspaceView() async {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.restore()
+    var item = ShipAutomation(name: "Background fixture", prompt: "run")
+    item.nextRun = Date().addingTimeInterval(3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    store.automationPreferences.items[0].nextRun = Date().addingTimeInterval(-60)
+    let delegate = AppDelegate()
+    delegate.store = store
+    delegate.startAutomationPolling(every: .milliseconds(20))
+    for _ in 0..<50 where store.automationsError == nil {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    delegate.stopAutomationPolling()
+    XCTAssertNotNil(store.automationsError)
+    XCTAssertGreaterThan(store.automationPreferences.items[0].nextRun, .now)
+    await store.shutdown()
+  }
 }

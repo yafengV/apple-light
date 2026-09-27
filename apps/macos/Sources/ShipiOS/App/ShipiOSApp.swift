@@ -93,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private let pointerCursorController = PointerCursorController()
   private var quitting = false
   private var ready = false
+  private var automationPoller: Task<Void, Never>?
   private var pendingNotification: NotificationDestination?
   private var pendingDeepLinks: [ShipiOSDeepLink] = []
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -113,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !quitting else { return .terminateLater }
     quitting = true
+    stopAutomationPolling()
     Task {
       await store?.shutdown()
       sender.reply(toApplicationShouldTerminate: true)
@@ -139,10 +141,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         pointerCursorController?.apply(appearance.usePointerCursors)
       }
       pointerCursorController.apply(store.appearance.usePointerCursors)
+      startAutomationPolling()
     }
     ready = true
     await openPendingNotification()
     await openPendingDeepLinks()
+  }
+
+  func startAutomationPolling(every interval: Duration = .seconds(30)) {
+    guard automationPoller == nil, let store else { return }
+    automationPoller = Task { [weak store] in
+      while !Task.isCancelled {
+        guard let store else { break }
+        // A run can wait for tool approval. Keep polling other due schedules.
+        Task { await store.runDueAutomations() }
+        try? await Task.sleep(for: interval)
+      }
+    }
+  }
+
+  func stopAutomationPolling() {
+    automationPoller?.cancel()
+    automationPoller = nil
   }
 
   private func openPendingDeepLinks() async {
