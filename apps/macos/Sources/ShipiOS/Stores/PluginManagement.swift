@@ -7,6 +7,8 @@ extension WorkspaceStore {
     pluginsLoading = true
     defer { pluginsLoading = false }
     pluginsLoaded = false
+    repositorySkillCache.removeAll()
+    repositorySkillRevision = UUID()
     let root = dataRoot
     do {
       let loaded = try await Task.detached(priority: .userInitiated) {
@@ -21,6 +23,15 @@ extension WorkspaceStore {
       pluginsLoaded = true
       pluginsError = nil
     } catch { pluginsError = error.localizedDescription }
+  }
+
+  func repositorySkills(for projectPath: String) throws -> [PluginSkillReference] {
+    guard !projectPath.isEmpty else { return [] }
+    if let cached = repositorySkillCache[projectPath] { return cached }
+    let loaded = try PluginStorage.repositorySkills(
+      project: URL(fileURLWithPath: projectPath, isDirectory: true))
+    repositorySkillCache[projectPath] = loaded
+    return loaded
   }
 
   func choosePluginFolder() {

@@ -16,6 +16,10 @@ struct ComposerView: View {
     ComposerSendShortcut.commandEnter.rawValue
 
   var body: some View {
+    content.onChange(of: store.repositorySkillRevision) { _, _ in updateCommands() }
+  }
+
+  private var content: some View {
     VStack(spacing: 9) {
       GoalStatusCard(store: store, taskID: store.selectedTask?.id) {
         store.showingGoalEditor = true

@@ -8,12 +8,15 @@ struct PluginSkillsView: View {
   var pluginID: String?
   var query = ""
   var layout: Layout = .rows
+  var sourceSkills: [PluginSkillReference]?
+  var emptyTitle = "尚未安装技能"
+  var emptyDescription = "导入技能文件夹或包含技能的插件后，可以在这里查看和启停单个技能。"
   @State private var preview: PluginSkillReference?
   @State private var editing: PluginSkillReference?
   @State private var removing: PluginSkillReference?
 
   private var skills: [PluginSkillReference] {
-    store.installedPluginSkills.filter { skill in
+    (sourceSkills ?? store.installedPluginSkills).filter { skill in
       let document = [skill.title, skill.summary, skill.id, skill.pluginName].joined(separator: " ")
       return (pluginID == nil || pluginID == skill.pluginID)
         && query.split(whereSeparator: \.isWhitespace).allSatisfy { document.localizedStandardContains(String($0)) }
@@ -25,8 +28,8 @@ struct PluginSkillsView: View {
       if store.pluginsLoading {
         ProgressView("正在读取技能…")
       } else if skills.isEmpty {
-        ContentUnavailableView(query.isEmpty ? "尚未安装技能" : "没有匹配的技能",
-          systemImage: "sparkles", description: Text("导入技能文件夹或包含技能的插件后，可以在这里查看和启停单个技能。"))
+        ContentUnavailableView(query.isEmpty ? emptyTitle : "没有匹配的技能",
+          systemImage: "sparkles", description: Text(emptyDescription))
           .frame(maxWidth: .infinity)
       } else if layout == .cards {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14)], spacing: 14) {
@@ -54,18 +57,21 @@ struct PluginSkillsView: View {
                     .disabled(!store.pluginsLoaded)
                 }
               }
-            let parentEnabled = skill.isStandalone || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
+            let parentEnabled = skill.isStandalone || skill.isRepository
+              || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
             if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
             if skill.isStandalone {
               Button("编辑") { editing = skill }
                 .disabled(!store.pluginsLoaded)
                 .accessibilityLabel("编辑技能：\(skill.title)")
             }
-            Toggle("启用技能", isOn: Binding(
-              get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
-              set: { _ = store.setSkillEnabled($0, id: skill.id) }))
-              .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
-              .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
+            if !skill.isRepository {
+              Toggle("启用技能", isOn: Binding(
+                get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
+                set: { _ = store.setSkillEnabled($0, id: skill.id) }))
+                .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
+                .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
+            }
           }.padding(.vertical, 6)
           Divider()
         }
@@ -87,7 +93,8 @@ struct PluginSkillsView: View {
   }
 
   private func skillCard(_ skill: PluginSkillReference) -> some View {
-    let parentEnabled = skill.isStandalone || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
+    let parentEnabled = skill.isStandalone || skill.isRepository
+      || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
     return VStack(alignment: .leading, spacing: 12) {
       Button { preview = skill } label: {
         HStack(alignment: .top, spacing: 12) {
@@ -111,11 +118,13 @@ struct PluginSkillsView: View {
         .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
       HStack {
         if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
-        Toggle("启用技能", isOn: Binding(
-          get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
-          set: { _ = store.setSkillEnabled($0, id: skill.id) }))
-          .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
-          .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
+        if !skill.isRepository {
+          Toggle("启用技能", isOn: Binding(
+            get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
+            set: { _ = store.setSkillEnabled($0, id: skill.id) }))
+            .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
+            .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
+        }
         Spacer()
         Button("立即尝试") { _ = store.trySkill(skill.id) }
           .disabled(!store.canTrySkill(skill.id))
@@ -260,13 +269,15 @@ private struct PluginSkillPreview: View {
       }.frame(maxWidth: .infinity, maxHeight: .infinity)
       if let actionError { Text(actionError).foregroundStyle(.red).textSelection(.enabled) }
       HStack {
-        Toggle("启用技能", isOn: Binding(
-          get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
-          set: { enabled in
-            actionError = store.setSkillEnabled(enabled, id: skill.id) ? nil : store.pluginsError
-          }))
-          .disabled(!store.pluginsLoaded || !store.pluginsEnabled
-            || (!skill.isStandalone && store.pluginPreferences.installed.first(where: { $0.id == skill.pluginID })?.enabled != true))
+        if !skill.isRepository {
+          Toggle("启用技能", isOn: Binding(
+            get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
+            set: { enabled in
+              actionError = store.setSkillEnabled(enabled, id: skill.id) ? nil : store.pluginsError
+            }))
+            .disabled(!store.pluginsLoaded || !store.pluginsEnabled
+              || (!skill.isStandalone && store.pluginPreferences.installed.first(where: { $0.id == skill.pluginID })?.enabled != true))
+        }
         if skill.isStandalone {
           Button("卸载技能", role: .destructive) { confirmingRemoval = true }
             .disabled(!store.pluginsLoaded)
@@ -289,10 +300,10 @@ private struct PluginSkillPreview: View {
       .task(id: reload) {
         source = nil
         error = nil
-        let id = skill.id, root = store.dataRoot
+        let id = skill.id, root = store.dataRoot, repositoryRoot = skill.repositoryRoot
         do {
           let text = try await Task.detached(priority: .userInitiated) {
-            try PluginStorage.readSkill(id: id, root: root)
+            try PluginStorage.readSkill(id: id, root: root, repositoryRoot: repositoryRoot)
           }.value
           guard !Task.isCancelled else { return }
           source = text

@@ -529,6 +529,10 @@ struct TaskWindowView: View {
     .onChange(of: store.enabledComposerCommands) { _, _ in updateCandidates() }
     .onChange(of: store.pluginPreferences) { _, _ in updateCandidates() }
     .onChange(of: store.pluginSkills) { _, _ in updateCandidates() }
+    .onChange(of: store.repositorySkillRevision) { _, _ in updateCandidates() }
+    .onChange(of: store.library.tasks.first(where: { $0.id == taskID })?.project) { _, _ in
+      updateCandidates()
+    }
     .onChange(of: store.pluginsEnabled) { _, _ in updateCandidates() }
     .task(id: findRevision) {
       guard showingFind else { return }
@@ -1374,7 +1378,8 @@ struct TaskWindowView: View {
     commandSelection.update(
       draft: value, enabled: taskWindowCommands)
     pluginSelection.update(draft: value, plugins: store.composerPlugins)
-    skillSelection.update(draft: value, skills: store.composerSkills)
+    let project = store.library.tasks.first(where: { $0.id == taskID })?.project ?? ""
+    skillSelection.update(draft: value, skills: store.composerSkills(for: project))
   }
 
   private func selectTaskWindowCommand(_ command: ComposerCommand) {

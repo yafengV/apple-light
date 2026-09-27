@@ -4,12 +4,16 @@ struct SkillsView: View {
   @Bindable var store: WorkspaceStore
   @State private var query = ""
   @State private var creating = false
+  @State private var projectSkills: [PluginSkillReference] = []
+  @State private var projectError: String?
+  @State private var projectLoading = false
+  @State private var projectReload = UUID()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
       HStack(spacing: 12) {
         Text("技能").appFont(.title2, weight: .semibold)
-        Text("\(store.installedPluginSkills.count)")
+        Text("\(store.installedPluginSkills.count + projectSkills.count)")
           .appFont(.caption).foregroundStyle(.secondary)
         Spacer()
         Button("新建技能") { creating = true }
@@ -32,6 +36,28 @@ struct SkillsView: View {
       }
 
       ScrollView {
+        if let project = store.project {
+          HStack {
+            Text("当前项目").appFont(.headline)
+            Text(project.lastPathComponent).appFont(.caption).foregroundStyle(.secondary)
+            Spacer()
+          }.padding(.bottom, 8)
+          if projectLoading {
+            ProgressView("正在读取项目技能…")
+              .frame(maxWidth: .infinity, alignment: .leading)
+          } else if let projectError {
+            HStack {
+              Text(projectError).foregroundStyle(.red).textSelection(.enabled)
+              Button("重试") { projectReload = UUID() }
+            }
+          } else {
+            PluginSkillsView(store: store, query: query, layout: .cards,
+              sourceSkills: projectSkills, emptyTitle: "当前项目没有技能",
+              emptyDescription: "项目根目录的 .agents/skills 中尚无可用技能。")
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          Divider().padding(.vertical, 16)
+        }
         Text("已安装").appFont(.headline)
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.bottom, 8)
@@ -53,6 +79,15 @@ struct SkillsView: View {
     .padding(32)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .task { if !store.pluginsLoaded { await store.loadPlugins() } }
+    .task(id: "\(store.currentProjectKey)|\(store.repositorySkillRevision)|\(projectReload)") {
+      projectSkills = []
+      projectError = nil
+      guard !store.currentProjectKey.isEmpty else { return }
+      projectLoading = true
+      defer { projectLoading = false }
+      do { projectSkills = try store.repositorySkills(for: store.currentProjectKey) }
+      catch { projectError = error.localizedDescription }
+    }
     .sheet(isPresented: $creating) {
       SkillCreationView(store: store) { query = "" }
     }

@@ -131,10 +131,12 @@ extension WorkspaceStore {
       let branch = taskProject == nil || taskProject == currentProjectKey
         ? await branchForTaskHistory() : nil
       guard !shuttingDown, !Task.isCancelled else { return nil }
-      let pluginContext = try PluginStorage.promptContext(
-        prompt: prompt, preferences: activePluginPreferences, root: dataRoot)
-      let runID = UUID().uuidString
       let effectiveProject = taskProject ?? currentProjectKey
+      let pluginContext = try PluginStorage.promptContext(
+        prompt: prompt, preferences: activePluginPreferences, root: dataRoot,
+        repositoryRoot: !pluginsEnabled || effectiveProject.isEmpty
+          ? nil : URL(fileURLWithPath: effectiveProject, isDirectory: true))
+      let runID = UUID().uuidString
       let projectlessOwner = taskID ?? runID
       let projectlessDirectory = effectiveProject.isEmpty
         ? try projectlessWorkspace(taskID: projectlessOwner, create: true) : nil

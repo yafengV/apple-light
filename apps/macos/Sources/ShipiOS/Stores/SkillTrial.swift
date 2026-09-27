@@ -3,7 +3,7 @@ import Foundation
 extension WorkspaceStore {
   func canTrySkill(_ id: String) -> Bool {
     libraryLoaded && !restoringLibrary && !busy && !importingImages && !importingFiles
-      && pluginsLoaded && composerSkills.contains { $0.id == id }
+      && pluginsLoaded && composerSkills(for: currentProjectKey).contains { $0.id == id }
   }
 
   @discardableResult func trySkill(_ id: String) -> Bool {
@@ -15,6 +15,7 @@ extension WorkspaceStore {
       // Recheck the installed state before creating anything; a preview may be stale.
       let preferences = try PluginStorage.load(root: dataRoot)
       let skills = try PluginStorage.skills(preferences: preferences, root: dataRoot)
+        + repositorySkills(for: currentProjectKey)
       guard let skill = skills.first(where: { $0.id == id }) else {
         throw AgentFailure(message: "技能已被停用或移除，请重新加载插件。")
       }
