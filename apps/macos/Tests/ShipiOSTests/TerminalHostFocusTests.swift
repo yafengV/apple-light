@@ -155,10 +155,10 @@ import XCTest
       clickCount: 1, pressure: 1)!
     let menu = view.menu(for: event)
     XCTAssertEqual(menu?.items.filter { !$0.isSeparatorItem }.map(\.title),
-      ["复制", "粘贴", "全选", "放大字体", "缩小字体", "恢复默认字号"])
+      ["复制", "粘贴", "全选", "清除终端", "放大字体", "缩小字体", "恢复默认字号"])
     XCTAssertFalse(menu?.item(withTitle: "复制")?.isEnabled ?? true)
     XCTAssertTrue(menu?.item(withTitle: "粘贴")?.isEnabled == true)
-    for title in ["放大字体", "缩小字体", "恢复默认字号"] {
+    for title in ["清除终端", "放大字体", "缩小字体", "恢复默认字号"] {
       guard let item = menu?.item(withTitle: title) else { return XCTFail("Missing \(title)") }
       XCTAssertTrue(view.validateUserInterfaceItem(item), title)
     }
