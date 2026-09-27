@@ -1,7 +1,7 @@
 import Foundation
 
 enum ActivityFilter: String, CaseIterable, Identifiable {
-  case all, needsAction, running, unread
+  case all, needsAction, running, unread, pinned, scheduled
   var id: String { rawValue }
   var title: String {
     switch self {
@@ -9,6 +9,8 @@ enum ActivityFilter: String, CaseIterable, Identifiable {
     case .needsAction: "待处理"
     case .running: "运行中"
     case .unread: "未读"
+    case .pinned: "已置顶"
+    case .scheduled: "计划任务"
     }
   }
   func includes(_ item: ActivityTaskEntry) -> Bool {
@@ -17,6 +19,8 @@ enum ActivityFilter: String, CaseIterable, Identifiable {
     case .needsAction: item.attention != nil
     case .running: item.running
     case .unread: item.unread
+    case .pinned: item.task.pinned
+    case .scheduled: item.scheduled
     }
   }
 }
@@ -26,29 +30,41 @@ struct ActivityTaskEntry: Identifiable {
   let attention: TaskAttentionKind?
   let running: Bool
   let unread: Bool
+  let scheduled: Bool
   var id: String { task.id }
-  var priority: Int { attention != nil ? 0 : running ? 1 : 2 }
+  var priority: Int { attention != nil ? 0 : running ? 1 : unread ? 2 : task.pinned ? 3 : 4 }
   var statusTitle: String {
     if let attention { return attention.title }
-    return running ? "正在运行" : "未读活动"
+    if running { return "正在运行" }
+    if unread { return "未读活动" }
+    if task.pinned { return "已置顶" }
+    return "计划任务"
   }
   var statusIcon: String {
     if attention != nil { return "exclamationmark.circle.fill" }
-    return running ? "progress.indicator" : "circle.fill"
+    if running { return "progress.indicator" }
+    if unread { return "circle.fill" }
+    return task.pinned ? "pin.fill" : "calendar"
   }
 }
 
 extension WorkspaceStore {
   var activityEntries: [ActivityTaskEntry] {
     guard libraryLoaded else { return [] }
+    let scheduledIDs = Set(automationPreferences.items.compactMap(\.taskID))
+    let knownRuns = Dictionary((library.localRuns + runs).map { ($0.id, $0) },
+      uniquingKeysWith: { _, last in last })
     return library.tasks.compactMap { task in
       guard !task.archived, !task.isPopoutDraft else { return nil }
       let kind = taskAttentionKind(for: task)
       let attention = kind?.requiresAction == true ? kind : nil
-      let running = activeRun(taskID: task.id) != nil
+      let running = task.runIDs.contains { knownRuns[$0]?.isActive == true }
       let unread = library.unreadTasks.contains(task.id)
-      guard attention != nil || running || unread else { return nil }
-      return ActivityTaskEntry(task: task, attention: attention, running: running, unread: unread)
+      let scheduled = scheduledIDs.contains(task.id)
+        || task.runIDs.contains { knownRuns[$0]?.request["automation_id"].text != nil }
+      guard attention != nil || running || unread || task.pinned || scheduled else { return nil }
+      return ActivityTaskEntry(task: task, attention: attention, running: running,
+        unread: unread, scheduled: scheduled)
     }.sorted {
       if $0.priority != $1.priority { return $0.priority < $1.priority }
       let left = $0.task.updatedAt ?? $0.task.createdAt ?? .distantPast
@@ -66,7 +82,11 @@ extension WorkspaceStore {
     activityError = nil
     let wasInActivity = destination == .activity
     let opened = await selectTaskAwaitingScope(task)
-    if !opened {
+    if opened {
+      for automation in automationPreferences.items where automation.taskID == id && automation.needsReview {
+        markAutomationReviewed(automation.id)
+      }
+    } else {
       activityError = "无法打开此任务。请检查所属项目是否可用。"
       if wasInActivity { destination = .activity }
     }

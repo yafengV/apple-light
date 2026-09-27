@@ -33,7 +33,8 @@ struct TaskSidebarView: View {
           store.showingSearch = true
         }
         navButton("活动", store.activityBadgeCount > 0 ? "bell.badge" : "bell",
-          shortcut: store.shortcuts.label("activity"), selected: store.destination == .activity) {
+          shortcut: store.shortcuts.label("activity"), selected: store.destination == .activity,
+          badge: store.activityBadgeCount) {
           store.toggleActivity()
         }.disabled(!store.libraryLoaded)
         navButton("项目", "folder", selected: store.destination == .projects) { store.showProjects() }
@@ -86,7 +87,7 @@ struct TaskSidebarView: View {
     }
   }
   private func navButton(
-    _ title: String, _ icon: String, shortcut: String = "", selected: Bool = false,
+    _ title: String, _ icon: String, shortcut: String = "", selected: Bool = false, badge: Int = 0,
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
@@ -94,6 +95,13 @@ struct TaskSidebarView: View {
         Image(systemName: icon).frame(width: 16)
         Text(title)
         Spacer()
+        if badge > 0 {
+          Text(badge.formatted())
+            .appFont(size: 10, weight: .semibold)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(Color.accentColor.opacity(0.14), in: Capsule())
+            .accessibilityLabel("\(badge) 项需关注")
+        }
         Text(shortcut).appFont(.caption).foregroundStyle(.tertiary)
       }.padding(.horizontal, 10).padding(.vertical, 9)
         .background(
@@ -101,6 +109,7 @@ struct TaskSidebarView: View {
         )
         .contentShape(Rectangle())
     }.buttonStyle(.plain)
+      .accessibilityValue(badge > 0 ? "\(badge) 项需关注" : "")
   }
 }
 

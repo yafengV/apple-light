@@ -83,4 +83,35 @@ import XCTest
     XCTAssertNotNil(store.activityError)
     await store.shutdown()
   }
+
+  func testPinnedAndScheduledFiltersIncludeReadTasksAndOpeningReviewsAutomation() async {
+    let store = await store()
+    var pinned = WorkspaceTask(id: "pinned", project: "", title: "Pinned", runIDs: ["pinned-run"])
+    pinned.pinned = true
+    store.library.tasks = [pinned,
+      .init(id: "scheduled", project: "", title: "Scheduled", runIDs: ["scheduled-run"])]
+    store.runs = [run("pinned-run", status: "succeeded"),
+      run("scheduled-run", status: "succeeded")]
+    var automation = ShipAutomation()
+    automation.name = "Daily"
+    automation.prompt = "Check the project"
+    automation.taskID = "scheduled"
+    automation.lastRunID = "scheduled-run"
+    store.automationPreferences.items = [automation]
+    store.automationsLoaded = true
+
+    XCTAssertEqual(store.activityEntries.map(\.id), ["pinned", "scheduled"])
+    XCTAssertEqual(store.activityEntries.map(\.statusTitle), ["已置顶", "计划任务"])
+    XCTAssertEqual(store.activityEntries.filter(ActivityFilter.pinned.includes).map(\.id), ["pinned"])
+    XCTAssertEqual(store.activityEntries.filter(ActivityFilter.scheduled.includes).map(\.id), ["scheduled"])
+    XCTAssertEqual(store.activityBadgeCount, 0)
+
+    store.toggleActivity()
+    let opened = await store.openActivityTask("scheduled")
+    XCTAssertTrue(opened)
+    XCTAssertEqual(store.destination, .workspace)
+    XCTAssertEqual(store.automationPreferences.items.first?.reviewedRunID, "scheduled-run")
+    await store.shutdown()
+  }
+
 }
