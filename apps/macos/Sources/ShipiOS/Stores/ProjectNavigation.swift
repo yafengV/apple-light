@@ -1,6 +1,31 @@
 import Foundation
 
 extension WorkspaceStore {
+  func openProjectPicker(createNewTask: Bool) {
+    guard commandEnabled("project-picker") else { return }
+    projectPickerCreatesNewTask = createNewTask
+    setOverlay(.projectPicker, presented: true)
+  }
+
+  func chooseProjectFromPicker(_ option: ProjectPickerOption) async {
+    guard presentedOverlay == .projectPicker, destination == .workspace,
+      activeLocalRun == nil, !busy, libraryLoaded else { return }
+    if case .project(let path) = option, !library.projects.contains(path) { return }
+    let createsNewTask = projectPickerCreatesNewTask
+    setOverlay(.projectPicker, presented: false)
+    searchDialogReturnFocus = nil
+    fileFocusAfterOverlay = nil
+    switch option {
+    case .project(let path):
+      if createsNewTask { await newTask(in: path) }
+      else { await open(URL(fileURLWithPath: path)) }
+    case .projectless:
+      if createsNewTask { await newProjectlessTask() }
+      else { await openProjectless() }
+    case .addFolder: chooseProject(createNewTask: createsNewTask)
+    }
+  }
+
   func renameTask(_ id: String, title: String) throws {
     let cleaned = title.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !cleaned.isEmpty else { throw AgentFailure(message: "请填写任务名称。") }

@@ -63,9 +63,9 @@ struct ProjectPickerView: View {
         }
         Divider()
         HStack {
-          Text("选择项目后打开其工作区")
+          Text(store.projectPickerCreatesNewTask ? "选择项目后创建新任务" : "选择项目后打开其工作区")
           Spacer()
-          Text("↑↓ 选择 · ↵ 打开 · esc 关闭")
+          Text(store.projectPickerCreatesNewTask ? "↑↓ 选择 · ↵ 新建 · esc 关闭" : "↑↓ 选择 · ↵ 打开 · esc 关闭")
         }.appFont(.caption).foregroundStyle(.secondary).padding(14)
       }
     }
@@ -120,15 +120,7 @@ struct ProjectPickerView: View {
   }
 
   private func choose(_ option: ProjectPickerOption) {
-    guard options.contains(option), store.presentedOverlay == .projectPicker, store.destination == .workspace,
-      store.activeLocalRun == nil, !store.busy, store.libraryLoaded else { return }
-    store.setOverlay(.projectPicker, presented: false)
-    store.searchDialogReturnFocus = nil
-    store.fileFocusAfterOverlay = nil
-    switch option {
-    case .project(let path): Task { await store.open(URL(fileURLWithPath: path)) }
-    case .projectless: Task { await store.openProjectless() }
-    case .addFolder: store.chooseProject()
-    }
+    guard options.contains(option) else { return }
+    Task { await store.chooseProjectFromPicker(option) }
   }
 }

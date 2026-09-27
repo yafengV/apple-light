@@ -16,6 +16,7 @@ final class WorkspaceStore {
   @ObservationIgnored let browserDataStore: WKWebsiteDataStore?
   var query = ""
   var presentedOverlay: WorkspaceOverlay?
+  var projectPickerCreatesNewTask = false
   @ObservationIgnored var searchDialogReturnFocus: SearchDialogReturnFocus?
   var fileFocusAfterOverlay: (root: URL, path: String)?
   var showingSearch: Bool {
@@ -584,7 +585,7 @@ final class WorkspaceStore {
     newTask(recordHistory: false)
   }
 
-  func chooseProject() {
+  func chooseProject(createNewTask: Bool = false) {
     guard activeLocalRun == nil, !busy, !restoringLibrary else { return }
     let panel = NSOpenPanel()
     panel.title = "选择项目所在文件夹"
@@ -593,7 +594,14 @@ final class WorkspaceStore {
     panel.allowsMultipleSelection = false
     guard let window = NSApp.keyWindow else { return }
     panel.beginSheetModal(for: window) { [weak self] response in
-      if response == .OK, let url = panel.url { Task { @MainActor in await self?.open(url) } }
+      if response == .OK, let url = panel.url {
+        Task { @MainActor in
+          if createNewTask {
+            await self?.newTask(in: url.resolvingSymlinksInPath().standardizedFileURL.path)
+          }
+          else { await self?.open(url) }
+        }
+      }
     }
   }
 

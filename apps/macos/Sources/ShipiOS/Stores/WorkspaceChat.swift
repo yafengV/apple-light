@@ -1055,6 +1055,15 @@ extension WorkspaceStore {
       showingGoalEditor = true
       return true
     }
+    if command == "/project" {
+      guard commandEnabled("project-picker") else {
+        error = "当前无法选择项目；请等待工作区加载或结束正在运行的本地操作。"
+        return true
+      }
+      draft = ""
+      openProjectPicker(createNewTask: true)
+      return true
+    }
     if command.hasPrefix("/plan"), command.count > 5,
       command[command.index(command.startIndex, offsetBy: 5)].isWhitespace
     {
@@ -1065,7 +1074,7 @@ extension WorkspaceStore {
       return false
     }
     let actions = [
-      "/project": "projects", "/new": "new", "/files": "files",
+      "/task": "new-standalone", "/new": "new", "/files": "files",
       "/terminal": "terminal", "/pet": "pet", "/plugins": "plugins",
       "/automations": "automations",
       "/model": "model", "/reasoning": "model",

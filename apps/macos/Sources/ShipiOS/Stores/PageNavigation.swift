@@ -31,6 +31,7 @@ extension WorkspaceStore {
       presentedOverlay = overlay
     } else if presentedOverlay == overlay {
       presentedOverlay = nil
+      if overlay == .projectPicker { projectPickerCreatesNewTask = false }
     }
   }
 

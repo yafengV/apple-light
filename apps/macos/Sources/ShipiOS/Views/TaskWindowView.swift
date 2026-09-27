@@ -1268,6 +1268,7 @@ struct TaskWindowView: View {
     return Set(ComposerCommand.allCases.filter { command in
       if command == .fork { return store.canForkTaskWindow(taskID) }
       if command == .compact { return mode == .standard && store.canCompactConversation(taskID: taskID) }
+      if command == .project || command == .task { return store.commandEnabled(command.actionID) }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -1323,6 +1324,17 @@ struct TaskWindowView: View {
     case .files:
       setDraft("")
       openTaskFileSearch()
+    case .task:
+      setDraft("")
+      Task {
+        await store.newProjectlessTask()
+        openWindow(id: "main")
+      }
+    case .project:
+      setDraft("")
+      store.returnToWorkspace()
+      store.openProjectPicker(createNewTask: true)
+      openWindow(id: "main")
     default:
       guard let task else { return }
       setDraft("")

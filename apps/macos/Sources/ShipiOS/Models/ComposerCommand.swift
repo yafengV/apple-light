@@ -1,14 +1,15 @@
 import Foundation
 
 enum ComposerCommand: String, CaseIterable, Identifiable {
-  case chat, doctor, build, plan, goal, compact, model, reasoning, fork, side, review, files, terminal, pet, plugins, automations, project, new
+  case chat, doctor, build, plan, goal, compact, model, reasoning, fork, side, review, files, terminal, pet, plugins, automations, project, task, new
 
   var id: String { rawValue }
   var token: String { "/" + rawValue }
   var localAction: LocalAction? { LocalAction(rawValue: rawValue) }
   var actionID: String {
     switch self {
-    case .project: "projects"
+    case .project: "project-picker"
+    case .task: "new-standalone"
     case .reasoning: "model"
     case .side: "open-side-chat"
     default: rawValue
@@ -17,7 +18,7 @@ enum ComposerCommand: String, CaseIterable, Identifiable {
   var title: String {
     localAction?.title ?? [
       "review": "审查代码变更", "files": "搜索文件", "terminal": "切换终端",
-      "project": "项目", "new": "新任务", "fork": "分叉到新任务", "side": "打开临时侧聊",
+      "project": "为新任务选择项目", "task": "无项目新任务", "new": "新任务", "fork": "分叉到新任务", "side": "打开临时侧聊",
       "plan": "制定实施计划",
       "goal": "定义目标与成功标准",
       "compact": "整理会话上下文",

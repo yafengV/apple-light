@@ -59,7 +59,7 @@ extension WorkspaceStore {
     case "settings": openSettings()
     case "pet": togglePet()
     case "open": chooseProject()
-    case "project-picker": setOverlay(.projectPicker, presented: true)
+    case "project-picker": openProjectPicker(createNewTask: false)
     case "files":
       destination = .workspace
       showingFileSearch = true

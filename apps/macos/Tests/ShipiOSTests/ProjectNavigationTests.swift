@@ -38,6 +38,68 @@ final class ProjectNavigationTests: XCTestCase {
     XCTAssertFalse(TaskWindowCommandContext.owns("project-picker"))
   }
 
+  @MainActor func testSlashProjectChoosesTheNextTaskScopeWithoutOpeningProjectsPage() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.connected = true
+    store.project = URL(fileURLWithPath: "/a")
+    store.library.projects = ["/a"]
+    store.library.tasks = [task("previous", project: "/a")]
+    store.selection = "previous"
+    store.draft = "/project"
+
+    XCTAssertEqual(ComposerCommand.project.actionID, "project-picker")
+    var candidates = ComposerCommandSelection()
+    candidates.update(draft: "/pro", enabled: store.enabledComposerCommands)
+    XCTAssertEqual(candidates.matches, [.project])
+    XCTAssertTrue(store.handleComposerCommand())
+    XCTAssertEqual(store.presentedOverlay, .projectPicker)
+    XCTAssertTrue(store.projectPickerCreatesNewTask)
+    XCTAssertEqual(store.destination, .workspace)
+    await store.chooseProjectFromPicker(.project("/a"))
+    XCTAssertNil(store.presentedOverlay)
+    XCTAssertFalse(store.projectPickerCreatesNewTask)
+    XCTAssertNil(store.selection)
+    XCTAssertEqual(store.library.projectSelections["/a"], "")
+
+    store.executeCommand("project-picker")
+    XCTAssertEqual(store.presentedOverlay, .projectPicker)
+    XCTAssertFalse(store.projectPickerCreatesNewTask)
+    store.selection = "previous"
+    await store.chooseProjectFromPicker(.project("/a"))
+    XCTAssertEqual(store.selection, "previous", "The regular picker must not create a new task")
+    store.openProjectPicker(createNewTask: true)
+    store.setOverlay(.projectPicker, presented: false)
+    XCTAssertFalse(store.projectPickerCreatesNewTask, "Cancelling must discard the new-task mode")
+  }
+
+  @MainActor func testSlashTaskStartsAProjectlessTask() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.connected = true
+    store.project = URL(fileURLWithPath: "/a")
+    store.library.tasks = [task("previous", project: "/a")]
+    store.selection = "previous"
+    store.draft = "/task"
+
+    XCTAssertEqual(ComposerCommand.task.actionID, "new-standalone")
+    var candidates = ComposerCommandSelection()
+    candidates.update(draft: "/ta", enabled: store.enabledComposerCommands)
+    XCTAssertEqual(candidates.matches, [.task])
+    XCTAssertTrue(store.handleComposerCommand())
+    for _ in 0..<200 where store.project != nil {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertNil(store.project)
+    XCTAssertNil(store.selection)
+    XCTAssertEqual(store.destination, .workspace)
+    XCTAssertEqual(store.library.projectSelections["/a"], "previous")
+  }
+
   @MainActor func testRenameReentrySeedsEachTargetBeforePresenting() {
     let store = WorkspaceStore()
     store.library.projects = ["/a", "/b"]
