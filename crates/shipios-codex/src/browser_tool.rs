@@ -247,7 +247,7 @@ impl<'call> ToolExecutor<ToolCall<'call>> for BrowserTool {
     fn spec(&self) -> ToolSpec {
         ToolSpec::Function(ResponsesApiTool {
             name: "shipios_browser".to_owned(),
-            description: "Use the task's ShipiOS browser. list returns tab IDs; open navigates to an http/https URL; read returns visible page text; screenshot returns the viewport as an image; inspect returns live element handles; click activates a handle; fill enters text; download starts a same-website download from an inspected link; download_status checks its progress; cancel_download stops it. Inspect again after navigation or page changes. ShipiOS checks website access and may ask the user where to save.".to_owned(),
+            description: "Use the task's ShipiOS browser. list returns tab IDs; open navigates to an http/https URL; read returns visible page text; screenshot returns the viewport as an image; inspect returns live element handles; click activates a handle and may return a download_id when the page starts a download; fill enters text; download starts a same-website download from an inspected link; download_status checks its progress; cancel_download stops it. Inspect again after navigation or page changes. ShipiOS checks website access and may ask the user where to save.".to_owned(),
             strict: false,
             parameters: parse_tool_input_schema(&json!({
                 "type": "object",

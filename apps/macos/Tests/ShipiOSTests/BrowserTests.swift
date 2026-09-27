@@ -307,6 +307,25 @@ final class BrowserTests: XCTestCase {
     }
     XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("fixture.txt")),
       "shipios browser download\n")
+    _ = try await tab.view.callAsyncJavaScript("""
+      const generated = document.createElement('a'); generated.href = '/frame-form';
+      generated.textContent = 'Frame generated download';
+      generated.onclick = () => { location.href = '/download'; return false; };
+      document.body.appendChild(generated); return true;
+      """, arguments: [:], in: frame.info, contentWorld: .page)
+    let refreshed = await store.codexBrowserResult(taskID: "owner", action: "inspect",
+      tabID: tab.id.uuidString)
+    let generatedHandle = try XCTUnwrap(refreshed["elements"].items.first {
+      $0["label"].text == "Frame generated download"
+    }?["handle"].text)
+    let generated = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: generatedHandle)
+    XCTAssertEqual(generated["status"].text, "ok")
+    let generatedID = try XCTUnwrap(UUID(uuidString: generated["download_id"].text ?? ""))
+    try await eventually("Frame click-generated download did not finish") {
+      store.browserDownloads.first(where: { $0.id == generatedID })?.status == .finished
+    }
+    XCTAssertEqual(store.browserDownloads.first(where: { $0.id == generatedID })?.agentTaskID, "owner")
   }
   @MainActor func testCodexBrowserOpenPreservesBackgroundTaskOwnershipAndRespectsBlock() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-open-\(UUID())")
@@ -432,6 +451,68 @@ final class BrowserTests: XCTestCase {
     let cancelled = await store.codexBrowserResult(taskID: "owner", action: "cancel_download",
       tabID: nil, downloadID: slowID.uuidString)
     XCTAssertEqual(cancelled["download_status"].text, "cancelled")
+  }
+  @MainActor func testCodexBrowserAgentCapturesDownloadCreatedByPageClick() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-click-download-\(UUID())")
+    let downloads = root.appendingPathComponent("Downloads")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    defer { store.workspace.browser.shutdown() }
+    XCTAssertTrue(store.setBrowserDownloadFolder(downloads))
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "", title: "Other", runIDs: ["run-other"])]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/one", title: "One")
+    store.library.browserPermissions.defaultDecision = .allow
+    _ = try await tab.view.evaluateJavaScript("""
+      const dynamic = document.createElement('a'); dynamic.href = '/one';
+      dynamic.textContent = 'Generated download';
+      dynamic.onclick = () => { location.href = '/download'; return false; };
+      document.body.appendChild(dynamic); undefined;
+      """)
+    let inspected = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let handle = try XCTUnwrap(inspected["elements"].items.first {
+      $0["label"].text == "Generated download"
+    }?["handle"].text)
+    let clicked = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: handle)
+    XCTAssertEqual(clicked["status"].text, "ok")
+    let id = try XCTUnwrap(UUID(uuidString: clicked["download_id"].text ?? ""))
+    try await eventually("Click-generated Agent download did not finish") {
+      store.browserDownloads.first(where: { $0.id == id })?.status == .finished
+    }
+    let status = await store.codexBrowserResult(taskID: "owner", action: "download_status",
+      tabID: nil, downloadID: id.uuidString)
+    XCTAssertEqual(status["download_status"].text, "finished")
+    XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("fixture.txt")),
+      "shipios browser download\n")
+    let foreign = await store.codexBrowserResult(taskID: "other", action: "download_status",
+      tabID: nil, downloadID: id.uuidString)
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+    let persisted = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(persisted.browserDownloads.first(where: { $0.id == id })?.agentTaskID, "owner")
+    _ = try await tab.view.evaluateJavaScript("""
+      const cross = document.createElement('a'); cross.href = '/one';
+      cross.textContent = 'Cross-site generated download';
+      cross.onclick = () => {
+        location.href = 'http://localhost:' + location.port + '/download';
+        return false;
+      };
+      document.body.appendChild(cross); undefined;
+      """)
+    let crossInspected = await store.codexBrowserResult(taskID: "owner", action: "inspect",
+      tabID: tab.id.uuidString)
+    let crossHandle = try XCTUnwrap(crossInspected["elements"].items.first {
+      $0["label"].text == "Cross-site generated download"
+    }?["handle"].text)
+    let blocked = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: crossHandle)
+    XCTAssertEqual(blocked["status"].text, "error")
+    XCTAssertEqual(store.browserDownloads.count, 1)
   }
 
   @MainActor func testPageEditableFocusReportsInputsAndClearsOnBlurAndNavigation() async throws {

@@ -203,6 +203,11 @@ extension WorkspaceStore {
 
   private func interactWithCodexBrowser(tab: BrowserTab, taskID: String,
     action: String, url: URL, handle: String?, text: String?, token: UUID?) async -> JSONValue {
+    guard !tab.agentOperationActive else {
+      return .object(["status": .string("error"), "message": .string("此网页正在执行其他 Agent 操作。")])
+    }
+    tab.agentOperationActive = true
+    defer { tab.agentOperationActive = false }
     do {
       if action == "inspect" {
         let discovered = await BrowserAgentDOM.availableFrames(tab)
@@ -321,6 +326,18 @@ extension WorkspaceStore {
         || browserPermissionPreferences.decision(for: frameURL) == .block {
         return .object(["status": .string("denied"), "host": .string(frameURL.host ?? "")])
       }
+      let capturingDownload = action == "click" && frameHost != nil
+      if capturingDownload, let frameHost,
+        !tab.beginAgentDownloadCapture(allowedHost: frameHost) {
+        return .object(["status": .string("error"), "message": .string("网页已有正在执行的 Agent 点击。")])
+      }
+      var completedCapture = false
+      defer {
+        if capturingDownload {
+          let ids = tab.endAgentDownloadCapture()
+          if !completedCapture { for id in ids { _ = tab.cancelDownload(id) } }
+        }
+      }
       tab.agentNavigationHost = mainHost
       tab.agentAllowedFrameHosts = Set([mainHost, frameHost].compactMap { $0 })
       defer { tab.agentNavigationHost = nil; tab.agentAllowedFrameHosts = nil }
@@ -347,9 +364,21 @@ extension WorkspaceStore {
       if action == "fill" && currentURL != url {
         return .object(["status": .string("unavailable"), "message": .string("填写期间网页已变化。")])
       }
-      return .object(["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
+      let downloadIDs = capturingDownload ? tab.agentCapturedDownloadIDs : []
+      for id in downloadIDs {
+        guard let index = library.browserDownloads.firstIndex(where: { $0.id == id }) else {
+          _ = tab.cancelDownload(id)
+          return .object(["status": .string("error"), "message": .string("下载记录未能保存。")])
+        }
+        library.browserDownloads[index].agentTaskID = taskID
+      }
+      if !downloadIDs.isEmpty { saveLibrary() }
+      completedCapture = true
+      var fields: [String: JSONValue] = ["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
         "url": .string(currentURL.absoluteString), "title": .string(tab.title),
-        "action": .string(action), "label": .string(target["label"].text ?? "")])
+        "action": .string(action), "label": .string(target["label"].text ?? "")]
+      if let id = downloadIDs.first { fields["download_id"] = .string(id.uuidString) }
+      return .object(fields)
     } catch {
       return .object(["status": .string("error"), "message": .string(error.localizedDescription)])
     }

@@ -73,7 +73,10 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored var nativeInspectTarget: AnyObject?
   @ObservationIgnored var nativeInspectAction: Selector?
   @ObservationIgnored var agentNavigationHost: String?
+  @ObservationIgnored var agentOperationActive = false
   @ObservationIgnored var agentAllowedFrameHosts: Set<String>?
+  @ObservationIgnored var agentDownloadAllowedHost: String?
+  @ObservationIgnored private(set) var agentCapturedDownloadIDs: [UUID] = []
   @ObservationIgnored var agentFrames: [String: WKFrameInfo] = [:]
   @ObservationIgnored var agentScanID: String?
   private(set) var pageEditingText = false
@@ -164,7 +167,9 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     view.navigationDelegate = nil; view.uiDelegate = nil
     contextTarget = nil; nativeInspectTarget = nil; nativeInspectAction = nil
     agentNavigationHost = nil
+    agentOperationActive = false
     agentAllowedFrameHosts = nil
+    agentDownloadAllowedHost = nil; agentCapturedDownloadIDs = []
     agentFrames.removeAll(); agentScanID = nil
     observations = []; openWindow = nil; openURLInNewTab = nil; closeWindow = nil; didVisit = nil
     chooseDownloadDestination = nil; didUpdateDownload = nil
@@ -646,6 +651,16 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       download.cancel { _ in }
       return
     }
+    if let host = agentDownloadAllowedHost {
+      guard Self.agentHost(sourceURL) == host, agentCapturedDownloadIDs.isEmpty else {
+        download.cancel { _ in }
+        return
+      }
+      agentDownloadHosts[id] = host
+      agentCapturedDownloadIDs.append(id)
+      didUpdateDownload?(.started(id: id, sourceURL: sourceURL.absoluteString,
+        filename: sourceURL.lastPathComponent.isEmpty ? "download" : sourceURL.lastPathComponent))
+    }
     let key = ObjectIdentifier(download)
     downloads[id] = download
     downloadIDs[key] = id
@@ -675,6 +690,20 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   private static func agentHost(_ url: URL) -> String? {
     guard url.user == nil, url.password == nil, BrowserAddress.permits(url) else { return nil }
     return url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+  }
+
+  func beginAgentDownloadCapture(allowedHost: String) -> Bool {
+    guard agentDownloadAllowedHost == nil else { return false }
+    agentDownloadAllowedHost = allowedHost
+    agentCapturedDownloadIDs = []
+    return true
+  }
+
+  func endAgentDownloadCapture() -> [UUID] {
+    let ids = agentCapturedDownloadIDs
+    agentDownloadAllowedHost = nil
+    agentCapturedDownloadIDs = []
+    return ids
   }
 
   private static let stylePreviewWorld = WKContentWorld.world(name: "ShipiOSStylePreview")
