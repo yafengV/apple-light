@@ -1,7 +1,7 @@
 import Foundation
 
 enum ComposerCommand: String, CaseIterable, Identifiable {
-  case chat, doctor, build, plan, goal, compact, model, reasoning, fork, side, review, files, terminal, pet, plugins, mcp, automations, project, task, new
+  case chat, doctor, build, plan, goal, compact, model, reasoning, fork, side, review, files, terminal, pet, plugins, mcp, status, automations, project, task, new
 
   var id: String { rawValue }
   var token: String { "/" + rawValue }
@@ -27,6 +27,7 @@ enum ComposerCommand: String, CaseIterable, Identifiable {
       "pet": "显示或隐藏宠物",
       "plugins": "浏览插件",
       "mcp": "查看 MCP 连接状态",
+      "status": "查看当前会话状态",
       "automations": "管理自动化",
     ][rawValue] ?? rawValue
   }

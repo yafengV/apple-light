@@ -29,6 +29,7 @@ extension WorkspaceStore {
         taskWindowOpenRequest = .newWindow(taskID: task.id, dataRoot: dataRoot)
       }
     case "task-summary": taskSummaryToggleRequest = UUID()
+    case "status": showingTaskStatus = true
     case "plan":
       action = .chat
       chatMode = .plan
@@ -186,6 +187,7 @@ extension WorkspaceStore {
       && selectedTask.flatMap { codexConversationPath(for: $0) } != nil
     case "copy-location": return copyLocationTarget != nil
     case "task-summary": return destination == .workspace && selectedTask != nil
+    case "status": return destination == .workspace && selectedTask != nil
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty

@@ -10,6 +10,15 @@ struct WorkspaceView: View {
 
   var body: some View {
     workspaceRoot
+    .sheet(isPresented: $store.showingTaskStatus) {
+      if let task = store.selectedTask {
+        TaskStatusView(status: TaskStatusSnapshot(task: task,
+          records: store.library.modelUsageRecords,
+          recentContextInputTokens: store.contextInputTokens(taskID: task.id))) {
+          store.showingTaskStatus = false
+        }
+      }
+    }
     .task(id: store.currentWorkspaceTabOwner) { store.restoreWorkspaceTabLayout() }
     .task(id: store.workspaceTabLayoutSnapshot) {
       do { try await Task.sleep(for: .milliseconds(300)) } catch { return }

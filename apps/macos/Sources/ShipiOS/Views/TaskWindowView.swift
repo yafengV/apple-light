@@ -27,6 +27,7 @@ struct TaskWindowView: View {
   @State private var previewImages: [ImagePreviewItem] = []
   @State private var showingGoalEditor = false
   @State private var showingTaskModelPicker = false
+  @State private var showingTaskStatus = false
   @State private var taskSummary = TaskSummaryPresentation()
   @State private var renameTitle: String?
   @State private var dropTargeted = false
@@ -93,6 +94,9 @@ struct TaskWindowView: View {
     }
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.compact.token {
       return mode == .standard && store.canCompactConversation(taskID: taskID)
+    }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.status.token {
+      return !windowCommandsBlocked
     }
     return (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -438,6 +442,15 @@ struct TaskWindowView: View {
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
     .focusedSceneValue(\.searchDialogActive, searchMode != nil)
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
+    .sheet(isPresented: $showingTaskStatus) {
+      if let task {
+        TaskStatusView(status: TaskStatusSnapshot(task: task,
+          records: store.library.modelUsageRecords,
+          recentContextInputTokens: store.contextInputTokens(taskID: taskID))) {
+          showingTaskStatus = false
+        }
+      }
+    }
     .disabled(previewImage != nil).allowsHitTesting(previewImage == nil).accessibilityHidden(previewImage != nil)
     .overlay {
       if let image = previewImage {
@@ -533,6 +546,8 @@ struct TaskWindowView: View {
       forkTask(consumeCommand: true)
     } else if command == ComposerCommand.compact.token {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
+    } else if command == ComposerCommand.status.token {
+      selectTaskWindowCommand(.status)
     } else {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     }
@@ -579,7 +594,7 @@ struct TaskWindowView: View {
 
   private var otherWindowModalActive: Bool {
     previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker
-      || renameTitle != nil || store.restoringLibrary
+      || showingTaskStatus || renameTitle != nil || store.restoringLibrary
   }
   private var windowCommandsBlocked: Bool { otherWindowModalActive || searchMode != nil }
 
@@ -630,7 +645,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -670,7 +685,7 @@ struct TaskWindowView: View {
       if canGoForward { enabled.insert("forward") }
     }
     if !otherWindowModalActive, let task {
-      enabled.formUnion(["find", "plan", "model", "dictation", "open-task-window", "task-summary"])
+      enabled.formUnion(["find", "plan", "model", "dictation", "open-task-window", "task-summary", "status"])
       if !task.isTransient { enabled.insert("copy-task-link") }
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
       if store.codexConversationPath(for: task) != nil { enabled.insert("copy-conversation-path") }
@@ -771,6 +786,7 @@ struct TaskWindowView: View {
     case "copy-conversation-path": if !task.isTransient { store.copyCodexConversationPath(task) }
     case "copy-location": if let target = copyLocationTarget { store.copyLocation(target) }
     case "task-summary": taskSummary.toggle()
+    case "status": showingTaskStatus = true
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next":
@@ -1264,13 +1280,14 @@ struct TaskWindowView: View {
 
   private var taskWindowCommands: Set<ComposerCommand> {
     guard let task else { return [] }
-    if task.isSideChat { return [.chat, .model, .reasoning] }
+    if task.isSideChat { return [.chat, .model, .reasoning, .status] }
     return Set(ComposerCommand.allCases.filter { command in
       if command == .fork { return store.canForkTaskWindow(taskID) }
       if command == .compact { return mode == .standard && store.canCompactConversation(taskID: taskID) }
       if command == .project || command == .task || command == .mcp {
         return store.commandEnabled(command.actionID)
       }
+      if command == .status { return true }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -1341,6 +1358,9 @@ struct TaskWindowView: View {
       setDraft("")
       store.openSettings(.mcpServers)
       openWindow(id: "main")
+    case .status:
+      setDraft("")
+      showingTaskStatus = true
     default:
       guard let task else { return }
       setDraft("")

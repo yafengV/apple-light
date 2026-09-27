@@ -31,6 +31,7 @@ final class WorkspaceStore {
   var activityError: String?
   var taskWindowOpenRequest: TaskWindowRoute?
   var taskSummaryToggleRequest = UUID()
+  var showingTaskStatus = false
   var settingsReturnDestination: AppDestination = .workspace
   var showingFileSearch: Bool {
     get { presentedOverlay == .fileSearch }
@@ -256,7 +257,9 @@ final class WorkspaceStore {
   var lastChatSave = Date.distantPast
   var canSend: Bool {
     destination == .workspace && !importingImages && !importingFiles && !managedTaskPreparing
-      && ((action == .chat ? canStartChat : canStart)
+      && ((draft.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.status.token
+            && selectedTask != nil)
+        || (action == .chat ? canStartChat : canStart)
         || selectedActiveRun?.kind == "chat")
   }
   var focusComposer = UUID()

@@ -56,6 +56,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "copy-session-id", title: "复制会话 ID", icon: "number", shortcut: "⌘⌥C"),
     .init(id: "copy-conversation-path", title: "复制会话记录路径", icon: "doc.on.doc", shortcut: "⌘⌥⇧C"),
     .init(id: "task-summary", title: "切换任务摘要", icon: "sidebar.trailing", shortcut: ""),
+    .init(id: "status", title: "查看当前会话状态", icon: "info.circle", shortcut: ""),
     .init(id: "branch", title: "切换或创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "settings", title: "设置", icon: "gearshape", shortcut: "⌘,"),
     .init(id: "pet", title: "显示或隐藏宠物", icon: "pawprint", shortcut: "⌥Space"),
@@ -151,7 +152,7 @@ extension DesktopCommand {
     if id.hasPrefix("focus-chat-") || Self.recentChatSlot(id) != nil { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
-    case "new", "new-alternate", "new-standalone", "send", "model", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "find", "find-next", "find-previous",
+    case "new", "new-alternate", "new-standalone", "send", "model", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "activity", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation

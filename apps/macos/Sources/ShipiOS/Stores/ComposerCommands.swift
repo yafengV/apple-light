@@ -39,7 +39,8 @@ extension WorkspaceStore {
       draft = command.token
       _ = handleComposerCommand()
     }
-    if destination == .workspace, !showingModelPicker, presentedOverlay == nil {
+    if destination == .workspace, !showingModelPicker, !showingTaskStatus,
+      presentedOverlay == nil {
       focusComposer = UUID()
     }
   }
