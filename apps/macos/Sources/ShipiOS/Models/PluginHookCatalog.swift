@@ -2,8 +2,27 @@ import Foundation
 
 struct PluginHookDeclaration: Equatable {
   let event: String
-  let command: String
+  let kind: String
+  let detail: String
   let source: String
+  let matcher: String?
+  let statusMessage: String?
+  let timeout: Int?
+
+  var availability: String {
+    let events: Set<String> = ["PreToolUse", "PermissionRequest", "PostToolUse", "PreCompact",
+      "PostCompact", "SessionStart", "SessionEnd", "UserPromptSubmit", "SubagentStart",
+      "SubagentStop", "Stop", "Interrupt"]
+    guard events.contains(event) else { return "未知事件，Codex 会忽略" }
+    return switch kind {
+    case "command": detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      ? "空命令，Codex 会跳过" : "未授权执行"
+    case "mcp_tool": detail == "服务器或工具未填写" ? "服务器或工具缺失，Codex 会跳过"
+      : (event == "SessionEnd" ? "此事件不支持 MCP Hook" : "未授权执行")
+    case "prompt", "agent": "当前 Codex Core 不支持此类型"
+    default: "未知 Hook 类型"
+    }
+  }
 }
 
 enum PluginHookCatalog {
@@ -32,19 +51,47 @@ enum PluginHookCatalog {
       sources = [("./hooks/hooks.json", try JSONSerialization.jsonObject(
         with: checkedData(at: file, inside: package)))]
     }
-    return sources.flatMap { source, json in
-      let events = (json as? [String: Any])?["hooks"] as? [String: Any] ?? [:]
-      return events.keys.sorted().flatMap { event -> [PluginHookDeclaration] in
-        let groups = events[event] as? [[String: Any]] ?? []
-        return groups.flatMap { group in
-          (group["hooks"] as? [[String: Any]] ?? []).compactMap { hook in
-            guard hook["type"] as? String == "command",
-              let command = hook["command"] as? String, !command.isEmpty else { return nil }
-            return PluginHookDeclaration(event: event, command: command, source: source)
+    var declarations: [PluginHookDeclaration] = []
+    for (source, json) in sources {
+      guard let file = json as? [String: Any] else {
+        throw AgentFailure(message: "Hook 配置 \(source) 必须是对象。")
+      }
+      guard file["hooks"] == nil || file["hooks"] is [String: Any] else {
+        throw AgentFailure(message: "Hook 配置 \(source) 的 hooks 字段无效。")
+      }
+      let events = file["hooks"] as? [String: Any] ?? [:]
+      for event in events.keys.sorted() {
+        guard let groups = events[event] as? [[String: Any]] else {
+          throw AgentFailure(message: "Hook 事件 \(event) 的声明无效。")
+        }
+        for group in groups {
+          guard group["hooks"] == nil || group["hooks"] is [[String: Any]] else {
+            throw AgentFailure(message: "Hook 事件 \(event) 的处理器列表无效。")
+          }
+          let handlers = group["hooks"] as? [[String: Any]] ?? []
+          for hook in handlers {
+            guard let kind = hook["type"] as? String else {
+              throw AgentFailure(message: "Hook 事件 \(event) 缺少类型。")
+            }
+            let detail: String
+            switch kind {
+            case "command": detail = hook["command"] as? String ?? ""
+            case "mcp_tool":
+              let server = hook["server"] as? String ?? ""
+              let tool = hook["tool"] as? String ?? ""
+              detail = server.isEmpty || tool.isEmpty ? "服务器或工具未填写" : "\(server).\(tool)"
+            default: detail = ""
+            }
+            declarations.append(PluginHookDeclaration(
+              event: event, kind: kind, detail: detail, source: source,
+              matcher: group["matcher"] as? String,
+              statusMessage: hook["statusMessage"] as? String,
+              timeout: hook["timeout"] as? Int))
           }
         }
       }
     }
+    return declarations
   }
 
   private static func checkedHookURL(_ path: String, inside package: URL) throws -> URL {

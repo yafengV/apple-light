@@ -164,16 +164,28 @@ struct PluginComponentSettingsView: View {
     switch result {
     case .success(let declarations):
       if declarations.isEmpty {
-        Text("未找到可显示的命令 Hook 声明 · 不会执行")
+        Text("未找到 Hook 声明 · 不会执行")
           .appFont(.caption).foregroundStyle(.secondary)
       } else {
-        DisclosureGroup("\(declarations.count) 条 Hook 声明 · 未授权执行") {
+        DisclosureGroup("\(declarations.count) 条 Hook 声明 · 当前不会执行") {
           ForEach(Array(declarations.enumerated()), id: \.offset) { _, declaration in
             VStack(alignment: .leading, spacing: 3) {
-              Text(declaration.event).appFont(.subheadline)
-              Text(declaration.command).font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-              Text(declaration.source).appFont(.caption2).foregroundStyle(.secondary)
+              Text("\(declaration.event) · \(declaration.kind)").appFont(.subheadline)
+              if !declaration.detail.isEmpty {
+                Text(declaration.detail).font(.system(.caption, design: .monospaced))
+                  .textSelection(.enabled)
+              }
+              if let matcher = declaration.matcher {
+                Text("匹配：\(matcher)").appFont(.caption).foregroundStyle(.secondary)
+              }
+              if let status = declaration.statusMessage {
+                Text(status).appFont(.caption).foregroundStyle(.secondary)
+              }
+              if let timeout = declaration.timeout {
+                Text("超时：\(timeout) 秒").appFont(.caption2).foregroundStyle(.secondary)
+              }
+              Text("\(declaration.availability) · \(declaration.source)")
+                .appFont(.caption2).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
           }
         }

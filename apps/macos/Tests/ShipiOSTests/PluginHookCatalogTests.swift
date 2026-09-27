@@ -28,7 +28,7 @@ final class PluginHookCatalogTests: XCTestCase {
     let found = try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot)
     XCTAssertEqual(found.map(\.event), ["SessionStart"])
     XCTAssertEqual(found.map(\.source), ["./hooks/hooks.json"])
-    XCTAssertEqual(found.first?.command, "touch \(marker.path)")
+    XCTAssertEqual(found.first?.detail, "touch \(marker.path)")
     XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
   }
 
@@ -44,7 +44,7 @@ final class PluginHookCatalogTests: XCTestCase {
     let dataRoot = root.appendingPathComponent("Data")
     _ = try PluginStorage.install(from: source, root: dataRoot)
     XCTAssertEqual(try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot)
-      .map(\.command), ["selected"])
+      .map(\.detail), ["selected"])
   }
 
   func testPathTraversalIsRejected() throws {
@@ -68,7 +68,7 @@ final class PluginHookCatalogTests: XCTestCase {
     _ = try PluginStorage.install(from: source, root: dataRoot)
     let found = try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot)
     XCTAssertEqual(found.map(\.event), ["Stop"])
-    XCTAssertEqual(found.map(\.command), ["portable"])
+    XCTAssertEqual(found.map(\.detail), ["portable"])
     XCTAssertEqual(found.map(\.source), ["./plugin.json"])
   }
 
@@ -98,6 +98,46 @@ final class PluginHookCatalogTests: XCTestCase {
     let installed = try PluginStorage.install(from: source, root: dataRoot)
     XCTAssertEqual(installed.installed.first?.id, "portable-hooks")
     XCTAssertEqual(try PluginHookCatalog.declarations(pluginID: "portable-hooks", root: dataRoot)
-      .map(\.command), ["echo ready"])
+      .map(\.detail), ["echo ready"])
+  }
+
+  func testAllDeclaredHandlerTypesAndMetadataRemainVisible() throws {
+    let (root, source) = try fixture()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try write("""
+      {"hooks":{"PreToolUse":[{"matcher":"shell","hooks":[
+        {"type":"command","command":"echo check","timeout":12,"statusMessage":"Checking"},
+        {"type":"mcp_tool","server":"policy","tool":"inspect"},
+        {"type":"prompt"},{"type":"agent"}
+      ]}]}}
+      """, to: source.appendingPathComponent("hooks/hooks.json"))
+    let dataRoot = root.appendingPathComponent("Data")
+    _ = try PluginStorage.install(from: source, root: dataRoot)
+    let found = try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot)
+    XCTAssertEqual(found.map(\.kind), ["command", "mcp_tool", "prompt", "agent"])
+    XCTAssertEqual(found.map(\.matcher), ["shell", "shell", "shell", "shell"])
+    XCTAssertEqual(found.first?.timeout, 12)
+    XCTAssertEqual(found.first?.statusMessage, "Checking")
+    XCTAssertEqual(found[1].detail, "policy.inspect")
+    XCTAssertEqual(found[2].availability, "当前 Codex Core 不支持此类型")
+  }
+
+  func testMalformedHookEventsShowErrorInsteadOfEmptyState() throws {
+    let (root, source) = try fixture()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try write(#"{"hooks":{"SessionStart":"bad"}}"#,
+      to: source.appendingPathComponent("hooks/hooks.json"))
+    let dataRoot = root.appendingPathComponent("Data")
+    _ = try PluginStorage.install(from: source, root: dataRoot)
+    XCTAssertThrowsError(try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot))
+  }
+
+  func testEmptyHooksFileIsValidAndShowsNoDeclarations() throws {
+    let (root, source) = try fixture()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try write("{}", to: source.appendingPathComponent("hooks/hooks.json"))
+    let dataRoot = root.appendingPathComponent("Data")
+    _ = try PluginStorage.install(from: source, root: dataRoot)
+    XCTAssertTrue(try PluginHookCatalog.declarations(pluginID: "hook-fixture", root: dataRoot).isEmpty)
   }
 }
