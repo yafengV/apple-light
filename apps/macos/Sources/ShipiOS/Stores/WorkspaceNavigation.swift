@@ -93,6 +93,7 @@ extension WorkspaceStore {
     case "unread":
       if let t = selectedTask { setTaskUnread(t.id, unread: true) }
     case "archive": if let t = selectedTask { updateTask(t.id, archive: true) }
+    case "copy-task-link": if let task = selectedTask { copyTaskDeepLink(task) }
     case "doctor": Task { await start("doctor") }
     case "build": Task { await start("build") }
     case "environment-action-1":
@@ -150,6 +151,7 @@ extension WorkspaceStore {
     case "browser-copy": return browserVisible && workspace.browser.selected?.committedURL != nil
     case "fork": return destination == .workspace && canForkConversation
     case "open-task-window": return destination == .workspace && selectedTask != nil
+    case "copy-task-link": return destination == .workspace && selectedTask != nil
     case "task-summary": return destination == .workspace && selectedTask != nil
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
     case "tab-close-others": return destination == .workspace

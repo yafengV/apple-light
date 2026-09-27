@@ -618,6 +618,7 @@ struct TaskWindowView: View {
     }
     if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model", "open-task-window", "task-summary"])
+      if !task.isPopoutDraft { enabled.insert("copy-task-link") }
       if store.commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
@@ -698,6 +699,7 @@ struct TaskWindowView: View {
       }
     case "fork": forkTask()
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
+    case "copy-task-link": if !task.isPopoutDraft { store.copyTaskDeepLink(task) }
     case "task-summary": taskSummary.toggle()
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title

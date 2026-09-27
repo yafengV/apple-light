@@ -77,4 +77,17 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertTrue(text.contains("环境检查完成。"))
     XCTAssertTrue(text.contains("shipios://task/share-task"))
   }
+
+  @MainActor func testCopyTaskLinkAvailabilityAndURL() throws {
+    let store = WorkspaceStore()
+    let first = WorkspaceTask(id: "first-task", project: "", title: "First", runIDs: [])
+    let second = WorkspaceTask(id: "second-task", project: "", title: "Second", runIDs: [])
+    store.library.tasks = [first, second]
+    store.selectTask(second)
+    XCTAssertTrue(store.commandEnabled("copy-task-link"))
+    XCTAssertEqual(store.shortcuts.binding("copy-task-link"), ShortcutBinding("⌘⌥L"))
+    XCTAssertEqual(ShipiOSDeepLink.task(second.id).url?.absoluteString, "shipios://task/second-task")
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("copy-task-link"))
+  }
 }
