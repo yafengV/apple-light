@@ -5,10 +5,10 @@
 ## 支持的链接
 
 - `shipios://workspace`：返回当前任务工作区。
-- `shipios://projects`、`shipios://plugins`：打开相应主窗口页面。
+- `shipios://projects`、`shipios://plugins`：打开相应主窗口页面；`shipios://plugins/<已安装插件ID>` 打开详情，见[第 330 篇](330-connection-and-plugin-deep-links.md)。
 - `shipios://automations`：打开主窗口自动化页及创建表单；`shipios://automations/list`：只打开列表。见[第 325 篇](325-automation-create-deep-link.md)。
 - `shipios://threads/new`、`shipios://new?prompt=<文本>`：打开新任务；支持 `prompt`、`path`、`originUrl`，仅预填不发送，见[第 326 篇](326-new-task-deep-links.md)。
-- `shipios://settings` 或 `shipios://settings/<分类>`：打开主窗口设置及指定分类，例如 `appearance`、`connections`。
+- `shipios://settings` 或 `shipios://settings/<分类>`：打开主窗口设置及指定分类，例如 `appearance`、`connections`；`shipios://settings/connections/computer|devices|ssh` 打开连接子页，见[第 330 篇](330-connection-and-plugin-deep-links.md)。
 - `shipios://task/<任务或运行标识>`：在现有任务库中定位任务；跨项目时先切换项目作用域，再打开对应任务。
 
 任务工具栏菜单增加“复制任务链接”。链接只包含 ShipiOS 内部任务标识，不包含提示、回复、项目路径或模型凭据。
@@ -23,4 +23,4 @@
 
 macOS 仍处于锁屏状态，无法用 LaunchServices + CUA 对可见页面跳转、窗口激活和焦点恢复做原生闭环。解锁后需要分别从应用关闭、恢复中和已运行三种状态打开页面与任务链接。
 
-当前没有公共 HTTPS 分享链接、跨设备链接、插件详情/自动化详情链接或外部导入确认页。深链接只在当前 ShipiOS 独立数据根目录内解析，不读取个人 Codex 会话。
+当前没有公共 HTTPS 分享链接、跨设备链接、自动化详情链接或外部导入确认页。插件详情深链接只定位本应用已安装的本地插件。深链接只在当前 ShipiOS 独立数据根目录内解析，不读取个人 Codex 会话。

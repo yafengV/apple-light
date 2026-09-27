@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+连接设置子页与本地已安装插件详情现在可由独立深链接直达并返回来源，见[第 330 篇](330-connection-and-plugin-deep-links.md)。原生窗口及焦点配对仍待完成。
+
 自动化自定义日程已扩展每年频率、月份、序号星期、位置筛选和多时间值，见[第 327 篇](327-automation-rrule-yearly-setpos.md)；有限次数与截止时间及完成状态见[第 328 篇](328-automation-finite-rrule.md)，分钟频率与秒值见[第 329 篇](329-automation-minute-rrule.md)。其他 RFC 字段及原生编辑器配对仍待完成。
 
 新任务深链接现支持提示预填、本地路径、Git 远端定位和独立持久草稿，不自动发送，见[第 326 篇](326-new-task-deep-links.md)。实际 LaunchServices 窗口激活、输入框焦点与当前 Codex 的双端交互仍待验收。

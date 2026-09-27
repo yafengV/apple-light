@@ -5,11 +5,13 @@ import XCTest
 final class DeepLinkTests: XCTestCase {
   func testSupportedDeepLinksParseAndRoundTrip() throws {
     let links: [ShipiOSDeepLink] = [
-      .workspace, .projects, .plugins, .automations, .automationsList,
+      .workspace, .projects, .plugins, .plugin("demo_local"), .automations, .automationsList,
       .newTask(prompt: "检查中文与 Markdown\n- item", path: "/tmp/My Project", originURL: nil),
       .newTask(prompt: nil, path: nil, originURL: "git@example.com:team/repo.git"),
       .newTask(prompt: nil, path: nil, originURL: nil), .settings(nil),
-      .settings(.appearance), .settings(.connections), .task("task-123"),
+      .settings(.appearance), .settings(.connections),
+      .connectionSettings(.thisMac), .connectionSettings(.devices),
+      .connectionSettings(.ssh), .task("task-123"),
     ]
     for link in links {
       let url = try XCTUnwrap(link.url)
@@ -21,6 +23,10 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(ShipiOSDeepLink.automations.url?.absoluteString, "shipios://automations")
     XCTAssertEqual(ShipiOSDeepLink.automationsList.url?.absoluteString,
       "shipios://automations/list")
+    XCTAssertEqual(ShipiOSDeepLink.connectionSettings(.thisMac).url?.absoluteString,
+      "shipios://settings/connections/computer")
+    XCTAssertNil(ShipiOSDeepLink.plugin("bad/id").url)
+    XCTAssertNil(ShipiOSDeepLink.plugin("demo@local").url)
     XCTAssertEqual(ShipiOSDeepLink(url: try XCTUnwrap(URL(string:
       "shipios://new?prompt=Review%20this"))),
       .newTask(prompt: "Review this", path: nil, originURL: nil))
@@ -30,6 +36,10 @@ final class DeepLinkTests: XCTestCase {
     for value in [
       "https://settings/appearance", "shipios://unknown", "shipios://settings/missing",
       "shipios://settings/appearance/extra", "shipios://task", "shipios://user:pass@plugins",
+      "shipios://settings/connections/unknown", "shipios://settings/connections/ssh/add",
+      "shipios://settings/connections/computer?unexpected=1", "shipios://plugins/a/b",
+      "shipios://plugins/install/demo?marketplace=remote", "shipios://plugins/a%252Fb",
+      "shipios://plugins/..", "shipios://plugins/%2500", "shipios://plugins/demo%40local",
       "shipios://task/id%20with%20spaces", "shipios://automations/unknown",
       "shipios://new", "shipios://threads/old", "shipios://threads/new?prompt=a&prompt=b",
       "shipios://threads/new?unknown=value",
@@ -46,6 +56,27 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(store.settingsPage, .connections)
     store.closeSettings()
     XCTAssertEqual(store.destination, .plugins)
+
+    for section in ConnectionSettingsSection.allCases {
+      await store.openDeepLink(.connectionSettings(section))
+      XCTAssertEqual(store.destination, .settings)
+      XCTAssertEqual(store.settingsPage, .connections)
+      XCTAssertEqual(store.connectionSettingsSection, section)
+      store.closeSettings()
+      XCTAssertEqual(store.destination, .plugins)
+    }
+
+    let plugin = PluginInstallation(id: "demo_local", name: "Demo", summary: "Fixture",
+      version: "1.0", enabled: true, installedAt: .now, components: PluginComponents())
+    store.pluginPreferences.installed = [plugin]
+    await store.openDeepLink(.plugin(plugin.id))
+    XCTAssertEqual(store.destination, .pluginDetail)
+    XCTAssertEqual(store.currentPluginDetail?.id, plugin.id)
+    store.closePluginDetail()
+    XCTAssertEqual(store.destination, .plugins)
+    await store.openDeepLink(.plugin("missing_local"))
+    XCTAssertEqual(store.destination, .plugins)
+    XCTAssertNil(store.pluginDetailRoute)
 
     await store.openDeepLink(.automations)
     XCTAssertEqual(store.destination, .automations)
