@@ -1,6 +1,97 @@
 import Foundation
 
 extension PluginStorage {
+  private static func repositorySkillDirectory(project: URL, create: Bool) throws -> URL {
+    let project = project.standardizedFileURL
+    guard try project.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
+      throw AgentFailure(message: "项目目录不可用，无法保存项目技能。")
+    }
+    let canonical = project.resolvingSymlinksInPath()
+    let agents = project.appendingPathComponent(".agents", isDirectory: true)
+    let skills = agents.appendingPathComponent("skills", isDirectory: true)
+    let manager = FileManager.default
+    guard agents.resolvingSymlinksInPath().path == canonical.appendingPathComponent(".agents").path else {
+      throw AgentFailure(message: "项目技能目录不能使用符号链接。")
+    }
+    if create && !manager.fileExists(atPath: agents.path) {
+      try manager.createDirectory(at: agents, withIntermediateDirectories: false)
+    }
+    guard try agents.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true,
+      skills.resolvingSymlinksInPath().path == canonical.appendingPathComponent(".agents/skills").path else {
+      throw AgentFailure(message: "项目技能目录不能使用符号链接。")
+    }
+    if create && !manager.fileExists(atPath: skills.path) {
+      try manager.createDirectory(at: skills, withIntermediateDirectories: false)
+    }
+    guard try skills.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
+      throw AgentFailure(message: "项目技能目录不可用。")
+    }
+    return skills
+  }
+
+  static func createRepositorySkill(
+    id: String, description: String, instructions: String, project: URL
+  ) throws {
+    try validateID(id)
+    let description = description.trimmingCharacters(in: .whitespacesAndNewlines)
+    let instructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !description.isEmpty, description.utf8.count <= 1_000,
+      !description.unicodeScalars.contains(where: { CharacterSet.newlines.contains($0) || $0.value < 32 }),
+      !instructions.isEmpty else {
+      throw AgentFailure(message: "请填写单行用途描述和技能指令。")
+    }
+    let quotedDescription = String(decoding: try JSONEncoder().encode(description), as: UTF8.self)
+    let document = "---\nname: \(id)\ndescription: \(quotedDescription)\n---\n\n\(instructions)\n"
+    guard document.utf8.count <= 65_536 else {
+      throw AgentFailure(message: "技能说明不能超过 64 KiB。")
+    }
+    let directory = try repositorySkillDirectory(project: project, create: true)
+    let existing = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+    guard !existing.contains(where: { $0.caseInsensitiveCompare(id) == .orderedSame }) else {
+      throw AgentFailure(message: "当前项目中已有同名技能，未覆盖现有内容。")
+    }
+    let destination = directory.appendingPathComponent(id, isDirectory: true)
+    let staging = directory.appendingPathComponent(".create-" + UUID().uuidString, isDirectory: true)
+    do {
+      try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: false)
+      try Data(document.utf8).write(to: staging.appendingPathComponent("SKILL.md"), options: .atomic)
+      try FileManager.default.moveItem(at: staging, to: destination)
+    } catch {
+      try? FileManager.default.removeItem(at: staging)
+      throw error
+    }
+  }
+
+  static func updateRepositorySkill(
+    id: String, text: String, expectedOriginal: String, project: URL
+  ) throws {
+    guard id.hasPrefix("repo:") else {
+      throw AgentFailure(message: "只能编辑项目技能。")
+    }
+    let skillID = String(id.dropFirst(5))
+    try validateID(skillID)
+    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      text.utf8.count <= 65_536, !text.contains("\0") else {
+      throw AgentFailure(message: "技能说明不能为空，且不能超过 64 KiB。")
+    }
+    let directory = try repositorySkillDirectory(project: project, create: false)
+    let folder = directory.appendingPathComponent(skillID, isDirectory: true)
+    guard folder.resolvingSymlinksInPath().path == directory.resolvingSymlinksInPath()
+      .appendingPathComponent(skillID).path else {
+      throw AgentFailure(message: "项目技能目录不能使用符号链接。")
+    }
+    let file = folder.appendingPathComponent("SKILL.md")
+    let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+    guard values.isRegularFile == true, values.isSymbolicLink != true,
+      let size = values.fileSize, size <= 65_536 else {
+      throw AgentFailure(message: "项目技能文件无效或超过 64 KiB。")
+    }
+    guard try Data(contentsOf: file) == Data(expectedOriginal.utf8) else {
+      throw AgentFailure(message: "技能文件已在外部更改。请重新载入后再编辑。")
+    }
+    try Data(text.utf8).write(to: file, options: .atomic)
+  }
+
   static func repositorySkills(project: URL) throws -> [PluginSkillReference] {
     let project = project.standardizedFileURL
     guard FileManager.default.fileExists(atPath: project.path) else { return [] }

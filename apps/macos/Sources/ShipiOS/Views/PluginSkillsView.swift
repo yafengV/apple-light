@@ -52,6 +52,10 @@ struct PluginSkillsView: View {
               .contextMenu {
                 Button("立即尝试") { _ = store.trySkill(skill.id) }
                   .disabled(!store.canTrySkill(skill.id))
+                if skill.isStandalone || skill.isRepository {
+                  Button("编辑") { editing = skill }
+                    .accessibilityLabel("编辑技能：\(skill.title)")
+                }
                 if skill.isStandalone {
                   Button("卸载技能", role: .destructive) { removing = skill }
                     .disabled(!store.pluginsLoaded)
@@ -60,7 +64,7 @@ struct PluginSkillsView: View {
             let parentEnabled = skill.isStandalone || skill.isRepository
               || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
             if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
-            if skill.isStandalone {
+            if skill.isStandalone || skill.isRepository {
               Button("编辑") { editing = skill }
                 .disabled(!store.pluginsLoaded)
                 .accessibilityLabel("编辑技能：\(skill.title)")
@@ -81,7 +85,7 @@ struct PluginSkillsView: View {
       PluginSkillPreview(store: store, skill: skill)
     }
     .sheet(item: $editing) { skill in
-      StandaloneSkillEditorView(store: store, skill: skill)
+      SkillEditorView(store: store, skill: skill)
     }
     .alert("卸载技能？", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
       Button("取消", role: .cancel) { removing = nil }
@@ -128,7 +132,7 @@ struct PluginSkillsView: View {
         Spacer()
         Button("立即尝试") { _ = store.trySkill(skill.id) }
           .disabled(!store.canTrySkill(skill.id))
-        if skill.isStandalone {
+        if skill.isStandalone || skill.isRepository {
           Button("编辑") { editing = skill }
             .disabled(!store.pluginsLoaded)
             .accessibilityLabel("编辑技能：\(skill.title)")
@@ -146,7 +150,7 @@ struct PluginSkillsView: View {
   }
 }
 
-private struct StandaloneSkillEditorView: View {
+private struct SkillEditorView: View {
   let store: WorkspaceStore
   let skill: PluginSkillReference
   @Environment(\.dismiss) private var dismiss
@@ -190,7 +194,15 @@ private struct StandaloneSkillEditorView: View {
         }.keyboardShortcut(.cancelAction)
         Button("保存") {
           guard let original else { return }
-          if store.updateStandaloneSkill(id: skill.id, text: draft, expectedOriginal: original) {
+          let saved: Bool
+          if let project = skill.repositoryRoot {
+            saved = store.updateRepositorySkill(id: skill.id, text: draft,
+              expectedOriginal: original, project: project)
+          } else {
+            saved = store.updateStandaloneSkill(id: skill.id, text: draft,
+              expectedOriginal: original)
+          }
+          if saved {
             dismiss()
           } else { error = store.pluginsError ?? "无法保存技能。" }
         }.buttonStyle(.borderedProminent).disabled(!changed)
@@ -210,10 +222,10 @@ private struct StandaloneSkillEditorView: View {
     .task(id: reload) {
       original = nil
       error = nil
-      let id = skill.id, root = store.dataRoot
+      let id = skill.id, root = store.dataRoot, repositoryRoot = skill.repositoryRoot
       do {
         let text = try await Task.detached(priority: .userInitiated) {
-          try PluginStorage.readSkill(id: id, root: root)
+          try PluginStorage.readSkill(id: id, root: root, repositoryRoot: repositoryRoot)
         }.value
         guard !Task.isCancelled else { return }
         original = text

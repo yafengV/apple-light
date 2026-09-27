@@ -59,6 +59,49 @@ final class RepositorySkillTests: XCTestCase {
     XCTAssertThrowsError(try PluginStorage.repositorySkills(project: root))
   }
 
+  func testCreateAndEditRepositorySkillStayInProjectAndRejectStaleWrites() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let project = base.appendingPathComponent("Project")
+    let other = base.appendingPathComponent("Other")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    try PluginStorage.createRepositorySkill(id: "review", description: "Review changes",
+      instructions: "Check correctness.", project: project)
+    let skill = try XCTUnwrap(PluginStorage.repositorySkills(project: project).first)
+    XCTAssertEqual(skill.summary, "Review changes")
+    XCTAssertTrue(try PluginStorage.repositorySkills(project: other).isEmpty)
+    let original = try String(contentsOf: skill.fileURL)
+    XCTAssertTrue(original.contains("Check correctness."))
+    XCTAssertThrowsError(try PluginStorage.createRepositorySkill(id: "Review", description: "Duplicate",
+      instructions: "Replace", project: project))
+    XCTAssertThrowsError(try PluginStorage.createRepositorySkill(id: "bad/name", description: "Bad",
+      instructions: "No", project: project))
+    let resource = skill.fileURL.deletingLastPathComponent().appendingPathComponent("notes.txt")
+    try Data("keep".utf8).write(to: resource)
+    try PluginStorage.updateRepositorySkill(id: skill.id, text: "# Edited\nNew instructions.",
+      expectedOriginal: original, project: project)
+    XCTAssertEqual(try String(contentsOf: resource), "keep")
+    XCTAssertEqual(try PluginStorage.repositorySkills(project: project).first?.title, "Edited")
+    XCTAssertThrowsError(try PluginStorage.updateRepositorySkill(id: skill.id, text: "stale",
+      expectedOriginal: original, project: project))
+    XCTAssertEqual(try String(contentsOf: skill.fileURL), "# Edited\nNew instructions.")
+  }
+
+  func testRepositorySkillCreationRejectsLinkedDirectory() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let project = base.appendingPathComponent("Project")
+    let outside = base.appendingPathComponent("Outside")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(
+      at: project.appendingPathComponent(".agents"), withDestinationURL: outside)
+    XCTAssertThrowsError(try PluginStorage.createRepositorySkill(id: "review", description: "Review",
+      instructions: "Inspect.", project: project))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: outside.appendingPathComponent("skills").path))
+  }
+
   func testSameNamedPersonalAndRepositorySkillsRequireExactReference() throws {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: base) }
@@ -105,5 +148,30 @@ final class RepositorySkillTests: XCTestCase {
     XCTAssertEqual(store.composerSkills(for: first.path).first?.title, "Updated Review")
     store.pluginsEnabled = false
     XCTAssertTrue(store.composerSkills(for: first.path).isEmpty)
+  }
+
+  @MainActor func testStoreCreatesEditsAndRefreshesRepositorySkillsWithoutTouchingPrivateScope() async throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let project = base.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("Data"))
+    store.project = project
+    store.draft = "existing draft"
+    await store.loadPlugins()
+    XCTAssertTrue(store.createRepositorySkill(id: "review", description: "Review code",
+      instructions: "Check changes.", projectPath: project.path))
+    XCTAssertEqual(store.composerSkills.map(\.id), ["repo:review"])
+    XCTAssertTrue(store.installedPluginSkills.isEmpty)
+    let skill = try XCTUnwrap(store.repositorySkills(for: project.path).first)
+    let original = try PluginStorage.readSkill(id: skill.id, root: store.dataRoot, repositoryRoot: project)
+    XCTAssertTrue(store.updateRepositorySkill(id: skill.id, text: "# Updated\nNew instructions.",
+      expectedOriginal: original, project: project))
+    XCTAssertEqual(store.composerSkills.first?.title, "Updated")
+    XCTAssertEqual(store.draft, "existing draft")
+    store.project = nil
+    XCTAssertFalse(store.updateRepositorySkill(id: skill.id, text: "wrong project",
+      expectedOriginal: "# Updated\nNew instructions.", project: project))
+    XCTAssertTrue(store.composerSkills.isEmpty)
   }
 }

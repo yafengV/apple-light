@@ -89,27 +89,39 @@ struct SkillsView: View {
       catch { projectError = error.localizedDescription }
     }
     .sheet(isPresented: $creating) {
-      SkillCreationView(store: store) { query = "" }
+      SkillCreationView(store: store, projectPath: store.currentProjectKey) { query = "" }
     }
   }
 }
 
 private struct SkillCreationView: View {
   let store: WorkspaceStore
+  let projectPath: String
   let created: () -> Void
+  private enum Scope: String, CaseIterable { case personal, project }
   @Environment(\.dismiss) private var dismiss
   @FocusState private var nameFocused: Bool
   @State private var name = ""
   @State private var purpose = ""
   @State private var instructions = ""
+  @State private var scope: Scope = .personal
   @State private var error: String?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       Text("新建技能").appFont(.title2, weight: .semibold)
-      Text("技能保存在 ShipiOS 的独立目录，并可在任务中通过 $名称 调用。")
+      Text(scope == .project
+        ? "技能保存在当前项目的 .agents/skills，可在这个项目的任务中调用。"
+        : "技能保存在 ShipiOS 的独立目录，并可在任务中通过 $名称 调用。")
         .foregroundStyle(.secondary)
       Form {
+        Picker("保存位置", selection: $scope) {
+          Text("ShipiOS 私有").tag(Scope.personal)
+          if !projectPath.isEmpty {
+            Text("当前项目 · \(URL(fileURLWithPath: projectPath).lastPathComponent)")
+              .tag(Scope.project)
+          }
+        }
         TextField("名称", text: $name, prompt: Text("例如 code-review"))
           .focused($nameFocused)
         TextField("用途描述", text: $purpose, prompt: Text("说明何时使用这个技能"))
@@ -126,8 +138,12 @@ private struct SkillCreationView: View {
         Spacer()
         Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
         Button("创建") {
-          if store.createStandaloneSkill(id: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: purpose, instructions: instructions) {
+          let id = name.trimmingCharacters(in: .whitespacesAndNewlines)
+          let saved = scope == .project
+            ? store.createRepositorySkill(id: id, description: purpose,
+                instructions: instructions, projectPath: projectPath)
+            : store.createStandaloneSkill(id: id, description: purpose, instructions: instructions)
+          if saved {
             created()
             dismiss()
           } else { error = store.pluginsError ?? "无法创建技能。" }

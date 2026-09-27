@@ -34,6 +34,43 @@ extension WorkspaceStore {
     return loaded
   }
 
+  private func refreshRepositorySkills(for projectPath: String) {
+    repositorySkillCache.removeValue(forKey: projectPath)
+    repositorySkillRevision = UUID()
+  }
+
+  @discardableResult func createRepositorySkill(
+    id: String, description: String, instructions: String, projectPath: String
+  ) -> Bool {
+    guard !projectPath.isEmpty, currentProjectKey == projectPath else {
+      pluginsError = "项目已切换，请重新选择技能的保存位置。"
+      return false
+    }
+    do {
+      try PluginStorage.createRepositorySkill(id: id, description: description,
+        instructions: instructions, project: URL(fileURLWithPath: projectPath, isDirectory: true))
+      refreshRepositorySkills(for: projectPath)
+      pluginsError = nil
+      return true
+    } catch { pluginsError = error.localizedDescription; return false }
+  }
+
+  @discardableResult func updateRepositorySkill(
+    id: String, text: String, expectedOriginal: String, project: URL
+  ) -> Bool {
+    guard currentProjectKey == project.standardizedFileURL.path else {
+      pluginsError = "项目已切换，请回到原项目后再保存技能。"
+      return false
+    }
+    do {
+      try PluginStorage.updateRepositorySkill(id: id, text: text,
+        expectedOriginal: expectedOriginal, project: project)
+      refreshRepositorySkills(for: currentProjectKey)
+      pluginsError = nil
+      return true
+    } catch { pluginsError = error.localizedDescription; return false }
+  }
+
   func choosePluginFolder() {
     guard pluginsLoaded, let window = NSApp.keyWindow else { return }
     let panel = NSOpenPanel()
