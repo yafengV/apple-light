@@ -33,8 +33,15 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var taskID: String?
   var lastRunID: String?
   var reviewedRunID: String?
+  /// Nil decodes legacy schedules, whose only pending run is their latest unreviewed run.
+  var pendingRunIDs: [String]?
 
-  var needsReview: Bool { lastRunID != nil && reviewedRunID != lastRunID }
+  var unresolvedRunIDs: [String] {
+    if let pendingRunIDs { return pendingRunIDs }
+    guard let lastRunID, reviewedRunID != lastRunID else { return [] }
+    return [lastRunID]
+  }
+  var needsReview: Bool { !unresolvedRunIDs.isEmpty }
   var selectedWeekdays: [Int] { weekdays ?? [weekday] }
 
   mutating func setWeekday(_ day: Int, selected: Bool) {

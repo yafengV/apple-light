@@ -77,17 +77,42 @@ extension WorkspaceStore {
   }
 
   func markAutomationReviewed(_ id: UUID) {
-    guard var item = automationPreferences.items.first(where: { $0.id == id }) else { return }
-    item.reviewedRunID = item.lastRunID
+    guard let item = automationPreferences.items.first(where: { $0.id == id }) else { return }
+    guard let runID = item.unresolvedRunIDs.first else { return }
+    markAutomationReviewed(id, runID: runID)
+  }
+
+  func markAutomationReviewed(_ id: UUID, runID: String) {
+    guard var item = automationPreferences.items.first(where: { $0.id == id }),
+      item.unresolvedRunIDs.contains(runID) else { return }
+    item.pendingRunIDs = item.unresolvedRunIDs.filter { $0 != runID }
+    if item.lastRunID == runID { item.reviewedRunID = runID }
     _ = saveAutomation(item)
   }
 
   func openAutomationResult(_ id: UUID) {
     guard let item = automationPreferences.items.first(where: { $0.id == id }),
-      let taskID = item.taskID,
-      let task = library.tasks.first(where: { $0.id == taskID })
-    else { return }
-    markAutomationReviewed(id)
+      let runID = item.unresolvedRunIDs.first ?? item.lastRunID else { return }
+    openAutomationRun(runID, automationID: id)
+  }
+
+  func openAutomationRun(_ runID: String, automationID: UUID) {
+    guard library.chatRuns.contains(where: {
+      $0.id == runID && $0.request["automation_id"].text == automationID.uuidString
+    }), let task = library.task(containing: runID), canSelectTask(task) else { return }
+    if currentProjectKey == task.project {
+      selectTask(task)
+      if selectedTask?.id == task.id { markAutomationReviewed(automationID, runID: runID) }
+    } else {
+      Task {
+        if await selectTaskAwaitingScope(task) { markAutomationReviewed(automationID, runID: runID) }
+      }
+    }
+  }
+
+  func openAutomationCurrentTask(_ id: UUID) {
+    guard let taskID = automationPreferences.items.first(where: { $0.id == id })?.taskID,
+      let task = library.tasks.first(where: { $0.id == taskID }) else { return }
     selectTask(task)
   }
 
@@ -111,22 +136,15 @@ extension WorkspaceStore {
     defer { automationRunningIDs.remove(id) }
     do {
       guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
-      let existingTask = item.taskID.flatMap { taskID in
-        library.tasks.first(where: { $0.id == taskID && $0.project == item.project })
-      }
-      let ownerID = existingTask?.id ?? UUID().uuidString
-      if existingTask == nil {
-        var candidate = library
-        candidate.tasks.insert(WorkspaceTask(
-          id: ownerID, project: item.project, title: item.name, runIDs: []), at: 0)
-        try commitLibrary(candidate)
-      }
+      let ownerID = UUID().uuidString
+      var candidate = library
+      candidate.tasks.insert(WorkspaceTask(
+        id: ownerID, project: item.project, title: item.name, runIDs: []), at: 0)
+      try commitLibrary(candidate)
       guard let runID = await startChat(item.prompt, taskID: ownerID, automationID: id) else {
-        if existingTask == nil {
-          var candidate = library
-          candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
-          try commitLibrary(candidate)
-        }
+        var candidate = library
+        candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
+        try commitLibrary(candidate)
         throw AgentFailure(message: error ?? "自动化当前无法启动，请稍后重试。")
       }
       if var running = automationPreferences.items.first(where: { $0.id == id }) {
@@ -139,6 +157,7 @@ extension WorkspaceStore {
       }
       guard var updated = automationPreferences.items.first(where: { $0.id == id }) else { return }
       updated.lastRun = scheduledAt
+      updated.pendingRunIDs = updated.unresolvedRunIDs + [runID]
       updated.lastRunID = runID
       updated.taskID = ownerID
       updated.nextRun = updated.nextDate(after: max(scheduledAt, .now))

@@ -14,6 +14,7 @@ struct AutomationsView: View {
   @State private var query = ""
   @State private var editing: ShipAutomation?
   @State private var deleting: ShipAutomation?
+  @State private var expandedHistories: Set<UUID> = []
 
   private var items: [ShipAutomation] {
     store.automationPreferences.items.filter { item in
@@ -25,6 +26,12 @@ struct AutomationsView: View {
   }
   private var reviewItems: [ShipAutomation] {
     store.automationPreferences.items.filter(\.needsReview)
+  }
+
+  private func runs(for item: ShipAutomation) -> [AgentRun] {
+    store.library.chatRuns.filter {
+      $0.request["automation_id"].text == item.id.uuidString
+    }.sorted { $0.createdAt > $1.createdAt }
   }
 
   var body: some View {
@@ -103,7 +110,7 @@ struct AutomationsView: View {
         Image(systemName: "tray.full.fill").foregroundStyle(store.appearance.accentColor)
         VStack(alignment: .leading, spacing: 3) {
           Text(item.name).appFont(.headline)
-          Text("最新运行已完成，打开结果并标记为已审查。")
+          Text("\(item.unresolvedRunIDs.count) 次运行等待审查，打开结果并标记为已审查。")
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Spacer()
@@ -113,6 +120,8 @@ struct AutomationsView: View {
   }
 
   private func automationRow(_ item: ShipAutomation) -> some View {
+    let history = runs(for: item)
+    return VStack(alignment: .leading, spacing: 12) {
     HStack(alignment: .top, spacing: 14) {
       Image(systemName: item.enabled ? "clock.badge.checkmark" : "pause.circle")
         .font(.title2).frame(width: 32).foregroundStyle(item.enabled ? store.appearance.accentColor : .secondary)
@@ -128,6 +137,11 @@ struct AutomationsView: View {
             Text("下次 \(item.nextRun.formatted(date: .abbreviated, time: .shortened))")
           } else { Text("已暂停") }
         }.appFont(.caption2).foregroundStyle(.tertiary)
+        if !history.isEmpty {
+          Button(expandedHistories.contains(item.id) ? "收起运行记录" : "运行记录（\(history.count)）") {
+            if !expandedHistories.insert(item.id).inserted { expandedHistories.remove(item.id) }
+          }.buttonStyle(.link).appFont(.caption)
+        }
       }.frame(maxWidth: .infinity, alignment: .leading)
       if store.automationRunningIDs.contains(item.id) {
         ProgressView().controlSize(.small).help("正在运行")
@@ -140,13 +154,31 @@ struct AutomationsView: View {
       Menu {
         Button("编辑…") { editing = item }
         if store.automationRunningIDs.contains(item.id), item.taskID != nil {
-          Button("打开运行中的任务") { store.openAutomationResult(item.id) }
+          Button("打开运行中的任务") { store.openAutomationCurrentTask(item.id) }
         }
-        if item.lastRunID != nil { Button("打开上次结果") { store.openAutomationResult(item.id) } }
+        if let lastRunID = item.lastRunID {
+          Button("打开上次结果") { store.openAutomationRun(lastRunID, automationID: item.id) }
+        }
         Divider()
         Button("删除", role: .destructive) { deleting = item }
       } label: { Image(systemName: "ellipsis") }
         .menuStyle(.borderlessButton).fixedSize().accessibilityLabel("自动化菜单：\(item.name)")
+    }
+    if expandedHistories.contains(item.id) {
+      ForEach(history) { run in
+        Button { store.openAutomationRun(run.id, automationID: item.id) } label: {
+          HStack {
+            Text(run.date.formatted(date: .abbreviated, time: .shortened))
+            Text(run.statusLabel).foregroundStyle(.secondary)
+            if item.unresolvedRunIDs.contains(run.id) {
+              Text("待审查").foregroundStyle(store.appearance.accentColor)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+          }.appFont(.caption)
+        }.buttonStyle(.plain).padding(.leading, 46)
+      }
+    }
     }.padding(16).background(.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10))
   }
 }

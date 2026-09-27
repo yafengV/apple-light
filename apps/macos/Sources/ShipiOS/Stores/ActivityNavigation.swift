@@ -83,8 +83,10 @@ extension WorkspaceStore {
     let wasInActivity = destination == .activity
     let opened = await selectTaskAwaitingScope(task)
     if opened {
-      for automation in automationPreferences.items where automation.taskID == id && automation.needsReview {
-        markAutomationReviewed(automation.id)
+      for automation in automationPreferences.items where automation.needsReview {
+        for runID in automation.unresolvedRunIDs where task.runIDs.contains(runID) {
+          markAutomationReviewed(automation.id, runID: runID)
+        }
       }
     } else {
       activityError = "无法打开此任务。请检查所属项目是否可用。"

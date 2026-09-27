@@ -3459,6 +3459,35 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(store.destination, .workspace)
     XCTAssertEqual(store.selectedTask?.id, saved.taskID)
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
+
+    await store.runAutomation(automation.id)
+    let second = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertNotEqual(second.taskID, saved.taskID)
+    XCTAssertNotEqual(second.lastRunID, saved.lastRunID)
+    XCTAssertTrue(store.library.tasks.first { $0.id == saved.taskID }?.runIDs.contains(run.id) == true)
+    XCTAssertTrue(store.library.tasks.first { $0.id == second.taskID }?.runIDs.contains(
+      try XCTUnwrap(second.lastRunID)) == true)
+    XCTAssertTrue(second.needsReview)
+
+    await store.runAutomation(automation.id)
+    let third = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertNotEqual(third.taskID, second.taskID)
+    XCTAssertEqual(third.unresolvedRunIDs, [try XCTUnwrap(second.lastRunID),
+      try XCTUnwrap(third.lastRunID)])
+    XCTAssertEqual(try AutomationStorage.load(root: root).items[0].unresolvedRunIDs,
+      third.unresolvedRunIDs)
+    store.openAutomationResult(automation.id)
+    XCTAssertEqual(store.selectedTask?.id, second.taskID)
+    XCTAssertEqual(store.automationPreferences.items[0].unresolvedRunIDs,
+      [try XCTUnwrap(third.lastRunID)])
+    store.openAutomationRun(run.id, automationID: automation.id)
+    XCTAssertEqual(store.selectedTask?.id, saved.taskID)
+    XCTAssertEqual(store.automationPreferences.items[0].unresolvedRunIDs,
+      [try XCTUnwrap(third.lastRunID)])
+    let openedThird = await store.openActivityTask(try XCTUnwrap(third.taskID))
+    XCTAssertTrue(openedThird)
+    XCTAssertEqual(store.selectedTask?.id, third.taskID)
+    XCTAssertFalse(store.automationPreferences.items[0].needsReview)
     await store.shutdown()
   }
   @MainActor func testCodexAutomationRunsToolsInItsOwnProject() async throws {
