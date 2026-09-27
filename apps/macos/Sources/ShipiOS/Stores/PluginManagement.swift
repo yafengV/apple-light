@@ -138,6 +138,19 @@ extension WorkspaceStore {
     } catch { pluginsError = error.localizedDescription; return false }
   }
 
+  @discardableResult func updateStandaloneSkill(
+    id: String, text: String, expectedOriginal: String
+  ) -> Bool {
+    guard pluginsLoaded else { return false }
+    do {
+      try PluginStorage.updateStandaloneSkill(
+        id: id, text: text, expectedOriginal: expectedOriginal, root: dataRoot)
+      try refreshPluginSkills()
+      pluginsError = nil
+      return true
+    } catch { pluginsError = error.localizedDescription; return false }
+  }
+
   @discardableResult func removeStandaloneSkill(_ id: String) -> Bool {
     guard pluginsLoaded else { return false }
     do {

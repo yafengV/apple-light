@@ -65,6 +65,50 @@ final class StandaloneSkillTests: XCTestCase {
     XCTAssertEqual(store.installedPluginSkills.map(\.id), ["user:review"])
   }
 
+  func testEditSkillPreservesResourcesAndRejectsStaleContent() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let source = try fixture(base)
+    let root = base.appendingPathComponent("Data")
+    let preferences = try PluginStorage.installStandaloneSkill(from: source, root: root)
+    let original = try PluginStorage.readSkill(id: "user:review", root: root)
+    let updated = "# Edited Review\nUse the updated instructions.\n"
+    try PluginStorage.updateStandaloneSkill(
+      id: "user:review", text: updated, expectedOriginal: original, root: root)
+    XCTAssertEqual(try PluginStorage.readSkill(id: "user:review", root: root), updated)
+    XCTAssertEqual(try PluginStorage.skills(preferences: preferences, root: root).first?.title, "Edited Review")
+    XCTAssertEqual(try String(contentsOf: PluginStorage.standaloneSkillURL(root: root, id: "review")
+      .appendingPathComponent("references/notes.txt")), "resource")
+    XCTAssertThrowsError(try PluginStorage.updateStandaloneSkill(
+      id: "user:review", text: "stale overwrite", expectedOriginal: original, root: root))
+    XCTAssertThrowsError(try PluginStorage.updateStandaloneSkill(
+      id: "plugin/review", text: "bad", expectedOriginal: updated, root: root))
+    XCTAssertThrowsError(try PluginStorage.updateStandaloneSkill(
+      id: "user:review", text: "  ", expectedOriginal: updated, root: root))
+    XCTAssertEqual(try PluginStorage.readSkill(id: "user:review", root: root), updated)
+    let file = PluginStorage.standaloneSkillURL(root: root, id: "review").appendingPathComponent("SKILL.md")
+    XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int,
+      0o600)
+  }
+
+  @MainActor func testStoreEditRefreshesTitleAndPreservesDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.draft = "保留草稿"
+    await store.loadPlugins()
+    XCTAssertTrue(store.createStandaloneSkill(id: "review", description: "Review code",
+      instructions: "First version."))
+    let original = try PluginStorage.readSkill(id: "user:review", root: root)
+    XCTAssertTrue(store.updateStandaloneSkill(id: "user:review",
+      text: "# New Title\nSecond version.\n", expectedOriginal: original))
+    XCTAssertEqual(store.installedPluginSkills.first?.title, "New Title")
+    XCTAssertEqual(store.draft, "保留草稿")
+    XCTAssertFalse(store.updateStandaloneSkill(id: "user:review",
+      text: "stale", expectedOriginal: original))
+    XCTAssertTrue(store.pluginsError?.contains("外部更改") == true)
+  }
+
   func testImportDisablePreviewAndRemovalPreserveOriginalFolder() throws {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: base) }

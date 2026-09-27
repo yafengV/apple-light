@@ -6,6 +6,7 @@ struct PluginSkillsView: View {
   var pluginID: String?
   var query = ""
   @State private var preview: PluginSkillReference?
+  @State private var editing: PluginSkillReference?
   @State private var removing: PluginSkillReference?
 
   private var skills: [PluginSkillReference] {
@@ -44,6 +45,11 @@ struct PluginSkillsView: View {
               }
             let parentEnabled = skill.isStandalone || store.pluginPreferences.installed.first { $0.id == skill.pluginID }?.enabled == true
             if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
+            if skill.isStandalone {
+              Button("编辑") { editing = skill }
+                .disabled(!store.pluginsLoaded)
+                .accessibilityLabel("编辑技能：\(skill.title)")
+            }
             Toggle("启用技能", isOn: Binding(
               get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
               set: { _ = store.setSkillEnabled($0, id: skill.id) }))
@@ -57,6 +63,9 @@ struct PluginSkillsView: View {
     .sheet(item: $preview) { skill in
       PluginSkillPreview(store: store, skill: skill)
     }
+    .sheet(item: $editing) { skill in
+      StandaloneSkillEditorView(store: store, skill: skill)
+    }
     .alert("卸载技能？", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
       Button("取消", role: .cancel) { removing = nil }
       Button("卸载技能", role: .destructive) {
@@ -64,6 +73,86 @@ struct PluginSkillsView: View {
         removing = nil
       }
     } message: { Text("仅移除 ShipiOS 中的副本，原始技能文件夹保持不变。") }
+  }
+}
+
+private struct StandaloneSkillEditorView: View {
+  let store: WorkspaceStore
+  let skill: PluginSkillReference
+  @Environment(\.dismiss) private var dismiss
+  @State private var original: String?
+  @State private var draft = ""
+  @State private var error: String?
+  @State private var reload = UUID()
+  @State private var confirmingDiscard = false
+  @State private var confirmingReload = false
+
+  private var changed: Bool { original != nil && draft != original }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 14) {
+      HStack {
+        Text("编辑技能：\(skill.title)").appFont(.title2, weight: .semibold)
+        Spacer()
+        Button("重新载入") {
+          if changed { confirmingReload = true }
+          else { reload = UUID() }
+        }.disabled(original == nil && error == nil)
+      }
+      Text(skill.fileURL.path).appFont(.caption).foregroundStyle(.secondary)
+        .textSelection(.enabled)
+      if original == nil && error == nil {
+        ProgressView("正在读取技能…")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        TextEditor(text: $draft)
+          .appFont(.body, design: .monospaced)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .border(.secondary.opacity(0.3))
+          .disabled(original == nil)
+      }
+      if let error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+      HStack {
+        Spacer()
+        Button("取消") {
+          if changed { confirmingDiscard = true }
+          else { dismiss() }
+        }.keyboardShortcut(.cancelAction)
+        Button("保存") {
+          guard let original else { return }
+          if store.updateStandaloneSkill(id: skill.id, text: draft, expectedOriginal: original) {
+            dismiss()
+          } else { error = store.pluginsError ?? "无法保存技能。" }
+        }.buttonStyle(.borderedProminent).disabled(!changed)
+      }
+    }
+    .padding(24)
+    .frame(minWidth: 620, idealWidth: 720, minHeight: 440, idealHeight: 580)
+    .interactiveDismissDisabled(changed)
+    .alert("放弃未保存的修改？", isPresented: $confirmingDiscard) {
+      Button("继续编辑", role: .cancel) {}
+      Button("放弃修改", role: .destructive) { dismiss() }
+    }
+    .alert("重新载入磁盘版本？", isPresented: $confirmingReload) {
+      Button("继续编辑", role: .cancel) {}
+      Button("重新载入", role: .destructive) { reload = UUID() }
+    } message: { Text("当前未保存的修改会被丢弃。") }
+    .task(id: reload) {
+      original = nil
+      error = nil
+      let id = skill.id, root = store.dataRoot
+      do {
+        let text = try await Task.detached(priority: .userInitiated) {
+          try PluginStorage.readSkill(id: id, root: root)
+        }.value
+        guard !Task.isCancelled else { return }
+        original = text
+        draft = text
+      } catch {
+        guard !Task.isCancelled else { return }
+        self.error = error.localizedDescription
+      }
+    }
   }
 }
 

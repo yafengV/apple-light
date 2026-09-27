@@ -53,6 +53,42 @@ extension PluginStorage {
     }
   }
 
+  static func updateStandaloneSkill(
+    id: String, text: String, expectedOriginal: String, root: URL
+  ) throws {
+    guard id.hasPrefix("user:") else {
+      throw AgentFailure(message: "只能编辑独立技能；插件内技能由插件管理。")
+    }
+    let skillID = String(id.dropFirst(5))
+    try validateID(skillID)
+    let preferences = try load(root: root)
+    guard preferences.standaloneSkills.contains(skillID) else {
+      throw AgentFailure(message: "找不到这个独立技能，请重新加载。")
+    }
+    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      text.utf8.count <= 65_536, !text.contains("\0") else {
+      throw AgentFailure(message: "技能说明不能为空，且不能超过 64 KiB。")
+    }
+    try validateStandaloneDirectory(root: root)
+    let directory = standaloneSkillURL(root: root, id: skillID)
+    let expected = standaloneSkillURL(root: root.resolvingSymlinksInPath(), id: skillID)
+    guard directory.resolvingSymlinksInPath().path == expected.path else {
+      throw AgentFailure(message: "独立技能目录不能使用符号链接。")
+    }
+    let file = directory.appendingPathComponent("SKILL.md")
+    let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+    guard values.isRegularFile == true, values.isSymbolicLink != true,
+      let size = values.fileSize, size <= 65_536 else {
+      throw AgentFailure(message: "独立技能文件无效或超过 64 KiB。")
+    }
+    let current = try Data(contentsOf: file)
+    guard current == Data(expectedOriginal.utf8) else {
+      throw AgentFailure(message: "技能文件已在外部更改。请重新载入后再编辑。")
+    }
+    try Data(text.utf8).write(to: file, options: .atomic)
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+  }
+
   static func installStandaloneSkill(from source: URL, root: URL) throws -> PluginPreferences {
     let source = source.standardizedFileURL
     let id = source.lastPathComponent
