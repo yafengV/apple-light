@@ -286,7 +286,8 @@ final class AutomationTests: XCTestCase {
 
   func testCustomRuleValidationRejectsUnsupportedOrImpossibleSchedules() throws {
     for text in [
-      "RRULE:FREQ=MINUTELY", "RRULE:FREQ=DAILY;COUNT=0;BYHOUR=9",
+      "RRULE:FREQ=SECONDLY", "RRULE:FREQ=DAILY;COUNT=0;BYHOUR=9",
+      "RRULE:FREQ=DAILY;BYSECOND=60", "RRULE:FREQ=MINUTELY;BYSECOND=-1",
       "RRULE:FREQ=DAILY;COUNT=2;UNTIL=20261001T090000Z",
       "RRULE:FREQ=DAILY;UNTIL=20261001", "RRULE:FREQ=DAILY;UNTIL=20261301T090000Z",
       "RRULE:FREQ=MONTHLY;BYMONTHDAY=0;BYHOUR=9", "RRULE:FREQ=DAILY;BYHOUR=25",
@@ -305,6 +306,8 @@ final class AutomationTests: XCTestCase {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = .current
     item.scheduleAnchor = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 2, day: 1)))
+    XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [item]), root: base))
+    item.customRule = "FREQ=MINUTELY;BYMONTH=2;BYMONTHDAY=31"
     XCTAssertThrowsError(try AutomationStorage.save(AutomationPreferences(items: [item]), root: base))
   }
 
@@ -325,6 +328,41 @@ final class AutomationTests: XCTestCase {
       "FREQ=DAILY;BYHOUR=9;UNTIL=20260929T090000Z")
     XCTAssertEqual(bounded.nextDate(after: first, anchor: anchor, calendar: calendar), second)
     XCTAssertNil(bounded.nextDate(after: second, anchor: anchor, calendar: calendar))
+  }
+
+  func testMinutelyRulesExpandSecondsAndHonorFiniteBounds() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let anchor = try XCTUnwrap(calendar.date(from:
+      DateComponents(year: 2026, month: 9, day: 28, hour: 8, second: 10)))
+    let counted = try AutomationRecurrenceRule.parse(
+      "FREQ=MINUTELY;INTERVAL=15;BYSECOND=10,40;COUNT=4")
+    let defaultSeconds = try AutomationRecurrenceRule.parse("FREQ=MINUTELY;INTERVAL=15")
+    let defaultNext = try XCTUnwrap(defaultSeconds.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute, .second], from: defaultNext),
+      DateComponents(hour: 8, minute: 15, second: 10))
+    let first = try XCTUnwrap(counted.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute, .second], from: first),
+      DateComponents(hour: 8, minute: 0, second: 40))
+    let second = try XCTUnwrap(counted.nextDate(after: first, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute, .second], from: second),
+      DateComponents(hour: 8, minute: 15, second: 10))
+    let last = try XCTUnwrap(counted.nextDate(after: second, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute, .second], from: last),
+      DateComponents(hour: 8, minute: 15, second: 40))
+    XCTAssertNil(counted.nextDate(after: last, anchor: anchor, calendar: calendar))
+
+    let selected = try AutomationRecurrenceRule.parse(
+      "FREQ=MINUTELY;INTERVAL=15;BYSECOND=10,40;BYSETPOS=-1")
+    XCTAssertEqual(selected.nextDate(after: anchor, anchor: anchor, calendar: calendar), first)
+    let until = try AutomationRecurrenceRule.parse(
+      "FREQ=MINUTELY;INTERVAL=15;BYSECOND=40;UNTIL=20260928T081540Z")
+    XCTAssertEqual(until.nextDate(after: first, anchor: anchor, calendar: calendar), last)
+    XCTAssertNil(until.nextDate(after: last, anchor: anchor, calendar: calendar))
+    let daily = try AutomationRecurrenceRule.parse("FREQ=DAILY;BYHOUR=9;BYSECOND=20")
+    let dailyNext = try XCTUnwrap(daily.nextDate(after: anchor, anchor: anchor, calendar: calendar))
+    XCTAssertEqual(calendar.dateComponents([.hour, .minute, .second], from: dailyNext),
+      DateComponents(hour: 9, minute: 0, second: 20))
   }
 
   @MainActor func testCustomRuleEditingReschedulesAndPersists() async throws {

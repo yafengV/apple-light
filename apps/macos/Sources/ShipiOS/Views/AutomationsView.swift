@@ -376,7 +376,7 @@ private struct AutomationEditorView: View {
           TextField("RRULE", text: ruleText)
             .textFieldStyle(.roundedBorder)
             .accessibilityLabel("自定义日程 RRULE")
-          Text("支持小时、天、周、月、年频率，以及 BYDAY、BYMONTHDAY、BYMONTH、BYSETPOS、BYHOUR、BYMINUTE、WKST、COUNT 或 UNTIL。")
+          Text("支持分钟、小时、天、周、月、年频率，以及 BYDAY、BYMONTHDAY、BYMONTH、BYSETPOS、BYHOUR、BYMINUTE、BYSECOND、WKST、COUNT 或 UNTIL。")
             .appFont(.caption).foregroundStyle(.secondary)
           if let ruleError {
             Text(ruleError).appFont(.caption).foregroundStyle(.red)

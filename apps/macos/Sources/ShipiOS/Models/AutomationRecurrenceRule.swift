@@ -3,7 +3,8 @@ import Foundation
 /// The locally executable RRULE subset. Unsupported fields are rejected rather than ignored.
 struct AutomationRecurrenceRule: Equatable {
   enum Frequency: String {
-    case hourly = "HOURLY", daily = "DAILY", weekly = "WEEKLY", monthly = "MONTHLY", yearly = "YEARLY"
+    case minutely = "MINUTELY", hourly = "HOURLY", daily = "DAILY", weekly = "WEEKLY",
+      monthly = "MONTHLY", yearly = "YEARLY"
   }
 
   struct Weekday: Equatable {
@@ -19,6 +20,7 @@ struct AutomationRecurrenceRule: Equatable {
   let setPositions: [Int]
   let hours: [Int]
   let minutes: [Int]
+  let seconds: [Int]
   let weekStart: Int
   let count: Int?
   let until: Date?
@@ -27,7 +29,7 @@ struct AutomationRecurrenceRule: Equatable {
     var source = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if source.hasPrefix("RRULE:") { source.removeFirst(6) }
     let allowed: Set<String> = ["FREQ", "INTERVAL", "BYDAY", "BYMONTHDAY", "BYMONTH",
-      "BYSETPOS", "BYHOUR", "BYMINUTE", "WKST", "COUNT", "UNTIL"]
+      "BYSETPOS", "BYHOUR", "BYMINUTE", "BYSECOND", "WKST", "COUNT", "UNTIL"]
     var fields: [String: String] = [:]
     for part in source.split(separator: ";", omittingEmptySubsequences: false) {
       let pair = part.split(separator: "=", omittingEmptySubsequences: false)
@@ -36,9 +38,9 @@ struct AutomationRecurrenceRule: Equatable {
       else { throw AgentFailure(message: "RRULE 包含空值、重复字段或尚不支持的字段。") }
     }
     guard let frequencyText = fields["FREQ"], let frequency = Frequency(rawValue: frequencyText) else {
-      throw AgentFailure(message: "RRULE 频率需为 HOURLY、DAILY、WEEKLY、MONTHLY 或 YEARLY。")
+      throw AgentFailure(message: "RRULE 频率需为 MINUTELY、HOURLY、DAILY、WEEKLY、MONTHLY 或 YEARLY。")
     }
-    let interval = try number(fields["INTERVAL"] ?? "1", range: 1...366, name: "INTERVAL")
+    let interval = try number(fields["INTERVAL"] ?? "1", range: 1...10_080, name: "INTERVAL")
     guard fields["COUNT"] == nil || fields["UNTIL"] == nil else {
       throw AgentFailure(message: "COUNT 与 UNTIL 不能同时使用。")
     }
@@ -58,6 +60,9 @@ struct AutomationRecurrenceRule: Equatable {
     } else { until = nil }
     let minutes = try list(fields["BYMINUTE"], name: "BYMINUTE") {
       try number($0, range: 0...59, name: "BYMINUTE")
+    }
+    let seconds = try list(fields["BYSECOND"], name: "BYSECOND") {
+      try number($0, range: 0...59, name: "BYSECOND")
     }
     let hours = try list(fields["BYHOUR"], name: "BYHOUR") {
       try number($0, range: 0...23, name: "BYHOUR")
@@ -83,7 +88,7 @@ struct AutomationRecurrenceRule: Equatable {
       }
       return position
     }
-    guard setPositions.isEmpty || ["BYDAY", "BYMONTHDAY", "BYMONTH", "BYHOUR", "BYMINUTE"]
+    guard setPositions.isEmpty || ["BYDAY", "BYMONTHDAY", "BYMONTH", "BYHOUR", "BYMINUTE", "BYSECOND"]
       .contains(where: { fields[$0] != nil }) else {
       throw AgentFailure(message: "BYSETPOS 必须与其他 BY 字段一起使用。")
     }
@@ -93,11 +98,12 @@ struct AutomationRecurrenceRule: Equatable {
     }
     return Self(frequency: frequency, interval: interval, weekdays: weekdays,
       monthDays: monthDays, months: months, setPositions: setPositions,
-      hours: hours, minutes: minutes, weekStart: weekStartIndex + 1,
+      hours: hours, minutes: minutes, seconds: seconds, weekStart: weekStartIndex + 1,
       count: count, until: until)
   }
 
   func nextDate(after date: Date, anchor: Date, calendar: Calendar) -> Date? {
+    if frequency == .minutely { return nextMinutelyDate(after: date, anchor: anchor, calendar: calendar) }
     var workingCalendar = calendar
     workingCalendar.firstWeekday = weekStart
     let anchorDay = workingCalendar.startOfDay(for: anchor)
@@ -136,8 +142,64 @@ struct AutomationRecurrenceRule: Equatable {
     return nil
   }
 
+  private func nextMinutelyDate(after date: Date, anchor: Date, calendar: Calendar) -> Date? {
+    var workingCalendar = calendar
+    workingCalendar.firstWeekday = weekStart
+    guard let anchorMinute = workingCalendar.dateInterval(of: .minute, for: anchor)?.start else { return nil }
+    let anchorDay = workingCalendar.startOfDay(for: anchor)
+    let anchorWeek = workingCalendar.dateInterval(of: .weekOfYear, for: anchor)?.start
+    let anchorParts = workingCalendar.dateComponents([.year, .month, .day, .weekday, .hour, .second], from: anchor)
+    let allSeconds = (seconds.isEmpty ? [anchorParts.second ?? 0] : seconds).sorted()
+    let selectedSeconds: [Int]
+    if setPositions.isEmpty { selectedSeconds = allSeconds }
+    else {
+      selectedSeconds = Array(Set(setPositions.compactMap { position -> Int? in
+        let index = position > 0 ? position - 1 : allSeconds.count + position
+        return allSeconds.indices.contains(index) ? allSeconds[index] : nil
+      })).sorted()
+    }
+    let step = TimeInterval(interval * 60)
+    let firstSlot = count == nil
+      ? max(0, Int(floor(max(0, date.timeIntervalSince(anchorMinute)) / step))) : 0
+    let horizon = (count == nil ? max(date, anchor) : anchor).addingTimeInterval(366 * 10 * 86_400)
+    var occurrenceCount = 0
+    var slotNumber = firstSlot
+    while true {
+      let slot = anchorMinute.addingTimeInterval(TimeInterval(slotNumber) * step)
+      if slot > horizon { return nil }
+      if let until, slot > until { return nil }
+      let day = workingCalendar.startOfDay(for: slot)
+      guard matchesDay(day, anchorDay: anchorDay, anchorWeek: anchorWeek,
+        anchorParts: anchorParts, calendar: workingCalendar) else {
+        guard let nextDay = workingCalendar.date(byAdding: .day, value: 1, to: day) else { return nil }
+        slotNumber = max(slotNumber + 1,
+          Int(ceil(nextDay.timeIntervalSince(anchorMinute) / step)))
+        continue
+      }
+      let parts = workingCalendar.dateComponents([.hour, .minute], from: slot)
+      if !hours.isEmpty && !hours.contains(parts.hour ?? -1) {
+        guard let hour = workingCalendar.dateInterval(of: .hour, for: slot) else { return nil }
+        slotNumber = max(slotNumber + 1,
+          Int(ceil(hour.end.timeIntervalSince(anchorMinute) / step)))
+        continue
+      }
+      if minutes.isEmpty || minutes.contains(parts.minute ?? -1) {
+        for second in selectedSeconds {
+          let candidate = slot.addingTimeInterval(TimeInterval(second))
+          if candidate < anchor { continue }
+          if let until, candidate > until { return nil }
+          occurrenceCount += 1
+          if let count, occurrenceCount > count { return nil }
+          if candidate > date { return candidate }
+        }
+      }
+      slotNumber += 1
+    }
+  }
+
   private var periodComponent: Calendar.Component {
     switch frequency {
+    case .minutely: .minute
     case .hourly: .hour
     case .daily: .day
     case .weekly: .weekOfYear
@@ -176,19 +238,23 @@ struct AutomationRecurrenceRule: Equatable {
     let candidateHours = hours.isEmpty
       ? (frequency == .hourly ? Array(0..<24) : [anchorParts.hour ?? 0]) : hours
     let candidateMinutes = minutes.isEmpty ? [0] : minutes
+    let candidateSeconds = seconds.isEmpty ? [0] : seconds
     var dates: [Date] = []
     for candidateHour in candidateHours {
       for candidateMinute in candidateMinutes {
-        guard let candidate = calendar.date(bySettingHour: candidateHour, minute: candidateMinute,
-          second: 0, of: day, matchingPolicy: .nextTime, repeatedTimePolicy: .first,
-          direction: .forward), calendar.isDate(candidate, inSameDayAs: day),
-          calendar.component(.hour, from: candidate) == candidateHour,
-          calendar.component(.minute, from: candidate) == candidateMinute else { continue }
-        if frequency == .hourly {
-          guard let anchorHour,
-            Int(candidate.timeIntervalSince(anchorHour) / 3600) % interval == 0 else { continue }
+        for candidateSecond in candidateSeconds {
+          guard let candidate = calendar.date(bySettingHour: candidateHour, minute: candidateMinute,
+            second: candidateSecond, of: day, matchingPolicy: .nextTime, repeatedTimePolicy: .first,
+            direction: .forward), calendar.isDate(candidate, inSameDayAs: day),
+            calendar.component(.hour, from: candidate) == candidateHour,
+            calendar.component(.minute, from: candidate) == candidateMinute,
+            calendar.component(.second, from: candidate) == candidateSecond else { continue }
+          if frequency == .hourly {
+            guard let anchorHour,
+              Int(candidate.timeIntervalSince(anchorHour) / 3600) % interval == 0 else { continue }
+          }
+          dates.append(candidate)
         }
-        dates.append(candidate)
       }
     }
     return dates.sorted()
@@ -218,7 +284,7 @@ struct AutomationRecurrenceRule: Equatable {
       else { return false }
     }
     switch frequency {
-    case .hourly: return true
+    case .minutely, .hourly: return true
     case .daily:
       guard let days = calendar.dateComponents([.day], from: anchorDay, to: day).day else { return false }
       return days % interval == 0
