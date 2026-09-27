@@ -89,6 +89,44 @@ final class AutomationTests: XCTestCase {
     XCTAssertTrue(store.automationPreferences.items.isEmpty)
   }
 
+  @MainActor func testEditingContentKeepsScheduleButEditingTimeRecomputesIt() async {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.loadAutomations()
+    var item = ShipAutomation(name: "Before", prompt: "old prompt")
+    item.nextRun = Date().addingTimeInterval(3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    let original = store.automationPreferences.items[0].nextRun
+    item.name = "After"
+    item.prompt = "new prompt"
+    XCTAssertTrue(store.saveEditedAutomation(item))
+    XCTAssertEqual(store.automationPreferences.items[0].nextRun, original)
+
+    item.minute = (item.minute + 1) % 60
+    let beforeSave = Date()
+    XCTAssertTrue(store.saveEditedAutomation(item))
+    let scheduled = store.automationPreferences.items[0].nextRun
+    XCTAssertGreaterThanOrEqual(scheduled, item.nextDate(after: beforeSave))
+    XCTAssertLessThanOrEqual(scheduled, item.nextDate(after: .now))
+  }
+
+  @MainActor func testEnablingFromEditorRearmsPausedSchedule() async {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.loadAutomations()
+    var item = ShipAutomation(name: "Paused", prompt: "review")
+    item.enabled = false
+    item.nextRun = Date().addingTimeInterval(-3600)
+    XCTAssertTrue(store.saveAutomation(item))
+    store.automationPreferences.items[0].nextRun = Date().addingTimeInterval(-3600)
+    var edited = store.automationPreferences.items[0]
+    edited.enabled = true
+    XCTAssertTrue(store.saveEditedAutomation(edited))
+    XCTAssertGreaterThan(store.automationPreferences.items[0].nextRun, .now)
+  }
+
   @MainActor func testFailedDueRunAdvancesScheduleInsteadOfRetryingEveryPoll() async {
     let base = root()
     defer { try? FileManager.default.removeItem(at: base) }

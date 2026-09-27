@@ -40,6 +40,20 @@ extension WorkspaceStore {
     }
   }
 
+  @discardableResult func saveEditedAutomation(_ item: ShipAutomation) -> Bool {
+    var edited = item
+    if let previous = automationPreferences.items.first(where: { $0.id == item.id }) {
+      let scheduleChanged = previous.cadence != item.cadence || previous.hour != item.hour
+        || previous.minute != item.minute || previous.weekday != item.weekday
+      if scheduleChanged || !previous.enabled && item.enabled {
+        edited.nextRun = edited.nextDate(after: .now)
+      } else {
+        edited.nextRun = previous.nextRun
+      }
+    }
+    return saveAutomation(edited)
+  }
+
   func setAutomationEnabled(_ enabled: Bool, id: UUID) {
     guard var item = automationPreferences.items.first(where: { $0.id == id }) else { return }
     item.enabled = enabled

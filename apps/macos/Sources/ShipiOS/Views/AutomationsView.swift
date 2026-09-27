@@ -5,7 +5,7 @@ struct AutomationsView: View {
     case all, active, paused
     var id: String { rawValue }
     var title: String {
-      switch self { case .all: "全部"; case .active: "运行中"; case .paused: "已暂停" }
+      switch self { case .all: "全部"; case .active: "已启用"; case .paused: "已暂停" }
     }
   }
 
@@ -81,7 +81,7 @@ struct AutomationsView: View {
     }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
       .sheet(item: $editing) { item in
         AutomationEditorView(store: store, item: item) { saved in
-          if store.saveAutomation(saved) { editing = nil }
+          if store.saveEditedAutomation(saved) { editing = nil }
         }
       }
       .alert("删除自动化？", isPresented: Binding(
@@ -189,7 +189,15 @@ private struct AutomationEditorView: View {
             }
           }
         }
-        DatePicker("时间", selection: time, displayedComponents: .hourAndMinute)
+        if item.cadence == .hourly {
+          Picker("每小时的分钟", selection: $item.minute) {
+            ForEach(0..<60, id: \.self) { minute in
+              Text(String(format: "%02d", minute)).tag(minute)
+            }
+          }
+        } else {
+          DatePicker("时间", selection: time, displayedComponents: .hourAndMinute)
+        }
         Toggle("启用", isOn: $item.enabled)
       }.formStyle(.grouped)
       VStack(alignment: .leading, spacing: 6) {
@@ -203,7 +211,6 @@ private struct AutomationEditorView: View {
         Spacer()
         Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
         Button("保存") {
-          item.nextRun = item.nextDate(after: .now)
           save(item)
         }.keyboardShortcut(.defaultAction)
           .disabled(item.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
