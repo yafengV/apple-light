@@ -39,6 +39,7 @@ struct WorkspaceCommands: Commands {
       command("clear-unread")
       command("copy-task-link")
       command("copy-session-id")
+      command("copy-conversation-path")
       Divider()
       command("find")
       command("find-next")

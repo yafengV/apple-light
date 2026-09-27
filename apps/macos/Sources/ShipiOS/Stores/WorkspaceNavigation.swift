@@ -105,6 +105,7 @@ extension WorkspaceStore {
     case "archive": if let t = selectedTask { updateTask(t.id, archive: true) }
     case "copy-task-link": if let task = selectedTask { copyTaskDeepLink(task) }
     case "copy-session-id": if let task = selectedTask { copyCodexSessionID(task) }
+    case "copy-conversation-path": if let task = selectedTask { copyCodexConversationPath(task) }
     case "copy-location": copyCurrentLocation()
     case "doctor": Task { await start("doctor") }
     case "build": Task { await start("build") }
@@ -167,6 +168,8 @@ extension WorkspaceStore {
     case "open-task-window": return destination == .workspace && selectedTask != nil
     case "copy-task-link": return destination == .workspace && selectedTask != nil
     case "copy-session-id": return destination == .workspace && selectedTask?.copyableCodexThreadID != nil
+    case "copy-conversation-path": return destination == .workspace
+      && selectedTask.flatMap { codexConversationPath(for: $0) } != nil
     case "copy-location": return copyLocationTarget != nil
     case "task-summary": return destination == .workspace && selectedTask != nil
     case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil

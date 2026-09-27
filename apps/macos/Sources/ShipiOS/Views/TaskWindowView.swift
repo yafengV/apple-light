@@ -637,6 +637,7 @@ struct TaskWindowView: View {
       enabled.formUnion(["find", "plan", "model", "dictation", "open-task-window", "task-summary"])
       if !task.isPopoutDraft { enabled.insert("copy-task-link") }
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
+      if store.codexConversationPath(for: task) != nil { enabled.insert("copy-conversation-path") }
       if copyLocationTarget != nil { enabled.insert("copy-location") }
       if store.commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
@@ -726,6 +727,7 @@ struct TaskWindowView: View {
     case "open-task-window": openWindow(value: TaskWindowRoute.newWindow(taskID: taskID, dataRoot: store.dataRoot))
     case "copy-task-link": if !task.isPopoutDraft { store.copyTaskDeepLink(task) }
     case "copy-session-id": if !task.isPopoutDraft { store.copyCodexSessionID(task) }
+    case "copy-conversation-path": if !task.isPopoutDraft { store.copyCodexConversationPath(task) }
     case "copy-location": if let target = copyLocationTarget { store.copyLocation(target) }
     case "task-summary": taskSummary.toggle()
     case "files": openTaskFileSearch()

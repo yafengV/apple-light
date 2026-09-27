@@ -43,4 +43,14 @@ extension WorkspaceStore {
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(threadID, forType: .string)
   }
+
+  func codexConversationPath(for task: WorkspaceTask) -> URL? {
+    CodexConversationPath.existingPath(task: task, dataRoot: dataRoot)
+  }
+
+  func copyCodexConversationPath(_ task: WorkspaceTask, to pasteboard: NSPasteboard = .general) {
+    guard let path = codexConversationPath(for: task) else { return }
+    pasteboard.clearContents()
+    pasteboard.setString(path.path, forType: .string)
+  }
 }
