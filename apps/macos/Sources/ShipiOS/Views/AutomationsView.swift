@@ -240,6 +240,14 @@ private struct AutomationEditorView: View {
               .toggleStyle(.checkbox)
           }
         }
+        Picker("运行位置", selection: Binding(
+          get: { item.selectedExecution }, set: { item.execution = $0 })) {
+          ForEach(NewTaskExecution.allCases) { Text($0.title).tag($0) }
+        }
+        if item.selectedExecution == .worktree {
+          Text("Git 仓库根目录中的任务将在独立工作树运行；非 Git 项目仍在原目录运行。")
+            .appFont(.caption).foregroundStyle(.secondary)
+        }
         Picker("频率", selection: $item.cadence) {
           ForEach(AutomationCadence.allCases) { Text($0.title).tag($0) }
         }

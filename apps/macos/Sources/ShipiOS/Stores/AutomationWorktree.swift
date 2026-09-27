@@ -1,0 +1,71 @@
+import Foundation
+
+extension WorkspaceStore {
+  /// Prepare one scheduled run with the same durable managed-checkout machinery as a new task.
+  func prepareAutomationWorktree(sourcePath: String, taskID: String) async throws -> ManagedWorktree {
+    let source = URL(fileURLWithPath: sourcePath)
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    guard snapshot.canChange else {
+      throw AgentFailure(message: "计划任务的工作树需要选择 Git 仓库根目录。")
+    }
+    let existing = library.managedWorktrees.first(where: { $0.taskID == taskID })
+    var protectedStashCommit: String?
+    do {
+      var sourceCopiedFiles: [ManagedSourceFile] = []
+      var sourceStashCommit: String?
+      if existing == nil {
+        let paths = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
+        sourceCopiedFiles = try ManagedSourceFiles.capture(paths, from: source,
+          dataRoot: dataRoot, taskID: taskID)
+        if snapshot.changedFiles > 0 {
+          let captured = try await GitReviewService.stashSnapshot(
+            named: "shipios-automation-\(taskID)", at: source)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+          guard captured.isEmpty || captured.range(of: "^[0-9a-f]{40,64}$",
+            options: .regularExpression) != nil else {
+            throw AgentFailure(message: "无法保存自动化来源项目的未提交修改。")
+          }
+          if !captured.isEmpty {
+            _ = try await GitReviewService.checked(
+              ["update-ref", "refs/shipios/managed-worktrees/\(taskID)", captured], at: source)
+            sourceStashCommit = captured
+            protectedStashCommit = captured
+          }
+          guard sourceStashCommit != nil || !sourceCopiedFiles.isEmpty else {
+            throw AgentFailure(message: "无法保存自动化来源项目的未提交修改。")
+          }
+        }
+      }
+      let profile = library.profiles[sourcePath] ?? BuildProfile()
+      let environment = ManagedEnvironmentSnapshot(fileName: nil, name: "ShipiOS 本地配置",
+        disabled: false, setupScript: profile.worktreeSetupScript,
+        setupPlatforms: profile.setupPlatformScripts,
+        cleanupScript: profile.worktreeCleanupScript,
+        cleanupPlatforms: profile.cleanupPlatformScripts, actions: profile.actions)
+      guard let record = await createManagedWorktree(snapshot: snapshot, branch: nil,
+        taskID: taskID, sourceStashCommit: sourceStashCommit,
+        sourceCopiedFiles: sourceCopiedFiles, environment: environment) else {
+        throw AgentFailure(message: worktreeError ?? "无法创建自动化工作树。")
+      }
+      if (record.sourceStashCommit != nil || !(record.sourceCopiedFiles ?? []).isEmpty),
+        record.sourceChangesApplied != true {
+        try await applyManagedSourceChanges(record)
+      }
+      try await runManagedWorktreeSetup(record)
+      guard let ready = library.managedWorktrees.first(where: { $0.taskID == taskID && $0.ready }) else {
+        throw AgentFailure(message: "自动化工作树尚未准备完成。")
+      }
+      return ready
+    } catch {
+      if existing == nil, !library.managedWorktrees.contains(where: { $0.taskID == taskID }) {
+        ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: taskID)
+        if let protectedStashCommit {
+          _ = try? await GitReviewService.checked(
+            ["update-ref", "-d", "refs/shipios/managed-worktrees/\(taskID)",
+              protectedStashCommit], at: source)
+        }
+      }
+      throw error
+    }
+  }
+}

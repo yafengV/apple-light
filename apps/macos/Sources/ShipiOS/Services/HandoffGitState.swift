@@ -51,8 +51,8 @@ enum HandoffGitState {
         taskID: taskID, target: to.root) else {
         throw AgentFailure(message: "两个检出的本地文件冲突，未覆盖目标目录。")
       }
-      let captured = try await GitReviewService.checked(
-        ["stash", "create", "shipios-handoff-" + taskID], at: from.root)
+      let captured = try await GitReviewService.stashSnapshot(
+        named: "shipios-handoff-" + taskID, at: from.root)
         .trimmingCharacters(in: .whitespacesAndNewlines)
       if !captured.isEmpty {
         guard validCommitID(captured) else {

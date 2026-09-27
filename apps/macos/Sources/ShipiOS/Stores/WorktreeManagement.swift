@@ -337,8 +337,8 @@ extension WorkspaceStore {
           dataRoot: dataRoot, taskID: taskID)
       }
       if existing == nil, snapshot.changedFiles > 0, copiesCurrentBranch {
-        let captured = try await GitReviewService.checked(
-          ["stash", "create", "shipios-managed-\(taskID)"], at: source)
+        let captured = try await GitReviewService.stashSnapshot(
+          named: "shipios-managed-\(taskID)", at: source)
           .trimmingCharacters(in: .whitespacesAndNewlines)
         guard captured.isEmpty || captured.range(of: "^[0-9a-f]{40,64}$",
           options: .regularExpression) != nil else {

@@ -83,8 +83,10 @@ final class AutomationTests: XCTestCase {
   func testMultiProjectSelectionPersistsAndLegacyProjectMigrates() throws {
     var item = ShipAutomation(name: "Projects", prompt: "Review")
     XCTAssertEqual(item.selectedProjects, [""])
+    XCTAssertEqual(item.selectedExecution, .local)
     item.setProject("/tmp/First", selected: true)
     item.setProject("/tmp/Second", selected: true)
+    item.execution = .worktree
     XCTAssertEqual(item.selectedProjects, ["/tmp/First", "/tmp/Second"])
     item.setProject("/tmp/First", selected: false)
     XCTAssertEqual(item.selectedProjects, ["/tmp/Second"])
@@ -98,12 +100,15 @@ final class AutomationTests: XCTestCase {
     try AutomationStorage.save(AutomationPreferences(items: [item]), root: base)
     XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedProjects,
       ["/tmp/First", "/tmp/Second"])
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedExecution, .worktree)
     item.projects = nil
     item.project = "/tmp/Legacy"
+    item.execution = nil
     try JSONEncoder().encode(AutomationPreferences(items: [item])).write(
       to: base.appendingPathComponent("automations.json"))
     XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedProjects,
       ["/tmp/Legacy"])
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedExecution, .local)
   }
 
   func testInvalidMultiProjectListIsRejected() throws {

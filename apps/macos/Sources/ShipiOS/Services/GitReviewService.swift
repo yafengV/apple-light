@@ -21,6 +21,18 @@ enum GitReviewService {
     return output.text
   }
 
+  /// `stash create` only writes a snapshot object. An intermittent index refresh error can
+  /// be retried once after `status` refreshes the same index, without changing the checkout.
+  static func stashSnapshot(named name: String, at root: URL) async throws -> String {
+    let command = ["stash", "create", name]
+    do { return try await checked(command, at: root) }
+    catch {
+      guard error.localizedDescription.contains("could not write index") else { throw error }
+      _ = try await checked(["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: root)
+      return try await checked(command, at: root)
+    }
+  }
+
   static func commits(at root: URL) async throws -> [GitReviewChoice] {
     let head = try await LocalWorkspaceService.git(["rev-parse", "--verify", "HEAD"], at: root)
     guard head.status == 0 else { return [] }

@@ -105,8 +105,8 @@ extension WorkspaceStore {
         copiedFiles = try ManagedSourceFiles.capture(paths, from: checkout,
           dataRoot: dataRoot, taskID: taskID)
         snapshotCaptured = !copiedFiles.isEmpty
-        let captured = try await GitReviewService.checked(
-          ["stash", "create", "shipios-archive-\(taskID)"], at: checkout)
+        let captured = try await GitReviewService.stashSnapshot(
+          named: "shipios-archive-\(taskID)", at: checkout)
           .trimmingCharacters(in: .whitespacesAndNewlines)
         if !captured.isEmpty {
           guard captured.range(of: "^[0-9a-f]{40,64}$",

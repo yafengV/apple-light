@@ -134,19 +134,58 @@ extension WorkspaceStore {
     if let taskID = item.taskID, activeRun(taskID: taskID) != nil { return }
     automationRunningIDs.insert(id)
     defer { automationRunningIDs.remove(id) }
+    let occurrence = item.activeOccurrenceAt ?? scheduledAt
+    if item.activeOccurrenceAt == nil {
+      var activated = item
+      activated.activeOccurrenceAt = occurrence
+      activated.completedProjectsForOccurrence = []
+      guard saveAutomation(activated) else { return }
+    }
     var failures: [String] = []
     for project in item.selectedProjects {
+      guard var state = automationPreferences.items.first(where: { $0.id == id }) else { break }
+      if state.completedProjectsForOccurrence?.contains(project) == true { continue }
+      let ownerID = state.preparingTaskIDs?[project] ?? UUID().uuidString
+      if state.preparingTaskIDs?[project] == nil {
+        state.preparingTaskIDs = state.preparingTaskIDs ?? [:]
+        state.preparingTaskIDs?[project] = ownerID
+        guard saveAutomation(state) else { return }
+      }
       do {
         guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
-        let ownerID = UUID().uuidString
+        let source = URL(fileURLWithPath: project)
+        let useWorktree = state.selectedExecution == .worktree && !project.isEmpty
+          && FileManager.default.fileExists(atPath: source.appendingPathComponent(".git").path)
+        let record = useWorktree
+          ? try await prepareAutomationWorktree(sourcePath: project, taskID: ownerID) : nil
+        let runProject = record?.path ?? project
         var candidate = library
-        candidate.tasks.insert(WorkspaceTask(
-          id: ownerID, project: project, title: item.name, runIDs: []), at: 0)
+        if let index = candidate.tasks.firstIndex(where: { $0.id == ownerID }) {
+          candidate.tasks[index].project = runProject
+        } else {
+          candidate.tasks.insert(WorkspaceTask(
+            id: ownerID, project: runProject, title: item.name, runIDs: []), at: 0)
+        }
+        if let record {
+          var profile = candidate.profiles[project] ?? BuildProfile()
+          record.environment?.apply(to: &profile)
+          candidate.profiles[runProject] = profile
+        }
         try commitLibrary(candidate)
+        if let existingRunID = library.tasks.first(where: { $0.id == ownerID })?.runIDs.last,
+          let existingRun = library.chatRuns.first(where: { $0.id == existingRunID }) {
+          guard existingRun.request["automation_id"].text == id.uuidString else {
+            throw AgentFailure(message: "待恢复任务不属于此自动化，未重复执行。")
+          }
+          if existingRun.isActive { await modelTask(runID: existingRunID)?.value }
+          guard library.chatRuns.first(where: { $0.id == existingRunID })?.isActive == false else {
+            throw AgentFailure(message: "上次自动化运行仍未结束。")
+          }
+          try recordAutomationProjectResult(id: id, project: project,
+            taskID: ownerID, runID: existingRunID)
+          continue
+        }
         guard let runID = await startChat(item.prompt, taskID: ownerID, automationID: id) else {
-          var candidate = library
-          candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
-          try commitLibrary(candidate)
           throw AgentFailure(message: error ?? "自动化当前无法启动，请稍后重试。")
         }
         if var running = automationPreferences.items.first(where: { $0.id == id }) {
@@ -157,24 +196,54 @@ extension WorkspaceStore {
         guard let run = library.chatRuns.first(where: { $0.id == runID }), !run.isActive else {
           throw AgentFailure(message: "自动化运行尚未完成。")
         }
-        if var updated = automationPreferences.items.first(where: { $0.id == id }) {
-          updated.pendingRunIDs = updated.unresolvedRunIDs + [runID]
-          updated.lastRunID = runID
-          updated.taskID = ownerID
-          _ = saveAutomation(updated)
-        }
-        library.unreadTasks.insert(ownerID)
-        saveLibrary()
+        try recordAutomationProjectResult(id: id, project: project,
+          taskID: ownerID, runID: runID)
       } catch {
         let title = project.isEmpty ? "无项目" : library.projectTitle(project)
         failures.append("\(title)：\(error.localizedDescription)")
+        let hasRun = library.tasks.first(where: { $0.id == ownerID })?.runIDs.isEmpty == false
+        if !hasRun, var failed = automationPreferences.items.first(where: { $0.id == id }) {
+          if !library.managedWorktrees.contains(where: { $0.taskID == ownerID }) {
+            var candidate = library
+            candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
+            try? commitLibrary(candidate)
+            failed.preparingTaskIDs?[project] = nil
+          }
+          failed.completedProjectsForOccurrence = (failed.completedProjectsForOccurrence ?? []) + [project]
+          _ = saveAutomation(failed)
+        }
       }
     }
     if var updated = automationPreferences.items.first(where: { $0.id == id }) {
-      updated.lastRun = scheduledAt
-      updated.nextRun = updated.nextDate(after: max(scheduledAt, .now))
-      _ = saveAutomation(updated)
+      if Set(updated.selectedProjects).isSubset(of: Set(updated.completedProjectsForOccurrence ?? [])) {
+        updated.lastRun = occurrence
+        updated.nextRun = updated.nextDate(after: max(occurrence, .now))
+        updated.activeOccurrenceAt = nil
+        updated.completedProjectsForOccurrence = nil
+        _ = saveAutomation(updated)
+      }
     }
     if !failures.isEmpty { automationsError = failures.joined(separator: "\n") }
+  }
+
+  private func recordAutomationProjectResult(id: UUID, project: String,
+    taskID: String, runID: String) throws {
+    guard var updated = automationPreferences.items.first(where: { $0.id == id }) else {
+      throw AgentFailure(message: "自动化记录已删除。")
+    }
+    if !updated.unresolvedRunIDs.contains(runID) {
+      updated.pendingRunIDs = updated.unresolvedRunIDs + [runID]
+    }
+    updated.lastRunID = runID
+    updated.taskID = taskID
+    if updated.completedProjectsForOccurrence?.contains(project) != true {
+      updated.completedProjectsForOccurrence = (updated.completedProjectsForOccurrence ?? []) + [project]
+    }
+    updated.preparingTaskIDs?[project] = nil
+    guard saveAutomation(updated) else {
+      throw AgentFailure(message: automationsError ?? "无法保存自动化运行结果。")
+    }
+    library.unreadTasks.insert(taskID)
+    saveLibrary()
   }
 }

@@ -3504,6 +3504,7 @@ final class ModelTransportTests: XCTestCase {
     var automation = ShipAutomation(name: "Both projects", prompt: "automation project review")
     automation.setProject(first.path, selected: true)
     automation.setProject(second.path, selected: true)
+    automation.execution = .worktree // Non-Git projects still run in their own local directories.
     XCTAssertEqual(Set(automation.selectedProjects), Set([first.path, second.path]))
     XCTAssertTrue(store.saveAutomation(automation))
 
@@ -3517,11 +3518,24 @@ final class ModelTransportTests: XCTestCase {
     }
     XCTAssertEqual(Set(runs.map(\.project)), Set([first.path, second.path]))
     XCTAssertEqual(Set(runs.map(\.id)), Set(saved.unresolvedRunIDs))
+    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
     XCTAssertEqual(store.library.tasks.filter { task in
       task.runIDs.contains { saved.unresolvedRunIDs.contains($0) }
     }.count, 2)
     XCTAssertEqual(try AutomationStorage.load(root: store.dataRoot).items[0].selectedProjects,
       saved.selectedProjects)
+
+    var interrupted = saved
+    interrupted.activeOccurrenceAt = .now
+    interrupted.completedProjectsForOccurrence = [first.path]
+    XCTAssertTrue(store.saveAutomation(interrupted))
+    await store.runAutomation(automation.id)
+    let resumedRuns = store.library.chatRuns.filter {
+      $0.request["automation_id"].text == automation.id.uuidString
+    }
+    XCTAssertEqual(resumedRuns.filter { $0.project == first.path }.count, 1)
+    XCTAssertEqual(resumedRuns.filter { $0.project == second.path }.count, 2)
+    XCTAssertNil(store.automationPreferences.items[0].activeOccurrenceAt)
     await store.shutdown()
   }
   @MainActor func testCodexAutomationRunsToolsInItsOwnProject() async throws {
@@ -3562,6 +3576,76 @@ final class ModelTransportTests: XCTestCase {
       scheduled.appendingPathComponent("patch-proof.txt").path))
     XCTAssertFalse(FileManager.default.fileExists(atPath:
       current.appendingPathComponent("patch-proof.txt").path))
+    await store.shutdown()
+  }
+  @MainActor func testCodexAutomationRunsInManagedWorktreeWithSourceChanges() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let source = root.appendingPathComponent("Source", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
+    try Data("initial\n".utf8).write(to: source.appendingPathComponent("tracked.txt"))
+    _ = try await GitReviewService.checked(["add", "tracked.txt"], at: source)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    try Data("local change\n".utf8).write(to: source.appendingPathComponent("tracked.txt"))
+    try Data("new file\n".utf8).write(to: source.appendingPathComponent("untracked.txt"))
+
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(source)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    var automation = ShipAutomation(name: "Isolated automation", prompt: "codex-patch")
+    automation.setProject(source.path, selected: true)
+    automation.execution = .worktree
+    automation.nextRun = Date().addingTimeInterval(60)
+    XCTAssertTrue(store.saveAutomation(automation))
+
+    await store.runAutomation(automation.id)
+
+    let saved = try XCTUnwrap(store.automationPreferences.items.first)
+    let taskID = try XCTUnwrap(saved.taskID,
+      "automation=\(store.automationsError ?? "none"), worktree=\(store.worktreeError ?? "none"), model=\(store.error ?? "none")")
+    let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == taskID })
+    let worktree = URL(fileURLWithPath: record.path)
+    XCTAssertTrue(record.ready)
+    XCTAssertEqual(store.library.tasks.first { $0.id == taskID }?.project, record.path)
+    XCTAssertEqual(try String(contentsOf: worktree.appendingPathComponent("tracked.txt")), "local change\n")
+    XCTAssertEqual(try String(contentsOf: worktree.appendingPathComponent("untracked.txt")), "new file\n")
+    XCTAssertTrue(FileManager.default.fileExists(atPath: worktree.appendingPathComponent("patch-proof.txt").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("patch-proof.txt").path))
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("tracked.txt")), "local change\n")
+    XCTAssertEqual(saved.unresolvedRunIDs.count, 1)
+    XCTAssertNil(saved.activeOccurrenceAt)
+    XCTAssertNil(saved.preparingTaskIDs?[source.path])
+
+    let resumedTaskID = UUID().uuidString
+    var interrupted = saved
+    interrupted.activeOccurrenceAt = .now
+    interrupted.completedProjectsForOccurrence = []
+    interrupted.preparingTaskIDs = [source.path: resumedTaskID]
+    XCTAssertTrue(store.saveAutomation(interrupted))
+    let prepared = try await store.prepareAutomationWorktree(
+      sourcePath: source.path, taskID: resumedTaskID)
+    await store.runAutomation(automation.id)
+    let resumed = try XCTUnwrap(store.automationPreferences.items.first)
+    XCTAssertEqual(resumed.taskID, resumedTaskID)
+    XCTAssertEqual(resumed.unresolvedRunIDs.count, 2)
+    XCTAssertNil(resumed.activeOccurrenceAt)
+    XCTAssertNil(resumed.preparingTaskIDs?[source.path])
+    XCTAssertNotEqual(prepared.path, record.path)
+    XCTAssertEqual(store.library.managedWorktrees.filter { $0.taskID == resumedTaskID }.count, 1)
+    XCTAssertTrue(FileManager.default.fileExists(atPath:
+      URL(fileURLWithPath: prepared.path).appendingPathComponent("patch-proof.txt").path))
     await store.shutdown()
   }
   @MainActor func testTaskWindowSubmissionConsumesOnlyItsDraftAndUsesTaskProject() async throws {

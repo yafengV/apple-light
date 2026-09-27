@@ -20,6 +20,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var project = ""
   /// Nil keeps the single-project format used by older saved automations.
   var projects: [String]?
+  /// Nil keeps the local execution mode used by older saved automations.
+  var execution: NewTaskExecution?
   var cadence = AutomationCadence.daily
   var hour = 9
   var minute = 0
@@ -37,6 +39,10 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var reviewedRunID: String?
   /// Nil decodes legacy schedules, whose only pending run is their latest unreviewed run.
   var pendingRunIDs: [String]?
+  /// Persisted before worktree creation so a failed or interrupted preparation can resume.
+  var preparingTaskIDs: [String: String]?
+  var activeOccurrenceAt: Date?
+  var completedProjectsForOccurrence: [String]?
 
   var unresolvedRunIDs: [String] {
     if let pendingRunIDs { return pendingRunIDs }
@@ -46,6 +52,7 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var needsReview: Bool { !unresolvedRunIDs.isEmpty }
   var selectedWeekdays: [Int] { weekdays ?? [weekday] }
   var selectedProjects: [String] { projects ?? [project] }
+  var selectedExecution: NewTaskExecution { execution ?? .local }
 
   mutating func setProject(_ path: String, selected: Bool) {
     if path.isEmpty {
@@ -153,6 +160,10 @@ enum AutomationStorage {
           (projects.count == 1 || !projects.contains("")), item.project == projects.first else {
           throw AgentFailure(message: "自动化项目列表无效。")
         }
+      }
+      if let preparingTaskIDs = item.preparingTaskIDs,
+        !preparingTaskIDs.values.allSatisfy({ UUID(uuidString: $0) != nil }) {
+        throw AgentFailure(message: "自动化待准备任务标识无效。")
       }
       if item.cadence == .custom {
         guard let customRule = item.customRule, let anchor = item.scheduleAnchor else {
