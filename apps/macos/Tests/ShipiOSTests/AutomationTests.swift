@@ -416,6 +416,46 @@ final class AutomationTests: XCTestCase {
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
   }
 
+  @MainActor func testMarkAllScheduledRunsReadPreservesSchedulesAndOtherUnreadTasks() async throws {
+    let base = root()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let store = WorkspaceStore(dataRoot: base)
+    await store.restore()
+    var first = ShipAutomation(name: "First", prompt: "review")
+    first.nextRun = Date().addingTimeInterval(3600)
+    first.lastRunID = "first-new"
+    first.pendingRunIDs = ["first-old", "first-new"]
+    first.activeOccurrenceAt = .now
+    var second = ShipAutomation(name: "Second", prompt: "review")
+    second.nextRun = Date().addingTimeInterval(3600)
+    second.lastRunID = "second-new"
+    second.reviewedRunID = "second-old"
+    XCTAssertTrue(store.saveAutomation(first))
+    XCTAssertTrue(store.saveAutomation(second))
+    store.library.tasks = [
+      WorkspaceTask(id: "first-task", project: "", title: "First", runIDs: ["first-old", "first-new"]),
+      WorkspaceTask(id: "second-task", project: "", title: "Second", runIDs: ["second-new"]),
+      WorkspaceTask(id: "other-task", project: "", title: "Other", runIDs: ["other-run"]),
+    ]
+    store.library.unreadTasks = ["first-task", "second-task", "other-task"]
+    XCTAssertTrue(store.saveLibrary())
+
+    store.markAllAutomationsReviewed()
+    XCTAssertNil(store.automationsError)
+    XCTAssertTrue(store.automationPreferences.items.allSatisfy { !$0.needsReview })
+    XCTAssertEqual(store.library.unreadTasks, ["other-task"])
+    let savedFirst = try XCTUnwrap(store.automationPreferences.items.first { $0.id == first.id })
+    XCTAssertEqual(savedFirst.nextRun, first.nextRun)
+    XCTAssertEqual(savedFirst.activeOccurrenceAt, first.activeOccurrenceAt)
+    XCTAssertEqual(savedFirst.pendingRunIDs, [])
+    XCTAssertEqual(savedFirst.lastRunID, "first-new")
+    let persisted = try AutomationStorage.load(root: base)
+    XCTAssertTrue(persisted.items.allSatisfy { !$0.needsReview })
+    store.markAllAutomationsReviewed()
+    XCTAssertEqual(store.library.unreadTasks, ["other-task"])
+    await store.shutdown()
+  }
+
   @MainActor func testAppLifecyclePollsDueAutomationWithoutWorkspaceView() async {
     let base = root()
     defer { try? FileManager.default.removeItem(at: base) }

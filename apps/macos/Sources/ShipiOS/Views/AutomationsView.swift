@@ -64,7 +64,12 @@ struct AutomationsView: View {
         ScrollView {
           VStack(alignment: .leading, spacing: 18) {
             if !reviewItems.isEmpty {
-              Text("等待审查").appFont(.headline)
+              HStack {
+                Text("等待审查").appFont(.headline)
+                Spacer()
+                Button("全部标为已读") { store.markAllAutomationsReviewed() }
+                  .buttonStyle(.link)
+              }
               ForEach(reviewItems) { item in reviewRow(item) }
             }
             HStack {

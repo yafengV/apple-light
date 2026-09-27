@@ -101,6 +101,32 @@ extension WorkspaceStore {
     _ = saveAutomation(item)
   }
 
+  func markAllAutomationsReviewed() {
+    guard automationsLoaded, libraryLoaded else { return }
+    var candidate = automationPreferences
+    let pending = Set(candidate.items.flatMap(\.unresolvedRunIDs))
+    guard !pending.isEmpty else { return }
+    for index in candidate.items.indices where candidate.items[index].needsReview {
+      candidate.items[index].pendingRunIDs = []
+      candidate.items[index].reviewedRunID = candidate.items[index].lastRunID
+    }
+    var updatedLibrary = library
+    let taskIDs = updatedLibrary.tasks.filter { task in
+      task.runIDs.contains(where: pending.contains)
+    }.map(\.id)
+    updatedLibrary.unreadTasks.subtract(taskIDs)
+    do {
+      try AutomationStorage.save(candidate, root: dataRoot)
+      do { try commitLibrary(updatedLibrary) }
+      catch {
+        try? AutomationStorage.save(automationPreferences, root: dataRoot)
+        throw error
+      }
+      automationPreferences = candidate
+      automationsError = nil
+    } catch { automationsError = "无法标记自动化结果为已读：\(error.localizedDescription)" }
+  }
+
   func openAutomationResult(_ id: UUID) {
     guard let item = automationPreferences.items.first(where: { $0.id == id }),
       let runID = item.unresolvedRunIDs.first ?? item.lastRunID else { return }
