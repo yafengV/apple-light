@@ -423,6 +423,9 @@ final class WorkspaceStore {
     let agentClient = AgentClient()
     client = agentClient
     codexTransport = CodexChatTransport(client: agentClient, dataRoot: root)
+    codexTransport.onThreadStarted = { [weak self] taskID, threadID in
+      self?.recordCodexThreadID(taskID: taskID, threadID: threadID)
+    }
     codexTransport.onBrowserRequest = { [weak self] taskID, token, request in
       Task { @MainActor [weak self] in
         await self?.handleCodexBrowserRequest(taskID: taskID, token: token, request: request)

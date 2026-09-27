@@ -5,6 +5,7 @@ import CryptoKit
 @MainActor
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
+  var onThreadStarted: ((String, String) -> Void)?
   private struct ServiceIdentity: Equatable {
     let endpoint: String
     let keyDigest: Data?
@@ -101,6 +102,9 @@ final class CodexChatTransport {
         sendFullContext = thread["resumed"].boolean != true
         activeThreads.insert(taskID)
         serviceIdentities[taskID] = service
+        if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
+          onThreadStarted?(taskID, threadID)
+        }
         if compact && sendFullContext {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")
         }

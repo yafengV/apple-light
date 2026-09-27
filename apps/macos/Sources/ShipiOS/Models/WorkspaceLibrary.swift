@@ -10,6 +10,8 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   var archivedAt: Date?
   var forkOrigin: ConversationForkOrigin?
   var modelSelection: TaskModelSelection?
+  /// The actual Codex Core thread ID, present after a Responses thread starts.
+  var codexThreadID: String?
   /// Present only while a newly opened task window has not submitted its first message.
   var popoutDraft: Bool?
   var createdAt: Date?
@@ -27,6 +29,11 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   }
 
   var isPopoutDraft: Bool { popoutDraft == true }
+  var copyableCodexThreadID: String? {
+    guard !isPopoutDraft, let codexThreadID,
+      UUID(uuidString: codexThreadID) != nil else { return nil }
+    return codexThreadID
+  }
   var selectionID: String { runIDs.last ?? id }
 }
 

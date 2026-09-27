@@ -28,4 +28,19 @@ extension WorkspaceStore {
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(value, forType: .string)
   }
+
+  func recordCodexThreadID(taskID: String, threadID: String) {
+    guard UUID(uuidString: threadID) != nil,
+      let index = library.tasks.firstIndex(where: { $0.id == taskID }),
+      library.tasks[index].codexThreadID != threadID else { return }
+    library.tasks[index].codexThreadID = threadID
+    saveLibrary()
+  }
+
+  func copyCodexSessionID(_ task: WorkspaceTask) {
+    guard let threadID = library.tasks.first(where: { $0.id == task.id })?.copyableCodexThreadID
+    else { return }
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(threadID, forType: .string)
+  }
 }

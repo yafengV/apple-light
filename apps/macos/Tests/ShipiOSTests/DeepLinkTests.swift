@@ -90,4 +90,31 @@ final class DeepLinkTests: XCTestCase {
     store.openSettings(.general)
     XCTAssertFalse(store.commandEnabled("copy-task-link"))
   }
+
+  @MainActor func testCodexSessionIDUsesPersistedThreadIdentity() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let first = WorkspaceTask(id: "first-task", project: "", title: "First", runIDs: [])
+    let second = WorkspaceTask(id: "second-task", project: "", title: "Second", runIDs: [])
+    store.library.tasks = [first, second]
+    store.selection = first.id
+    XCTAssertFalse(store.commandEnabled("copy-session-id"))
+    let threadID = UUID().uuidString
+    store.recordCodexThreadID(taskID: first.id, threadID: "not-a-uuid")
+    XCTAssertNil(store.selectedTask?.codexThreadID)
+    store.recordCodexThreadID(taskID: first.id, threadID: threadID)
+    XCTAssertEqual(store.selectedTask?.copyableCodexThreadID, threadID)
+    XCTAssertTrue(store.commandEnabled("copy-session-id"))
+    let persisted = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(persisted.tasks.first?.codexThreadID, threadID)
+    store.selection = second.id
+    XCTAssertFalse(store.commandEnabled("copy-session-id"))
+    store.selection = first.id
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("copy-session-id"))
+    let legacy = try JSONDecoder().decode(WorkspaceTask.self, from: JSONEncoder().encode(first))
+    XCTAssertNil(legacy.codexThreadID)
+  }
 }
