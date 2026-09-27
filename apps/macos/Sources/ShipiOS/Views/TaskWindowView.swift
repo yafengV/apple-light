@@ -620,7 +620,7 @@ struct TaskWindowView: View {
     SearchDialogContext(currentTaskID: taskID, commandEnabled: { id in
       guard searchMode == .commands, !otherWindowModalActive else { return false }
       if TaskWindowCommandContext.owns(id) { return availableWindowCommands.contains(id) }
-      return ["settings", "shortcuts", "projects", "plugins", "open-skills", "reload-skills", "automations", "activity", "new-standalone", "open", "pet", "clear-unread"].contains(id)
+      return ["settings", "shortcuts", "projects", "plugins", "mcp-status", "open-skills", "reload-skills", "automations", "activity", "new-standalone", "open", "pet", "clear-unread"].contains(id)
         && store.commandEnabled(id)
     }, performCommand: { id in
       switch id {
@@ -1268,7 +1268,9 @@ struct TaskWindowView: View {
     return Set(ComposerCommand.allCases.filter { command in
       if command == .fork { return store.canForkTaskWindow(taskID) }
       if command == .compact { return mode == .standard && store.canCompactConversation(taskID: taskID) }
-      if command == .project || command == .task { return store.commandEnabled(command.actionID) }
+      if command == .project || command == .task || command == .mcp {
+        return store.commandEnabled(command.actionID)
+      }
       if task.project.isEmpty {
         return ![.doctor, .build, .review, .files, .terminal].contains(command)
       }
@@ -1334,6 +1336,10 @@ struct TaskWindowView: View {
       setDraft("")
       store.returnToWorkspace()
       store.openProjectPicker(createNewTask: true)
+      openWindow(id: "main")
+    case .mcp:
+      setDraft("")
+      store.openSettings(.mcpServers)
       openWindow(id: "main")
     default:
       guard let task else { return }

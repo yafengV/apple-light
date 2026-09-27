@@ -64,6 +64,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "projects", title: "项目", icon: "folder", shortcut: ""),
     .init(id: "project-picker", title: "选择项目", icon: "folder.badge.gearshape", shortcut: "⌘⌥⇧O"),
     .init(id: "plugins", title: "插件", icon: "shippingbox", shortcut: ""),
+    .init(id: "mcp-status", title: "MCP 连接状态", icon: "network", shortcut: ""),
     .init(id: "open-skills", title: "打开技能", icon: "wand.and.stars", shortcut: ""),
     .init(id: "reload-skills", title: "重新加载技能", icon: "arrow.clockwise", shortcut: ""),
     .init(id: "automations", title: "自动化", icon: "clock.arrow.circlepath", shortcut: ""),
@@ -157,7 +158,7 @@ extension DesktopCommand {
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
     case "projects", "project-picker", "open", "branch", "environment-action-1", "doctor", "build", "copy-location": .project
-    case "settings", "shortcuts", "plugins", "automations": .configure
+    case "settings", "shortcuts", "plugins", "mcp-status", "automations": .configure
     case "open-skills", "reload-skills": .skills
     default: .app
     }

@@ -53,6 +53,7 @@ extension WorkspaceStore {
     case "search": showingSearch = true
     case "projects": showProjects()
     case "plugins": showPlugins()
+    case "mcp-status": openSettings(.mcpServers)
     case "open-skills": openSettings(.skills)
     case "reload-skills": Task { await loadPlugins() }
     case "automations": showAutomations()

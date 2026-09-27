@@ -1,7 +1,7 @@
 import Foundation
 
 enum ComposerCommand: String, CaseIterable, Identifiable {
-  case chat, doctor, build, plan, goal, compact, model, reasoning, fork, side, review, files, terminal, pet, plugins, automations, project, task, new
+  case chat, doctor, build, plan, goal, compact, model, reasoning, fork, side, review, files, terminal, pet, plugins, mcp, automations, project, task, new
 
   var id: String { rawValue }
   var token: String { "/" + rawValue }
@@ -10,6 +10,7 @@ enum ComposerCommand: String, CaseIterable, Identifiable {
     switch self {
     case .project: "project-picker"
     case .task: "new-standalone"
+    case .mcp: "mcp-status"
     case .reasoning: "model"
     case .side: "open-side-chat"
     default: rawValue
@@ -25,6 +26,7 @@ enum ComposerCommand: String, CaseIterable, Identifiable {
       "model": "选择模型", "reasoning": "选择推理强度",
       "pet": "显示或隐藏宠物",
       "plugins": "浏览插件",
+      "mcp": "查看 MCP 连接状态",
       "automations": "管理自动化",
     ][rawValue] ?? rawValue
   }
