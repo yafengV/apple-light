@@ -98,6 +98,14 @@ struct ExecutionMessageView: View {
           Text(run.kind == "chat" ? (run.request["model"].text ?? "模型") : "本地执行").appFont(.caption)
             .foregroundStyle(.tertiary)
           Spacer()
+          if run.kind == "chat" {
+            Button {
+              store.showDetails("overview", run: run)
+            } label: {
+              Image(systemName: "list.bullet.rectangle")
+            }.buttonStyle(.plain).help("查看执行详情")
+              .accessibilityLabel("查看模型执行详情")
+          }
           Text(run.date, style: .time).appFont(.caption).foregroundStyle(.tertiary)
         }
         if run.kind != "chat" {

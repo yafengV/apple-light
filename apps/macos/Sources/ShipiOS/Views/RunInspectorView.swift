@@ -3,6 +3,14 @@ import SwiftUI
 struct RunInspectorView: View {
   @Bindable var store: WorkspaceStore
   var body: some View {
+    if let run = store.selectedRun, run.kind == "chat" {
+      ChatRunInspectorView(store: store, run: run)
+    } else {
+      localRunInspector
+    }
+  }
+
+  private var localRunInspector: some View {
     VStack(spacing: 0) {
       HStack {
         Text("任务详情").appFont(.headline)
