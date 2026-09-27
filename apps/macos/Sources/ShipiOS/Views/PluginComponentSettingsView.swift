@@ -18,7 +18,7 @@ struct PluginComponentSettingsView: View {
       case .mcpServers:
         "MCP 服务器随 ShipiOS 插件保存在独立数据目录中。当前页面可以检查声明并统一启停插件。"
       case .hooks:
-        "Hooks 随插件安装，用于声明任务生命周期扩展。启停状态只属于 ShipiOS。"
+        "这里可检查已安装插件的 Hook 声明。启用插件不会授权或执行 Hook；运行时接入前，所有 Hook 均保持停用。"
       case .plugins:
         "插件可以包含技能、MCP 服务器、Hooks 和浏览器扩展。ShipiOS 不读取个人 Codex 的插件目录。"
       case .skills:
@@ -77,21 +77,24 @@ struct PluginComponentSettingsView: View {
             .frame(maxWidth: .infinity)
         } else {
           ForEach(plugins) { plugin in
-            HStack(spacing: 12) {
-              Image(systemName: "shippingbox.fill").foregroundStyle(store.appearance.accentColor)
-              VStack(alignment: .leading, spacing: 3) {
-                Button { store.openPluginDetail(plugin.id) } label: {
-                  Text(plugin.name).appFont(.headline)
-                }.buttonStyle(.plain).accessibilityLabel("查看插件详情：\(plugin.name)")
-                Text(componentDescription(plugin)).appFont(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+              HStack(spacing: 12) {
+                Image(systemName: "shippingbox.fill").foregroundStyle(store.appearance.accentColor)
+                VStack(alignment: .leading, spacing: 3) {
+                  Button { store.openPluginDetail(plugin.id) } label: {
+                    Text(plugin.name).appFont(.headline)
+                  }.buttonStyle(.plain).accessibilityLabel("查看插件详情：\(plugin.name)")
+                  Text(componentDescription(plugin)).appFont(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle(
+                  "启用",
+                  isOn: Binding(
+                    get: { plugin.enabled },
+                    set: { _ = store.setPluginEnabled($0, id: plugin.id) })
+                ).labelsHidden().accessibilityLabel("启用插件：\(plugin.name)")
               }
-              Spacer()
-              Toggle(
-                "启用",
-                isOn: Binding(
-                  get: { plugin.enabled },
-                  set: { _ = store.setPluginEnabled($0, id: plugin.id) })
-              ).labelsHidden().accessibilityLabel("启用插件：\(plugin.name)")
+              if kind == .hooks { hookDetails(for: plugin) }
             }.padding(.vertical, 4)
           }
         }
@@ -153,6 +156,31 @@ struct PluginComponentSettingsView: View {
       plugin.components.labels.isEmpty
         ? plugin.id : plugin.components.labels.joined(separator: " · ")
     case .skills: "\(plugin.components.skills) 个技能 · \(plugin.id)"
+    }
+  }
+
+  @ViewBuilder private func hookDetails(for plugin: PluginInstallation) -> some View {
+    let result = Result { try PluginHookCatalog.declarations(pluginID: plugin.id, root: store.dataRoot) }
+    switch result {
+    case .success(let declarations):
+      if declarations.isEmpty {
+        Text("未找到可显示的命令 Hook 声明 · 不会执行")
+          .appFont(.caption).foregroundStyle(.secondary)
+      } else {
+        DisclosureGroup("\(declarations.count) 条 Hook 声明 · 未授权执行") {
+          ForEach(Array(declarations.enumerated()), id: \.offset) { _, declaration in
+            VStack(alignment: .leading, spacing: 3) {
+              Text(declaration.event).appFont(.subheadline)
+              Text(declaration.command).font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+              Text(declaration.source).appFont(.caption2).foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
+          }
+        }
+      }
+    case .failure(let error):
+      Text("无法读取 Hook 声明：\(error.localizedDescription)")
+        .appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
     }
   }
 }
