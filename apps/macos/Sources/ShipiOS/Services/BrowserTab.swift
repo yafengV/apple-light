@@ -524,6 +524,18 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
   func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    if let url = navigationAction.request.url, url.scheme?.lowercased() == "blob" {
+      guard !closed, navigationAction.shouldPerformDownload,
+        let origin = Self.blobOrigin(url),
+        let source = navigationAction.sourceFrame.request.url,
+        Self.sameOrigin(source, origin),
+        let host = Self.agentHost(origin),
+        agentAllowedFrameHosts?.contains(host) != false,
+        agentDownloadAllowedHost.map({ $0 == host }) != false else {
+        decisionHandler(.cancel); return
+      }
+      decisionHandler(.download); return
+    }
     guard !closed, let url = navigationAction.request.url, BrowserAddress.permits(url) else {
       error = "此浏览器面板只支持 http 和 https 网页。"
       decisionHandler(.cancel); return
@@ -647,7 +659,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   func webViewDidClose(_ webView: WKWebView) { closeWindow?() }
 
   private func beginDownload(_ download: WKDownload, sourceURL: URL?, id: UUID = UUID()) {
-    guard let sourceURL, BrowserAddress.permits(sourceURL) else {
+    guard let sourceURL,
+      BrowserAddress.permits(sourceURL) || Self.blobOrigin(sourceURL) != nil else {
       download.cancel { _ in }
       return
     }
@@ -688,8 +701,31 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
 
   private static func agentHost(_ url: URL) -> String? {
-    guard url.user == nil, url.password == nil, BrowserAddress.permits(url) else { return nil }
-    return url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    let checked = blobOrigin(url) ?? url
+    guard checked.user == nil, checked.password == nil, BrowserAddress.permits(checked) else { return nil }
+    return checked.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+  }
+
+  private static func blobOrigin(_ url: URL) -> URL? {
+    let raw = url.absoluteString
+    guard url.scheme?.lowercased() == "blob", raw.hasPrefix("blob:"), raw.utf8.count <= 4_096,
+      let parts = URLComponents(string: String(raw.dropFirst(5))),
+      ["http", "https"].contains(parts.scheme?.lowercased() ?? ""),
+      let host = parts.host, !host.isEmpty,
+      parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil,
+      parts.path.hasPrefix("/"),
+      UUID(uuidString: String(parts.path.dropFirst())) != nil else { return nil }
+    var origin = URLComponents()
+    origin.scheme = parts.scheme; origin.host = host; origin.port = parts.port
+    origin.path = "/"
+    return origin.url
+  }
+
+  private static func sameOrigin(_ first: URL, _ second: URL) -> Bool {
+    first.scheme?.lowercased() == second.scheme?.lowercased()
+      && first.host?.lowercased() == second.host?.lowercased()
+      && (first.port ?? (first.scheme?.lowercased() == "https" ? 443 : 80))
+        == (second.port ?? (second.scheme?.lowercased() == "https" ? 443 : 80))
   }
 
   func beginAgentDownloadCapture(allowedHost: String) -> Bool {

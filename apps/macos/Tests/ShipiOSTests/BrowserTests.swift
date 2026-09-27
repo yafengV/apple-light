@@ -326,6 +326,32 @@ final class BrowserTests: XCTestCase {
       store.browserDownloads.first(where: { $0.id == generatedID })?.status == .finished
     }
     XCTAssertEqual(store.browserDownloads.first(where: { $0.id == generatedID })?.agentTaskID, "owner")
+    _ = try await tab.view.callAsyncJavaScript("""
+      const blobTrigger = document.createElement('a'); blobTrigger.href = '/frame-form';
+      blobTrigger.textContent = 'Frame blob download';
+      blobTrigger.onclick = () => {
+        const file = new Blob(['frame blob'], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file); link.download = 'frame-blob.txt';
+        document.body.appendChild(link); link.click(); link.remove();
+        return false;
+      };
+      document.body.appendChild(blobTrigger); return true;
+      """, arguments: [:], in: frame.info, contentWorld: .page)
+    let blobInspected = await store.codexBrowserResult(taskID: "owner", action: "inspect",
+      tabID: tab.id.uuidString)
+    let blobHandle = try XCTUnwrap(blobInspected["elements"].items.first {
+      $0["label"].text == "Frame blob download"
+    }?["handle"].text)
+    let blobResult = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: blobHandle)
+    XCTAssertEqual(blobResult["status"].text, "ok")
+    let blobID = try XCTUnwrap(UUID(uuidString: blobResult["download_id"].text ?? ""))
+    try await eventually("Cross-site frame Blob download did not finish") {
+      store.browserDownloads.first(where: { $0.id == blobID })?.status == .finished
+    }
+    XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("frame-blob.txt")),
+      "frame blob")
   }
   @MainActor func testCodexBrowserOpenPreservesBackgroundTaskOwnershipAndRespectsBlock() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-open-\(UUID())")
@@ -513,6 +539,61 @@ final class BrowserTests: XCTestCase {
       tabID: tab.id.uuidString, handle: crossHandle)
     XCTAssertEqual(blocked["status"].text, "error")
     XCTAssertEqual(store.browserDownloads.count, 1)
+  }
+  @MainActor func testBrowserBlobDownloadKeepsPageAndAgentTaskOwnership() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-blob-download-\(UUID())")
+    let downloads = root.appendingPathComponent("Downloads")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    defer { store.workspace.browser.shutdown() }
+    XCTAssertTrue(store.setBrowserDownloadFolder(downloads))
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"])]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/one", title: "One")
+    store.library.browserPermissions.defaultDecision = .allow
+    _ = try await tab.view.evaluateJavaScript("""
+      const trigger = document.createElement('a'); trigger.href = '/one';
+      trigger.textContent = 'Generate blob download';
+      trigger.onclick = () => {
+        const blob = new Blob(['shipios blob download', String.fromCharCode(10)], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob); link.download = 'generated.txt';
+        document.body.appendChild(link); link.click(); link.remove();
+        return false;
+      };
+      document.body.appendChild(trigger); undefined;
+      """)
+    let inspected = await store.codexBrowserResult(taskID: "owner", action: "inspect", tabID: tab.id.uuidString)
+    let handle = try XCTUnwrap(inspected["elements"].items.first {
+      $0["label"].text == "Generate blob download"
+    }?["handle"].text)
+    let clicked = await store.codexBrowserResult(taskID: "owner", action: "click",
+      tabID: tab.id.uuidString, handle: handle)
+    XCTAssertEqual(clicked["status"].text, "ok")
+    let id = try XCTUnwrap(UUID(uuidString: clicked["download_id"].text ?? ""))
+    try await eventually("Blob download did not finish") {
+      store.browserDownloads.first(where: { $0.id == id })?.status == .finished
+    }
+    XCTAssertEqual(tab.committedURL?.path, "/one")
+    XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("generated.txt")),
+      "shipios blob download\n")
+    XCTAssertEqual(store.browserDownloads.first(where: { $0.id == id })?.agentTaskID, "owner")
+    _ = try await tab.view.evaluateJavaScript("""
+      const ordinary = document.createElement('a');
+      ordinary.href = URL.createObjectURL(new Blob(['ordinary blob'], { type: 'text/plain' }));
+      ordinary.download = 'ordinary.txt'; document.body.appendChild(ordinary);
+      ordinary.click(); undefined;
+      """)
+    try await eventually("Ordinary page Blob download did not finish") {
+      store.browserDownloads.contains { $0.filename == "ordinary.txt" && $0.status == .finished }
+    }
+    XCTAssertEqual(try String(contentsOf: downloads.appendingPathComponent("ordinary.txt")),
+      "ordinary blob")
+    XCTAssertNil(store.browserDownloads.first(where: { $0.filename == "ordinary.txt" })?.agentTaskID)
   }
 
   @MainActor func testPageEditableFocusReportsInputsAndClearsOnBlurAndNavigation() async throws {
