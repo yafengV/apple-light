@@ -722,6 +722,62 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testInitCreatesGuideInOwningProjectAndPreservesExistingGuide() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let firstProject = root.appendingPathComponent("First", isDirectory: true)
+    let otherProject = root.appendingPathComponent("Other", isDirectory: true)
+    try FileManager.default.createDirectory(at: firstProject, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: otherProject, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+
+    await store.open(firstProject)
+    store.draft = InitCommand.token
+    await store.sendDraft()
+    let first = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: first.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first.id }?.status, "succeeded",
+      store.library.chatRuns.first { $0.id == first.id }?.result?["message"].text ?? "")
+    XCTAssertTrue(try String(contentsOf: firstProject.appendingPathComponent("AGENTS.md"))
+      .contains("Repository Guidelines"))
+    XCTAssertTrue(store.draft.isEmpty)
+    let firstTaskID = try XCTUnwrap(store.library.task(containing: first.id)?.id)
+
+    await store.open(otherProject)
+    await store.startChat("Create the other project task")
+    let seed = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: seed.id)?.value
+    let otherTaskID = try XCTUnwrap(store.library.task(containing: seed.id)?.id)
+    await store.open(firstProject)
+    store.setTaskWindowDraft(InitCommand.token, taskID: otherTaskID)
+    await store.sendTaskWindowDraft(otherTaskID, mode: .standard)
+    let second = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: second.id)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == second.id }?.status, "succeeded",
+      store.library.chatRuns.first { $0.id == second.id }?.result?["message"].text ?? "")
+    XCTAssertTrue(try String(contentsOf: otherProject.appendingPathComponent("AGENTS.md"))
+      .contains("Repository Guidelines"))
+    XCTAssertEqual(store.project, firstProject)
+    XCTAssertTrue(store.taskWindowDraft(otherTaskID).isEmpty)
+    XCTAssertNotEqual(firstTaskID, otherTaskID)
+
+    let count = store.library.chatRuns.count
+    store.draft = InitCommand.token
+    await store.sendDraft()
+    XCTAssertEqual(store.library.chatRuns.count, count)
+    XCTAssertTrue(store.error?.contains("已有 AGENTS.md") == true)
+    XCTAssertEqual(store.draft, InitCommand.token)
+    await store.shutdown()
+  }
   @MainActor func testCodexTaskWindowContinuesAcrossMainWorkspaceSwitches() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

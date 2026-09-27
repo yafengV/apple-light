@@ -1055,6 +1055,23 @@ extension WorkspaceStore {
       showingGoalEditor = true
       return true
     }
+    if command == InitCommand.token {
+      do {
+        draft = try InitCommand.preparedPrompt(
+          project: currentProjectKey,
+          protocol: modelConfiguration(for: selectedTask?.id).apiProtocol,
+          hasAttachmentsOrComments: !draftImages.isEmpty || !draftFiles.isEmpty
+            || !reviewComments.isEmpty || !browserComments.isEmpty,
+          isSideChat: selectedTask?.isSideChat == true)
+        if chatMode == .goal { leaveGoalMode() }
+        action = .chat
+        chatMode = .standard
+        return false
+      } catch {
+        self.error = error.localizedDescription
+        return true
+      }
+    }
     if command == "/project" {
       guard commandEnabled("project-picker") else {
         error = "当前无法选择项目；请等待工作区加载或结束正在运行的本地操作。"

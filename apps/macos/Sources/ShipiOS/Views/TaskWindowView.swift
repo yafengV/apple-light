@@ -98,6 +98,9 @@ struct TaskWindowView: View {
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.status.token {
       return !windowCommandsBlocked
     }
+    if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == InitCommand.token {
+      return !windowCommandsBlocked && task?.project.isEmpty == false
+    }
     if store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.worktree.token {
       return !windowCommandsBlocked && task.map(store.canHandOffToWorktree) == true
     }
@@ -554,6 +557,9 @@ struct TaskWindowView: View {
       Task { await store.sendTaskWindowDraft(taskID, mode: mode) }
     } else if command == ComposerCommand.status.token {
       selectTaskWindowCommand(.status)
+    } else if command == InitCommand.token {
+      mode = .standard
+      Task { await store.sendTaskWindowDraft(taskID, mode: .standard) }
     } else if command == ComposerCommand.worktree.token {
       selectTaskWindowCommand(.worktree)
     } else if command == ComposerCommand.local.token {
@@ -655,7 +661,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "local", "worktree", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "rename", "fork", "open-task-window", "task-summary", "status", "init", "local", "worktree", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -696,6 +702,10 @@ struct TaskWindowView: View {
     }
     if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model", "dictation", "open-task-window", "task-summary", "status"])
+      if !task.isSideChat, !task.project.isEmpty,
+        store.modelConfiguration(for: taskID).apiProtocol == .codexResponses {
+        enabled.insert("init")
+      }
       if !task.isTransient { enabled.insert("copy-task-link") }
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
       if store.codexConversationPath(for: task) != nil { enabled.insert("copy-conversation-path") }
@@ -799,6 +809,15 @@ struct TaskWindowView: View {
     case "copy-location": if let target = copyLocationTarget { store.copyLocation(target) }
     case "task-summary": taskSummary.toggle()
     case "status": showingTaskStatus = true
+    case "init":
+      guard store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        || store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == InitCommand.token else {
+        store.error = "请先发送或清空当前草稿，再运行 /init。"
+        return
+      }
+      mode = .standard
+      store.setTaskWindowDraft(InitCommand.token, taskID: taskID)
+      Task { await store.sendTaskWindowDraft(taskID, mode: .standard) }
     case "worktree":
       Task {
         if await store.handOffTaskToWorktree(taskID) { handoffError = nil }
@@ -1310,6 +1329,10 @@ struct TaskWindowView: View {
         return store.commandEnabled(command.actionID)
       }
       if command == .status { return true }
+      if command == .initGuide {
+        return !task.project.isEmpty
+          && store.modelConfiguration(for: taskID).apiProtocol == .codexResponses
+      }
       if command == .worktree { return store.canHandOffToWorktree(task) }
       if command == .local { return store.canHandOffToLocal(task) }
       if task.project.isEmpty {
@@ -1385,6 +1408,10 @@ struct TaskWindowView: View {
     case .status:
       setDraft("")
       showingTaskStatus = true
+    case .initGuide:
+      mode = .standard
+      setDraft(command.token)
+      Task { await store.sendTaskWindowDraft(taskID, mode: .standard) }
     case .worktree:
       setDraft("")
       performWindowCommand("worktree")

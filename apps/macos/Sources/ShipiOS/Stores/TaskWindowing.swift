@@ -34,6 +34,24 @@ extension WorkspaceStore {
       error = "这个任务已经不存在。"
       return
     }
+    var mode = mode
+    if taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == InitCommand.token {
+      do {
+        let prompt = try InitCommand.preparedPrompt(
+          project: task.project,
+          protocol: modelConfiguration(for: taskID).apiProtocol,
+          hasAttachmentsOrComments: !taskWindowImages(taskID).isEmpty
+            || !taskWindowFiles(taskID).isEmpty
+            || !reviewComments(taskID: taskID).isEmpty
+            || !browserComments(taskID: taskID).isEmpty,
+          isSideChat: task.isSideChat)
+        setTaskWindowDraft(prompt, taskID: taskID)
+        mode = .standard
+      } catch {
+        self.error = error.localizedDescription
+        return
+      }
+    }
     if taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines) == "/compact" {
       guard mode == .standard, canCompactConversation(taskID: taskID) else {
         error = "只有已有的空闲 Codex 会话可以整理上下文；请先移除草稿附件或结束当前回合。"

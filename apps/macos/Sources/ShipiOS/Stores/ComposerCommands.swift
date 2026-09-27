@@ -30,6 +30,11 @@ extension WorkspaceStore {
       showingGoalEditor = true
       return
     }
+    if command == .initGuide {
+      draft = command.token
+      Task { await sendDraft() }
+      return
+    }
     if let action = command.localAction {
       if chatMode == .goal { leaveGoalMode() }
       self.action = action

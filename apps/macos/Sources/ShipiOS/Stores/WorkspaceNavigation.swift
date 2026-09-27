@@ -30,6 +30,14 @@ extension WorkspaceStore {
       }
     case "task-summary": taskSummaryToggleRequest = UUID()
     case "status": showingTaskStatus = true
+    case "init":
+      guard draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        || draft.trimmingCharacters(in: .whitespacesAndNewlines) == InitCommand.token else {
+        error = "请先发送或清空当前草稿，再运行 /init。"
+        return
+      }
+      draft = InitCommand.token
+      Task { await sendDraft() }
     case "worktree":
       if let task = selectedTask { Task { await handOffTaskToWorktree(task.id) } }
       else {
@@ -202,6 +210,9 @@ extension WorkspaceStore {
     case "copy-location": return copyLocationTarget != nil
     case "task-summary": return destination == .workspace && selectedTask != nil
     case "status": return destination == .workspace && selectedTask != nil
+    case "init": return destination == .workspace && project != nil
+      && selectedTask?.isSideChat != true
+      && modelConfiguration(for: selectedTask?.id).apiProtocol == .codexResponses
     case "worktree":
       guard destination == .workspace else { return false }
       if let task = selectedTask { return canHandOffToWorktree(task) }

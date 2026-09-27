@@ -46,7 +46,13 @@ class Handler(BaseHTTPRequestHandler):
             developer_inputs = [part.get('text', '') for message in body.get('input', [])
                 if message.get('role') == 'developer' for part in message.get('content', [])]
             current_developer = developer_inputs[-1] if developer_inputs else ''
-            if 'codex-native-plan' in request_text and Handler.plan_patch_attempts == 0:
+            if 'Generate a file named AGENTS.md' in request_text and 'init-guide-patch' not in request_text:
+                item = {
+                    'type': 'custom_tool_call', 'call_id': 'init-guide-patch',
+                    'name': 'apply_patch',
+                    'input': '*** Begin Patch\n*** Add File: AGENTS.md\n+# Repository Guidelines\n+\n+Follow the project README and run its tests before committing.\n*** End Patch',
+                }
+            elif 'codex-native-plan' in request_text and Handler.plan_patch_attempts == 0:
                 Handler.plan_patch_attempts += 1
                 item = {
                     'type': 'custom_tool_call', 'call_id': 'plan-write-attempt',
