@@ -3602,6 +3602,127 @@ final class ModelTransportTests: XCTestCase {
       current.appendingPathComponent("patch-proof.txt").path))
     await store.shutdown()
   }
+  @MainActor func testScheduledCodexDoesNotWaitForApprovalOrBlockingQuestion() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var automation = ShipAutomation(name: "Unattended approval", prompt: "codex-approval")
+    automation.project = project.path
+    XCTAssertTrue(store.saveAutomation(automation))
+
+    let runner = Task { await store.runAutomation(automation.id) }
+    for _ in 0..<150 {
+      if store.automationPreferences.items.first?.lastRunID != nil { break }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    if store.automationPreferences.items.first?.lastRunID == nil { await store.shutdown() }
+    await runner.value
+    let saved = try XCTUnwrap(store.automationPreferences.items.first,
+      store.automationsError ?? "Automation missing")
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == saved.lastRunID },
+      store.automationsError ?? "Scheduled run did not finish")
+    XCTAssertEqual(run.request["approval_policy"].text, AgentApprovalPolicy.never.rawValue)
+    XCTAssertNotEqual(run.status, "running")
+    XCTAssertFalse(store.mcpPendingApprovals.values.contains { $0.runID == run.id })
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      project.appendingPathComponent("approval-proof.txt").path))
+
+    var question = ShipAutomation(name: "Unattended question", prompt: "codex-question")
+    question.project = project.path
+    XCTAssertTrue(store.saveAutomation(question))
+    let questionRunner = Task { await store.runAutomation(question.id) }
+    for _ in 0..<150 {
+      if store.automationPreferences.items.first(where: { $0.id == question.id })?.lastRunID != nil {
+        break
+      }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    let waitingRun = store.library.chatRuns.last(where: {
+      $0.request["automation_id"].text == question.id.uuidString
+    })
+    if store.automationPreferences.items.first(where: { $0.id == question.id })?.lastRunID == nil {
+      XCTFail("Question still running: status=\(waitingRun?.status ?? "missing") "
+        + "question=\(String(describing: waitingRun?.codexQuestions.first?.status)) "
+        + "blocking=\(String(describing: waitingRun?.codexQuestions.first?.isBlocking)) "
+        + "error=\(store.automationsError ?? store.error ?? "none")")
+      await store.shutdown()
+    }
+    await questionRunner.value
+    let questionSchedule = try XCTUnwrap(store.automationPreferences.items.first {
+      $0.id == question.id
+    }, store.automationsError ?? "Question automation missing")
+    let questionRun = try XCTUnwrap(store.library.chatRuns.first {
+      $0.id == questionSchedule.lastRunID
+    }, store.automationsError ?? "Question run did not finish")
+    XCTAssertEqual(questionRun.status, "failed")
+    XCTAssertEqual(questionRun.codexQuestions.first?.status, .expired)
+    XCTAssertFalse(store.codexPendingQuestions.values.contains { $0.runID == questionRun.id })
+    await store.shutdown()
+  }
+  @MainActor func testScheduledCodexDeclinesMCPFormWithoutWaiting() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let callLog = project.appendingPathComponent("form-response.jsonl")
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"
+    mcp.command = "/usr/bin/python3"
+    mcp.arguments = [fixture.path, "stdio_form"]
+    mcp.environment = [MCPKeyValue(key: "CALL_LOG", value: callLog.path),
+      MCPKeyValue(key: "SHIPIOS_CODEX_PROBE", value: "1")]
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    var automation = ShipAutomation(name: "MCP form", prompt: "codex-mcp-form-probe")
+    automation.project = project.path
+    XCTAssertTrue(store.saveAutomation(automation))
+
+    let runner = Task { await store.runAutomation(automation.id) }
+    for _ in 0..<150 {
+      if store.automationPreferences.items.first(where: { $0.id == automation.id })?.lastRunID != nil {
+        break
+      }
+      try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    if store.automationPreferences.items.first(where: { $0.id == automation.id })?.lastRunID == nil {
+      await store.shutdown()
+    }
+    await runner.value
+    let saved = try XCTUnwrap(store.automationPreferences.items.first {
+      $0.id == automation.id
+    }, store.automationsError ?? "MCP automation missing")
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == saved.lastRunID },
+      store.automationsError ?? "MCP scheduled run did not finish")
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    if let form = run.codexElicitations.first {
+      XCTAssertEqual(form.status, .declined)
+    }
+    XCTAssertFalse(store.codexPendingElicitations.values.contains { $0.runID == run.id })
+    XCTAssertTrue(try String(contentsOf: callLog, encoding: .utf8).contains("decline"))
+    await store.shutdown()
+  }
   @MainActor func testCodexAutomationRunsInManagedWorktreeWithSourceChanges() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

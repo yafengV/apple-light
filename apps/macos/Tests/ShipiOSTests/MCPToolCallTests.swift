@@ -112,6 +112,23 @@ final class MCPToolCallTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testScheduledChatCompletionsDeclinesMCPToolWithoutWaiting() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await store(root)
+    let automation = ShipAutomation(name: "MCP review", prompt: "mcp-call")
+    XCTAssertTrue(store.saveAutomation(automation))
+    await store.runAutomation(automation.id)
+    let saved = try XCTUnwrap(store.automationPreferences.items.first)
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == saved.lastRunID })
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    XCTAssertEqual(run.toolExecutions.first?.status, .denied)
+    XCTAssertTrue(run.toolExecutions.first?.output?.contains("计划任务无人值守") == true)
+    XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("calls.jsonl").path))
+    await store.shutdown()
+  }
+
   @MainActor func testRichToolResultSurvivesRealCallModelContinuationAndReload() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

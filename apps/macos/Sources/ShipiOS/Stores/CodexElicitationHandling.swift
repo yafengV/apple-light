@@ -13,6 +13,20 @@ extension WorkspaceStore {
     replaceChat(current, status: current.status,
       response: current.result?["response"].text ?? "",
       responseItems: items, codexElicitations: records)
+    if current.request["automation_id"].text != nil {
+      saveLibrary()
+      do {
+        try await codexTransport.resolveMCPElicitation(taskID: taskID,
+          serverName: request.serverName, requestID: request.requestID,
+          decision: request.isURLRequest ? .cancel : .deny)
+        updateCodexElicitation(request.id, runID: runID,
+          status: request.isURLRequest ? .cancelled : .declined)
+      } catch {
+        updateCodexElicitation(request.id, runID: runID, status: .cancelled)
+        throw error
+      }
+      return
+    }
     codexPendingElicitations[request.id] = CodexElicitationContext(
       runID: runID, taskID: taskID, request: request,
       verificationURL: request.isURLRequest ? try CodexElicitationRequest.verificationURL(event) : nil)

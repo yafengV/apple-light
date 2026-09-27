@@ -92,9 +92,15 @@ extension WorkspaceStore {
       try Task.checkCancellation()
       guard decision != .deny else {
         execution.status = .denied
-        execution.output = "用户拒绝了本次调用。未执行工具。"
+        let unattended = library.chatRuns.first(where: { $0.id == runID })?
+          .request["automation_id"].text != nil
+        execution.output = unattended
+          ? "计划任务无人值守，已拒绝需要交互批准的工具调用。"
+          : "用户拒绝了本次调用。未执行工具。"
         try saveToolExecution(execution, runID: runID)
-        return "User denied this tool call. No action was executed. Do not retry without a new user request."
+        return unattended
+          ? "Scheduled run cannot request interactive tool approval. No action was executed."
+          : "User denied this tool call. No action was executed. Do not retry without a new user request."
       }
       try validateMCPBinding(binding)
       if decision == .allowTask { mcpTaskGrants.insert(grant) }
@@ -133,7 +139,9 @@ extension WorkspaceStore {
     _ execution: MCPToolExecution, runID: String,
     allowsOnce: Bool = true, allowsTask: Bool = true
   ) async -> MCPApprovalDecision {
-    await withTaskCancellationHandler {
+    if library.chatRuns.first(where: { $0.id == runID })?
+      .request["automation_id"].text != nil { return .deny }
+    return await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: .deny); return }
         mcpPendingApprovals[execution.id] = MCPApprovalContext(runID: runID, execution: execution,

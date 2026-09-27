@@ -184,6 +184,9 @@ extension WorkspaceStore {
       if compact { request["conversation_kind"] = .string("compact") }
       if isSideChat { request["conversation_kind"] = .string("side") }
       if let automationID { request["automation_id"] = .string(automationID.uuidString) }
+      if automationID != nil, usesCodex {
+        request["approval_policy"] = .string(AgentApprovalPolicy.never.rawValue)
+      }
       if !pluginContext.ids.isEmpty {
         request["plugins"] = .array(pluginContext.ids.map(JSONValue.string))
       }
@@ -265,7 +268,7 @@ extension WorkspaceStore {
               taskID: review == nil ? (taskID ?? run.id) : run.id, workspace: workspace,
               config: config, key: key, messages: messages, mode: mode,
               goalInstructions: mode == .goal ? modeInstructions : nil, review: review,
-              compact: compact, sideChat: isSideChat)
+              compact: compact, sideChat: isSideChat, unattended: automationID != nil)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
               messages: messages, bindings: tools)
@@ -321,7 +324,7 @@ extension WorkspaceStore {
     runID: String, taskID: String, workspace: URL,
     config: ModelConfiguration, key: String?, messages: [ChatMessage],
     mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?, compact: Bool = false,
-    sideChat: Bool = false
+    sideChat: Bool = false, unattended: Bool = false
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
@@ -336,12 +339,14 @@ extension WorkspaceStore {
       !continuationText.isEmpty || !images.isEmpty || !files.isEmpty else {
       throw AgentFailure(message: "Codex 回合缺少输入。")
     }
+    var permissions = library.agentRuntimePreferences
+    if unattended { permissions.approvalPolicy = .never }
     let stream = try await codexTransport.startTurn(
       taskID: taskID, workspace: workspace, executable: executable, config: config, key: key,
       initialText: initialText, continuationText: continuationText, images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat,
       planMode: mode == .plan, goalInstructions: goalInstructions,
-      mcpServers: mcpServers, permissions: library.agentRuntimePreferences,
+      mcpServers: mcpServers, permissions: permissions,
       responses: library.agentResponsePreferences,
       webSearchMode: library.agentWebSearchMode, compact: compact)
     do {
@@ -635,7 +640,8 @@ extension WorkspaceStore {
     let persist = meta["persist"]
     let allowsTask = persist.text == "session"
       || persist.items.contains(.string("session"))
-    let decision: MCPApprovalDecision = readOnlyReason != nil ? .deny
+    let unattended = current.request["automation_id"].text != nil
+    let decision: MCPApprovalDecision = readOnlyReason != nil || unattended ? .deny
       : await requestMCPApproval(execution, runID: runID,
         allowsOnce: true, allowsTask: allowsTask)
     do {
@@ -663,6 +669,7 @@ extension WorkspaceStore {
       var records = current.toolExecutions
       records[index].status = decision == .deny ? .denied : .running
       if let readOnlyReason { records[index].output = readOnlyReason }
+      else if unattended { records[index].output = "计划任务无人值守，已拒绝需要交互批准的 MCP 工具调用。" }
       replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
         toolExecutions: records)
       saveLibrary()
@@ -749,7 +756,9 @@ extension WorkspaceStore {
     }
     let patch = event["type"].text == "apply_patch_approval_request"
     let choices = patch ? (once: true, task: false) : CodexCommandTimeline.approvalChoices(event)
-    let decision: MCPApprovalDecision = readOnlyReason != nil ? .deny
+    let unattended = library.chatRuns.first(where: { $0.id == runID })?
+      .request["automation_id"].text != nil
+    let decision: MCPApprovalDecision = readOnlyReason != nil || unattended ? .deny
       : await requestMCPApproval(execution, runID: runID,
         allowsOnce: choices.once, allowsTask: choices.task)
     try Task.checkCancellation()
@@ -765,6 +774,10 @@ extension WorkspaceStore {
         $0.callID == callID && $0.serverID == CodexCommandTimeline.serverID
       }) {
         executions[index].output = readOnlyReason
+      } else if unattended, let index = executions.firstIndex(where: {
+        $0.callID == callID && $0.serverID == CodexCommandTimeline.serverID
+      }) {
+        executions[index].output = "计划任务无人值守，已拒绝需要交互批准的操作。"
       }
       replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
         toolExecutions: executions)

@@ -12,6 +12,10 @@ extension WorkspaceStore {
     items.append(.question(request.id))
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, codexQuestions: records)
+    if current.request["automation_id"].text != nil {
+      updateCodexQuestion(request.id, runID: runID, status: .expired)
+      throw AgentFailure(message: "计划任务需要回答问题；已停止本次无人值守运行，请打开结果查看。")
+    }
     codexPendingQuestions[request.id] = CodexQuestionContext(runID: runID, taskID: taskID,
       request: request)
     saveLibrary()
