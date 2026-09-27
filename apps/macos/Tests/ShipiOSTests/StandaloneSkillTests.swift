@@ -10,6 +10,61 @@ final class StandaloneSkillTests: XCTestCase {
     return source
   }
 
+  func testCreateSkillPersistsDocumentAndRunsThroughPromptContext() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let preferences = try PluginStorage.createStandaloneSkill(
+      id: "review", description: "Review code when requested", instructions: "Check correctness first.", root: root)
+    XCTAssertEqual(preferences.standaloneSkills, ["review"])
+    XCTAssertEqual(try PluginStorage.load(root: root), preferences)
+    let skill = try XCTUnwrap(PluginStorage.skills(preferences: preferences, root: root).first)
+    XCTAssertEqual(skill.id, "user:review")
+    let document = try PluginStorage.readSkill(id: skill.id, root: root)
+    XCTAssertTrue(document.contains("name: review"))
+    XCTAssertTrue(document.contains("description: \"Review code when requested\""))
+    XCTAssertTrue(document.contains("Check correctness first."))
+    XCTAssertTrue(try PluginStorage.promptContext(prompt: "$review", preferences: preferences,
+      root: root).instructions.contains("Check correctness first."))
+    XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: skill.fileURL.path)[.posixPermissions] as? Int,
+      0o600)
+  }
+
+  func testCreateRejectsInvalidFieldsWithoutReplacingExistingSkill() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = try PluginStorage.createStandaloneSkill(
+      id: "review", description: "Code review", instructions: "Keep this instruction.", root: root)
+    XCTAssertThrowsError(try PluginStorage.createStandaloneSkill(
+      id: "Review", description: "Duplicate", instructions: "Replacement", root: root))
+    XCTAssertThrowsError(try PluginStorage.createStandaloneSkill(
+      id: "bad/name", description: "Invalid ID", instructions: "No", root: root))
+    XCTAssertThrowsError(try PluginStorage.createStandaloneSkill(
+      id: "injected", description: "safe\nname: unsafe", instructions: "No", root: root))
+    XCTAssertThrowsError(try PluginStorage.createStandaloneSkill(
+      id: "empty", description: "No instructions", instructions: "  ", root: root))
+    XCTAssertThrowsError(try PluginStorage.createStandaloneSkill(
+      id: "oversize", description: "Too long", instructions: String(repeating: "x", count: 66_000), root: root))
+    XCTAssertEqual(try PluginStorage.load(root: root), first)
+    XCTAssertTrue(try PluginStorage.readSkill(id: "user:review", root: root).contains("Keep this instruction."))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: PluginStorage.standaloneSkillURL(root: root, id: "injected").path))
+  }
+
+  @MainActor func testStoreCreationRefreshesInstalledSkillsWithoutChangingDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.draft = "现有任务草稿"
+    await store.loadPlugins()
+    store.showSkills()
+    XCTAssertTrue(store.createStandaloneSkill(
+      id: "review", description: "Review code", instructions: "Check the diff."))
+    XCTAssertEqual(store.destination, .skills)
+    XCTAssertEqual(store.installedPluginSkills.map(\.id), ["user:review"])
+    XCTAssertEqual(store.draft, "现有任务草稿")
+    await store.loadPlugins()
+    XCTAssertEqual(store.installedPluginSkills.map(\.id), ["user:review"])
+  }
+
   func testImportDisablePreviewAndRemovalPreserveOriginalFolder() throws {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: base) }

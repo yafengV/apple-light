@@ -5,6 +5,54 @@ extension PluginStorage {
     root.appendingPathComponent("Skills", isDirectory: true).appendingPathComponent(id, isDirectory: true)
   }
 
+  static func createStandaloneSkill(
+    id: String, description: String, instructions: String, root: URL
+  ) throws -> PluginPreferences {
+    try validateID(id)
+    let description = description.trimmingCharacters(in: .whitespacesAndNewlines)
+    let instructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !description.isEmpty, description.utf8.count <= 1_000,
+      !description.unicodeScalars.contains(where: { CharacterSet.newlines.contains($0) || $0.value < 32 }),
+      !instructions.isEmpty else {
+      throw AgentFailure(message: "请填写单行用途描述和技能指令。")
+    }
+    let quotedDescription = String(decoding: try JSONEncoder().encode(description), as: UTF8.self)
+    let document = "---\nname: \(id)\ndescription: \(quotedDescription)\n---\n\n\(instructions)\n"
+    guard document.utf8.count <= 65_536 else {
+      throw AgentFailure(message: "技能说明不能超过 64 KiB。")
+    }
+    var preferences = try load(root: root)
+    guard !preferences.standaloneSkills.contains(where: { $0.caseInsensitiveCompare(id) == .orderedSame }) else {
+      throw AgentFailure(message: "这个独立技能已安装。")
+    }
+    let directory = root.appendingPathComponent("Skills", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try validateStandaloneDirectory(root: root)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+    let destination = standaloneSkillURL(root: root, id: id)
+    guard !FileManager.default.fileExists(atPath: destination.path) else {
+      throw AgentFailure(message: "目标技能目录已存在，未覆盖现有内容。")
+    }
+    let staging = directory.appendingPathComponent(".create-" + UUID().uuidString, isDirectory: true)
+    var moved = false
+    do {
+      try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: false)
+      let file = staging.appendingPathComponent("SKILL.md")
+      try Data(document.utf8).write(to: file, options: .atomic)
+      try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+      try FileManager.default.moveItem(at: staging, to: destination)
+      moved = true
+      preferences.standaloneSkills.append(id)
+      preferences.standaloneSkills.sort()
+      try save(preferences, root: root)
+      return preferences
+    } catch {
+      try? FileManager.default.removeItem(at: staging)
+      if moved { try? FileManager.default.removeItem(at: destination) }
+      throw error
+    }
+  }
+
   static func installStandaloneSkill(from source: URL, root: URL) throws -> PluginPreferences {
     let source = source.standardizedFileURL
     let id = source.lastPathComponent

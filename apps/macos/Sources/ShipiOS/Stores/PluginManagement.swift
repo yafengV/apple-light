@@ -125,6 +125,19 @@ extension WorkspaceStore {
     } catch { pluginsError = error.localizedDescription; return false }
   }
 
+  @discardableResult func createStandaloneSkill(
+    id: String, description: String, instructions: String
+  ) -> Bool {
+    guard pluginsLoaded else { return false }
+    do {
+      pluginPreferences = try PluginStorage.createStandaloneSkill(
+        id: id, description: description, instructions: instructions, root: dataRoot)
+      try refreshPluginSkills()
+      pluginsError = nil
+      return true
+    } catch { pluginsError = error.localizedDescription; return false }
+  }
+
   @discardableResult func removeStandaloneSkill(_ id: String) -> Bool {
     guard pluginsLoaded else { return false }
     do {
