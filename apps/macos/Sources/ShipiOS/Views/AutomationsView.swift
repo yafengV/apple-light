@@ -51,6 +51,7 @@ struct AutomationsView: View {
         Spacer()
         Button("新建自动化") {
           var item = ShipAutomation()
+          item.environmentSelections = [:]
           item.nextRun = item.nextDate(after: .now)
           editing = item
         }.disabled(!store.automationsLoaded)
@@ -248,6 +249,33 @@ private struct AutomationEditorView: View {
         if item.selectedExecution == .worktree {
           Text("Git 仓库根目录中的任务将在独立工作树运行；非 Git 项目仍在原目录运行。")
             .appFont(.caption).foregroundStyle(.secondary)
+          ForEach(item.selectedProjects.filter { path in
+            !path.isEmpty && FileManager.default.fileExists(
+              atPath: URL(fileURLWithPath: path).appendingPathComponent(".git").path)
+          }, id: \.self) { path in
+            Picker("环境 · \(store.library.projectTitle(path))", selection: Binding(
+              get: { item.environmentSelection(for: path) },
+              set: { item.setEnvironment($0, for: path) })) {
+              Text("项目默认").tag(AutomationEnvironmentChoice.projectDefault)
+              Text("ShipiOS 本地配置").tag(WorktreeEnvironmentChoice.legacy)
+              Text("无环境").tag(WorktreeEnvironmentChoice.none)
+              ForEach(store.environmentCatalog[path]?.filter { $0.error == nil } ?? []) { entry in
+                Text(entry.title).tag(entry.id)
+              }
+              let selected = item.environmentSelection(for: path)
+              if selected != AutomationEnvironmentChoice.projectDefault,
+                selected != WorktreeEnvironmentChoice.legacy,
+                selected != WorktreeEnvironmentChoice.none,
+                store.environmentCatalog[path]?.contains(where: { $0.id == selected && $0.error == nil }) != true {
+                Text("所选环境已不可用").tag(selected)
+              }
+            }
+          }
+          if store.environmentCatalogLoading {
+            ProgressView("正在读取项目环境…").controlSize(.small)
+          }
+          Button("刷新环境列表") { Task { await store.refreshEnvironmentCatalog() } }
+            .buttonStyle(.link)
         }
         Picker("模型", selection: Binding(
           get: { item.modelID ?? "" },
@@ -349,5 +377,6 @@ private struct AutomationEditorView: View {
       }
     }.padding(24).frame(width: 630, height: 680)
       .task { await modelCatalog.load(config: store.modelConfiguration) }
+      .task { await store.refreshEnvironmentCatalog() }
   }
 }

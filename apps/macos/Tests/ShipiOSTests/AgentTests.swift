@@ -140,6 +140,52 @@ final class AgentTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testAutomationEnvironmentResolvesEachProjectAndPreservesRetrySnapshot() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-auto-env-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = root.appendingPathComponent("First")
+    let second = root.appendingPathComponent("Second")
+    for (project, name) in [(first, "First"), (second, "Second")] {
+      let file = project.appendingPathComponent(".codex/environments/environment.toml")
+      try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
+        withIntermediateDirectories: true)
+      try "version = 1\nname = '\(name)'\n[setup]\nscript = 'echo \(name)'\n"
+        .write(to: file, atomically: true, encoding: .utf8)
+    }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    let firstSnapshot = try await store.automationEnvironmentSnapshot(
+      projectPath: first.path, selectionID: AutomationEnvironmentChoice.projectDefault)
+    let secondSnapshot = try await store.automationEnvironmentSnapshot(
+      projectPath: second.path, selectionID: AutomationEnvironmentChoice.projectDefault)
+    XCTAssertEqual(firstSnapshot.name, "First")
+    XCTAssertEqual(secondSnapshot.name, "Second")
+    XCTAssertEqual(secondSnapshot.macOSSetupScript, "echo Second")
+    store.library.profiles[first.path] = BuildProfile(worktreeSetupScript: "echo local")
+    let legacy = try await store.automationEnvironmentSnapshot(
+      projectPath: first.path, selectionID: WorktreeEnvironmentChoice.legacy)
+    XCTAssertEqual(legacy.macOSSetupScript, "echo local")
+    let disabled = try await store.automationEnvironmentSnapshot(
+      projectPath: first.path, selectionID: WorktreeEnvironmentChoice.none)
+    XCTAssertEqual(disabled, .none)
+    try FileManager.default.removeItem(at: second.appendingPathComponent(
+      ".codex/environments/environment.toml"))
+    let retry = try await store.automationEnvironmentSnapshot(
+      projectPath: second.path, selectionID: "environment.toml", existing: secondSnapshot)
+    XCTAssertEqual(retry, secondSnapshot)
+    do {
+      _ = try await store.automationEnvironmentSnapshot(
+        projectPath: second.path, selectionID: "environment.toml")
+      XCTFail("A deleted selected environment must fail before starting a scheduled task")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("已不可用")) }
+    await store.shutdown()
+  }
+
   @MainActor func testMultipleCodexEnvironmentsCanBeSelectedAndCreated() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

@@ -168,7 +168,8 @@ extension WorkspaceStore {
         let useWorktree = state.selectedExecution == .worktree && !project.isEmpty
           && FileManager.default.fileExists(atPath: source.appendingPathComponent(".git").path)
         let record = useWorktree
-          ? try await prepareAutomationWorktree(sourcePath: project, taskID: ownerID) : nil
+          ? try await prepareAutomationWorktree(sourcePath: project, taskID: ownerID,
+            environmentSelection: state.environmentSelection(for: project)) : nil
         let runProject = record?.path ?? project
         var candidate = library
         if let index = candidate.tasks.firstIndex(where: { $0.id == ownerID }) {

@@ -353,21 +353,7 @@ extension WorkspaceStore {
       throw AgentFailure(message: "所选本地环境已不可用，请刷新环境列表后重试。")
     }
     let loaded = try await client.request("environment.load", ["fileName": .string(selectionID)])
-    guard loaded["exists"].boolean == true else {
-      throw AgentFailure(message: "所选本地环境文件已被删除，请刷新后重试。")
-    }
-    let config = loaded["config"]
-    let actions = config["actions"].items.map { action in
-      EnvironmentAction(title: action["name"].text ?? "",
-        symbol: action["icon"].text ?? "tool", script: action["command"].text ?? "",
-        platform: EnvironmentPlatform(rawValue: action["platform"].text ?? "all") ?? .all)
-    }
-    return ManagedEnvironmentSnapshot(fileName: selectionID,
-      name: config["name"].text ?? selectionID, disabled: false,
-      setupScript: config["setup"]["script"].text ?? "",
-      setupPlatforms: platformScripts(from: config["setup"]),
-      cleanupScript: config["cleanup"]["script"].text ?? "",
-      cleanupPlatforms: platformScripts(from: config["cleanup"]), actions: actions)
+    return try decodeManagedEnvironment(selectionID: selectionID, loaded: loaded)
   }
 
   var currentEnvironmentFormState: LocalEnvironmentFormState {
@@ -534,6 +520,29 @@ extension WorkspaceStore {
       return false
     }
   }
+}
+
+func decodeManagedEnvironment(selectionID: String, loaded: JSONValue) throws -> ManagedEnvironmentSnapshot {
+  guard loaded["exists"].boolean == true else {
+    throw AgentFailure(message: "所选本地环境文件已被删除，请刷新后重试。")
+  }
+  if let error = loaded["error"].text {
+    throw AgentFailure(message: "所选本地环境无法解析：\(error)")
+  }
+  let config = loaded["config"]
+  guard let name = config["name"].text, !name.isEmpty else {
+    throw AgentFailure(message: "所选本地环境内容无效，请刷新后重试。")
+  }
+  let actions = config["actions"].items.map { action in
+    EnvironmentAction(title: action["name"].text ?? "",
+      symbol: action["icon"].text ?? "tool", script: action["command"].text ?? "",
+      platform: EnvironmentPlatform(rawValue: action["platform"].text ?? "all") ?? .all)
+  }
+  return ManagedEnvironmentSnapshot(fileName: selectionID, name: name, disabled: false,
+    setupScript: config["setup"]["script"].text ?? "",
+    setupPlatforms: platformScripts(from: config["setup"]),
+    cleanupScript: config["cleanup"]["script"].text ?? "",
+    cleanupPlatforms: platformScripts(from: config["cleanup"]), actions: actions)
 }
 
 private func platformScripts(from value: JSONValue) -> EnvironmentPlatformScripts {

@@ -106,8 +106,13 @@ final class AutomationTests: XCTestCase {
     item.setProject("/tmp/Second", selected: true)
     item.execution = .worktree
     XCTAssertEqual(item.selectedProjects, ["/tmp/First", "/tmp/Second"])
+    XCTAssertEqual(item.environmentSelection(for: "/tmp/First"),
+      AutomationEnvironmentChoice.projectDefault)
+    item.setEnvironment(WorktreeEnvironmentChoice.none, for: "/tmp/First")
+    XCTAssertEqual(item.environmentSelection(for: "/tmp/First"), WorktreeEnvironmentChoice.none)
     item.setProject("/tmp/First", selected: false)
     XCTAssertEqual(item.selectedProjects, ["/tmp/Second"])
+    XCTAssertNil(item.environmentSelections?["/tmp/First"])
     item.setProject("/tmp/Second", selected: false)
     XCTAssertEqual(item.selectedProjects, [""])
     item.setProject("/tmp/First", selected: true)
@@ -122,11 +127,14 @@ final class AutomationTests: XCTestCase {
     item.projects = nil
     item.project = "/tmp/Legacy"
     item.execution = nil
+    item.environmentSelections = nil
     try JSONEncoder().encode(AutomationPreferences(items: [item])).write(
       to: base.appendingPathComponent("automations.json"))
     XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedProjects,
       ["/tmp/Legacy"])
     XCTAssertEqual(try AutomationStorage.load(root: base).items[0].selectedExecution, .local)
+    XCTAssertEqual(try AutomationStorage.load(root: base).items[0].environmentSelection(for: "/tmp/Legacy"),
+      WorktreeEnvironmentChoice.legacy)
   }
 
   func testInvalidMultiProjectListIsRejected() throws {

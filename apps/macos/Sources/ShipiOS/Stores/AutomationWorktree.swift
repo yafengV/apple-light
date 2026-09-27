@@ -2,7 +2,8 @@ import Foundation
 
 extension WorkspaceStore {
   /// Prepare one scheduled run with the same durable managed-checkout machinery as a new task.
-  func prepareAutomationWorktree(sourcePath: String, taskID: String) async throws -> ManagedWorktree {
+  func prepareAutomationWorktree(sourcePath: String, taskID: String,
+    environmentSelection: String = WorktreeEnvironmentChoice.legacy) async throws -> ManagedWorktree {
     let source = URL(fileURLWithPath: sourcePath)
     let snapshot = try await GitBranchService.snapshot(at: source)
     guard snapshot.canChange else {
@@ -11,6 +12,9 @@ extension WorkspaceStore {
     let existing = library.managedWorktrees.first(where: { $0.taskID == taskID })
     var protectedStashCommit: String?
     do {
+      let environment = try await automationEnvironmentSnapshot(
+        projectPath: sourcePath, selectionID: environmentSelection,
+        existing: existing?.environment)
       var sourceCopiedFiles: [ManagedSourceFile] = []
       var sourceStashCommit: String?
       if existing == nil {
@@ -36,12 +40,6 @@ extension WorkspaceStore {
           }
         }
       }
-      let profile = library.profiles[sourcePath] ?? BuildProfile()
-      let environment = ManagedEnvironmentSnapshot(fileName: nil, name: "ShipiOS 本地配置",
-        disabled: false, setupScript: profile.worktreeSetupScript,
-        setupPlatforms: profile.setupPlatformScripts,
-        cleanupScript: profile.worktreeCleanupScript,
-        cleanupPlatforms: profile.cleanupPlatformScripts, actions: profile.actions)
       guard let record = await createManagedWorktree(snapshot: snapshot, branch: nil,
         taskID: taskID, sourceStashCommit: sourceStashCommit,
         sourceCopiedFiles: sourceCopiedFiles, environment: environment) else {

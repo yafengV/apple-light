@@ -13,6 +13,10 @@ enum AutomationCadence: String, Codable, CaseIterable, Identifiable {
   }
 }
 
+enum AutomationEnvironmentChoice {
+  static let projectDefault = "__project_default__"
+}
+
 struct ShipAutomation: Codable, Identifiable, Equatable {
   var id = UUID()
   var name = ""
@@ -22,6 +26,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var projects: [String]?
   /// Nil keeps the local execution mode used by older saved automations.
   var execution: NewTaskExecution?
+  /// Nil keeps the legacy local-profile behavior for schedules saved before environment selection.
+  var environmentSelections: [String: String]?
   /// Nil follows the current independent API service setting for each new run.
   var modelID: String?
   /// Nil follows the current setting; an empty string asks the service to use its default.
@@ -57,18 +63,34 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var selectedWeekdays: [Int] { weekdays ?? [weekday] }
   var selectedProjects: [String] { projects ?? [project] }
   var selectedExecution: NewTaskExecution { execution ?? .local }
+  func environmentSelection(for project: String) -> String {
+    environmentSelections?[project] ?? WorktreeEnvironmentChoice.legacy
+  }
+
+  mutating func setEnvironment(_ selection: String, for project: String) {
+    guard selectedProjects.contains(project), !project.isEmpty else { return }
+    environmentSelections = environmentSelections ?? [:]
+    environmentSelections?[project] = selection
+  }
 
   mutating func setProject(_ path: String, selected: Bool) {
     if path.isEmpty {
       guard selected else { return }
       projects = [""]
       project = ""
+      if environmentSelections != nil { environmentSelections = [:] }
       return
     }
+    let wasSelected = selectedProjects.contains(path)
     var values = Set(selectedProjects.filter { !$0.isEmpty })
     if selected { values.insert(path) } else { values.remove(path) }
     projects = values.isEmpty ? [""] : values.sorted()
     project = projects?.first ?? ""
+    environmentSelections = environmentSelections?.filter { values.contains($0.key) }
+    if selected, !wasSelected, environmentSelections?[path] == nil {
+      environmentSelections = environmentSelections ?? [:]
+      environmentSelections?[path] = AutomationEnvironmentChoice.projectDefault
+    }
   }
 
   mutating func setWeekday(_ day: Int, selected: Bool) {
@@ -168,6 +190,13 @@ enum AutomationStorage {
       if let preparingTaskIDs = item.preparingTaskIDs,
         !preparingTaskIDs.values.allSatisfy({ UUID(uuidString: $0) != nil }) {
         throw AgentFailure(message: "自动化待准备任务标识无效。")
+      }
+      if let selections = item.environmentSelections,
+        !selections.allSatisfy({ project, choice in
+          !project.isEmpty && item.selectedProjects.contains(project)
+            && !choice.isEmpty && choice.utf8.count <= 4096 && !choice.utf8.contains(0)
+        }) {
+        throw AgentFailure(message: "自动化环境选择无效。")
       }
       if let modelID = item.modelID,
         (modelID.isEmpty || modelID.utf8.count > 200

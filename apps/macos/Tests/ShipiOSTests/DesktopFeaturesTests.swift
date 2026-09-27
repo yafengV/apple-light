@@ -3736,7 +3736,12 @@ final class ModelTransportTests: XCTestCase {
     _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
     _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
     try Data("initial\n".utf8).write(to: source.appendingPathComponent("tracked.txt"))
-    _ = try await GitReviewService.checked(["add", "tracked.txt"], at: source)
+    let environmentFile = source.appendingPathComponent(".codex/environments/automation.toml")
+    try FileManager.default.createDirectory(at: environmentFile.deletingLastPathComponent(),
+      withIntermediateDirectories: true)
+    try "version = 1\nname = 'Scheduled'\n[setup]\nscript = 'printf configured > automation-setup.txt'\n"
+      .write(to: environmentFile, atomically: true, encoding: .utf8)
+    _ = try await GitReviewService.checked(["add", "tracked.txt", ".codex/environments/automation.toml"], at: source)
     _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
     try Data("local change\n".utf8).write(to: source.appendingPathComponent("tracked.txt"))
     try Data("new file\n".utf8).write(to: source.appendingPathComponent("untracked.txt"))
@@ -3751,6 +3756,7 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(store.connected, store.error ?? "")
     var automation = ShipAutomation(name: "Isolated automation", prompt: "codex-patch")
     automation.setProject(source.path, selected: true)
+    automation.setEnvironment("automation.toml", for: source.path)
     automation.execution = .worktree
     automation.nextRun = Date().addingTimeInterval(60)
     XCTAssertTrue(store.saveAutomation(automation))
@@ -3763,6 +3769,12 @@ final class ModelTransportTests: XCTestCase {
     let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == taskID })
     let worktree = URL(fileURLWithPath: record.path)
     XCTAssertTrue(record.ready)
+    XCTAssertEqual(record.environment?.fileName, "automation.toml")
+    XCTAssertEqual(record.environment?.name, "Scheduled")
+    XCTAssertTrue(FileManager.default.fileExists(atPath:
+      worktree.appendingPathComponent("automation-setup.txt").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      source.appendingPathComponent("automation-setup.txt").path))
     XCTAssertEqual(store.library.tasks.first { $0.id == taskID }?.project, record.path)
     XCTAssertEqual(try String(contentsOf: worktree.appendingPathComponent("tracked.txt")), "local change\n")
     XCTAssertEqual(try String(contentsOf: worktree.appendingPathComponent("untracked.txt")), "new file\n")
@@ -3780,7 +3792,9 @@ final class ModelTransportTests: XCTestCase {
     interrupted.preparingTaskIDs = [source.path: resumedTaskID]
     XCTAssertTrue(store.saveAutomation(interrupted))
     let prepared = try await store.prepareAutomationWorktree(
-      sourcePath: source.path, taskID: resumedTaskID)
+      sourcePath: source.path, taskID: resumedTaskID,
+      environmentSelection: interrupted.environmentSelection(for: source.path))
+    XCTAssertEqual(prepared.environment?.fileName, "automation.toml")
     await store.runAutomation(automation.id)
     let resumed = try XCTUnwrap(store.automationPreferences.items.first)
     XCTAssertEqual(resumed.taskID, resumedTaskID)
