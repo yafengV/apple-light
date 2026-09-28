@@ -4,6 +4,7 @@ struct SidebarTaskRow: View {
   let store: WorkspaceStore
   let task: WorkspaceTask
   var showsProject = false
+  @Environment(\.sidebarShortcutHintLabels) private var shortcutHints
   private var run: AgentRun? {
     task.runIDs.last.flatMap { id in
       store.runs.first { $0.id == id } ?? store.library.localRuns.first { $0.id == id }
@@ -42,6 +43,11 @@ struct SidebarTaskRow: View {
           }
         }
         Spacer(minLength: 2)
+        if let label = shortcutHints[task.id] {
+          Text(label).appFont(size: 10, design: .monospaced).foregroundStyle(.secondary)
+            .fixedSize().accessibilityLabel("快捷键 \(label)")
+            .accessibilityIdentifier("sidebar-task-shortcut-\(task.id)")
+        }
         if run?.status == "failed" { Circle().fill(.orange).frame(width: 5, height: 5) }
       }.padding(.horizontal, 10).padding(.vertical, 9)
         .background(

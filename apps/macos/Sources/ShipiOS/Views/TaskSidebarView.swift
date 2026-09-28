@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TaskSidebarView: View {
   @Bindable var store: WorkspaceStore
+  @State private var shortcutHints = SidebarShortcutHintController()
   var body: some View {
     VStack(spacing: 0) {
       ZStack {
@@ -13,6 +14,11 @@ struct TaskSidebarView: View {
         if store.showingActivity { ActivityView(store: store) }
       }.frame(minHeight: 0, maxHeight: .infinity)
       profileFooter
+    }
+    .environment(\.sidebarShortcutHintLabels, shortcutHints.labels)
+    .background {
+      SidebarShortcutHintBridge(context: store.sidebarShortcutHintContext, controller: shortcutHints)
+        .frame(width: 0, height: 0).allowsHitTesting(false)
     }
     .sheet(item: $store.sidebarGroupEditor) { editor in
       SidebarGroupEditorView(store: store, editor: editor)

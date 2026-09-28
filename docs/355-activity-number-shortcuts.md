@@ -26,4 +26,4 @@ ShipiOS 的 `focus-chat-1…9` 现在取当前 Activity 优先列表，或隐藏
 
 应用由 `script/build_and_run.sh --build-app` 构建，日志 `.cache/activity-number-build.log`；严格深度签名检查通过。此前锁屏时自动审批拒绝打开 ShipiOS，手动解锁尚未确认，本阶段没有尝试绕过，也没有取得新的可见窗口或按键验收。
 
-Activity 行内数字提示、当前原生布局、键盘响应者/滚动/鼠标行为和 Codex 双端配对继续待完成。完整双端配对仍为 0/45，本阶段不代表全产品 UI 已完全对齐。
+后续[第 356 篇](356-sidebar-shortcut-hints.md)沿参考传参链确认 Activity 本地任务行没有数字提示，并补齐普通侧栏的延迟提示。当前原生布局、键盘响应者/滚动/鼠标行为和 Codex 双端配对继续待完成。完整双端配对仍为 0/45，本阶段不代表全产品 UI 已完全对齐。
