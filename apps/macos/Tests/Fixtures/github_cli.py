@@ -74,6 +74,33 @@ elif args and args[0] == "api":
         print(json.dumps(response))
         sys.exit(0)
     endpoint = next(value for value in args if value.startswith("repos/"))
+    if "/commits/" in endpoint and any(kind in endpoint for kind in ["/check-runs?", "/status?", "/check-suites?"]):
+        kind = "checkRuns" if "/check-runs?" in endpoint else "checkSuites" if "/check-suites?" in endpoint else "commitStatuses"
+        if state.get(kind + "Delay"):
+            import time
+            time.sleep(state[kind + "Delay"])
+        if state.get(kind + "Failure"):
+            sys.exit("Fixture checks unavailable")
+        head = endpoint.split("/commits/", 1)[1].split("/", 1)[0]
+        page = int(urllib.parse.parse_qs(urllib.parse.urlparse(endpoint).query).get("page", ["1"])[0])
+        if kind == "checkRuns":
+            payload = state.get("checkRunsPages", [{"total_count": 0, "check_runs": []}])
+        elif kind == "commitStatuses":
+            payload = state.get("commitStatusesPages", [{"sha": head, "state": "success", "total_count": 0, "statuses": []}])
+        else:
+            payload = state.get("checkSuites", {"total_count": 0, "check_suites": []})
+        if isinstance(payload, list):
+            payload = payload[page - 1] if len(payload) >= page else {"total_count": 0, "check_runs": []}
+        if state.get(kind + "FailurePage") == page:
+            sys.exit("Fixture later page unavailable")
+        if state.get("headAfterChecks") and kind == "checkRuns":
+            state["detailHead"] = state["headAfterChecks"]
+            state_path.write_text(json.dumps(state))
+        if state.get("baseAfterChecks") and kind == "checkRuns":
+            state["pullRequests"][0]["baseRefName"] = state["baseAfterChecks"]
+            state_path.write_text(json.dumps(state))
+        print(payload if isinstance(payload, str) else json.dumps(payload))
+        sys.exit(0)
     if state.get("remotePath"):
         branch = urllib.parse.unquote(endpoint.split("/git/ref/heads/", 1)[1])
         result = subprocess.run(["/usr/bin/git", "--git-dir=" + state["remotePath"],

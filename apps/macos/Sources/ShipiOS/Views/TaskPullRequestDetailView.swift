@@ -15,6 +15,7 @@ struct TaskPullRequestDetailView: View {
   var tabID: String = ""
 
   @State private var state = GitHubPRDetailState()
+  @State private var checks = GitHubPRChecksState()
   private var details: GitHubPRDetails? { state.snapshot?.details }
   private var valid: Bool {
     !store.restoringLibrary && !store.shuttingDown
@@ -24,6 +25,11 @@ struct TaskPullRequestDetailView: View {
       } == true
   }
   private var writable: Bool { valid && !store.library.gitPreferences.readOnlyReview }
+
+  private var checksRequest: GitHubPRChecksRequest? {
+    guard valid, let head = state.snapshot?.headRevision else { return nil }
+    return .init(taskID: taskID, root: root, pullRequest: request, headRevision: head)
+  }
 
   var body: some View {
     VStack(spacing: 0) {
@@ -53,11 +59,8 @@ struct TaskPullRequestDetailView: View {
             if let decision = details.reviewDecision, !decision.isEmpty {
               LabeledContent("审查", value: reviewLabel(decision))
             }
-            let checks = details.checkSummary
-            if checks.passed + checks.failed + checks.pending > 0 {
-              LabeledContent("检查", value:
-                "\(checks.passed) 通过 · \(checks.failed) 失败 · \(checks.pending) 进行中")
-            }
+            LabeledContent("检查", value: checks.loading ? "读取中…"
+              : checks.error != nil ? "无法读取检查" : checks.snapshot?.statusLabel ?? "等待检查详情")
             if let mergeable = details.mergeable, mergeable.uppercased() == "CONFLICTING" {
               Label("存在合并冲突", systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.orange)
@@ -68,6 +71,11 @@ struct TaskPullRequestDetailView: View {
                 openExternal(url)
               }
             }
+          }
+          if state.snapshot != nil {
+            Divider()
+            TaskPullRequestChecksView(state: checks, openLink: openExternal,
+              retry: { Task { await retryChecks() } })
           }
           if let snapshot = state.snapshot, snapshot.showsActions {
             TaskPullRequestActionsView(state: state, request: request, writable: writable,
@@ -107,10 +115,28 @@ struct TaskPullRequestDetailView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.regularMaterial)
     .task(id: taskID + root.path + request.url) { state.cancel(); await refresh(); consumeMergeRequest() }
+    .task(id: checksRequest) {
+      await loadChecks()
+      while !Task.isCancelled, checksRequest != nil,
+        let seconds = checks.error != nil ? 60 : checks.snapshot?.refreshSeconds {
+        do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+        guard valid, !Task.isCancelled else { return }
+        if NSApp.isActive { await loadChecks() }
+      }
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+      if valid, !checks.loading { Task { await retryChecks() } }
+    }
+    .onChange(of: checks.snapshot?.pullRequestState) { _, latest in
+      if let latest, valid, !state.loading, latest.uppercased() != details?.state.uppercased() {
+        // Run outside the checks task: refreshing PR metadata changes its request and cancels that task.
+        Task { await refresh() }
+      }
+    }
     .onChange(of: presentations?.token(tabID)) { _, _ in consumeMergeRequest() }
     .onChange(of: state.snapshot) { _, _ in consumeMergeRequest() }
     .onChange(of: root) { _, _ in presentations?.clear(tabID) }
-    .onDisappear { presentations?.clear(tabID); state.cancel() }
+    .onDisappear { presentations?.clear(tabID); state.cancel(); checks.cancel() }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
         confirm: { apply(.merge(state.selectedMethod)) })
@@ -120,6 +146,15 @@ struct TaskPullRequestDetailView: View {
   private func refresh() async {
     await state.refresh(request, at: root, preferred: store.library.gitPreferences.pullRequestMergeMethod,
       valid: { valid }, updated: onRefresh)
+  }
+
+  private func retryChecks() async {
+    if checks.requiresPullRequestRefresh { await refresh() } else { await loadChecks() }
+  }
+
+  private func loadChecks() async {
+    let request = checksRequest
+    await checks.load(request, valid: { valid && checksRequest == request })
   }
 
   private func consumeMergeRequest() {
