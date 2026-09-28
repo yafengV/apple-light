@@ -153,7 +153,7 @@ extension WorkspaceStore {
 
   func createPullRequest(in workspace: DeveloperWorkspace, draft: Bool, taskID: String? = nil) async {
     guard !library.gitPreferences.readOnlyReview, !workspace.gitBusy, !workspace.gitActionRunning,
-      let root = workspace.root, workspace.pullRequestDraft.canCreate,
+      let root = workspace.gitRoot, workspace.pullRequestDraft.canCreate,
       let repository = workspace.pullRequestDraft.context?.repository else { return }
     let state = workspace.pullRequestDraft
     let generator: GitHubPRGenerator?
@@ -175,12 +175,14 @@ extension WorkspaceStore {
       return
     }
     workspace.gitBusy = true
-    defer { if workspace.root == root, workspace.pullRequestDraft === state { workspace.gitBusy = false } }
+    defer { if workspace.gitRoot == root, workspace.pullRequestDraft === state { workspace.gitBusy = false } }
     let result = await state.create(draft: draft, generate: generator,
       authorize: workspace.gitMutationAuthorization(at: root))
-    if let result, workspace.root == root, workspace.pullRequestDraft === state {
+    if let result, workspace.gitRoot == root, workspace.pullRequestDraft === state {
       workspace.gitActionStatus = "已创建或找到 PR #\(result.number)"
-      _ = recordPullRequest(result, for: taskID, at: root, repository: repository)
+      if let project = workspace.root {
+        _ = recordPullRequest(result, for: taskID, at: project, repository: repository)
+      }
     }
   }
 }

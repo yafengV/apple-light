@@ -138,4 +138,20 @@ extension WorkspaceStore {
       }
     }
   }
+
+  func openReviewFile(_ path: String, in target: DeveloperWorkspace, at repository: URL,
+    line: Int? = nil) async {
+    guard let project = target.root, target.gitRoot == repository else { return }
+    let request = UUID(), generation = target.generationForGitMutation
+    target.fileOpenRequest = request
+    target.fileOpenError = nil
+    do {
+      try await ExternalEditorService.open(path, root: repository, line: line, editor: preferredEditor)
+    } catch {
+      if target.root == project, target.gitRoot == repository,
+        target.generationForGitMutation == generation, target.fileOpenRequest == request {
+        target.fileOpenError = error.localizedDescription
+      }
+    }
+  }
 }

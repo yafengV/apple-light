@@ -126,14 +126,16 @@ struct ReviewFileView: View {
     }
   }
   private func openFile(line: Int? = nil) {
-    Task { await store.openProjectFile(file.path, in: workspace, line: line) }
+    Task { await store.openReviewFile(file.path, in: workspace, at: root, line: line) }
   }
   private func anchor(_ line: ReviewDiffLine, patch: ReviewDiff) -> ReviewAnchor {
     .init(
-      project: root.path, path: file.path, scope: scope.title, revision: revision,
+      project: workspace.root.map(GitBranchService.canonicalRoot)?.path ?? root.path,
+      path: file.path, scope: scope.title, revision: revision,
       fingerprint: patch.fingerprint, oldLine: line.oldLine, newLine: line.newLine,
       code: String(line.text.dropFirst()),
-      oldPath: file.comparisonPaths(scope: scope).count > 1 ? file.originalPath : nil)
+      oldPath: file.comparisonPaths(scope: scope).count > 1 ? file.originalPath : nil,
+      repository: workspace.root.map(GitBranchService.canonicalRoot)?.path == root.path ? nil : root.path)
   }
   private func matchingComments(_ line: ReviewDiffLine, patch: ReviewDiff) -> [ReviewComment] {
     guard line.canComment else { return [] }

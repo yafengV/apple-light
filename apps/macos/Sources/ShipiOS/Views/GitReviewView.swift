@@ -9,6 +9,11 @@ struct GitReviewView: View {
   var body: some View {
     VStack(spacing: 0) {
       if workspace.gitAvailable {
+        if let repository = workspace.gitRepositoryRoot, let project = workspace.root,
+          GitBranchService.canonicalRoot(project).path != repository.path {
+          Text("仓库：\(repository.path)").appFont(.caption).foregroundStyle(.secondary)
+            .textSelection(.enabled).padding(.horizontal, 12).padding(.top, 8)
+        }
         HStack {
           if taskID == nil {
             Button { store.openBranchPicker() } label: {
@@ -73,7 +78,7 @@ struct GitReviewView: View {
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 10) {
             if !workspace.reviewLoading && !workspace.gitRefreshing
-              && !workspace.reviewArguments.isEmpty, let root = workspace.root
+              && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot
             {
               ForEach(workspace.visibleChanges) { file in
                 ReviewFileView(

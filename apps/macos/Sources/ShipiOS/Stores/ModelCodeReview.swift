@@ -28,7 +28,8 @@ extension WorkspaceStore {
     reviewModeLoading = true
     reviewModeError = nil
     do {
-      let choices = try await GitReviewService.branches(at: root)
+      let repository = workspace.gitRoot ?? root
+      let choices = try await GitReviewService.branches(at: repository)
       guard showingReviewMode, project?.path == root.path, reviewModeProject == root.path else {
         return
       }
@@ -52,7 +53,7 @@ extension WorkspaceStore {
     reviewModeStarting = true
     reviewModeError = nil
     do {
-      let snapshot = try await GitReviewService.modelReviewSnapshot(scope: scope, at: root)
+      let snapshot = try await workspace.modelReviewSnapshot(scope: scope)
       guard showingReviewMode, project?.path == root.path, reviewModeProject == root.path else {
         return
       }

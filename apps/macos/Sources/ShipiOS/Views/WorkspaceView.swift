@@ -160,7 +160,7 @@ struct WorkspaceView: View {
               .help("切换或创建分支")
               .disabled(!store.canChangeBranch)
               .popover(isPresented: $store.showingBranchPicker, arrowEdge: .bottom) {
-                GitBranchPicker(store: store, root: project)
+                GitBranchPicker(store: store, root: store.workspace.gitRoot ?? project)
               }
             }
             if let project = store.project {

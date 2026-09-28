@@ -83,11 +83,13 @@ struct GitHubPRView: View {
     Task { await refreshExisting() }
   }
   private func refreshExisting() async {
-    guard let root = workspace.root else { return }
+    guard let root = workspace.gitRoot else { return }
     await draft.load(at: root)
     if let existing = draft.existing, let repository = draft.context?.repository,
-      workspace.root == root {
-      _ = store.recordPullRequest(existing, for: taskID, at: root, repository: repository)
+      workspace.gitRoot == root {
+      if let project = workspace.root {
+        _ = store.recordPullRequest(existing, for: taskID, at: project, repository: repository)
+      }
     }
   }
   private func submit(draft: Bool) {

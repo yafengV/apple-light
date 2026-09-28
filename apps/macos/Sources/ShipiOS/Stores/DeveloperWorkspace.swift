@@ -29,6 +29,11 @@ final class DeveloperWorkspace {
   var gitFiles: [GitFile] = []
   var gitBranch = ""
   var gitAvailable = false
+  var gitRepositoryRoot: URL?
+  var gitRoot: URL? {
+    guard let repository = gitRepositoryRoot, let root else { return root }
+    return GitBranchService.canonicalRoot(root).path == repository.path ? root : repository
+  }
   var canCommit = false
   var reviewScope = GitReviewScope.unstaged
   var reviewCommits: [GitReviewChoice] = []
@@ -104,6 +109,7 @@ final class DeveloperWorkspace {
     filePreviewPositions.removeAll()
     gitFiles = []
     gitAvailable = false
+    gitRepositoryRoot = nil
     canCommit = false
     gitBranch = ""
     reviewScope = .unstaged
@@ -209,25 +215,41 @@ final class DeveloperWorkspace {
   }
 
   func refreshGit() async {
-    guard let root else { return }
+    guard let project = root else { return }
     let token = UUID()
     gitVersion = token
     gitRefreshing = true
     defer { if token == gitVersion { gitRefreshing = false } }
     do {
+      let repository = try await GitRepositoryContext.resolve(at: project)
+      guard token == gitVersion else { return }
+      if gitRepositoryRoot?.path != repository?.path {
+        gitAvailable = false
+        canCommit = false
+      }
+      gitRepositoryRoot = repository
+      guard repository != nil, let root = gitRoot else {
+        gitAvailable = false
+        canCommit = false
+        gitFiles = []
+        reviewCommits = []
+        reviewBranches = []
+        historicalFiles = []
+        reviewArguments = []
+        batchSnapshot = nil
+        batchError = nil
+        discardPlan = nil
+        gitBranch = ""
+        diff = ""
+        return
+      }
       let status = try await LocalWorkspaceService.git(
         ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."], at: root)
       let branch = try await LocalWorkspaceService.git(
         ["symbolic-ref", "--short", "HEAD"], at: root)
-      let repository = try await LocalWorkspaceService.git(
-        ["rev-parse", "--show-toplevel"], at: root)
       guard token == gitVersion else { return }
-      canCommit =
-        repository.status == 0
-        && URL(fileURLWithPath: repository.text.trimmingCharacters(in: .whitespacesAndNewlines))
-          .resolvingSymlinksInPath().standardizedFileURL.path
-          == root.resolvingSymlinksInPath().standardizedFileURL.path
       gitAvailable = status.status == 0
+      canCommit = gitAvailable
       gitFiles = gitAvailable ? GitFile.parse(status.text) : []
       gitBranch =
         branch.status == 0
@@ -249,21 +271,31 @@ final class DeveloperWorkspace {
       }
       if !branches.contains(where: { $0.id == reviewBaseBranch }) { reviewBaseBranch = "" }
       await loadDiff()
-    } catch { if token == gitVersion { self.error = error.localizedDescription } }
+    } catch {
+      if token == gitVersion {
+        gitAvailable = false
+        canCommit = false
+        gitRepositoryRoot = nil
+        gitFiles = []
+        batchSnapshot = nil
+        discardPlan = nil
+        self.error = error.localizedDescription
+      }
+    }
   }
   var visibleChanges: [GitFile] {
     reviewScope.isHistorical
       ? historicalFiles : gitFiles.filter { reviewScope == .staged ? $0.staged : $0.unstaged }
   }
   func loadDiff() async {
-    guard let root else { return }
+    guard let root = gitRoot else { return }
     let token = UUID()
     diffVersion = token
     let scope = reviewScope
     let selection = scope == .commit ? reviewCommit : reviewBaseBranch
     let path = reviewPath
     func isCurrent() -> Bool {
-      token == diffVersion && self.root == root && scope == reviewScope && path == reviewPath
+      token == diffVersion && gitRoot == root && scope == reviewScope && path == reviewPath
         && selection == (scope == .commit ? reviewCommit : reviewBaseBranch)
     }
     reviewLoading = true
@@ -311,7 +343,7 @@ final class DeveloperWorkspace {
     } catch { if isCurrent() { self.error = error.localizedDescription } }
   }
   func stage(_ path: String, undo: Bool) async {
-    guard let root, !gitBusy, canModifyReview else { return }
+    guard let root = gitRoot, !gitBusy, canModifyReview else { return }
     let authorize = gitMutationAuthorization(at: root), token = generation
     gitBusy = true
     error = nil
@@ -334,13 +366,13 @@ final class DeveloperWorkspace {
       try authorize()
       let result = try await LocalWorkspaceService.git(args, at: root)
       guard result.status == 0 else { throw AgentFailure(message: result.text) }
-      if self.root == root, generation == token { await refreshGit() }
+      if gitRoot == root, generation == token { await refreshGit() }
     } catch {
-      if self.root == root, generation == token, !(error is CancellationError) { self.error = error.localizedDescription }
+      if gitRoot == root, generation == token, !(error is CancellationError) { self.error = error.localizedDescription }
     }
   }
   @discardableResult func commit() async -> Bool {
-    guard let root, canCommit, !gitBusy, canModifyReview,
+    guard let root = gitRoot, canCommit, !gitBusy, canModifyReview,
       !commitMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return false }
     cancelCommitMessageGeneration()
@@ -349,6 +381,7 @@ final class DeveloperWorkspace {
     let token = generation
     defer { if token == generation { gitBusy = false } }
     do {
+      try gitMutationAuthorization(at: root)()
       let output = try await LocalWorkspaceService.git(["commit", "-m", commitMessage], at: root)
       guard output.status == 0 else { throw AgentFailure(message: output.text) }
       guard token == generation else { return false }

@@ -82,8 +82,8 @@ enum LocalWorkspaceService {
     try await command(
       "/usr/bin/git",
       [
-        "--no-pager", "--literal-pathspecs", "-c", "color.ui=false", "-c",
-        "status.relativePaths=true", "-c", "core.fsmonitor=false",
+        "--no-pager", "--no-optional-locks", "--literal-pathspecs", "-c", "color.ui=false", "-c",
+        "status.relativePaths=true", "-c", "core.fsmonitor=false", "-c", "diff.autoRefreshIndex=false",
       ] + arguments, at: root, indexFile: indexFile)
   }
   static func resolvedFile(_ path: String, root: URL) throws -> URL {
@@ -105,11 +105,18 @@ enum LocalWorkspaceService {
     return text
   }
   static func files(at root: URL) async throws -> [String] {
-    let root = root.resolvingSymlinksInPath().standardizedFileURL
-    let git = try await git(
-      ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], at: root)
-    if git.status == 0, !git.text.isEmpty {
-      return Array(Set(git.text.split(separator: "\0").map(String.init))).sorted()
+    let root = GitBranchService.canonicalRoot(root)
+    if let repository = try? await GitRepositoryContext.resolve(at: root) {
+      let prefix = root.path == repository.path ? "" : String(root.path.dropFirst(repository.path.count + 1)) + "/"
+      let output = try await git(
+        ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--",
+          prefix.isEmpty ? "." : String(prefix.dropLast())], at: repository)
+      if output.status == 0, !output.text.isEmpty {
+        let paths = output.text.split(separator: "\0").map(String.init)
+          .filter { prefix.isEmpty || $0.hasPrefix(prefix) }
+          .map { String($0.dropFirst(prefix.count)) }
+        return Array(Set(paths)).sorted()
+      }
     }
     return await Task.detached { enumerateFiles(at: root) }.value
   }

@@ -148,10 +148,10 @@ import XCTest
     let workspace = DeveloperWorkspace()
     workspace.root = child
     await workspace.refreshGit()
-    XCTAssertFalse(workspace.gitAvailable, "Project discovery intentionally stops before the parent")
+    XCTAssertTrue(workspace.gitAvailable)
     let result = await workspace.initializeGit(at: child)
     XCTAssertFalse(result)
-    XCTAssertTrue(workspace.error?.contains("仓库根目录") == true)
+    XCTAssertNil(workspace.error)
     assertNoMetadata(child)
     XCTAssertEqual(try Data(contentsOf: parent.appendingPathComponent(".git/config")), originalConfig)
     XCTAssertEqual(workspace.root, child)

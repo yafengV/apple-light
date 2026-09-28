@@ -59,7 +59,7 @@ struct GitCommitPushView: View {
 
   private var branchValidationKey: String { String(createsBranch) + "\0" + branchName }
   private var summaryRequest: GitCommitSummaryRequest {
-    GitCommitSummaryRequest(root: workspace.root, includeUnstaged: includeUnstaged, revision: summaryRefresh)
+    GitCommitSummaryRequest(root: workspace.gitRoot, includeUnstaged: includeUnstaged, revision: summaryRefresh)
   }
   private var pushStatusKey: String {
     remote + "\0" + destination + "\0" + String(store.library.gitPreferences.alwaysForcePush)
@@ -213,12 +213,12 @@ struct GitCommitPushView: View {
   }
 
   private func loadChoices() async {
-    guard let root = workspace.root else { return }
+    guard let root = workspace.gitRoot else { return }
     loading = true; pushError = nil
     defer { loading = false }
     do {
       let result = try await GitPushService.choices(at: root)
-      guard !Task.isCancelled, workspace.root == root else { return }
+      guard !Task.isCancelled, workspace.gitRoot == root else { return }
       choices = result
       remote = result.preferredRemote
       destination = createsBranch ? branchName : result.preferredDestination
@@ -226,13 +226,13 @@ struct GitCommitPushView: View {
   }
 
   private func perform(commit: Bool, push: Bool) {
-    guard !busy, !store.library.gitPreferences.readOnlyReview, let root = workspace.root else { return }
+    guard !busy, !store.library.gitPreferences.readOnlyReview, let root = workspace.gitRoot else { return }
     let selectedRemote = remote, selectedDestination = destination
     Task {
       let success = await store.performGitAction(commit ? (push ? .commitAndPush : .commit) : .push,
         in: workspace, remote: selectedRemote, destination: selectedDestination,
         includeUnstaged: includeUnstaged, newBranch: createsBranch ? branchName : nil)
-      guard workspace.root == root else { return }
+      guard workspace.gitRoot == root else { return }
       if success { dismiss() }
       else {
         if createsBranch && workspace.gitBranch == branchName { createsBranch = false }
@@ -246,7 +246,7 @@ struct GitCommitPushView: View {
   }
 
   private func validateBranch() async {
-    guard createsBranch, let root = workspace.root else { return }
+    guard createsBranch, let root = workspace.gitRoot else { return }
     validatingBranch = true; branchError = nil
     do {
       try await Task.sleep(for: .milliseconds(200))
@@ -259,7 +259,7 @@ struct GitCommitPushView: View {
   }
 
   private func loadPushStatus() async {
-    guard let root = workspace.root, let choices, !remote.isEmpty else { return }
+    guard let root = workspace.gitRoot, let choices, !remote.isEmpty else { return }
     let selectedRemote = remote, selectedDestination = destination
     pushStatusLoading = true; hasCommitsToPush = false; pushStatusError = nil
     do {
@@ -267,22 +267,22 @@ struct GitCommitPushView: View {
         let plan = try await GitPushService.prepare(at: root, remote: selectedRemote,
           destination: selectedDestination, forceWithLease: store.library.gitPreferences.alwaysForcePush)
         try Task.checkCancellation()
-        guard root == workspace.root, selectedRemote == remote, selectedDestination == destination else { return }
+        guard root == workspace.gitRoot, selectedRemote == remote, selectedDestination == destination else { return }
         if plan.expectedRemoteCommit.isEmpty { hasCommitsToPush = true }
         else {
           let count = try await GitReviewService.checked(
             ["rev-list", "--count", plan.expectedRemoteCommit + ".." + plan.commit], at: root)
           try Task.checkCancellation()
-          guard root == workspace.root, selectedRemote == remote,
+          guard root == workspace.gitRoot, selectedRemote == remote,
             selectedDestination == destination else { return }
           hasCommitsToPush = (Int(count.trimmingCharacters(in: .newlines)) ?? 0) > 0
         }
       }
     } catch {
-      if !Task.isCancelled, root == workspace.root, selectedRemote == remote,
+      if !Task.isCancelled, root == workspace.gitRoot, selectedRemote == remote,
         selectedDestination == destination { pushStatusError = error.localizedDescription }
     }
-    if !Task.isCancelled, root == workspace.root, selectedRemote == remote,
+    if !Task.isCancelled, root == workspace.gitRoot, selectedRemote == remote,
       selectedDestination == destination { pushStatusLoading = false }
   }
 }

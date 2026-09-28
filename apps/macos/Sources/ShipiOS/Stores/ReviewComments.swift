@@ -13,6 +13,9 @@ extension WorkspaceStore {
     else { expectedProject = project }
     guard let expectedProject,
       GitBranchService.canonicalRoot(expectedProject).path == anchor.project else { return }
+    if let repository = anchor.repository {
+      guard (try? GitRepositoryContext.candidate(at: expectedProject))?.path == repository else { return }
+    }
     let key = reviewCommentKey(taskID)
     if let existing = reviewComments(taskID: taskID).first(where: { $0.anchor == anchor }) {
       editReviewComment(existing.id, taskID: taskID)
@@ -68,6 +71,13 @@ extension WorkspaceStore {
     let commentProject = expectedProject ?? project?.path
     guard comments.allSatisfy({ $0.anchor.project == commentProject }) else {
       throw AgentFailure(message: "审查评论与当前项目不匹配。")
+    }
+    for comment in comments {
+      if let repository = comment.anchor.repository,
+        let commentProject,
+        (try? GitRepositoryContext.candidate(at: URL(fileURLWithPath: commentProject)))?.path != repository {
+        throw AgentFailure(message: "审查评论所属的 Git 仓库已变化，请重新核对评论。")
+      }
     }
     guard comments.allSatisfy({ $0.editingText == nil && !$0.body.isEmpty }) else {
       throw AgentFailure(message: "请先保存或取消正在编辑的审查评论。")

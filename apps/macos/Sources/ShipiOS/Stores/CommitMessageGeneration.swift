@@ -3,7 +3,7 @@ import Foundation
 extension DeveloperWorkspace {
   func generateCommitMessage(config: ModelConfiguration, key: String?, instructions: String,
     includeUnstaged: Bool = false) {
-    guard let root, canCommit, !gitBusy, !reviewScope.isHistorical, !generatingCommitMessage else { return }
+    guard let root = gitRoot, canCommit, !gitBusy, !reviewScope.isHistorical, !generatingCommitMessage else { return }
     let token = UUID(), originalMessage = commitMessage
     commitGenerationToken = token
     generatingCommitMessage = true
@@ -32,13 +32,13 @@ extension DeveloperWorkspace {
           throw AgentFailure(message: "暂存内容或分支已改变，请重新生成提交说明。")
         }
         try Task.checkCancellation()
-        guard commitGenerationToken == token, self.root == root else { return }
+        guard commitGenerationToken == token, gitRoot == root else { return }
         guard commitMessage == originalMessage else {
           throw AgentFailure(message: "提交说明已手动修改，未替换当前内容。")
         }
         commitMessage = text
       } catch {
-        if !Task.isCancelled, commitGenerationToken == token, self.root == root {
+        if !Task.isCancelled, commitGenerationToken == token, gitRoot == root {
           commitGenerationError = error.localizedDescription
         }
       }
