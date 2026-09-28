@@ -181,6 +181,99 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     }
   }
 
+  @MainActor func testBothProtocolsUseServiceModelWindowAndSwitchBackToCharacterFallback() async throws {
+    for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
+      let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      defer { try? FileManager.default.removeItem(at: root) }
+      let store = try await prepare(protocol: api, root: root)
+      for index in 0..<16 {
+        let file = store.dataRoot.appendingPathComponent("Skills/prefix-\(index)/SKILL.md")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let description = String(repeating: "Long purpose for earlier skill \(index). ", count: 25)
+        try Data("---\nname: Earlier \(index)\ndescription: \(description)\n---\nEarlier instructions.".utf8).write(to: file)
+      }
+      await store.refreshSkillsIfChanged()
+      let base = String(endpoint.dropLast(3))
+      var configuration = store.modelConfiguration
+      for (path, unit, limit) in [("/model-budget/v1", "approximate_tokens", 8_000),
+        ("/v1", "characters", 8_000), ("/small-model-budget/v1", "approximate_tokens", 200)] {
+        configuration.baseURL = base + path
+        try store.saveModelConfiguration(configuration)
+        let prompt = api == .chatCompletions ? "implicit-skill-read-last" : "codex-skill-discovery"
+        let started = await store.startChat(prompt)
+        let id = try XCTUnwrap(started, store.error ?? "No chat started")
+        await store.modelTask(runID: id)?.value
+        let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+        XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+        XCTAssertEqual(run.result?["skill_catalog_budget"]["unit"], .string(unit))
+        XCTAssertEqual(run.result?["skill_catalog_budget"]["limit"], .number(Double(limit)))
+        let body = try JSONDecoder().decode(JSONValue.self, from: Data(try XCTUnwrap(run.result?["response"].text).utf8))
+        let currentInstructions: String
+        if api == .chatCompletions {
+          currentInstructions = body["messages"].items.first?["content"].text ?? ""
+        } else {
+          currentInstructions = body["input"].items.reversed().compactMap { item -> String? in
+            guard ["user", "developer"].contains(item["role"].text ?? "") else { return nil }
+            let text = item["content"].items.compactMap { $0["text"].text }.joined(separator: "\n")
+            return text.contains("以下是当前任务可隐式调用的技能") ? text : nil
+          }.first ?? ""
+        }
+        let rows = currentInstructions.split(separator: "\n").filter { $0.hasPrefix("{\"description\":") }
+        XCTAssertEqual(run.result?["skill_catalog_budget"]["included"], .number(Double(rows.count)))
+        let budget: SkillMetadataBudget = unit == "characters" ? .characters(limit) : .tokens(limit)
+        XCTAssertLessThanOrEqual(rows.reduce(0) { $0 + budget.cost(String($1) + "\n") }, limit)
+        if path == "/model-budget/v1" {
+          XCTAssertEqual(run.result?["skill_catalog_budget"]["included"], .number(17))
+          XCTAssertEqual(run.result?["skill_catalog_budget"]["omitted"], .number(0))
+          XCTAssertFalse(run.responseItems?.contains {
+            if case .notice(_, .warning, let message) = $0 { return message.contains("上下文预算") }
+            return false
+          } == true)
+        } else if path == "/v1" {
+          XCTAssertEqual(run.result?["skill_catalog_budget"]["included"], .number(17))
+          XCTAssertTrue(run.result?["response"].text?.contains("TRANSPORT-FULL-INSTRUCTIONS") == true)
+        } else {
+          XCTAssertNotEqual(run.result?["skill_catalog_budget"]["omitted"], .number(0))
+          XCTAssertTrue(run.responseItems?.contains {
+            if case .notice(_, .warning, let message) = $0 { return message.contains("未提供给模型") }
+            return false
+          } == true)
+        }
+      }
+      await store.shutdown()
+    }
+  }
+
+  @MainActor func testModelMetadataTimeoutFallsBackAndCancelStopsLookupBeforeSending() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await prepare(protocol: .chatCompletions, root: root)
+    var configuration = store.modelConfiguration
+    configuration.baseURL = String(endpoint.dropLast(3)) + "/slow-models/v1"
+    try store.saveModelConfiguration(configuration)
+    let began = Date()
+    let started = await store.startChat("implicit-skill-read")
+    let id = try XCTUnwrap(started, store.error ?? "No chat started")
+    await store.modelTask(runID: id)?.value
+    XCTAssertLessThan(Date().timeIntervalSince(began), 5)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == id }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == id }?.result?["skill_catalog_budget"]["unit"], .string("characters"))
+    store.invalidateSkillModelMetadata(account: configuration.credentialAccount)
+    let cancelStarted = await store.startChat("implicit-skill-read")
+    let cancelID = try XCTUnwrap(cancelStarted)
+    try await Task.sleep(for: .milliseconds(100))
+    let cancelledAt = Date()
+    let owner = try XCTUnwrap(store.library.task(containing: cancelID))
+    let job = store.modelTask(runID: cancelID)
+    await store.cancel(taskID: owner.id)
+    await job?.value
+    XCTAssertLessThan(Date().timeIntervalSince(cancelledAt), 1)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == cancelID }?.status, "cancelled")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == cancelID }?.result?["response"].text, "")
+    XCTAssertNil(store.skillModelCatalogs[ModelCatalogSource(configuration)])
+    await store.shutdown()
+  }
+
   @MainActor func testBothProtocolsReadCatalogTailAfterDescriptionCompressionAndPersistBudgetWarning() async throws {
     for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
       let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

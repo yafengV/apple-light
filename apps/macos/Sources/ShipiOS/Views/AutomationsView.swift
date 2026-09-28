@@ -419,7 +419,11 @@ private struct AutomationEditorView: View {
             || ruleError != nil)
       }
     }.padding(24).frame(width: 630, height: 680)
-      .task { await modelCatalog.load(config: store.modelConfiguration) }
+      .task(id: "\(store.modelConfiguration.credentialAccount)|\(store.modelConfiguration.apiProtocol.rawValue)") {
+        let config = store.modelConfiguration
+        await modelCatalog.load(config: config)
+        store.captureSkillModelMetadata(modelCatalog, config: config)
+      }
       .task { await store.refreshEnvironmentCatalog() }
   }
 }

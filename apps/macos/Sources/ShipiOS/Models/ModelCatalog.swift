@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CoreFoundation
 
 struct ModelCatalogEntry: Equatable {
   let id: String
@@ -9,11 +10,12 @@ struct ModelCatalogEntry: Equatable {
   let defaultReasoningEffort: String?
   let priority: Int?
   let showInPicker: Bool?
+  let contextWindow: Int?
 
   init(id: String, supportedReasoningEfforts: Set<String>? = nil,
     displayName: String? = nil, description: String? = nil,
     defaultReasoningEffort: String? = nil, priority: Int? = nil,
-    showInPicker: Bool? = nil) {
+    showInPicker: Bool? = nil, contextWindow: Int? = nil) {
     self.id = id
     self.supportedReasoningEfforts = supportedReasoningEfforts
     self.displayName = displayName
@@ -21,6 +23,7 @@ struct ModelCatalogEntry: Equatable {
     self.defaultReasoningEffort = defaultReasoningEffort
     self.priority = priority
     self.showInPicker = showInPicker
+    self.contextWindow = contextWindow
   }
 }
 
@@ -31,6 +34,7 @@ final class ModelCatalog {
   private(set) var details: [String: ModelCatalogEntry] = [:]
   private(set) var loading = false
   private(set) var error: String?
+  private(set) var source: ModelCatalogSource?
   @ObservationIgnored private var generation = UUID()
 
   nonisolated static func decode(_ data: Data) throws -> [String] {
@@ -71,7 +75,10 @@ final class ModelCatalog {
             ?? previous?.defaultReasoningEffort,
           priority: row["priority"] as? Int ?? previous?.priority,
           showInPicker: (row["show_in_picker"] ?? row["showInPicker"]) as? Bool
-            ?? (visibility.map { $0 == "list" }) ?? previous?.showInPicker)
+            ?? (visibility.map { $0 == "list" }) ?? previous?.showInPicker,
+          contextWindow: positiveInteger(row["context_window"] ?? row["contextWindow"])
+            ?? positiveInteger(row["max_context_window"] ?? row["maxContextWindow"])
+            ?? previous?.contextWindow)
       }
       return entries.values.sorted {
         if $0.priority != $1.priority { return ($0.priority ?? Int.min) > ($1.priority ?? Int.min) }
@@ -80,6 +87,12 @@ final class ModelCatalog {
     } catch {
       throw AgentFailure(message: "服务返回的模型列表格式无效。仍可手动填写模型 ID。")
     }
+  }
+
+  nonisolated private static func positiveInteger(_ value: Any?) -> Int? {
+    guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+      let integer = Int(exactly: number.doubleValue), integer > 0 else { return nil }
+    return integer
   }
 
   func load(
@@ -94,12 +107,14 @@ final class ModelCatalog {
     models = []
     supportedReasoningEfforts = [:]
     details = [:]
+    source = nil
     error = nil
     loading = true
     defer { if generation == token { loading = false } }
     do {
       let result = try await fetch(config)
       guard !Task.isCancelled, generation == token else { return }
+      source = ModelCatalogSource(config)
       models = result.filter { $0.showInPicker != false }.map(\.id)
       details = Dictionary(result.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
       supportedReasoningEfforts = result.reduce(into: [:]) { values, entry in

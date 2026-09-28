@@ -124,14 +124,16 @@ struct ModelAPIClient {
     try await modelDetails(config: config, key: key).map(\.id)
   }
 
-  func modelDetails(config: ModelConfiguration, key: String?) async throws -> [ModelCatalogEntry] {
+  func modelDetails(config: ModelConfiguration, key: String?, timeout: TimeInterval = 20) async throws -> [ModelCatalogEntry] {
     var request = URLRequest(url: try config.endpoint("models"))
-    request.timeoutInterval = 20
+    request.timeoutInterval = timeout
     if let key, !key.isEmpty {
       request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
     }
+    let transportConfiguration = URLSessionConfiguration.ephemeral
+    transportConfiguration.timeoutIntervalForResource = timeout
     let session = URLSession(
-      configuration: .ephemeral, delegate: ModelTransportDelegate(), delegateQueue: nil)
+      configuration: transportConfiguration, delegate: ModelTransportDelegate(), delegateQueue: nil)
     defer { session.invalidateAndCancel() }
     let (bytes, response) = try await session.bytes(for: request)
     guard (response as? HTTPURLResponse)?.statusCode == 200 else {

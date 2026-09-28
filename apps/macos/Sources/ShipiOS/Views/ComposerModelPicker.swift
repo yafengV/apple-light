@@ -169,8 +169,10 @@ struct ComposerModelPicker: View {
       }
     }
     .padding(16).frame(width: 340).appFont(.callout)
-    .task(id: "\(store.modelConfiguration.credentialAccount)|\(refresh)") {
-      await catalog.load(config: store.modelConfiguration)
+    .task(id: "\(store.modelConfiguration.credentialAccount)|\(store.modelConfiguration.apiProtocol.rawValue)|\(refresh)") {
+      let config = store.modelConfiguration
+      await catalog.load(config: config)
+      store.captureSkillModelMetadata(catalog, config: config)
     }
     .task {
       highlighted = choices.first

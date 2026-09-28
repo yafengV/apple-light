@@ -137,9 +137,10 @@ extension WorkspaceStore {
       let pluginContext = try PluginStorage.promptContext(
         prompt: prompt, preferences: activePluginPreferences, root: dataRoot,
         repositoryRoot: skillProject)
-      let skillDiscovery = try PluginStorage.discoveryContext(
-        preferences: activePluginPreferences, root: dataRoot, repositoryRoot: skillProject,
-        readTool: !usesCodex)
+      let implicitSkills = try PluginStorage.implicitSkills(
+        preferences: activePluginPreferences, root: dataRoot, repositoryRoot: skillProject)
+      let skillDiscovery = SkillDiscoveryContext.make(skills: implicitSkills,
+        readTool: !usesCodex, budget: .characters(8_000))
       let runID = UUID().uuidString
       let projectlessOwner = taskID ?? runID
       let projectlessDirectory = effectiveProject.isEmpty
@@ -157,11 +158,12 @@ extension WorkspaceStore {
       let workspaceInstructions = projectlessDirectory.map {
         "此任务没有项目目录。需要创建草稿、生成资源或引用输出文件时，只能使用此任务的独立文件夹：\($0.path)。回答中的相对文件链接也应以该文件夹为根目录。"
       } ?? ""
-      let instructions = [
+      let instructionPrefix = [
         systemInstructions, modeInstructions, review == nil ? "" : ModelCodeReviewContext.instructions,
         isSideChat ? "这是临时只读侧聊。只回答当前问题，不修改文件或运行有副作用的操作。主会话正在独立继续。" : "",
-        pluginContext.instructions, skillDiscovery.instructions, workspaceInstructions,
+        pluginContext.instructions,
       ]
+      let instructions = (instructionPrefix + [skillDiscovery.instructions, workspaceInstructions])
         .filter { !$0.isEmpty }.joined(separator: "\n\n")
       var messages = [ChatMessage(role: "system", content: instructions)]
       messages.append(contentsOf: library.chatContext(taskID: taskID))
@@ -266,17 +268,29 @@ extension WorkspaceStore {
       let requestTask = Task { [weak self] in
         guard let self else { return }
         do {
-          if let warning = skillDiscovery.warningMessage {
+          var activeDiscovery = skillDiscovery
+          if !implicitSkills.isEmpty {
+            let budget = try await skillMetadataBudget(config: config, key: key)
+            activeDiscovery = SkillDiscoveryContext.make(skills: implicitSkills, readTool: !usesCodex, budget: budget)
+            try setChatResultField("skill_catalog_budget", value: .object([
+              "unit": .string(budget.unit), "limit": .number(Double(budget.limit)),
+              "used": .number(Double(activeDiscovery.metadataCost)),
+              "included": .number(Double(activeDiscovery.skills.count)),
+              "omitted": .number(Double(activeDiscovery.omittedCount)),
+            ]), runID: run.id)
+          }
+          if let warning = activeDiscovery.warningMessage {
             recordCodexNotice(runID: run.id, event: .object(["type": .string("warning"),
               "message": .string(warning)]))
           }
           try await prepareSkillDependencies(pluginContext.skills, runID: run.id, connect: !usesCodex)
           try Task.checkCancellation()
           var effectiveMessages = messages
+          var effectiveInstructions = (instructionPrefix + [activeDiscovery.instructions, workspaceInstructions])
+            .filter { !$0.isEmpty }.joined(separator: "\n\n")
           let dependencies = skillDependencyInstructions(pluginContext.skills, usesCodex: usesCodex)
-          if !dependencies.isEmpty {
-            effectiveMessages[0] = ChatMessage(role: "system", content: instructions + "\n\n" + dependencies)
-          }
+          if !dependencies.isEmpty { effectiveInstructions += "\n\n" + dependencies }
+          effectiveMessages[0] = ChatMessage(role: "system", content: effectiveInstructions)
           let tools = usesCodex || mode == .plan || review != nil || isSideChat ? [] : try availableMCPTools()
           let usage: ModelTokenUsage?
           if usesCodex {
@@ -289,7 +303,7 @@ extension WorkspaceStore {
               compact: compact, sideChat: isSideChat, unattended: automationID != nil)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
-              messages: effectiveMessages, bindings: tools, skills: skillDiscovery.skills)
+              messages: effectiveMessages, bindings: tools, skills: activeDiscovery.skills)
           }
           let continueGoal = finishChat(run.id, status: "succeeded", usage: usage)
           removeModelTask(runID: run.id)

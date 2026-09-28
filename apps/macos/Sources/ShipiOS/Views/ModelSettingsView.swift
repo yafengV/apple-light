@@ -71,6 +71,7 @@ struct ModelSettingsView: View {
       }
       if !key.isEmpty {
         try ModelKeychain.save(key, account: draft.credentialAccount)
+        store.invalidateSkillModelMetadata(account: draft.credentialAccount)
         key = ""
       }
       try store.saveModelConfiguration(draft)

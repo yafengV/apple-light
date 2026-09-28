@@ -23,12 +23,14 @@ struct ModelConfiguration: Codable, Equatable {
   var includeUsage = true
   /// The configured Responses endpoint accepts OpenAI hosted web_search tools.
   var supportsHostedWebSearch = false
+  /// Independent advanced override for model-visible skill metadata, capped at 10,000 tokens.
+  var skillMetadataMaxTokens: Int? = nil
   /// Retained only for migration from model.json to the independent AGENTS.md.
   var instructions = Personalization.baseInstructions
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case baseURL, model, reasoning, apiProtocol, includeUsage, supportsHostedWebSearch, instructions
+    case baseURL, model, reasoning, apiProtocol, includeUsage, supportsHostedWebSearch, skillMetadataMaxTokens, instructions
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -39,6 +41,7 @@ struct ModelConfiguration: Codable, Equatable {
       ?? .chatCompletions
     includeUsage = try c.decodeIfPresent(Bool.self, forKey: .includeUsage) ?? false
     supportsHostedWebSearch = try c.decodeIfPresent(Bool.self, forKey: .supportsHostedWebSearch) ?? false
+    skillMetadataMaxTokens = try c.decodeIfPresent(Int.self, forKey: .skillMetadataMaxTokens)
     instructions = try c.decodeIfPresent(String.self, forKey: .instructions)
       ?? Personalization.baseInstructions
   }
@@ -57,6 +60,9 @@ struct ModelConfiguration: Codable, Equatable {
   }
   func validateEndpoint() throws {
     _ = try endpoint(apiProtocol == .codexResponses ? "responses" : "chat/completions")
+    if let skillMetadataMaxTokens, skillMetadataMaxTokens <= 0 {
+      throw AgentFailure(message: "技能目录 token 预算必须是正整数。")
+    }
   }
   var credentialAccount: String {
     baseURL.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(

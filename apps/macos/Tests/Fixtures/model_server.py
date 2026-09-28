@@ -13,6 +13,8 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
     def do_GET(self):
+        if self.path.startswith('/slow-models/'):
+            time.sleep(5)
         if self.path == '/redirect/models':
             self.send_response(302)
             self.send_header('Location', '/v1/models')
@@ -20,10 +22,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(json.dumps({'data': [{'id': 'fixture-model'}]}).encode())
+        models = [{'id': 'fixture-model'}]
+        if self.path.startswith('/model-budget/'):
+            models = [{'id': model, 'context_window': 400000} for model in ('fixture', 'gpt-5.4')]
+        if self.path.startswith('/small-model-budget/'):
+            models = [{'id': model, 'context_window': 10000} for model in ('fixture', 'gpt-5.4')]
+        try:
+            self.wfile.write(json.dumps({'data': models}).encode())
+        except (BrokenPipeError, ConnectionResetError):
+            pass
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        if self.path in ('/v1/responses', '/alt/v1/responses'):
+        if self.path in ('/v1/responses', '/alt/v1/responses', '/model-budget/v1/responses',
+                         '/small-model-budget/v1/responses', '/slow-models/v1/responses'):
             request_text = json.dumps(body)
             if 'codex-terminal-error' in request_text:
                 self.send_response(400)

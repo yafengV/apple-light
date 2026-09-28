@@ -130,6 +130,8 @@ final class WorkspaceStore {
   var reviewModeError: String?
   var reviewModeProject: String?
   var modelConfiguration = ModelConfiguration()
+  @ObservationIgnored var skillModelCatalogs: [ModelCatalogSource: [String: ModelCatalogEntry]] = [:]
+  @ObservationIgnored var skillModelCatalogGenerations: [ModelCatalogSource: UUID] = [:]
   var personalization = Personalization()
   var customInstructions = ""
   var personalizationDraft = ""
