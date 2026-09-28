@@ -788,12 +788,13 @@ final class WorkspaceStore {
     }
   }
 
-  func start(_ kind: String, note: String = "", consumeDraft: Bool = false) async {
+  func start(_ kind: String, note: String = "", consumeDraft: Bool = false,
+    pullRequestChecks: PullRequestCheckDraft? = nil) async {
     if selectedTask == nil, !(await applyPrimaryToNewTask()) { return }
     if kind == "chat" {
       await startChat(
         note, consumeDraft: consumeDraft, images: consumeDraft ? draftImages : [],
-        files: consumeDraft ? draftFiles : [], mode: chatMode)
+        files: consumeDraft ? draftFiles : [], mode: chatMode, pullRequestChecks: pullRequestChecks)
       return
     }
     var request: [String: JSONValue] = ["kind": .string(kind)]
@@ -1064,21 +1065,23 @@ final class WorkspaceStore {
       let commentKey = draftKey
       let comments = reviewComments
       let pageComments = browserComments
+      let checkDraft = pullRequestCheckDraft
       let images = draftImages
       let files = draftFiles
       guard (images.isEmpty && files.isEmpty) || chosen == .chat else {
         error = "附件用于模型会话，请切换到模型会话或先移除附件。"
         return
       }
-      guard comments.isEmpty && pageComments.isEmpty || chosen == .chat else {
+      guard comments.isEmpty && pageComments.isEmpty && checkDraft == nil || chosen == .chat else {
         error = "请切换到模型会话发送评论，或先移除评论。"
         return
       }
       let note = try promptWithBrowserComments(
         promptWithReviewComments(originalNote, comments: comments), comments: pageComments)
+      _ = try promptWithPullRequestChecks(note, checks: checkDraft, taskID: selectedTask?.id)
       let commentIDs = Set(comments.map(\.id))
       let pageCommentIDs = Set(pageComments.map(\.id))
-      if selectedActiveRun?.kind == "chat", chosen == .chat, !note.isEmpty || !images.isEmpty || !files.isEmpty {
+      if selectedActiveRun?.kind == "chat", chosen == .chat, !note.isEmpty || !images.isEmpty || !files.isEmpty || checkDraft != nil {
         if selectedActiveRun?.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue,
           chatMode != .standard {
           error = "Codex Responses 的运行中追加消息当前仅支持普通模式。"
@@ -1090,7 +1093,7 @@ final class WorkspaceStore {
         }
         let behavior = followUpBehavior
         let message = QueuedMessage(
-          taskID: task.id, text: note, images: images, files: files, mode: chatMode)
+          taskID: task.id, text: note, images: images, files: files, mode: chatMode, pullRequestChecks: checkDraft)
         var candidate = library
         if behavior == .steer,
           let first = candidate.queuedMessages.firstIndex(where: { $0.taskID == task.id })
@@ -1101,6 +1104,7 @@ final class WorkspaceStore {
         }
         candidate.reviewComments[commentKey]?.removeAll { commentIDs.contains($0.id) }
         candidate.browserComments[commentKey]?.removeAll { pageCommentIDs.contains($0.id) }
+        if candidate.pullRequestCheckDrafts[commentKey] == checkDraft { candidate.pullRequestCheckDrafts[commentKey] = nil }
         candidate.drafts[commentKey] = ""
         candidate.draftImages[commentKey] = nil
         candidate.draftFiles[commentKey] = nil
@@ -1134,7 +1138,7 @@ final class WorkspaceStore {
         return
       }
       let chatCount = library.chatRuns.count
-      await start(chosen.rawValue, note: note, consumeDraft: true)
+      await start(chosen.rawValue, note: note, consumeDraft: true, pullRequestChecks: checkDraft)
       if chosen == .chat, library.chatRuns.count > chatCount {
         moveWorkspaceTabs(from: commentKey, to: draftKey)
         chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active

@@ -43,7 +43,8 @@ extension WorkspaceStore {
           hasAttachmentsOrComments: !taskWindowImages(taskID).isEmpty
             || !taskWindowFiles(taskID).isEmpty
             || !reviewComments(taskID: taskID).isEmpty
-            || !browserComments(taskID: taskID).isEmpty,
+            || !browserComments(taskID: taskID).isEmpty
+            || library.pullRequestCheckDrafts[taskID] != nil,
           isSideChat: task.isSideChat)
         setTaskWindowDraft(prompt, taskID: taskID)
         mode = .standard
@@ -62,17 +63,19 @@ extension WorkspaceStore {
     }
     let comments = reviewComments(taskID: taskID)
     let pageComments = browserComments(taskID: taskID)
+    let checkDraft = library.pullRequestCheckDrafts[taskID]
     let prompt: String
     do {
       prompt = try promptWithBrowserComments(
         promptWithReviewComments(
           taskWindowDraft(taskID), comments: comments, project: task.project, taskID: taskID),
         comments: pageComments)
+      _ = try promptWithPullRequestChecks(prompt, checks: checkDraft, taskID: taskID)
     } catch {
       self.error = error.localizedDescription
       return
     }
-    guard !prompt.isEmpty || !taskWindowImages(taskID).isEmpty || !taskWindowFiles(taskID).isEmpty else {
+    guard !prompt.isEmpty || !taskWindowImages(taskID).isEmpty || !taskWindowFiles(taskID).isEmpty || checkDraft != nil else {
       return
     }
     if let active = activeChatRun(taskID: taskID) {
@@ -82,7 +85,7 @@ extension WorkspaceStore {
         return
       }
       let message = QueuedMessage(taskID: taskID, text: prompt,
-        images: taskWindowImages(taskID), files: taskWindowFiles(taskID), mode: mode)
+        images: taskWindowImages(taskID), files: taskWindowFiles(taskID), mode: mode, pullRequestChecks: checkDraft)
       var candidate = library
       if followUpBehavior == .steer,
         let first = candidate.queuedMessages.firstIndex(where: { $0.taskID == taskID }) {
@@ -97,6 +100,7 @@ extension WorkspaceStore {
       let pageCommentIDs = Set(pageComments.map(\.id))
       candidate.reviewComments[taskID]?.removeAll { commentIDs.contains($0.id) }
       candidate.browserComments[taskID]?.removeAll { pageCommentIDs.contains($0.id) }
+      if candidate.pullRequestCheckDrafts[taskID] == checkDraft { candidate.pullRequestCheckDrafts[taskID] = nil }
       do {
         try commitLibrary(candidate)
         if followUpBehavior == .steer { await steerActiveChat(with: message) }
@@ -106,7 +110,7 @@ extension WorkspaceStore {
     let previousRuns = Set(task.runIDs)
     await startChat(
       prompt, taskID: taskID, consumeDraft: true,
-      images: taskWindowImages(taskID), files: taskWindowFiles(taskID), mode: mode)
+      images: taskWindowImages(taskID), files: taskWindowFiles(taskID), mode: mode, pullRequestChecks: checkDraft)
     if let updated = library.tasks.first(where: { $0.id == taskID }),
       updated.runIDs.contains(where: { !previousRuns.contains($0) })
     {

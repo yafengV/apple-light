@@ -27,6 +27,7 @@ struct ComposerView: View {
       ComposerQueueView(store: store)
       ComposerReviewComments(store: store)
       ComposerBrowserComments(store: store)
+      PullRequestCheckComposerAttachments(store: store, taskID: store.selectedTask?.id)
       if let tip = store.educationalTip(taskID: store.selectedTask?.id) {
         ComposerEducationalTipView(
           tip: tip,
@@ -406,7 +407,7 @@ struct ComposerView: View {
       if store.action == .chat {
         DictationButton(store: store, target: store.draftKey, enabled: store.destination == .workspace)
       }
-      if store.selectedActiveRun?.kind == "chat", store.canSend, !store.draft.isEmpty || !store.draftImages.isEmpty || !store.draftFiles.isEmpty {
+      if store.selectedActiveRun?.kind == "chat", store.canSend, !store.draft.isEmpty || !store.draftImages.isEmpty || !store.draftFiles.isEmpty || store.pullRequestCheckDraft != nil {
         Button(store.followUpBehavior.composerLabel) { Task { await store.sendDraft() } }
           .buttonStyle(.bordered).controlSize(.small).help(store.followUpBehavior.explanation)
       }

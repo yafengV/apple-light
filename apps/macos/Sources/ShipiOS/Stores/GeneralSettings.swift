@@ -130,6 +130,7 @@ extension WorkspaceStore {
       candidate.draftFiles[taskID] = nil
       candidate.reviewComments[taskID] = nil
       candidate.browserComments[taskID] = nil
+      candidate.pullRequestCheckDrafts[taskID] = nil
       candidate.goalSessions[taskID] = nil
       candidate.projectlessTaskDirectories[taskID] = nil
       try commitLibrary(candidate)

@@ -115,7 +115,7 @@ struct TaskWindowView: View {
     }
     return (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
       && (!store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
+        || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty || store.library.pullRequestCheckDrafts[taskID] != nil)
   }
   private var activeFindMatch: ConversationMatch? {
     guard showingFind, findMatches.indices.contains(findIndex) else { return nil }
@@ -1121,7 +1121,7 @@ struct TaskWindowView: View {
         TaskPullRequestTabView(store: store, tab: tab, presentations: tabs.pullRequestPresentations,
           openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: taskID,
             openInApp: { tabs.openBrowser($0, presentation: $1) }) } },
-          close: { tabs.close(tab.id) })
+          close: { tabs.close(tab.id) }, focusComposer: { tabs.revealChat() })
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,
@@ -1259,6 +1259,7 @@ struct TaskWindowView: View {
     VStack(spacing: 8) {
       GoalStatusCard(store: store, taskID: taskID) { showingGoalEditor = true }
       TaskWindowBrowserComments(store: store, taskID: taskID)
+      PullRequestCheckComposerAttachments(store: store, taskID: taskID)
       if let tip = store.educationalTip(taskID: taskID) {
         ComposerEducationalTipView(
           tip: tip,

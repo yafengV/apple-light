@@ -39,7 +39,7 @@ struct WorkspaceTabContentView: View {
     case .pullRequest:
       TaskPullRequestTabView(store: store, tab: tab, presentations: store.pullRequestTabPresentations,
         openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: tab.owner) } },
-        close: { store.closeWorkspaceTab(tab.id) })
+        close: { store.closeWorkspaceTab(tab.id) }, focusComposer: { store.activateChatTab() })
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)

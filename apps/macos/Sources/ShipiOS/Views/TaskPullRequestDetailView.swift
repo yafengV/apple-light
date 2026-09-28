@@ -10,12 +10,16 @@ struct TaskPullRequestDetailView: View {
   let onRefresh: (GitHubPullRequest) -> Void
   let back: () -> Void
   let close: () -> Void
+  var focusComposer: (() -> Void)? = nil
   var compact = true
   var presentations: PullRequestTabPresentations? = nil
   var tabID: String = ""
 
   @State private var state = GitHubPRDetailState()
   @State private var checks = GitHubPRChecksState()
+  @State private var fixBranch: String?
+  @State private var fixing = false
+  @State private var fixError: String?
   private var details: GitHubPRDetails? { state.snapshot?.details }
   private var valid: Bool {
     !store.restoringLibrary && !store.shuttingDown
@@ -28,7 +32,8 @@ struct TaskPullRequestDetailView: View {
 
   private var checksRequest: GitHubPRChecksRequest? {
     guard valid, let head = state.snapshot?.headRevision else { return nil }
-    return .init(taskID: taskID, root: root, pullRequest: request, headRevision: head)
+    let current = details?.recorded(updating: request, at: request.checkedAt ?? .distantPast) ?? request
+    return .init(taskID: taskID, root: root, pullRequest: current, headRevision: head)
   }
 
   var body: some View {
@@ -75,7 +80,10 @@ struct TaskPullRequestDetailView: View {
           if state.snapshot != nil {
             Divider()
             TaskPullRequestChecksView(state: checks, openLink: openExternal,
-              retry: { Task { await retryChecks() } })
+              retry: { Task { await retryChecks() } },
+              attached: attachedKeys, fixDisabledReason: fixReason, fixing: fixing,
+              fix: attachChecks, remove: removeChecks)
+            if let fixError { Text(fixError).foregroundStyle(.orange).appFont(.caption).textSelection(.enabled) }
           }
           if let snapshot = state.snapshot, snapshot.showsActions {
             TaskPullRequestActionsView(state: state, request: request, writable: writable,
@@ -154,7 +162,39 @@ struct TaskPullRequestDetailView: View {
 
   private func loadChecks() async {
     let request = checksRequest
+    let branch = try? await WorkspaceStore.pullRequestCheckBranch(at: root)
+    guard valid, checksRequest == request, !Task.isCancelled else { return }
+    fixBranch = branch
     await checks.load(request, valid: { valid && checksRequest == request })
+  }
+
+  private var attachedKeys: Set<String> {
+    guard let request = checksRequest, let draft = store.library.pullRequestCheckDrafts[taskID],
+      draft.matches(request) else { return [] }
+    return draft.keys
+  }
+  private var fixReason: String? {
+    guard let request = checksRequest else { return "等待 PR 状态。" }
+    return store.pullRequestCheckFixReason(request, state: checks.snapshot?.pullRequestState, branch: fixBranch)
+  }
+  private func attachChecks(_ selected: [GitHubPRCheck]) {
+    guard !fixing, let request = checksRequest, let snapshot = checks.snapshot else { return }
+    fixing = true; fixError = nil
+    Task {
+      defer { fixing = false }
+      do {
+        if try await store.attachPullRequestChecks(selected, request: request, snapshot: snapshot,
+          valid: { valid && checksRequest == request && checks.snapshot == snapshot }) {
+          focusComposer?()
+        }
+      } catch {
+        if valid, checksRequest == request { fixError = error.localizedDescription }
+      }
+    }
+  }
+  private func removeChecks(_ selected: [GitHubPRCheck]) {
+    guard let request = checksRequest else { return }
+    _ = store.removePullRequestChecks(Set(selected.map(\.attachmentKey)), taskID: taskID, request: request)
   }
 
   private func consumeMergeRequest() {

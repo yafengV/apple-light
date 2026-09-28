@@ -5,6 +5,7 @@ struct DetachedPullRequestView: View {
   @Bindable var store: WorkspaceStore
   let tab: WorkspaceContentTab
   let close: () -> Void
+  @Environment(\.openWindow) private var openWindow
   @FocusedValue(\.searchDialogActive) private var searchDialogActive
   @State private var session = DetachedReviewSession()
   private var root: URL? { store.workspaceTabProject(owner: tab.owner) }
@@ -15,7 +16,12 @@ struct DetachedPullRequestView: View {
 
   var body: some View {
     TaskPullRequestTabView(store: store, tab: tab, presentations: store.pullRequestTabPresentations,
-      openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: tab.owner) } }, close: close)
+      openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: tab.owner) } }, close: close,
+      focusComposer: {
+        if !store.focusPullRequestCheckTaskWindow(tab.owner) {
+          openWindow(value: TaskWindowRoute.newWindow(taskID: tab.owner, dataRoot: store.dataRoot))
+        }
+      })
       .gitWorkflowPresentation(store: store, workspace: session.workspace, taskID: tab.owner,
         currentTaskID: { store.library.tasks.contains(where: { $0.id == tab.owner }) ? tab.owner : nil },
         keyboardAllowed: { searchDialogActive != true }, selectedPullRequest: { store.pullRequestContent(tab) },

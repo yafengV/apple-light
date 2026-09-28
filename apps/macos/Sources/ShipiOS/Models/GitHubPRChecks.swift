@@ -38,14 +38,17 @@ enum GitHubPRCheckStatus: String, Codable, CaseIterable, Sendable {
   var order: Int { Self.allCases.firstIndex(of: self)! }
 }
 
-struct GitHubPRCheck: Equatable, Identifiable, Sendable {
+struct GitHubPRCheck: Codable, Equatable, Identifiable, Sendable {
   let id: String
   let name: String
   let status: GitHubPRCheckStatus
   let link: String?
   let description: String?
+  var workflow: String? = nil
 
   var validatedLink: URL? { Self.webLink(link) }
+  // Attachment identity differs from API pagination identity in the reference UI.
+  var attachmentKey: String { validatedLink?.absoluteString ?? "\(workflow ?? ""):\(name)" }
 
   static func webLink(_ link: String?) -> URL? {
     guard let link, let components = URLComponents(string: link),

@@ -63,13 +63,14 @@ extension WorkspaceStore {
     images: [ImageAttachment] = [], files: [FileAttachment] = [],
     queuedMessageID: UUID? = nil, mode: ChatMode = .standard,
     review: ModelCodeReviewContext? = nil, compact: Bool = false,
-    automationID: UUID? = nil
+    automationID: UUID? = nil, pullRequestChecks: PullRequestCheckDraft? = nil
   )
     async -> String?
   {
     if explicitTaskID == nil, selectedTask == nil,
       !(await applyPrimaryToNewTask()) { return nil }
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
+    let submittedCheckPrompt = consumeDraft ? library.drafts[requestedTaskID ?? draftKey] : nil
     guard canStartChat(taskID: requestedTaskID) else { return nil }
     if requestedTaskID == nil,
       library.managedWorktrees.contains(where: { $0.path == currentProjectKey }) {
@@ -91,7 +92,7 @@ extension WorkspaceStore {
     if prompt.isEmpty, let goalDefinition {
       prompt = "开始执行目标：\(goalDefinition.objective)"
     }
-    guard !prompt.isEmpty || !images.isEmpty || !files.isEmpty else { return nil }
+    guard !prompt.isEmpty || !images.isEmpty || !files.isEmpty || pullRequestChecks != nil else { return nil }
     busy = true
     defer { busy = false }
     do {
@@ -133,6 +134,11 @@ extension WorkspaceStore {
       let branch = taskProject == nil || taskProject == currentProjectKey
         ? await branchForTaskHistory() : nil
       guard !shuttingDown, !Task.isCancelled else { return nil }
+      if let queuedMessageID {
+        guard let pending = library.queuedMessages.first(where: { $0.id == queuedMessageID }),
+          pending.pullRequestChecks == pullRequestChecks else { return nil }
+      }
+      prompt = try promptWithPullRequestChecks(prompt, checks: pullRequestChecks, taskID: taskID)
       let effectiveProject = taskProject ?? currentProjectKey
       let savedFolders = library.additionalFolders(for: effectiveProject)
       let attachedFolders = savedFolders.isEmpty ? []
@@ -199,6 +205,9 @@ extension WorkspaceStore {
           request["review_selection"] = .string(selection)
         }
       }
+      if let pullRequestChecks {
+        request["pull_request_checks"] = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(pullRequestChecks))
+      }
       if compact { request["conversation_kind"] = .string("compact") }
       if isSideChat { request["conversation_kind"] = .string("side") }
       if let automationID { request["automation_id"] = .string(automationID.uuidString) }
@@ -236,9 +245,18 @@ extension WorkspaceStore {
       }
       if consumeDraft {
         let submittedDraftKey = taskID ?? draftKey
-        candidate.draftImages[submittedDraftKey] = nil
-        candidate.draftFiles[submittedDraftKey] = nil
-        candidate.drafts[submittedDraftKey] = ""
+        let newerCheckDraft = pullRequestChecks != nil
+          && candidate.pullRequestCheckDrafts[submittedDraftKey] != pullRequestChecks
+        if !newerCheckDraft {
+          candidate.draftImages[submittedDraftKey] = nil
+          candidate.draftFiles[submittedDraftKey] = nil
+          if pullRequestChecks == nil || candidate.drafts[submittedDraftKey] == submittedCheckPrompt {
+            candidate.drafts[submittedDraftKey] = ""
+          }
+        }
+        if let pullRequestChecks, candidate.pullRequestCheckDrafts[submittedDraftKey] == pullRequestChecks {
+          candidate.pullRequestCheckDrafts[submittedDraftKey] = nil
+        }
       }
       if let queuedMessageID { candidate.queuedMessages.removeAll { $0.id == queuedMessageID } }
       candidate.runImages[run.id] = images
@@ -960,7 +978,7 @@ extension WorkspaceStore {
     let mode = library.goalSessions[message.taskID]?.status == .active ? .goal : message.mode
     await startChat(
       message.text, taskID: message.taskID, images: message.images, files: message.files,
-      queuedMessageID: message.id, mode: mode)
+      queuedMessageID: message.id, mode: mode, pullRequestChecks: message.pullRequestChecks)
   }
   func steerActiveChat(with message: QueuedMessage) async {
     guard library.queuedMessages.contains(message) else { return }
@@ -977,10 +995,12 @@ extension WorkspaceStore {
         let fileAppendix = message.files.isEmpty ? nil : try FileAttachmentStorage.content(
           ChatMessage(role: "user", content: "", files: message.files), root: dataRoot,
           total: &fileTextBytes)
+        var prepared = message
+        prepared.text = try promptWithPullRequestChecks(message.text, checks: message.pullRequestChecks, taskID: message.taskID)
         let steered = try await codexTransport.steer(taskID: message.taskID,
-          text: message.text, images: message.images, fileAppendix: fileAppendix)
+          text: prepared.text, images: message.images, fileAppendix: fileAppendix)
         codexSteeringMessages.remove(message.id)
-        if steered { try recordCodexSteeredMessage(message, runID: active.id) }
+        if steered { try recordCodexSteeredMessage(prepared, runID: active.id) }
         if activeChatRun(taskID: message.taskID) == nil,
           let next = library.queuedMessages.first(where: { $0.taskID == message.taskID }) {
           await sendQueuedMessage(next)
@@ -1033,7 +1053,7 @@ extension WorkspaceStore {
   func editQueuedMessage(_ message: QueuedMessage) {
     guard !codexSteeringMessages.contains(message.id) else { return }
     guard selectedTask?.id == message.taskID else { return }
-    guard draft.isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !importingImages, !importingFiles else {
+    guard draft.isEmpty, draftImages.isEmpty, draftFiles.isEmpty, pullRequestCheckDraft == nil, !importingImages, !importingFiles else {
       error = "请先发送或清空现有草稿，再编辑队列消息。"
       return
     }
@@ -1042,6 +1062,7 @@ extension WorkspaceStore {
       candidate.draftImages[draftKey] = message.images
       candidate.draftFiles[draftKey] = message.files
       candidate.drafts[draftKey] = message.text
+      candidate.pullRequestCheckDrafts[draftKey] = message.pullRequestChecks
       candidate.queuedMessages.removeAll { $0.id == message.id }
       try commitLibrary(candidate)
       action = .chat
@@ -1069,6 +1090,7 @@ extension WorkspaceStore {
       task.project == project.path, canStartChat(taskID: task.id),
       taskWindowImages(taskID).isEmpty, taskWindowFiles(taskID).isEmpty,
       reviewComments(taskID: taskID).isEmpty, browserComments(taskID: taskID).isEmpty,
+      library.pullRequestCheckDrafts[taskID] == nil,
       library.goalSessions[taskID]?.status != .active,
       !importingImages, !importingFiles,
       modelConfiguration(for: task.id).apiProtocol == .codexResponses else { return false }
@@ -1141,7 +1163,7 @@ extension WorkspaceStore {
           project: currentProjectKey,
           protocol: modelConfiguration(for: selectedTask?.id).apiProtocol,
           hasAttachmentsOrComments: !draftImages.isEmpty || !draftFiles.isEmpty
-            || !reviewComments.isEmpty || !browserComments.isEmpty,
+            || !reviewComments.isEmpty || !browserComments.isEmpty || pullRequestCheckDraft != nil,
           isSideChat: selectedTask?.isSideChat == true)
         if chatMode == .goal { leaveGoalMode() }
         action = .chat

@@ -40,6 +40,9 @@ class Handler(BaseHTTPRequestHandler):
             pass
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        if os.getenv('CHECKS_REQUEST_LOG'):
+            with open(os.environ['CHECKS_REQUEST_LOG'], 'a', encoding='utf-8') as output:
+                output.write(json.dumps({'path': self.path, 'body': body}) + '\n')
         self.trace_phase('post')
         if self.path in ('/v1/responses', '/alt/v1/responses', '/model-budget/v1/responses',
                          '/small-model-budget/v1/responses', '/slow-models/v1/responses'):

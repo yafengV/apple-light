@@ -348,6 +348,7 @@ struct WorkspaceLibrary: Codable {
   var panelSizes: [String: WorkspacePanelSizes] = [:]
   var reviewComments: [String: [ReviewComment]] = [:]
   var taskPullRequests: [String: [GitHubPullRequest]] = [:]
+  var pullRequestCheckDrafts: [String: PullRequestCheckDraft] = [:]
   var browserComments: [String: [BrowserComment]] = [:]
   var preferredEditor = ExternalEditor.system.rawValue
   var appearance: AppearancePreferences?
@@ -391,7 +392,7 @@ struct WorkspaceLibrary: Codable {
   enum CodingKeys: String, CodingKey {
     case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
-      reviewComments, taskPullRequests, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
+      reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
@@ -451,6 +452,7 @@ struct WorkspaceLibrary: Codable {
       try c.decodeIfPresent([String: [ReviewComment]].self, forKey: .reviewComments) ?? [:]
     taskPullRequests =
       try c.decodeIfPresent([String: [GitHubPullRequest]].self, forKey: .taskPullRequests) ?? [:]
+    pullRequestCheckDrafts = try c.decodeIfPresent([String: PullRequestCheckDraft].self, forKey: .pullRequestCheckDrafts) ?? [:]
     browserComments =
       try c.decodeIfPresent([String: [BrowserComment]].self, forKey: .browserComments) ?? [:]
     preferredEditor =
@@ -655,6 +657,7 @@ struct WorkspaceLibrary: Codable {
       draftFiles[id] = nil
       reviewComments[id] = nil
       taskPullRequests[id] = nil
+      pullRequestCheckDrafts[id] = nil
       browserComments[id] = nil
       let sidebarID = SidebarItem.task(id).id
       sidebar.placement[sidebarID] = nil
@@ -775,11 +778,13 @@ struct QueuedMessage: Codable, Identifiable, Equatable {
   var images: [ImageAttachment] = []
   var files: [FileAttachment] = []
   var mode: ChatMode = .standard
-  enum CodingKeys: String, CodingKey { case id, taskID, text, images, files, mode }
+  var pullRequestChecks: PullRequestCheckDraft? = nil
+  enum CodingKeys: String, CodingKey { case id, taskID, text, images, files, mode, pullRequestChecks }
   init(
     taskID: String, text: String, images: [ImageAttachment] = [], files: [FileAttachment] = [],
-    mode: ChatMode = .standard
+    mode: ChatMode = .standard, pullRequestChecks: PullRequestCheckDraft? = nil
   ) {
+    self.pullRequestChecks = pullRequestChecks
     self.taskID = taskID; self.text = text; self.images = images; self.files = files
     self.mode = mode
   }
@@ -791,5 +796,6 @@ struct QueuedMessage: Codable, Identifiable, Equatable {
     images = try c.decodeIfPresent([ImageAttachment].self, forKey: .images) ?? []
     files = try c.decodeIfPresent([FileAttachment].self, forKey: .files) ?? []
     mode = try c.decodeIfPresent(ChatMode.self, forKey: .mode) ?? .standard
+    pullRequestChecks = try c.decodeIfPresent(PullRequestCheckDraft.self, forKey: .pullRequestChecks)
   }
 }
