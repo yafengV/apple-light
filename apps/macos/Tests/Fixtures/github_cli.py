@@ -4,6 +4,8 @@ import json
 import os
 import pathlib
 import sys
+import subprocess
+import urllib.parse
 
 root = pathlib.Path.cwd() / ".git"
 state_path = root / "github-fixture.json"
@@ -49,7 +51,15 @@ elif args[:2] == ["pr", "view"]:
     print(json.dumps(details))
 elif args and args[0] == "api":
     endpoint = next(value for value in args if value.startswith("repos/"))
-    print(state["base"] if endpoint.endswith("/main") else state.get("published", state["head"]))
+    if state.get("remotePath"):
+        branch = urllib.parse.unquote(endpoint.split("/git/ref/heads/", 1)[1])
+        result = subprocess.run(["/usr/bin/git", "--git-dir=" + state["remotePath"],
+                                 "rev-parse", "--verify", "refs/heads/" + branch], capture_output=True, text=True)
+        if result.returncode:
+            sys.exit("Remote branch not found")
+        print(result.stdout.strip())
+    else:
+        print(state["base"] if endpoint.endswith("/main") else state.get("published", state["head"]))
 elif args[:2] == ["pr", "create"]:
     if state.get("createFailure"):
         print("Creation failed", file=sys.stderr)

@@ -7,6 +7,7 @@ struct GitHubPRView: View {
   @Bindable var draft: GitHubPRDraft
   let taskID: String?
   @Environment(\.dismiss) private var dismiss
+  @State private var summaryLoader = GitCommitSummaryLoader()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -35,6 +36,22 @@ struct GitHubPRView: View {
           Text("描述（留空自动生成）").appFont(.caption)
           TextEditor(text: $draft.body).frame(height: 150).border(.secondary.opacity(0.3))
             .accessibilityLabel("PR 描述").disabled(draft.creating)
+          HStack {
+            Toggle("提交并推送本地变更", isOn: $draft.includeLocalChanges)
+              .toggleStyle(.checkbox).disabled(draft.creating)
+            Spacer()
+            if let summary = summaryLoader.summary {
+              Text("+\(summary.additions)").foregroundStyle(.green)
+              Text("−\(summary.deletions)").foregroundStyle(.red)
+            }
+          }.appFont(.caption)
+          if draft.includeLocalChanges, let error = summaryLoader.error {
+            Text(error).appFont(.caption).foregroundStyle(.orange)
+          }
+          if !draft.includeLocalChanges, context.publishedCommit == nil {
+            Text("此分支尚未发布，请勾选提交并推送，或先推送分支。")
+              .appFont(.caption).foregroundStyle(.orange)
+          }
           if let problem = context.creationProblem {
             Text(problem).appFont(.caption).foregroundStyle(.orange)
           }
@@ -51,7 +68,7 @@ struct GitHubPRView: View {
       }
       if draft.creating {
         HStack {
-          ProgressView(draft.generating ? "正在生成 PR 内容…" : "正在创建 PR…").controlSize(.small)
+          ProgressView(draft.phase).controlSize(.small)
           if draft.generating { Button("取消生成") { draft.cancelGeneration() } }
         }
       }
@@ -73,6 +90,7 @@ struct GitHubPRView: View {
     }.padding(24).frame(width: 530)
       .interactiveDismissDisabled(draft.creating)
       .task { await refreshExisting() }
+      .task(id: summaryRequest) { await summaryLoader.load(summaryRequest) }
       .onDisappear { draft.cancelLoading() }
   }
 
@@ -80,12 +98,15 @@ struct GitHubPRView: View {
     draft.canCreate && workspace.isPrimaryReviewRepository
       && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
   }
+  private var summaryRequest: GitCommitSummaryRequest {
+    .init(root: workspace.gitRoot, includeUnstaged: true, revision: workspace.reviewSnapshot)
+  }
   private func refresh() {
     Task { await refreshExisting() }
   }
   private func refreshExisting() async {
     guard workspace.isPrimaryReviewRepository, let root = workspace.gitRoot else { return }
-    await draft.load(at: root)
+    await draft.load(at: root, allowUnpublished: true)
     if let existing = draft.existing, let repository = draft.context?.repository,
       workspace.gitRoot == root {
       if let project = workspace.root {

@@ -21,7 +21,8 @@ struct GitHubPRService: Sendable {
     return result.text
   }
 
-  func inspect(at root: URL, remote selectedRemote: String? = nil) async throws -> GitHubPRContext {
+  func inspect(at root: URL, remote selectedRemote: String? = nil,
+    allowUnpublished: Bool = false) async throws -> GitHubPRContext {
     let choices = try await GitPushService.choices(at: root)
     let remote = selectedRemote ?? choices.preferredRemote
     let destination = remote == choices.preferredRemote ? choices.preferredDestination : choices.branch
@@ -41,20 +42,28 @@ struct GitHubPRService: Sendable {
     }
     let existing = try await existingPR(repository, head: destination, at: root)
     var problem: String?
+    var published: String?
     if existing == nil {
       if destination == base { problem = "请先切换或创建功能分支，再创建 PR。" }
       else if plan.expectedRemoteCommit.isEmpty || plan.expectedRemoteCommit != plan.commit {
-        problem = "请先推送当前分支，再创建 PR。"
+        if !allowUnpublished { problem = "请先推送当前分支，再创建 PR。" }
+        if !plan.expectedRemoteCommit.isEmpty {
+          published = try await remoteCommit(repository, branch: destination, at: root)
+        }
       } else {
-        let published = try await remoteCommit(repository, branch: destination, at: root)
-        if published != plan.commit { problem = "远端分支与当前提交不一致，请先同步并推送分支。" }
+        published = try await remoteCommit(repository, branch: destination, at: root)
+        if published != plan.commit && !allowUnpublished {
+          problem = "远端分支与当前提交不一致，请先同步并推送分支。"
+        }
       }
     }
     return GitHubPRContext(plan: plan, repository: repository, defaultBranch: base,
-      existing: existing, creationProblem: problem)
+      existing: existing, creationProblem: problem, publishedCommit: published,
+      allowsLocalPreparation: allowUnpublished)
   }
 
   func create(_ context: GitHubPRContext, base: String, title: String, body: String, draft: Bool,
+    publishedOnly: Bool = false,
     authorize: GitMutationAuthorization = {}) async throws -> GitHubPullRequest {
     let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !title.isEmpty, title.count <= 256, !title.contains("\n"), !title.contains("\r"), body.utf8.count <= 65_536 else {
@@ -62,12 +71,18 @@ struct GitHubPRService: Sendable {
     }
     let valid = try await LocalWorkspaceService.git(["check-ref-format", "refs/heads/" + base], at: context.plan.root)
     guard valid.status == 0, base != context.head else { throw AgentFailure(message: "请选择有效且不同于源分支的目标分支。") }
-    let fresh = try await inspect(at: context.plan.root, remote: context.plan.remote)
+    let fresh = try await inspect(at: context.plan.root, remote: context.plan.remote,
+      allowUnpublished: publishedOnly)
     guard fresh.plan == context.plan, fresh.repository == context.repository else {
       throw GitHubPRRefreshRequired(message: "分支、提交或远端已改变，请重新检查后再创建 PR。")
     }
     if let existing = fresh.existing { return existing }
     if let problem = fresh.creationProblem { throw AgentFailure(message: problem) }
+    if publishedOnly {
+      guard let published = context.publishedCommit, fresh.publishedCommit == published else {
+        throw GitHubPRRefreshRequired(message: "已发布的源分支已改变，请重新检查。")
+      }
+    }
     _ = try await remoteCommit(context.repository, branch: base, at: context.plan.root)
     try Task.checkCancellation()
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-pr-" + UUID().uuidString)
@@ -143,7 +158,7 @@ struct GitHubPRService: Sendable {
     return nil
   }
 
-  private func remoteCommit(_ repository: GitHubRepository, branch: String, at root: URL) async throws -> String {
+  func remoteCommit(_ repository: GitHubRepository, branch: String, at root: URL) async throws -> String {
     let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
     guard let branchPath = branch.addingPercentEncoding(withAllowedCharacters: safe) else {
       throw AgentFailure(message: "无法编码远端分支名称。")

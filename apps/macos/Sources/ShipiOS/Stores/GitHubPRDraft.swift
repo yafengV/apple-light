@@ -7,6 +7,8 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   var title = ""
   var body = ""
   var base = ""
+  var includeLocalChanges = true
+  private(set) var phase = ""
   private(set) var context: GitHubPRContext?
   private(set) var existing: GitHubPullRequest?
   private(set) var error: String?
@@ -23,13 +25,14 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   var canCreate: Bool {
     context != nil && context?.creationProblem == nil && existing == nil && !loading && !creating && !needsRefresh
       && !base.isEmpty
+      && (context?.allowsLocalPreparation != true || includeLocalChanges || context?.publishedCommit != nil)
   }
   var needsGeneratedContent: Bool {
     title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       || body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
-  func load(at root: URL) async {
+  func load(at root: URL, allowUnpublished: Bool = false) async {
     guard !creating else { return }
     if self.root != root { title = ""; body = ""; base = "" }
     self.root = root
@@ -37,7 +40,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
     context = nil; existing = nil; error = nil; loading = true
     defer { if token == operation { loading = false } }
     do {
-      let value = try await service.inspect(at: root)
+      let value = try await service.inspect(at: root, allowUnpublished: allowUnpublished)
       guard token == operation, !Task.isCancelled else { return }
       context = value; existing = value.existing; needsRefresh = false
       if base.isEmpty { base = value.defaultBranch }
@@ -56,27 +59,52 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   func reportError(_ message: String) { error = message }
 
   @discardableResult func create(draft: Bool, generate: GitHubPRGenerator? = nil,
+    prepareLocalChanges: Bool? = nil, commitMessage: String = "", forceWithLease: Bool = false,
+    onCommitMessage: @escaping @MainActor (String) -> Void = { _ in },
+    onCommitted: @escaping @MainActor () -> Void = {},
+    onPushed: @escaping @MainActor (String) -> Void = { _ in },
     authorize: GitMutationAuthorization = {}) async -> GitHubPullRequest? {
     guard canCreate, let context else { return nil }
     creating = true; error = nil
-    defer { creating = false; generating = false; generationTask = nil }
+    phase = "正在检查分支与变更…"
+    defer { creating = false; generating = false; generationTask = nil; phase = "" }
+    let originalTitle = title, originalBody = body, originalBase = base
+    let originalInclude = includeLocalChanges
     do {
       guard title.count <= 256, !title.contains("\n"), !title.contains("\r"), body.utf8.count <= 65_536 else {
         throw AgentFailure(message: "请填写 256 字符以内的单行标题，描述不能超过 64 KiB。")
       }
-      if needsGeneratedContent {
+      var workflow: GitPullRequestWorkflow?
+      if let prepareLocalChanges {
+        workflow = try await GitPullRequestWorkflow.prepare(context, base: base,
+          includeLocalChanges: prepareLocalChanges, service: service)
+      }
+      guard title == originalTitle, body == originalBody, base == originalBase,
+        includeLocalChanges == originalInclude else {
+        throw AgentFailure(message: "PR 内容已手动修改，已保留输入，请重新创建。")
+      }
+      var resolvedCommitMessage = commitMessage
+      let needsCommitMessage = workflow?.selection != nil
+        && commitMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      if needsGeneratedContent || needsCommitMessage {
         guard let generate else {
           throw AgentFailure(message: "请配置模型与 API 以生成 PR 内容，或手动填写标题和描述。")
         }
-        let originalTitle = title, originalBody = body, originalBase = base, service = service
+        let service = service
         generating = true
+        phase = needsCommitMessage ? "正在生成提交说明与 PR 内容…" : "正在生成 PR 内容…"
         let task = Task {
-          let content = try await service.generationContent(context, base: originalBase)
+          let content: GitPullRequestContent
+          if let workflow { content = try await workflow.content(needsCommitMessage: needsCommitMessage) }
+          else { content = try await service.generationContent(context, base: originalBase) }
           try Task.checkCancellation()
           let result = try await generate(content, originalTitle, originalBody)
           try Task.checkCancellation()
-          guard try await service.generationContent(context, base: originalBase) == content else {
-            throw GitHubPRRefreshRequired(message: "目标分支或变更已改变，请重新检查后生成。")
+          if let workflow { try await workflow.validate(service: service) }
+          else {
+            guard try await service.generationContent(context, base: originalBase) == content else {
+              throw GitHubPRRefreshRequired(message: "目标分支或变更已改变，请重新检查后生成。")
+            }
           }
           try Task.checkCancellation()
           return result
@@ -87,19 +115,52 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
         } onCancel: { task.cancel() }
         generating = false; generationTask = nil
         try Task.checkCancellation()
-        guard title == originalTitle, body == originalBody, base == originalBase else {
+        guard title == originalTitle, body == originalBody, base == originalBase,
+          includeLocalChanges == originalInclude else {
           throw AgentFailure(message: "PR 内容已手动修改，已保留输入，请重新创建。")
         }
         if originalTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { title = generated.title }
         if originalBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { body = generated.body }
+        if needsCommitMessage {
+          guard let message = generated.commitMessage,
+            !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            message.utf8.count <= 16_384 else {
+            throw AgentFailure(message: "模型未返回有效的提交说明，请重试或先手动填写提交说明。")
+          }
+          resolvedCommitMessage = message
+        }
       }
       try Task.checkCancellation()
-      let result = try await service.create(context, base: base, title: title, body: body, draft: draft, authorize: authorize)
+      let result: GitHubPullRequest
+      if let workflow {
+        let finalTitle = title, finalBody = body
+        let authorizeInput: GitMutationAuthorization = {
+          guard self.title == finalTitle, self.body == finalBody, self.base == originalBase,
+            self.includeLocalChanges == originalInclude else {
+            throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
+          }
+          try authorize()
+        }
+        if workflow.selection != nil { onCommitMessage(resolvedCommitMessage) }
+        result = try await workflow.execute(service: service, title: title, body: body, draft: draft,
+          commitMessage: resolvedCommitMessage, forceWithLease: forceWithLease, authorize: authorizeInput,
+          onPhase: { self.phase = $0 }, onCommitted: onCommitted, onPushed: onPushed)
+      } else {
+        phase = "正在创建 PR…"
+        result = try await service.create(context, base: base, title: title, body: body, draft: draft, authorize: authorize)
+      }
       existing = result
       return result
     } catch {
       if error is CancellationError { return nil }
       needsRefresh = error is GitHubPRRefreshRequired
+      // A successful commit stays in Git after a later push failure. Reload that
+      // head so retry can continue with push instead of creating another commit.
+      if prepareLocalChanges != nil && !needsRefresh, let root {
+        if let refreshed = try? await service.inspect(at: root, allowUnpublished: true) {
+          self.context = refreshed; existing = refreshed.existing
+        } else { needsRefresh = true }
+      }
       self.error = error.localizedDescription
         + (needsRefresh ? "\n请重新检查 PR 状态后再尝试；标题和描述已保留。" : "")
       return nil
@@ -157,35 +218,77 @@ extension WorkspaceStore {
       let root = workspace.gitRoot, workspace.pullRequestDraft.canCreate,
       let repository = workspace.pullRequestDraft.context?.repository else { return }
     let state = workspace.pullRequestDraft
+    let generation = workspace.generationForGitMutation, epoch = workspace.reviewRepositoryEpoch
+    let action = UUID(), originalCommitMessage = workspace.commitMessage
+    var expectedCommitMessage = originalCommitMessage
+    let prepare = state.context?.allowsLocalPreparation == true ? state.includeLocalChanges : nil
+    let originalTitle = state.title, originalBody = state.body, originalBase = state.base
+    let authorizeContext = workspace.gitMutationAuthorization(at: root)
+    let authorize: GitMutationAuthorization = {
+      try authorizeContext()
+      guard workspace.pullRequestDraft === state,
+        workspace.isPrimaryReviewRepository, workspace.commitMessage == expectedCommitMessage,
+        !self.library.gitPreferences.readOnlyReview else { throw CancellationError() }
+    }
+    workspace.gitBusy = true
+    if prepare != nil { workspace.gitActionRunning = true; workspace.gitActionToken = action }
+    defer {
+      if workspace.generationForGitMutation == generation { workspace.gitBusy = false }
+      if workspace.gitActionToken == action {
+        workspace.gitActionRunning = false; workspace.gitActionToken = nil; workspace.gitActionPhase = ""
+      }
+    }
     let generator: GitHubPRGenerator?
     do {
-      if state.needsGeneratedContent {
+      var needsCommitMessage = false
+      if prepare == true && originalCommitMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let changes = try await GitBatchService.capture(scope: .unstaged, at: root)
+        needsCommitMessage = changes.files.contains { $0.staged || $0.unstaged }
+      }
+      try authorize()
+      guard state.title == originalTitle, state.body == originalBody, state.base == originalBase else { return }
+      if state.needsGeneratedContent || needsCommitMessage {
         let configuration = modelConfiguration
         _ = try configuration.endpoint("chat/completions")
         let key = try ModelKeychain.read(account: configuration.credentialAccount)
         let instructions = library.gitPreferences.pullRequestInstructions
+        let commitInstructions = library.gitPreferences.commitInstructions
         generator = { content, title, body in
           let result = try await ModelAPIClient().streamTurn(config: configuration, key: key,
-            messages: content.messages(instructions: instructions, title: title, body: body), onDelta: { _ in })
+            messages: content.messages(instructions: instructions, title: title, body: body,
+              commitInstructions: commitInstructions), onDelta: { _ in })
           guard result.calls.isEmpty else { throw AgentFailure(message: "PR 生成返回了意外的工具请求。") }
           return try GitPullRequestText.parse(result.text)
         }
       } else { generator = nil }
     } catch {
-      state.reportError(error.localizedDescription)
+      if !(error is CancellationError), workspace.reviewRepositoryEpoch == epoch {
+        state.reportError(error.localizedDescription)
+      }
       return
     }
-    let generation = workspace.generationForGitMutation, epoch = workspace.reviewRepositoryEpoch
-    workspace.gitBusy = true
-    defer { if workspace.generationForGitMutation == generation { workspace.gitBusy = false } }
     let result = await state.create(draft: draft, generate: generator,
-      authorize: workspace.gitMutationAuthorization(at: root))
+      prepareLocalChanges: prepare, commitMessage: originalCommitMessage,
+      forceWithLease: library.gitPreferences.alwaysForcePush,
+      onCommitMessage: { message in
+        guard (try? authorize()) != nil else { return }
+        workspace.commitMessage = message; expectedCommitMessage = message
+      }, onCommitted: {
+        guard workspace.generationForGitMutation == generation, workspace.reviewRepositoryEpoch == epoch else { return }
+        workspace.commitMessage = ""; expectedCommitMessage = ""
+        workspace.gitActionStatus = "本地变更已提交，继续推送并创建 PR"
+      }, onPushed: { status in
+        guard workspace.generationForGitMutation == generation, workspace.reviewRepositoryEpoch == epoch else { return }
+        workspace.gitActionStatus = status
+      }, authorize: authorize)
     if let result, workspace.gitRoot == root, workspace.pullRequestDraft === state,
-      workspace.reviewRepositoryEpoch == epoch {
+      workspace.reviewRepositoryEpoch == epoch, workspace.generationForGitMutation == generation {
       workspace.gitActionStatus = "已创建或找到 PR #\(result.number)"
       if let project = workspace.root {
         _ = recordPullRequest(result, for: taskID, at: project, repository: repository)
       }
     }
+    if prepare != nil, workspace.generationForGitMutation == generation,
+      workspace.reviewRepositoryEpoch == epoch { await workspace.refreshGit() }
   }
 }

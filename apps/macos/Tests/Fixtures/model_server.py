@@ -494,7 +494,10 @@ class Handler(BaseHTTPRequestHandler):
                 if os.getenv('PR_REQUEST_LOG'):
                     with open(os.environ['PR_REQUEST_LOG'], 'w') as output:
                         json.dump(body, output)
-                chunks = [json.dumps({'title': 'Generated PR title', 'body': '## Summary\n\nGenerated PR description.'})]
+                text = {'title': 'Generated PR title', 'body': '## Summary\n\nGenerated PR description.'}
+                if '"commitMessage"' in system_text:
+                    text['commitMessage'] = 'Generated local commit'
+                chunks = [json.dumps(text)]
             if '<staged_diff>' in prompt:
                 if os.getenv('COMMIT_REQUEST_LOG'):
                     with open(os.environ['COMMIT_REQUEST_LOG'], 'w') as output:

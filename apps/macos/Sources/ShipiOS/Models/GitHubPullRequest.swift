@@ -124,7 +124,10 @@ struct GitHubPRContext: Equatable, Sendable {
   let defaultBranch: String
   let existing: GitHubPullRequest?
   let creationProblem: String?
+  var publishedCommit: String? = nil
+  var allowsLocalPreparation = false
   var head: String { String(plan.destination.dropFirst("refs/heads/".count)) }
+  var requiresPush: Bool { publishedCommit != plan.commit }
 }
 
 struct GitHubPRRefreshRequired: LocalizedError {
