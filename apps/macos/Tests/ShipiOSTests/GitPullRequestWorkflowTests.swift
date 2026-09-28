@@ -651,4 +651,246 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     XCTAssertFalse(draft.creating)
   }
 
+
+  @MainActor func testModalCreateSettlesWithResetAndRecordedPRAndRejectsDoubleActivation() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    draft.includeLocalChanges = false
+    let body = draft.body
+    let presentation = GitPullRequestModalScope(workspace: workspace)
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.createDraft, in: workspace, taskID: "owner"))
+    XCTAssertTrue(draft.modalActionPending)
+    XCTAssertNil(store.beginPullRequestAction(.create, in: workspace, taskID: "owner"))
+    presentation.handOffAction()
+    presentation.disappear()
+    XCTAssertEqual(draft.title, "Manual title", "Dismissing before the task begins must not discard its input")
+    XCTAssertEqual(draft.body, body)
+    XCTAssertFalse(draft.includeLocalChanges)
+    await operation.value
+    XCTAssertNil(draft.error)
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertEqual(draft.base, "main")
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertEqual(draft.existing?.title, "Manual title")
+    XCTAssertEqual(draft.existing?.isDraft, true)
+    XCTAssertEqual(store.library.taskPullRequests["owner"]?.count, 1)
+    XCTAssertNil(store.library.taskPullRequests["other"])
+    let requests = try creates(fixture)
+    XCTAssertEqual(requests.count, 1)
+    XCTAssertEqual(requests.first?["body"] as? String, body)
+    XCTAssertEqual(workspace.commitMessage, "Local changes")
+  }
+
+  @MainActor func testModalPushFailureResetsPRFormKeepsCommitAndRetryDoesNotDuplicateCommit() async throws {
+    let fixture = try await fixture()
+    let rejection = try hook("pre-receive", at: fixture.remote,
+      contents: "#!/bin/sh\necho 'fixture rejects modal push' >&2\nexit 1\n")
+    try write("modal local change\n", in: fixture)
+    let (store, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    let first = try XCTUnwrap(store.beginPullRequestAction(.create, in: workspace, taskID: "owner"))
+    await first.value
+    XCTAssertNotNil(draft.error)
+    XCTAssertFalse(draft.error?.contains("标题和描述已保留") == true)
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertEqual(workspace.commitMessage, "")
+    let committed = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    XCTAssertEqual(draft.context?.plan.commit, committed)
+    XCTAssertEqual(try creates(fixture).count, 0)
+    try FileManager.default.removeItem(at: rejection)
+    draft.title = "Retry title"; draft.body = "Retry description"
+    let retry = try XCTUnwrap(store.beginPullRequestAction(.create, in: workspace, taskID: "owner"))
+    await retry.value
+    XCTAssertNil(draft.error)
+    let after = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: fixture.root)
+    XCTAssertEqual(after, committed)
+    XCTAssertEqual(count, "3")
+    XCTAssertEqual(draft.existing?.title, "Retry title")
+    XCTAssertEqual(try creates(fixture).count, 1)
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+  }
+
+  @MainActor func testModalBrowserFailureAndSuccessRetainInputAndUncheckedChoice() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    draft.includeLocalChanges = false
+    let body = draft.body
+    let first = try XCTUnwrap(store.beginPullRequestAction(.openBrowser, in: workspace, taskID: "owner",
+      openURL: { _ in false }))
+    await first.value
+    XCTAssertNotNil(draft.error)
+    XCTAssertEqual(draft.title, "Manual title")
+    XCTAssertEqual(draft.body, body)
+    XCTAssertFalse(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertNil(draft.browserURL)
+    await draft.load(at: fixture.root, allowUnpublished: true)
+    XCTAssertEqual(draft.title, "Manual title")
+    XCTAssertEqual(draft.body, body)
+    XCTAssertFalse(draft.includeLocalChanges)
+    var opened: URL?
+    let second = try XCTUnwrap(store.beginPullRequestAction(.openBrowser, in: workspace, taskID: "owner",
+      openURL: { opened = $0; return true }))
+    await second.value
+    XCTAssertNil(draft.error)
+    XCTAssertNotNil(opened)
+    XCTAssertEqual(draft.title, "Manual title")
+    XCTAssertEqual(draft.body, body)
+    XCTAssertFalse(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertNil(draft.existing)
+    XCTAssertNil(store.library.taskPullRequests["owner"])
+    XCTAssertEqual(try creates(fixture).count, 0)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: fixture.root)
+    XCTAssertEqual(count, "2")
+  }
+
+  @MainActor func testModalExistingPROpenResetsEvenIfBrowserFailsAndAllowsReadOnlyReview() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let file = fixture.root.appendingPathComponent(".git/github-fixture.json")
+    var state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+    state["pullRequests"] = [["number": 42, "url": "https://github.com/sample/project/pull/42",
+      "title": "Existing PR", "isDraft": false, "headRefName": "feature/topic",
+      "baseRefName": "main", "isCrossRepository": false]]
+    try JSONSerialization.data(withJSONObject: state).write(to: file)
+    let draft = workspace.pullRequestDraft
+    await draft.load(at: fixture.root, allowUnpublished: true)
+    store.library.gitPreferences.readOnlyReview = true
+    for success in [false, true] {
+      draft.title = "Old input"; draft.body = "Old body"; draft.includeLocalChanges = false
+      var opened: URL?
+      let operation = try XCTUnwrap(store.beginPullRequestAction(.openExisting, in: workspace, taskID: "owner",
+        openURL: { opened = $0; return success }))
+      await operation.value
+      XCTAssertEqual(opened?.absoluteString, "https://github.com/sample/project/pull/42")
+      XCTAssertEqual(draft.title, "")
+      XCTAssertEqual(draft.body, "")
+      XCTAssertTrue(draft.includeLocalChanges)
+      XCTAssertFalse(draft.modalActionPending)
+      XCTAssertEqual(draft.existing?.number, 42)
+      if success { XCTAssertNil(draft.error) } else { XCTAssertNotNil(draft.error) }
+    }
+    XCTAssertEqual(try creates(fixture).count, 0)
+    XCTAssertNil(store.library.taskPullRequests["owner"], "Opening does not invent a newly created PR record")
+  }
+
+  @MainActor func testModalCancelledOperationResetsInputsWithoutWritingGit() async throws {
+    let fixture = try await fixture()
+    try write("uncommitted cancelled modal\n", in: fixture)
+    let (store, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    let index = try Data(contentsOf: fixture.root.appendingPathComponent(".git/index"))
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.create, in: workspace))
+    for _ in 0..<1000 where !draft.creating { try await Task.sleep(for: .milliseconds(1)) }
+    XCTAssertTrue(draft.creating)
+    operation.cancel()
+    await operation.value
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertFalse(draft.creating)
+    XCTAssertFalse(workspace.gitBusy)
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    XCTAssertEqual(head, fixture.head)
+    XCTAssertEqual(try Data(contentsOf: fixture.root.appendingPathComponent(".git/index")), index)
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testModalSetupFailureResetsFormAndRejectedActionKeepsInput() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    draft.includeLocalChanges = false
+    store.library.gitPreferences.readOnlyReview = true
+    XCTAssertNil(store.beginPullRequestAction(.create, in: workspace))
+    XCTAssertEqual(draft.title, "Manual title")
+    XCTAssertFalse(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    store.library.gitPreferences.readOnlyReview = false
+    draft.title = ""; draft.body = "Needs title from model"
+    store.modelConfiguration.baseURL = ""; store.modelConfiguration.model = ""
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.create, in: workspace))
+    await operation.value
+    XCTAssertNotNil(draft.error)
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertEqual(try creates(fixture).count, 0)
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    XCTAssertEqual(head, fixture.head)
+  }
+
+  @MainActor func testModalRootChangeBeforeTaskStartsPreservesNewWorkspaceAndOldInputs() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let old = workspace.pullRequestDraft
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.create, in: workspace))
+    workspace.setProject(fixture.root.appendingPathComponent("another-project"))
+    let replacement = workspace.pullRequestDraft
+    replacement.title = "New workspace title"; replacement.body = "New workspace body"
+    replacement.includeLocalChanges = false
+    await operation.value
+    XCTAssertEqual(replacement.title, "New workspace title")
+    XCTAssertEqual(replacement.body, "New workspace body")
+    XCTAssertFalse(replacement.includeLocalChanges)
+    XCTAssertEqual(old.title, "Manual title")
+    XCTAssertFalse(old.modalActionPending)
+    XCTAssertEqual(try creates(fixture).count, 0)
+    workspace.setProject(nil)
+  }
+
+  @MainActor func testModalReplacementDuringOperationIsNotClearedByLateSettlement() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let old = workspace.pullRequestDraft
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.create, in: workspace))
+    for _ in 0..<1000 where !old.creating { try await Task.sleep(for: .milliseconds(1)) }
+    XCTAssertTrue(old.creating)
+    let replacement = GitHubPRDraft(service: fixture.service)
+    replacement.title = "Replacement title"; replacement.body = "Replacement body"
+    replacement.includeLocalChanges = false
+    workspace.pullRequestDraft = replacement
+    operation.cancel()
+    await operation.value
+    XCTAssertEqual(replacement.title, "Replacement title")
+    XCTAssertEqual(replacement.body, "Replacement body")
+    XCTAssertFalse(replacement.includeLocalChanges)
+    XCTAssertEqual(old.title, "Manual title")
+    XCTAssertFalse(old.modalActionPending)
+    XCTAssertFalse(workspace.gitBusy)
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testModalDismissDuringLoadingResetsFormAndDiscardsLateInspection() async throws {
+    let fixture = try await fixture()
+    let (store, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    draft.includeLocalChanges = false
+    let presentation = GitPullRequestModalScope(workspace: workspace)
+    let loading = Task { await draft.load(at: fixture.root, allowUnpublished: true) }
+    for _ in 0..<1000 where !draft.loading { try await Task.sleep(for: .milliseconds(1)) }
+    XCTAssertTrue(draft.loading)
+    presentation.disappear()
+    await loading.value
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertFalse(draft.loading)
+    XCTAssertNil(draft.context)
+    XCTAssertNil(store.beginPullRequestAction(.create, in: workspace))
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
 }

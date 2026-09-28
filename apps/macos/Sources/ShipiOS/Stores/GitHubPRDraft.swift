@@ -18,6 +18,8 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   private(set) var creating = false
   private(set) var generating = false
   private(set) var needsRefresh = false
+  private(set) var modalActionToken: UUID?
+  var modalActionPending: Bool { modalActionToken != nil }
   @ObservationIgnored private var root: URL?
   @ObservationIgnored private var token = UUID()
   @ObservationIgnored private let service: GitHubPRService
@@ -58,10 +60,29 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   }
 
   // Selecting a PR action closes the modal while its background workflow continues.
-  func modalDidDisappear() { if !creating { cancelLoading() } }
+  func modalDidDisappear(handingOffAction: Bool = false) {
+    guard !creating, !modalActionPending else { return }
+    cancelLoading()
+    if !handingOffAction { resetInputs() }
+  }
+
+  /// Mirrors the reference modal's reset; metadata and operation results belong to the workflow.
+  private func resetInputs() { title = ""; body = ""; includeLocalChanges = true }
+
+  func reserveModalAction() -> UUID? {
+    guard !loading, !creating, !modalActionPending else { return nil }
+    let reservation = UUID(); modalActionToken = reservation
+    return reservation
+  }
+  func finishModalAction(_ reservation: UUID, reset: Bool) {
+    guard modalActionToken == reservation else { return }
+    modalActionToken = nil
+    if reset { resetInputs() }
+  }
 
   func cancelGeneration() { generationTask?.cancel() }
   func reportError(_ message: String) { error = message }
+  func clearError() { error = nil }
 
   @discardableResult func create(draft: Bool, generate: GitHubPRGenerator? = nil,
     prepareLocalChanges: Bool? = nil, commitMessage: String = "", forceWithLease: Bool = false,
@@ -87,7 +108,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
       }
       guard title == originalTitle, body == originalBody, base == originalBase,
         includeLocalChanges == originalInclude else {
-        throw AgentFailure(message: "PR 内容已手动修改，已保留输入，请重新创建。")
+        throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
       }
       var resolvedCommitMessage = commitMessage
       let needsCommitMessage = workflow?.selection != nil
@@ -123,7 +144,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
         try Task.checkCancellation()
         guard title == originalTitle, body == originalBody, base == originalBase,
           includeLocalChanges == originalInclude else {
-          throw AgentFailure(message: "PR 内容已手动修改，已保留输入，请重新创建。")
+          throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
         }
         if originalTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { title = generated.title }
         if originalBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { body = generated.body }
@@ -201,7 +222,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
         } else { needsRefresh = true }
       }
       self.error = error.localizedDescription
-        + (needsRefresh ? "\n请重新检查 PR 状态后再尝试；标题和描述已保留。" : "")
+        + (needsRefresh ? "\n请重新检查 PR 状态后再尝试。" : "")
       return nil
     }
   }

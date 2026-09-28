@@ -9,6 +9,7 @@ struct GitHubPRView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var summaryLoader = GitCommitSummaryLoader()
   @State private var selected: GitPullRequestAction = .create
+  @State private var presentationScope: GitPullRequestModalScope?
   private enum Focus: Hashable { case title, body, action(GitPullRequestAction) }
   @FocusState private var focus: Focus?
 
@@ -27,7 +28,7 @@ struct GitHubPRView: View {
         if draft.existing == nil {
           TextField("标题", text: $draft.title).textFieldStyle(.plain).fontWeight(.semibold)
             .accessibilityLabel("PR 标题")
-            .focused($focus, equals: .title).disabled(draft.creating)
+            .focused($focus, equals: .title).disabled(draft.creating || draft.modalActionPending)
           TextEditor(text: $draft.body).scrollContentBackground(.hidden).frame(height: 70)
             .overlay(alignment: .topLeading) {
               if draft.body.isEmpty {
@@ -35,10 +36,10 @@ struct GitHubPRView: View {
                   .padding(.top, 4).padding(.leading, 5).allowsHitTesting(false).accessibilityHidden(true)
               }
             }
-            .accessibilityLabel("PR 描述").focused($focus, equals: .body).disabled(draft.creating)
+            .accessibilityLabel("PR 描述").focused($focus, equals: .body).disabled(draft.creating || draft.modalActionPending)
           HStack {
             Toggle("提交并推送本地变更", isOn: $draft.includeLocalChanges)
-              .toggleStyle(.checkbox).disabled(draft.creating)
+              .toggleStyle(.checkbox).disabled(draft.creating || draft.modalActionPending)
             Spacer()
             if draft.includeLocalChanges, let summary = summaryLoader.summary {
               Text("+\(summary.additions)").foregroundStyle(.green)
@@ -99,7 +100,10 @@ struct GitHubPRView: View {
     }.padding(12).frame(width: 420)
       .accessibilityLabel(draft.existing == nil ? "创建 PR" : "打开 PR")
       .background(PullRequestKeyboardBridge(action: handleKey).frame(width: 0, height: 0))
-      .interactiveDismissDisabled(draft.creating)
+      .interactiveDismissDisabled(draft.creating || draft.modalActionPending)
+      .onAppear {
+        presentationScope = GitPullRequestModalScope(workspace: workspace)
+      }
       .task {
         selected = .initial(existing: draft.existing != nil,
           defaultToDraft: store.library.gitPreferences.createDraftPullRequests)
@@ -115,11 +119,11 @@ struct GitHubPRView: View {
         if case .action(let action) = value { selected = action }
       }
       .task(id: summaryRequest) { await summaryLoader.load(summaryRequest) }
-      .onDisappear { draft.modalDidDisappear() }
+      .onDisappear { [presentationScope] in presentationScope?.disappear() }
   }
 
   private var canCreate: Bool {
-    draft.canCreate && workspace.isPrimaryReviewRepository
+    draft.canCreate && !draft.modalActionPending && workspace.isPrimaryReviewRepository
       && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
   }
   private var summaryRequest: GitCommitSummaryRequest {
@@ -143,14 +147,14 @@ struct GitHubPRView: View {
   }
   private func isEnabled(_ action: GitPullRequestAction) -> Bool {
     if action == .openExisting {
-      return !draft.loading && !draft.creating
+      return !draft.loading && !draft.creating && !draft.modalActionPending
         && draft.existing.flatMap { draft.context?.repository.pullRequestURL($0.url) } != nil
     }
     return canCreate
   }
   private func handleKey(_ key: PullRequestKeyboardBridge.Key) {
     switch key {
-    case .cancel: if !draft.creating { dismiss() }
+    case .cancel: if !draft.creating && !draft.modalActionPending { dismiss() }
     case .activate: activate(selected)
     case .move(let delta):
       let next = selected.moved(by: delta, existing: draft.existing != nil)
@@ -161,18 +165,10 @@ struct GitHubPRView: View {
     }
   }
   private func activate(_ action: GitPullRequestAction) {
-    guard isEnabled(action) else { return }
+    guard isEnabled(action), presentationScope?.canStartAction == true,
+      store.beginPullRequestAction(action, in: workspace, taskID: taskID) != nil else { return }
     selected = action
-    if action == .openExisting {
-      guard let existing = draft.existing, let url = draft.context?.repository.pullRequestURL(existing.url) else { return }
-      if NSWorkspace.shared.open(url) { dismiss() }
-      else { draft.reportError("无法打开系统浏览器，请重试。") }
-      return
-    }
-    Task {
-      await store.createPullRequest(in: workspace, draft: action == .createDraft, taskID: taskID,
-        openInBrowser: action == .openBrowser)
-    }
+    presentationScope?.handOffAction()
     dismiss()
   }
 }

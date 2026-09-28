@@ -101,4 +101,106 @@ final class GitPullRequestPresentationTests: XCTestCase {
     XCTAssertNil(weakView)
     XCTAssertNil(weakCoordinator)
   }
+
+  @MainActor func testDismissResetsOnlyFormAndKeepsBaseAndErrorMetadata() {
+    let workspace = DeveloperWorkspace()
+    workspace.root = URL(fileURLWithPath: "/tmp/pr-modal-presentation")
+    let draft = workspace.pullRequestDraft
+    draft.title = "Dismissed title"; draft.body = "Dismissed body"
+    draft.base = "release"; draft.includeLocalChanges = false
+    draft.reportError("Existing failure")
+    let scope = GitPullRequestModalScope(workspace: workspace)
+    scope.disappear()
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertEqual(draft.base, "release")
+    XCTAssertEqual(draft.error, "Existing failure")
+    XCTAssertFalse(draft.loading)
+  }
+
+  @MainActor func testHandedOffAndPendingActionDisappearanceKeepsAcceptedInput() throws {
+    let workspace = DeveloperWorkspace()
+    let draft = workspace.pullRequestDraft
+    draft.title = "Accepted title"; draft.body = "Accepted body"; draft.includeLocalChanges = false
+    let scope = GitPullRequestModalScope(workspace: workspace)
+    scope.handOffAction()
+    scope.disappear()
+    XCTAssertEqual(draft.title, "Accepted title")
+    XCTAssertEqual(draft.body, "Accepted body")
+    XCTAssertFalse(draft.includeLocalChanges)
+    let reservation = try XCTUnwrap(draft.reserveModalAction())
+    scope.disappear()
+    XCTAssertTrue(draft.modalActionPending)
+    XCTAssertEqual(draft.title, "Accepted title")
+    XCTAssertFalse(draft.includeLocalChanges)
+    scope.settle(.openBrowser, reservation: reservation)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertEqual(draft.body, "Accepted body")
+    XCTAssertFalse(draft.includeLocalChanges)
+  }
+
+  @MainActor func testOldPresentationCannotResetReplacementDraftOrChangedRepository() {
+    let workspace = DeveloperWorkspace()
+    workspace.root = URL(fileURLWithPath: "/tmp/old-pr-repository")
+    let original = workspace.pullRequestDraft
+    original.title = "Original title"
+    let scope = GitPullRequestModalScope(workspace: workspace)
+    let replacement = GitHubPRDraft()
+    replacement.title = "Replacement title"; replacement.body = "Replacement body"
+    replacement.includeLocalChanges = false
+    workspace.pullRequestDraft = replacement
+    scope.disappear()
+    XCTAssertFalse(scope.isCurrent)
+    XCTAssertEqual(replacement.title, "Replacement title")
+    XCTAssertEqual(replacement.body, "Replacement body")
+    XCTAssertFalse(replacement.includeLocalChanges)
+    XCTAssertEqual(original.title, "Original title")
+    let replacementScope = GitPullRequestModalScope(workspace: workspace)
+    workspace.root = URL(fileURLWithPath: "/tmp/new-pr-repository")
+    replacementScope.disappear()
+    XCTAssertFalse(replacementScope.isCurrent)
+    XCTAssertEqual(replacement.title, "Replacement title")
+  }
+
+  @MainActor func testLateSettlementCannotReleaseOrResetNewReservation() throws {
+    let draft = GitHubPRDraft()
+    let old = try XCTUnwrap(draft.reserveModalAction())
+    XCTAssertNil(draft.reserveModalAction())
+    draft.finishModalAction(old, reset: true)
+    draft.title = "New input"; draft.body = "New body"; draft.includeLocalChanges = false
+    let next = try XCTUnwrap(draft.reserveModalAction())
+    draft.finishModalAction(old, reset: true)
+    XCTAssertEqual(draft.modalActionToken, next)
+    XCTAssertEqual(draft.title, "New input")
+    XCTAssertEqual(draft.body, "New body")
+    XCTAssertFalse(draft.includeLocalChanges)
+    draft.finishModalAction(next, reset: true)
+    XCTAssertFalse(draft.modalActionPending)
+    XCTAssertEqual(draft.title, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+  }
+
+
+  @MainActor func testLateHandedOffDisappearanceDoesNotResetReopenedFormInSameWorkspace() {
+    let workspace = DeveloperWorkspace()
+    let old = GitPullRequestModalScope(workspace: workspace)
+    XCTAssertTrue(old.canStartAction)
+    old.handOffAction()
+    XCTAssertFalse(old.canStartAction)
+    let reopened = GitPullRequestModalScope(workspace: workspace)
+    XCTAssertTrue(reopened.canStartAction)
+    let draft = workspace.pullRequestDraft
+    draft.title = "Reopened browser title"; draft.body = "Reopened browser body"
+    draft.includeLocalChanges = false
+    old.disappear()
+    XCTAssertEqual(draft.title, "Reopened browser title")
+    XCTAssertEqual(draft.body, "Reopened browser body")
+    XCTAssertFalse(draft.includeLocalChanges)
+    reopened.disappear()
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    XCTAssertTrue(draft.includeLocalChanges)
+  }
+
 }
