@@ -181,6 +181,42 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     }
   }
 
+  @MainActor func testBothProtocolsReadCatalogTailAfterDescriptionCompressionAndPersistBudgetWarning() async throws {
+    for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
+      let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      defer { try? FileManager.default.removeItem(at: root) }
+      let store = try await prepare(protocol: api, root: root)
+      for index in 0..<16 {
+        let file = store.dataRoot.appendingPathComponent("Skills/prefix-\(index)/SKILL.md")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let description = String(repeating: "Long purpose for earlier skill \(index). ", count: 25)
+        try Data("---\nname: Earlier \(index)\ndescription: \(description)\n---\nEarlier instructions.".utf8).write(to: file)
+      }
+      await store.refreshSkillsIfChanged()
+      let catalog = try PluginStorage.discoveryContext(preferences: store.pluginPreferences, root: store.dataRoot,
+        repositoryRoot: root.appendingPathComponent("Project"), readTool: api == .chatCompletions)
+      XCTAssertEqual(catalog.skills.count, 17)
+      XCTAssertEqual(catalog.omittedCount, 0)
+      XCTAssertNotNil(catalog.warningMessage)
+      let prompt = api == .chatCompletions ? "implicit-skill-read-last" : "codex-skill-discovery"
+      let started = await store.startChat(prompt)
+      let id = try XCTUnwrap(started, store.error ?? "No chat started")
+      await store.modelTask(runID: id)?.value
+      let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+      XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+      XCTAssertTrue(run.result?["response"].text?.contains("TRANSPORT-FULL-INSTRUCTIONS") == true)
+      XCTAssertTrue(run.responseItems?.contains {
+        if case .notice(_, .warning, let message) = $0 { return message == catalog.warningMessage }
+        return false
+      } == true)
+      XCTAssertTrue(run.toolExecutions.contains { $0.status == .succeeded
+        && $0.output?.contains("TRANSPORT-FULL-INSTRUCTIONS") == true })
+      let restored = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+      XCTAssertEqual(restored.chatRuns.first { $0.id == id }?.responseItems, run.responseItems)
+      await store.shutdown()
+    }
+  }
+
   @MainActor func testBothProtocolsPromptBeforeExplicitSkillRequestAndOfferInstalledMCPTools() async throws {
     let process = Process(), pipe = Pipe()
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()

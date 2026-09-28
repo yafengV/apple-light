@@ -266,6 +266,10 @@ extension WorkspaceStore {
       let requestTask = Task { [weak self] in
         guard let self else { return }
         do {
+          if let warning = skillDiscovery.warningMessage {
+            recordCodexNotice(runID: run.id, event: .object(["type": .string("warning"),
+              "message": .string(warning)]))
+          }
           try await prepareSkillDependencies(pluginContext.skills, runID: run.id, connect: !usesCodex)
           try Task.checkCancellation()
           var effectiveMessages = messages

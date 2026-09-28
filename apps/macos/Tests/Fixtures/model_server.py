@@ -384,8 +384,9 @@ class Handler(BaseHTTPRequestHandler):
                     except (ValueError, TypeError):
                         pass
                 if read_tool and catalog:
+                    selected_skill = catalog[-1] if user_prompt.startswith('implicit-skill-read-last') else catalog[0]
                     call = {'index': 0, 'id': 'skill-read-1', 'type': 'function', 'function': {
-                        'name': 'shipios_read_skill', 'arguments': json.dumps({'skill_id': catalog[0]['id']})}}
+                        'name': 'shipios_read_skill', 'arguments': json.dumps({'skill_id': selected_skill['id']})}}
                     frame = {'choices': [{'delta': {'tool_calls': [call]}, 'finish_reason': None}]}
                     self.wfile.write(('data: ' + json.dumps(frame) + '\n\n').encode())
                     self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n')

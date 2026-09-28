@@ -66,6 +66,79 @@ final class SkillDiscoveryTests: XCTestCase {
       maxCharacters: 10).instructions.count, 10)
   }
 
+  func testBudgetShortensDescriptionsBeforeOmittingAnyCompleteSkillIdentity() throws {
+    let source = URL(fileURLWithPath: "/tmp/技能目录/example/SKILL.md")
+    let skills = (0..<12).map { index in
+      PluginSkillReference(pluginID: "example", pluginName: "Example", skillID: "skill-\(index)",
+        title: "Skill \(index)", fileURL: source, mention: "example/skill-\(index)",
+        summary: String(repeating: "Long purpose \"quoted\"\n😀é / ", count: 50))
+    }
+    let context = SkillDiscoveryContext.make(skills: skills, readTool: true)
+    XCTAssertEqual(context.skills.map(\.id), skills.map(\.id))
+    XCTAssertEqual(context.omittedCount, 0)
+    XCTAssertEqual(context.shortenedDescriptionCount, skills.count)
+    XCTAssertTrue(context.warningMessage?.contains("全部技能") == true)
+    XCTAssertLessThanOrEqual(context.instructions.count, 8_000)
+    let rows = try context.instructions.split(separator: "\n").filter { $0.hasPrefix("{") }.map {
+      try JSONDecoder().decode([String: String].self, from: Data($0.utf8))
+    }
+    XCTAssertEqual(rows.compactMap { $0["id"] }, skills.map(\.id))
+    for (skill, row) in zip(skills, rows) {
+      XCTAssertEqual(row["path"], source.path)
+      XCTAssertTrue(skill.summary.hasPrefix(try XCTUnwrap(row["description"])))
+      XCTAssertFalse(row["description"]?.isEmpty == true)
+    }
+    let lengths = rows.compactMap { $0["description"]?.count }
+    XCTAssertLessThanOrEqual((lengths.max() ?? 0) - (lengths.min() ?? 0), 1)
+  }
+
+  func testMinimumBudgetKeepsWholeJSONAndZeroBudgetNeverLeaksFragments() throws {
+    let source = URL(fileURLWithPath: "/tmp/quoted \"来源\"/SKILL.md")
+    let empty = (0..<4).map { index in
+      PluginSkillReference(pluginID: "example", pluginName: "Example", skillID: "skill-\(index)",
+        title: "Skill \(index)", fileURL: source, mention: "example/skill-\(index)", summary: "")
+    }
+    let minimum = SkillDiscoveryContext.make(skills: empty, readTool: false).instructions.count
+    let described = empty.map { skill in
+      PluginSkillReference(pluginID: skill.pluginID, pluginName: skill.pluginName, skillID: skill.skillID,
+        title: skill.title, fileURL: source, mention: skill.mention, summary: String(repeating: "用途", count: 600))
+    }
+    let exact = SkillDiscoveryContext.make(skills: described, readTool: false, maxCharacters: minimum)
+    XCTAssertEqual(exact.skills.map(\.id), described.map(\.id))
+    XCTAssertEqual(exact.omittedCount, 0)
+    XCTAssertEqual(exact.instructions.count, minimum)
+    XCTAssertEqual(exact.instructions.split(separator: "\n").filter { $0.hasPrefix("{") }.count, 4)
+    for limit in [-1, 0, 10, minimum - 1] {
+      let reduced = SkillDiscoveryContext.make(skills: described, readTool: false, maxCharacters: limit)
+      XCTAssertLessThanOrEqual(reduced.instructions.count, max(0, limit))
+      for line in reduced.instructions.split(separator: "\n") where line.hasPrefix("{") {
+        let row = try JSONDecoder().decode([String: String].self, from: Data(line.utf8))
+        XCTAssertEqual(row["path"], source.path)
+        XCTAssertEqual(row["description"], "")
+      }
+    }
+    XCTAssertEqual(SkillDiscoveryContext.make(skills: [], readTool: true, maxCharacters: 0).instructions, "")
+  }
+
+  @MainActor func testAdvertisedSkillRemainsReadableAfterOtherSkillsFillTheDefaultCatalog() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let (project, skill, _) = try prepare(root)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    for index in 0..<70 {
+      let file = store.dataRoot.appendingPathComponent("Skills/prefix-\(index)/SKILL.md")
+      try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try Data("---\nname: Earlier \(index)\ndescription: Earlier purpose\n---\nInstructions.".utf8).write(to: file)
+    }
+    let fresh = try PluginStorage.discoveryContext(preferences: .init(), root: store.dataRoot,
+      repositoryRoot: project, readTool: true)
+    XCTAssertGreaterThan(fresh.omittedCount, 0)
+    XCTAssertFalse(fresh.skills.contains { $0.id == skill.id })
+    let arguments = try String(decoding: JSONEncoder().encode(["skill_id": skill.id]), as: UTF8.self)
+    let read = try store.readImplicitSkill(arguments: arguments, advertised: [skill], projectPath: project.path)
+    XCTAssertTrue(read.text.contains("FULL-SKILL-INSTRUCTIONS"))
+  }
+
   @MainActor func testReadUsesFreshPolicyAndOnlyAdvertisedTaskScope() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
