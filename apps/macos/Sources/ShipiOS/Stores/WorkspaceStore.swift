@@ -6,7 +6,7 @@ import WebKit
 
 @MainActor @Observable
 final class WorkspaceStore {
-  var library = WorkspaceLibrary()
+  var library = WorkspaceLibrary() { didSet { synchronizeActivityPriority() } }
   var dictation = SpeechDictation()
   @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences
@@ -29,6 +29,8 @@ final class WorkspaceStore {
   }
   var destination: AppDestination = .workspace
   var activityError: String?
+  var activitySession: ActivitySession?
+  var showingActivity: Bool { activitySession != nil }
   var taskWindowOpenRequest: TaskWindowRoute?
   var taskSummaryToggleRequest = UUID()
   var showingTaskStatus = false
@@ -178,12 +180,12 @@ final class WorkspaceStore {
   var mcpServerEditor: MCPServerConfiguration?
   var mcpConnectionStates: [UUID: MCPConnectionState] = [:]
   var mcpRefreshingServers: Set<UUID> = []
-  var mcpPendingApprovals: [UUID: MCPApprovalContext] = [:]
+  var mcpPendingApprovals: [UUID: MCPApprovalContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
-  var codexPendingQuestions: [UUID: CodexQuestionContext] = [:]
+  var codexPendingQuestions: [UUID: CodexQuestionContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var codexQuestionContinuations: [UUID: CheckedContinuation<[String: [String]]?, Never>] = [:]
   @ObservationIgnored var promptedSkillDependencies: [String: Set<String>] = [:]
-  var codexPendingElicitations: [UUID: CodexElicitationContext] = [:]
+  var codexPendingElicitations: [UUID: CodexElicitationContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var codexElicitationContinuations: [UUID: CheckedContinuation<CodexElicitationDecision?, Never>] = [:]
   @ObservationIgnored var codexSteeringMessages: Set<UUID> = []
   @ObservationIgnored var codexCommandOutputBuffers: [String: [String: Data]] = [:]
@@ -292,7 +294,7 @@ final class WorkspaceStore {
     }
   }
   var inspection: ProjectInspection?
-  var runs: [AgentRun] = [] { didSet { updateSleepPrevention() } }
+  var runs: [AgentRun] = [] { didSet { updateSleepPrevention(); synchronizeActivityPriority() } }
   var selection: String? {
     willSet {
       if selection != newValue {

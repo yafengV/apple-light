@@ -283,6 +283,7 @@ enum WebLinkTarget: String, Codable, CaseIterable, Identifiable {
 
 /// Desktop organization is separate from immutable execution records in the Agent database.
 struct WorkspaceLibrary: Codable {
+  var activityPreferences = ActivityPreferences()
   var tasks: [WorkspaceTask] = []
   var projects: [String] = []
   /// nil migrates legacy selection; empty string is an explicit projectless workspace.
@@ -373,7 +374,7 @@ struct WorkspaceLibrary: Codable {
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case tasks, projects, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
+    case activityPreferences, tasks, projects, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
@@ -391,6 +392,7 @@ struct WorkspaceLibrary: Codable {
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
+    activityPreferences = try c.decodeIfPresent(ActivityPreferences.self, forKey: .activityPreferences) ?? .init()
     queuedMessages = try c.decodeIfPresent([QueuedMessage].self, forKey: .queuedMessages) ?? []
     chatRuns = try c.decodeIfPresent([AgentRun].self, forKey: .chatRuns) ?? []
     forkRuns = try c.decodeIfPresent([AgentRun].self, forKey: .forkRuns) ?? []

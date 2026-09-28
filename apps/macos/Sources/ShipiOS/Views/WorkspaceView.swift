@@ -75,6 +75,9 @@ struct WorkspaceView: View {
         Task { await store.loadDetails() }
       }
       .onChange(of: store.destination) { _, _ in store.endWorkspaceTabDrag() }
+      .onChange(of: store.showingActivity) { _, visible in
+        if visible { columns = .all }
+      }
       .onChange(of: store.taskWindowOpenRequest) { _, route in
         guard let route else { return }
         store.taskWindowOpenRequest = nil
@@ -117,8 +120,6 @@ struct WorkspaceView: View {
           ? "设置"
           : store.destination == .pluginDetail
             ? store.currentPluginDetail?.name ?? "插件详情"
-          : store.destination == .activity
-            ? "活动"
           : store.destination == .projects
             ? "项目"
             : store.destination == .plugins
@@ -389,8 +390,7 @@ struct WorkspaceView: View {
             .overlay {
               ZStack {
                 Group {
-                  if store.retainsActivityPage { ActivityView(store: store) }
-                  else if store.retainsProjectsPage { ProjectLibraryView(store: store) }
+                  if store.retainsProjectsPage { ProjectLibraryView(store: store) }
                   else if store.retainsPluginsPage { PluginsView(store: store) }
                   else if store.retainsSkillsPage { SkillsView(store: store) }
                   else if store.retainsAutomationsPage { AutomationsView(store: store) }

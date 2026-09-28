@@ -4,6 +4,34 @@ struct TaskSidebarView: View {
   @Bindable var store: WorkspaceStore
   var body: some View {
     VStack(spacing: 0) {
+      ZStack {
+        regularSidebar
+          .opacity(store.showingActivity ? 0 : 1)
+          .allowsHitTesting(!store.showingActivity)
+          .disabled(store.showingActivity)
+          .accessibilityHidden(store.showingActivity)
+        if store.showingActivity { ActivityView(store: store) }
+      }.frame(minHeight: 0, maxHeight: .infinity)
+      profileFooter
+    }
+    .sheet(item: $store.sidebarGroupEditor) { editor in
+      SidebarGroupEditorView(store: store, editor: editor)
+    }
+    .alert("删除分组？", isPresented: Binding(
+      get: { store.sidebarGroupToDelete != nil },
+      set: { if !$0 { store.sidebarGroupToDelete = nil } })
+    ) {
+      Button("取消", role: .cancel) { store.sidebarGroupToDelete = nil }
+      Button("删除分组") {
+        if let group = store.sidebarGroupToDelete { store.deleteSidebarGroup(group.id) }
+      }
+    } message: {
+      Text("只删除分组，项目和任务会回到原来的列表，不会删除会话或文件。")
+    }
+  }
+
+  private var regularSidebar: some View {
+    VStack(spacing: 0) {
       VStack(spacing: 2) {
         navButton("新任务", "square.and.pencil", shortcut: store.shortcuts.label("new")) {
           Task { await store.newChat() }
@@ -33,7 +61,7 @@ struct TaskSidebarView: View {
           store.showingSearch = true
         }
         navButton("活动", store.activityBadgeCount > 0 ? "bell.badge" : "bell",
-          shortcut: store.shortcuts.label("activity"), selected: store.destination == .activity,
+          shortcut: store.shortcuts.label("activity"), selected: store.showingActivity,
           badge: store.activityBadgeCount) {
           store.toggleActivity()
         }.disabled(!store.libraryLoaded)
@@ -60,32 +88,18 @@ struct TaskSidebarView: View {
           SidebarOrganizedSection(store: store, id: SidebarLayout.projectless, title: "任务")
         }.padding(.horizontal, 10).padding(.top, 22)
       }.frame(minHeight: 0, maxHeight: .infinity)
-      VStack(spacing: 12) {
-        if !store.connected, let project = store.project {
-          Button("重新连接 Agent", systemImage: "arrow.clockwise") {
-            Task { await store.open(project) }
-          }
-          .disabled(store.busy)
-        }
-        SidebarProfileMenu(store: store)
-      }.padding(16)
     }
-    .sheet(item: $store.sidebarGroupEditor) { editor in
-      SidebarGroupEditorView(store: store, editor: editor)
-    }
-    .alert(
-      "删除分组？",
-      isPresented: Binding(
-        get: { store.sidebarGroupToDelete != nil },
-        set: { if !$0 { store.sidebarGroupToDelete = nil } })
-    ) {
-      Button("取消", role: .cancel) { store.sidebarGroupToDelete = nil }
-      Button("删除分组") {
-        if let group = store.sidebarGroupToDelete { store.deleteSidebarGroup(group.id) }
+  }
+
+  private var profileFooter: some View {
+    VStack(spacing: 12) {
+      if !store.connected, let project = store.project {
+        Button("重新连接 Agent", systemImage: "arrow.clockwise") {
+          Task { await store.open(project) }
+        }.disabled(store.busy)
       }
-    } message: {
-      Text("只删除分组，项目和任务会回到原来的列表，不会删除会话或文件。")
-    }
+      SidebarProfileMenu(store: store)
+    }.padding(16)
   }
   private func navButton(
     _ title: String, _ icon: String, shortcut: String = "", selected: Bool = false, badge: Int = 0,

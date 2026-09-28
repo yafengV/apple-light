@@ -365,8 +365,8 @@ extension WorkspaceStore {
       closeSettings()
       return
     }
-    if back, destination == .activity {
-      returnToWorkspace()
+    if back, showingActivity {
+      closeActivity()
       return
     }
     if back, destination == .projects {

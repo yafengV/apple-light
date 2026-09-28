@@ -1,7 +1,7 @@
 import AppKit
 
 enum AppDestination: Equatable {
-  case workspace, activity, projects, plugins, skills, pluginDetail, automations, settings
+  case workspace, projects, plugins, skills, pluginDetail, automations, settings
 }
 
 enum WorkspaceOverlay: String, Identifiable, CaseIterable {
@@ -47,9 +47,8 @@ extension WorkspaceStore {
     destination == .settings || (destination == .pluginDetail && pluginDetailRoute?.origin == .settings)
   }
   var retainsAutomationsPage: Bool { retainedPageDestination == .automations }
-  var retainsActivityPage: Bool { retainedPageDestination == .activity }
   var retainsStandalonePage: Bool {
-    retainsProjectsPage || retainsPluginsPage || retainsSkillsPage || retainsAutomationsPage || retainsActivityPage
+    retainsProjectsPage || retainsPluginsPage || retainsSkillsPage || retainsAutomationsPage
       || destination == .pluginDetail
   }
   func openSettings(_ page: SettingsPage? = nil) {
@@ -93,6 +92,7 @@ extension WorkspaceStore {
   }
 
   func showProjects() {
+    closeActivity()
     pluginDetailForwardRoute = nil
     pluginDetailRoute = nil
     showingBranchPicker = false
@@ -100,6 +100,7 @@ extension WorkspaceStore {
   }
 
   func showPlugins() {
+    closeActivity()
     pluginDetailForwardRoute = nil
     pluginDetailRoute = nil
     showingBranchPicker = false
@@ -108,6 +109,7 @@ extension WorkspaceStore {
   }
 
   func showSkills() {
+    closeActivity()
     pluginDetailForwardRoute = nil
     pluginDetailRoute = nil
     showingBranchPicker = false
@@ -116,6 +118,7 @@ extension WorkspaceStore {
   }
 
   func showAutomations(create: Bool = false) {
+    closeActivity()
     pluginDetailForwardRoute = nil
     pluginDetailRoute = nil
     showingBranchPicker = false
@@ -126,17 +129,28 @@ extension WorkspaceStore {
   }
 
   func toggleActivity() {
-    guard libraryLoaded else { return }
-    if destination == .activity { returnToWorkspace(); return }
-    pluginDetailForwardRoute = nil
-    pluginDetailRoute = nil
+    guard libraryLoaded, !hasSettingsConfirmation else { return }
+    if showingActivity { closeActivity(); return }
+    if destination == .settings { closeSettings() }
     showingBranchPicker = false
     showingModelPicker = false
     presentedOverlay = nil
-    destination = .activity
+    activityError = nil
+    let entries = activityEntries
+    activitySession = ActivitySession(activatedAt: Date(),
+      priorityIDs: entries.filter(\.needsAttention).map(\.id),
+      recentDates: Dictionary(entries.filter { !$0.needsAttention }.map { ($0.id, $0.recency) }, uniquingKeysWith: { first, _ in first }))
+  }
+
+  func closeActivity() {
+    guard showingActivity else { return }
+    activitySession = nil
+    activityError = nil
+    if destination == .workspace { focusComposer = UUID() }
   }
 
   func returnToWorkspace() {
+    closeActivity()
     pluginDetailForwardRoute = nil
     pluginDetailRoute = nil
     destination = .workspace
