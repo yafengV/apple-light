@@ -1956,6 +1956,35 @@ final class BrowserTests: XCTestCase {
     XCTAssertTrue(reopened.closed)
   }
 
+  @MainActor func testTaskIDWebLinkWithoutRunAndTaskWindowRouteKeepExplicitOwners() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.library.tasks = [.init(id: "main", project: "", title: "Main", runIDs: []),
+      .init(id: "popout", project: "", title: "Popout", runIDs: [])]
+    store.library.drafts = ["main": "main draft", "popout": "popout draft"]
+    let browser = TaskWindowBrowser(dataStore: store.browserDataStore)
+    let panels = TaskWindowPanels(taskID: "popout")
+    let tabs = TaskWindowTabs(taskID: "popout", browser: browser, panels: panels)
+    defer { browser.session.shutdown(); panels.shutdown(); store.workspace.browser.shutdown() }
+    let url = URL(string: base + "/one")!
+    var accepted = await store.openTaskWebLink(url, taskID: "main")
+    XCTAssertTrue(accepted); XCTAssertEqual(store.selectedTask?.id, "main")
+    let main = try XCTUnwrap(store.workspace.browser.selected)
+    try await eventually("Task ID link did not load") { !main.loading && main.committedURL == url }
+    XCTAssertEqual(store.activeRightWorkspaceContentTab?.owner, "main")
+    accepted = await store.openTaskWebLink(url, taskID: "popout", openInApp: { tabs.openBrowser($0, presentation: $1) })
+    XCTAssertTrue(accepted)
+    let independent = try XCTUnwrap(browser.session.selected)
+    try await eventually("Task window link did not load") { !independent.loading && independent.committedURL == url }
+    XCTAssertEqual(tabs.tabs.first?.owner, "popout"); XCTAssertEqual(tabs.selected(.right)?.browserID, independent.id)
+    XCTAssertEqual(store.selectedTask?.id, "main"); XCTAssertEqual(store.workspace.browser.tabs.count, 1)
+    XCTAssertEqual(store.library.drafts["main"], "main draft"); XCTAssertEqual(store.library.drafts["popout"], "popout draft")
+    accepted = await store.openWebLinkInApp(url, ownerRunID: nil, ownerTaskID: "removed")
+    XCTAssertFalse(accepted); XCTAssertEqual(store.workspace.browser.tabs.count, 1)
+  }
+
   @MainActor func testIndependentBrowserBackgroundTabsAndGlobalDownloadCancellation() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

@@ -442,7 +442,9 @@ struct TaskWindowView: View {
     .taskRenameUndo(store: store, history: renameHistory, blocked: windowCommandsBlocked, onReveal: onNavigate)
     .frame(minWidth: 620, minHeight: 520)
     .gitWorkflowPresentation(store: store, workspace: taskWorkspace, taskID: taskID,
-      currentTaskID: { task?.id }, keyboardAllowed: { searchMode == nil }) {
+      currentTaskID: { task?.id }, keyboardAllowed: { searchMode == nil }, openPullRequestLink: { url in
+        await store.openTaskWebLink(url, taskID: taskID, openInApp: { tabs.openBrowser($0, presentation: $1) })
+      }) {
       task != nil && !otherWindowModalActive && (searchMode == nil || searchMode == .commands)
     }
     .focusedSceneValue(\.taskWindowCommands, windowCommandContext)

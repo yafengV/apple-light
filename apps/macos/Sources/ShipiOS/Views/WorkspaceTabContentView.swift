@@ -103,7 +103,13 @@ struct WorkspaceTabWindowView: View {
           .padding(10)
           Divider()
           if case .review(let owner) = tab {
-            DetachedReviewView(store: store, owner: owner, focusComposer: focusChat)
+            DetachedReviewView(store: store, owner: owner, focusComposer: focusChat,
+              openPullRequestLink: { url in
+                let accepted = await store.openTaskWebLink(url, taskID: owner)
+                guard accepted, !Task.isCancelled else { return false }
+                if store.webLinkTarget == .inAppBrowser, store.currentWorkspaceTabOwner == owner { showMainWindow() }
+                return true
+              })
           } else if let browserID = tab.browserID {
             BrowserPanel(store: store, session: store.workspace.browser,
               context: browserContext(tab), showsTabStrip: false, tabID: browserID)

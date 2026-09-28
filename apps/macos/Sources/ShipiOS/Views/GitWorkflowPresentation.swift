@@ -7,6 +7,7 @@ private struct GitWorkflowPresentation: ViewModifier {
   let available: () -> Bool
   let currentTaskID: () -> String?
   let keyboardAllowed: () -> Bool
+  let openPullRequestLink: (@MainActor (URL) async -> Bool)?
 
   private var request: GitWorkflowCommandRequest {
     .init(repository: .init(root: workspace.gitAvailable ? workspace.gitRoot : nil,
@@ -20,9 +21,9 @@ private struct GitWorkflowPresentation: ViewModifier {
     content
       .focusedSceneValue(\.gitWorkflowCommands,
         GitWorkflowCommandContext(store: store, workspace: workspace, taskID: taskID,
-          request: request, available: available, currentTaskID: currentTaskID))
+          request: request, available: available, currentTaskID: currentTaskID, openPullRequestLink: openPullRequestLink))
       .background(GitWorkflowKeyboardBridge(commands: .init(store: store, workspace: workspace,
-        taskID: taskID, request: request, available: available, currentTaskID: currentTaskID),
+        taskID: taskID, request: request, available: available, currentTaskID: currentTaskID, openPullRequestLink: openPullRequestLink),
         shortcuts: store.shortcuts, allowed: keyboardAllowed)
         .frame(width: 0, height: 0))
       .task(id: request) {
@@ -52,18 +53,22 @@ private struct GitWorkflowPresentation: ViewModifier {
         workspace.showingCommitPush = false; workspace.showingPullRequest = false
         workspace.showingManagedBranchSetup = false; workspace.managedBranchRequest = nil
         workspace.managedBranchSetup.cancel()
+        workspace.pullRequestLinkOpening.cancel()
         workspace.clearGitPresentation()
       }
-      .onDisappear { workspace.gitCommands.cancel() }
+      .onDisappear { workspace.gitCommands.cancel(); workspace.pullRequestLinkOpening.cancel() }
   }
 }
 
 extension View {
   func gitWorkflowPresentation(store: WorkspaceStore, workspace: DeveloperWorkspace,
     taskID: String?, currentTaskID: @escaping () -> String?,
-    keyboardAllowed: @escaping () -> Bool, available: @escaping () -> Bool) -> some View {
+    keyboardAllowed: @escaping () -> Bool,
+    openPullRequestLink: (@MainActor (URL) async -> Bool)? = nil,
+    available: @escaping () -> Bool) -> some View {
     modifier(GitWorkflowPresentation(store: store, workspace: workspace,
-      taskID: taskID, available: available, currentTaskID: currentTaskID, keyboardAllowed: keyboardAllowed))
+      taskID: taskID, available: available, currentTaskID: currentTaskID, keyboardAllowed: keyboardAllowed,
+      openPullRequestLink: openPullRequestLink))
   }
 }
 

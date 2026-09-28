@@ -75,12 +75,16 @@ struct GitWorkflowCommandSnapshot: Sendable {
 @MainActor @Observable final class GitWorkflowCommandState {
   private(set) var request: GitWorkflowCommandRequest?
   private(set) var snapshot: GitWorkflowCommandSnapshot?
+  private(set) var retainedPullRequest: GitHubPRContext?
   private(set) var loading = false
   private(set) var error: String?
   @ObservationIgnored private var token = UUID()
 
   func load(_ request: GitWorkflowCommandRequest,
     read: (URL, Bool) async throws -> GitWorkflowCommandSnapshot) async {
+    var previous = self.request?.repository, current = request.repository
+    previous?.suspended = false; current.suspended = false
+    if previous != current || self.request?.primary != request.primary { retainedPullRequest = nil }
     let operation = UUID()
     token = operation; self.request = request; snapshot = nil; error = nil; loading = false
     guard let root = request.repository.root, !request.repository.suspended else { return }
@@ -90,11 +94,12 @@ struct GitWorkflowCommandSnapshot: Sendable {
       let result = try await read(root, request.primary)
       guard token == operation, !Task.isCancelled else { return }
       snapshot = result
+      retainedPullRequest = result.pullRequest?.context.existing == nil ? nil : result.pullRequest?.context
     } catch {
       guard token == operation, !Task.isCancelled else { return }
       self.error = error.localizedDescription
     }
   }
 
-  func cancel() { token = UUID(); snapshot = nil; loading = false; error = nil }
+  func cancel() { token = UUID(); snapshot = nil; retainedPullRequest = nil; loading = false; error = nil }
 }

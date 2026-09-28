@@ -50,13 +50,27 @@ extension WorkspaceStore {
       preference: webLinkTarget, shortcut: shortcuts.externalBrowserLinkShortcut)
   }
 
-  func openWebLinkInApp(_ url: URL, ownerRunID: String?,
-    presentation: MessageWebLinkPresentation = .split) async {
-    guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
-    let task = library.task(containing: ownerRunID)
-    guard ownerRunID == nil || task != nil else {
+  func openTaskWebLink(_ url: URL, taskID: String,
+    openInApp: ((URL, MessageWebLinkPresentation) -> Void)? = nil,
+    openExternal: (URL) -> Bool = { NSWorkspace.shared.open($0) }) async -> Bool {
+    guard library.tasks.contains(where: { $0.id == taskID }), BrowserAddress.permits(url) else { return false }
+    switch messageWebLinkBehavior(url, click: nil) {
+    case .external: return openExternal(url)
+    case .inApp(let presentation):
+      if let openInApp { openInApp(url, presentation); return true }
+      return await openWebLinkInApp(url, ownerRunID: nil, ownerTaskID: taskID, presentation: presentation)
+    case .download: return false
+    }
+  }
+
+  @discardableResult func openWebLinkInApp(_ url: URL, ownerRunID: String?, ownerTaskID: String? = nil,
+    presentation: MessageWebLinkPresentation = .split) async -> Bool {
+    guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return false }
+    let task = ownerTaskID.flatMap { id in library.tasks.first { $0.id == id } }
+      ?? (ownerTaskID == nil ? library.task(containing: ownerRunID) : nil)
+    guard (ownerTaskID == nil && ownerRunID == nil) || task != nil else {
       error = "链接所属的任务已不可用。"
-      return
+      return false
     }
     if presentation == .backgroundTab {
       let owner = task?.id ?? currentWorkspaceTabOwner
@@ -71,19 +85,20 @@ extension WorkspaceStore {
       }
       tab.address = url.absoluteString
       tab.navigate()
-      return
+      return true
     }
     if let task {
-      guard canSelectTask(task) else { error = "当前任务忙碌，暂时无法打开链接所属的任务。"; return }
+      guard canSelectTask(task) else { error = "当前任务忙碌，暂时无法打开链接所属的任务。"; return false }
       if currentProjectKey != task.project {
         guard await openTaskScope(task.project) else {
           error = "无法打开链接所属的任务。"
-          return
+          return false
         }
       }
-      guard let current = library.tasks.first(where: { $0.id == task.id }) else {
+      guard let current = library.tasks.first(where: { $0.id == task.id }), current.project == task.project,
+        !Task.isCancelled else {
         error = "链接所属的任务已不可用。"
-        return
+        return false
       }
       if selectedTask?.id != current.id {
         applyTaskSelection(current)
@@ -100,6 +115,7 @@ extension WorkspaceStore {
       tab.navigate()
     }
     workspace.browser.focusContent(tab.id)
+    return true
   }
 
   private func reusableMessageBrowserTab(for url: URL) -> BrowserTab? {
