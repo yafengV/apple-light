@@ -9,8 +9,10 @@ struct GitHubPRView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var summaryLoader = GitCommitSummaryLoader()
   @State private var selected: GitPullRequestAction = .create
+  @State private var branchError: String?
+  @State private var validatingBranch = false
   @State private var presentationScope: GitPullRequestModalScope?
-  private enum Focus: Hashable { case title, body, action(GitPullRequestAction) }
+  private enum Focus: Hashable { case branch, title, body, action(GitPullRequestAction) }
   @FocusState private var focus: Focus?
 
   var body: some View {
@@ -20,12 +22,19 @@ struct GitHubPRView: View {
         HStack(spacing: 4) {
           Text(context.repository.fullName).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
           Text("·")
-          Text(context.head).lineLimit(1).layoutPriority(1)
+          Text(context.requiresNewBranch ? "新分支" : context.head)
+            .lineLimit(1).layoutPriority(1)
           Text("→")
           Text(draft.base).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
           Spacer(minLength: 0)
         }.appFont(.caption).foregroundStyle(.secondary).frame(height: 28)
         if draft.existing == nil {
+          if context.requiresNewBranch {
+            TextField(store.library.gitPreferences.branchPrefix, text: $draft.branchName)
+              .textFieldStyle(.plain).accessibilityLabel("新分支名称")
+              .focused($focus, equals: .branch).disabled(draft.creating || draft.modalActionPending)
+            if let branchError { Text(branchError).appFont(.caption).foregroundStyle(.red) }
+          }
           TextField("标题", text: $draft.title).textFieldStyle(.plain).fontWeight(.semibold)
             .accessibilityLabel("PR 标题")
             .focused($focus, equals: .title).disabled(draft.creating || draft.modalActionPending)
@@ -49,7 +58,7 @@ struct GitHubPRView: View {
           if draft.includeLocalChanges, let error = summaryLoader.error {
             Text(error).appFont(.caption).foregroundStyle(.orange)
           }
-          if !draft.includeLocalChanges, context.publishedCommit == nil {
+          if !draft.includeLocalChanges, !context.requiresNewBranch, context.publishedCommit == nil {
             Text("此分支尚未发布，请勾选提交并推送，或先推送分支。")
               .appFont(.caption).foregroundStyle(.orange)
           }
@@ -99,16 +108,20 @@ struct GitHubPRView: View {
       }
     }.padding(12).frame(width: 420)
       .accessibilityLabel(draft.existing == nil ? "创建 PR" : "打开 PR")
-      .background(PullRequestKeyboardBridge(action: handleKey).frame(width: 0, height: 0))
+      .background(PullRequestKeyboardBridge(action: handleKey, branchField: focus == .branch).frame(width: 0, height: 0))
       .interactiveDismissDisabled(draft.creating || draft.modalActionPending)
       .onAppear {
+        if !draft.creating && !draft.modalActionPending { draft.branchName = "" }
         presentationScope = GitPullRequestModalScope(workspace: workspace)
       }
       .task {
         selected = .initial(existing: draft.existing != nil,
           defaultToDraft: store.library.gitPreferences.createDraftPullRequests)
         await refreshExisting()
-        if !draft.creating { focus = draft.existing == nil ? .title : .action(.openExisting) }
+        if !draft.creating {
+          focus = draft.existing != nil ? .action(.openExisting)
+            : draft.context?.requiresNewBranch == true ? .branch : .title
+        }
       }
       .onChange(of: draft.existing != nil) { _, existing in
         selected = .initial(existing: existing,
@@ -118,12 +131,14 @@ struct GitHubPRView: View {
       .onChange(of: focus) { _, value in
         if case .action(let action) = value { selected = action }
       }
+      .task(id: branchValidationKey) { await validateBranch() }
       .task(id: summaryRequest) { await summaryLoader.load(summaryRequest) }
       .onDisappear { [presentationScope] in presentationScope?.disappear() }
   }
 
   private var canCreate: Bool {
-    draft.canCreate && !draft.modalActionPending && workspace.isPrimaryReviewRepository
+    draft.canCreate && (draft.context?.requiresNewBranch != true || (!validatingBranch && branchError == nil))
+      && !draft.modalActionPending && workspace.isPrimaryReviewRepository
       && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
   }
   private var summaryRequest: GitCommitSummaryRequest {
@@ -135,12 +150,33 @@ struct GitHubPRView: View {
   private func refreshExisting() async {
     guard workspace.isPrimaryReviewRepository, let root = workspace.gitRoot else { return }
     await draft.load(at: root, allowUnpublished: true)
+    if draft.context?.requiresNewBranch == true && draft.branchName.isEmpty {
+      draft.branchName = GitBranchSuggestion.name(prefix: store.library.gitPreferences.branchPrefix,
+        title: store.gitCommitTaskTitle(taskID: taskID))
+    }
     if let existing = draft.existing, let repository = draft.context?.repository,
       workspace.gitRoot == root {
       if let project = workspace.root {
         _ = store.recordPullRequest(existing, for: taskID, at: project, repository: repository)
       }
     }
+  }
+  private var branchValidationKey: String {
+    (draft.context?.requiresNewBranch == true ? "new" : "current") + "\0" + draft.branchName
+  }
+  private func validateBranch() async {
+    branchError = nil
+    guard draft.context?.requiresNewBranch == true, let root = workspace.gitRoot else {
+      validatingBranch = false; return
+    }
+    validatingBranch = true
+    do {
+      try await Task.sleep(for: .milliseconds(200))
+      try await GitCommitSelection.validateBranch(
+        draft.branchName.trimmingCharacters(in: .whitespacesAndNewlines), at: root)
+      try Task.checkCancellation()
+    } catch { if !Task.isCancelled { branchError = error.localizedDescription } }
+    if !Task.isCancelled { validatingBranch = false }
   }
   private var actions: [GitPullRequestAction] {
     draft.existing == nil ? GitPullRequestAction.creationActions : [.openExisting]

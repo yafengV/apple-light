@@ -21,12 +21,12 @@ struct GitPushChoices: Sendable {
 }
 
 enum GitPushService {
-  static func choices(at root: URL) async throws -> GitPushChoices {
+  static func choices(at root: URL, allowDetached: Bool = false) async throws -> GitPushChoices {
     let snapshot = try await GitBranchService.snapshot(at: root)
-    guard snapshot.canChange, let reference = snapshot.currentReference else {
+    guard snapshot.canChange, snapshot.currentReference != nil || (allowDetached && snapshot.currentCommit != nil) else {
       throw AgentFailure(message: "请在仓库根目录选择本地分支后推送。")
     }
-    let branch = String(reference.dropFirst("refs/heads/".count))
+    let branch = snapshot.currentReference.map { String($0.dropFirst("refs/heads/".count)) } ?? ""
     let remotes = try await GitReviewService.checked(["remote"], at: root)
       .split(separator: "\n").map(String.init)
     guard !remotes.isEmpty else { throw AgentFailure(message: "尚未配置远端，请先在终端添加 Git remote。") }
@@ -43,8 +43,8 @@ enum GitPushService {
   }
 
   static func prepare(at root: URL, remote: String, destination: String,
-    forceWithLease: Bool) async throws -> GitPushPlan {
-    let choices = try await choices(at: root)
+    forceWithLease: Bool, allowDetached: Bool = false) async throws -> GitPushPlan {
+    let choices = try await choices(at: root, allowDetached: allowDetached)
     guard choices.hasCommit else { throw AgentFailure(message: "请先完成首次提交，再推送分支。") }
     guard choices.remotes.contains(remote), !remote.hasPrefix("-") else {
       throw AgentFailure(message: "所选远端已移除，请刷新后重试。")
@@ -52,11 +52,7 @@ enum GitPushService {
     let ref = "refs/heads/" + destination
     let valid = try await LocalWorkspaceService.git(["check-ref-format", ref], at: root)
     guard valid.status == 0 else { throw AgentFailure(message: "远端分支名称无效。") }
-    let urls = try await GitReviewService.checked(["remote", "get-url", "--push", "--all", remote], at: root)
-      .split(separator: "\n").map(String.init)
-    guard urls.count == 1 else {
-      throw AgentFailure(message: "此远端配置了多个推送地址，请在终端选择地址后推送。")
-    }
+    let pushURL = try await remoteURL(remote, at: root)
     let fetch = try await LocalWorkspaceService.git(["config", "--get-all", "remote.\(remote).fetch"], at: root)
     let tracking = try trackingReference(for: ref, refspecs: fetch.status == 0 ? fetch.text : "")
     let expected: String
@@ -72,7 +68,7 @@ enum GitPushService {
     let commit = try await GitReviewService.checked(["rev-parse", "--verify", "HEAD^{commit}"], at: root)
       .trimmingCharacters(in: .newlines)
     return GitPushPlan(root: root, branch: choices.branch, commit: commit, remote: remote,
-      destination: ref, pushURL: urls[0], trackingReference: tracking,
+      destination: ref, pushURL: pushURL, trackingReference: tracking,
       expectedRemoteCommit: expected, forceWithLease: forceWithLease)
   }
 
@@ -110,6 +106,15 @@ enum GitPushService {
       if result.status != 0 { return "推送成功，但未能设置上游分支：" + result.text }
     }
     return nil
+  }
+
+  static func remoteURL(_ remote: String, at root: URL) async throws -> String {
+    let urls = try await GitReviewService.checked(["remote", "get-url", "--push", "--all", remote], at: root)
+      .split(separator: "\n").map(String.init)
+    guard urls.count == 1 else {
+      throw AgentFailure(message: "此远端配置了多个推送地址，请在终端选择地址后推送。")
+    }
+    return urls[0]
   }
 
   private static func config(_ key: String, at root: URL) async throws -> String {

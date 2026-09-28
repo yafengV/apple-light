@@ -9,6 +9,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   var body = ""
   var base = ""
   var includeLocalChanges = true
+  var branchName = ""
   private(set) var phase = ""
   private(set) var context: GitHubPRContext?
   private(set) var existing: GitHubPullRequest?
@@ -29,7 +30,9 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   var canCreate: Bool {
     context != nil && context?.creationProblem == nil && existing == nil && !loading && !creating && !needsRefresh
       && !base.isEmpty
-      && (context?.allowsLocalPreparation != true || includeLocalChanges || context?.publishedCommit != nil)
+      && (context?.requiresNewBranch != true || (!branchName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !branchName.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("/")))
+      && (context?.allowsLocalPreparation != true || includeLocalChanges || context?.publishedCommit != nil || context?.requiresNewBranch == true)
   }
   var needsGeneratedContent: Bool {
     title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -38,7 +41,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
 
   func load(at root: URL, allowUnpublished: Bool = false) async {
     guard !creating else { return }
-    if self.root != root { title = ""; body = ""; base = "" }
+    if self.root != root { title = ""; body = ""; base = ""; branchName = "" }
     self.root = root
     let operation = UUID(); token = operation
     context = nil; existing = nil; browserURL = nil; error = nil; loading = true
@@ -96,7 +99,8 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
     phase = "正在检查分支与变更…"
     defer { creating = false; generating = false; generationTask = nil; phase = "" }
     let originalTitle = title, originalBody = body, originalBase = base
-    let originalInclude = includeLocalChanges
+    let originalInclude = includeLocalChanges, originalBranch = branchName
+    let newBranch = context.requiresNewBranch ? branchName.trimmingCharacters(in: .whitespacesAndNewlines) : nil
     do {
       guard title.count <= 256, !title.contains("\n"), !title.contains("\r"), body.utf8.count <= 65_536 else {
         throw AgentFailure(message: "请填写 256 字符以内的单行标题，描述不能超过 64 KiB。")
@@ -104,10 +108,10 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
       var workflow: GitPullRequestWorkflow?
       if let prepareLocalChanges {
         workflow = try await GitPullRequestWorkflow.prepare(context, base: base,
-          includeLocalChanges: prepareLocalChanges, service: service)
+          includeLocalChanges: prepareLocalChanges, service: service, newBranch: newBranch)
       }
       guard title == originalTitle, body == originalBody, base == originalBase,
-        includeLocalChanges == originalInclude else {
+        includeLocalChanges == originalInclude, branchName == originalBranch else {
         throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
       }
       var resolvedCommitMessage = commitMessage
@@ -143,7 +147,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
         generating = false; generationTask = nil
         try Task.checkCancellation()
         guard title == originalTitle, body == originalBody, base == originalBase,
-          includeLocalChanges == originalInclude else {
+          includeLocalChanges == originalInclude, branchName == originalBranch else {
           throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
         }
         if originalTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { title = generated.title }
@@ -160,13 +164,13 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
       try Task.checkCancellation()
       // Validate the generated URL before any staging, commit or push.
       if browserOpener != nil {
-        _ = try GitHubPRService.compareURL(repository: context.repository, base: base, head: context.head,
+        _ = try GitHubPRService.compareURL(repository: context.repository, base: base, head: newBranch ?? context.head,
           title: title, body: body)
       }
       let finalTitle = title, finalBody = body
       let authorizeInput: GitMutationAuthorization = {
         guard self.title == finalTitle, self.body == finalBody, self.base == originalBase,
-          self.includeLocalChanges == originalInclude else {
+          self.includeLocalChanges == originalInclude, self.branchName == originalBranch else {
           throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
         }
         try authorize()
@@ -285,7 +289,7 @@ extension WorkspaceStore {
     var expectedCommitMessage = originalCommitMessage
     let prepare = state.context?.allowsLocalPreparation == true ? state.includeLocalChanges : nil
     let originalTitle = state.title, originalBody = state.body, originalBase = state.base
-    let originalInclude = state.includeLocalChanges
+    let originalInclude = state.includeLocalChanges, originalBranch = state.branchName
     let authorizeContext = workspace.gitMutationAuthorization(at: root)
     let authorize: GitMutationAuthorization = {
       try authorizeContext()
@@ -310,7 +314,7 @@ extension WorkspaceStore {
       }
       try authorize()
       guard state.title == originalTitle, state.body == originalBody, state.base == originalBase,
-        state.includeLocalChanges == originalInclude else { return }
+        state.includeLocalChanges == originalInclude, state.branchName == originalBranch else { return }
       if state.needsGeneratedContent || needsCommitMessage {
         let configuration = modelConfiguration
         try configuration.validateEndpoint()

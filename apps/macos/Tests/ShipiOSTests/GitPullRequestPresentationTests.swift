@@ -76,6 +76,23 @@ final class GitPullRequestPresentationTests: XCTestCase {
     XCTAssertNil(try key(125, flags: .option))
   }
 
+  func testBranchReturnKeepsEditingWhileCommandReturnActivatesAndIMEIsProtected() throws {
+    for code: UInt16 in [36, 76] {
+      let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+        timestamp: 0, windowNumber: 0, context: nil, characters: "\r", charactersIgnoringModifiers: "\r",
+        isARepeat: false, keyCode: code))
+      XCTAssertNil(PullRequestKeyboardBridge.key(for: event, markedText: false,
+        multilineText: false, branchField: true))
+      let command = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+        timestamp: 0, windowNumber: 0, context: nil, characters: "\r", charactersIgnoringModifiers: "\r",
+        isARepeat: false, keyCode: code))
+      XCTAssertEqual(PullRequestKeyboardBridge.key(for: command, markedText: false,
+        multilineText: false, branchField: true), .activate)
+      XCTAssertNil(PullRequestKeyboardBridge.key(for: command, markedText: true,
+        multilineText: false, branchField: true))
+    }
+  }
+
   func testVisibleActionsAndPreferenceAndExistingSelection() {
     XCTAssertEqual(GitPullRequestAction.creationActions, [.createDraft, .create, .openBrowser])
     XCTAssertEqual(GitPullRequestAction.initial(existing: false, defaultToDraft: true), .createDraft)

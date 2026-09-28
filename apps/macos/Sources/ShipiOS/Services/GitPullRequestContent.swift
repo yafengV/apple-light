@@ -36,6 +36,7 @@ struct GitPullRequestContent: Equatable, Sendable {
   let commits: String
   var localDiff: String? = nil
   var needsCommitMessage = false
+  var proposedHead: String? = nil
 
   static func capture(_ context: GitHubPRContext, base: String, baseCommit: String) async throws -> Self {
     let root = context.plan.root
@@ -75,7 +76,7 @@ struct GitPullRequestContent: Equatable, Sendable {
       \(instructions)
       """), ChatMessage(role: "user", content: """
       Repository: \(context.repository.fullName)
-      Source: \(context.head)
+      Source: \(proposedHead ?? context.head)
       Target: \(base)
       Existing title: \(title)
       Existing description: \(body)

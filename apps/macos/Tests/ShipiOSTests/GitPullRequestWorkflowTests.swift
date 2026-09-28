@@ -962,4 +962,315 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     XCTAssertEqual(try responses.records().count, 1)
   }
 
+  private func detach(_ fixture: Fixture, at commit: String? = nil) async throws {
+    _ = try await git(["switch", "--detach", "--", commit ?? fixture.head], at: fixture.root)
+  }
+  private func currentRef(_ fixture: Fixture) async throws -> String {
+    let value = try await LocalWorkspaceService.git(["symbolic-ref", "-q", "HEAD"], at: fixture.root)
+    return value.status == 0 ? value.text.trimmingCharacters(in: .newlines) : ""
+  }
+  private func exists(_ branch: String, in fixture: Fixture) async throws -> Bool {
+    let value = try await LocalWorkspaceService.git(["show-ref", "--verify", "--quiet", "refs/heads/" + branch], at: fixture.root)
+    return value.status == 0
+  }
+
+  @MainActor func testDetachedInspectionRequiresNewBranchAndOrdinaryPushStillRejectsDetached() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    do { _ = try await GitPushService.choices(at: f.root); XCTFail("Ordinary push cannot publish detached HEAD") }
+    catch { XCTAssertTrue(error.localizedDescription.contains("分支")) }
+    do { _ = try await f.service.inspect(at: f.root); XCTFail("Standalone create requires a named branch") }
+    catch { XCTAssertTrue(error.localizedDescription.contains("分支")) }
+    let (_, w) = await workspace(f)
+    XCTAssertNil(w.pullRequestDraft.error)
+    XCTAssertTrue(w.pullRequestDraft.context?.requiresNewBranch == true)
+    XCTAssertFalse(w.pullRequestDraft.canCreate)
+    w.pullRequestDraft.branchName = "feature/new-pr"
+    XCTAssertTrue(w.pullRequestDraft.canCreate)
+    XCTAssertNil(w.pullRequestDraft.existing)
+    XCTAssertNil(w.pullRequestDraft.context?.publishedCommit)
+    let ref = try await currentRef(f)
+    XCTAssertEqual(ref, "")
+  }
+
+  @MainActor func testNamedDefaultBranchDoesNotBecomeAutomaticNewBranchPR() async throws {
+    let f = try await fixture()
+    _ = try await git(["switch", "main"], at: f.root)
+    let (_, w) = await workspace(f)
+    XCTAssertFalse(w.pullRequestDraft.context?.requiresNewBranch == true)
+    XCTAssertFalse(w.pullRequestDraft.canCreate)
+    XCTAssertTrue(w.pullRequestDraft.context?.creationProblem?.contains("功能分支") == true)
+    w.pullRequestDraft.branchName = "feature/unused"
+    _ = await w.pullRequestDraft.create(draft: false, prepareLocalChanges: true)
+    let ref = try await currentRef(f)
+    XCTAssertEqual(ref, "refs/heads/main")
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedCleanHeadCreatesPushesRecordsWithoutNewCommitAndModalResets() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let (store, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/detached-pr"
+    let action = try XCTUnwrap(store.beginPullRequestAction(.createDraft, in: w, taskID: "owner"))
+    await action.value
+    XCTAssertNil(w.pullRequestDraft.error)
+    XCTAssertEqual(w.pullRequestDraft.existing?.headRefName, "feature/detached-pr")
+    XCTAssertEqual(w.pullRequestDraft.existing?.isDraft, true)
+    let ref = try await currentRef(f)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: f.root)
+    let remote = try await git(["rev-parse", "refs/heads/feature/detached-pr"], at: f.remote)
+    XCTAssertEqual(ref, "refs/heads/feature/detached-pr")
+    XCTAssertEqual(count, "2")
+    XCTAssertEqual(remote, f.head)
+    XCTAssertEqual(store.library.taskPullRequests["owner"]?.first?.headRefName, "feature/detached-pr")
+    XCTAssertNil(store.library.taskPullRequests["other"])
+    XCTAssertEqual(w.pullRequestDraft.title, "")
+    XCTAssertEqual(w.pullRequestDraft.body, "")
+  }
+
+  @MainActor func testDetachedBaseWithLocalChangesCreatesBranchThenCommitsAndPushes() async throws {
+    let f = try await fixture()
+    try await detach(f, at: f.base)
+    try write("new local feature\n", in: f)
+    try write("new untracked\n", "new.txt", in: f)
+    let (store, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/local-pr"
+    await store.createPullRequest(in: w, draft: false)
+    XCTAssertNil(w.pullRequestDraft.error)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: f.root)
+    let text = try await git(["show", "HEAD:file.txt"], at: f.root)
+    let new = try await git(["show", "HEAD:new.txt"], at: f.root)
+    let base = try await git(["rev-parse", "refs/heads/main"], at: f.remote)
+    XCTAssertEqual(count, "2")
+    XCTAssertEqual(text, "new local feature")
+    XCTAssertEqual(new, "new untracked")
+    XCTAssertEqual(base, f.base)
+    XCTAssertEqual(w.pullRequestDraft.existing?.headRefName, "feature/local-pr")
+  }
+
+  @MainActor func testDetachedUncheckedPublishesExistingCommitsPreservingStagedAndUnstagedContent() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    try write("staged\n", in: f)
+    _ = try await git(["add", "file.txt"], at: f.root)
+    try write("unstaged\n", in: f)
+    try write("untracked\n", "new.txt", in: f)
+    let indexTree = try await git(["write-tree"], at: f.root)
+    let (store, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/commits-only"
+    w.pullRequestDraft.includeLocalChanges = false
+    await store.createPullRequest(in: w, draft: false)
+    XCTAssertNil(w.pullRequestDraft.error)
+    let remote = try await git(["rev-parse", "refs/heads/feature/commits-only"], at: f.remote)
+    let local = try await git(["rev-parse", "HEAD"], at: f.root)
+    let afterTree = try await git(["write-tree"], at: f.root)
+    XCTAssertEqual(local, f.head)
+    XCTAssertEqual(remote, f.head)
+    XCTAssertEqual(afterTree, indexTree)
+    XCTAssertEqual(try String(contentsOf: f.root.appendingPathComponent("file.txt")), "unstaged\n")
+    XCTAssertEqual(try String(contentsOf: f.root.appendingPathComponent("new.txt")), "untracked\n")
+    XCTAssertEqual(w.commitMessage, "Local changes")
+  }
+
+  @MainActor func testDetachedUncheckedWithNoNewCommitRejectsBeforeCreatingBranch() async throws {
+    let f = try await fixture()
+    try await detach(f, at: f.base)
+    try write("must stay local\n", in: f)
+    let (store, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/no-commits"
+    w.pullRequestDraft.includeLocalChanges = false
+    await store.createPullRequest(in: w, draft: false)
+    XCTAssertTrue(w.pullRequestDraft.error?.contains("新提交") == true)
+    let ref = try await currentRef(f)
+    let branch = try await exists("feature/no-commits", in: f)
+    XCTAssertEqual(ref, "")
+    XCTAssertFalse(branch)
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedBrowserUsesNewBranchInCompareURLAndDoesNotInventPR() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let (store, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/browser-pr"
+    w.pullRequestDraft.includeLocalChanges = false
+    var opened: URL?
+    let action = try XCTUnwrap(store.beginPullRequestAction(.openBrowser, in: w, taskID: "owner",
+      openURL: { opened = $0; return true }))
+    await action.value
+    XCTAssertNil(w.pullRequestDraft.error)
+    XCTAssertTrue(opened?.absoluteString.contains("main...feature%2Fbrowser-pr") == true)
+    XCTAssertEqual(w.pullRequestDraft.title, "Manual title")
+    XCTAssertFalse(w.pullRequestDraft.includeLocalChanges)
+    XCTAssertNil(w.pullRequestDraft.existing)
+    XCTAssertNil(store.library.taskPullRequests["owner"])
+    XCTAssertEqual(try creates(f).count, 0)
+    let remote = try await git(["rev-parse", "refs/heads/feature/browser-pr"], at: f.remote)
+    XCTAssertEqual(remote, f.head)
+  }
+
+  @MainActor func testDetachedPushFailureKeepsNewBranchAndRetryDoesNotDuplicateCommit() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let reject = try hook("pre-receive", at: f.remote, contents: "#!/bin/sh\nexit 1\n")
+    try write("local\n", in: f)
+    let (store, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/retry-pr"
+    await store.createPullRequest(in: w, draft: true)
+    XCTAssertNotNil(w.pullRequestDraft.error)
+    XCTAssertFalse(w.pullRequestDraft.context?.requiresNewBranch == true)
+    let committed = try await git(["rev-parse", "HEAD"], at: f.root)
+    let ref = try await currentRef(f)
+    XCTAssertEqual(ref, "refs/heads/feature/retry-pr")
+    XCTAssertEqual(try creates(f).count, 0)
+    try FileManager.default.removeItem(at: reject)
+    await store.createPullRequest(in: w, draft: true)
+    XCTAssertNil(w.pullRequestDraft.error)
+    let after = try await git(["rev-parse", "HEAD"], at: f.root)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: f.root)
+    XCTAssertEqual(after, committed)
+    XCTAssertEqual(count, "3")
+    XCTAssertEqual(try creates(f).count, 1)
+  }
+
+  @MainActor func testDetachedInvalidOrExistingBranchDoesNotChangeHeadOrIndex() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    try write("local\n", in: f)
+    let (_, w) = await workspace(f)
+    let index = try Data(contentsOf: f.root.appendingPathComponent(".git/index"))
+    for name in ["feature/topic", "feature/", "main", "@{-1}", "-unsafe"] {
+      w.pullRequestDraft.branchName = name
+      _ = await w.pullRequestDraft.create(draft: false, prepareLocalChanges: true, commitMessage: "Local")
+      XCTAssertNotNil(w.pullRequestDraft.error)
+      let ref = try await currentRef(f)
+      XCTAssertEqual(ref, "")
+      XCTAssertEqual(try Data(contentsOf: f.root.appendingPathComponent(".git/index")), index)
+    }
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedGenerationUsesProposedHeadAndCancellationCreatesNoBranch() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    try write("local\n", in: f)
+    let (_, w) = await workspace(f)
+    let d = w.pullRequestDraft
+    d.branchName = "feature/cancel-pr"; d.body = ""
+    let index = try Data(contentsOf: f.root.appendingPathComponent(".git/index"))
+    let generator: GitHubPRGenerator = { content, _, _ in
+      XCTAssertEqual(content.proposedHead, "feature/cancel-pr")
+      XCTAssertTrue(content.messages(instructions: "", title: "", body: "").last?.content.contains("Source: feature/cancel-pr") == true)
+      throw CancellationError()
+    }
+    _ = await d.create(draft: false, generate: generator, prepareLocalChanges: true, commitMessage: "Local")
+    XCTAssertNil(d.error)
+    XCTAssertEqual(d.body, "")
+    let ref = try await currentRef(f)
+    let branch = try await exists("feature/cancel-pr", in: f)
+    XCTAssertEqual(ref, "")
+    XCTAssertFalse(branch)
+    XCTAssertEqual(try Data(contentsOf: f.root.appendingPathComponent(".git/index")), index)
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedEditedBranchDuringGenerationDoesNotCreateEitherName() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let (_, w) = await workspace(f)
+    let d = w.pullRequestDraft
+    d.branchName = "feature/original-pr"; d.body = ""
+    let generator: GitHubPRGenerator = { _, _, _ in
+      await MainActor.run { d.branchName = "feature/edited-pr" }
+      return GitPullRequestText(title: "Generated", body: "Generated body")
+    }
+    _ = await d.create(draft: false, generate: generator, prepareLocalChanges: true)
+    XCTAssertTrue(d.error?.contains("手动修改") == true)
+    let ref = try await currentRef(f)
+    let first = try await exists("feature/original-pr", in: f)
+    let second = try await exists("feature/edited-pr", in: f)
+    XCTAssertEqual(ref, "")
+    XCTAssertFalse(first); XCTAssertFalse(second)
+    XCTAssertEqual(d.title, "Manual title")
+    XCTAssertEqual(d.body, "")
+  }
+
+  @MainActor func testDetachedPermissionRevokedBeforeBranchCreationLeavesHeadDetached() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let (_, w) = await workspace(f)
+    w.pullRequestDraft.branchName = "feature/blocked-pr"
+    _ = await w.pullRequestDraft.create(draft: false, prepareLocalChanges: true,
+      authorize: { throw CancellationError() })
+    XCTAssertNil(w.pullRequestDraft.error)
+    let ref = try await currentRef(f)
+    let branch = try await exists("feature/blocked-pr", in: f)
+    XCTAssertEqual(ref, "")
+    XCTAssertFalse(branch)
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedSourceHeadMovingDuringGenerationDoesNotCreateBranch() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let (_, w) = await workspace(f)
+    let d = w.pullRequestDraft
+    d.branchName = "feature/head-race"; d.body = ""
+    let root = f.root, base = f.base
+    let generate: GitHubPRGenerator = { _, _, _ in
+      _ = try await GitReviewService.checked(["switch", "--detach", base], at: root)
+      return GitPullRequestText(title: "Generated", body: "Generated body")
+    }
+    _ = await d.create(draft: false, generate: generate, prepareLocalChanges: true)
+    XCTAssertTrue(d.needsRefresh)
+    XCTAssertNotNil(d.error)
+    let branch = try await exists("feature/head-race", in: f)
+    let head = try await git(["rev-parse", "HEAD"], at: root)
+    XCTAssertFalse(branch)
+    XCTAssertEqual(head, base)
+    XCTAssertEqual(d.body, "")
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedNewDestinationChangingDuringGenerationDoesNotCreateBranch() async throws {
+    let f = try await fixture()
+    try await detach(f)
+    let (_, w) = await workspace(f)
+    let d = w.pullRequestDraft
+    d.branchName = "feature/remote-race"; d.body = ""
+    let root = f.root, base = f.base
+    let generate: GitHubPRGenerator = { _, _, _ in
+      _ = try await GitReviewService.checked(["update-ref", "refs/remotes/origin/feature/remote-race", base], at: root)
+      return GitPullRequestText(title: "Generated", body: "Generated body")
+    }
+    _ = await d.create(draft: false, generate: generate, prepareLocalChanges: true)
+    XCTAssertTrue(d.needsRefresh)
+    XCTAssertTrue(d.error?.contains("新分支目标") == true)
+    let branch = try await exists("feature/remote-race", in: f)
+    let ref = try await currentRef(f)
+    XCTAssertFalse(branch)
+    XCTAssertEqual(ref, "")
+    XCTAssertEqual(d.body, "")
+    XCTAssertEqual(try creates(f).count, 0)
+  }
+
+  @MainActor func testDetachedForceLeaseUsesNewDestinationRatherThanDefaultBranchSnapshot() async throws {
+    let f = try await fixture()
+    _ = try await git(["update-ref", "refs/heads/feature/leased-pr", f.base], at: f.remote)
+    _ = try await git(["update-ref", "refs/remotes/origin/feature/leased-pr", f.base], at: f.root)
+    try await detach(f)
+    let (store, w) = await workspace(f)
+    store.library.gitPreferences.alwaysForcePush = true
+    w.pullRequestDraft.branchName = "feature/leased-pr"
+    await store.createPullRequest(in: w, draft: false)
+    XCTAssertNil(w.pullRequestDraft.error)
+    let remote = try await git(["rev-parse", "refs/heads/feature/leased-pr"], at: f.remote)
+    let base = try await git(["rev-parse", "refs/heads/main"], at: f.remote)
+    XCTAssertEqual(remote, f.head)
+    XCTAssertEqual(base, f.base)
+    XCTAssertEqual(w.pullRequestDraft.existing?.headRefName, "feature/leased-pr")
+    XCTAssertEqual(try creates(f).count, 1)
+  }
+
 }

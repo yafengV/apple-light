@@ -126,6 +126,7 @@ struct GitHubPRContext: Equatable, Sendable {
   let creationProblem: String?
   var publishedCommit: String? = nil
   var allowsLocalPreparation = false
+  var requiresNewBranch: Bool { plan.branch.isEmpty }
   var head: String { String(plan.destination.dropFirst("refs/heads/".count)) }
   var requiresPush: Bool { publishedCommit != plan.commit }
 }

@@ -23,11 +23,13 @@ struct GitHubPRService: Sendable {
 
   func inspect(at root: URL, remote selectedRemote: String? = nil,
     allowUnpublished: Bool = false) async throws -> GitHubPRContext {
-    let choices = try await GitPushService.choices(at: root)
+    let choices = try await GitPushService.choices(at: root, allowDetached: allowUnpublished)
     let remote = selectedRemote ?? choices.preferredRemote
+    guard choices.remotes.contains(remote), !remote.hasPrefix("-") else {
+      throw AgentFailure(message: "所选远端已移除，请刷新后重试。")
+    }
     let destination = remote == choices.preferredRemote ? choices.preferredDestination : choices.branch
-    let plan = try await GitPushService.prepare(at: root, remote: remote, destination: destination, forceWithLease: false)
-    let repository = try GitHubRepository.parse(plan.pushURL)
+    let repository = try GitHubRepository.parse(await GitPushService.remoteURL(remote, at: root))
     _ = try await run(["auth", "status", "--active", "--hostname", "github.com"], at: root)
     struct Metadata: Decodable {
       struct Branch: Decodable { let name: String }
@@ -40,10 +42,16 @@ struct GitHubPRService: Sendable {
       let base = metadata.defaultBranchRef?.name, !base.isEmpty else {
       throw AgentFailure(message: "无法确认仓库默认分支，请检查远端地址。")
     }
-    let existing = try await existingPR(repository, head: destination, at: root)
+    // Detached HEAD has no source ref yet. The base is only a metadata snapshot,
+    // never a push destination; the workflow captures a separate new-branch plan.
+    let plan = try await GitPushService.prepare(at: root, remote: remote,
+      destination: destination.isEmpty ? base : destination, forceWithLease: false,
+      allowDetached: allowUnpublished)
+    let detached = choices.branch.isEmpty
+    let existing = detached ? nil : try await existingPR(repository, head: destination, at: root)
     var problem: String?
     var published: String?
-    if existing == nil {
+    if existing == nil && !detached {
       if destination == base { problem = "请先切换或创建功能分支，再创建 PR。" }
       else if plan.expectedRemoteCommit.isEmpty || plan.expectedRemoteCommit != plan.commit {
         if !allowUnpublished { problem = "请先推送当前分支，再创建 PR。" }
