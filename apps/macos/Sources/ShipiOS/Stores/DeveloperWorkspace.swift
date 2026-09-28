@@ -29,6 +29,7 @@ final class DeveloperWorkspace {
   var gitFiles: [GitFile] = []
   var gitBranch = ""
   var gitAvailable = false
+  var gitReadError: String?
   var gitRepositoryRoot: URL?
   var gitRoot: URL? {
     guard let repository = gitRepositoryRoot, let root else { return root }
@@ -109,6 +110,7 @@ final class DeveloperWorkspace {
     filePreviewPositions.removeAll()
     gitFiles = []
     gitAvailable = false
+    gitReadError = nil
     gitRepositoryRoot = nil
     canCommit = false
     gitBranch = ""
@@ -218,10 +220,17 @@ final class DeveloperWorkspace {
     guard let project = root else { return }
     let token = UUID()
     gitVersion = token
+    // A status refresh supersedes older diff requests and their write snapshots.
+    diffVersion = UUID()
+    reviewLoading = false
+    reviewArguments = []
+    batchSnapshot = nil
+    discardPlan = nil
     gitRefreshing = true
     defer { if token == gitVersion { gitRefreshing = false } }
+    var repository: URL?
     do {
-      let repository = try await GitRepositoryContext.resolve(at: project)
+      repository = try await GitRepositoryContext.resolve(at: project)
       guard token == gitVersion else { return }
       if gitRepositoryRoot?.path != repository?.path {
         gitAvailable = false
@@ -229,66 +238,70 @@ final class DeveloperWorkspace {
       }
       gitRepositoryRoot = repository
       guard repository != nil, let root = gitRoot else {
-        gitAvailable = false
-        canCommit = false
-        gitFiles = []
-        reviewCommits = []
-        reviewBranches = []
-        historicalFiles = []
-        reviewArguments = []
-        batchSnapshot = nil
-        batchError = nil
-        discardPlan = nil
-        gitBranch = ""
-        diff = ""
+        clearUnavailableGitReview()
+        gitReadError = nil
+        error = nil
         return
       }
-      let status = try await LocalWorkspaceService.git(
+      let status = try await GitReviewService.checked(
         ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."], at: root)
       let branch = try await LocalWorkspaceService.git(
         ["symbolic-ref", "--short", "HEAD"], at: root)
       guard token == gitVersion else { return }
-      gitAvailable = status.status == 0
-      canCommit = gitAvailable
-      gitFiles = gitAvailable ? GitFile.parse(status.text) : []
-      gitBranch =
-        branch.status == 0
-        ? branch.text.trimmingCharacters(in: .whitespacesAndNewlines) : "detached HEAD"
-      guard gitAvailable else {
-        reviewCommits = []
-        reviewBranches = []
-        historicalFiles = []
-        diff = ""
-        return
-      }
       let commits = try await GitReviewService.commits(at: root)
       let branches = try await GitReviewService.branches(at: root)
       guard token == gitVersion else { return }
+      gitAvailable = true
+      canCommit = true
+      gitFiles = GitFile.parse(status)
+      gitBranch =
+        branch.status == 0
+        ? branch.text.trimmingCharacters(in: .whitespacesAndNewlines) : "detached HEAD"
       reviewCommits = commits
       reviewBranches = branches
       if !commits.contains(where: { $0.id == reviewCommit }) {
         reviewCommit = commits.first?.id ?? ""
       }
       if !branches.contains(where: { $0.id == reviewBaseBranch }) { reviewBaseBranch = "" }
+      gitReadError = nil
       await loadDiff()
     } catch {
       if token == gitVersion {
-        gitAvailable = false
-        canCommit = false
-        gitRepositoryRoot = nil
-        gitFiles = []
-        batchSnapshot = nil
-        discardPlan = nil
+        clearUnavailableGitReview()
+        // Preserve a root confirmed by Git, but never treat a failed discovery
+        // as a resolved repository or as permission to initialize one.
+        gitRepositoryRoot = repository
+        gitReadError = error.localizedDescription
         self.error = error.localizedDescription
       }
     }
+  }
+  private func clearUnavailableGitReview() {
+    diffVersion = UUID()
+    gitAvailable = false
+    canCommit = false
+    gitFiles = []
+    gitBranch = ""
+    reviewCommits = []
+    reviewBranches = []
+    historicalFiles = []
+    reviewLoading = false
+    reviewArguments = []
+    reviewSnapshot = UUID()
+    batchSnapshot = nil
+    batchError = nil
+    discardPlan = nil
+    diff = ""
+    showingCommitPush = false
+    showingPullRequest = false
+    cancelCommitMessageGeneration()
   }
   var visibleChanges: [GitFile] {
     reviewScope.isHistorical
       ? historicalFiles : gitFiles.filter { reviewScope == .staged ? $0.staged : $0.unstaged }
   }
   func loadDiff() async {
-    guard let root = gitRoot else { return }
+    guard gitReadError == nil, let root = gitRoot else { return }
     let token = UUID()
     diffVersion = token
     let scope = reviewScope

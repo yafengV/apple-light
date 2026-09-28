@@ -2,7 +2,7 @@ import Foundation
 
 extension DeveloperWorkspace {
   var canInitializeGit: Bool {
-    root != nil && !gitAvailable && !isGitReviewReadOnly() && !gitBusy
+    root != nil && !gitAvailable && gitReadError == nil && !isGitReviewReadOnly() && !gitBusy
       && !gitRefreshing && !gitActionRunning && !generatingCommitMessage
   }
 

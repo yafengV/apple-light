@@ -11,14 +11,15 @@ extension WorkspaceStore {
 
   var canChangeBranch: Bool {
     destination == .workspace && project != nil && activeLocalRun == nil && !busy && !workspace.gitBusy
-      && !workspace.gitActionRunning
+      && !workspace.gitActionRunning && workspace.gitReadError == nil
   }
 
   @discardableResult func changeBranch(_ change: GitBranchChange, snapshot: GitBranchSnapshot) async -> Bool {
     guard canChangeBranch,
       project.map(GitBranchService.canonicalRoot)?.path == workspace.root.map(GitBranchService.canonicalRoot)?.path,
       workspace.gitRoot.map(GitBranchService.canonicalRoot)?.path == snapshot.root.path else {
-      branchChangeError = "请等待当前任务结束，并在原项目中操作。"
+      branchChangeError = workspace.gitReadError != nil
+        ? "Git 仓库读取失败，请刷新成功后重试。" : "请等待当前任务结束，并在原项目中操作。"
       return false
     }
     let token = workspace.generationForGitMutation

@@ -234,6 +234,11 @@ import XCTest
     try FileManager.default.createDirectory(at: missing, withIntermediateDirectories: true)
     // A broken parent repository remains a boundary too.
     try FileManager.default.removeItem(at: root.appendingPathComponent(".git"))
+    // The unavailable page now offers Retry; creation returns only after a
+    // successful directory/repository check, without clearing errors manually.
+    XCTAssertFalse(workspace.canInitializeGit)
+    await workspace.refreshGit()
+    XCTAssertTrue(workspace.canInitializeGit)
     let retried = await workspace.initializeGit(at: missing)
     XCTAssertTrue(retried)
     XCTAssertNil(workspace.error)

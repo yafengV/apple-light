@@ -23,8 +23,9 @@ struct GitReviewView: View {
             Label(workspace.gitBranch, systemImage: "arrow.triangle.branch").lineLimit(1)
           }
           Spacer()
-          if workspace.gitBusy {
-            ProgressView().controlSize(.small).accessibilityLabel("正在处理 Git 变更")
+          if workspace.gitBusy || workspace.gitRefreshing {
+            ProgressView().controlSize(.small)
+              .accessibilityLabel(workspace.gitBusy ? "正在处理 Git 变更" : "正在读取 Git 变更")
           }
           Button {
             Task { await workspace.refreshGit() }
@@ -112,7 +113,7 @@ struct GitReviewView: View {
         }
         if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
           if !workspace.canCommit {
-            Text("提交整个仓库前，请先打开仓库根目录以审查全部暂存内容。").appFont(.caption).foregroundStyle(.secondary)
+            Text("Git 状态暂不可用，请刷新变更后重试。").appFont(.caption).foregroundStyle(.secondary)
               .padding(
                 10)
           }
