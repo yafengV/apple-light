@@ -7,7 +7,7 @@ extension WorkspaceStore {
       !taskForkIsReserved(task.id),
       task.project == currentProjectKey else { return false }
     guard canForkInCurrentCheckout(task.id) else { return false }
-    return (try? library.forkHistory(taskID: task.id, availableRuns: runs)) != nil
+    return (try? library.forkHistory(taskID: task.id, availableRuns: taskWindowRuns(task.id))) != nil
   }
 
   func canForkTaskWindow(_ taskID: String, through runID: String? = nil) -> Bool {
@@ -53,7 +53,7 @@ extension WorkspaceStore {
     do {
       var candidate = library
       let fork = try candidate.forkConversation(
-        taskID: task.id, through: runID, availableRuns: runs)
+        taskID: task.id, through: runID, availableRuns: taskWindowRuns(task.id))
       candidate.shareManagedWorktree(sourceTaskID: task.id, fork: fork)
       if consumeCommand { candidate.drafts[task.id] = "" }
       // Persist before switching tasks, so a failed write cannot create a ghost fork.

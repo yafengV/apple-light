@@ -95,8 +95,18 @@ extension WorkspaceLibrary {
     let ids = Array(source.runIDs.prefix(end))
     guard !ids.isEmpty else { throw AgentFailure(message: "至少需要一个已结束的回合才能分叉。") }
     let available = Dictionary(availableRuns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    var historyProjects: Set<String> = [source.project]
+    if let checkout = managedWorktree(forTaskID: taskID),
+      source.project == checkout.source || source.project == checkout.path {
+      // Handoff changes the task's current directory, not where its past executions ran.
+      historyProjects.formUnion([checkout.source, checkout.path])
+    }
     return try ids.map { id in
-      guard let run = available[id], run.project == source.project, !run.isActive else {
+      // Copied fork records retain their real execution directories even when the child
+      // stays local and does not own the source's managed checkout.
+      let inheritedProject = source.forkOrigin == nil ? nil : forkRuns.first { $0.id == id }?.project
+      guard let run = available[id], !run.isActive,
+        historyProjects.contains(run.project) || inheritedProject == run.project else {
         throw AgentFailure(message: "历史尚未完整加载或包含进行中的回合，无法分叉。")
       }
       return run

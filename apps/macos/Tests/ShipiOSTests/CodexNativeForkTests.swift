@@ -111,6 +111,145 @@ final class CodexNativeForkTests: XCTestCase {
     await resumed.shutdown()
   }
 
+  @MainActor func testHandoffKeepsNativeThreadToolHistoryAndForksAcrossCheckoutHistory() async throws {
+    let (store, project, agent) = try await fixture()
+    do {
+      _ = try await GitReviewService.checked(["init", "-q"], at: project)
+      _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+      _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+      try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+      _ = try await GitReviewService.checked(["add", "."], at: project)
+      _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+      let first = try await send("codex-handoff-cwd-probe", store: store)
+      let source = try XCTUnwrap(store.selectedTask)
+      let threadID = try XCTUnwrap(source.codexThreadID)
+      let historyWorkspace = try XCTUnwrap(source.codexWorkspacePath)
+      let originalPath = try XCTUnwrap(store.codexConversationPath(for: source))
+      let moved = await store.handOffTaskToWorktree(source.id)
+      XCTAssertTrue(moved, store.worktreeError ?? "")
+      let movedTask = try XCTUnwrap(store.library.tasks.first { $0.id == source.id })
+      XCTAssertNotEqual(movedTask.project, project.path)
+      XCTAssertTrue(store.canForkTaskWindow(source.id), "Moving a task must not disable historical fork points")
+      let second = try await send("codex-handoff-cwd-probe-local skill-dependency-request-echo", store: store)
+      let body = try JSONDecoder().decode(JSONValue.self,
+        from: Data(try XCTUnwrap(second.result?["response"].text).utf8))
+      let input = try body["input"].decode([JSONValue].self)
+      XCTAssertTrue(input.contains { $0["type"].text == "function_call_output"
+        && $0["call_id"].text == "swift-handoff-cwd-call"
+        && $0.pretty.contains(project.path) }, "Preserve native source tool output in its original directory")
+      XCTAssertTrue(input.contains { $0["type"].text == "function_call_output"
+        && $0["call_id"].text == "swift-handoff-local-call" && $0.pretty.contains(movedTask.project) })
+      XCTAssertEqual(store.selectedTask?.codexThreadID, threadID)
+      XCTAssertEqual(store.selectedTask?.codexWorkspacePath, historyWorkspace)
+      XCTAssertEqual(store.codexConversationPath(for: try XCTUnwrap(store.selectedTask)), originalPath)
+      let fork = try store.forkTaskWindowConversation(source.id, through: first.id)
+      XCTAssertEqual(store.taskWindowRuns(fork.id).first?.project, project.path,
+        "The copied execution keeps its actual historical directory")
+      XCTAssertEqual(fork.project, movedTask.project)
+      store.selectTask(fork)
+      let inherited = try await send("skill-dependency-request-echo", store: store)
+      let forkBody = try JSONDecoder().decode(JSONValue.self,
+        from: Data(try XCTUnwrap(inherited.result?["response"].text).utf8))
+      XCTAssertTrue(forkBody.pretty.contains("swift-handoff-cwd-call"))
+      XCTAssertFalse(forkBody.pretty.contains("swift-handoff-local-call"), "Keep the selected old boundary")
+      XCTAssertNotEqual(store.selectedTask?.codexThreadID, threadID)
+      store.selectTask(try XCTUnwrap(store.library.tasks.first { $0.id == source.id }))
+      let local = await store.handOffTaskToLocal(source.id)
+      XCTAssertTrue(local, store.worktreeError ?? "")
+      let returned = try await send("codex-handoff-cwd-probe-return skill-dependency-request-echo", store: store)
+      let returnedBody = try JSONDecoder().decode(JSONValue.self,
+        from: Data(try XCTUnwrap(returned.result?["response"].text).utf8))
+      XCTAssertTrue(returnedBody.pretty.contains("swift-handoff-local-call"))
+      XCTAssertTrue(returnedBody.pretty.contains(project.path))
+      XCTAssertEqual(store.selectedTask?.codexThreadID, threadID)
+      let dataRoot = store.dataRoot
+      await store.shutdown()
+      let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+      do {
+        await reopened.restore()
+        let current = try XCTUnwrap(reopened.library.tasks.first { $0.id == source.id })
+        let selected = await reopened.selectTaskAwaitingScope(current)
+        XCTAssertTrue(selected)
+        _ = try await send("skill-dependency-request-echo", store: reopened)
+        XCTAssertEqual(reopened.selectedTask?.codexThreadID, threadID)
+        XCTAssertTrue(reopened.canForkConversation)
+        let nested = try XCTUnwrap(reopened.forkConversation(through: second.id), reopened.error ?? "")
+        XCTAssertEqual(nested.project, project.path)
+        let nestedRun = try await send("skill-dependency-request-echo", store: reopened)
+        let nestedBody = try JSONDecoder().decode(JSONValue.self,
+          from: Data(try XCTUnwrap(nestedRun.result?["response"].text).utf8))
+        XCTAssertTrue(nestedBody.pretty.contains("swift-handoff-cwd-call"))
+        XCTAssertTrue(nestedBody.pretty.contains("swift-handoff-local-call"))
+        XCTAssertFalse(nestedBody.pretty.contains("swift-handoff-return-call"))
+        XCTAssertTrue(reopened.canForkConversation, "Local forks retain their inherited directory provenance")
+        let next = try XCTUnwrap(reopened.forkConversation(through: nested.runIDs[1]))
+        XCTAssertEqual(next.project, project.path)
+        let nextRun = try await send("skill-dependency-request-echo", store: reopened)
+        XCTAssertTrue(nextRun.result?["response"].text?.contains("swift-handoff-local-call") == true)
+        XCTAssertFalse(nextRun.result?["response"].text?.contains("swift-handoff-return-call") == true)
+        await reopened.shutdown()
+      } catch { await reopened.shutdown(); throw error }
+    } catch { await store.shutdown(); throw error }
+  }
+
+  @MainActor func testSharedHandoffResumesOriginalNativeHistoryAfterCheckoutIsPruned() async throws {
+    let (store, project, agent) = try await fixture()
+    do {
+      _ = try await GitReviewService.checked(["init", "-q"], at: project)
+      _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+      _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+      try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+      _ = try await GitReviewService.checked(["add", "."], at: project)
+      _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+      store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
+      _ = try await send("codex-handoff-cwd-probe", store: store)
+      let local = try XCTUnwrap(store.selectedTask)
+      let created = await store.forkTaskToNewWorktree(local.id)
+      let owner = try XCTUnwrap(created)
+      _ = try await send("codex-handoff-cwd-probe-local", store: store)
+      let child = try XCTUnwrap(store.forkConversation())
+      _ = try await send("skill-dependency-request-echo", store: store)
+      let startedChild = try XCTUnwrap(store.selectedTask)
+      let nativeID = try XCTUnwrap(startedChild.codexThreadID)
+      let historyWorkspace = try XCTUnwrap(startedChild.codexWorkspacePath)
+      XCTAssertEqual(historyWorkspace, owner.project)
+      let historyPath = try XCTUnwrap(store.codexConversationPath(for: startedChild))
+      let handedOff = await store.handOffTaskToLocal(child.id)
+      XCTAssertTrue(handedOff, store.worktreeError ?? "")
+      XCTAssertEqual(store.selectedTask?.project, project.path)
+      await store.pruneManagedWorktreeIfEligible(owner.id, dueToLimit: true)
+      XCTAssertFalse(FileManager.default.fileExists(atPath: owner.project))
+      XCTAssertEqual(store.library.managedWorktree(forTaskID: child.id)?.archivedPruned, true)
+      let dataRoot = store.dataRoot
+      await store.shutdown()
+      let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+      do {
+        await reopened.restore()
+        let target = try XCTUnwrap(reopened.library.tasks.first { $0.id == child.id })
+        let opened = await reopened.selectTaskAwaitingScope(target)
+        XCTAssertTrue(opened)
+        let returned = try await send("codex-handoff-cwd-probe-return skill-dependency-request-echo", store: reopened)
+        let body = try JSONDecoder().decode(JSONValue.self,
+          from: Data(try XCTUnwrap(returned.result?["response"].text).utf8))
+        let input = try body["input"].decode([JSONValue].self)
+        XCTAssertTrue(input.contains { $0["type"].text == "function_call_output"
+          && $0["call_id"].text == "swift-handoff-local-call" && $0.pretty.contains(owner.project) })
+        XCTAssertTrue(input.contains { $0["type"].text == "function_call_output"
+          && $0["call_id"].text == "swift-handoff-return-call" && $0.pretty.contains(project.path) })
+        XCTAssertEqual(reopened.selectedTask?.codexThreadID, nativeID)
+        XCTAssertEqual(reopened.selectedTask?.codexWorkspacePath, historyWorkspace)
+        XCTAssertEqual(reopened.codexConversationPath(for: try XCTUnwrap(reopened.selectedTask)), historyPath)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: owner.project), "Resume must not recreate old execution cwd")
+        XCTAssertTrue(reopened.canForkConversation)
+        let continued = try XCTUnwrap(reopened.forkConversation())
+        XCTAssertEqual(continued.project, project.path)
+        _ = try await send("skill-dependency-request-echo", store: reopened)
+        XCTAssertNotEqual(reopened.selectedTask?.codexThreadID, nativeID)
+        await reopened.shutdown()
+      } catch { await reopened.shutdown(); throw error }
+    } catch { await store.shutdown(); throw error }
+  }
+
   @MainActor func testSameManagedCheckoutForkPreservesNativeHistoryAndSharedLifetime() async throws {
     let (store, project, agent) = try await fixture()
     do {

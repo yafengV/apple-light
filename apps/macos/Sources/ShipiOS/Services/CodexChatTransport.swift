@@ -117,7 +117,8 @@ final class CodexChatTransport {
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
     webSearchMode: AgentWebSearchMode,
-    compact: Bool = false, forkOrigin: CodexForkOrigin? = nil
+    compact: Bool = false, forkOrigin: CodexForkOrigin? = nil,
+    resumeOrigin: CodexResumeOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -178,13 +179,14 @@ final class CodexChatTransport {
           ]),
           "mcpServers": mcpValue,
           "forkOrigin": forkOrigin?.wireValue ?? .null,
+          "resumeOrigin": resumeOrigin?.wireValue ?? .null,
         ])
         guard generation == token else { throw CancellationError() }
         sendFullContext = thread["resumed"].boolean != true && thread["forked"].boolean != true
         activeThreads.insert(taskID)
         serviceIdentities[taskID] = service
         if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
-          onThreadStarted?(taskID, threadID, path)
+          onThreadStarted?(taskID, threadID, thread["historyWorkspace"].text ?? path)
         }
         if compact && sendFullContext {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")

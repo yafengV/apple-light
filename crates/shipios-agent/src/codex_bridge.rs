@@ -35,6 +35,7 @@ pub struct StartThread {
     #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
     pub fork_origin: Option<ForkThreadOrigin>,
+    pub resume_origin: Option<ResumeThreadOrigin>,
 }
 
 #[derive(Deserialize)]
@@ -46,6 +47,13 @@ pub struct ForkThreadOrigin {
     pub through_turn_id: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ResumeThreadOrigin {
+    pub workspace: PathBuf,
+    pub thread_id: String,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreadInfo {
@@ -53,6 +61,7 @@ pub struct ThreadInfo {
     pub thread_id: String,
     pub resumed: bool,
     pub forked: bool,
+    pub history_workspace: Option<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -247,17 +256,29 @@ impl CodexBridge {
             source_id != target,
             "a task cannot fork itself into the same identity"
         );
-        let expected_thread =
-            Uuid::parse_str(&origin.thread_id).context("invalid fork source thread")?;
         ensure!(
             !origin.through_turn_id.is_empty() && origin.through_turn_id.len() <= 128,
             "invalid fork turn ID"
         );
+        let (_, saved) = self.history_source(&source_id, &origin.workspace, &origin.thread_id)?;
+        Ok(saved)
+    }
+
+    /// Resolve only this application's private task history. Execution cwd may change,
+    /// but a resumed task retains its original namespace and native thread identity.
+    fn history_source(
+        &self,
+        task_id: &str,
+        source_workspace: &std::path::Path,
+        thread_id: &str,
+    ) -> Result<(PathBuf, PersistedThread)> {
+        let source_id = Uuid::parse_str(task_id)?.hyphenated().to_string();
+        let expected_thread = Uuid::parse_str(thread_id).context("invalid source thread")?;
         ensure!(
-            origin.workspace.is_absolute(),
+            source_workspace.is_absolute(),
             "source workspace must be absolute"
         );
-        let workspace = match origin.workspace.canonicalize() {
+        let workspace = match source_workspace.canonicalize() {
             Ok(workspace) => {
                 ensure!(workspace.is_dir(), "source workspace is not a directory");
                 Some(workspace)
@@ -276,13 +297,13 @@ impl CodexBridge {
                 .context("private projects root is unavailable")?;
             ensure!(
                 projects.file_name().is_some_and(|name| name == "Projects"),
-                "cross-project fork requires a private projects root"
+                "cross-project history requires a private projects root"
             );
             let digest = format!(
                 "{:x}",
                 // Use the transport's captured spelling for its existing private directory.
                 // macOS Foundation and Rust canonicalize /var vs /private/var differently.
-                Sha256::digest(origin.workspace.to_string_lossy().as_bytes())
+                Sha256::digest(source_workspace.to_string_lossy().as_bytes())
             );
             projects.join(digest)
         };
@@ -305,7 +326,7 @@ impl CodexBridge {
             Uuid::parse_str(&saved.thread_id)? == expected_thread,
             "source Codex thread identity changed"
         );
-        Ok(saved)
+        Ok((canonical, saved))
     }
 
     pub fn new(data_dir: PathBuf, project: PathBuf) -> Self {
@@ -348,12 +369,23 @@ impl CodexBridge {
             !self.sessions.lock().await.contains_key(&task_key),
             "Codex thread already exists for task"
         );
-        let home = private_dir(&self.data_dir.join("Codex"))?;
-        let home = private_dir(&home.join("Tasks"))?;
-        let home = private_dir(&home.join(&task_key))?
-            .canonicalize()
-            .context("resolve private Codex home")?;
-        let previous = saved_thread(&home)?;
+        let history_workspace = request
+            .resume_origin
+            .as_ref()
+            .map(|origin| origin.workspace.clone());
+        let (home, previous) = if let Some(origin) = request.resume_origin.as_ref() {
+            let (home, saved) =
+                self.history_source(&task_key, &origin.workspace, &origin.thread_id)?;
+            (home, Some(saved))
+        } else {
+            let home = private_dir(&self.data_dir.join("Codex"))?;
+            let home = private_dir(&home.join("Tasks"))?;
+            let home = private_dir(&home.join(&task_key))?
+                .canonicalize()
+                .context("resolve private Codex home")?;
+            let previous = saved_thread(&home)?;
+            (home, previous)
+        };
         let fork_source = if previous.is_none() {
             request
                 .fork_origin
@@ -473,6 +505,7 @@ impl CodexBridge {
             thread_id,
             resumed,
             forked,
+            history_workspace,
         })
     }
 
@@ -956,6 +989,21 @@ mod tests {
             saved.thread_id
         );
         assert!(bridge.fork_source(&origin, &task_id).is_err());
+        // Same-identity resume is distinct from a fork: the task key is supplied by StartThread.
+        let (resume_home, resumed) =
+            bridge.history_source(&task_id, &origin.workspace, &origin.thread_id)?;
+        assert_eq!(resume_home, home);
+        assert_eq!(resumed.thread_id, saved.thread_id);
+        assert!(
+            bridge
+                .history_source(&child, &origin.workspace, &origin.thread_id)
+                .is_err()
+        );
+        assert!(
+            bridge
+                .history_source(&task_id, &origin.workspace, &child)
+                .is_err()
+        );
         let alias = temp.path().join("SourceAlias");
         std::os::unix::fs::symlink(&origin.workspace, &alias)?;
         let alias_digest = format!("{:x}", Sha256::digest(alias.to_string_lossy().as_bytes()));
@@ -1120,6 +1168,7 @@ mod tests {
                         initial_context_bytes: Some(0),
                         resume_only: false,
                 fork_origin: None,
+                resume_origin: None,
                         read_only: false,
                         permissions: SessionPermissions::default(),
                         responses: SessionResponsePreferences::default(),
@@ -1265,6 +1314,7 @@ mod tests {
                     initial_context_bytes: Some(0),
                     resume_only: true,
                     fork_origin: None,
+                    resume_origin: None,
                     read_only: false,
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
@@ -1291,6 +1341,7 @@ mod tests {
                     initial_context_bytes: Some(48_001),
                     resume_only: false,
                     fork_origin: None,
+                    resume_origin: None,
                     read_only: false,
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
@@ -1309,6 +1360,7 @@ mod tests {
                 initial_context_bytes: Some(48_000),
                 resume_only: false,
                 fork_origin: None,
+                resume_origin: None,
                 read_only: false,
                 permissions: custom_permissions,
                 responses: custom_responses,
@@ -1371,6 +1423,7 @@ mod tests {
             initial_context_bytes: Some(80_000),
             resume_only: false,
             fork_origin: Some(fork_origin),
+            resume_origin: None,
             read_only: false,
             permissions: SessionPermissions::default(),
             responses: SessionResponsePreferences::default(),
@@ -1421,6 +1474,7 @@ mod tests {
                 initial_context_bytes: Some(48_001),
                 resume_only: false,
                 fork_origin: None,
+                resume_origin: None,
                 read_only: false,
                 permissions: SessionPermissions::default(),
                 responses: SessionResponsePreferences::default(),

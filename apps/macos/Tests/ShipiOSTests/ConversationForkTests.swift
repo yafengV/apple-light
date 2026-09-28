@@ -102,6 +102,42 @@ final class ConversationForkTests: XCTestCase {
     XCTAssertTrue(library.forkRuns.isEmpty)
   }
 
+  func testHandoffForkAllowsOnlyAssociatedHistoricalDirectoriesAndKeepsExecutionLocations() throws {
+    let old = run("one")
+    let moved = AgentRun(id: "two", kind: "chat", project: "/checkout", status: "succeeded",
+      createdAt: 0, updatedAt: 1, request: .null, result: nil)
+    var state = WorkspaceLibrary()
+    state.tasks = [WorkspaceTask(id: "one", project: "/checkout", title: "Moved", runIDs: [old.id, moved.id])]
+    state.chatRuns = [old, moved]
+    let checkout = PermanentWorktree(id: UUID(), source: "/fixture", path: "/checkout",
+      commonDirectory: "/fixture/.git", startingCommit: "commit", startingName: "main",
+      createdAt: Date(), title: "Task")
+    state.managedWorktrees = [ManagedWorktree(taskID: "one", checkout: checkout)]
+    let fork = try state.forkConversation(taskID: "one", availableRuns: [old, moved])
+    XCTAssertEqual(fork.project, "/checkout")
+    XCTAssertEqual(state.forkRuns.map(\.project), ["/fixture", "/checkout"])
+    state.shareManagedWorktree(sourceTaskID: "one", fork: fork)
+    let nested = try state.forkConversation(taskID: fork.id, availableRuns: state.forkRuns)
+    XCTAssertEqual(nested.project, "/checkout")
+    XCTAssertEqual(state.forkRuns.suffix(2).map(\.project), ["/fixture", "/checkout"])
+    let foreign = AgentRun(id: "two", kind: "chat", project: "/unrelated", status: "succeeded",
+      createdAt: 0, updatedAt: 1, request: .null, result: nil)
+    XCTAssertThrowsError(try state.forkHistory(taskID: "one", availableRuns: [old, foreign]))
+    state.tasks[state.tasks.firstIndex { $0.id == "one" }!].project = "/fixture"
+    let localFork = try state.forkConversation(taskID: "one", availableRuns: [old, moved])
+    XCTAssertEqual(localFork.project, "/fixture")
+    XCTAssertNil(state.managedWorktree(forTaskID: localFork.id))
+    let localNested = try state.forkConversation(taskID: localFork.id, availableRuns: state.forkRuns)
+    XCTAssertEqual(localNested.project, "/fixture")
+    XCTAssertEqual(state.forkRuns.suffix(2).map(\.project), ["/fixture", "/checkout"])
+    let copiedForeign = AgentRun(id: localFork.runIDs[1], kind: "chat", project: "/unrelated",
+      status: "succeeded", createdAt: 0, updatedAt: 1, request: .null, result: nil)
+    XCTAssertThrowsError(try state.forkHistory(taskID: localFork.id,
+      availableRuns: [state.forkRuns.first { $0.id == localFork.runIDs[0] }!, copiedForeign]))
+    state.managedWorktrees.removeAll()
+    XCTAssertThrowsError(try state.forkHistory(taskID: "one", availableRuns: [old, moved]))
+  }
+
   func testNestedForkPersistsAndContextExcludesLaterSourceTurns() throws {
     let runs = [run("one"), run("local", kind: "doctor"), run("two"), run("later")]
     var library = library(runs)

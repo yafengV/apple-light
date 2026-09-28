@@ -381,7 +381,8 @@ extension WorkspaceStore {
       mcpServers: mcpServers, permissions: permissions,
       responses: library.agentResponsePreferences,
       webSearchMode: library.agentWebSearchMode, compact: compact,
-      forkOrigin: library.tasks.first(where: { $0.id == taskID })?.codexForkOrigin)
+      forkOrigin: library.tasks.first(where: { $0.id == taskID })?.codexForkOrigin,
+      resumeOrigin: library.tasks.first(where: { $0.id == taskID }).flatMap(CodexResumeOrigin.init(task:)))
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""

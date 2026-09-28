@@ -27,3 +27,5 @@
 - `./script/build_and_run.sh --build-app` 通过，`.cache/shared-worktree-fork-app-build.log`；`codesign --verify --deep --strict dist/ShipiOS.app` 与 `git diff --check` 通过。没有修改 Rust runtime，本阶段以真实 Agent/Core 集成用例验证交互。
 
 上述构建及测试不包含原生鼠标、菜单、焦点、实际多窗口及当前 Codex 双端页面验收；既有首次模型响应偶发超时未在本阶段解决，完整配对保持 0/45。
+
+后续真实移交核对发现，Git/任务身份保持不等于原生 Core 历史保持；历史命名空间、重启后分叉与异目录嵌套分叉修复见[第 364 篇](364-native-history-through-handoff.md)。
