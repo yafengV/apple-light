@@ -8,16 +8,20 @@ struct GitHubPRView: View {
   let taskID: String?
   @Environment(\.dismiss) private var dismiss
   @State private var summaryLoader = GitCommitSummaryLoader()
+  @State private var readinessLoader = GitPullRequestEntryLoader()
   @State private var selected: GitPullRequestAction = .create
   @State private var branchError: String?
   @State private var validatingBranch = false
+  @State private var branchValidatedKey: String?
   @State private var presentationScope: GitPullRequestModalScope?
   private enum Focus: Hashable { case branch, title, body, action(GitPullRequestAction) }
   @FocusState private var focus: Focus?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      if draft.loading { ProgressView("检查 GitHub、分支与 PR 状态…").controlSize(.small) }
+      if draft.loading || readinessLoader.loading {
+        ProgressView("检查 GitHub、分支与 PR 状态…").controlSize(.small)
+      }
       if let context = draft.context {
         HStack(spacing: 4) {
           Text(context.repository.fullName).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
@@ -58,8 +62,11 @@ struct GitHubPRView: View {
           if draft.includeLocalChanges, let error = summaryLoader.error {
             Text(error).appFont(.caption).foregroundStyle(.orange)
           }
-          if !draft.includeLocalChanges, !context.requiresNewBranch, context.publishedCommit == nil {
-            Text("此分支尚未发布，请勾选提交并推送，或先推送分支。")
+          if let problem = readinessLoader.error
+            ?? readinessLoader.readiness?.blockedReason(includeLocalChanges: draft.includeLocalChanges,
+              expectedContext: context),
+            problem != context.creationProblem {
+            Text(problem)
               .appFont(.caption).foregroundStyle(.orange)
           }
           if let problem = context.creationProblem {
@@ -103,7 +110,7 @@ struct GitHubPRView: View {
             .onHover { hovering in if hovering && isEnabled(action) { selected = action } }
         }
       }.accessibilityElement(children: .contain).accessibilityLabel("PR 操作")
-      if draft.error != nil || draft.needsRefresh {
+      if draft.error != nil || draft.needsRefresh || readinessLoader.error != nil || metadataNeedsRefresh {
         Button("重新检查") { refresh() }.controlSize(.small).disabled(draft.loading || draft.creating)
       }
     }.padding(12).frame(width: 420)
@@ -133,16 +140,39 @@ struct GitHubPRView: View {
       }
       .task(id: branchValidationKey) { await validateBranch() }
       .task(id: summaryRequest) { await summaryLoader.load(summaryRequest) }
-      .onDisappear { [presentationScope] in presentationScope?.disappear() }
+      .task(id: readinessRequest) {
+        await readinessLoader.load(readinessRequest) { try await draft.inspectEntry(at: $0, base: $1) }
+      }
+      .onDisappear { [presentationScope] in
+        readinessLoader.cancel()
+        presentationScope?.disappear()
+      }
   }
 
   private var canCreate: Bool {
-    draft.canCreate && (draft.context?.requiresNewBranch != true || (!validatingBranch && branchError == nil))
+    draft.canCreate && (draft.context?.requiresNewBranch != true
+      || (!validatingBranch && branchError == nil && branchValidatedKey == branchValidationKey))
+      && readinessLoader.request == readinessRequest && !readinessLoader.loading
+      && readinessLoader.error == nil && readinessLoader.readiness?.context.plan == draft.context?.plan
+      && readinessLoader.readiness != nil
+      && readinessLoader.readiness?.blockedReason(includeLocalChanges: draft.includeLocalChanges,
+        expectedContext: draft.context) == nil
       && !draft.modalActionPending && workspace.isPrimaryReviewRepository
+      && workspace.canModifyReview
       && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
   }
   private var summaryRequest: GitCommitSummaryRequest {
     .init(root: workspace.gitRoot, includeUnstaged: true, revision: workspace.reviewSnapshot)
+  }
+  private var metadataNeedsRefresh: Bool {
+    guard let context = draft.context, let readiness = readinessLoader.readiness else { return false }
+    return readiness.requiresRefresh(comparedTo: context)
+  }
+  private var readinessRequest: GitPullRequestEntryRequest {
+    .init(root: draft.context?.plan.root == workspace.gitRoot ? workspace.gitRoot : nil,
+      revision: workspace.reviewSnapshot, generation: workspace.generationForGitMutation,
+      epoch: workspace.reviewRepositoryEpoch, base: draft.base.isEmpty ? nil : draft.base,
+      taskID: taskID, suspended: draft.creating || draft.modalActionPending)
   }
   private func refresh() {
     Task { await refreshExisting() }
@@ -162,21 +192,29 @@ struct GitHubPRView: View {
     }
   }
   private var branchValidationKey: String {
-    (draft.context?.requiresNewBranch == true ? "new" : "current") + "\0" + draft.branchName
+    [draft.context?.requiresNewBranch == true ? "new" : "current", draft.branchName, draft.base,
+      workspace.gitRoot?.path ?? "", workspace.reviewRepositoryEpoch.uuidString].joined(separator: "\0")
   }
   private func validateBranch() async {
     branchError = nil
+    branchValidatedKey = nil
     guard draft.context?.requiresNewBranch == true, let root = workspace.gitRoot else {
       validatingBranch = false; return
     }
+    let key = branchValidationKey
+    let name = draft.branchName.trimmingCharacters(in: .whitespacesAndNewlines), base = draft.base
     validatingBranch = true
     do {
       try await Task.sleep(for: .milliseconds(200))
-      try await GitCommitSelection.validateBranch(
-        draft.branchName.trimmingCharacters(in: .whitespacesAndNewlines), at: root)
+      guard name != base else {
+        throw AgentFailure(message: "新分支名称不能与目标分支相同。")
+      }
+      try await GitCommitSelection.validateBranch(name, at: root)
       try Task.checkCancellation()
-    } catch { if !Task.isCancelled { branchError = error.localizedDescription } }
-    if !Task.isCancelled { validatingBranch = false }
+      guard key == branchValidationKey else { return }
+      branchValidatedKey = key
+    } catch { if !Task.isCancelled && key == branchValidationKey { branchError = error.localizedDescription } }
+    if !Task.isCancelled && key == branchValidationKey { validatingBranch = false }
   }
   private var actions: [GitPullRequestAction] {
     draft.existing == nil ? GitPullRequestAction.creationActions : [.openExisting]

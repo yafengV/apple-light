@@ -27,6 +27,9 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   @ObservationIgnored private var generationTask: Task<GitPullRequestText, Error>?
 
   init(service: GitHubPRService = GitHubPRService()) { self.service = service }
+  func inspectEntry(at root: URL, base: String? = nil) async throws -> GitPullRequestReadiness {
+    try await GitPullRequestReadiness.capture(at: root, base: base, service: service)
+  }
   var canCreate: Bool {
     context != nil && context?.creationProblem == nil && existing == nil && !loading && !creating && !needsRefresh
       && !base.isEmpty

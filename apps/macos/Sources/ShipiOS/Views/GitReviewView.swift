@@ -141,8 +141,8 @@ struct GitReviewView: View {
         if let error = workspace.fileOpenError {
           Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(10)
         }
-        if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
-          if !workspace.canCommit {
+        Group {
+          if !workspace.canCommit && !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
             Text("Git 状态暂不可用，请刷新变更后重试。").appFont(.caption).foregroundStyle(.secondary)
               .padding(
                 10)
@@ -152,15 +152,14 @@ struct GitReviewView: View {
               Text(status).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             Spacer()
-            Button("创建 PR…") {
+            GitReviewPullRequestEntry(store: store, workspace: workspace, taskID: taskID) {
               pullRequestTaskID = taskID ?? store.selectedTask?.id
               workspace.showingPullRequest = true
             }
-              .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitActionRunning
-                || !workspace.isPrimaryReviewRepository)
-              .help(workspace.isPrimaryReviewRepository ? "创建主仓库的 PR" : "请切换到主仓库以创建 PR")
-            Button("提交或推送…") { workspace.showingCommitPush = true }
-              .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
+            if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
+              Button("提交或推送…") { workspace.showingCommitPush = true }
+                .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
+            }
           }.padding(10)
         }
       } else {
