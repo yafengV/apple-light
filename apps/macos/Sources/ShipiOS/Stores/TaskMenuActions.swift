@@ -6,7 +6,8 @@ extension WorkspaceStore {
   /// Menu actions resolve the latest task instead of selecting it or using a stale row snapshot.
   func taskMenuTarget(_ id: String) -> WorkspaceTask? {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, !hasSettingsConfirmation,
-      presentedOverlay == nil, renameTaskID == nil,
+      presentedOverlay == nil, renameTaskID == nil, renameProjectPath == nil,
+      !showingModelPicker, !showingBranchPicker,
       !activityArchivingTaskIDs.contains(id),
       let task = library.tasks.first(where: { $0.id == id }), !task.isTransient else { return nil }
     return task
@@ -15,6 +16,12 @@ extension WorkspaceStore {
   func renameTaskFromMenu(_ id: String) {
     guard taskMenuTarget(id) != nil else { return }
     beginRenamingTask(id)
+  }
+
+  func renameTaskFromRowTitle(_ id: String) {
+    guard destination == .workspace, selectedTask?.id == id,
+      let task = taskMenuTarget(id), !task.archived else { return }
+    beginRenamingTask(task.id)
   }
 
   func toggleTaskPinFromMenu(_ id: String) {
