@@ -34,6 +34,7 @@ struct CodexQuestionRequest: Codable, Equatable, Identifiable, Sendable {
   let questions: [CodexQuestion]
   let isBlocking: Bool
   var status: Status = .awaiting
+  var purpose: String? = nil
 
   static func parse(_ event: JSONValue) throws -> Self {
     guard event["type"].text == "request_user_input",

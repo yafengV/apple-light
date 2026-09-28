@@ -9,6 +9,7 @@ struct SkillInterfaceMetadata: Equatable {
   var iconLargeURL: URL?
   var brandColor: String?
   var allowImplicitInvocation = true
+  var toolDependencies: [SkillToolDependency] = []
 }
 
 extension PluginStorage {
@@ -32,6 +33,8 @@ extension PluginStorage {
     }
     var interface: Interface?
     var policy: Policy?
+    struct Dependencies: Decodable { var tools: [SkillToolDependency]? }
+    var dependencies: Dependencies?
   }
 
   static func skillInterface(in folder: URL) throws -> SkillInterfaceMetadata {
@@ -64,6 +67,10 @@ extension PluginStorage {
       }
     }
     result.allowImplicitInvocation = decoded.policy?.allowImplicitInvocation ?? true
+    result.toolDependencies = decoded.dependencies?.tools ?? []
+    guard result.toolDependencies.count <= 100 else {
+      throw AgentFailure(message: "单个技能最多声明 100 项工具依赖。")
+    }
     return result
   }
 

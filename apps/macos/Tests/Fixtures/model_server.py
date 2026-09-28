@@ -294,6 +294,11 @@ class Handler(BaseHTTPRequestHandler):
                                 'has_result': 'function_call_output' in request_text,
                             })}],
                     }
+            elif 'skill-dependency-request-echo' in request_text:
+                item = {
+                    'type': 'message', 'role': 'assistant', 'id': 'dependency-request',
+                    'content': [{'type': 'output_text', 'text': json.dumps(body, ensure_ascii=False)}],
+                }
             else:
                 item = {
                     'type': 'message', 'role': 'assistant', 'id': 'msg-1',
@@ -438,6 +443,8 @@ class Handler(BaseHTTPRequestHandler):
             if prompt in ('context', 'image-context') or prompt.startswith('file-context\n'):
                 chunks = [json.dumps(body['messages'], ensure_ascii=False)]
             if prompt.endswith('plugin-context'):
+                chunks = [json.dumps(body, ensure_ascii=False)]
+            if 'skill-dependency-request-echo' in prompt:
                 chunks = [json.dumps(body, ensure_ascii=False)]
             if '<git_diff>' in prompt:
                 chunks = [json.dumps(body['messages'], ensure_ascii=False)]

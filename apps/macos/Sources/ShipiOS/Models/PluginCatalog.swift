@@ -252,6 +252,7 @@ struct PluginPromptContext: Equatable {
   var ids: [String]
   var skillIDs: [String]
   var instructions: String
+  var skills: [PluginSkillReference] = []
 }
 
 enum PluginStorage {
@@ -545,7 +546,7 @@ enum PluginStorage {
       """
     return PluginPromptContext(
       ids: ids, skillIDs: selectedSkills.map { $0.isRepository ? $0.id : $0.mention },
-      instructions: instructions)
+      instructions: instructions, skills: requestedSkills)
   }
 
   static func setSkillEnabled(_ enabled: Bool, id: String, root: URL) throws -> PluginPreferences {
@@ -580,7 +581,7 @@ enum PluginStorage {
     }
     var total = 0
     return try SkillDocument(text: skillText(skill, total: &total), fileURL: skill.sourceFileURL,
-      isLinkedSource: skill.isLinkedSource)
+      isLinkedSource: skill.isLinkedSource, toolDependencies: skill.interface.toolDependencies, reference: skill)
   }
 
   static func skills(

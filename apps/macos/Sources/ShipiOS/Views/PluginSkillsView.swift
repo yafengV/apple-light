@@ -258,6 +258,8 @@ private struct PluginSkillPreview: View {
   @Environment(\.dismiss) private var dismiss
   @State private var source: String?
   @State private var linkedFileURL: URL?
+  @State private var toolDependencies: [SkillToolDependency] = []
+  @State private var dependencySkill: PluginSkillReference?
   @State private var error: String?
   @State private var showSource = false
   @State private var reload = UUID()
@@ -292,19 +294,26 @@ private struct PluginSkillPreview: View {
         }
       }
       ScrollView {
-        if let source {
-          if showSource {
-            Text(source).appFont(.body, design: .monospaced).textSelection(.enabled)
-              .frame(maxWidth: .infinity, alignment: .leading)
-          } else {
-            MessageMarkdownView(source: source) { url in
-              if ["https", "http"].contains(url.scheme?.lowercased() ?? "") { NSWorkspace.shared.open(url) }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+          if !toolDependencies.isEmpty {
+            SkillDependenciesView(store: store, skill: dependencySkill ?? skill, dependencies: toolDependencies,
+              projectPath: projectPath) { dismiss() }
+            Divider()
           }
-        } else if let error {
-          Text(error).foregroundStyle(.red).textSelection(.enabled)
-          Button("重试") { reload = UUID() }
-        } else { ProgressView("正在读取技能…") }
+          if let source {
+            if showSource {
+              Text(source).appFont(.body, design: .monospaced).textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+              MessageMarkdownView(source: source) { url in
+                if ["https", "http"].contains(url.scheme?.lowercased() ?? "") { NSWorkspace.shared.open(url) }
+              }
+            }
+          } else if let error {
+            Text(error).foregroundStyle(.red).textSelection(.enabled)
+            Button("重试") { reload = UUID() }
+          } else { ProgressView("正在读取技能…") }
+        }.frame(maxWidth: .infinity, alignment: .leading)
       }.frame(maxWidth: .infinity, maxHeight: .infinity)
       if let actionError { Text(actionError).foregroundStyle(.red).textSelection(.enabled) }
       HStack {
@@ -339,6 +348,8 @@ private struct PluginSkillPreview: View {
       .task(id: "\(reload)|\(store.repositorySkillRevision)") {
         source = nil
         linkedFileURL = nil
+        toolDependencies = []
+        dependencySkill = nil
         error = nil
         let id = skill.id, root = store.dataRoot, repositoryRoot = skill.repositoryRoot
         do {
@@ -348,6 +359,8 @@ private struct PluginSkillPreview: View {
           guard !Task.isCancelled else { return }
           source = document.text
           linkedFileURL = document.isLinkedSource ? document.fileURL : nil
+          toolDependencies = document.toolDependencies
+          dependencySkill = document.reference
         } catch {
           guard !Task.isCancelled else { return }
           self.error = error.localizedDescription

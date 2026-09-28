@@ -110,7 +110,7 @@ extension WorkspaceStore {
       let initialModelSelection = requestedTaskID.flatMap { id in
         library.tasks.first(where: { $0.id == id })?.modelSelection
       }
-      let tools = usesCodex || mode == .plan || review != nil || isSideChat ? [] : try availableMCPTools()
+      if !usesCodex, mode != .plan, review == nil, !isSideChat { _ = try availableMCPTools() }
       try config.validateEndpoint()
       guard !config.model.isEmpty else { throw AgentFailure(message: "请在设置 → 模型与 API 中配置独立服务。") }
       guard personalizationLoaded else {
@@ -266,18 +266,26 @@ extension WorkspaceStore {
       let requestTask = Task { [weak self] in
         guard let self else { return }
         do {
+          try await prepareSkillDependencies(pluginContext.skills, runID: run.id, connect: !usesCodex)
+          try Task.checkCancellation()
+          var effectiveMessages = messages
+          let dependencies = skillDependencyInstructions(pluginContext.skills, usesCodex: usesCodex)
+          if !dependencies.isEmpty {
+            effectiveMessages[0] = ChatMessage(role: "system", content: instructions + "\n\n" + dependencies)
+          }
+          let tools = usesCodex || mode == .plan || review != nil || isSideChat ? [] : try availableMCPTools()
           let usage: ModelTokenUsage?
           if usesCodex {
             let workspace = projectlessDirectory ?? URL(
               fileURLWithPath: effectiveProject, isDirectory: true)
             usage = try await streamCodexChat(runID: run.id,
               taskID: review == nil ? (taskID ?? run.id) : run.id, workspace: workspace,
-              config: config, key: key, messages: messages, mode: mode,
+              config: config, key: key, messages: effectiveMessages, mode: mode,
               goalInstructions: mode == .goal ? modeInstructions : nil, review: review,
               compact: compact, sideChat: isSideChat, unattended: automationID != nil)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
-              messages: messages, bindings: tools, skills: skillDiscovery.skills)
+              messages: effectiveMessages, bindings: tools, skills: skillDiscovery.skills)
           }
           let continueGoal = finishChat(run.id, status: "succeeded", usage: usage)
           removeModelTask(runID: run.id)

@@ -49,6 +49,10 @@ extension WorkspaceStore {
       continuation.resume(returning: answers)
       return
     }
+    if context.request.purpose == "skill_dependencies" {
+      updateCodexQuestion(id, runID: context.runID, status: .expired)
+      return
+    }
     do {
       try await codexTransport.answer(taskID: context.taskID, turnID: context.request.turnID,
         answers: answers)
@@ -76,7 +80,7 @@ extension WorkspaceStore {
     }
   }
 
-  private func updateCodexQuestion(_ id: UUID, runID: String, status: CodexQuestionRequest.Status) {
+  func updateCodexQuestion(_ id: UUID, runID: String, status: CodexQuestionRequest.Status) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
     var records = current.codexQuestions
     guard let index = records.firstIndex(where: { $0.id == id }) else { return }

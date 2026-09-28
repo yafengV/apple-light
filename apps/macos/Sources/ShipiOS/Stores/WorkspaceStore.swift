@@ -180,6 +180,7 @@ final class WorkspaceStore {
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
   var codexPendingQuestions: [UUID: CodexQuestionContext] = [:]
   @ObservationIgnored var codexQuestionContinuations: [UUID: CheckedContinuation<[String: [String]]?, Never>] = [:]
+  @ObservationIgnored var promptedSkillDependencies: [String: Set<String>] = [:]
   var codexPendingElicitations: [UUID: CodexElicitationContext] = [:]
   @ObservationIgnored var codexElicitationContinuations: [UUID: CheckedContinuation<CodexElicitationDecision?, Never>] = [:]
   @ObservationIgnored var codexSteeringMessages: Set<UUID> = []

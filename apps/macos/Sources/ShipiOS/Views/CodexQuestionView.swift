@@ -26,7 +26,7 @@ struct CodexQuestionView: View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
         Image(systemName: "questionmark.bubble")
-        Text("Codex 提问").appFont(.headline)
+        Text(request.purpose == "skill_dependencies" ? "连接技能所需服务" : "Codex 提问").appFont(.headline)
         Spacer()
         Text(statusLabel).foregroundStyle(.secondary).appFont(.caption)
       }

@@ -180,4 +180,68 @@ final class SkillDiscoveryTransportTests: XCTestCase {
       await store.shutdown()
     }
   }
+
+  @MainActor func testBothProtocolsPromptBeforeExplicitSkillRequestAndOfferInstalledMCPTools() async throws {
+    let process = Process(), pipe = Pipe()
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    process.arguments = ["-u", fixture.path, "http"]
+    process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
+    try process.run()
+    defer { if process.isRunning { process.terminate(); process.waitUntilExit() } }
+    let port = String(decoding: pipe.fileHandleForReading.availableData, as: UTF8.self)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard Int(port) != nil else { throw AgentFailure(message: "MCP fixture could not start") }
+    for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
+      let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      defer { try? FileManager.default.removeItem(at: root) }
+      let store = try await prepare(protocol: api, root: root)
+      let metadata = root.appendingPathComponent("Project/.agents/skills/review/agents/openai.yaml")
+      try FileManager.default.createDirectory(at: metadata.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try Data("dependencies:\n  tools:\n    - type: mcp\n      value: fixturedep\n      url: http://127.0.0.1:\(port)/mcp\n".utf8)
+        .write(to: metadata)
+      await store.refreshSkillsIfChanged()
+      let skippedStarted = await store.startChat("$repo/review dependency request")
+      let skippedID = try XCTUnwrap(skippedStarted, store.error ?? "No chat started")
+      for _ in 0..<200 where store.codexPendingQuestions.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+      let questionID = try XCTUnwrap(store.codexPendingQuestions.keys.first)
+      XCTAssertTrue(store.mcpServers.isEmpty)
+      XCTAssertEqual(store.library.chatRuns.first { $0.id == skippedID }?.result?["response"].text, "")
+      await store.answerCodexQuestion(questionID, answers: ["skill_mcp_dependency_install": ["继续而不安装"]])
+      await store.modelTask(runID: skippedID)?.value
+      let skipped = try XCTUnwrap(store.library.chatRuns.first { $0.id == skippedID })
+      XCTAssertEqual(skipped.status, "succeeded", skipped.result?["message"].text ?? "")
+      XCTAssertEqual(skipped.codexQuestions.first?.status, .answered)
+      XCTAssertTrue(store.mcpServers.isEmpty)
+      let owner = try XCTUnwrap(store.library.task(containing: skippedID))
+      let repeatedStarted = await store.startChat("$repo/review another dependency request", taskID: owner.id)
+      let repeatedID = try XCTUnwrap(repeatedStarted, store.error ?? "No follow-up started")
+      await store.modelTask(runID: repeatedID)?.value
+      XCTAssertEqual(store.library.chatRuns.first { $0.id == repeatedID }?.status, "succeeded")
+      XCTAssertTrue(store.codexPendingQuestions.isEmpty)
+      XCTAssertTrue(store.library.chatRuns.first { $0.id == repeatedID }?.codexQuestions.isEmpty == true)
+      store.newTask()
+      let installedStarted = await store.startChat("$repo/review skill-dependency-request-echo")
+      let installedID = try XCTUnwrap(installedStarted, store.error ?? "No chat started")
+      for _ in 0..<200 where store.codexPendingQuestions.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+      let installQuestionID = try XCTUnwrap(store.codexPendingQuestions.keys.first)
+      await store.answerCodexQuestion(installQuestionID, answers: ["skill_mcp_dependency_install": ["安装并启用"]])
+      await store.modelTask(runID: installedID)?.value
+      let installed = try XCTUnwrap(store.library.chatRuns.first { $0.id == installedID })
+      XCTAssertEqual(installed.status, "succeeded", installed.result?["message"].text ?? "")
+      XCTAssertEqual(try MCPServerStorage.load(root: store.dataRoot).map(\.name), ["fixturedep"])
+      let body = try JSONDecoder().decode(JSONValue.self, from: Data(try XCTUnwrap(installed.result?["response"].text).utf8))
+      XCTAssertTrue(body["tools"].pretty.contains("fixturedep"), "Newly installed tools must be offered in the same request")
+      if api == .chatCompletions {
+        let server = try XCTUnwrap(store.mcpServers.first)
+        XCTAssertEqual(store.mcpConnectionStates[server.id]?.tools.count, 2)
+      }
+      XCTAssertTrue(store.codexPendingQuestions.isEmpty)
+      XCTAssertTrue(store.codexQuestionContinuations.isEmpty)
+      let restored = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+      XCTAssertEqual(restored.chatRuns.first { $0.id == installedID }?.codexQuestions.first?.purpose, "skill_dependencies")
+      await store.shutdown()
+    }
+  }
 }

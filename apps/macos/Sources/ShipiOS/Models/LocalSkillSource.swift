@@ -4,6 +4,8 @@ struct SkillDocument {
   let text: String
   let fileURL: URL
   let isLinkedSource: Bool
+  let toolDependencies: [SkillToolDependency]
+  let reference: PluginSkillReference
 }
 
 extension PluginStorage {
