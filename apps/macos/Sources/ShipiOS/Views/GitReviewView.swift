@@ -8,6 +8,15 @@ struct GitReviewView: View {
   @State private var pullRequestTaskID: String?
   var body: some View {
     VStack(spacing: 0) {
+      if !workspace.reviewRepositories.isEmpty {
+        GitReviewRepositoryPicker(workspace: workspace)
+      }
+      if !workspace.reviewRepositoryErrors.isEmpty {
+        ForEach(workspace.reviewRepositoryErrors.keys.sorted(), id: \.self) { path in
+          Text(path + "：" + (workspace.reviewRepositoryErrors[path] ?? ""))
+            .appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(.horizontal, 12)
+        }
+      }
       if workspace.gitAvailable {
         if let repository = workspace.reviewScope == .lastTurn
           ? workspace.lastTurnReview?.source.root : workspace.gitRepositoryRoot, let project = workspace.root,
@@ -134,7 +143,9 @@ struct GitReviewView: View {
               pullRequestTaskID = taskID ?? store.selectedTask?.id
               workspace.showingPullRequest = true
             }
-              .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitActionRunning)
+              .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitActionRunning
+                || !workspace.isPrimaryReviewRepository)
+              .help(workspace.isPrimaryReviewRepository ? "创建主仓库的 PR" : "请切换到主仓库以创建 PR")
             Button("提交或推送…") { workspace.showingCommitPush = true }
               .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
           }.padding(10)
@@ -156,6 +167,14 @@ struct GitReviewView: View {
         workspace.cancelCommitMessageGeneration()
         workspace.discardPlan = nil
       }
+    }
+    .onChange(of: workspace.selectedReviewRepository) { _, _ in
+      if workspace === store.workspace {
+        store.dismissCodeReviewMode()
+        store.captureWorkspaceTabLayout()
+      }
+      store.taskWindowResources.allObjects.forEach { $0.captureLayouts() }
+      store.saveLibrary()
     }
     .task(id: store.lastTurnReviewSource(taskID: taskID)) {
       if workspace.reviewScope == .lastTurn { await workspace.loadDiff() }

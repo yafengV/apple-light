@@ -511,4 +511,30 @@ final class GitHubPRTests: XCTestCase {
     XCTAssertFalse(state.needsRefresh, "A refused write does not have an uncertain publication result")
   }
 
+  @MainActor func testAttachedFoldersChangedDuringPRPreflightReleasesBusyWithoutPublishing() async throws {
+    let (root, service) = try await fixture()
+    let attached = root.appendingPathComponent("extra-folder", isDirectory: true)
+    try FileManager.default.createDirectory(at: attached, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/attached-policy"))
+    let workspace = store.workspace
+    workspace.root = root
+    workspace.setAdditionalFileRoots([attached])
+    await workspace.refreshGit()
+    let state = GitHubPRDraft(service: service)
+    workspace.pullRequestDraft = state
+    await state.load(at: try XCTUnwrap(workspace.gitRoot))
+    state.title = "Keep this title"; state.body = "Keep this body"
+    let operation = Task { await store.createPullRequest(in: workspace, draft: true) }
+    for _ in 0..<1000 where !workspace.gitBusy { try await Task.sleep(for: .milliseconds(1)) }
+    XCTAssertTrue(workspace.gitBusy)
+    workspace.setAdditionalFileRoots([])
+    await operation.value
+    XCTAssertFalse(workspace.gitBusy)
+    XCTAssertNil(state.existing)
+    XCTAssertEqual(state.title, "Keep this title")
+    XCTAssertEqual(state.body, "Keep this body")
+    XCTAssertEqual(try creates(at: root).count, 0)
+    workspace.setProject(nil)
+  }
+
 }

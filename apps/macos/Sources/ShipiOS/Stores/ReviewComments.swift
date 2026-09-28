@@ -16,7 +16,7 @@ extension WorkspaceStore {
     if anchor.turnRunID != nil {
       guard validateLastTurnAnchor(anchor, taskID: taskID) else { return }
     } else if let repository = anchor.repository {
-      guard (try? GitRepositoryContext.candidate(at: expectedProject))?.path == repository else { return }
+      guard reviewRepositoryAllowed(repository, project: expectedProject.path) else { return }
     }
     let key = reviewCommentKey(taskID)
     if let existing = reviewComments(taskID: taskID).first(where: { $0.anchor == anchor }) {
@@ -82,7 +82,7 @@ extension WorkspaceStore {
         }
       } else if let repository = comment.anchor.repository,
         let commentProject,
-        (try? GitRepositoryContext.candidate(at: URL(fileURLWithPath: commentProject)))?.path != repository {
+        !reviewRepositoryAllowed(repository, project: commentProject) {
         throw AgentFailure(message: "审查评论所属的 Git 仓库已变化，请重新核对评论。")
       }
     }
@@ -96,5 +96,11 @@ extension WorkspaceStore {
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     let context = String(decoding: try encoder.encode(comments), as: UTF8.self)
     return prompt + "\n\n审查评论（代码与行号是添加评论时的快照，修改前请核对当前文件）：\n" + context
+  }
+
+  func reviewRepositoryAllowed(_ repository: String, project: String) -> Bool {
+    library.folderPaths(for: project).contains { path in
+      (try? GitRepositoryContext.candidate(at: URL(fileURLWithPath: path)))?.path == repository
+    }
   }
 }

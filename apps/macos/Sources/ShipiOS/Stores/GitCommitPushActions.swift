@@ -7,8 +7,10 @@ extension WorkspaceStore {
     in workspace: DeveloperWorkspace, remote: String = "", destination: String = "",
     includeUnstaged: Bool = false, newBranch: String? = nil) async -> Bool {
     guard !workspace.gitActionRunning, !workspace.gitBusy, !workspace.generatingCommitMessage,
-      !library.gitPreferences.readOnlyReview, let root = workspace.gitRoot else { return false }
+      !library.gitPreferences.readOnlyReview, workspace.canModifyReview,
+      let root = workspace.gitRoot else { return false }
     let token = UUID(), force = library.gitPreferences.alwaysForcePush
+    let epoch = workspace.reviewRepositoryEpoch
     workspace.gitActionToken = token
     workspace.gitActionRunning = true
     workspace.error = nil
@@ -23,6 +25,7 @@ extension WorkspaceStore {
     }
     func isCurrent() -> Bool {
       workspace.gitRoot == root && workspace.gitActionToken == token
+        && workspace.reviewRepositoryEpoch == epoch
         && !library.gitPreferences.readOnlyReview && !Task.isCancelled
     }
     if action != .push {

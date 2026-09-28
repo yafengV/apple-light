@@ -14,14 +14,20 @@ import Observation
     workspace.reviewScope = store.currentWorkspaceTabOwner == owner
       ? store.workspace.reviewScope
       : store.library.workspaceTabLayouts[owner]?.reviewScope ?? store.library.gitPreferences.defaultReviewScope
+    workspace.restoreReviewRepository(store.currentWorkspaceTabOwner == owner
+      ? store.workspace.selectedReviewRepository : store.library.workspaceTabLayouts[owner]?.reviewRepository)
   }
 
   func saveScope(store: WorkspaceStore) {
     guard let owner, workspace.root != nil,
       workspace.root == store.workspaceTabProject(owner: owner),
       store.workspaceTabs.contains(.review(owner: owner)) else { return }
-    if store.currentWorkspaceTabOwner == owner { store.workspace.reviewScope = workspace.reviewScope }
+    if store.currentWorkspaceTabOwner == owner {
+      store.workspace.reviewScope = workspace.reviewScope
+      store.workspace.restoreReviewRepository(workspace.selectedReviewRepository)
+    }
     store.library.workspaceTabLayouts[owner]?.reviewScope = workspace.reviewScope
+    store.library.workspaceTabLayouts[owner]?.reviewRepository = workspace.selectedReviewRepository
     store.saveLibrary()
   }
 

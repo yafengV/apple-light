@@ -27,10 +27,13 @@ extension WorkspaceStore {
     guard showingReviewMode, let root = project, reviewModeProject == root.path else { return }
     reviewModeLoading = true
     reviewModeError = nil
+    let epoch = workspace.reviewRepositoryEpoch
+    defer { if showingReviewMode, project?.path == root.path { reviewModeLoading = false } }
     do {
       let repository = workspace.gitRoot ?? root
       let choices = try await GitReviewService.branches(at: repository)
-      guard showingReviewMode, project?.path == root.path, reviewModeProject == root.path else {
+      guard showingReviewMode, project?.path == root.path, reviewModeProject == root.path,
+        workspace.reviewRepositoryEpoch == epoch else {
         return
       }
       let current = workspace.gitBranch
@@ -38,12 +41,12 @@ extension WorkspaceStore {
         $0.title != current && $0.id != "refs/heads/\(current)"
       }
     } catch {
-      guard showingReviewMode, project?.path == root.path, reviewModeProject == root.path else {
+      guard showingReviewMode, project?.path == root.path, reviewModeProject == root.path,
+        workspace.reviewRepositoryEpoch == epoch else {
         return
       }
       reviewModeError = "无法加载分支：\(error.localizedDescription)"
     }
-    if showingReviewMode, project?.path == root.path { reviewModeLoading = false }
   }
 
   func startCodeReview(_ scope: ModelCodeReviewScope) async {

@@ -4080,6 +4080,66 @@ final class ModelTransportTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testAttachedRepositoryReviewUsesSelectedDiffWithChatCompletions() async throws {
+    try await verifyAttachedRepositoryReview(protocol: .chatCompletions)
+  }
+
+  @MainActor func testAttachedRepositoryReviewUsesSelectedDiffWithCodexResponses() async throws {
+    try await verifyAttachedRepositoryReview(protocol: .codexResponses)
+  }
+
+  @MainActor private func verifyAttachedRepositoryReview(protocol api: ModelAPIProtocol) async throws {
+    var repository = URL(fileURLWithPath: #filePath)
+    for _ in 0..<5 { repository.deleteLastPathComponent() }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let primary = root.appendingPathComponent("Primary")
+    let attached = root.appendingPathComponent("Attached")
+    try await makeReviewRepository(primary)
+    try await makeReviewRepository(attached)
+    try Data("let primaryOnly = 99\n".utf8).write(to: primary.appendingPathComponent("Review.swift"))
+    try Data("let secondaryOnly = 77\n".utf8).write(to: attached.appendingPathComponent("Review.swift"))
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    await store.restore(); await store.open(primary)
+    config.apiProtocol = api
+    config.model = api == .codexResponses ? "gpt-5.4" : "fixture-model"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    store.library.projectAdditionalFolders[primary.path] = [attached.path]
+    store.bindGitReviewPolicy(to: store.workspace)
+    await store.workspace.refreshGit()
+    let selected = await store.workspace.selectReviewRepository(GitBranchService.canonicalRoot(attached).path)
+    XCTAssertTrue(selected)
+    let taskID = seedReviewTask(store, project: primary.path)
+    store.library.drafts[taskID] = "Keep primary task draft"
+    store.library.gitPreferences.reviewDelivery = .inline
+    store.showingReviewMode = true; store.reviewModeProject = primary.path
+    await store.startCodeReview(.uncommitted)
+    let started = try XCTUnwrap(store.library.chatRuns.last)
+    try await XCTUnwrap(store.modelTask(runID: started.id), store.reviewModeError ?? store.error ?? "").value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == started.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.project, primary.path)
+    XCTAssertEqual(finished.request["review_repository_root"].text, GitBranchService.canonicalRoot(attached).path)
+    XCTAssertEqual(finished.request["additional_folders"].items.compactMap(\.text), [GitBranchService.canonicalRoot(attached).path])
+    XCTAssertEqual(store.responseFileRoot(for: finished)?.path, GitBranchService.canonicalRoot(attached).path)
+    XCTAssertEqual(store.library.task(containing: finished.id)?.id, taskID)
+    XCTAssertEqual(store.library.drafts[taskID], "Keep primary task draft")
+    let snapshot = try ReviewSnapshotStorage.load(runID: finished.id, root: store.dataRoot)
+    XCTAssertTrue(snapshot.diff.contains("+let secondaryOnly = 77"))
+    XCTAssertFalse(snapshot.diff.contains("primaryOnly"))
+    if api == .chatCompletions {
+      let messages = try JSONDecoder().decode([ChatMessage].self,
+        from: Data(try XCTUnwrap(finished.result?["response"].text).utf8))
+      XCTAssertTrue(messages.last?.content.contains("+let secondaryOnly = 77") == true)
+      XCTAssertFalse(messages.last?.content.contains("primaryOnly") == true)
+    } else {
+      XCTAssertEqual(finished.result?["response"].text, "Review fixture reply")
+    }
+    await store.shutdown()
+  }
+
   @MainActor private func seedReviewTask(_ store: WorkspaceStore, project: String) -> String {
     let now = Date().timeIntervalSince1970 * 1000
     let seed = AgentRun(

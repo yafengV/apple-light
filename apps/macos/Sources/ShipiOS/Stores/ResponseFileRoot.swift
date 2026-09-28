@@ -22,7 +22,12 @@ extension WorkspaceStore {
     }
     let base = GitBranchService.canonicalRoot(root).path
     let project = GitBranchService.canonicalRoot(cwd).path
-    guard project == base || project.hasPrefix(base + "/") else { return nil }
+    let attached = run.request["additional_folders"].items.compactMap(\.text)
+    guard project == base || project.hasPrefix(base + "/") || attached.contains(where: { path in
+      guard path.hasPrefix("/"), !path.contains("\0") else { return false }
+      let folder = GitBranchService.canonicalRoot(URL(fileURLWithPath: path)).path
+      return folder == base || folder.hasPrefix(base + "/")
+    }) else { return nil }
     if cacheRoot { legacyReviewFileRoots[run.id] = root }
     return root
   }

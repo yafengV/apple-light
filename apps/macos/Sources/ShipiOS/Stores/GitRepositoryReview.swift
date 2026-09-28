@@ -6,8 +6,10 @@ extension DeveloperWorkspace {
       throw AgentFailure(message: "请先打开 Git 项目。")
     }
     let generation = generationForGitMutation
+    let epoch = reviewRepositoryEpoch
     var snapshot = try await GitReviewService.modelReviewSnapshot(scope: scope, at: repository)
-    guard root == project, gitRoot == repository, generationForGitMutation == generation else {
+    guard root == project, gitRoot == repository, generationForGitMutation == generation,
+      reviewRepositoryEpoch == epoch else {
       throw CancellationError()
     }
     if GitBranchService.canonicalRoot(repository).path != GitBranchService.canonicalRoot(project).path {

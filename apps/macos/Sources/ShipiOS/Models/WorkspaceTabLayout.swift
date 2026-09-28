@@ -23,6 +23,7 @@ struct WorkspaceTabLayout: Codable, Equatable {
   var showingTabs: Bool
   var side: WorkspacePaneSide
   var reviewScope: GitReviewScope
+  var reviewRepository: String? = nil
 }
 
 struct TaskWindowTabLayout: Codable, Equatable {

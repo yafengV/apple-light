@@ -77,13 +77,14 @@ struct GitHubPRView: View {
   }
 
   private var canCreate: Bool {
-    draft.canCreate && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
+    draft.canCreate && workspace.isPrimaryReviewRepository
+      && !store.library.gitPreferences.readOnlyReview && !workspace.gitBusy && !workspace.gitActionRunning
   }
   private func refresh() {
     Task { await refreshExisting() }
   }
   private func refreshExisting() async {
-    guard let root = workspace.gitRoot else { return }
+    guard workspace.isPrimaryReviewRepository, let root = workspace.gitRoot else { return }
     await draft.load(at: root)
     if let existing = draft.existing, let repository = draft.context?.repository,
       workspace.gitRoot == root {

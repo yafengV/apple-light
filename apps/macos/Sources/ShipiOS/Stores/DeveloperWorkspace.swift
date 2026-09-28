@@ -33,6 +33,11 @@ final class DeveloperWorkspace {
   var gitAvailable = false
   var gitReadError: String?
   var gitRepositoryRoot: URL?
+  var reviewRepositories: [GitReviewRepository] = []
+  var reviewRepositoryErrors: [String: String] = [:]
+  var selectedReviewRepository: String?
+  @ObservationIgnored var reviewRepositoryEpoch = UUID()
+  @ObservationIgnored var reviewRepositoryDrafts: [String: GitReviewRepositoryDraft] = [:]
   var gitRoot: URL? {
     guard let repository = gitRepositoryRoot, let root else { return root }
     return GitBranchService.canonicalRoot(root).path == repository.path ? root : repository
@@ -124,6 +129,11 @@ final class DeveloperWorkspace {
     gitAvailable = false
     gitReadError = nil
     gitRepositoryRoot = nil
+    reviewRepositories = []
+    reviewRepositoryErrors = [:]
+    selectedReviewRepository = nil
+    reviewRepositoryEpoch = UUID()
+    reviewRepositoryDrafts = [:]
     canCommit = false
     gitBranch = ""
     reviewScope = .unstaged
@@ -146,11 +156,11 @@ final class DeveloperWorkspace {
     diff = ""
     error = nil
     guard root != nil else { return }
-    let token = generation, filesToken = filesVersion
+    let token = generation, filesToken = filesVersion, gitToken = gitVersion
     Task {
       guard generation == token else { return }
       if filesVersion == filesToken { await refreshFiles() }
-      if generation == token { await refreshGit() }
+      if generation == token && gitVersion == gitToken { await refreshGit() }
     }
   }
   func refreshFiles() async {
@@ -205,6 +215,8 @@ final class DeveloperWorkspace {
     let updated = Array(WorkspaceFileScope.roots(primary: root, additional: additional).dropFirst())
     guard updated != additionalFileRoots else { return }
     additionalFileRoots = updated
+    rememberReviewRepositoryDraft()
+    invalidateGitReviewContext()
     filesVersion = UUID()
     fileVersion = UUID()
     fileOpenRequest = UUID()
@@ -213,7 +225,11 @@ final class DeveloperWorkspace {
     for path in openFiles where !retained.contains(path) { closeFile(path) }
     if let selectedFile { selectFile(selectedFile) }
     let token = filesVersion
-    Task { if filesVersion == token { await refreshFiles() } }
+    let epoch = reviewRepositoryEpoch, gitToken = gitVersion
+    Task {
+      if filesVersion == token { await refreshFiles() }
+      if reviewRepositoryEpoch == epoch && gitVersion == gitToken { await refreshGit() }
+    }
   }
   func openFile(_ path: String) async {
     await selectFile(path)?.value
@@ -292,6 +308,7 @@ final class DeveloperWorkspace {
 
   func refreshGit() async {
     guard let project = root else { return }
+    let folders = fileRoots
     let token = UUID()
     gitVersion = token
     // A status refresh supersedes older diff requests and their write snapshots.
@@ -306,7 +323,28 @@ final class DeveloperWorkspace {
     defer { if token == gitVersion { gitRefreshing = false } }
     var repository: URL?
     do {
-      repository = try await GitRepositoryContext.resolve(at: project)
+      let discovery = await GitReviewRepositories.discover(folders)
+      guard token == gitVersion else { return }
+      reviewRepositories = discovery.repositories
+      reviewRepositoryErrors = discovery.folderErrors
+      let selected = discovery.repositories.first { $0.id == selectedReviewRepository }
+        ?? discovery.repositories.first { $0.isPrimary }
+        ?? discovery.repositories.first
+      if let selected {
+        if gitRepositoryRoot?.path != selected.id {
+          // Explicit selections apply their own draft before refresh; a removed
+          // repository or automatic fallback must also restore the target draft.
+          if let previous = selectedReviewRepository, previous != selected.id { applyReviewRepositoryDraft(selected.id) }
+        }
+        selectedReviewRepository = selected.isPrimary && selectedReviewRepository == nil ? nil : selected.id
+        if let failure = selected.readError { throw AgentFailure(message: failure) }
+        repository = selected.root
+      } else {
+        selectedReviewRepository = nil
+        if let failure = discovery.folderErrors[GitBranchService.canonicalRoot(project).path] {
+          throw AgentFailure(message: failure)
+        }
+      }
       guard token == gitVersion else { return }
       if gitRepositoryRoot?.path != repository?.path {
         gitAvailable = false
@@ -351,6 +389,27 @@ final class DeveloperWorkspace {
         self.error = error.localizedDescription
       }
     }
+  }
+  func scheduleGitRefresh() {
+    let epoch = reviewRepositoryEpoch, token = gitVersion
+    Task {
+      if reviewRepositoryEpoch == epoch && gitVersion == token { await refreshGit() }
+    }
+  }
+  func invalidateGitReviewContext() {
+    reviewRepositoryEpoch = UUID()
+    gitVersion = UUID()
+    gitRefreshing = false
+    clearUnavailableGitReview()
+    gitRepositoryRoot = nil
+    gitReadError = nil
+    reviewPath = nil
+    fileOpenRequest = UUID()
+    fileOpenError = nil
+    error = nil
+    gitActionStatus = nil
+    pullRequestDraft.cancelLoading()
+    if !pullRequestDraft.creating { pullRequestDraft = GitHubPRDraft() }
   }
   private func clearUnavailableGitReview() {
     diffVersion = UUID()
@@ -442,7 +501,7 @@ final class DeveloperWorkspace {
   }
   func stage(_ path: String, undo: Bool) async {
     guard let root = gitRoot, !gitBusy, canModifyReview else { return }
-    let authorize = gitMutationAuthorization(at: root), token = generation
+    let authorize = gitMutationAuthorization(at: root), token = generation, epoch = reviewRepositoryEpoch
     gitBusy = true
     error = nil
     defer { if generation == token { gitBusy = false } }
@@ -464,9 +523,10 @@ final class DeveloperWorkspace {
       try authorize()
       let result = try await LocalWorkspaceService.git(args, at: root)
       guard result.status == 0 else { throw AgentFailure(message: result.text) }
-      if gitRoot == root, generation == token { await refreshGit() }
+      if gitRoot == root, generation == token, reviewRepositoryEpoch == epoch { await refreshGit() }
     } catch {
-      if gitRoot == root, generation == token, !(error is CancellationError) { self.error = error.localizedDescription }
+      if gitRoot == root, generation == token, reviewRepositoryEpoch == epoch,
+        !(error is CancellationError) { self.error = error.localizedDescription }
     }
   }
   @discardableResult func commit() async -> Bool {
@@ -476,18 +536,18 @@ final class DeveloperWorkspace {
     cancelCommitMessageGeneration()
     gitBusy = true
     error = nil
-    let token = generation
+    let token = generation, epoch = reviewRepositoryEpoch
     defer { if token == generation { gitBusy = false } }
     do {
       try gitMutationAuthorization(at: root)()
       let output = try await LocalWorkspaceService.git(["commit", "-m", commitMessage], at: root)
       guard output.status == 0 else { throw AgentFailure(message: output.text) }
-      guard token == generation else { return false }
+      guard token == generation, reviewRepositoryEpoch == epoch else { return false }
       commitMessage = ""
       await refreshGit()
-      return token == generation
+      return token == generation && reviewRepositoryEpoch == epoch
     } catch {
-      if token == generation { self.error = error.localizedDescription }
+      if token == generation, reviewRepositoryEpoch == epoch { self.error = error.localizedDescription }
       return false
     }
   }

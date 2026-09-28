@@ -49,15 +49,8 @@ extension WorkspaceStore {
     workspace.fileOpenRequest = request
     workspace.fileOpenError = nil
     do {
-      let candidate = file.path.hasPrefix("/") ? URL(fileURLWithPath: file.path)
-        : root.appendingPathComponent(file.path)
-      let resolved = candidate.resolvingSymlinksInPath().standardizedFileURL
-      let base = GitBranchService.canonicalRoot(root)
-      guard resolved.path.hasPrefix(base.path + "/") else {
-        throw AgentFailure(message: "回合文件不在已记录的目录内。")
-      }
-      let path = String(resolved.path.dropFirst(base.path.count + 1))
-      try await ExternalEditorService.open(path, root: root, line: line, editor: preferredEditor)
+      let location = try workspace.lastTurnFileLocation(file.path, base: root)
+      try await ExternalEditorService.open(location.path, root: location.root, line: line, editor: preferredEditor)
     } catch {
       if workspace.generationForGitMutation == generation,
         workspace.lastTurnReview?.source == snapshot.source,
@@ -68,6 +61,16 @@ extension WorkspaceStore {
 }
 
 extension DeveloperWorkspace {
+  func lastTurnFileLocation(_ path: String, base: URL) throws -> WorkspaceFileLocation {
+    let candidate = path.hasPrefix("/") ? URL(fileURLWithPath: path) : base.appendingPathComponent(path)
+    let resolved = candidate.resolvingSymlinksInPath().standardizedFileURL
+    let original = GitBranchService.canonicalRoot(base)
+    if resolved.path.hasPrefix(original.path + "/") {
+      return .init(root: original, path: String(resolved.path.dropFirst(original.path.count + 1)))
+    }
+    return try fileLocation(resolved.path)
+  }
+
   func loadLastTurnReview() async {
     let request = UUID(), generation = generationForGitMutation
     lastTurnRequest = request

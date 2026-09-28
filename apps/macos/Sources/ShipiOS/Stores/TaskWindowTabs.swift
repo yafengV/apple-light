@@ -333,7 +333,7 @@ import Observation
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
         bottom: selections[.bottom], focused: focusedID, showingInspector: showingRight,
         showingTerminal: showingBottom, showingTabs: showingTabs, side: primarySide,
-        reviewScope: panels.workspace.reviewScope),
+        reviewScope: panels.workspace.reviewScope, reviewRepository: panels.workspace.selectedReviewRepository),
       panelSizes: panels.panelSizes, showingFiles: panels.showingFiles)
   }
 
@@ -395,7 +395,10 @@ import Observation
     primarySide = layout.side
     panels.panelSizes = saved.panelSizes
     panels.showingFiles = sameProject && panels.workspace.root != nil && saved.showingFiles
-    if sameProject { panels.workspace.reviewScope = layout.reviewScope }
+    if sameProject {
+      panels.workspace.reviewScope = layout.reviewScope
+      panels.workspace.restoreReviewRepository(layout.reviewRepository)
+    }
     focusedID = tabs.first { $0.id == layout.focused && isVisible($0.id) }?.id
     lastContentID = focusedID ?? selected(.left)?.id ?? selected(.right)?.id ?? selected(.bottom)?.id
     synchronizingBrowser = true

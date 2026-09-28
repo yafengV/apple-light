@@ -25,6 +25,7 @@ struct DetachedReviewView: View {
       session.configure(store: store, owner: owner)
     }
     .onChange(of: session.workspace.reviewScope) { _, _ in session.saveScope(store: store) }
+    .onChange(of: session.workspace.selectedReviewRepository) { _, _ in session.saveScope(store: store) }
     .onDisappear { session.saveScope(store: store); session.shutdown() }
   }
 }
