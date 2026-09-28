@@ -64,7 +64,8 @@ enum GitDiscardService {
       trashPaths: trash, intentPaths: intent)
   }
 
-  static func execute(_ plan: GitDiscardPlan, trash: (URL) throws -> Void = moveToTrash)
+  static func execute(_ plan: GitDiscardPlan, trash: (URL) throws -> Void = moveToTrash,
+    authorize: GitMutationAuthorization = {})
     async throws
   {
     guard plan.snapshot.scope == .unstaged else { throw AgentFailure(message: "此操作仅用于未暂存修改。") }
@@ -80,17 +81,18 @@ enum GitDiscardService {
     do {
       for path in plan.trashPaths {
         let file = try GitBatchService.gitPath(path, root: plan.snapshot.root)
+        try await authorize()
         try trash(file)
         moved += 1
       }
       if !plan.restorePaths.isEmpty {
         restoreStarted = true
         try await GitBatchService.runPathCommand(
-          ["restore", "--worktree"], paths: plan.restorePaths, at: plan.snapshot.root)
+          ["restore", "--worktree"], paths: plan.restorePaths, at: plan.snapshot.root, authorize: authorize)
       }
       try await GitBatchService.runPathCommand(
         ["rm", "--cached", "--force", "--ignore-unmatch"], paths: plan.intentPaths,
-        at: plan.snapshot.root)
+        at: plan.snapshot.root, authorize: authorize)
     } catch {
       let progress =
         moved > 0 || restoreStarted

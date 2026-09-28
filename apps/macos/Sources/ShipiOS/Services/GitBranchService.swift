@@ -43,7 +43,8 @@ enum GitBranchService {
       branches: branches, changedFiles: GitFile.parse(status).count)
   }
 
-  static func apply(_ change: GitBranchChange, snapshot previous: GitBranchSnapshot) async throws {
+  static func apply(_ change: GitBranchChange, snapshot previous: GitBranchSnapshot,
+    authorize: GitMutationAuthorization = {}) async throws {
     let current = try await snapshot(at: previous.root)
     guard current.canChange else {
       throw AgentFailure(message: "请先打开仓库根目录，再切换分支：\(current.repositoryRoot.path)")
@@ -81,6 +82,7 @@ enum GitBranchService {
         args = ["switch", "--no-overwrite-ignore", "--no-track", "-c", name, commit]
       }
     }
+    try await authorize()
     _ = try await GitReviewService.checked(args, at: current.root)
   }
 

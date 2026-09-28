@@ -140,7 +140,10 @@ struct GitReviewView: View {
         taskID: pullRequestTaskID)
     }
     .onChange(of: store.library.gitPreferences.readOnlyReview) { _, readOnly in
-      if readOnly { workspace.cancelCommitMessageGeneration() }
+      if readOnly {
+        workspace.cancelCommitMessageGeneration()
+        workspace.discardPlan = nil
+      }
     }
     .onChange(of: reviewSelection) { _, _ in
       workspace.cancelCommitMessageGeneration()
@@ -151,7 +154,7 @@ struct GitReviewView: View {
     .alert(
       "撤销未暂存修改？",
       isPresented: Binding(
-        get: { workspace.discardPlan != nil },
+        get: { workspace.canModifyReview && workspace.discardPlan != nil },
         set: { if !$0 { workspace.discardPlan = nil } }), presenting: workspace.discardPlan
     ) { plan in
       Button("撤销变更", role: .destructive) { Task { await workspace.discard(plan) } }

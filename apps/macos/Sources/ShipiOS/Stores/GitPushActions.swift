@@ -2,7 +2,7 @@ import Foundation
 
 extension DeveloperWorkspace {
   @discardableResult func push(remote: String, destination: String, forceWithLease: Bool) async -> Bool {
-    guard let root, canCommit, !gitBusy else { return false }
+    guard let root, canCommit, !gitBusy, canModifyReview else { return false }
     let token = UUID()
     pushOperation = token
     gitBusy = true
@@ -12,7 +12,7 @@ extension DeveloperWorkspace {
       let plan = try await GitPushService.prepare(at: root, remote: remote,
         destination: destination, forceWithLease: forceWithLease)
       guard self.root == root, pushOperation == token else { return false }
-      let warning = try await GitPushService.push(plan)
+      let warning = try await GitPushService.push(plan, authorize: gitMutationAuthorization(at: root))
       guard self.root == root, pushOperation == token else { return false }
       gitActionStatus = warning ?? "已推送 \(plan.branch) → \(plan.remote)/\(destination)"
       await refreshGit()

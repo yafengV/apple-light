@@ -4,14 +4,15 @@ extension DeveloperWorkspace {
   func applyHunk(
     _ action: GitHunkAction, file: GitFile, hunk: ReviewHunk, snapshot: ReviewDiff, project: URL
   ) async {
-    guard root == project, reviewScope == action.scope, !gitBusy else { return }
+    guard root == project, reviewScope == action.scope, !gitBusy, canModifyReview else { return }
+    let operation = generationForGitMutation
     gitBusy = true
     error = nil
-    defer { gitBusy = false }
+    defer { if generationForGitMutation == operation { gitBusy = false } }
     do {
       try await GitHunkService.apply(
-        action, path: file.path, hunkID: hunk.id, snapshot: snapshot, at: project)
-      if root == project { await refreshGit() }
-    } catch { if root == project { self.error = error.localizedDescription } }
+        action, path: file.path, hunkID: hunk.id, snapshot: snapshot, at: project, authorize: gitMutationAuthorization(at: project))
+      if root == project, generationForGitMutation == operation { await refreshGit() }
+    } catch { if root == project, generationForGitMutation == operation, !(error is CancellationError) { self.error = error.localizedDescription } }
   }
 }

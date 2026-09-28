@@ -22,7 +22,7 @@ struct ReviewHunkControls: View {
           .accessibilityLabel("撤销 \(file.path) 差异块 \(hunk.title)")
       }
     }.appFont(.caption).padding(.horizontal, 10).padding(.vertical, 6)
-      .disabled(workspace.gitBusy)
+      .disabled(workspace.gitBusy || !workspace.canModifyReview)
       .confirmationDialog("撤销此差异块？", isPresented: $confirmingRevert, titleVisibility: .visible) {
         Button("撤销未暂存的差异块", role: .destructive) { apply(.revert) }
         Button("取消", role: .cancel) {}
@@ -31,6 +31,7 @@ struct ReviewHunkControls: View {
       }
   }
   private func apply(_ action: GitHunkAction) {
+    guard workspace.canModifyReview else { return }
     Task {
       await workspace.applyHunk(
         action, file: file, hunk: hunk, snapshot: snapshot, project: project)

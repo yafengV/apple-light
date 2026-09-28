@@ -55,7 +55,8 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   func cancelGeneration() { generationTask?.cancel() }
   func reportError(_ message: String) { error = message }
 
-  @discardableResult func create(draft: Bool, generate: GitHubPRGenerator? = nil) async -> GitHubPullRequest? {
+  @discardableResult func create(draft: Bool, generate: GitHubPRGenerator? = nil,
+    authorize: GitMutationAuthorization = {}) async -> GitHubPullRequest? {
     guard canCreate, let context else { return nil }
     creating = true; error = nil
     defer { creating = false; generating = false; generationTask = nil }
@@ -93,7 +94,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
         if originalBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { body = generated.body }
       }
       try Task.checkCancellation()
-      let result = try await service.create(context, base: base, title: title, body: body, draft: draft)
+      let result = try await service.create(context, base: base, title: title, body: body, draft: draft, authorize: authorize)
       existing = result
       return result
     } catch {
@@ -175,7 +176,8 @@ extension WorkspaceStore {
     }
     workspace.gitBusy = true
     defer { if workspace.root == root, workspace.pullRequestDraft === state { workspace.gitBusy = false } }
-    let result = await state.create(draft: draft, generate: generator)
+    let result = await state.create(draft: draft, generate: generator,
+      authorize: workspace.gitMutationAuthorization(at: root))
     if let result, workspace.root == root, workspace.pullRequestDraft === state {
       workspace.gitActionStatus = "已创建或找到 PR #\(result.number)"
       _ = recordPullRequest(result, for: taskID, at: root, repository: repository)

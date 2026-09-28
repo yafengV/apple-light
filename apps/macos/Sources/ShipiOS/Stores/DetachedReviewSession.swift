@@ -6,6 +6,7 @@ import Observation
   private(set) var owner: String?
 
   func configure(store: WorkspaceStore, owner: String) {
+    store.bindGitReviewPolicy(to: workspace)
     let root = store.workspaceTabProject(owner: owner)
     guard self.owner != owner || workspace.root != root else { return }
     self.owner = owner

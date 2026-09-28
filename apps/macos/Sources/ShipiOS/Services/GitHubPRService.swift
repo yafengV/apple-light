@@ -54,7 +54,8 @@ struct GitHubPRService: Sendable {
       existing: existing, creationProblem: problem)
   }
 
-  func create(_ context: GitHubPRContext, base: String, title: String, body: String, draft: Bool) async throws -> GitHubPullRequest {
+  func create(_ context: GitHubPRContext, base: String, title: String, body: String, draft: Bool,
+    authorize: GitMutationAuthorization = {}) async throws -> GitHubPullRequest {
     let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !title.isEmpty, title.count <= 256, !title.contains("\n"), !title.contains("\r"), body.utf8.count <= 65_536 else {
       throw AgentFailure(message: "请填写 256 字符以内的单行标题，描述不能超过 64 KiB。")
@@ -80,6 +81,7 @@ struct GitHubPRService: Sendable {
       "--base", base, "--title", title, "--body-file", bodyFile.path]
     if draft { args.append("--draft") }
     let output: String
+    try await authorize()
     do { output = try await run(args, at: context.plan.root) }
     catch { throw GitHubPRRefreshRequired(message: error.localizedDescription) }
     guard let url = output.split(whereSeparator: \.isWhitespace).compactMap({ context.repository.pullRequestURL(String($0)) }).first,

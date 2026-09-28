@@ -30,6 +30,7 @@ import Observation
     let project = store.library.tasks.first { $0.id == taskID }?.project ?? ""
     let oldRoot = panels.tasks[taskID]?.workspace.root
     let panel = panels.panels(for: taskID, project: project)
+    store.bindGitReviewPolicy(to: panel.workspace)
     store.additionalTaskWindowPanels.add(panels)
     if let existing = tasks[taskID] {
       if oldRoot != panel.workspace.root { existing.resetProjectTabs() }

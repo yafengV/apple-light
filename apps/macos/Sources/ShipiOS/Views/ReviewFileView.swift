@@ -35,7 +35,7 @@ struct ReviewFileView: View {
           ScrollView(.horizontal) {
             LazyVStack(alignment: .leading, spacing: 0) {
               ForEach(patch.lines) { line in
-                if !scope.isHistorical, !file.untracked,
+                if workspace.canModifyReview, !scope.isHistorical, !file.untracked,
                   let hunk = editableHunks[line.id]
                 {
                   ReviewHunkControls(
@@ -94,12 +94,12 @@ struct ReviewFileView: View {
         Text("+\(patch.additions)").foregroundStyle(.green)
         Text("−\(patch.deletions)").foregroundStyle(.red)
       }
-      if !scope.isHistorical {
+      if workspace.canModifyReview, !scope.isHistorical {
         Button(scope == .staged ? "取消暂存" : "暂存") {
           Task { await workspace.stage(file.path, undo: scope == .staged) }
         }.buttonStyle(.borderless).disabled(workspace.gitBusy)
       }
-      if scope == .unstaged {
+      if workspace.canModifyReview, scope == .unstaged {
         Menu {
           Button("撤销文件的未暂存修改…") {
             if let snapshot = workspace.batchSnapshot {

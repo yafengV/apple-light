@@ -53,7 +53,7 @@ enum GitBatchService {
       signature: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined())
   }
 
-  static func apply(_ snapshot: GitBatchSnapshot) async throws {
+  static func apply(_ snapshot: GitBatchSnapshot, authorize: GitMutationAuthorization = {}) async throws {
     guard !snapshot.paths.isEmpty else { return }
     let current = try await capture(scope: snapshot.scope, at: snapshot.root)
     guard current.signature == snapshot.signature, current.paths == snapshot.paths else {
@@ -68,10 +68,11 @@ enum GitBatchService {
       // Removing index entries is also safe when an unborn branch's working files differ.
       command = ["rm", "--cached", "--force", "--ignore-unmatch"]
     }
-    try await runPathCommand(command, paths: snapshot.paths, at: snapshot.root)
+    try await runPathCommand(command, paths: snapshot.paths, at: snapshot.root, authorize: authorize)
   }
 
-  static func runPathCommand(_ command: [String], paths: [String], at root: URL) async throws {
+  static func runPathCommand(_ command: [String], paths: [String], at root: URL,
+    authorize: GitMutationAuthorization = {}) async throws {
     guard !paths.isEmpty else { return }
     for path in paths { _ = try gitPath(path, root: root) }
     let manifest = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -84,6 +85,7 @@ enum GitBatchService {
       throw AgentFailure(message: "无法准备文件列表。")
     }
     defer { try? FileManager.default.removeItem(at: manifest) }
+    try await authorize()
     _ = try await GitReviewService.checked(
       command + ["--pathspec-from-file=" + manifest.path, "--pathspec-file-nul"], at: root)
   }

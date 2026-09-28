@@ -64,6 +64,8 @@ final class DeveloperWorkspace {
   @ObservationIgnored var commitGenerationToken: UUID?
   var browser = BrowserSession()
   var terminals = TerminalSessions()
+  @ObservationIgnored var isGitReviewReadOnly: () -> Bool = { false }
+  var generationForGitMutation: UUID { generation }
   private var generation = UUID()
   private var fileVersion = UUID()
   private var diffVersion = UUID()
@@ -309,10 +311,11 @@ final class DeveloperWorkspace {
     } catch { if isCurrent() { self.error = error.localizedDescription } }
   }
   func stage(_ path: String, undo: Bool) async {
-    guard let root, !gitBusy, !reviewScope.isHistorical else { return }
+    guard let root, !gitBusy, canModifyReview else { return }
+    let authorize = gitMutationAuthorization(at: root), token = generation
     gitBusy = true
     error = nil
-    defer { gitBusy = false }
+    defer { if generation == token { gitBusy = false } }
     do {
       let status = try await GitReviewService.checked(
         ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."], at: root)
@@ -328,13 +331,16 @@ final class DeveloperWorkspace {
       } else {
         args = ["add", "--"] + paths
       }
+      try authorize()
       let result = try await LocalWorkspaceService.git(args, at: root)
       guard result.status == 0 else { throw AgentFailure(message: result.text) }
-      await refreshGit()
-    } catch { self.error = error.localizedDescription }
+      if self.root == root, generation == token { await refreshGit() }
+    } catch {
+      if self.root == root, generation == token, !(error is CancellationError) { self.error = error.localizedDescription }
+    }
   }
   @discardableResult func commit() async -> Bool {
-    guard let root, canCommit, !gitBusy, !reviewScope.isHistorical,
+    guard let root, canCommit, !gitBusy, canModifyReview,
       !commitMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return false }
     cancelCommitMessageGeneration()

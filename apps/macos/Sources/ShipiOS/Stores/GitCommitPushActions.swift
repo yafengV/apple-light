@@ -41,7 +41,7 @@ extension WorkspaceStore {
         guard isCurrent() else { return false }
         workspace.gitActionPhase = newBranch == nil ? "正在准备提交…" : "正在创建分支…"
         workspace.gitBusy = true
-        do { try await selection.apply() }
+        do { try await selection.apply(authorize: workspace.gitMutationAuthorization(at: root)) }
         catch {
           if workspace.gitActionToken == token { workspace.gitBusy = false }
           throw error

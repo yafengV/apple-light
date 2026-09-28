@@ -490,4 +490,25 @@ final class GitHubPRTests: XCTestCase {
     XCTAssertFalse(workspace.gitBusy)
     XCTAssertEqual(try creates(at: root).count, 1)
   }
+
+  @MainActor func testPolicyChangeAfterPRPreflightPreservesDraftWithoutPublishing() async throws {
+    let (root, service) = try await fixture()
+    let state = GitHubPRDraft(service: service)
+    await state.load(at: root)
+    state.title = "Keep this title"; state.body = "Keep this body"
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/policy"))
+    store.workspace.root = root
+    let authorize = store.workspace.gitMutationAuthorization(at: root)
+    let created = await state.create(draft: true, authorize: {
+      store.library.gitPreferences.readOnlyReview = true
+      try authorize()
+    })
+    XCTAssertNil(created)
+    XCTAssertTrue(state.error?.contains("只读") == true)
+    XCTAssertEqual(state.title, "Keep this title")
+    XCTAssertEqual(state.body, "Keep this body")
+    XCTAssertEqual(try creates(at: root).count, 0)
+    XCTAssertFalse(state.needsRefresh, "A refused write does not have an uncertain publication result")
+  }
+
 }

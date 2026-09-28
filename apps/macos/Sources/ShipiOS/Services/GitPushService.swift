@@ -77,7 +77,7 @@ enum GitPushService {
   }
 
   /// Push an immutable commit with a lease captured before execution. No fetch can silently widen it.
-  static func push(_ plan: GitPushPlan) async throws -> String? {
+  static func push(_ plan: GitPushPlan, authorize: GitMutationAuthorization = {}) async throws -> String? {
     guard try await prepare(at: plan.root, remote: plan.remote,
       destination: String(plan.destination.dropFirst("refs/heads/".count)),
       forceWithLease: plan.forceWithLease) == plan else {
@@ -90,6 +90,7 @@ enum GitPushService {
       arguments.append("--force-with-lease=\(plan.destination):\(plan.expectedRemoteCommit)")
     }
     arguments += ["--", plan.remote, "\(plan.commit):\(plan.destination)"]
+    try await authorize()
     _ = try await GitReviewService.checked(arguments, at: plan.root)
     // Git updates the matching remote-tracking reference even with an object-id source.
     // Only establish tracking while the same local branch still denotes the pushed commit.
@@ -102,6 +103,8 @@ enum GitPushService {
     // Preserve triangular workflows and existing upstreams.
     let upstream = try await config("branch.\(plan.branch).remote", at: plan.root)
     if upstream.isEmpty, let tracking = plan.trackingReference {
+      do { try await authorize() }
+      catch { return "推送成功；审查权限或工作区已变化，未修改上游设置。" }
       let result = try await LocalWorkspaceService.git(
         ["branch", "--set-upstream-to=" + tracking, "--", plan.branch], at: plan.root)
       if result.status != 0 { return "推送成功，但未能设置上游分支：" + result.text }

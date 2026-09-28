@@ -27,7 +27,7 @@ struct GitCommitSelection {
     guard existing.status != 0 else { throw AgentFailure(message: "该本地分支已存在，请更换名称或选择当前分支。") }
   }
 
-  func apply() async throws {
+  func apply(authorize: GitMutationAuthorization = {}) async throws {
     let currentBranch = try await GitBranchService.snapshot(at: branch.root)
     let currentChanges = try await GitBatchService.capture(scope: changes.scope, at: changes.root)
     guard currentBranch.currentReference == branch.currentReference,
@@ -39,11 +39,12 @@ struct GitCommitSelection {
     if let newBranch {
       try await Self.validateBranch(newBranch, at: branch.root)
       if branch.currentCommit == nil {
+        try await authorize()
         _ = try await GitReviewService.checked(["switch", "--no-track", "-c", newBranch], at: branch.root)
       } else {
-        try await GitBranchService.apply(.create(name: newBranch, startingAt: nil), snapshot: branch)
+        try await GitBranchService.apply(.create(name: newBranch, startingAt: nil), snapshot: branch, authorize: authorize)
       }
     }
-    if changes.scope == .unstaged { try await GitBatchService.apply(changes) }
+    if changes.scope == .unstaged { try await GitBatchService.apply(changes, authorize: authorize) }
   }
 }

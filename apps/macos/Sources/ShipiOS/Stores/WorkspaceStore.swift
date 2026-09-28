@@ -467,6 +467,7 @@ final class WorkspaceStore {
     let agentClient = AgentClient()
     client = agentClient
     codexTransport = CodexChatTransport(dataRoot: root)
+    bindGitReviewPolicy(to: workspace)
     codexTransport.onThreadStarted = { [weak self] taskID, threadID, workspace in
       self?.recordCodexThreadID(taskID: taskID, threadID: threadID, workspace: workspace)
     }

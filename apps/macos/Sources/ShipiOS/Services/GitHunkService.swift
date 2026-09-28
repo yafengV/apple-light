@@ -2,7 +2,8 @@ import Foundation
 
 enum GitHunkService {
   static func apply(
-    _ action: GitHunkAction, path: String, hunkID: Int, snapshot: ReviewDiff, at root: URL
+    _ action: GitHunkAction, path: String, hunkID: Int, snapshot: ReviewDiff, at root: URL,
+    authorize: GitMutationAuthorization = {}
   ) async throws {
     _ = try LocalWorkspaceService.resolvedFile(path, root: root)
     let status = try await GitReviewService.checked(
@@ -34,6 +35,7 @@ enum GitHunkService {
     defer { try? FileManager.default.removeItem(at: temporary) }
     let apply = ["apply", "--whitespace=nowarn"] + action.arguments
     _ = try await GitReviewService.checked(apply + ["--check", "--", temporary.path], at: root)
+    try await authorize()
     // No --reject, --3way, or whitespace rewriting: Git applies the selected patch or fails.
     _ = try await GitReviewService.checked(apply + ["--", temporary.path], at: root)
   }

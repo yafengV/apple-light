@@ -196,4 +196,43 @@ final class GitPushTests: XCTestCase {
     let local = try await git(["rev-parse", "HEAD"], repo)
     XCTAssertEqual(ref, local)
   }
+
+  @MainActor func testPolicyChangeDuringPushPreflightLeavesRemoteUnchanged() async throws {
+    let (folder, repo, remote) = try await fixture()
+    let store = WorkspaceStore(dataRoot: folder.appendingPathComponent("Policy"))
+    store.workspace.root = repo
+    let authorize = store.workspace.gitMutationAuthorization(at: repo)
+    let captured = try await plan(repo)
+    do {
+      _ = try await GitPushService.push(captured, authorize: {
+        store.library.gitPreferences.readOnlyReview = true
+        try authorize()
+      })
+      XCTFail("Push must stop before publication")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("只读")) }
+    let refs = try await git(["for-each-ref", "--format=%(refname)", "refs/heads"], remote)
+    XCTAssertTrue(refs.isEmpty)
+  }
+
+
+  @MainActor func testPolicyChangeAfterSuccessfulPushReportsSuccessWithoutChangingUpstream() async throws {
+    let (folder, repo, remote) = try await fixture()
+    let store = WorkspaceStore(dataRoot: folder.appendingPathComponent("Policy"))
+    store.workspace.root = repo
+    let authorize = store.workspace.gitMutationAuthorization(at: repo)
+    let captured = try await plan(repo)
+    var checkpoints = 0
+    let warning = try await GitPushService.push(captured, authorize: {
+      checkpoints += 1
+      if checkpoints == 2 { store.library.gitPreferences.readOnlyReview = true }
+      try authorize()
+    })
+    XCTAssertEqual(checkpoints, 2)
+    XCTAssertTrue(warning?.contains("推送成功") == true)
+    let remoteHead = try await git(["rev-parse", "refs/heads/main"], remote)
+    XCTAssertEqual(remoteHead, captured.commit)
+    let upstream = try await LocalWorkspaceService.git(["config", "--get", "branch.main.remote"], at: repo)
+    XCTAssertNotEqual(upstream.status, 0)
+  }
+
 }
