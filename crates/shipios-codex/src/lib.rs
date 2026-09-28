@@ -10,10 +10,11 @@ use codex_core_api::{
     AbsolutePathBuf, AskForApproval, AuthCredentialsStoreMode, AuthKeyringBackendKind, AuthManager,
     CodexAppsToolsCache, CodexHomeUserInstructionsProvider, CodexThread, Config, Constrained,
     EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, Feature,
-    NewThread, Op, PermissionProfile, Permissions, SessionSource, StartIfIdleSubmission,
-    StartThreadOptions, SteerSubmission, ThreadId, ThreadManager, TurnInputRequest, UserInput,
-    build_models_manager, init_state_db, local_agent_graph_store_from_state_db,
-    passthrough_image_store, resolve_installation_id, thread_store_from_config,
+    InitialHistory, NewThread, Op, PermissionProfile, Permissions, SessionSource,
+    StartIfIdleSubmission, StartThreadOptions, SteerSubmission, ThreadId, ThreadManager,
+    TurnInputRequest, UserInput, build_models_manager, init_state_db,
+    local_agent_graph_store_from_state_db, passthrough_image_store, resolve_installation_id,
+    thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
 use codex_protocol::approvals::ElicitationAction;
@@ -319,16 +320,83 @@ pub struct CodexSession {
     _home_guard: SessionHomeGuard,
 }
 
+enum SessionHistory {
+    New,
+    Resume(PathBuf),
+    Fork(Vec<codex_history::RolloutItem>),
+}
+
+/// Read an exact completed turn prefix. Never include later or still-running source turns.
+fn fork_prefix(
+    path: &std::path::Path,
+    thread_id: &str,
+    turn_id: &str,
+) -> Result<Vec<codex_history::RolloutItem>> {
+    use codex_history::RolloutItem;
+    use std::io::{BufRead, BufReader};
+    ensure!(
+        !turn_id.is_empty() && turn_id.len() <= 128,
+        "invalid fork turn ID"
+    );
+    let file = std::fs::File::open(path).context("open source Codex rollout")?;
+    let mut items = Vec::new();
+    let mut source_matches = false;
+    for line in BufReader::new(file).lines() {
+        let item = codex_rollout::parse_rollout_line(&line?)
+            .context("read source Codex history")?
+            .item;
+        if let RolloutItem::SessionMeta(meta) = &item
+            && !source_matches
+        {
+            ensure!(items.is_empty(), "source Codex session metadata is missing");
+            source_matches = meta.meta.id.to_string() == thread_id;
+            ensure!(source_matches, "source Codex thread identity changed");
+        }
+        // Native copied forks legitimately retain ancestor session metadata after their own
+        // first record. Keep it; the owned file's first session identity is the authority.
+        let ends_turn = match &item {
+            RolloutItem::EventMsg(EventMsg::TurnComplete(event)) => event.turn_id == turn_id,
+            RolloutItem::EventMsg(EventMsg::TurnAborted(event)) => {
+                event.turn_id.as_deref() == Some(turn_id)
+            }
+            _ => false,
+        };
+        items.push(item);
+        if ends_turn {
+            ensure!(source_matches, "source Codex session metadata is missing");
+            return Ok(items);
+        }
+    }
+    bail!("completed fork turn is unavailable in source Codex history")
+}
+
 impl CodexSession {
     pub async fn start(options: SessionOptions) -> Result<Self> {
-        Self::open(options, None).await
+        Self::open(options, SessionHistory::New).await
     }
 
     pub async fn resume(options: SessionOptions, rollout_path: PathBuf) -> Result<Self> {
-        Self::open(options, Some(rollout_path)).await
+        Self::open(options, SessionHistory::Resume(rollout_path)).await
     }
 
-    async fn open(options: SessionOptions, rollout_path: Option<PathBuf>) -> Result<Self> {
+    pub async fn fork(
+        options: SessionOptions,
+        rollout_path: PathBuf,
+        source_thread_id: String,
+        through_turn_id: String,
+    ) -> Result<Self> {
+        let history = tokio::task::spawn_blocking(move || {
+            fork_prefix(&rollout_path, &source_thread_id, &through_turn_id)
+        })
+        .await??;
+        Self::open(options, SessionHistory::Fork(history)).await
+    }
+
+    pub async fn flush_rollout(&self) -> Result<()> {
+        Ok(self.thread.flush_rollout().await?)
+    }
+
+    async fn open(options: SessionOptions, history: SessionHistory) -> Result<Self> {
         let url = Url::parse(&options.base_url).context("invalid model service URL")?;
         let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "::1"));
         ensure!(
@@ -433,8 +501,8 @@ impl CodexSession {
         );
         let NewThread {
             thread_id, thread, ..
-        } = match rollout_path {
-            Some(path) => {
+        } = match history {
+            SessionHistory::Resume(path) => {
                 manager
                     .resume_thread_from_rollout(
                         config,
@@ -445,7 +513,16 @@ impl CodexSession {
                     )
                     .await?
             }
-            None => {
+            SessionHistory::Fork(items) => {
+                manager
+                    .fork_thread_from_history(
+                        usize::MAX,
+                        StartThreadOptions::new(config),
+                        InitialHistory::Forked(items),
+                    )
+                    .await?
+            }
+            SessionHistory::New => {
                 manager
                     .start_thread(StartThreadOptions::new(config))
                     .await?

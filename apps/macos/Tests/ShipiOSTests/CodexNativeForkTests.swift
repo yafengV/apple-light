@@ -1,0 +1,169 @@
+import XCTest
+@testable import ShipiOS
+
+final class CodexNativeForkTests: XCTestCase {
+  private var server: Process!
+  private var endpoint = ""
+  override func setUpWithError() throws {
+    server = Process()
+    server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/model_server.py")
+    server.arguments = ["-u", fixture.path]
+    let pipe = Pipe()
+    server.standardOutput = pipe; server.standardError = FileHandle.nullDevice
+    try server.run()
+    let port = String(decoding: pipe.fileHandleForReading.availableData, as: UTF8.self)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard Int(port) != nil else { throw AgentFailure(message: "Local fixture could not start") }
+    endpoint = "http://127.0.0.1:\(port)/v1"
+  }
+  override func tearDown() {
+    if server?.isRunning == true { server.terminate(); server.waitUntilExit() }
+  }
+
+  @MainActor private func fixture() async throws -> (WorkspaceStore, URL, URL) {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("native-fork-\(UUID())")
+      .resolvingSymlinksInPath().standardizedFileURL
+    addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    var repository = URL(fileURLWithPath: #filePath)
+    for _ in 0..<5 { repository.deleteLastPathComponent() }
+    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: agent)
+    await store.restore(); await store.open(project)
+    var config = ModelConfiguration()
+    config.baseURL = endpoint; config.model = "gpt-5.4"; config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    return (store, project, agent)
+  }
+
+  @MainActor private func send(_ prompt: String, store: WorkspaceStore) async throws -> AgentRun {
+    let started = await store.startChat(prompt)
+    let id = try XCTUnwrap(started, store.error ?? "No actual Core run")
+    await store.modelTask(runID: id)?.value
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    guard run.status == "succeeded" else {
+      throw AgentFailure(message: "Core fixture run failed: \(run.result?.pretty ?? store.error ?? run.status)")
+    }
+    XCTAssertNotNil(run.result?["codex_turn_id"].text)
+    return run
+  }
+
+  @MainActor func testNativeForkRetainsToolHistoryAndFixedBoundaryAcrossRestart() async throws {
+    let (store, project, agent) = try await fixture()
+    let first = try await send("codex-handoff-cwd-probe", store: store)
+    let parent = try XCTUnwrap(store.selectedTask)
+    XCTAssertEqual(parent.codexWorkspacePath, project.path)
+    XCTAssertNotNil(store.codexConversationPath(for: parent), "Use the real camelCase project-owned reference")
+    let created = await store.forkTaskFromMenu(parent.id)
+    let fork = try XCTUnwrap(created)
+    XCTAssertEqual(fork.codexForkOrigin?.throughTurnID, first.result?["codex_turn_id"].text)
+    XCTAssertNil(fork.codexThreadID)
+    store.selectTask(parent)
+    _ = try await send("later-source-proof", store: store)
+    store.draft = "preserve source draft"
+    let dataRoot = store.dataRoot
+    await store.shutdown()
+
+    let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+    await reopened.restore(); await reopened.open(project)
+    let restoredFork = try XCTUnwrap(reopened.library.tasks.first { $0.id == fork.id })
+    reopened.selectTask(restoredFork)
+    let continued = try await send("skill-dependency-request-echo", store: reopened)
+    let body = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(continued.result?["response"].text).utf8))
+    XCTAssertTrue(body.pretty.contains("swift-handoff-cwd-call"))
+    XCTAssertTrue(body.pretty.contains("function_call_output"), "Native fork retains actual command output")
+    XCTAssertFalse(body.pretty.contains("later-source-proof"), "Fork boundary must not advance while closed")
+    let child = try XCTUnwrap(reopened.selectedTask)
+    XCTAssertNotNil(child.codexThreadID)
+    XCTAssertNotEqual(child.codexThreadID, parent.codexThreadID)
+    let path = try XCTUnwrap(reopened.codexConversationPath(for: child))
+    let history = try String(contentsOf: path)
+    XCTAssertTrue(history.contains("forked_from_id"))
+    XCTAssertTrue(history.contains(try XCTUnwrap(parent.codexThreadID)))
+    XCTAssertEqual(reopened.library.drafts[parent.id], "preserve source draft")
+    let childThread = child.codexThreadID
+    // An already-started child can fork an inherited turn, then fork that pending fork again.
+    let historical = try reopened.forkTaskWindowConversation(child.id, through: child.runIDs[0])
+    let nested = try reopened.forkTaskWindowConversation(historical.id, through: historical.runIDs[0])
+    XCTAssertEqual(nested.codexForkOrigin?.taskID, child.id)
+    XCTAssertEqual(nested.codexForkOrigin?.threadID, childThread)
+    reopened.selectTask(nested)
+    let nestedResult = try await send("skill-dependency-request-echo", store: reopened)
+    let nestedBody = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(nestedResult.result?["response"].text).utf8))
+    XCTAssertTrue(nestedBody.pretty.contains("function_call_output"), "Preserve grandparent's actual tool output")
+    let nestedInput = try nestedBody["input"].decode([JSONValue].self)
+    XCTAssertEqual(nestedInput.filter { $0["role"].text == "user"
+      && $0.pretty.contains("skill-dependency-request-echo") }.count, 1,
+      "Do not inherit the started child's later prompt when forking an older inherited turn")
+    await reopened.shutdown()
+
+    let resumed = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+    await resumed.restore(); await resumed.open(project)
+    resumed.selectTask(try XCTUnwrap(resumed.library.tasks.first { $0.id == fork.id }))
+    _ = try await send("followup after native fork", store: resumed)
+    XCTAssertEqual(resumed.selectedTask?.codexThreadID, childThread, "Resume the child; do not fork again")
+    await resumed.shutdown()
+  }
+
+  @MainActor func testHistoricalNestedForkKeepsCompletedPrefixWhileSourceRuns() async throws {
+    let (store, _, _) = try await fixture()
+    let first = try await send("codex-handoff-cwd-probe", store: store)
+    let source = try XCTUnwrap(store.selectedTask)
+    let second = try await send("completed-but-excluded", store: store)
+    let fork = try store.forkTaskWindowConversation(source.id, through: second.id)
+    let nested = try store.forkTaskWindowConversation(fork.id, through: fork.runIDs[0])
+    XCTAssertEqual(nested.codexForkOrigin?.throughTurnID, first.result?["codex_turn_id"].text)
+    let started = await store.startChat("activity-archive-stream")
+    let activeID = try XCTUnwrap(started)
+    let sourceHandle = try XCTUnwrap(store.modelTask(runID: activeID))
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while store.library.chatRuns.first(where: { $0.id == activeID })?.result?["response"].text?.isEmpty != false {
+      guard ContinuousClock.now < deadline else {
+        XCTFail("Source stream unavailable before fork"); await store.shutdown(); return
+      }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    store.selectTask(nested)
+    let child = try await send("skill-dependency-request-echo", store: store)
+    let body = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(child.result?["response"].text).utf8))
+    XCTAssertTrue(body.pretty.contains("function_call_output"))
+    XCTAssertFalse(body.pretty.contains("completed-but-excluded"))
+    XCTAssertFalse(body.pretty.contains("activity-archive-stream"))
+    XCTAssertEqual(store.activeRun(taskID: source.id)?.id, activeID)
+    await store.cancel(taskID: source.id)
+    await sourceHandle.value
+    await store.shutdown()
+  }
+
+  @MainActor func testProjectlessNativeForkUsesOwnWorkspaceAndInheritedToolOutput() async throws {
+    let (store, _, _) = try await fixture()
+    await store.newProjectlessTask()
+    _ = try await send("codex-handoff-cwd-probe", store: store)
+    let parent = try XCTUnwrap(store.selectedTask)
+    XCTAssertEqual(parent.project, "")
+    XCTAssertNotNil(store.codexConversationPath(for: parent))
+    let created = await store.forkTaskFromMenu(parent.id)
+    let fork = try XCTUnwrap(created)
+    let result = try await send("codex-handoff-cwd-probe-local skill-dependency-request-echo", store: store)
+    let body = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(result.result?["response"].text).utf8))
+    let child = try XCTUnwrap(store.library.tasks.first { $0.id == fork.id })
+    XCTAssertEqual(child.project, "")
+    XCTAssertNotEqual(child.codexWorkspacePath, parent.codexWorkspacePath)
+    XCTAssertTrue(body.pretty.contains("swift-handoff-cwd-call"))
+    XCTAssertTrue(body.pretty.contains("swift-handoff-local-call"))
+    let input = try body["input"].decode([JSONValue].self)
+    let output = try XCTUnwrap(input.first { $0["type"].text == "function_call_output"
+      && $0["call_id"].text == "swift-handoff-local-call" })
+    XCTAssertTrue(output.pretty.contains(try XCTUnwrap(child.codexWorkspacePath)), "New command runs in child's directory")
+    XCTAssertNotNil(store.codexConversationPath(for: child))
+    await store.shutdown()
+  }
+}

@@ -5,7 +5,7 @@ import CryptoKit
 @MainActor
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
-  var onThreadStarted: ((String, String) -> Void)?
+  var onThreadStarted: ((String, String, String) -> Void)?
   private struct ServiceIdentity: Equatable {
     let endpoint: String
     let keyDigest: Data?
@@ -117,7 +117,7 @@ final class CodexChatTransport {
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
     webSearchMode: AgentWebSearchMode,
-    compact: Bool = false
+    compact: Bool = false, forkOrigin: CodexForkOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
@@ -177,13 +177,14 @@ final class CodexChatTransport {
             "supportsHostedWebSearch": .bool(config.supportsHostedWebSearch),
           ]),
           "mcpServers": mcpValue,
+          "forkOrigin": forkOrigin?.wireValue ?? .null,
         ])
         guard generation == token else { throw CancellationError() }
-        sendFullContext = thread["resumed"].boolean != true
+        sendFullContext = thread["resumed"].boolean != true && thread["forked"].boolean != true
         activeThreads.insert(taskID)
         serviceIdentities[taskID] = service
         if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
-          onThreadStarted?(taskID, threadID)
+          onThreadStarted?(taskID, threadID, path)
         }
         if compact && sendFullContext {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")

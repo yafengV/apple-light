@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 enum CodexConversationPath {
   private struct SavedThread: Decodable {
@@ -6,8 +7,15 @@ enum CodexConversationPath {
     let rolloutPath: String
 
     enum CodingKeys: String, CodingKey {
-      case threadID = "thread_id"
-      case rolloutPath = "rollout_path"
+      case threadID = "threadId", rolloutPath
+      case legacyThreadID = "thread_id", legacyRolloutPath = "rollout_path"
+    }
+    init(from decoder: Decoder) throws {
+      let values = try decoder.container(keyedBy: CodingKeys.self)
+      threadID = try values.decodeIfPresent(String.self, forKey: .threadID)
+        ?? values.decode(String.self, forKey: .legacyThreadID)
+      rolloutPath = try values.decodeIfPresent(String.self, forKey: .rolloutPath)
+        ?? values.decode(String.self, forKey: .legacyRolloutPath)
     }
   }
 
@@ -15,6 +23,21 @@ enum CodexConversationPath {
     guard let expectedThreadID = task.copyableCodexThreadID,
       let taskID = UUID(uuidString: task.id) else { return nil }
     let root = dataRoot.resolvingSymlinksInPath().standardizedFileURL
+    if let workspace = task.codexWorkspacePath ?? (task.project.isEmpty ? nil : task.project) {
+      let canonical = URL(fileURLWithPath: workspace).resolvingSymlinksInPath().standardizedFileURL.path
+      let digest = SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
+      let projectData = root.appendingPathComponent("Projects/\(digest)", isDirectory: true)
+        .resolvingSymlinksInPath().standardizedFileURL
+      guard isChild(projectData, of: root) else { return nil }
+      // Core now uses a project-owned transport, including projectless task workspaces.
+      if let path = privatePath(taskID: taskID, expectedThreadID: expectedThreadID,
+        root: projectData) { return path }
+      if task.codexWorkspacePath != nil { return nil }
+    }
+    return privatePath(taskID: taskID, expectedThreadID: expectedThreadID, root: root)
+  }
+
+  private static func privatePath(taskID: UUID, expectedThreadID: String, root: URL) -> URL? {
     let home = root.appendingPathComponent("Codex/Tasks", isDirectory: true)
       .appendingPathComponent(taskID.uuidString.lowercased(), isDirectory: true)
       .resolvingSymlinksInPath().standardizedFileURL

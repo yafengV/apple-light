@@ -5,6 +5,18 @@ struct ConversationForkOrigin: Codable, Equatable {
   let runID: String
 }
 
+struct CodexForkOrigin: Codable, Equatable {
+  let taskID: String
+  let workspace: String
+  let threadID: String
+  let throughTurnID: String
+
+  var wireValue: JSONValue {
+    .object(["taskId": .string(taskID), "workspace": .string(workspace),
+      "threadId": .string(threadID), "throughTurnId": .string(throughTurnID)])
+  }
+}
+
 extension WorkspaceLibrary {
   /// Snapshot history into distinct records: a run ID must belong to one task.
   mutating func forkConversation(
@@ -34,10 +46,26 @@ extension WorkspaceLibrary {
       copiedFiles[newID] = runFiles[id]
     }
     let now = Date()
-    let fork = WorkspaceTask(
+    var fork = WorkspaceTask(
       id: UUID().uuidString, project: source.project,
       title: String(source.title.prefix(112)) + " · 分叉", runIDs: snapshots.map(\.id),
       forkOrigin: ConversationForkOrigin(taskID: source.id, runID: ids.last!), modelSelection: source.modelSelection, createdAt: now, updatedAt: now)
+    if let lastChat = history.last(where: { $0.kind == "chat" }),
+      let throughTurnID = lastChat.result?["codex_turn_id"].text,
+      let threadID = lastChat.result?["codex_thread_id"].text,
+      (source.codexThreadID == threadID || source.codexForkOrigin != nil),
+      let actualThread = source.codexThreadID, let workspace = source.codexWorkspacePath {
+      fork.codexForkOrigin = CodexForkOrigin(taskID: source.id, workspace: workspace,
+        threadID: actualThread, throughTurnID: throughTurnID)
+    } else if source.codexThreadID == nil, let origin = source.codexForkOrigin,
+      let lastChat = history.last(where: { $0.kind == "chat" }),
+      lastChat.result?["codex_thread_id"].text != nil,
+      let turnID = lastChat.result?["codex_turn_id"].text {
+      // Inherited turns may name a grandparent thread. The native rollout still contains their IDs;
+      // the Agent validates the chosen boundary instead of silently switching to text replay.
+      fork.codexForkOrigin = CodexForkOrigin(taskID: origin.taskID, workspace: origin.workspace,
+        threadID: origin.threadID, throughTurnID: turnID)
+    }
     tasks.insert(fork, at: 0)
     forkRuns.append(contentsOf: snapshots)
     forkRunOrigins.merge(origins) { _, new in new }

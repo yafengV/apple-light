@@ -3,6 +3,34 @@ import XCTest
 @testable import ShipiOS
 
 final class ConversationForkTests: XCTestCase {
+  func testNativeBoundaryMetadataUsesExactChatTurnAndNestedHistoricalPrefix() throws {
+    var library = WorkspaceLibrary()
+    let taskID = UUID().uuidString, threadID = UUID().uuidString
+    var source = WorkspaceTask(id: taskID, project: "/fixture", title: "Source", runIDs: ["first", "second"])
+    source.codexThreadID = threadID; source.codexWorkspacePath = "/fixture"
+    let runs = ["first", "second"].map { id in
+      AgentRun(id: id, kind: "chat", project: "/fixture", status: "succeeded", createdAt: 0,
+        updatedAt: 1, request: .null, result: .object([
+          "codex_turn_id": .string("turn-" + id), "codex_thread_id": .string(threadID)]))
+    }
+    library.tasks = [source]
+    let fork = try library.forkConversation(taskID: taskID, availableRuns: runs)
+    XCTAssertEqual(fork.codexForkOrigin?.throughTurnID, "turn-second")
+    let nested = try library.forkConversation(taskID: fork.id, through: fork.runIDs[0], availableRuns: library.forkRuns)
+    XCTAssertEqual(nested.codexForkOrigin?.taskID, taskID)
+    XCTAssertEqual(nested.codexForkOrigin?.throughTurnID, "turn-first")
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: JSONEncoder().encode(library))
+    XCTAssertEqual(restored.tasks[0].codexForkOrigin, nested.codexForkOrigin)
+    library.tasks[0].codexThreadID = UUID().uuidString
+    library.tasks[0].codexWorkspacePath = "/fixture/child"
+    let laterFork = try library.forkConversation(taskID: nested.id, availableRuns: library.forkRuns)
+    XCTAssertEqual(laterFork.codexForkOrigin?.taskID, nested.id)
+    XCTAssertEqual(laterFork.codexForkOrigin?.threadID, library.tasks[1].codexThreadID)
+    let pendingNested = try library.forkConversation(taskID: laterFork.id, availableRuns: library.forkRuns)
+    XCTAssertEqual(pendingNested.codexForkOrigin?.taskID, nested.id)
+    XCTAssertEqual(pendingNested.codexForkOrigin?.threadID, laterFork.codexForkOrigin?.threadID)
+    XCTAssertEqual(pendingNested.codexForkOrigin?.throughTurnID, "turn-first")
+  }
   private func run(_ id: String, kind: String = "chat", status: String = "succeeded") -> AgentRun {
     AgentRun(
       id: id, kind: kind, project: "/fixture", status: status, createdAt: 100, updatedAt: 200,

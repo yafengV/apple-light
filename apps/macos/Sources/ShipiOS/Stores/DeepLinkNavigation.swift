@@ -92,11 +92,13 @@ extension WorkspaceStore {
     NSPasteboard.general.setString(value, forType: .string)
   }
 
-  func recordCodexThreadID(taskID: String, threadID: String) {
+  func recordCodexThreadID(taskID: String, threadID: String, workspace: String? = nil) {
     guard UUID(uuidString: threadID) != nil,
       let index = library.tasks.firstIndex(where: { $0.id == taskID }),
-      library.tasks[index].codexThreadID != threadID else { return }
+      library.tasks[index].codexThreadID != threadID
+        || (workspace != nil && library.tasks[index].codexWorkspacePath != workspace) else { return }
     library.tasks[index].codexThreadID = threadID
+    if let workspace { library.tasks[index].codexWorkspacePath = workspace }
     saveLibrary()
   }
 

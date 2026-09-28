@@ -4,12 +4,16 @@ import XCTest
 final class ActivityArchiveTransportTests: XCTestCase {
   private var server: Process!
   private var endpoint = ""
+  private var trace = FileManager.default.temporaryDirectory.appendingPathComponent("archive-core-phases-\(UUID()).jsonl")
   override func setUpWithError() throws {
     server = Process()
     server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().appendingPathComponent("Fixtures/model_server.py")
     server.arguments = ["-u", fixture.path]
+    var environment = ProcessInfo.processInfo.environment
+    environment["FIXTURE_EVENT_LOG"] = trace.path
+    server.environment = environment
     let pipe = Pipe()
     server.standardOutput = pipe
     server.standardError = FileHandle.nullDevice
@@ -21,6 +25,7 @@ final class ActivityArchiveTransportTests: XCTestCase {
   }
   override func tearDown() {
     if server?.isRunning == true { server.terminate(); server.waitUntilExit() }
+    try? FileManager.default.removeItem(at: trace)
   }
 
   private enum Surface { case activityBatch, activityRow, sidebar, command, taskWindow }
@@ -47,7 +52,8 @@ final class ActivityArchiveTransportTests: XCTestCase {
     while store.library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false {
       guard ContinuousClock.now < deadline else {
         let run = store.library.chatRuns.first(where: { $0.id == runID })
-        XCTFail("No actual streamed response: \(run?.status ?? "missing") \(run?.result?.pretty ?? "")")
+        let phases = (try? String(contentsOf: trace)) ?? "No model fixture requests"
+        XCTFail("No actual streamed response: \(run?.status ?? "missing") \(run?.result?.pretty ?? "")\n\(phases)")
         await store.shutdown()
         return
       }

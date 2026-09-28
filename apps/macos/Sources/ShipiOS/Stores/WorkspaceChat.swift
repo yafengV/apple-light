@@ -380,7 +380,8 @@ extension WorkspaceStore {
       planMode: mode == .plan, goalInstructions: goalInstructions,
       mcpServers: mcpServers, permissions: permissions,
       responses: library.agentResponsePreferences,
-      webSearchMode: library.agentWebSearchMode, compact: compact)
+      webSearchMode: library.agentWebSearchMode, compact: compact,
+      forkOrigin: library.tasks.first(where: { $0.id == taskID })?.codexForkOrigin)
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""
@@ -390,6 +391,8 @@ extension WorkspaceStore {
         for try await event in stream {
           try Task.checkCancellation()
           switch event["type"].text {
+          case "task_started", "turn_started":
+            recordCodexTurnBoundary(runID: runID, taskID: taskID, event: event)
           case "context_compacted":
             contextCompacted = true
             recordCodexCompaction(runID: runID, manual: compact)
@@ -465,6 +468,7 @@ extension WorkspaceStore {
               rendered = message
             }
           case "task_complete":
+            recordCodexTurnBoundary(runID: runID, taskID: taskID, event: event)
             recordCodexRuntimeStatus(runID: runID, message: nil)
             expirePendingCodexBrowserCalls(runID: runID, status: .failed)
             expireCodexQuestions(runID: runID)
@@ -480,6 +484,7 @@ extension WorkspaceStore {
             }
             completed = true
           case "turn_aborted":
+            recordCodexTurnBoundary(runID: runID, taskID: taskID, event: event)
             let reason = event["reason"].text ?? "interrupted"
             if reason == "budget_limited" {
               throw AgentFailure(message: "Codex 回合因预算限制而停止，已保留收到的内容。")

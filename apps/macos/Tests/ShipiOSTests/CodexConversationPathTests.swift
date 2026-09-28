@@ -1,7 +1,28 @@
 import XCTest
+import CryptoKit
 @testable import ShipiOS
 
 @MainActor final class CodexConversationPathTests: XCTestCase {
+  func testActualProjectOwnedCamelCaseReferenceAndProjectlessWorkspaceIsolation() throws {
+    let value = try fixture()
+    let workspace = value.root.appendingPathComponent("real-workspace")
+    try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+    let canonical = workspace.resolvingSymlinksInPath().standardizedFileURL.path
+    let digest = SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
+    let home = value.root.appendingPathComponent("Projects/\(digest)/Codex/Tasks/\(value.task.id)")
+    let rollout = home.appendingPathComponent("sessions/real.jsonl")
+    try FileManager.default.createDirectory(at: rollout.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("{}\n".utf8).write(to: rollout)
+    try JSONSerialization.data(withJSONObject: ["threadId": value.task.codexThreadID!, "rolloutPath": rollout.path])
+      .write(to: home.appendingPathComponent("thread.json"))
+    var task = value.task
+    task.codexWorkspacePath = canonical
+    XCTAssertEqual(CodexConversationPath.existingPath(task: task, dataRoot: value.root),
+      rollout.resolvingSymlinksInPath().standardizedFileURL)
+    task.codexWorkspacePath = canonical + "/other"
+    XCTAssertNil(CodexConversationPath.existingPath(task: task, dataRoot: value.root),
+      "Do not fall back to an old reference for another actual workspace")
+  }
   private func fixture() throws -> (root: URL, task: WorkspaceTask, home: URL, rollout: URL) {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     addTeardownBlock { try? FileManager.default.removeItem(at: root) }

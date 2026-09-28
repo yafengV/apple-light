@@ -12,6 +12,9 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   var modelSelection: TaskModelSelection?
   /// The actual Codex Core thread ID, present after a Responses thread starts.
   var codexThreadID: String?
+  /// Canonical directory of the actual Core transport, including projectless task directories.
+  var codexWorkspacePath: String?
+  var codexForkOrigin: CodexForkOrigin?
   /// Present only while a newly opened task window has not submitted its first message.
   var popoutDraft: Bool?
   /// Temporary, window-only conversation linked to an ordinary parent task.

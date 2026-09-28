@@ -3,6 +3,7 @@ use codex_core_api::UserInput;
 use codex_protocol::mcp::RequestId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use shipios_codex::{
     ApprovalDecision, BrowserToolBridge, CodexSession, CodexTurnMode, ElicitationDecision,
     SessionOptions, SessionPermissions, SessionResponsePreferences, SessionWebSearch,
@@ -33,6 +34,16 @@ pub struct StartThread {
     pub web_search: SessionWebSearch,
     #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
+    pub fork_origin: Option<ForkThreadOrigin>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkThreadOrigin {
+    pub task_id: String,
+    pub workspace: PathBuf,
+    pub thread_id: String,
+    pub through_turn_id: String,
 }
 
 #[derive(Serialize)]
@@ -41,6 +52,7 @@ pub struct ThreadInfo {
     pub task_id: String,
     pub thread_id: String,
     pub resumed: bool,
+    pub forked: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -149,6 +161,12 @@ pub struct CodexBrowserResolution {
 
 fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
     let path = home.join("thread.json");
+    if path.exists() {
+        ensure!(
+            path.canonicalize()?.starts_with(home.canonicalize()?),
+            "saved Codex reference escaped its private home"
+        );
+    }
     let data = match std::fs::read(&path) {
         Ok(data) => data,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -220,6 +238,71 @@ pub struct CodexBridge {
 }
 
 impl CodexBridge {
+    fn fork_source(&self, origin: &ForkThreadOrigin, target: &str) -> Result<PersistedThread> {
+        let source_id = Uuid::parse_str(&origin.task_id)
+            .context("invalid fork source task")?
+            .hyphenated()
+            .to_string();
+        ensure!(
+            source_id != target,
+            "a task cannot fork itself into the same identity"
+        );
+        let expected_thread =
+            Uuid::parse_str(&origin.thread_id).context("invalid fork source thread")?;
+        ensure!(
+            !origin.through_turn_id.is_empty() && origin.through_turn_id.len() <= 128,
+            "invalid fork turn ID"
+        );
+        ensure!(
+            origin.workspace.is_absolute(),
+            "source workspace must be absolute"
+        );
+        let workspace = origin
+            .workspace
+            .canonicalize()
+            .context("source workspace is unavailable")?;
+        ensure!(workspace.is_dir(), "source workspace is not a directory");
+        let project_data = if workspace == self.project.canonicalize()? {
+            self.data_dir.clone()
+        } else {
+            let projects = self
+                .data_dir
+                .parent()
+                .context("private projects root is unavailable")?;
+            ensure!(
+                projects.file_name().is_some_and(|name| name == "Projects"),
+                "cross-project fork requires a private projects root"
+            );
+            let digest = format!(
+                "{:x}",
+                // Use the transport's captured spelling for its existing private directory.
+                // macOS Foundation and Rust canonicalize /var vs /private/var differently.
+                Sha256::digest(origin.workspace.to_string_lossy().as_bytes())
+            );
+            projects.join(digest)
+        };
+        let home = project_data.join("Codex/Tasks").join(source_id);
+        let canonical = home
+            .canonicalize()
+            .context("source Codex home is unavailable")?;
+        if let Some(projects) = self.data_dir.parent() {
+            ensure!(
+                canonical.starts_with(projects.canonicalize()?),
+                "source Codex project escaped its private root"
+            );
+        }
+        ensure!(
+            canonical.starts_with(project_data.canonicalize()?),
+            "source Codex home escaped its project"
+        );
+        let saved = saved_thread(&canonical)?.context("source Codex history is unavailable")?;
+        ensure!(
+            Uuid::parse_str(&saved.thread_id)? == expected_thread,
+            "source Codex thread identity changed"
+        );
+        Ok(saved)
+    }
+
     pub fn new(data_dir: PathBuf, project: PathBuf) -> Self {
         let (events, _) = broadcast::channel(256);
         let screenshot_root = data_dir
@@ -266,11 +349,20 @@ impl CodexBridge {
             .canonicalize()
             .context("resolve private Codex home")?;
         let previous = saved_thread(&home)?;
+        let fork_source = if previous.is_none() {
+            request
+                .fork_origin
+                .as_ref()
+                .map(|origin| self.fork_source(origin, &task_key))
+                .transpose()?
+        } else {
+            None
+        };
         ensure!(
             !request.resume_only || previous.is_some(),
             "Codex thread history is unavailable"
         );
-        if previous.is_none() {
+        if previous.is_none() && fork_source.is_none() {
             ensure!(
                 request
                     .initial_context_bytes
@@ -284,14 +376,17 @@ impl CodexBridge {
         )?;
         let permissions = previous
             .as_ref()
+            .or(fork_source.as_ref())
             .map(|thread| thread.permissions)
             .unwrap_or(request.permissions);
         let responses = previous
             .as_ref()
+            .or(fork_source.as_ref())
             .map(|thread| thread.responses)
             .unwrap_or(request.responses);
         let web_search = previous
             .as_ref()
+            .or(fork_source.as_ref())
             .map(|thread| thread.web_search)
             .unwrap_or(request.web_search);
         let options = SessionOptions {
@@ -309,8 +404,18 @@ impl CodexBridge {
             runtime_paths,
         };
         let resumed = previous.is_some();
+        let forked = fork_source.is_some();
         let session = if let Some(ref previous) = previous {
             CodexSession::resume(options, previous.rollout_path.clone()).await?
+        } else if let Some(ref source) = fork_source {
+            let origin = request.fork_origin.as_ref().expect("validated fork origin");
+            CodexSession::fork(
+                options,
+                source.rollout_path.clone(),
+                source.thread_id.clone(),
+                origin.through_turn_id.clone(),
+            )
+            .await?
         } else {
             CodexSession::start(options).await?
         };
@@ -362,6 +467,7 @@ impl CodexBridge {
             task_id,
             thread_id,
             resumed,
+            forked,
         })
     }
 
@@ -762,6 +868,14 @@ async fn run_thread(
             },
             event = live.next_event() => match event {
                 Ok(event) => {
+                    // Publish a terminal turn only after its complete rollout prefix is durable.
+                    if matches!(event, codex_core_api::EventMsg::TurnComplete(_)
+                        | codex_core_api::EventMsg::TurnAborted(_))
+                        && let Err(error) = live.flush_rollout().await {
+                            let _ = events.send(json!({"taskId":task_id,"threadId":thread_id,
+                                "event":{"type":"error","message":error.to_string()}}));
+                            break;
+                    }
                     let _ = events.send(json!({
                         "taskId":task_id,"threadId":thread_id,"event":event
                     }));
@@ -796,6 +910,99 @@ mod tests {
     use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[test]
+    fn fork_source_validates_project_thread_and_private_reference() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let target = temp.path().join("Target");
+        let source = temp.path().join("Source");
+        std::fs::create_dir_all(&target)?;
+        std::fs::create_dir_all(&source)?;
+        let source = source.canonicalize()?;
+        let projects = temp.path().join("Data/Projects");
+        let target_data = projects.join("target");
+        std::fs::create_dir_all(&target_data)?;
+        let digest = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
+        let project_data = projects.join(digest);
+        let task_id = Uuid::new_v4().to_string();
+        let home = project_data.join("Codex/Tasks").join(&task_id);
+        std::fs::create_dir_all(&home)?;
+        let home = home.canonicalize()?;
+        let rollout = home.join("rollout.jsonl");
+        std::fs::write(&rollout, "{}\n")?;
+        let saved = PersistedThread {
+            thread_id: Uuid::new_v4().to_string(),
+            rollout_path: rollout,
+            permissions: SessionPermissions::default(),
+            responses: SessionResponsePreferences::default(),
+            web_search: SessionWebSearch::default(),
+        };
+        persist_thread(&home, &saved)?;
+        let bridge = CodexBridge::new(target_data, target);
+        let mut origin = ForkThreadOrigin {
+            task_id: task_id.clone(),
+            workspace: source,
+            thread_id: saved.thread_id.clone(),
+            through_turn_id: "turn".to_owned(),
+        };
+        let child = Uuid::new_v4().to_string();
+        assert_eq!(
+            bridge.fork_source(&origin, &child)?.thread_id,
+            saved.thread_id
+        );
+        assert!(bridge.fork_source(&origin, &task_id).is_err());
+        let alias = temp.path().join("SourceAlias");
+        std::os::unix::fs::symlink(&origin.workspace, &alias)?;
+        let alias_digest = format!("{:x}", Sha256::digest(alias.to_string_lossy().as_bytes()));
+        let alias_home = projects
+            .join(alias_digest)
+            .join("Codex/Tasks")
+            .join(&task_id);
+        std::fs::create_dir_all(&alias_home)?;
+        let alias_rollout = alias_home.join("rollout.jsonl");
+        std::fs::write(&alias_rollout, "{}\n")?;
+        persist_thread(
+            &alias_home,
+            &PersistedThread {
+                thread_id: saved.thread_id.clone(),
+                rollout_path: alias_rollout,
+                permissions: saved.permissions,
+                responses: saved.responses,
+                web_search: saved.web_search,
+            },
+        )?;
+        let alias_origin = ForkThreadOrigin {
+            workspace: alias,
+            task_id: task_id.clone(),
+            thread_id: saved.thread_id.clone(),
+            through_turn_id: "turn".to_owned(),
+        };
+        assert_eq!(
+            bridge.fork_source(&alias_origin, &child)?.thread_id,
+            saved.thread_id
+        );
+        origin.thread_id = Uuid::new_v4().to_string();
+        assert!(bridge.fork_source(&origin, &child).is_err());
+        origin.thread_id = saved.thread_id;
+        let outside_reference = temp.path().join("outside-reference.json");
+        std::fs::copy(home.join("thread.json"), &outside_reference)?;
+        std::fs::remove_file(home.join("thread.json"))?;
+        std::os::unix::fs::symlink(outside_reference, home.join("thread.json"))?;
+        assert!(bridge.fork_source(&origin, &child).is_err());
+        std::fs::remove_file(home.join("thread.json"))?;
+        persist_thread(
+            &home,
+            &PersistedThread {
+                thread_id: origin.thread_id.clone(),
+                ..saved
+            },
+        )?;
+        let outside_project = temp.path().join("OutsideProject");
+        std::fs::rename(&project_data, &outside_project)?;
+        std::os::unix::fs::symlink(outside_project, &project_data)?;
+        assert!(bridge.fork_source(&origin, &child).is_err());
+        Ok(())
+    }
 
     #[test]
     fn model_browser_call_roundtrips_through_host_resolution() -> Result<()> {
@@ -886,6 +1093,7 @@ mod tests {
                         api_key: None,
                         initial_context_bytes: Some(0),
                         resume_only: false,
+                fork_origin: None,
                         read_only: false,
                         permissions: SessionPermissions::default(),
                         responses: SessionResponsePreferences::default(),
@@ -997,7 +1205,7 @@ mod tests {
                     .insert_header("content-type", "text/event-stream")
                     .set_body_string(response),
             )
-            .expect(4)
+            .expect(5)
             .mount(&server)
             .await;
         let temp = tempfile::tempdir()?;
@@ -1030,6 +1238,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(0),
                     resume_only: true,
+                    fork_origin: None,
                     read_only: false,
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
@@ -1055,6 +1264,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(48_001),
                     resume_only: false,
+                    fork_origin: None,
                     read_only: false,
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
@@ -1072,6 +1282,7 @@ mod tests {
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_000),
                 resume_only: false,
+                fork_origin: None,
                 read_only: false,
                 permissions: custom_permissions,
                 responses: custom_responses,
@@ -1119,6 +1330,58 @@ mod tests {
             saved_thread(&task_home)?.unwrap().web_search,
             custom_web_search
         );
+        let child_id = Uuid::new_v4().to_string();
+        let origin = || ForkThreadOrigin {
+            task_id: task_id.clone(),
+            workspace: bridge.project.clone(),
+            thread_id: thread.thread_id.clone(),
+            through_turn_id: turn_id.clone(),
+        };
+        let fork_request = |fork_origin| StartThread {
+            task_id: child_id.clone(),
+            base_url: format!("{}/v1", server.uri()),
+            model: "gpt-5.4".to_owned(),
+            api_key: Some("bridge-test-token".to_owned()),
+            initial_context_bytes: Some(80_000),
+            resume_only: false,
+            fork_origin: Some(fork_origin),
+            read_only: false,
+            permissions: SessionPermissions::default(),
+            responses: SessionResponsePreferences::default(),
+            web_search: SessionWebSearch::default(),
+            mcp_servers: Vec::new(),
+        };
+        let mut missing_turn = origin();
+        missing_turn.through_turn_id = "missing-turn".to_owned();
+        assert!(bridge.start(fork_request(missing_turn)).await.is_err());
+        let mut wrong_thread = origin();
+        wrong_thread.thread_id = Uuid::new_v4().to_string();
+        assert!(bridge.start(fork_request(wrong_thread)).await.is_err());
+        let child = bridge.start(fork_request(origin())).await?;
+        assert!(child.forked && !child.resumed);
+        assert_ne!(child.thread_id, thread.thread_id);
+        let child_home = data_dir.join("Codex/Tasks").join(&child_id);
+        let saved_child = saved_thread(&child_home)?.unwrap();
+        assert_eq!(saved_child.permissions, custom_permissions);
+        assert_eq!(saved_child.responses, custom_responses);
+        assert_eq!(saved_child.web_search, custom_web_search);
+        let child_history = std::fs::read_to_string(saved_child.rollout_path)?;
+        assert!(child_history.contains(&thread.thread_id));
+        assert!(child_history.contains("Agent bridge reply"));
+        bridge.submit(&child_id, "Fork followup".to_owned()).await?;
+        loop {
+            let event =
+                tokio::time::timeout(std::time::Duration::from_secs(10), events.recv()).await??;
+            if event["taskId"] != child_id {
+                continue;
+            }
+            match event["event"]["type"].as_str() {
+                Some("task_complete") => break,
+                Some("error") => anyhow::bail!("Codex fork error: {}", event["event"]),
+                _ => {}
+            }
+        }
+        bridge.stop(&child_id).await?;
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
         let restarted = CodexBridge::new(data_dir.clone(), temp.path().join("Project"));
@@ -1131,6 +1394,7 @@ mod tests {
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_001),
                 resume_only: false,
+                fork_origin: None,
                 read_only: false,
                 permissions: SessionPermissions::default(),
                 responses: SessionResponsePreferences::default(),
@@ -1249,8 +1513,8 @@ mod tests {
         let home = data_dir.join("Codex/Tasks").join(task_id.to_lowercase());
         assert!(!home.join("auth.json").exists());
         let requests = server.received_requests().await.expect("mock requests");
-        assert_eq!(requests.len(), 4);
-        for request in requests.iter().take(2) {
+        assert_eq!(requests.len(), 5);
+        for request in requests.iter().take(3) {
             let body: serde_json::Value = serde_json::from_slice(&request.body)?;
             assert_eq!(body["text"]["verbosity"], "high");
             assert_eq!(body["reasoning"]["summary"], "concise");
@@ -1262,21 +1526,28 @@ mod tests {
                     }))
             );
         }
-        let image_request: serde_json::Value = serde_json::from_slice(&requests[2].body)?;
+        let fork_request: Value = serde_json::from_slice(&requests[1].body)?;
+        assert!(fork_request["input"].to_string().contains("Fork followup"));
+        assert!(
+            fork_request["input"]
+                .to_string()
+                .contains("Agent bridge reply")
+        );
+        let image_request: serde_json::Value = serde_json::from_slice(&requests[3].body)?;
         assert!(
             image_request["input"]
                 .as_array()
                 .and_then(|items| items.last())
                 .is_some_and(|last| last.to_string().contains("data:image/png;base64,")),
-            "the third model request did not contain the local image"
+            "the fourth model request did not contain the local image"
         );
-        let file_request: serde_json::Value = serde_json::from_slice(&requests[3].body)?;
+        let file_request: serde_json::Value = serde_json::from_slice(&requests[4].body)?;
         assert!(
             file_request["input"]
                 .as_array()
                 .and_then(|items| items.last())
                 .is_some_and(|last| last.to_string().contains("FILE_MARKER_END")),
-            "the fourth model request did not contain the staged file text"
+            "the fifth model request did not contain the staged file text"
         );
         assert_eq!(
             requests[0]
