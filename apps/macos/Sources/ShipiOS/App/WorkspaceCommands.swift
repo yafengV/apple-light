@@ -78,6 +78,7 @@ struct WorkspaceCommands: Commands {
       command("review-open")
       command("browser-address")
       command("branch")
+      if gitCommands?.visible("git.createBranch") == true { command("git.createBranch") }
       command("git.commit")
       if gitCommands?.visible("git.createPullRequest") == true {
         command("git.createPullRequest")

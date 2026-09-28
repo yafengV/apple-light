@@ -11,6 +11,8 @@ struct GitWorkflowCommandSnapshot: Sendable {
   let canPush: Bool
   let pullRequest: GitPullRequestReadiness?
   let pullRequestError: String?
+  var branchName: String? = nil
+  var defaultBranch: String? = nil
 
   var showsPullRequest: Bool {
     guard let value = pullRequest, value.context.existing == nil else { return false }
@@ -54,7 +56,19 @@ struct GitWorkflowCommandSnapshot: Sendable {
       throw AgentFailure(message: "分支或变更已改变，请重新检查 Git 命令。")
     }
     try Task.checkCancellation()
-    return Self(canCommit: canCommit, canPush: canPush, pullRequest: readiness, pullRequestError: hostingError)
+    let defaultBranch: String?
+    if let hosted = readiness?.context.defaultBranch { defaultBranch = hosted }
+    else {
+      let head = try await LocalWorkspaceService.git(["symbolic-ref", "-q", "refs/remotes/origin/HEAD"], at: root)
+      let reference = head.text.trimmingCharacters(in: .newlines)
+      if head.status == 0, reference.hasPrefix("refs/remotes/origin/") {
+        defaultBranch = String(reference.dropFirst("refs/remotes/origin/".count))
+      } else {
+        defaultBranch = ["main", "master"].first { name in before.branches.contains { $0.reference == "refs/heads/" + name } }
+      }
+    }
+    return Self(canCommit: canCommit, canPush: canPush, pullRequest: readiness, pullRequestError: hostingError,
+      branchName: before.currentReference.map { String($0.dropFirst("refs/heads/".count)) }, defaultBranch: defaultBranch)
   }
 }
 

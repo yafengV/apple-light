@@ -671,7 +671,7 @@ struct TaskWindowView: View {
     previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker
       || showingTaskStatus || renameTitle != nil || store.restoringLibrary
       || store.archiveConfirmation(inWindow: resources.id) != nil
-      || taskWorkspace.showingCommitPush || taskWorkspace.showingPullRequest
+      || taskWorkspace.showingCommitPush || taskWorkspace.showingPullRequest || taskWorkspace.showingManagedBranchSetup
   }
   private var windowCommandsBlocked: Bool { otherWindowModalActive || searchMode != nil }
 

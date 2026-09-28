@@ -151,14 +151,23 @@ struct GitReviewView: View {
               Text(status).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             Spacer()
-            GitReviewPullRequestEntry(store: store, workspace: workspace, taskID: taskID) {
-              workspace.presentGitOptions(taskID: taskID ?? store.selectedTask?.id, pullRequest: true)
-            }
-            if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
-              Button("提交或推送…") {
-                workspace.presentGitOptions(taskID: taskID ?? store.selectedTask?.id, pullRequest: false)
+            if store.showsManagedBranchToolbar(in: workspace, taskID: taskID ?? store.selectedTask?.id) {
+              Button("创建分支…") {
+                store.presentManagedBranchSetup(in: workspace, taskID: taskID ?? store.selectedTask?.id)
               }
-                .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
+                .disabled(!workspace.canCommit || !workspace.canModifyReview
+                  || store.library.gitPreferences.readOnlyReview || workspace.gitBusy
+                  || workspace.gitRefreshing || workspace.gitActionRunning || workspace.showingManagedBranchSetup)
+            } else {
+              GitReviewPullRequestEntry(store: store, workspace: workspace, taskID: taskID) {
+                workspace.presentGitOptions(taskID: taskID ?? store.selectedTask?.id, pullRequest: true)
+              }
+              if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
+                Button("提交或推送…") {
+                  workspace.presentGitOptions(taskID: taskID ?? store.selectedTask?.id, pullRequest: false)
+                }
+                  .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
+              }
             }
           }.padding(10)
         }

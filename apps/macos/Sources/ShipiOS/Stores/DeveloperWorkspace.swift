@@ -73,6 +73,9 @@ final class DeveloperWorkspace {
   var generatingCommitMessage = false
   var commitGenerationError: String?
   var gitActionStatus: String?
+  var managedBranchSetup = GitManagedBranchSetup()
+  var managedBranchRequest: GitManagedBranchRequest?
+  var showingManagedBranchSetup = false
   var gitCommands = GitWorkflowCommandState()
   var gitPresentationTaskID: String?
   var gitPresentationForceDraft = false
@@ -100,6 +103,9 @@ final class DeveloperWorkspace {
     showingPullRequest = false
     clearGitPresentation()
     gitCommands.cancel()
+    showingManagedBranchSetup = false
+    managedBranchRequest = nil
+    managedBranchSetup.cancel()
     pullRequestDraft.cancelLoading()
     pullRequestDraft = GitHubPRDraft()
     gitActionRunning = false
@@ -438,6 +444,9 @@ final class DeveloperWorkspace {
     showingPullRequest = false
     clearGitPresentation()
     gitCommands.cancel()
+    showingManagedBranchSetup = false
+    managedBranchRequest = nil
+    managedBranchSetup.cancel()
     cancelCommitMessageGeneration()
   }
   var visibleChanges: [GitFile] {

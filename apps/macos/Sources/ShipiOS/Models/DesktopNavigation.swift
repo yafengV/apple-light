@@ -60,6 +60,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "init", title: "生成项目 AGENTS.md 指南", icon: "doc.text.badge.plus", shortcut: ""),
     .init(id: "worktree", title: "在新 Git 工作树中运行", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "local", title: "在本地项目中运行", icon: "desktopcomputer", shortcut: ""),
+    .init(id: "git.createBranch", title: "创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "git.commit", title: "提交或推送", icon: "arrow.up.doc", shortcut: ""),
     .init(id: "git.createPullRequest", title: "创建 PR", icon: "arrow.triangle.pull", shortcut: ""),
     .init(id: "git.createDraftPullRequest", title: "创建草稿 PR", icon: "doc.badge.ellipsis", shortcut: ""),

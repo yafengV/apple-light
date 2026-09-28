@@ -93,6 +93,8 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var id: UUID { checkout.id }
   var source: String { checkout.source }
   var path: String { checkout.path }
+  var syncedBranch: GitSyncedBranch? = nil
+
   var ready: Bool { checkout.ready }
 }
 

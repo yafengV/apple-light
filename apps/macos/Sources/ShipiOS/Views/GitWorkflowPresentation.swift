@@ -41,8 +41,17 @@ private struct GitWorkflowPresentation: ViewModifier {
         GitHubPRView(store: store, workspace: workspace, draft: workspace.pullRequestDraft,
           taskID: workspace.gitPresentationTaskID, forceDraft: workspace.gitPresentationForceDraft)
       }
+      .sheet(isPresented: $workspace.showingManagedBranchSetup, onDismiss: {
+        store.finishManagedBranchPresentation(in: workspace)
+      }) {
+        if let request = workspace.managedBranchRequest {
+          GitManagedBranchSetupView(store: store, workspace: workspace, request: request)
+        }
+      }
       .onChange(of: taskID) { _, _ in
         workspace.showingCommitPush = false; workspace.showingPullRequest = false
+        workspace.showingManagedBranchSetup = false; workspace.managedBranchRequest = nil
+        workspace.managedBranchSetup.cancel()
         workspace.clearGitPresentation()
       }
       .onDisappear { workspace.gitCommands.cancel() }

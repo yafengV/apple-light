@@ -14,6 +14,8 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   var codexThreadID: String?
   /// Canonical directory of the actual Core transport, including projectless task directories.
   var codexWorkspacePath: String?
+  /// Current branch recorded by explicit branch preparation; historical run branches remain intact.
+  var gitBranch: String?
   var codexForkOrigin: CodexForkOrigin?
   /// Present only while a newly opened task window has not submitted its first message.
   var popoutDraft: Bool?

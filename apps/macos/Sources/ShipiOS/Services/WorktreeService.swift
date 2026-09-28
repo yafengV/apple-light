@@ -191,7 +191,7 @@ enum WorktreeService {
     }
   }
 
-  private static func registeredPaths(at source: URL) async throws -> Set<String> {
+  static func registeredPaths(at source: URL) async throws -> Set<String> {
     let output = try await GitReviewService.checked(["worktree", "list", "--porcelain", "-z"], at: source)
     return Set(output.split(separator: "\0").filter { $0.hasPrefix("worktree ") }.map {
       GitBranchService.canonicalRoot(URL(fileURLWithPath: String($0.dropFirst(9)))).path

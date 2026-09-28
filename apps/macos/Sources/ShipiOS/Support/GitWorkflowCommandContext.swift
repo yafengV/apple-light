@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The focused window owns both metadata and presentation. No fallback to main selection.
 @MainActor struct GitWorkflowCommandContext {
-  static let ids = ["git.commit", "git.createPullRequest", "git.createDraftPullRequest"]
+  static let ids = ["git.commit", "git.createPullRequest", "git.createDraftPullRequest", "git.createBranch"]
   static func owns(_ id: String) -> Bool { ids.contains(id) }
   let store: WorkspaceStore
   let workspace: DeveloperWorkspace
@@ -14,6 +14,7 @@ import SwiftUI
   func visible(_ id: String) -> Bool {
     guard Self.owns(id) else { return false }
     if id == "git.commit" { return true }
+    if id == "git.createBranch" { return store.managedCheckout(in: workspace, taskID: taskID) != nil }
     return workspace.gitCommands.request == request && request.primary
       && workspace.gitCommands.snapshot?.showsPullRequest == true
   }
@@ -28,7 +29,7 @@ import SwiftUI
       !workspace.generatingCommitMessage, !workspace.pullRequestDraft.creating,
       workspace.gitRoot == request.repository.root, workspace.gitAvailable, workspace.canCommit,
       workspace.canModifyReview, !store.library.gitPreferences.readOnlyReview,
-      !workspace.showingCommitPush, !workspace.showingPullRequest,
+      !workspace.showingCommitPush, !workspace.showingPullRequest, !workspace.showingManagedBranchSetup,
       !workspace.pullRequestDraft.modalActionPending,
       let value = workspace.gitCommands.snapshot else { return false }
     if let taskID {
@@ -37,6 +38,7 @@ import SwiftUI
         GitBranchService.canonicalRoot(URL(fileURLWithPath: task.project))
           == GitBranchService.canonicalRoot(project) else { return false }
     }
+    if id == "git.createBranch" { return true }
     if id == "git.commit" { return value.canCommit || value.canPush }
     return value.pullRequest?.blockedReason(includeLocalChanges: true) == nil
       && value.pullRequest != nil
@@ -60,6 +62,12 @@ import SwiftUI
   }
   @discardableResult func execute(_ id: String) -> Bool {
     guard enabled(id) else { return false }
+    if id == "git.createBranch" { return store.presentManagedBranchSetup(in: workspace, taskID: taskID) }
+    if id == "git.commit", let value = workspace.gitCommands.snapshot, !value.canCommit,
+      store.managedCheckout(in: workspace, taskID: taskID) != nil,
+      value.branchName == nil || value.branchName == value.defaultBranch {
+      return store.presentManagedBranchSetup(in: workspace, taskID: taskID, next: .commit)
+    }
     workspace.presentGitOptions(taskID: taskID,
       pullRequest: id != "git.commit", forceDraft: id == "git.createDraftPullRequest")
     return true
@@ -76,7 +84,7 @@ extension FocusedValues {
 
 extension DeveloperWorkspace {
   func presentGitOptions(taskID: String?, pullRequest: Bool, forceDraft: Bool = false) {
-    guard !showingCommitPush, !showingPullRequest, !gitActionRunning, !gitBusy,
+    guard !showingCommitPush, !showingPullRequest, !showingManagedBranchSetup, !gitActionRunning, !gitBusy,
       !pullRequestDraft.creating, !pullRequestDraft.modalActionPending else { return }
     gitPresentationTaskID = taskID
     gitPresentationForceDraft = pullRequest && forceDraft
