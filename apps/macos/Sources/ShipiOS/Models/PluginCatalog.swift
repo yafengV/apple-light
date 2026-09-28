@@ -36,6 +36,7 @@ struct PluginSkillReference: Equatable, Identifiable {
   var summary = ""
   var isStandalone = false
   var repositoryRoot: URL? = nil
+  var interface = SkillInterfaceMetadata()
 
   var isRepository: Bool { repositoryRoot != nil }
   var id: String {
@@ -47,6 +48,26 @@ struct PluginSkillReference: Equatable, Identifiable {
     let path = fileURL.absoluteString.replacingOccurrences(of: "(", with: "%28")
       .replacingOccurrences(of: ")", with: "%29")
     return "[$\(skillID)](\(path))"
+  }
+  var trialPrompt: String {
+    guard var prompt = interface.defaultPrompt else { return promptReference + " " }
+    func containsReference(_ prompt: String) -> Bool {
+      if isStandalone || isRepository { return prompt.contains(promptReference) }
+      let pattern = #"(?<![A-Za-z0-9._/-])"# + NSRegularExpression.escapedPattern(for: promptReference)
+        + #"(?![A-Za-z0-9_/-]|\.[A-Za-z0-9._/-])"#
+      return prompt.range(of: pattern, options: .regularExpression) != nil
+    }
+    if containsReference(prompt) { return prompt }
+    let names = Set([skillID, mention]).sorted(by: { $0.count > $1.count })
+      .map { NSRegularExpression.escapedPattern(for: $0) }.joined(separator: "|")
+    let pattern = #"(?<!\[)(?<![A-Za-z0-9._/-])\$(?:"# + names
+      + #")(?![A-Za-z0-9_/-]|\.[A-Za-z0-9._/-])"#
+    if let expression = try? NSRegularExpression(pattern: pattern) {
+      prompt = expression.stringByReplacingMatches(in: prompt,
+        range: NSRange(prompt.startIndex..<prompt.endIndex, in: prompt),
+        withTemplate: NSRegularExpression.escapedTemplate(for: promptReference))
+    }
+    return containsReference(prompt) ? prompt : promptReference + " " + prompt
   }
 }
 
@@ -453,15 +474,20 @@ enum PluginStorage {
       guard match.numberOfRanges == 2,
         let tokenRange = Range(match.range(at: 1), in: prompt)
       else { continue }
-      let token = String(prompt[tokenRange])
-      let candidates: [PluginSkillReference]
-      if token.contains("/") {
-        candidates = availableSkills.filter {
-          $0.id.caseInsensitiveCompare(token) == .orderedSame
-            || $0.mention.caseInsensitiveCompare(token) == .orderedSame
+      var token = String(prompt[tokenRange])
+      func matchingSkills(_ token: String) -> [PluginSkillReference] {
+        if token.contains("/") {
+          return availableSkills.filter {
+            $0.id.caseInsensitiveCompare(token) == .orderedSame
+              || $0.mention.caseInsensitiveCompare(token) == .orderedSame
+          }
         }
-      } else {
-        candidates = availableSkills.filter { $0.skillID.caseInsensitiveCompare(token) == .orderedSame }
+        return availableSkills.filter { $0.skillID.caseInsensitiveCompare(token) == .orderedSame }
+      }
+      var candidates = matchingSkills(token)
+      while candidates.isEmpty && token.hasSuffix(".") {
+        token.removeLast()
+        candidates = matchingSkills(token)
       }
       guard candidates.count == 1, let skill = candidates.first,
         !selectedSkills.contains(where: { $0.id == skill.id })
@@ -551,7 +577,7 @@ enum PluginStorage {
         title: value.metadata.title, fileURL: value.url,
         mention: counts[value.id.lowercased(), default: 0] > 1
           ? "\(value.plugin.id)/\(value.id)" : value.id,
-        summary: value.metadata.summary)
+        summary: value.metadata.summary, interface: value.metadata.interface)
     }
     return (packaged + standalone).sorted {
       $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
@@ -631,6 +657,7 @@ enum PluginStorage {
   struct SkillMetadata {
     let title: String
     let summary: String
+    let interface: SkillInterfaceMetadata
   }
 
   static func skillTitle(_ file: URL, fallback: String, sourceName: String) throws -> String {
@@ -680,7 +707,9 @@ enum PluginStorage {
       let headingTitle = heading.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines)
       if !headingTitle.isEmpty { title = String(headingTitle.prefix(120)) }
     }
-    return SkillMetadata(title: title ?? fallback, summary: summary)
+    let interface = try skillInterface(in: file.deletingLastPathComponent())
+    return SkillMetadata(title: interface.displayName ?? title ?? fallback,
+      summary: interface.shortDescription ?? summary, interface: interface)
   }
 
   private static func scalarMetadataValue(_ value: String) -> String {

@@ -24,7 +24,7 @@ extension WorkspaceStore {
         title: "新任务", runIDs: [], createdAt: now, updatedAt: now)
       var candidate = library
       candidate.tasks.insert(task, at: 0)
-      candidate.drafts[task.id] = skill.promptReference + " "
+      candidate.drafts[task.id] = skill.trialPrompt
       candidate.projectSelections[currentProjectKey] = task.id
       candidate.lastWorkspace = currentProjectKey
       try commitLibrary(candidate)

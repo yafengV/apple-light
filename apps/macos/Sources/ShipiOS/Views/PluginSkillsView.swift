@@ -38,6 +38,7 @@ struct PluginSkillsView: View {
       } else {
         ForEach(skills) { skill in
           HStack(spacing: 12) {
+            SkillIconView(skill: skill, size: 32, fallbackColor: store.appearance.accentColor)
             Button { preview = skill } label: {
               VStack(alignment: .leading, spacing: 4) {
                 Text(skill.title).appFont(.headline)
@@ -102,11 +103,7 @@ struct PluginSkillsView: View {
     return VStack(alignment: .leading, spacing: 12) {
       Button { preview = skill } label: {
         HStack(alignment: .top, spacing: 12) {
-          Image(systemName: "wand.and.stars")
-            .font(.title3)
-            .foregroundStyle(store.appearance.accentColor)
-            .frame(width: 38, height: 38)
-            .background(store.appearance.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+          SkillIconView(skill: skill, fallbackColor: store.appearance.accentColor)
           VStack(alignment: .leading, spacing: 6) {
             Text(skill.title).appFont(.headline)
             if !skill.summary.isEmpty {
@@ -136,6 +133,8 @@ struct PluginSkillsView: View {
           Button("编辑") { editing = skill }
             .disabled(!store.pluginsLoaded)
             .accessibilityLabel("编辑技能：\(skill.title)")
+        }
+        if skill.isStandalone {
           Menu {
             Button("卸载技能", role: .destructive) { removing = skill }
           } label: { Image(systemName: "ellipsis") }
@@ -252,6 +251,7 @@ private struct PluginSkillPreview: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       HStack {
+        SkillIconView(skill: skill, large: true, size: 44, fallbackColor: store.appearance.accentColor)
         Text(skill.title).appFont(.title2, weight: .semibold)
         Spacer()
         Picker("内容格式", selection: $showSource) {
@@ -263,6 +263,12 @@ private struct PluginSkillPreview: View {
       Text(skill.pluginName + " · $" + skill.mention).foregroundStyle(.secondary).textSelection(.enabled)
       if !skill.summary.isEmpty {
         Text(skill.summary).foregroundStyle(.secondary).textSelection(.enabled)
+      }
+      if let prompt = skill.interface.defaultPrompt {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("默认提示").appFont(.caption).foregroundStyle(.secondary)
+          Text(prompt).textSelection(.enabled).lineLimit(3)
+        }
       }
       ScrollView {
         if let source {
