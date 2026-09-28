@@ -179,6 +179,7 @@ extension WorkspaceStore {
   private func commandAvailable(_ id: String) -> Bool {
     guard renameTaskID == nil, editingProject == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
     switch id {
+    case "git.commit", "git.createPullRequest", "git.createDraftPullRequest": return false
     case "approval-approve":
       return destination == .workspace && activeWorkspaceContentTab == nil
         && canApproveMCPApproval(taskID: selectedTask?.id)

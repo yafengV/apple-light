@@ -441,6 +441,10 @@ struct TaskWindowView: View {
     .focusedSceneValue(\.taskRenameActive, renameTitle != nil)
     .taskRenameUndo(store: store, history: renameHistory, blocked: windowCommandsBlocked, onReveal: onNavigate)
     .frame(minWidth: 620, minHeight: 520)
+    .gitWorkflowPresentation(store: store, workspace: taskWorkspace, taskID: taskID,
+      currentTaskID: { task?.id }, keyboardAllowed: { searchMode == nil }) {
+      task != nil && !otherWindowModalActive && (searchMode == nil || searchMode == .commands)
+    }
     .focusedSceneValue(\.taskWindowCommands, windowCommandContext)
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
@@ -667,6 +671,7 @@ struct TaskWindowView: View {
     previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker
       || showingTaskStatus || renameTitle != nil || store.restoringLibrary
       || store.archiveConfirmation(inWindow: resources.id) != nil
+      || taskWorkspace.showingCommitPush || taskWorkspace.showingPullRequest
   }
   private var windowCommandsBlocked: Bool { otherWindowModalActive || searchMode != nil }
 

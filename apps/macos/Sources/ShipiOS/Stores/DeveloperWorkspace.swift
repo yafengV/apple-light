@@ -73,6 +73,9 @@ final class DeveloperWorkspace {
   var generatingCommitMessage = false
   var commitGenerationError: String?
   var gitActionStatus: String?
+  var gitCommands = GitWorkflowCommandState()
+  var gitPresentationTaskID: String?
+  var gitPresentationForceDraft = false
   var showingCommitPush = false
   var showingPullRequest = false
   var pullRequestDraft = GitHubPRDraft()
@@ -95,6 +98,8 @@ final class DeveloperWorkspace {
   func setProject(_ root: URL?, additionalFolders: [URL] = []) {
     showingCommitPush = false
     showingPullRequest = false
+    clearGitPresentation()
+    gitCommands.cancel()
     pullRequestDraft.cancelLoading()
     pullRequestDraft = GitHubPRDraft()
     gitActionRunning = false
@@ -431,6 +436,8 @@ final class DeveloperWorkspace {
     diff = ""
     showingCommitPush = false
     showingPullRequest = false
+    clearGitPresentation()
+    gitCommands.cancel()
     cancelCommitMessageGeneration()
   }
   var visibleChanges: [GitFile] {

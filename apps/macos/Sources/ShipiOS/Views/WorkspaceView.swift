@@ -65,6 +65,13 @@ struct WorkspaceView: View {
         .padding(.top, 46)
       }
     }
+    .gitWorkflowPresentation(store: store, workspace: store.workspace, taskID: store.selectedTask?.id,
+      currentTaskID: { store.selectedTask?.id }, keyboardAllowed: { store.presentedOverlay == nil }) {
+      store.destination == .workspace && !store.restoringLibrary && store.renameTaskID == nil
+        && store.editingProject == nil && !store.showingModelPicker && !store.showingBranchPicker
+        && !store.showingTaskStatus && !store.hasSettingsConfirmation
+        && (store.presentedOverlay == nil || store.presentedOverlay == .commands)
+    }
     .tint(store.appearance.accentHex == nil ? .primary : store.appearance.accentColor)
   }
 

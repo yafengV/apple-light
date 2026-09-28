@@ -6,6 +6,7 @@ struct GitHubPRView: View {
   @Bindable var workspace: DeveloperWorkspace
   @Bindable var draft: GitHubPRDraft
   let taskID: String?
+  var forceDraft = false
   @Environment(\.dismiss) private var dismiss
   @State private var summaryLoader = GitCommitSummaryLoader()
   @State private var readinessLoader = GitPullRequestEntryLoader()
@@ -123,7 +124,7 @@ struct GitHubPRView: View {
       }
       .task {
         selected = .initial(existing: draft.existing != nil,
-          defaultToDraft: store.library.gitPreferences.createDraftPullRequests)
+          defaultToDraft: forceDraft || store.library.gitPreferences.createDraftPullRequests)
         await refreshExisting()
         if !draft.creating {
           focus = draft.existing != nil ? .action(.openExisting)
@@ -132,7 +133,7 @@ struct GitHubPRView: View {
       }
       .onChange(of: draft.existing != nil) { _, existing in
         selected = .initial(existing: existing,
-          defaultToDraft: store.library.gitPreferences.createDraftPullRequests)
+          defaultToDraft: forceDraft || store.library.gitPreferences.createDraftPullRequests)
         if existing { focus = .action(.openExisting) }
       }
       .onChange(of: focus) { _, value in

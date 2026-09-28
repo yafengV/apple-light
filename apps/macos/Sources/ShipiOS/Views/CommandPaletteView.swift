@@ -3,6 +3,7 @@ import SwiftUI
 struct CommandPaletteView: View {
   @Bindable var store: WorkspaceStore
   var context: SearchDialogContext? = nil
+  @FocusedValue(\.gitWorkflowCommands) private var gitCommands
   @State private var query = ""
   @State private var selectedID: String?
   @State private var catalog = TaskSearchCatalog()
@@ -10,7 +11,7 @@ struct CommandPaletteView: View {
   @State private var cyclingSearchSections = false
   @State private var pointerSelection = false
   @FocusState private var focus: Field?
-  private enum Field { case query, cancel, retry }
+  private enum Field { case query, cancel, retry, gitRetry }
   private struct ResultGroup: Identifiable {
     let id: String
     let title: String
@@ -27,7 +28,12 @@ struct CommandPaletteView: View {
       includeContentResults: CommandMenuSearch.searchesContent(query))
   }
   private var matches: [DesktopCommand] {
-    DesktopCommand.search(query: searchQuery)
+    Self.matchingCommands(searchQuery, git: gitCommands)
+  }
+  static func matchingCommands(_ query: String, git: GitWorkflowCommandContext?) -> [DesktopCommand] {
+    DesktopCommand.search(query: query).filter {
+      !GitWorkflowCommandContext.owns($0.id) || git?.enabled($0.id) == true
+    }
   }
   private var taskResults: [TaskSearchResult] {
     guard CommandMenuSearch.searchesTasks(query), !catalog.searching,
@@ -110,6 +116,18 @@ struct CommandPaletteView: View {
               .settingsActionFocus($focus, equals: .retry, activate: retry)
           }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 14)
         }
+        if let commands = gitCommands, commands.request.repository.root != nil {
+          if commands.loading {
+            ProgressView("正在检查 Git 命令…").controlSize(.small).padding(10)
+          } else if let error = commands.error {
+            HStack {
+              Text("Git 状态未能完整读取").help(error)
+              Spacer()
+              Button("重新检查") { refreshGitCommands() }
+                .settingsActionFocus($focus, equals: .gitRetry, activate: refreshGitCommands)
+            }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 14)
+          }
+        }
         Divider()
         HStack {
           Text("↑↓ 选择")
@@ -120,6 +138,7 @@ struct CommandPaletteView: View {
     }
     .background(SearchDialogKeyboardBridge(onReady: { focus = .query }, action: handleKey, shortcuts: store.shortcuts)
       .frame(width: 0, height: 0))
+    .task { await gitCommands?.refresh() }
     .task(id: reload) { await catalog.load(root: store.dataRoot, library: store.library) }
     .task(id: request) { await catalog.search(request) }
   }
@@ -186,6 +205,7 @@ struct CommandPaletteView: View {
     case .submit:
       if focus == .cancel { cancel() }
       else if focus == .retry { retry() }
+      else if focus == .gitRetry { refreshGitCommands() }
       else { invoke() }
     case .move(let delta):
       selectedID = TaskSearchRequest.nextSelection(selection, ids: selectable, offset: delta)
@@ -201,8 +221,9 @@ struct CommandPaletteView: View {
         selectedID = next; cyclingSearchSections = true; focus = .query
         return
       }
-      let fields: [Field] = CommandMenuSearch.searchesContent(query) && !catalog.historyErrors.isEmpty && !catalog.loading
-        ? [.query, .cancel, .retry] : [.query, .cancel]
+      var fields: [Field] = [.query, .cancel]
+      if CommandMenuSearch.searchesContent(query), !catalog.historyErrors.isEmpty, !catalog.loading { fields.append(.retry) }
+      if let commands = gitCommands, !commands.loading, commands.error != nil { fields.append(.gitRetry) }
       let index = fields.firstIndex(of: focus ?? .query) ?? 0
       focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
     }
@@ -211,12 +232,17 @@ struct CommandPaletteView: View {
     context?.canOpenBrowser(result) ?? store.canOpenCommandBrowserTab(result)
   }
   private func commandEnabled(_ id: String) -> Bool {
-    context?.commandEnabled(id) ?? store.paletteCommandEnabled(id)
+    if GitWorkflowCommandContext.owns(id) { return gitCommands?.enabled(id) == true }
+    return context?.commandEnabled(id) ?? store.paletteCommandEnabled(id)
   }
   private func canSelectTask(_ task: WorkspaceTask) -> Bool {
     context?.canSelectTask(task) ?? store.canSelectTask(task)
   }
   private func retry() { focus = .query; reload = UUID() }
+  private func refreshGitCommands() {
+    focus = .query
+    Task { await gitCommands?.refresh() }
+  }
   private func cancel() {
     if let context { context.cancel(); return }
     store.setOverlay(.commands, presented: false)
@@ -226,7 +252,11 @@ struct CommandPaletteView: View {
     guard let id = id ?? selection, selectable.contains(id) else { return }
     if id.hasPrefix("command:") {
       let command = String(id.dropFirst(8))
-      if let context { context.execute(command) } else { store.executePaletteCommand(command) }
+      if GitWorkflowCommandContext.owns(command) {
+        guard let commands = gitCommands, commands.enabled(command) else { return }
+        cancel()
+        commands.execute(command)
+      } else if let context { context.execute(command) } else { store.executePaletteCommand(command) }
     }
     else if let result = groups.flatMap(\.browsers).first(where: { $0.id == id }) {
       if let context { context.selectBrowser(result); return }

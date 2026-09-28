@@ -4,6 +4,7 @@ import SwiftUI
 struct WorkspaceCommands: Commands {
   let store: WorkspaceStore
   @Environment(\.openWindow) private var openWindow
+  @FocusedValue(\.gitWorkflowCommands) private var gitCommands
   @FocusedValue(\.mcpApprovalCommands) private var approvalCommands
   @FocusedValue(\.taskWindowCommands) private var taskWindowCommands
   @FocusedValue(\.imagePreviewActive) private var imagePreviewActive
@@ -77,6 +78,11 @@ struct WorkspaceCommands: Commands {
       command("review-open")
       command("browser-address")
       command("branch")
+      command("git.commit")
+      if gitCommands?.visible("git.createPullRequest") == true {
+        command("git.createPullRequest")
+        command("git.createDraftPullRequest")
+      }
       command("copy-location")
       command("terminal")
       command("bottom-panel")
@@ -125,6 +131,7 @@ struct WorkspaceCommands: Commands {
   }
   private func commandEnabled(_ id: String) -> Bool {
     guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return false }
+    if GitWorkflowCommandContext.owns(id) { return gitCommands?.enabled(id) == true }
     if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       return taskWindowCommands.enabled.contains(id)
     }
@@ -133,7 +140,9 @@ struct WorkspaceCommands: Commands {
   }
   private func perform(_ id: String) {
     guard commandEnabled(id) else { return }
-    if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
+    if GitWorkflowCommandContext.owns(id) {
+      gitCommands?.execute(id)
+    } else if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       taskWindowCommands.execute(id)
       if id == "new" || id == "new-alternate" { openWindow(id: "main") }
     } else {

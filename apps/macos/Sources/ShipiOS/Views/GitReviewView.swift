@@ -5,7 +5,6 @@ struct GitReviewView: View {
   @Bindable var workspace: DeveloperWorkspace
   var taskID: String?
   var focusComposer: (() -> Void)?
-  @State private var pullRequestTaskID: String?
   var body: some View {
     VStack(spacing: 0) {
       if !workspace.reviewRepositories.isEmpty {
@@ -153,11 +152,12 @@ struct GitReviewView: View {
             }
             Spacer()
             GitReviewPullRequestEntry(store: store, workspace: workspace, taskID: taskID) {
-              pullRequestTaskID = taskID ?? store.selectedTask?.id
-              workspace.showingPullRequest = true
+              workspace.presentGitOptions(taskID: taskID ?? store.selectedTask?.id, pullRequest: true)
             }
             if !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
-              Button("提交或推送…") { workspace.showingCommitPush = true }
+              Button("提交或推送…") {
+                workspace.presentGitOptions(taskID: taskID ?? store.selectedTask?.id, pullRequest: false)
+              }
                 .disabled(!workspace.canCommit || workspace.gitBusy || workspace.gitRefreshing)
             }
           }.padding(10)
@@ -166,14 +166,6 @@ struct GitReviewView: View {
         GitReviewEmptyView(workspace: workspace)
       }
     }.onDisappear { workspace.cancelCommitMessageGeneration() }
-    .sheet(isPresented: $workspace.showingCommitPush) {
-      GitCommitPushView(store: store, workspace: workspace,
-        taskTitle: store.gitCommitTaskTitle(taskID: taskID))
-    }
-    .sheet(isPresented: $workspace.showingPullRequest) {
-      GitHubPRView(store: store, workspace: workspace, draft: workspace.pullRequestDraft,
-        taskID: pullRequestTaskID)
-    }
     .onChange(of: store.library.gitPreferences.readOnlyReview) { _, readOnly in
       if readOnly {
         workspace.cancelCommitMessageGeneration()
