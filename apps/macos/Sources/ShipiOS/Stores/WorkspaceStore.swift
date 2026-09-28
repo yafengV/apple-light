@@ -164,6 +164,8 @@ final class WorkspaceStore {
   @ObservationIgnored var skillSourceFingerprint: String?
   @ObservationIgnored var checkingSkillSources = false
   var repositorySkillRevision = UUID()
+  var skillLibraryQuery = ""
+  var skillTrialInProgress = false
   var pluginsLoaded = false
   var pluginsLoading = false
   var pluginsError: String?

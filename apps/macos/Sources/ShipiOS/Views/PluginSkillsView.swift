@@ -9,6 +9,7 @@ struct PluginSkillsView: View {
   var query = ""
   var layout: Layout = .rows
   var sourceSkills: [PluginSkillReference]?
+  var projectPathsBySkillID: [String: String] = [:]
   var emptyTitle = "尚未安装技能"
   var emptyDescription = "导入技能文件夹或包含技能的插件后，可以在这里查看和启停单个技能。"
   @State private var preview: PluginSkillReference?
@@ -52,8 +53,8 @@ struct PluginSkillsView: View {
               }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("查看技能：\(skill.title)")
               .contextMenu {
-                Button("立即尝试") { _ = store.trySkill(skill.id) }
-                  .disabled(!store.canTrySkill(skill.id))
+                Button("立即尝试") { Task { _ = await store.trySkill(skill.id, projectPath: projectPathsBySkillID[skill.id]) } }
+                  .disabled(!store.canTrySkill(skill.id, projectPath: projectPathsBySkillID[skill.id]))
                 if skill.isStandalone || skill.isRepository {
                   Button("编辑") { editing = skill }
                     .accessibilityLabel("编辑技能：\(skill.title)")
@@ -73,7 +74,7 @@ struct PluginSkillsView: View {
             }
             Toggle("启用技能", isOn: Binding(
               get: { store.isSkillEnabled(skill) },
-              set: { _ = store.setSkillEnabled($0, skill: skill) }))
+              set: { _ = store.setSkillEnabled($0, skill: skill, projectPath: projectPathsBySkillID[skill.id]) }))
               .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
               .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
           }.padding(.vertical, 6)
@@ -82,13 +83,13 @@ struct PluginSkillsView: View {
       }
     }
     .sheet(item: $preview) { skill in
-      PluginSkillPreview(store: store, skill: skill)
+      PluginSkillPreview(store: store, skill: skill, projectPath: projectPathsBySkillID[skill.id])
     }
     .onChange(of: skills) { _, updated in
       if let id = preview?.id { preview = updated.first { $0.id == id } }
     }
     .sheet(item: $editing) { skill in
-      SkillEditorView(store: store, skill: skill)
+      SkillEditorView(store: store, skill: skill, contextProjectPath: projectPathsBySkillID[skill.id])
     }
     .alert("卸载技能？", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
       Button("取消", role: .cancel) { removing = nil }
@@ -124,12 +125,12 @@ struct PluginSkillsView: View {
         if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
         Toggle("启用技能", isOn: Binding(
           get: { store.isSkillEnabled(skill) },
-          set: { _ = store.setSkillEnabled($0, skill: skill) }))
+          set: { _ = store.setSkillEnabled($0, skill: skill, projectPath: projectPathsBySkillID[skill.id]) }))
           .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
           .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
         Spacer()
-        Button("立即尝试") { _ = store.trySkill(skill.id) }
-          .disabled(!store.canTrySkill(skill.id))
+        Button("立即尝试") { Task { _ = await store.trySkill(skill.id, projectPath: projectPathsBySkillID[skill.id]) } }
+          .disabled(!store.canTrySkill(skill.id, projectPath: projectPathsBySkillID[skill.id]))
         if skill.isStandalone || skill.isRepository {
           Button("编辑") { editing = skill }
             .disabled(!store.pluginsLoaded)
@@ -153,6 +154,7 @@ struct PluginSkillsView: View {
 private struct SkillEditorView: View {
   let store: WorkspaceStore
   let skill: PluginSkillReference
+  var contextProjectPath: String? = nil
   @Environment(\.dismiss) private var dismiss
   @State private var original: String?
   @State private var draft = ""
@@ -197,7 +199,7 @@ private struct SkillEditorView: View {
           let saved: Bool
           if let project = skill.repositoryRoot {
             saved = store.updateRepositorySkill(id: skill.id, text: draft,
-              expectedOriginal: original, project: project)
+              expectedOriginal: original, project: project, contextProjectPath: contextProjectPath)
           } else {
             saved = store.updateStandaloneSkill(id: skill.id, text: draft,
               expectedOriginal: original)
@@ -241,6 +243,7 @@ private struct SkillEditorView: View {
 private struct PluginSkillPreview: View {
   let store: WorkspaceStore
   let skill: PluginSkillReference
+  var projectPath: String? = nil
   @Environment(\.dismiss) private var dismiss
   @State private var source: String?
   @State private var error: String?
@@ -292,7 +295,7 @@ private struct PluginSkillPreview: View {
         Toggle("启用技能", isOn: Binding(
           get: { store.isSkillEnabled(skill) },
           set: { enabled in
-            actionError = store.setSkillEnabled(enabled, skill: skill) ? nil : store.pluginsError
+            actionError = store.setSkillEnabled(enabled, skill: skill, projectPath: projectPath) ? nil : store.pluginsError
           }))
           .disabled(!store.pluginsLoaded || !store.pluginsEnabled
             || (!skill.isStandalone && !skill.isRepository && store.pluginPreferences.installed.first(where: { $0.id == skill.pluginID })?.enabled != true))
@@ -302,10 +305,12 @@ private struct PluginSkillPreview: View {
         }
         Spacer()
         Button("立即尝试") {
-          if store.trySkill(skill.id) { dismiss() }
-          else { actionError = store.pluginsError }
+          Task {
+            if await store.trySkill(skill.id, projectPath: projectPath) { dismiss() }
+            else { actionError = store.pluginsError }
+          }
         }.buttonStyle(.borderedProminent)
-          .disabled(source == nil || !store.canTrySkill(skill.id))
+          .disabled(source == nil || !store.canTrySkill(skill.id, projectPath: projectPath))
       }
     }.padding(24).frame(minWidth: 580, idealWidth: 680, minHeight: 400, idealHeight: 560)
       .alert("卸载技能？", isPresented: $confirmingRemoval) {

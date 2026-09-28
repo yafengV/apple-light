@@ -2,18 +2,18 @@ import SwiftUI
 
 struct SkillsView: View {
   @Bindable var store: WorkspaceStore
-  @State private var query = ""
+  private var query: String { store.skillLibraryQuery }
   @State private var creating = false
-  @State private var projectSkills: [PluginSkillReference] = []
-  @State private var projectError: String?
+  @State private var repositoryLibrary = RepositorySkillLibrary()
   @State private var projectLoading = false
   @State private var projectReload = UUID()
+  @State private var projectLoadToken = UUID()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
       HStack(spacing: 12) {
         Text("技能").appFont(.title2, weight: .semibold)
-        Text("\(store.installedPluginSkills.count + projectSkills.count)")
+        Text("\(store.installedPluginSkills.count + repositoryLibrary.skills.count)")
           .appFont(.caption).foregroundStyle(.secondary)
         Spacer()
         Button("新建技能") { creating = true }
@@ -26,7 +26,7 @@ struct SkillsView: View {
           .keyboardShortcut(.cancelAction)
       }
 
-      TextField("搜索技能", text: $query)
+      TextField("搜索技能", text: $store.skillLibraryQuery)
         .textFieldStyle(.roundedBorder)
         .accessibilityLabel("搜索技能")
 
@@ -36,28 +36,27 @@ struct SkillsView: View {
       }
 
       ScrollView {
-        if let project = store.project {
-          HStack {
-            Text("当前项目与仓库").appFont(.headline)
-            Text(project.lastPathComponent).appFont(.caption).foregroundStyle(.secondary)
-            Spacer()
-          }.padding(.bottom, 8)
-          if projectLoading {
-            ProgressView("正在读取项目技能…")
-              .frame(maxWidth: .infinity, alignment: .leading)
-          } else if let projectError {
+        Text("项目技能").appFont(.headline)
+          .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 8)
+        if projectLoading {
+          ProgressView("正在读取项目技能…")
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          PluginSkillsView(store: store, query: query, layout: .cards,
+            sourceSkills: repositoryLibrary.skills,
+            projectPathsBySkillID: repositoryLibrary.projectPathsBySkillID,
+            emptyTitle: "保存的项目中没有技能",
+            emptyDescription: "打开项目或创建项目技能后，可以在这里统一浏览。")
+            .frame(maxWidth: .infinity, alignment: .leading)
+          ForEach(repositoryLibrary.issues) { issue in
             HStack {
-              Text(projectError).foregroundStyle(.red).textSelection(.enabled)
+              Text(URL(fileURLWithPath: issue.projectPath).lastPathComponent + "：" + issue.message)
+                .foregroundStyle(.red).textSelection(.enabled)
               Button("重试") { projectReload = UUID() }
-            }
-          } else {
-            PluginSkillsView(store: store, query: query, layout: .cards,
-              sourceSkills: projectSkills, emptyTitle: "当前项目与仓库没有技能",
-              emptyDescription: "项目目录及适用的仓库上级目录中尚无 .agents/skills 技能。")
-              .frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxWidth: .infinity, alignment: .leading)
           }
-          Divider().padding(.vertical, 16)
         }
+        Divider().padding(.vertical, 16)
         Text("已安装").appFont(.headline)
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.bottom, 8)
@@ -79,23 +78,28 @@ struct SkillsView: View {
     .padding(32)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .task { if !store.pluginsLoaded { await store.loadPlugins() } }
-    .task(id: "\(store.currentProjectKey)|\(store.repositorySkillRevision)|\(projectReload)") {
-      projectError = nil
-      guard !store.currentProjectKey.isEmpty else { projectSkills = []; return }
+    .task(id: store.skillLibraryProjectPaths + [store.repositorySkillRevision.uuidString, projectReload.uuidString]) {
+      let request = UUID()
+      projectLoadToken = request
       projectLoading = true
-      defer { projectLoading = false }
-      do { projectSkills = try store.repositorySkills(for: store.currentProjectKey) }
-      catch { projectSkills = []; projectError = error.localizedDescription }
+      defer { if projectLoadToken == request { projectLoading = false } }
+      let paths = store.skillLibraryProjectPaths
+      let loaded = await Task.detached(priority: .userInitiated) {
+        PluginStorage.repositorySkillLibrary(projectPaths: paths)
+      }.value
+      guard !Task.isCancelled, projectLoadToken == request else { return }
+      repositoryLibrary = loaded
     }
     .sheet(isPresented: $creating) {
-      SkillCreationView(store: store, projectPath: store.currentProjectKey) { query = "" }
+      SkillCreationView(store: store, projectPaths: store.skillLibraryProjectPaths, initialProjectPath: store.currentProjectKey) { store.skillLibraryQuery = "" }
     }
   }
 }
 
 private struct SkillCreationView: View {
   let store: WorkspaceStore
-  let projectPath: String
+  let projectPaths: [String]
+  @State private var projectPath: String
   let created: () -> Void
   private enum Scope: String, CaseIterable { case personal, project }
   @Environment(\.dismiss) private var dismiss
@@ -106,19 +110,31 @@ private struct SkillCreationView: View {
   @State private var scope: Scope = .personal
   @State private var error: String?
 
+  init(store: WorkspaceStore, projectPaths: [String], initialProjectPath: String, created: @escaping () -> Void) {
+    self.store = store
+    self.projectPaths = projectPaths
+    self.created = created
+    _projectPath = State(initialValue: projectPaths.contains(initialProjectPath)
+      ? initialProjectPath : (projectPaths.first ?? ""))
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       Text("新建技能").appFont(.title2, weight: .semibold)
       Text(scope == .project
-        ? "技能保存在当前项目的 .agents/skills，可在这个项目的任务中调用。"
+        ? "技能保存在所选项目的 .agents/skills，可在适用项目的任务中调用。"
         : "技能保存在 ShipiOS 的独立目录，并可在任务中通过 $名称 调用。")
         .foregroundStyle(.secondary)
       Form {
         Picker("保存位置", selection: $scope) {
           Text("ShipiOS 私有").tag(Scope.personal)
-          if !projectPath.isEmpty {
-            Text("当前项目 · \(URL(fileURLWithPath: projectPath).lastPathComponent)")
-              .tag(Scope.project)
+          if !projectPaths.isEmpty { Text("项目").tag(Scope.project) }
+        }
+        if scope == .project {
+          Picker("项目", selection: $projectPath) {
+            ForEach(projectPaths, id: \.self) { path in
+              Text(URL(fileURLWithPath: path).lastPathComponent).tag(path).help(path)
+            }
           }
         }
         TextField("名称", text: $name, prompt: Text("例如 code-review"))

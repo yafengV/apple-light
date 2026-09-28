@@ -46,7 +46,7 @@ extension WorkspaceStore {
   @discardableResult func createRepositorySkill(
     id: String, description: String, instructions: String, projectPath: String
   ) -> Bool {
-    guard !projectPath.isEmpty, currentProjectKey == projectPath else {
+    guard skillLibraryProjectPaths.contains(projectPath) else {
       pluginsError = "项目已切换，请重新选择技能的保存位置。"
       return false
     }
@@ -60,11 +60,12 @@ extension WorkspaceStore {
   }
 
   @discardableResult func updateRepositorySkill(
-    id: String, text: String, expectedOriginal: String, project: URL
+    id: String, text: String, expectedOriginal: String, project: URL, contextProjectPath: String? = nil
   ) -> Bool {
     do {
-      guard !currentProjectKey.isEmpty,
-        try repositorySkills(for: currentProjectKey).contains(where: {
+      let context = contextProjectPath ?? currentProjectKey
+      guard skillLibraryProjectPaths.contains(context),
+        try repositorySkills(for: context).contains(where: {
           $0.id == id && $0.repositoryRoot?.standardizedFileURL.path == project.standardizedFileURL.path
         })
       else {
@@ -73,7 +74,7 @@ extension WorkspaceStore {
       }
       try PluginStorage.updateRepositorySkill(id: id, text: text,
         expectedOriginal: expectedOriginal, project: project)
-      refreshRepositorySkills(for: currentProjectKey)
+      refreshRepositorySkills(for: context)
       pluginsError = nil
       return true
     } catch { pluginsError = error.localizedDescription; return false }
@@ -139,16 +140,17 @@ extension WorkspaceStore {
     pluginPreferences.isSkillEnabled(skill)
   }
 
-  @discardableResult func setSkillEnabled(_ enabled: Bool, skill: PluginSkillReference) -> Bool {
+  @discardableResult func setSkillEnabled(_ enabled: Bool, skill: PluginSkillReference, projectPath: String? = nil) -> Bool {
     guard skill.isRepository else { return setSkillEnabled(enabled, id: skill.id) }
     guard pluginsLoaded else { return false }
-    guard !currentProjectKey.isEmpty else {
+    let context = projectPath ?? currentProjectKey
+    guard skillLibraryProjectPaths.contains(context) else {
       pluginsError = "项目已切换，请回到可使用此技能的项目后再修改启用状态。"
       return false
     }
     do {
       pluginPreferences = try PluginStorage.setRepositorySkillEnabled(enabled, id: skill.id,
-        project: URL(fileURLWithPath: currentProjectKey, isDirectory: true), root: dataRoot)
+        project: URL(fileURLWithPath: context, isDirectory: true), root: dataRoot)
       pluginsError = nil
       return true
     } catch { pluginsError = error.localizedDescription; return false }
