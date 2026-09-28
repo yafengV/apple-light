@@ -38,6 +38,7 @@ struct PluginSkillReference: Equatable, Identifiable {
   var repositoryRoot: URL? = nil
   var interface = SkillInterfaceMetadata()
   var resolvedFileURL: URL? = nil
+  var catalogRoot: URL? = nil
 
   var sourceFileURL: URL { resolvedFileURL ?? fileURL.resolvingSymlinksInPath() }
   var isLinkedSource: Bool {
@@ -616,7 +617,8 @@ enum PluginStorage {
         title: value.metadata.title, fileURL: value.url,
         mention: counts[value.id.lowercased(), default: 0] > 1
           ? "\(value.plugin.id)/\(value.id)" : value.id,
-        summary: value.metadata.summary, interface: value.metadata.interface)
+        summary: value.metadata.summary, interface: value.metadata.interface,
+        catalogRoot: packageURL(root: root, id: value.plugin.id))
     }
     return (packaged + standalone).sorted {
       $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending

@@ -163,7 +163,8 @@ extension PluginStorage {
       found.append(PluginSkillReference(
         pluginID: "", pluginName: "项目技能 · \(scope.lastPathComponent)", skillID: id,
         title: metadata.title, fileURL: file, mention: "repo/" + id,
-        summary: metadata.summary, repositoryRoot: scope, interface: metadata.interface, resolvedFileURL: resolved))
+        summary: metadata.summary, repositoryRoot: scope, interface: metadata.interface,
+        resolvedFileURL: resolved, catalogRoot: file.deletingLastPathComponent().deletingLastPathComponent()))
     }
     return found.sorted {
       $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending

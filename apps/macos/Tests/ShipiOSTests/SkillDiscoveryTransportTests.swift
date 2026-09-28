@@ -181,6 +181,75 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     }
   }
 
+  @MainActor func testBothProtocolsExpandAliasedPathsAndReadLinkedSourceWithoutChangingIdentity() async throws {
+    for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
+      let container = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      defer { try? FileManager.default.removeItem(at: container) }
+      // The pinned Core currently emits an invalid Seatbelt profile for quoted cwd paths.
+      // Keep that independent upstream defect explicit; Basic still exercises quoted roots.
+      let rootName = api == .chatCompletions ? "长目录 \"quoted\"/" : "长目录/"
+      let root = container.appendingPathComponent(rootName + String(repeating: "shared/", count: 8))
+      let store = try await prepare(protocol: api, root: root)
+      for index in 0..<20 {
+        let file = store.dataRoot.appendingPathComponent("Skills/prefix-\(index)/SKILL.md")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("---\nname: Earlier \(index)\ndescription: An earlier purpose\n---\nEarlier instructions.".utf8).write(to: file)
+      }
+      let folder = root.appendingPathComponent("Project/.agents/skills/review")
+      try FileManager.default.removeItem(at: folder)
+      let target = container.appendingPathComponent("External 技能 \"quoted\"/review")
+      try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+      try Data("---\nname: Zzz Linked Review\ndescription: Inspect linked correctness\n---\nALIASED-LINKED-FULL-INSTRUCTIONS".utf8)
+        .write(to: target.appendingPathComponent("SKILL.md"))
+      try FileManager.default.createSymbolicLink(at: folder, withDestinationURL: target)
+      await store.refreshSkillsIfChanged()
+      let advertised = try PluginStorage.discoveryContext(preferences: store.pluginPreferences,
+        root: store.dataRoot, repositoryRoot: root.appendingPathComponent("Project"), readTool: api == .chatCompletions)
+      XCTAssertFalse(advertised.pathAliases.roots.isEmpty)
+      let linked = try XCTUnwrap(advertised.skills.last)
+      XCTAssertTrue(linked.isLinkedSource)
+      let started = await store.startChat(api == .chatCompletions ? "implicit-skill-read-last" : "codex-skill-discovery")
+      let id = try XCTUnwrap(started, store.error ?? "No aliased skill request")
+      await store.modelTask(runID: id)?.value
+      let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+      XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+      let response = try XCTUnwrap(run.result?["response"].text)
+      let body = try JSONDecoder().decode(JSONValue.self, from: Data(response.utf8))
+      XCTAssertTrue(response.contains("ALIASED-LINKED-FULL-INSTRUCTIONS"), "Protocol \(api): \(run.toolExecutions)")
+      let instructions: String
+      if api == .chatCompletions {
+        instructions = body["messages"].items.first?["content"].text ?? ""
+        XCTAssertEqual(run.result?["invoked_skills"].items.compactMap(\.text), [linked.id])
+      } else {
+        instructions = body["input"].items.filter { ["developer", "system", "user"].contains($0["role"].text ?? "") }
+          .flatMap { $0["content"].items.compactMap { $0["text"].text } }.joined(separator: "\n")
+        XCTAssertTrue(run.toolExecutions.contains { $0.toolName == "命令" && $0.status == .succeeded
+          && $0.output?.contains("ALIASED-LINKED-FULL-INSTRUCTIONS") == true })
+      }
+      XCTAssertFalse(instructions.contains("ALIASED-LINKED-FULL-INSTRUCTIONS"), "Full instructions must be read on demand")
+      var wireRoots: [SkillPathAliases.Root] = []
+      var rows: [[String: String]] = []
+      for line in instructions.split(separator: "\n") {
+        if line.hasPrefix("- {") {
+          let root = try JSONDecoder().decode([String: String].self, from: Data(line.dropFirst(2).utf8))
+          wireRoots.append(.init(name: try XCTUnwrap(root["alias"]), path: try XCTUnwrap(root["path"])))
+        } else if line.hasPrefix("{\"description\":") {
+          rows.append(try JSONDecoder().decode([String: String].self, from: Data(line.utf8)))
+        }
+      }
+      let wireAliases = SkillPathAliases(roots: wireRoots)
+      XCTAssertFalse(wireRoots.isEmpty)
+      XCTAssertEqual(rows.count, advertised.skills.count)
+      for (row, skill) in zip(rows, advertised.skills) {
+        XCTAssertEqual(row["id"], skill.id)
+        XCTAssertTrue(row["path"]?.hasPrefix("r") == true, "Wire path \(row): source root \(skill.catalogRoot?.path ?? "nil"), aliases \(wireRoots)")
+        XCTAssertEqual(wireAliases.expand(try XCTUnwrap(row["path"])), skill.fileURL.path)
+      }
+      XCTAssertEqual(linked.sourceFileURL.path, target.appendingPathComponent("SKILL.md").resolvingSymlinksInPath().path)
+      await store.shutdown()
+    }
+  }
+
   @MainActor func testBothProtocolsUseServiceModelWindowAndSwitchBackToCharacterFallback() async throws {
     for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
       let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -125,7 +125,7 @@ final class SkillDiscoveryTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let (project, skill, _) = try prepare(root)
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
-    for index in 0..<70 {
+    for index in 0..<100 {
       let file = store.dataRoot.appendingPathComponent("Skills/prefix-\(index)/SKILL.md")
       try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
       try Data("---\nname: Earlier \(index)\ndescription: Earlier purpose\n---\nInstructions.".utf8).write(to: file)

@@ -188,7 +188,8 @@ extension PluginStorage {
       let metadata = try skillMetadata(resolved, fallback: id, sourceName: id)
       return PluginSkillReference(pluginID: "", pluginName: "本地技能", skillID: id,
         title: metadata.title, fileURL: file, mention: id, summary: metadata.summary,
-        isStandalone: true, interface: metadata.interface, resolvedFileURL: resolved)
+        isStandalone: true, interface: metadata.interface, resolvedFileURL: resolved,
+        catalogRoot: root.appendingPathComponent("Skills", isDirectory: true))
     }
   }
 

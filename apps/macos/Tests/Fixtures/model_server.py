@@ -59,6 +59,7 @@ class Handler(BaseHTTPRequestHandler):
                 if message.get('role') == 'developer' for part in message.get('content', [])]
             current_developer = developer_inputs[-1] if developer_inputs else ''
             skill_catalog = []
+            skill_roots = {}
             for message in body.get('input', []):
                 if not isinstance(message, dict):
                     continue
@@ -66,17 +67,27 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(content, list):
                     continue
                 for part in content:
-                    for line in part.get('text', '').splitlines():
+                    text = part.get('text', '')
+                    if '以下是当前任务可隐式调用的技能' in text:
+                        skill_catalog = []
+                        skill_roots = {}
+                    for line in text.splitlines():
                         try:
-                            entry = json.loads(line)
+                            entry = json.loads(line[2:] if line.startswith('- {') else line)
+                            if isinstance(entry, dict) and 'alias' in entry and 'path' in entry:
+                                skill_roots[entry['alias']] = entry['path']
                             if isinstance(entry, dict) and all(key in entry for key in ('id', 'path', 'description')):
                                 skill_catalog.append(entry)
                         except (ValueError, TypeError):
                             pass
             if 'codex-skill-discovery' in request_text:
                 if skill_catalog and 'fixture-skill-read' not in request_text:
+                    skill_path = skill_catalog[-1]['path']
+                    prefix, separator, suffix = skill_path.partition('/')
+                    if prefix in skill_roots and separator:
+                        skill_path = skill_roots[prefix] + '/' + suffix
                     item = {'type': 'function_call', 'call_id': 'fixture-skill-read', 'name': 'exec_command',
-                        'arguments': json.dumps({'cmd': 'cat ' + shlex.quote(skill_catalog[-1]['path']), 'yield_time_ms': 10000})}
+                        'arguments': json.dumps({'cmd': 'cat ' + shlex.quote(skill_path), 'yield_time_ms': 10000})}
                 else:
                     item = {'type': 'message', 'role': 'assistant', 'id': 'skill-reply',
                         'content': [{'type': 'output_text', 'text': json.dumps(body, ensure_ascii=False)}]}
