@@ -114,7 +114,11 @@ extension WorkspaceStore {
       if let index = Int(value.dropFirst("focus-tab-".count)) { focusWorkspaceTab(at: index - 1) }
     case let value where value.hasPrefix("focus-chat-"):
       if let slot = DesktopCommand.numberSlot(value), let task = numberedSidebarTask(at: slot.index) {
-        selectTask(task)
+        if let sessionID = activitySession?.id {
+          Task { await openActivityNumberedTask(task.id, sessionID: sessionID) }
+        } else {
+          selectTask(task)
+        }
       }
     case let value where value.hasPrefix("recent-chat-"):
       if let slot = DesktopCommand.recentChatSlot(value),
@@ -236,6 +240,7 @@ extension WorkspaceStore {
     case let value where value.hasPrefix("focus-chat-"):
       guard destination != .settings, let slot = DesktopCommand.numberSlot(value),
         let task = numberedSidebarTask(at: slot.index) else { return false }
+      if showingActivity, activityOpeningTaskID != nil { return false }
       return canSelectTask(task)
     case let value where value.hasPrefix("recent-chat-"):
       guard destination == .workspace, let slot = DesktopCommand.recentChatSlot(value),
@@ -346,8 +351,8 @@ extension WorkspaceStore {
     showingInspector = true
     if name == "files" { Task { await workspace.refreshFiles() } }
   }
-  func recordNavigation() {
-    let location = TaskLocation(project: currentProjectKey, run: selection)
+  func recordNavigation(_ origin: TaskLocation? = nil) {
+    let location = origin ?? TaskLocation(project: currentProjectKey, run: selection)
     if navigationBack.last != location { navigationBack.append(location) }
     navigationForward = []
   }
@@ -397,7 +402,7 @@ extension WorkspaceStore {
   }
   func numberedSidebarTask(at number: Int) -> WorkspaceTask? {
     guard (1...9).contains(number) else { return nil }
-    let tasks = library.visibleSidebarTasks
+    let tasks = showingActivity ? activityNumberedTasks : library.visibleSidebarTasks
     return tasks.indices.contains(number - 1) ? tasks[number - 1] : nil
   }
 

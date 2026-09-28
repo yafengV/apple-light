@@ -3,7 +3,6 @@ import SwiftUI
 /// Activity replaces the task sidebar, keeping the conversation and its panels mounted.
 struct ActivityView: View {
   @Bindable var store: WorkspaceStore
-  @State private var opening: String?
   @State private var focusedID: String?
   @FocusState private var listFocused: Bool
 
@@ -64,6 +63,9 @@ struct ActivityView: View {
         .onChange(of: items.map(\.id)) { _, ids in
           if let focusedID, !ids.contains(focusedID) { self.focusedID = nil }
         }
+        .onChange(of: store.selectedTask?.id) { _, id in
+          if let id, items.contains(where: { $0.id == id }) { focusedID = id }
+        }
       }
     }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       .accessibilityIdentifier("activity-sidebar")
@@ -107,17 +109,16 @@ struct ActivityView: View {
   }
 
   private func open(_ id: String) {
-    guard opening == nil else { return }
-    opening = id
+    guard let sessionID = store.activitySession?.id else { return }
     Task {
+      guard store.activitySession?.id == sessionID else { return }
       _ = await store.openActivityTask(id)
-      opening = nil
     }
   }
 
   private func row(_ item: ActivityTaskEntry) -> some View {
-    ActivityTaskRow(store: store, item: item, opening: opening == item.id,
-      openingAny: opening != nil, focused: focusedID == item.id && listFocused) {
+    ActivityTaskRow(store: store, item: item, opening: store.activityOpeningTaskID == item.id,
+      openingAny: store.activityOpeningTaskID != nil, focused: focusedID == item.id && listFocused) {
         focusedID = item.id
         open(item.id)
       }

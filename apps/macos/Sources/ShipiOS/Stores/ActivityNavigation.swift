@@ -52,6 +52,24 @@ extension WorkspaceStore {
 
   var activityBadgeCount: Int { activityEntries.filter { $0.attention != nil || $0.unread }.count }
 
+  /// The nine sidebar slots address priority only while that section is shown.
+  /// Recent-chat commands have their own MRU targets and do not use these slots.
+  var activityNumberedTasks: [WorkspaceTask] {
+    guard showingActivity else { return [] }
+    let entries = library.activityPreferences.showPriority
+      ? activityPriorityEntries : activitySections().flatMap(\.items)
+    return entries.prefix(9).map(\.task)
+  }
+
+  func openActivityNumberedTask(_ id: String, sessionID: UUID) async {
+    guard activitySession?.id == sessionID, destination != .settings,
+      !shuttingDown, !restoringLibrary, shortcutCaptureCount == 0,
+      renameTaskID == nil, !showingModelPicker, !showingBranchPicker,
+      presentedOverlay == nil, !hasSettingsConfirmation,
+      activityNumberedTasks.contains(where: { $0.id == id }) else { return }
+    _ = await openActivityTask(id)
+  }
+
   func synchronizeActivityPriority() {
     guard libraryLoaded, var session = activitySession else { return }
     let entries = activityEntries
@@ -158,8 +176,11 @@ extension WorkspaceStore {
   }
 
   @discardableResult func openActivityTask(_ id: String) async -> Bool {
-    guard let task = library.tasks.first(where: { $0.id == id }),
+    guard activityOpeningTaskID == nil,
+      let task = library.tasks.first(where: { $0.id == id }),
       !task.archived, canSelectTask(task) else { return false }
+    activityOpeningTaskID = id
+    defer { activityOpeningTaskID = nil }
     activityError = nil
     let origin = destination
     let sessionID = activitySession?.id

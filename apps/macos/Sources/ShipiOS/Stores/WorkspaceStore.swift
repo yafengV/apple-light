@@ -29,6 +29,7 @@ final class WorkspaceStore {
   }
   var destination: AppDestination = .workspace
   var activityError: String?
+  var activityOpeningTaskID: String?
   var activityArchiveRequest: ActivityArchiveRequest?
   var activityArchiveResult: ActivityArchiveResult?
   var archivingActivity = false
@@ -289,6 +290,7 @@ final class WorkspaceStore {
   var libraryLoading = false
   var libraryReadError: String?
   @ObservationIgnored var scopeLoaded = false
+  @ObservationIgnored private var preparingProjectScope = false
   var project: URL? {
     didSet {
       if project != oldValue {
@@ -492,12 +494,12 @@ final class WorkspaceStore {
     }
     workspace.browser.onDownloadEvent = { [weak self] event in self?.handleBrowserDownload(event) }
     client.onEvent = { [weak self] event in
-      guard let self else { return }
+      guard let self, !self.preparingProjectScope else { return }
       let token = self.session
       Task { await self.refresh(runID: event.runId, token: token) }
     }
     client.onGap = { [weak self] in
-      guard let self else { return }
+      guard let self, !self.preparingProjectScope else { return }
       Task { await self.reload() }
     }
     client.onDisconnect = { [weak self] message in
@@ -662,59 +664,64 @@ final class WorkspaceStore {
       return
     }
     captureWorkspaceTabLayout()
-    workspaceLayoutActiveOwner = nil
     rememberProjectSelection()
     saveProfile()
     destination = .workspace
     busy = true
+    preparingProjectScope = true
     connected = false
     error = nil
     session = UUID()
     let token = session
     await client.stop()
-    project = canonical
-    runs = library.localRuns.filter { $0.project == canonical.path }
-    selection = library.rememberedSelection(project: canonical.path)
-    chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active
-      ? .goal : .standard
-    workspace.setProject(project!)
-    events = []
-    logText = ""
-    inspection = nil
-    container = ""
-    scheme = ""
-    configuration = "Debug"
-    worktreeSetupScript = ""
-    setupPlatformScripts = .init()
-    worktreeCleanupScript = ""
-    cleanupPlatformScripts = .init()
-    environmentActions = []
-    environmentFiles = []
-    environmentFileName = "environment.toml"
-    environmentName = library.projectTitle(canonical.path)
-    environmentRevision = nil
-    environmentExists = false
-    environmentStatus = ""
-    environmentLoadedState = nil
-    defer { busy = false }
+    defer { busy = false; preparingProjectScope = false }
     do {
-      let digest = SHA256.hash(data: Data(project!.path.utf8)).map { String(format: "%02x", $0) }
+      let digest = SHA256.hash(data: Data(canonical.path.utf8)).map { String(format: "%02x", $0) }
         .joined()
       let directory = dataRoot.appendingPathComponent("Projects/\(digest)", isDirectory: true)
-      dataDirectory = directory
-      try client.start(executable: executable, project: project!, dataDirectory: directory)
+      try client.start(executable: executable, project: canonical, dataDirectory: directory)
       let hello = try await client.request("initialize", ["protocolVersion": .number(1)])
       guard hello["protocolVersion"].int == 1 else {
         throw AgentFailure(message: "不支持的 Agent 协议版本")
       }
-      inspection = try await client.request("project.inspect").decode(ProjectInspection.self)
-      config = try await client.request("config.get")
-      runs =
+      let preparedInspection = try await client.request("project.inspect").decode(ProjectInspection.self)
+      let preparedConfig = try await client.request("config.get")
+      let preparedRuns =
         try await client.request("run.list").decode([AgentRun].self)
-        + library.localRuns.filter { $0.project == project?.path }
+        + library.localRuns.filter { $0.project == canonical.path }
       guard session == token else { return }
+      // Failed initialization must not replace the task, draft, files or panels.
+      // The previous local Agent has stopped; connection state remains truthful.
+      workspaceLayoutActiveOwner = nil
+      project = canonical
+      dataDirectory = directory
+      runs = preparedRuns
+      selection = library.rememberedSelection(project: canonical.path)
+      chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active
+        ? .goal : .standard
+      workspace.setProject(canonical)
+      events = []
+      logText = ""
+      inspection = preparedInspection
+      config = preparedConfig
+      container = ""
+      scheme = ""
+      configuration = "Debug"
+      worktreeSetupScript = ""
+      setupPlatformScripts = .init()
+      worktreeCleanupScript = ""
+      cleanupPlatformScripts = .init()
+      environmentActions = []
+      environmentFiles = []
+      environmentFileName = "environment.toml"
+      environmentName = library.projectTitle(canonical.path)
+      environmentRevision = nil
+      environmentExists = false
+      environmentStatus = ""
+      environmentLoadedState = nil
       completionTracker.seed(runs)
       connected = true
+      preparingProjectScope = false
       scopeLoaded = true
       container = inspection?.containers.first ?? ""
       scheme = UserDefaults.standard.string(forKey: "scheme.\(digest)") ?? ""
@@ -976,9 +983,10 @@ final class WorkspaceStore {
       return true
     }
     if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
-    recordNavigation()
+    let origin = TaskLocation(project: currentProjectKey, run: selection)
     guard await openTaskScope(current.project), !shuttingDown,
       let refreshed = library.tasks.first(where: { $0.id == task.id }), canSelectTask(refreshed) else { return false }
+    recordNavigation(origin)
     applyTaskSelection(refreshed)
     return true
   }
