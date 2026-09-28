@@ -3871,21 +3871,26 @@ final class ModelTransportTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let repository = root.appendingPathComponent("Project")
     try await makeReviewRepository(repository)
+    let child = repository.appendingPathComponent("App", isDirectory: true)
+    try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
     await store.restore()
-    store.project = repository
-    store.workspace.setProject(repository)
+    store.project = child
+    store.workspace.setProject(child)
+    await store.workspace.refreshGit()
+    XCTAssertEqual(store.workspace.gitRoot?.path, GitBranchService.canonicalRoot(repository).path)
     store.modelConfiguration = config
     store.notificationPreferences = .init(timing: .never)
-    let taskID = seedReviewTask(store, project: repository.path)
+    let taskID = seedReviewTask(store, project: child.path)
     store.library.drafts[taskID] = "保留当前草稿"
     store.library.gitPreferences.reviewDelivery = .inline
     store.showingReviewMode = true
-    store.reviewModeProject = repository.path
+    store.reviewModeProject = child.path
 
     await store.startCodeReview(.uncommitted)
     let started = try XCTUnwrap(store.library.chatRuns.last)
-    try await XCTUnwrap(store.modelTask(runID: started.id)).value
+    XCTAssertEqual(started.request["conversation_kind"].text, "review", store.reviewModeError ?? store.error ?? "")
+    try await XCTUnwrap(store.modelTask(runID: started.id), store.reviewModeError ?? store.error ?? "").value
     let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == started.id })
 
     XCTAssertEqual(store.library.task(containing: run.id)?.id, taskID)
@@ -3893,6 +3898,9 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(run.request["conversation_kind"].text, "review")
     XCTAssertEqual(run.request["review_scope"].text, "uncommitted")
     XCTAssertEqual(run.request["review_delivery"].text, "inline")
+    XCTAssertEqual(run.request["review_repository_root"].text, GitBranchService.canonicalRoot(repository).path)
+    XCTAssertEqual(store.responseFileRoot(for: run)?.path, GitBranchService.canonicalRoot(repository).path)
+    XCTAssertEqual(run.project, child.path)
     XCTAssertGreaterThan(run.request["review_diff_bytes"].int ?? 0, 0)
     XCTAssertEqual(run.title, "代码审查 · fixture-model")
     let messages = try JSONDecoder().decode(
@@ -3936,6 +3944,8 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
     XCTAssertEqual(finished.result?["response"].text, "Review fixture reply")
     XCTAssertEqual(finished.request["conversation_kind"].text, "review")
+    XCTAssertEqual(finished.request["review_repository_root"].text, GitBranchService.canonicalRoot(project).path)
+    XCTAssertEqual(store.responseFileRoot(for: finished)?.path, GitBranchService.canonicalRoot(project).path)
     XCTAssertEqual(finished.request["api_protocol"].text, ModelAPIProtocol.codexResponses.rawValue)
     XCTAssertEqual(store.selectedTask?.id, store.library.task(containing: run.id)?.id)
     XCTAssertFalse(FileManager.default.fileExists(atPath:
@@ -3966,6 +3976,8 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(restarted.library.chatRuns.first { $0.id == retried.id }?.result?["response"].text,
       "Review fixture reply")
     XCTAssertEqual(retried.request["conversation_kind"].text, "review")
+    XCTAssertEqual(retried.request["review_repository_root"].text, finished.request["review_repository_root"].text)
+    XCTAssertEqual(restarted.responseFileRoot(for: retried), store.responseFileRoot(for: finished))
     XCTAssertEqual(try ReviewSnapshotStorage.load(runID: retried.id,
       root: root.appendingPathComponent("Data")), originalSnapshot)
     let taskID = try XCTUnwrap(restarted.library.task(containing: run.id)?.id)

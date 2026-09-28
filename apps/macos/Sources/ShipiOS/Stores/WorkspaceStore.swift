@@ -122,6 +122,7 @@ final class WorkspaceStore {
   var closedWorkspaceTabs: [WorkspaceContentTab] = []
   @ObservationIgnored var reopeningWorkspaceTabOwner: String?
   var workspace = DeveloperWorkspace()
+  @ObservationIgnored var legacyReviewFileRoots: [String: URL] = [:]
   var navigationBack: [TaskLocation] = []
   var navigationForward: [TaskLocation] = []
   var showingArchived = false

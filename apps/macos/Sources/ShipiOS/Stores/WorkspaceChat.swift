@@ -185,6 +185,9 @@ extension WorkspaceStore {
         request["review_scope"] = .string(review.snapshot.scope.metadataValue)
         request["review_delivery"] = .string(review.delivery.rawValue)
         request["review_diff_bytes"] = .number(Double(review.snapshot.diff.utf8.count))
+        let reviewRoot = review.snapshot.repositoryRoot ?? (effectiveProject.isEmpty
+          ? projectlessDirectory?.path : effectiveProject)
+        if let reviewRoot { request["review_repository_root"] = .string(reviewRoot) }
         if let selection = review.snapshot.scope.selection {
           request["review_selection"] = .string(selection)
         }

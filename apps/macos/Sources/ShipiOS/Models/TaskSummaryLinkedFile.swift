@@ -22,6 +22,16 @@ struct TaskSummaryLinkedFile: Identifiable, Equatable {
       !isDirectory.boolValue else { return nil }
     return path
   }
+
+  /// A repository review can reference a file inside its narrower project pane.
+  func panePath(in workspaceRoot: URL) -> String? {
+    guard previewPath(in: root) != nil else { return nil }
+    let base = root.resolvingSymlinksInPath().standardizedFileURL.path
+    let pane = workspaceRoot.resolvingSymlinksInPath().standardizedFileURL.path
+    guard pane == base || pane.hasPrefix(base + "/"),
+      case .file(let path, _) = try? MessageLink.target(url, root: workspaceRoot) else { return nil }
+    return path
+  }
 }
 
 enum TaskSummaryLinkedFiles {

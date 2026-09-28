@@ -194,7 +194,7 @@ struct TaskWindowView: View {
                   focusBrowserTab: { id in
                     taskSummary.dismissPopover()
                     tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
-                  }, rootForRun: { store.workspaceRoot(for: $0) },
+                  }, rootForRun: { store.responseFileRoot(for: $0) },
                   openOutputFile: openTaskOutputFile) {
                   taskSummary.close()
                 }
@@ -279,7 +279,7 @@ struct TaskWindowView: View {
                 focusBrowserTab: { id in
                   taskSummary.dismissPopover()
                   tabs.activate(WorkspaceContentTab.browser(id, owner: taskID).id)
-                }, rootForRun: { store.workspaceRoot(for: $0) },
+                }, rootForRun: { store.responseFileRoot(for: $0) },
                 openOutputFile: openTaskOutputFile) {
                 taskSummary.close()
               }
@@ -953,7 +953,7 @@ struct TaskWindowView: View {
       store.error = "输出所属的任务已不可用。"
       return true
     }
-    if let root = taskWorkspace.root, let path = file.previewPath(in: root) {
+    if let root = taskWorkspace.root, let path = file.panePath(in: root) {
       panels.showingFiles = true
       taskWorkspace.selectFile(path)
       taskSummary.dismissPopover()

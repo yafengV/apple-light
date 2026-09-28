@@ -17,11 +17,11 @@ struct ChatResponseView: View {
             partPrefix: ordered == nil ? "response" : item.searchPrefix,
             linkActions: MessageLinkActions(
               activate: { url, click in
-                store.openMessageLink(url, project: store.workspaceRoot(for: run), ownerRunID: run.id, click: click, openInApp: openInApp)
+                store.openMessageLink(url, project: store.responseFileRoot(for: run), ownerRunID: run.id, click: click, openInApp: openInApp)
               },
               perform: { url, action in store.performMessageLinkAction(action, url: url, ownerRunID: run.id, openInApp: openInApp) }
             )) { url in
-              store.openMessageLink(url, project: store.workspaceRoot(for: run), ownerRunID: run.id,
+              store.openMessageLink(url, project: store.responseFileRoot(for: run), ownerRunID: run.id,
                 click: WebLinkClick(event: NSApp.currentEvent), openInApp: openInApp)
             }
         }

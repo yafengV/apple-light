@@ -219,7 +219,7 @@ struct WorkspaceView: View {
                       if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
                       else { store.moveWorkspaceTab(id, to: .left) }
                     } else { store.activateWorkspaceTab(id) }
-                  }, rootForRun: { store.workspaceRoot(for: $0) },
+                  }, rootForRun: { store.responseFileRoot(for: $0) },
                   openOutputFile: { file in
                     if store.selectedTask?.runIDs.contains(file.runID) != true {
                       store.error = "输出所属的任务已不可用。"
@@ -377,7 +377,7 @@ struct WorkspaceView: View {
                     if let route = store.detachedWorkspaceTabRoute(id) { openWindow(value: route) }
                     else { store.moveWorkspaceTab(id, to: .left) }
                   } else { store.activateWorkspaceTab(id) }
-                }, rootForRun: { store.workspaceRoot(for: $0) },
+                }, rootForRun: { store.responseFileRoot(for: $0) },
                 openOutputFile: { file in
                   if store.selectedTask?.runIDs.contains(file.runID) != true {
                     store.error = "输出所属的任务已不可用。"
