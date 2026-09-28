@@ -13,7 +13,9 @@ extension WorkspaceStore {
     else { expectedProject = project }
     guard let expectedProject,
       GitBranchService.canonicalRoot(expectedProject).path == anchor.project else { return }
-    if let repository = anchor.repository {
+    if anchor.turnRunID != nil {
+      guard validateLastTurnAnchor(anchor, taskID: taskID) else { return }
+    } else if let repository = anchor.repository {
       guard (try? GitRepositoryContext.candidate(at: expectedProject))?.path == repository else { return }
     }
     let key = reviewCommentKey(taskID)
@@ -65,7 +67,8 @@ extension WorkspaceStore {
   private func reviewCommentKey(_ taskID: String?) -> String { taskID ?? draftKey }
 
   func promptWithReviewComments(
-    _ prompt: String, comments: [ReviewComment], project expectedProject: String? = nil
+    _ prompt: String, comments: [ReviewComment], project expectedProject: String? = nil,
+    taskID: String? = nil
   ) throws -> String {
     guard !comments.isEmpty else { return prompt }
     let commentProject = expectedProject ?? project?.path
@@ -73,7 +76,11 @@ extension WorkspaceStore {
       throw AgentFailure(message: "审查评论与当前项目不匹配。")
     }
     for comment in comments {
-      if let repository = comment.anchor.repository,
+      if comment.anchor.turnRunID != nil {
+        guard validateLastTurnAnchor(comment.anchor, taskID: taskID) else {
+          throw AgentFailure(message: "原回合的审查快照已变化或不可用，请重新核对评论。")
+        }
+      } else if let repository = comment.anchor.repository,
         let commentProject,
         (try? GitRepositoryContext.candidate(at: URL(fileURLWithPath: commentProject)))?.path != repository {
         throw AgentFailure(message: "审查评论所属的 Git 仓库已变化，请重新核对评论。")

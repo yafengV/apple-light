@@ -769,6 +769,13 @@ extension WorkspaceStore {
     }
     guard CodexTurnDiffTimeline.apply(event, diff: &diff, items: &items,
       storedByteCount: storedByteCount, contentSHA256: contentSHA256, newID: diffID) else { return }
+    if diff != nil {
+      if let path = previous?.pathBase { diff?.pathBase = path }
+      else if let cwd = workspaceRoot(for: current) {
+        diff?.pathBase = ((try? GitRepositoryContext.candidate(at: cwd))
+          ?? GitBranchService.canonicalRoot(cwd)).path
+      }
+    }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, codexTurnDiff: diff, clearCodexTurnDiff: diff == nil)
     let saved = saveLibrary()

@@ -8,14 +8,16 @@ struct GitReviewView: View {
   @State private var pullRequestTaskID: String?
   var body: some View {
     VStack(spacing: 0) {
-      if workspace.gitAvailable {
+      if workspace.gitAvailable || workspace.reviewScope == .lastTurn {
         if let repository = workspace.gitRepositoryRoot, let project = workspace.root,
           GitBranchService.canonicalRoot(project).path != repository.path {
           Text("仓库：\(repository.path)").appFont(.caption).foregroundStyle(.secondary)
             .textSelection(.enabled).padding(.horizontal, 12).padding(.top, 8)
         }
         HStack {
-          if taskID == nil {
+          if workspace.reviewScope == .lastTurn {
+            Label("最近一轮", systemImage: "clock.arrow.circlepath")
+          } else if taskID == nil {
             Button { store.openBranchPicker() } label: {
               Label(workspace.gitBranch, systemImage: "arrow.triangle.branch").lineLimit(1)
             }.buttonStyle(.plain).disabled(!store.canChangeBranch).help("切换或创建分支")
@@ -73,12 +75,17 @@ struct GitReviewView: View {
         }
         if workspace.reviewLoading {
           ProgressView("读取变更…").controlSize(.small).padding(8)
-        } else if workspace.visibleChanges.isEmpty && workspace.error == nil {
+        } else if workspace.reviewScope == .lastTurn && workspace.lastTurnReview?.files.isEmpty != false
+          && workspace.error == nil {
+          Text("最近一轮没有代码变更").appFont(.caption).foregroundStyle(.secondary).padding()
+        } else if workspace.reviewScope != .lastTurn && workspace.visibleChanges.isEmpty && workspace.error == nil {
           Text(emptyMessage).appFont(.caption).foregroundStyle(.secondary).padding()
         }
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 10) {
-            if !workspace.reviewLoading && !workspace.gitRefreshing
+            if workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
+              LastTurnReviewView(store: store, workspace: workspace, snapshot: snapshot, taskID: taskID)
+            } else if !workspace.reviewLoading && !workspace.gitRefreshing
               && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot
             {
               ForEach(workspace.visibleChanges) { file in
@@ -149,11 +156,18 @@ struct GitReviewView: View {
         workspace.discardPlan = nil
       }
     }
-    .onChange(of: reviewSelection) { _, _ in
+    .task(id: store.lastTurnReviewSource(taskID: taskID)) {
+      if workspace.reviewScope == .lastTurn { await workspace.loadDiff() }
+    }
+    .onChange(of: reviewSelection) { old, _ in
       workspace.cancelCommitMessageGeneration()
       workspace.discardPlan = nil
       workspace.reviewPath = nil
-      Task { await workspace.loadDiff() }
+      Task {
+        if old.hasPrefix(GitReviewScope.lastTurn.rawValue + ":") && workspace.reviewScope != .lastTurn {
+          await workspace.refreshGit()
+        } else { await workspace.loadDiff() }
+      }
     }
     .alert(
       "撤销未暂存修改？",

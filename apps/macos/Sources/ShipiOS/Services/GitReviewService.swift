@@ -71,6 +71,8 @@ enum GitReviewService {
       "--unified=3",
     ]
     switch scope {
+    case .lastTurn:
+      throw AgentFailure(message: "最近一轮使用保存的回合差异，不是 Git 引用范围。")
     case .unstaged: return ["diff"] + flags
     case .staged: return ["diff"] + flags + ["--cached"]
     case .commit:

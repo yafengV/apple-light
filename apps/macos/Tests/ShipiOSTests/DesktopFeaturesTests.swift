@@ -1613,6 +1613,17 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(finished.responseItems?[2].text, "Codex fixture reply")
     XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("patch-proof.txt"),
       encoding: .utf8), "patched\n")
+    XCTAssertEqual(diff.pathBase, GitBranchService.canonicalRoot(project).path)
+    let owner = try XCTUnwrap(store.library.task(containing: run.id)?.id)
+    let source = try XCTUnwrap(store.lastTurnReviewSource(taskID: owner))
+    XCTAssertEqual(source.runID, run.id)
+    XCTAssertEqual(source.root?.path, diff.pathBase)
+    store.workspace.reviewScope = .lastTurn
+    await store.workspace.loadDiff()
+    let snapshot = try XCTUnwrap(store.workspace.lastTurnReview)
+    XCTAssertEqual(snapshot.source, source)
+    XCTAssertEqual(snapshot.unifiedDiff, diff.unifiedDiff)
+    XCTAssertEqual(snapshot.files.map(\.path), ["patch-proof.txt"])
     await store.shutdown()
     let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
     await restored.restore()
@@ -1621,6 +1632,11 @@ final class ModelTransportTests: XCTestCase {
       diff.unifiedDiff)
     XCTAssertEqual(restored.library.chatRuns.first { $0.id == run.id }?.responseItems,
       finished.responseItems)
+    XCTAssertEqual(restored.lastTurnReviewSource(taskID: owner), source)
+    restored.workspace.reviewScope = .lastTurn
+    await restored.workspace.loadDiff()
+    XCTAssertEqual(restored.workspace.lastTurnReview?.unifiedDiff, snapshot.unifiedDiff)
+    XCTAssertEqual(restored.workspace.lastTurnReview?.files, snapshot.files)
     await restored.shutdown()
   }
   @MainActor func testCodexStructuredQuestionResumesAndPersistsWithoutAnswer() async throws {

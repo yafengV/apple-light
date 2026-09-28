@@ -1,10 +1,12 @@
 import Foundation
 
 extension WorkspaceStore {
-  func bindGitReviewPolicy(to workspace: DeveloperWorkspace) {
+  func bindGitReviewPolicy(to workspace: DeveloperWorkspace, taskID: String? = nil) {
     workspace.isGitReviewReadOnly = { [weak self] in
       self?.library.gitPreferences.readOnlyReview != false
     }
+    workspace.lastTurnDataRoot = dataRoot
+    workspace.lastTurnReviewSource = { [weak self] in self?.lastTurnReviewSource(taskID: taskID) }
   }
 }
 

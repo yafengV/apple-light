@@ -1,7 +1,7 @@
 import Foundation
 
 /// A navigation slice of Core's exact cumulative unified diff.
-struct CodexTurnDiffFile: Identifiable, Equatable {
+struct CodexTurnDiffFile: Identifiable, Equatable, Sendable {
   let id: Int
   let path: String
   let patch: String

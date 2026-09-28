@@ -66,7 +66,7 @@ extension WorkspaceStore {
     do {
       prompt = try promptWithBrowserComments(
         promptWithReviewComments(
-          taskWindowDraft(taskID), comments: comments, project: task.project),
+          taskWindowDraft(taskID), comments: comments, project: task.project, taskID: taskID),
         comments: pageComments)
     } catch {
       self.error = error.localizedDescription

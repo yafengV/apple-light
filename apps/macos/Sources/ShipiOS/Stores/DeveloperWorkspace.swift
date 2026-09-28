@@ -37,6 +37,13 @@ final class DeveloperWorkspace {
   }
   var canCommit = false
   var reviewScope = GitReviewScope.unstaged
+  var lastTurnReview: LastTurnReviewSnapshot?
+  @ObservationIgnored var lastTurnDataRoot: URL?
+  @ObservationIgnored var lastTurnReviewSource: () -> LastTurnReviewSource? = { nil }
+  @ObservationIgnored var lastTurnRequest = UUID()
+  @ObservationIgnored var readLastTurnSnapshot: @Sendable (LastTurnReviewSource, URL) async throws -> LastTurnReviewSnapshot = {
+    source, root in try await Task.detached { try LastTurnReviewSnapshot.load(source, dataRoot: root) }.value
+  }
   var reviewCommits: [GitReviewChoice] = []
   var reviewBranches: [GitReviewChoice] = []
   var reviewCommit = ""
@@ -115,6 +122,8 @@ final class DeveloperWorkspace {
     canCommit = false
     gitBranch = ""
     reviewScope = .unstaged
+    lastTurnReview = nil
+    lastTurnRequest = UUID()
     reviewCommits = []
     reviewBranches = []
     reviewCommit = ""
@@ -217,6 +226,7 @@ final class DeveloperWorkspace {
   }
 
   func refreshGit() async {
+    if reviewScope == .lastTurn { await loadDiff(); return }
     guard let project = root else { return }
     let token = UUID()
     gitVersion = token
@@ -301,6 +311,13 @@ final class DeveloperWorkspace {
       ? historicalFiles : gitFiles.filter { reviewScope == .staged ? $0.staged : $0.unstaged }
   }
   func loadDiff() async {
+    lastTurnRequest = UUID()
+    if reviewScope == .lastTurn {
+      diffVersion = UUID()
+      await loadLastTurnReview()
+      return
+    }
+    lastTurnReview = nil
     guard gitReadError == nil, let root = gitRoot else { return }
     let token = UUID()
     diffVersion = token

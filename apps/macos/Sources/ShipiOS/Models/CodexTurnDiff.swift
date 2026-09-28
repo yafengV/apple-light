@@ -1,6 +1,6 @@
 import Foundation
 
-struct CodexTurnDiff: Codable, Equatable, Identifiable {
+struct CodexTurnDiff: Codable, Equatable, Identifiable, Sendable {
   let id: UUID
   var unifiedDiff: String
   var truncated: Bool
@@ -8,6 +8,8 @@ struct CodexTurnDiff: Codable, Equatable, Identifiable {
   /// Nil for records created before full private diff snapshots were added.
   var storedByteCount: Int? = nil
   var contentSHA256: String? = nil
+  /// Core renders paths relative to the nearest Git marker, or to the turn cwd.
+  var pathBase: String? = nil
 }
 
 extension AgentRun {

@@ -144,16 +144,18 @@ struct ReviewFileView: View {
   }
 }
 
-private struct ReviewCodeLine: View {
+struct ReviewCodeLine: View {
   let line: ReviewDiffLine
   let addComment: () -> Void
   let openLine: () -> Void
+  var commentsEnabled = true
+  var openEnabled = true
   @Environment(\.appAppearance) private var appearance
   @State private var hovering = false
   @FocusState private var focused: Bool
   var body: some View {
     HStack(spacing: 0) {
-      if line.canComment {
+      if line.canComment && commentsEnabled {
         Button(action: addComment) { Image(systemName: "plus").frame(width: 22, height: 20) }
           .buttonStyle(.plain).focused($focused).opacity(hovering || focused ? 1 : 0)
           .help("添加行内评论").accessibilityLabel("为第 \(line.newLine ?? line.oldLine ?? 0) 行添加评论")
@@ -169,9 +171,10 @@ private struct ReviewCodeLine: View {
         .padding(.trailing, 10)
         .foregroundStyle(line.kind == .header ? Color.secondary : Color.primary)
         .overlay {
-          if line.canComment {
+          if line.canComment && (openEnabled || commentsEnabled) {
             CommandClickTarget(
-              action: openLine, addComment: addComment, code: String(line.text.dropFirst()))
+              action: { if openEnabled { openLine() } },
+              addComment: { if commentsEnabled { addComment() } }, code: String(line.text.dropFirst()))
           }
         }
     }.appFont(size: 11, design: .monospaced).frame(maxWidth: .infinity, alignment: .leading)
@@ -179,8 +182,8 @@ private struct ReviewCodeLine: View {
       .onHover { hovering = $0 }
       .contextMenu {
         if line.canComment {
-          Button("添加行内评论", action: addComment)
-          Button("在编辑器打开此行", action: openLine)
+          Button("添加行内评论", action: addComment).disabled(!commentsEnabled)
+          Button("在编辑器打开此行", action: openLine).disabled(!openEnabled)
         }
       }
   }

@@ -106,6 +106,8 @@ struct ReviewAnchor: Codable, Equatable {
   let code: String
   var oldPath: String? = nil
   var repository: String? = nil
+  var turnRunID: String? = nil
+  var originRoot: String? = nil
   var location: String {
     if let newLine { return "新文件第 \(newLine) 行" }
     return "旧文件第 \(oldLine ?? 0) 行"
