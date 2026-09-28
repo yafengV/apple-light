@@ -91,6 +91,95 @@ private actor LastTurnReadGate {
     XCTAssertNil(store.workspace.error)
   }
 
+  func testRestoredLastTurnScopeStillDiscoversRepositoryBeforeDisplayingReview() async throws {
+    let (store, root) = try await fixture()
+    let run = appendRun(store, root: root, diff: patch)
+    // Reset the mounted state without scheduling a competing automatic refresh;
+    // this test awaits the single refresh that owns the restored scope.
+    store.workspace.setProject(nil)
+    store.workspace.root = root
+    store.workspace.reviewScope = .lastTurn
+    XCTAssertFalse(store.workspace.gitAvailable)
+    await store.workspace.refreshGit()
+    XCTAssertTrue(store.workspace.gitAvailable)
+    XCTAssertEqual(store.workspace.gitRepositoryRoot?.path, root.path)
+    XCTAssertFalse(store.workspace.canInitializeGit)
+    XCTAssertEqual(store.workspace.lastTurnReview?.source.runID, run.id)
+    XCTAssertEqual(store.workspace.lastTurnReview?.unifiedDiff, patch)
+    XCTAssertFalse(store.workspace.gitRefreshing)
+    XCTAssertFalse(store.workspace.reviewLoading)
+  }
+
+  func testLastTurnScopeDoesNotHideMissingRepositoryOrPreventCreation() async throws {
+    let (store, root) = try await fixture()
+    appendRun(store, root: root, diff: patch)
+    store.workspace.reviewScope = .lastTurn
+    await store.workspace.loadDiff()
+    try FileManager.default.removeItem(at: root.appendingPathComponent(".git"))
+    await store.workspace.refreshGit()
+    XCTAssertFalse(store.workspace.gitAvailable)
+    XCTAssertNil(store.workspace.lastTurnReview)
+    XCTAssertTrue(store.workspace.canInitializeGit)
+    XCTAssertNil(store.workspace.gitReadError)
+    XCTAssertEqual(store.workspace.reviewScope, .lastTurn)
+    let created = await store.workspace.initializeGit(at: root)
+    XCTAssertTrue(created)
+    XCTAssertEqual(store.workspace.reviewScope, .unstaged)
+    XCTAssertTrue(store.workspace.gitAvailable)
+  }
+
+  func testLastTurnRefreshShowsRepositoryReadFailureThenRecoversExactSnapshot() async throws {
+    let (store, root) = try await fixture()
+    let run = appendRun(store, root: root, diff: patch)
+    let index = root.appendingPathComponent(".git/index")
+    let originalIndex = try Data(contentsOf: index)
+    store.workspace.reviewScope = .lastTurn
+    await store.workspace.loadDiff()
+    store.workspace.commitMessage = "Keep draft"
+    try Data("broken index".utf8).write(to: index)
+    await store.workspace.refreshGit()
+    XCTAssertFalse(store.workspace.gitAvailable)
+    XCTAssertNotNil(store.workspace.gitReadError)
+    XCTAssertNil(store.workspace.lastTurnReview)
+    XCTAssertFalse(store.workspace.canInitializeGit)
+    XCTAssertFalse(store.workspace.reviewLoading)
+    XCTAssertFalse(store.workspace.gitRefreshing)
+    XCTAssertEqual(store.workspace.commitMessage, "Keep draft")
+    try originalIndex.write(to: index)
+    await store.workspace.refreshGit()
+    XCTAssertTrue(store.workspace.gitAvailable)
+    XCTAssertNil(store.workspace.gitReadError)
+    XCTAssertEqual(store.workspace.reviewScope, .lastTurn)
+    XCTAssertEqual(store.workspace.lastTurnReview?.source.runID, run.id)
+    XCTAssertEqual(store.workspace.diff, patch)
+    XCTAssertFalse(store.workspace.canModifyReview)
+    XCTAssertEqual(try Data(contentsOf: index), originalIndex)
+  }
+
+  func testRepositoryFailureInvalidatesPendingLastTurnRead() async throws {
+    let (store, root) = try await fixture()
+    appendRun(store, root: root, diff: patch)
+    store.workspace.reviewScope = .lastTurn
+    let gate = LastTurnReadGate()
+    store.workspace.readLastTurnSnapshot = { source, root in try await gate.read(source, root: root) }
+    let pending = Task { await store.workspace.loadDiff() }
+    for _ in 0..<500 {
+      if await gate.hasStarted() { break }
+      await Task.yield()
+    }
+    let started = await gate.hasStarted()
+    XCTAssertTrue(started)
+    try Data("broken index".utf8).write(to: root.appendingPathComponent(".git/index"))
+    await store.workspace.refreshGit()
+    await gate.release()
+    await pending.value
+    XCTAssertFalse(store.workspace.gitAvailable)
+    XCTAssertNotNil(store.workspace.gitReadError)
+    XCTAssertNil(store.workspace.lastTurnReview)
+    XCTAssertTrue(store.workspace.diff.isEmpty)
+    XCTAssertFalse(store.workspace.reviewLoading)
+  }
+
   func testStreamingUpdateAndClearReloadTheSameRun() async throws {
     let (store, root) = try await fixture()
     let run = appendRun(store, root: root, diff: patch)

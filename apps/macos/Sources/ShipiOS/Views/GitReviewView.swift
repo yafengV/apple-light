@@ -8,8 +8,9 @@ struct GitReviewView: View {
   @State private var pullRequestTaskID: String?
   var body: some View {
     VStack(spacing: 0) {
-      if workspace.gitAvailable || workspace.reviewScope == .lastTurn {
-        if let repository = workspace.gitRepositoryRoot, let project = workspace.root,
+      if workspace.gitAvailable {
+        if let repository = workspace.reviewScope == .lastTurn
+          ? workspace.lastTurnReview?.source.root : workspace.gitRepositoryRoot, let project = workspace.root,
           GitBranchService.canonicalRoot(project).path != repository.path {
           Text("仓库：\(repository.path)").appFont(.caption).foregroundStyle(.secondary)
             .textSelection(.enabled).padding(.horizontal, 12).padding(.top, 8)
@@ -73,7 +74,7 @@ struct GitReviewView: View {
               .horizontal, 12)
           }
         }
-        if workspace.reviewLoading {
+        if workspace.reviewLoading || workspace.gitRefreshing {
           ProgressView("读取变更…").controlSize(.small).padding(8)
         } else if workspace.reviewScope == .lastTurn && workspace.lastTurnReview?.files.isEmpty != false
           && workspace.error == nil {
@@ -83,7 +84,7 @@ struct GitReviewView: View {
         }
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 10) {
-            if workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
+            if !workspace.gitRefreshing, workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
               LastTurnReviewView(store: store, workspace: workspace, snapshot: snapshot, taskID: taskID)
             } else if !workspace.reviewLoading && !workspace.gitRefreshing
               && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot

@@ -226,12 +226,13 @@ final class DeveloperWorkspace {
   }
 
   func refreshGit() async {
-    if reviewScope == .lastTurn { await loadDiff(); return }
     guard let project = root else { return }
     let token = UUID()
     gitVersion = token
     // A status refresh supersedes older diff requests and their write snapshots.
     diffVersion = UUID()
+    lastTurnRequest = UUID()
+    lastTurnReview = nil
     reviewLoading = false
     reviewArguments = []
     batchSnapshot = nil
@@ -288,6 +289,8 @@ final class DeveloperWorkspace {
   }
   private func clearUnavailableGitReview() {
     diffVersion = UUID()
+    lastTurnRequest = UUID()
+    lastTurnReview = nil
     gitAvailable = false
     canCommit = false
     gitFiles = []
