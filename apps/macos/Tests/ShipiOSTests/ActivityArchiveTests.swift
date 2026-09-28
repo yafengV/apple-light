@@ -89,7 +89,7 @@ import XCTest
     XCTAssertNotNil(store.activeRun(taskID: "unknown"))
     XCTAssertTrue(store.activityError?.contains("unknown") == true)
     XCTAssertEqual(store.notices.items.first?.level, .error)
-    XCTAssertEqual(store.notices.items.first?.title, "已归档 1 个优先任务；1 个无法归档")
+    XCTAssertEqual(store.notices.items.first?.title, "已归档 1 个任务；1 个无法归档")
     XCTAssertTrue(store.activityArchivingTaskIDs.isEmpty)
     XCTAssertFalse(store.archivingActivity)
     await store.shutdown()

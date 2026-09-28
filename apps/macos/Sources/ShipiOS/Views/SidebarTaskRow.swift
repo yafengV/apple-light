@@ -54,39 +54,7 @@ struct SidebarTaskRow: View {
       .accessibilityAddTraits(
         store.destination == .workspace && store.selectedTask?.id == task.id ? .isSelected : []
       )
-      .contextMenu {
-        Button("重命名…") { store.beginRenamingTask(task.id) }
-        Button(store.library.unreadTasks.contains(task.id) ? "标记为已读" : "标记为未读") {
-          store.setTaskUnread(task.id, unread: !store.library.unreadTasks.contains(task.id))
-        }
-        Button(task.pinned ? "取消置顶" : "置顶任务") { store.updateTask(task.id, pin: !task.pinned) }
-        SidebarPlacementMenu(store: store, item: .task(task.id))
-        if let pending = store.library.managedWorktrees.first(where: { $0.taskID == task.id })?.pendingHandoff {
-          Button("继续移交") {
-            Task {
-              if pending.direction == .toWorktree { await store.handOffTaskToWorktree(task.id) }
-              else { await store.handOffTaskToLocal(task.id) }
-            }
-          }
-          .disabled(!store.canHandOffToWorktree(task) && !store.canHandOffToLocal(task))
-        } else if store.library.managedWorktrees.contains(where: {
-          $0.taskID == task.id && $0.path == task.project
-        }) {
-          Button("移交到本地") { Task { await store.handOffTaskToLocal(task.id) } }
-            .disabled(!store.canHandOffToLocal(task))
-        } else if store.library.projects.contains(task.project),
-          !store.library.isPermanentWorktree(task.project) {
-          Button("移交到工作树") { Task { await store.handOffTaskToWorktree(task.id) } }
-            .disabled(!store.canHandOffToWorktree(task))
-        }
-        Button(task.archived ? "恢复任务" : "归档任务") {
-          store.updateTask(task.id, archive: !task.archived)
-        }
-        .disabled(store.activeRun(taskID: task.id) != nil || store.managedTaskPreparing ||
-          store.library.managedWorktrees.contains(where: {
-            $0.taskID == task.id && $0.pendingHandoff != nil
-          }))
-      }
+      .contextMenu { SidebarTaskMenu(store: store, taskID: task.id) }
       .modifier(SidebarItemDrag(store: store, item: .task(task.id)))
   }
 }

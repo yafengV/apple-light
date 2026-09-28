@@ -149,7 +149,7 @@ extension WorkspaceStore {
     catch { activityError = error.localizedDescription; return false }
   }
 
-  private func reviewActivityAutomation(_ task: WorkspaceTask) {
+  func reviewActivityAutomation(_ task: WorkspaceTask) {
     for automation in automationPreferences.items where automation.needsReview {
       for runID in automation.unresolvedRunIDs where task.runIDs.contains(runID) {
         markAutomationReviewed(automation.id, runID: runID)

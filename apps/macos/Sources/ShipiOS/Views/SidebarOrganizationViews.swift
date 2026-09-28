@@ -3,6 +3,7 @@ import SwiftUI
 struct SidebarPlacementMenu: View {
   let store: WorkspaceStore
   let item: SidebarItem
+  var showsOrdering = true
   var body: some View {
     Menu("移动到分组") {
       destination("已置顶", id: SidebarLayout.pinned)
@@ -22,10 +23,12 @@ struct SidebarPlacementMenu: View {
         Button("新建分组…") { store.editSidebarGroup(moving: item) }
       }
     }
-    Button("上移") { store.shiftSidebarItem(item, by: -1) }.disabled(
-      !store.canShiftSidebarItem(item, by: -1))
-    Button("下移") { store.shiftSidebarItem(item, by: 1) }.disabled(
-      !store.canShiftSidebarItem(item, by: 1))
+    if showsOrdering {
+      Button("上移") { store.shiftSidebarItem(item, by: -1) }.disabled(
+        !store.canShiftSidebarItem(item, by: -1))
+      Button("下移") { store.shiftSidebarItem(item, by: 1) }.disabled(
+        !store.canShiftSidebarItem(item, by: 1))
+    }
   }
   private func destination(_ title: String, id: String) -> some View {
     Button {

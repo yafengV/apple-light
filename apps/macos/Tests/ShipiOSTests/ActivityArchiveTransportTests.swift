@@ -23,7 +23,7 @@ final class ActivityArchiveTransportTests: XCTestCase {
     if server?.isRunning == true { server.terminate(); server.waitUntilExit() }
   }
 
-  @MainActor private func checkArchive(_ api: ModelAPIProtocol) async throws {
+  @MainActor private func checkArchive(_ api: ModelAPIProtocol, single: Bool = false) async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
       .deletingLastPathComponent()
@@ -56,7 +56,9 @@ final class ActivityArchiveTransportTests: XCTestCase {
     store.library.queuedMessages.append(queue)
     store.draft = "unsent draft"
     store.toggleActivity()
-    store.requestActivityArchive()
+    if single { await store.archiveActivityTask(owner) }
+    else { store.requestActivityArchive() }
+    XCTAssertEqual(store.activityArchiveRequest?.scope, single ? .task : .priority)
     XCTAssertTrue(store.activityArchiveNeedsStop)
     store.newTask()
     let otherStarted = await store.startChat(api == .codexResponses ? "activity-archive-stream other" : "slow-other")
@@ -95,4 +97,11 @@ final class ActivityArchiveTransportTests: XCTestCase {
   @MainActor func testCoreArchiveStopsActualStreamAndPreservesQueue() async throws {
     try await checkArchive(.codexResponses)
   }
+  @MainActor func testBasicChatSingleRowArchiveStopsOnlyItsActualStream() async throws {
+    try await checkArchive(.chatCompletions, single: true)
+  }
+  @MainActor func testCoreSingleRowArchiveStopsOnlyItsActualStream() async throws {
+    try await checkArchive(.codexResponses, single: true)
+  }
+
 }

@@ -4,13 +4,15 @@ import Foundation
 extension WorkspaceStore {
   func taskShareText(_ task: WorkspaceTask) -> String {
     var sections = ["# \(task.title)"]
-    let taskRuns = task.runIDs.compactMap { id in runs.first { $0.id == id } }
-    for run in taskRuns {
-      if let prompt = library.notes[run.id]?.trimmingCharacters(in: .whitespacesAndNewlines),
+    let knownRuns = Dictionary((library.localRuns + library.chatRuns + runs).map { ($0.id, $0) },
+      uniquingKeysWith: { _, latest in latest })
+    for id in task.runIDs {
+      if let prompt = library.notes[id]?.trimmingCharacters(in: .whitespacesAndNewlines),
         !prompt.isEmpty
       {
         sections.append("## 用户\n\n\(prompt)")
       }
+      guard let run = knownRuns[id] else { continue }
       let response =
         run.kind == "chat"
         ? run.result?["response"].text?.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -353,6 +353,16 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 }},
             ]
+            if 'activity-archive-stream' in request_text and item['type'] == 'message':
+                # Emit a real text delta before holding completion, rather than relying on
+                # output_item.done to be displayed as an in-progress response by every client.
+                events[1:1] = [
+                    {'type': 'response.output_item.added', 'output_index': 0, 'item': {
+                        'id': item['id'], 'type': 'message', 'role': 'assistant', 'content': []}},
+                    {'type': 'response.output_text.delta', 'item_id': item['id'],
+                        'output_index': 0, 'content_index': 0,
+                        'delta': item['content'][0]['text']},
+                ]
             if item['type'] == 'web_search_call':
                 events.insert(1, {'type': 'response.output_item.added', 'item': {
                     'type': 'web_search_call', 'id': item['id'], 'status': 'in_progress'}})

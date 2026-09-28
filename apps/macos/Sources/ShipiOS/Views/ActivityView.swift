@@ -116,24 +116,10 @@ struct ActivityView: View {
   }
 
   private func row(_ item: ActivityTaskEntry) -> some View {
-    Button { focusedID = item.id; open(item.id) } label: {
-      HStack(spacing: 8) {
-        Image(systemName: item.statusIcon)
-          .foregroundStyle(item.attention != nil ? .orange : .secondary).frame(width: 16)
-        VStack(alignment: .leading, spacing: 3) {
-          Text(item.task.title.isEmpty ? "未命名任务" : item.task.title)
-            .appFont(.callout, weight: item.unread ? .semibold : .regular).lineLimit(1)
-          Text(item.task.project.isEmpty ? item.statusTitle
-            : store.library.projectTitle(item.task.project) + " · " + item.statusTitle)
-            .appFont(size: 10).foregroundStyle(.secondary).lineLimit(1)
-        }
-        Spacer(minLength: 0)
-        if opening == item.id { ProgressView().controlSize(.mini) }
-      }.padding(.horizontal, 10).padding(.vertical, 8)
-        .background((focusedID == item.id && listFocused) || store.selectedTask?.id == item.id
-          ? Color.primary.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 7))
-        .contentShape(Rectangle())
-    }.buttonStyle(.plain).disabled(opening != nil || !store.canSelectTask(item.task))
-      .accessibilityLabel("\(item.task.title)，\(item.statusTitle)")
+    ActivityTaskRow(store: store, item: item, opening: opening == item.id,
+      openingAny: opening != nil, focused: focusedID == item.id && listFocused) {
+        focusedID = item.id
+        open(item.id)
+      }
   }
 }

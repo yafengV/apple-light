@@ -10,6 +10,20 @@ extension WorkspaceStore {
     activityPriorityEntries.filter { activityTaskCanArchive($0.task) }.map(\.id)
   }
 
+  func canArchiveActivityTask(_ id: String) -> Bool {
+    showingActivity && canMutateArchive && taskMenuTarget(id).map(activityTaskCanArchive) == true
+  }
+
+  /// A row always addresses its own identity, including recent and separately pinned tasks.
+  func archiveActivityTask(_ id: String) async {
+    guard canArchiveActivityTask(id) else { return }
+    activityError = nil
+    activityArchiveResult = nil
+    let request = ActivityArchiveRequest(taskIDs: [id], scope: .task)
+    if activeRun(taskID: id) != nil { activityArchiveRequest = request }
+    else { await performActivityArchive(request) }
+  }
+
   var activityArchiveNeedsStop: Bool {
     activityArchiveRequest?.taskIDs.contains { activeRun(taskID: $0) != nil } == true
   }
@@ -31,11 +45,23 @@ extension WorkspaceStore {
 
   func confirmActivityArchive() async {
     guard let request = activityArchiveRequest, !archivingActivity else { return }
+    await performActivityArchive(request)
+  }
+
+  private func performActivityArchive(_ request: ActivityArchiveRequest) async {
+    guard !archivingActivity else { return }
     archivingActivity = true
     activityArchivingTaskIDs = Set(request.taskIDs)
     defer { archivingActivity = false; activityArchivingTaskIDs = [] }
     await Task.yield()
-    guard activityArchiveRequest?.id == request.id else { return }
+    // Idle row archives have no confirmation. A published confirmation cannot be replaced.
+    guard activityArchiveRequest == nil || activityArchiveRequest?.id == request.id else { return }
+    if request.scope == .task, activityArchiveRequest == nil,
+      request.taskIDs.contains(where: { activeRun(taskID: $0) != nil }) {
+      // Work may have started between the row click and reservation. Ask before stopping it.
+      activityArchiveRequest = request
+      return
+    }
     var result = ActivityArchiveResult()
     for id in request.taskIDs {
       do {
