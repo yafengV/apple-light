@@ -135,6 +135,25 @@ extension WorkspaceStore {
     NSWorkspace.shared.activateFileViewerSelecting([url])
   }
 
+  func isSkillEnabled(_ skill: PluginSkillReference) -> Bool {
+    pluginPreferences.isSkillEnabled(skill)
+  }
+
+  @discardableResult func setSkillEnabled(_ enabled: Bool, skill: PluginSkillReference) -> Bool {
+    guard skill.isRepository else { return setSkillEnabled(enabled, id: skill.id) }
+    guard pluginsLoaded else { return false }
+    guard !currentProjectKey.isEmpty else {
+      pluginsError = "项目已切换，请回到可使用此技能的项目后再修改启用状态。"
+      return false
+    }
+    do {
+      pluginPreferences = try PluginStorage.setRepositorySkillEnabled(enabled, id: skill.id,
+        project: URL(fileURLWithPath: currentProjectKey, isDirectory: true), root: dataRoot)
+      pluginsError = nil
+      return true
+    } catch { pluginsError = error.localizedDescription; return false }
+  }
+
   @discardableResult func setSkillEnabled(_ enabled: Bool, id: String) -> Bool {
     guard pluginsLoaded else { return false }
     do {

@@ -14,8 +14,10 @@ extension WorkspaceStore {
     do {
       // Recheck the installed state before creating anything; a preview may be stale.
       let preferences = try PluginStorage.load(root: dataRoot)
+      let repository = currentProjectKey.isEmpty ? [] : try PluginStorage.repositorySkills(
+        project: URL(fileURLWithPath: currentProjectKey, isDirectory: true))
       let skills = try PluginStorage.skills(preferences: preferences, root: dataRoot)
-        + repositorySkills(for: currentProjectKey)
+        + repository.filter { preferences.isSkillEnabled($0) }
       guard let skill = skills.first(where: { $0.id == id }) else {
         throw AgentFailure(message: "技能已被停用或移除，请重新加载插件。")
       }

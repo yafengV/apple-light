@@ -234,7 +234,7 @@ extension WorkspaceStore {
       !pluginPreferences.disabledSkillIDs.contains(skill.id)
         && (skill.isStandalone || pluginPreferences.installed.contains { $0.id == skill.pluginID && $0.enabled })
     }
-    return installed + ((try? repositorySkills(for: projectPath)) ?? [])
+    return installed + ((try? repositorySkills(for: projectPath)) ?? []).filter { pluginPreferences.isSkillEnabled($0) }
   }
 
   var activePluginPreferences: PluginPreferences {

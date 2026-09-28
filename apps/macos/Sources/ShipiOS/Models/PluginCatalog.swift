@@ -74,17 +74,26 @@ struct PluginSkillReference: Equatable, Identifiable {
 struct PluginPreferences: Codable, Equatable {
   var installed: [PluginInstallation] = []
   var disabledSkillIDs: Set<String> = []
+  var disabledRepositorySkillPaths: Set<String> = []
   var standaloneSkills: [String] = []
 
   init(installed: [PluginInstallation] = []) { self.installed = installed }
 
-  enum CodingKeys: String, CodingKey { case installed, disabledSkillIDs, standaloneSkills }
+  enum CodingKeys: String, CodingKey { case installed, disabledSkillIDs, disabledRepositorySkillPaths, standaloneSkills }
 
   init(from decoder: Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
     installed = try values.decodeIfPresent([PluginInstallation].self, forKey: .installed) ?? []
     disabledSkillIDs = try values.decodeIfPresent(Set<String>.self, forKey: .disabledSkillIDs) ?? []
+    disabledRepositorySkillPaths = try values.decodeIfPresent(Set<String>.self, forKey: .disabledRepositorySkillPaths) ?? []
     standaloneSkills = try values.decodeIfPresent([String].self, forKey: .standaloneSkills) ?? []
+  }
+
+  func isSkillEnabled(_ skill: PluginSkillReference) -> Bool {
+    if skill.isRepository {
+      return !disabledRepositorySkillPaths.contains(skill.fileURL.resolvingSymlinksInPath().path)
+    }
+    return !disabledSkillIDs.contains(skill.id)
   }
 }
 
@@ -453,7 +462,9 @@ enum PluginStorage {
     }
     let invokedPluginIDs = ids
     var availableSkills = try skills(preferences: preferences, root: root)
-    if let repositoryRoot { availableSkills += try repositorySkills(project: repositoryRoot) }
+    if let repositoryRoot {
+      availableSkills += try repositorySkills(project: repositoryRoot).filter { preferences.isSkillEnabled($0) }
+    }
     let skillExpression = try NSRegularExpression(
       pattern: #"(?<![A-Za-z0-9._/-])\$([A-Za-z0-9][A-Za-z0-9._-]{0,63}(?:/[A-Za-z0-9][A-Za-z0-9._-]{0,63})?)"#)
     var selectedSkills: [PluginSkillReference] = []
@@ -616,6 +627,12 @@ enum PluginStorage {
       if requirePackages,
         !FileManager.default.fileExists(atPath: packageURL(root: root, id: plugin.id).path)
       { throw AgentFailure(message: "插件 \(plugin.name) 的文件缺失。") }
+    }
+    for path in preferences.disabledRepositorySkillPaths {
+      guard path.hasPrefix("/"), path.hasSuffix("/SKILL.md"),
+        !path.contains("\0"), path.utf8.count <= 16_384,
+        URL(fileURLWithPath: path).standardizedFileURL.path == path
+      else { throw AgentFailure(message: "项目技能启用配置包含无效路径。") }
     }
     for id in preferences.disabledSkillIDs {
       if id.hasPrefix("user:"), preferences.standaloneSkills.contains(String(id.dropFirst(5))) { continue }

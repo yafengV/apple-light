@@ -1,6 +1,20 @@
 import Foundation
 
 extension PluginStorage {
+  static func setRepositorySkillEnabled(
+    _ enabled: Bool, id: String, project: URL, root: URL
+  ) throws -> PluginPreferences {
+    guard let skill = try repositorySkills(project: project).first(where: { $0.id == id }) else {
+      throw AgentFailure(message: "项目技能已移除或项目已切换，请重新加载技能。")
+    }
+    var preferences = try load(root: root)
+    let path = skill.fileURL.resolvingSymlinksInPath().path
+    if enabled { preferences.disabledRepositorySkillPaths.remove(path) }
+    else { preferences.disabledRepositorySkillPaths.insert(path) }
+    try save(preferences, root: root)
+    return preferences
+  }
+
   private static func repositorySkillDirectory(project: URL, create: Bool) throws -> URL {
     let project = project.standardizedFileURL
     guard try project.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
@@ -123,7 +137,7 @@ extension PluginStorage {
   static func repositorySkills(project: URL) throws -> [PluginSkillReference] {
     let project = project.standardizedFileURL
     guard FileManager.default.fileExists(atPath: project.path) else { return [] }
-    let rootValues = try project.resourceValues(forKeys: [.isDirectoryKey])
+    let rootValues = try project.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey])
     guard rootValues.isDirectory == true else {
       throw AgentFailure(message: "项目目录不可用，无法读取项目技能。")
     }

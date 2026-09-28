@@ -236,4 +236,137 @@ final class RepositorySkillTests: XCTestCase {
     XCTAssertFalse(store.updateRepositorySkill(id: skill.id, text: "wrong project",
       expectedOriginal: "# Shared\nNEW", project: root))
   }
+
+  func testDisableRepositorySkillPersistsBySourceAndLeavesFilesAndOtherProjectsUnchanged() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let first = try project(at: base, name: "First", text: "# First\nFIRST-INSTRUCTIONS")
+    let second = try project(at: base, name: "Second", text: "# Second\nSECOND-INSTRUCTIONS")
+    let root = base.appendingPathComponent("Data")
+    let skill = try XCTUnwrap(PluginStorage.repositorySkills(project: first).first)
+    let other = try XCTUnwrap(PluginStorage.repositorySkills(project: second).first)
+    let original = try Data(contentsOf: skill.fileURL)
+    _ = try PluginStorage.setRepositorySkillEnabled(false, id: skill.id, project: first, root: root)
+    let loaded = try PluginStorage.load(root: root)
+    XCTAssertFalse(loaded.isSkillEnabled(skill))
+    XCTAssertTrue(loaded.isSkillEnabled(other))
+    XCTAssertEqual(try Data(contentsOf: skill.fileURL), original)
+    XCTAssertEqual(try PluginStorage.repositorySkills(project: first).map(\.id), [skill.id])
+    for prompt in [skill.promptReference, "$repo/review", "$review"] {
+      XCTAssertTrue(try PluginStorage.promptContext(prompt: prompt, preferences: loaded,
+        root: root, repositoryRoot: first).instructions.isEmpty)
+    }
+    XCTAssertTrue(try PluginStorage.promptContext(prompt: other.promptReference, preferences: loaded,
+      root: root, repositoryRoot: second).instructions.contains("SECOND-INSTRUCTIONS"))
+    XCTAssertThrowsError(try PluginStorage.setRepositorySkillEnabled(true, id: skill.id,
+      project: second, root: root))
+    let enabled = try PluginStorage.setRepositorySkillEnabled(true, id: skill.id, project: first, root: root)
+    XCTAssertTrue(enabled.isSkillEnabled(skill))
+    XCTAssertTrue(try PluginStorage.promptContext(prompt: skill.promptReference, preferences: enabled,
+      root: root, repositoryRoot: first).instructions.contains("FIRST-INSTRUCTIONS"))
+  }
+
+  func testSharedRepositoryToggleUsesCanonicalFileAcrossNestedProjectsAndAliases() throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let project = try project(at: base, name: "Repo", text: "# Shared\nSHARED")
+    try FileManager.default.createDirectory(at: project.appendingPathComponent(".git"),
+      withIntermediateDirectories: true)
+    let child = try self.project(at: project, name: "Child", text: "# Child\nCHILD")
+    let alias = base.appendingPathComponent("Alias", isDirectory: true)
+    try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: project)
+    let root = base.appendingPathComponent("Data")
+    let shared = try XCTUnwrap(PluginStorage.repositorySkills(project: project).first)
+    let loaded = try PluginStorage.setRepositorySkillEnabled(false, id: shared.id, project: child, root: root)
+    let children = try PluginStorage.repositorySkills(project: child)
+    XCTAssertEqual(children.filter { loaded.isSkillEnabled($0) }.map(\.repositoryRoot), [child])
+    let aliased = try XCTUnwrap(PluginStorage.repositorySkills(project: alias).first)
+    XCTAssertFalse(loaded.isSkillEnabled(aliased))
+    try FileManager.default.removeItem(at: shared.fileURL)
+    XCTAssertNoThrow(try PluginStorage.load(root: root))
+    try Data("# Restored\nRESTORED".utf8).write(to: shared.fileURL)
+    XCTAssertFalse(try PluginStorage.load(root: root).isSkillEnabled(shared))
+  }
+
+  @MainActor func testRepositoryToggleUpdatesCandidatesTrialsAndSurvivesReload() async throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let project = try project(at: base, name: "Project", text: "# Review\nREVIEW")
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("Data"))
+    store.libraryLoaded = true
+    store.restoringLibrary = false
+    store.scopeLoaded = true
+    store.project = project
+    store.draft = "keep draft"
+    await store.loadPlugins()
+    let skill = try XCTUnwrap(store.composerSkills.first)
+    XCTAssertTrue(store.setSkillEnabled(false, skill: skill))
+    XCTAssertFalse(store.isSkillEnabled(skill))
+    XCTAssertTrue(store.composerSkills.isEmpty)
+    XCTAssertFalse(store.canTrySkill(skill.id))
+    XCTAssertFalse(store.trySkill(skill.id))
+    XCTAssertTrue(store.library.tasks.isEmpty)
+    XCTAssertEqual(store.draft, "keep draft")
+    XCTAssertEqual(try store.repositorySkills(for: project.path).map(\.id), [skill.id])
+    await store.loadPlugins()
+    XCTAssertTrue(store.composerSkills.isEmpty)
+    XCTAssertTrue(store.setSkillEnabled(true, skill: skill))
+    XCTAssertEqual(store.composerSkills.map(\.id), [skill.id])
+    XCTAssertTrue(store.trySkill(skill.id))
+    XCTAssertEqual(store.draft, skill.trialPrompt)
+  }
+
+  @MainActor func testTrialRechecksExternalRepositoryDisableAndDeletionBeforeCreatingTask() async throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let project = try project(at: base, name: "Project", text: "# Review\nREVIEW")
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("Data"))
+    store.libraryLoaded = true
+    store.restoringLibrary = false
+    store.scopeLoaded = true
+    store.project = project
+    await store.loadPlugins()
+    let skill = try XCTUnwrap(store.composerSkills.first)
+    _ = try PluginStorage.setRepositorySkillEnabled(false, id: skill.id, project: project, root: store.dataRoot)
+    XCTAssertTrue(store.canTrySkill(skill.id)) // Preview has not received the external change yet.
+    XCTAssertFalse(store.trySkill(skill.id))
+    XCTAssertTrue(store.library.tasks.isEmpty)
+    _ = try PluginStorage.setRepositorySkillEnabled(true, id: skill.id, project: project, root: store.dataRoot)
+    try FileManager.default.removeItem(at: skill.fileURL)
+    XCTAssertFalse(store.trySkill(skill.id))
+    XCTAssertFalse(store.setSkillEnabled(false, skill: skill))
+    XCTAssertTrue(store.library.tasks.isEmpty)
+  }
+
+  func testRepositoryTogglePreferencesAcceptLegacyDataAndRejectMalformedPaths() throws {
+    let legacy = try JSONDecoder().decode(PluginPreferences.self, from: Data(#"{"installed":[]}"#.utf8))
+    XCTAssertTrue(legacy.disabledRepositorySkillPaths.isEmpty)
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    for path in ["relative/SKILL.md", "/tmp/skill/notes.txt", "/tmp/../skill/SKILL.md", "/tmp/\0/SKILL.md"] {
+      var preferences = PluginPreferences()
+      preferences.disabledRepositorySkillPaths = [path]
+      XCTAssertThrowsError(try PluginStorage.save(preferences, root: root))
+    }
+  }
+
+
+  @MainActor func testStaleRepositoryToggleCannotChangeUnrelatedOrProjectlessScope() async throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: base) }
+    let first = try project(at: base, name: "First", text: "# Review\nFIRST")
+    let second = try project(at: base, name: "Second", text: "# Review\nSECOND")
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("Data"))
+    store.project = first
+    await store.loadPlugins()
+    let skill = try XCTUnwrap(store.composerSkills.first)
+    store.project = second
+    XCTAssertFalse(store.setSkillEnabled(false, skill: skill))
+    XCTAssertNotNil(store.pluginsError)
+    store.project = nil
+    XCTAssertFalse(store.setSkillEnabled(false, skill: skill))
+    XCTAssertNotNil(store.pluginsError)
+    XCTAssertTrue(try PluginStorage.load(root: store.dataRoot).disabledRepositorySkillPaths.isEmpty)
+  }
+
 }

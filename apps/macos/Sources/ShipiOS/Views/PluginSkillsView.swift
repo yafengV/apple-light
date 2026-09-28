@@ -71,13 +71,11 @@ struct PluginSkillsView: View {
                 .disabled(!store.pluginsLoaded)
                 .accessibilityLabel("编辑技能：\(skill.title)")
             }
-            if !skill.isRepository {
-              Toggle("启用技能", isOn: Binding(
-                get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
-                set: { _ = store.setSkillEnabled($0, id: skill.id) }))
-                .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
-                .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
-            }
+            Toggle("启用技能", isOn: Binding(
+              get: { store.isSkillEnabled(skill) },
+              set: { _ = store.setSkillEnabled($0, skill: skill) }))
+              .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
+              .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
           }.padding(.vertical, 6)
           Divider()
         }
@@ -124,13 +122,11 @@ struct PluginSkillsView: View {
         .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
       HStack {
         if !parentEnabled { Text("插件已停用").appFont(.caption).foregroundStyle(.secondary) }
-        if !skill.isRepository {
-          Toggle("启用技能", isOn: Binding(
-            get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
-            set: { _ = store.setSkillEnabled($0, id: skill.id) }))
-            .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
-            .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
-        }
+        Toggle("启用技能", isOn: Binding(
+          get: { store.isSkillEnabled(skill) },
+          set: { _ = store.setSkillEnabled($0, skill: skill) }))
+          .labelsHidden().accessibilityLabel("启用技能：\(skill.title)")
+          .disabled(!store.pluginsLoaded || !store.pluginsEnabled || !parentEnabled)
         Spacer()
         Button("立即尝试") { _ = store.trySkill(skill.id) }
           .disabled(!store.canTrySkill(skill.id))
@@ -293,15 +289,13 @@ private struct PluginSkillPreview: View {
       }.frame(maxWidth: .infinity, maxHeight: .infinity)
       if let actionError { Text(actionError).foregroundStyle(.red).textSelection(.enabled) }
       HStack {
-        if !skill.isRepository {
-          Toggle("启用技能", isOn: Binding(
-            get: { !store.pluginPreferences.disabledSkillIDs.contains(skill.id) },
-            set: { enabled in
-              actionError = store.setSkillEnabled(enabled, id: skill.id) ? nil : store.pluginsError
-            }))
-            .disabled(!store.pluginsLoaded || !store.pluginsEnabled
-              || (!skill.isStandalone && store.pluginPreferences.installed.first(where: { $0.id == skill.pluginID })?.enabled != true))
-        }
+        Toggle("启用技能", isOn: Binding(
+          get: { store.isSkillEnabled(skill) },
+          set: { enabled in
+            actionError = store.setSkillEnabled(enabled, skill: skill) ? nil : store.pluginsError
+          }))
+          .disabled(!store.pluginsLoaded || !store.pluginsEnabled
+            || (!skill.isStandalone && !skill.isRepository && store.pluginPreferences.installed.first(where: { $0.id == skill.pluginID })?.enabled != true))
         if skill.isStandalone {
           Button("卸载技能", role: .destructive) { confirmingRemoval = true }
             .disabled(!store.pluginsLoaded)
