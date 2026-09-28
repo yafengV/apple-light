@@ -168,7 +168,7 @@ struct TaskWindowView: View {
               }
               if summaryInline {
                 Divider()
-                TaskSummaryView(task: task, runs: taskRuns, library: store.library,
+                TaskSummaryView(store: store, task: task, runs: taskRuns, library: store.library,
                   openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                   openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -253,7 +253,7 @@ struct TaskWindowView: View {
             .popover(isPresented: Binding(
               get: { taskSummary.showsPopover },
               set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
-              TaskSummaryView(task: task, runs: taskRuns, library: store.library,
+              TaskSummaryView(store: store, task: task, runs: taskRuns, library: store.library,
                 openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                 openFile: { taskSummary.dismissPopover(); previewFile = $0 },

@@ -216,6 +216,7 @@ struct GitPreferences: Codable, Equatable {
   var alwaysForcePush = false
   var includeUnstagedInCommit = true
   var createDraftPullRequests = false
+  var pullRequestMergeMethod = GitHubPRMergeMethod.merge
 
   init() {}
 
@@ -224,6 +225,7 @@ struct GitPreferences: Codable, Equatable {
     case includeUnstagedInCommit
     case createDraftPullRequests
     case pullRequestInstructions
+    case pullRequestMergeMethod
   }
 
   init(from decoder: Decoder) throws {
@@ -239,6 +241,8 @@ struct GitPreferences: Codable, Equatable {
     alwaysForcePush = try c.decodeIfPresent(Bool.self, forKey: .alwaysForcePush) ?? false
     includeUnstagedInCommit = try c.decodeIfPresent(Bool.self, forKey: .includeUnstagedInCommit) ?? true
     createDraftPullRequests = try c.decodeIfPresent(Bool.self, forKey: .createDraftPullRequests) ?? false
+    let method = try c.decodeIfPresent(String.self, forKey: .pullRequestMergeMethod)
+    pullRequestMergeMethod = method.flatMap(GitHubPRMergeMethod.init(rawValue:)) ?? .merge
   }
 
   mutating func normalize() {

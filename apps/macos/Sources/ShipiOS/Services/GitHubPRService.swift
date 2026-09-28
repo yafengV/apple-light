@@ -10,7 +10,7 @@ struct GitHubPRService: Sendable {
       .map { URL(fileURLWithPath: $0) }
   }
 
-  private func run(_ args: [String], at root: URL) async throws -> String {
+  func run(_ args: [String], at root: URL) async throws -> String {
     guard let executable = executable ?? Self.installedExecutable(),
       FileManager.default.isExecutableFile(atPath: executable.path) else {
       throw AgentFailure(message: "尚未安装 GitHub CLI（gh）。安装后运行 gh auth login，再重新检查。")
@@ -187,7 +187,7 @@ struct GitHubPRService: Sendable {
     let repository = try GitHubRepository.parse("https://github.com/\(parts[1])/\(parts[2])")
     let output = try await run(["pr", "view", String(pullRequest.number), "--repo",
       repository.fullName, "--json",
-      "number,url,title,body,state,isDraft,headRefName,baseRefName,reviewDecision,mergeable,statusCheckRollup"], at: root)
+      "number,url,title,body,state,isDraft,headRefName,baseRefName,reviewDecision,mergeable,statusCheckRollup,headRefOid,mergeStateStatus"], at: root)
     let details = try JSONDecoder().decode(GitHubPRDetails.self, from: Data(output.utf8))
     guard details.number == pullRequest.number,
       repository.pullRequestURL(details.url) == url,

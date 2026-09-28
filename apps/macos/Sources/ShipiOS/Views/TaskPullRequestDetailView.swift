@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct TaskPullRequestDetailView: View {
+  let store: WorkspaceStore
+  let taskID: String
   let request: GitHubPullRequest
   let root: URL
   let openExternal: (URL) -> Void
@@ -9,9 +11,16 @@ struct TaskPullRequestDetailView: View {
   let back: () -> Void
   let close: () -> Void
 
-  @State private var details: GitHubPRDetails?
-  @State private var loading = false
-  @State private var error: String?
+  @State private var state = GitHubPRDetailState()
+  private var details: GitHubPRDetails? { state.snapshot?.details }
+  private var valid: Bool {
+    !store.restoringLibrary && !store.shuttingDown
+      && store.library.tasks.contains { $0.id == taskID && $0.project == root.path }
+      && store.library.taskPullRequests[taskID]?.contains {
+        $0.validatedURL == request.validatedURL && $0.number == request.number && $0.validatedURL != nil
+      } == true
+  }
+  private var writable: Bool { valid && !store.library.gitPreferences.readOnlyReview }
 
   var body: some View {
     VStack(spacing: 0) {
@@ -32,7 +41,7 @@ struct TaskPullRequestDetailView: View {
               systemImage: details?.state.uppercased() == "MERGED" ? "checkmark.circle.fill"
                 : "arrow.triangle.pullrequest")
             Spacer()
-            if loading { ProgressView().controlSize(.small) }
+            if state.loading { ProgressView().controlSize(.small) }
           }.appFont(.caption).foregroundStyle(.secondary)
           Text("\(details?.headRefName ?? request.headRefName) → \(details?.baseRefName ?? request.baseRefName)")
             .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
@@ -56,12 +65,20 @@ struct TaskPullRequestDetailView: View {
               }
             }
           }
-          if let error {
+          if let snapshot = state.snapshot, snapshot.showsActions {
+            TaskPullRequestActionsView(state: state, request: request, writable: writable,
+              apply: apply)
+          }
+          if let error = state.error {
             Label(error, systemImage: "exclamationmark.circle")
               .appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
           }
+          if let notice = state.notice {
+            Text(notice).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+          }
           HStack {
-            Button("刷新状态") { Task { await refresh() } }.disabled(loading)
+            Button("刷新状态") { Task { await refresh() } }
+              .disabled(state.loading || state.busy(for: request))
             Spacer()
             Menu {
               Button("复制链接") {
@@ -84,23 +101,26 @@ struct TaskPullRequestDetailView: View {
     }
     .frame(width: 316)
     .background(.regularMaterial)
-    .task(id: request.url) { await refresh() }
+    .task(id: taskID + root.path + request.url) { state.cancel(); await refresh() }
+    .onDisappear { state.cancel() }
+    .sheet(isPresented: $state.showingMergeConfirmation) {
+      TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
+        confirm: { apply(.merge(state.selectedMethod)) })
+    }
   }
 
   private func refresh() async {
-    guard !loading else { return }
-    loading = true
-    error = nil
-    defer { loading = false }
-    do {
-      let updated = try await GitHubPRService().details(for: request, at: root)
-      guard !Task.isCancelled else { return }
-      details = updated
-      onRefresh(updated.recorded(updating: request))
-    } catch {
-      guard !Task.isCancelled else { return }
-      self.error = error.localizedDescription
-    }
+    await state.refresh(request, at: root, preferred: store.library.gitPreferences.pullRequestMergeMethod,
+      valid: { valid }, updated: onRefresh)
+  }
+
+  private func apply(_ action: GitHubPRMergeAction) {
+    state.start(action, request: request, at: root, valid: { valid }, writable: { writable },
+      updated: onRefresh, saveFallback: {
+        var preferences = store.library.gitPreferences
+        preferences.pullRequestMergeMethod = .squash
+        return store.saveGitPreferences(preferences)
+      })
   }
 
   private func reviewLabel(_ decision: String) -> String {

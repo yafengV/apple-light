@@ -45,11 +45,34 @@ elif args[:2] == ["pr", "view"]:
                "state": state.get("detailState", "OPEN"),
                "reviewDecision": state.get("reviewDecision"),
                "mergeable": state.get("mergeable"),
-               "statusCheckRollup": state.get("statusCheckRollup", [])}
+               "statusCheckRollup": state.get("statusCheckRollup", []),
+               "headRefOid": state.get("detailHead", state.get("head")),
+               "mergeStateStatus": state.get("mergeStateStatus", "CLEAN")}
+    if state.get("detailFailureAfterAction") and state.get("actionAccepted"):
+        sys.exit("Cannot refresh after action")
     if state.get("detailMismatch"):
         details["url"] = "https://github.com/other/project/pull/42"
     print(json.dumps(details))
 elif args and args[0] == "api":
+    if args[1] == "graphql":
+        if state.get("metadataFailure"):
+            sys.exit("Metadata unavailable")
+        item = next((item for item in state.get("pullRequests", [])
+                     if "number=" + str(item.get("number")) in args), None)
+        if item is None:
+            sys.exit("PR not found")
+        request = {**item, "state": state.get("detailState", "OPEN"),
+                   "headRefOid": state.get("metadataHead", state.get("detailHead", state.get("head"))),
+                   "author": {"login": state.get("author", "fixture-author")},
+                   "autoMergeRequest": {"enabledAt": "2026-09-29T00:00:00Z"} if state.get("autoMerge") else None}
+        response = {"data": {"viewer": {"login": state.get("viewer", "fixture-author")},
+                    "repository": {"nameWithOwner": state.get("metadataRepository", "sample/project"),
+                    "mergeCommitAllowed": state.get("allowMerge", True),
+                    "squashMergeAllowed": state.get("allowSquash", True), "pullRequest": request}}}
+        if state.get("graphqlError"):
+            response["errors"] = [{"message": "Fixture partial error"}]
+        print(json.dumps(response))
+        sys.exit(0)
     endpoint = next(value for value in args if value.startswith("repos/"))
     if state.get("remotePath"):
         branch = urllib.parse.unquote(endpoint.split("/git/ref/heads/", 1)[1])
@@ -73,6 +96,32 @@ elif args[:2] == ["pr", "create"]:
         print("Connection interrupted after server accepted request", file=sys.stderr)
         sys.exit(1)
     print(state.get("resultURL", item["url"]))
+elif args[:2] == ["pr", "merge"]:
+    if state.get("mutationDelay"):
+        import time
+        time.sleep(state["mutationDelay"])
+    if state.get("mergeRestriction") and "--merge" in args:
+        state["allowMerge"] = False
+        state_path.write_text(json.dumps(state))
+        sys.exit("Merge commits are not allowed on this repository")
+    if state.get("mutationFailure"):
+        sys.exit("Merge failed")
+    if state.get("raceHead"):
+        state["detailHead"] = state["raceHead"]
+        state_path.write_text(json.dumps(state))
+    if "--match-head-commit" in args and arg("--match-head-commit") != state.get("detailHead", state["head"]):
+        sys.exit("Head commit does not match")
+    if "--disable-auto" in args:
+        state["autoMerge"] = False
+    elif "--auto" in args:
+        state["autoMerge"] = True
+    elif not state.get("mergeQueue"):
+        state["detailState"] = "MERGED"
+    state["actionAccepted"] = True
+    state_path.write_text(json.dumps(state))
+    if state.get("failAfterAction"):
+        sys.exit("Connection interrupted after server accepted request")
+    print("Fixture action accepted")
 else:
     print("Unsupported fixture command", args, file=sys.stderr)
     sys.exit(2)

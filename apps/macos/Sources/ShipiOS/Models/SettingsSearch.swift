@@ -57,6 +57,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case pullRequestInstructions
   case alwaysForcePush
   case createDraftPullRequests
+  case pullRequestMergeMethod
   case gitWorktreeRoot
   case reviewScope
   case readOnlyReview
@@ -160,6 +161,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .pullRequestInstructions: .git
     case .alwaysForcePush: .git
     case .createDraftPullRequests: .git
+    case .pullRequestMergeMethod: .git
     case .gitWorktreeRoot: .git
     case .reviewScope: .codeReview
     case .readOnlyReview: .codeReview
@@ -242,6 +244,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .pullRequestInstructions: "PR 指令"
     case .alwaysForcePush: "始终强制推送"
     case .createDraftPullRequests: "创建草稿 PR"
+    case .pullRequestMergeMethod: "默认合并方式"
     case .gitWorktreeRoot: "工作树根目录"
     case .reviewScope: "默认变更范围"
     case .readOnlyReview: "只读审查"
@@ -355,6 +358,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .pullRequestInstructions: "pull request instructions GitHub 描述 生成"
     case .alwaysForcePush: "push force-with-lease 远端"
     case .createDraftPullRequests: "draft pull request GitHub"
+    case .pullRequestMergeMethod: "merge squash pull request GitHub 压缩 合并提交"
     case .gitWorktreeRoot: "目录"
     case .reviewScope: "比较范围"
     case .readOnlyReview: "暂存 提交"

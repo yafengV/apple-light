@@ -3,6 +3,7 @@ import SwiftUI
 
 /// A task-local summary assembled only from records ShipiOS actually owns.
 struct TaskSummaryView: View {
+  let store: WorkspaceStore
   private enum Preview: Identifiable {
     case log(TaskSummaryOutputFile)
     case file(TaskSummaryLinkedFile)
@@ -50,7 +51,7 @@ struct TaskSummaryView: View {
   var body: some View {
     Group {
       if let selection = selectedPullRequest, selection.taskID == task.id {
-        TaskPullRequestDetailView(request: selection.request,
+        TaskPullRequestDetailView(store: store, taskID: task.id, request: selection.request,
           root: URL(fileURLWithPath: task.project, isDirectory: true),
           openExternal: openExternal,
           onRefresh: onPullRequestUpdated,

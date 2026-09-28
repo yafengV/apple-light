@@ -205,7 +205,7 @@ struct WorkspaceView: View {
               .popover(isPresented: Binding(
                 get: { taskSummary.showsPopover },
                 set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
-                TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
+                TaskSummaryView(store: store, task: task, runs: store.conversationRuns, library: store.library,
                   openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                   openFile: { taskSummary.dismissPopover(); store.preview($0) },
@@ -363,7 +363,7 @@ struct WorkspaceView: View {
             }
             if summaryInline, let task = store.selectedTask {
               Divider()
-              TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
+              TaskSummaryView(store: store, task: task, runs: store.conversationRuns, library: store.library,
                 openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                 openFile: { taskSummary.dismissPopover(); store.preview($0) },

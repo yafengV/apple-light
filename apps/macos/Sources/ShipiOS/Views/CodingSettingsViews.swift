@@ -152,6 +152,15 @@ struct GitSettingsView: View {
           })).settingsSearchTarget(.alwaysForcePush)
       }
       Section("Pull Request") {
+        Picker("默认合并方式", selection: Binding(
+          get: { store.library.gitPreferences.pullRequestMergeMethod },
+          set: { value in
+            var preferences = store.library.gitPreferences
+            preferences.pullRequestMergeMethod = value
+            status = store.saveGitPreferences(preferences) ? "已保存合并方式。" : (store.error ?? "保存失败，请重试。")
+          })) {
+            ForEach(GitHubPRMergeMethod.allCases) { method in Text(method.label).tag(method) }
+          }.settingsSearchTarget(.pullRequestMergeMethod)
         SettingsToggle(title: "创建草稿 PR", description: "创建 PR 时默认使用草稿状态。", isOn: Binding(
           get: { store.library.gitPreferences.createDraftPullRequests },
           set: { value in

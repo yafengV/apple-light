@@ -88,6 +88,8 @@ struct GitHubPRDetails: Decodable, Equatable, Sendable {
   let reviewDecision: String?
   let mergeable: String?
   let statusCheckRollup: [Check]?
+  var headRefOid: String? = nil
+  var mergeStateStatus: String? = nil
 
   var statusLabel: String {
     switch state.uppercased() {
