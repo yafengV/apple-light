@@ -381,6 +381,8 @@ class Handler(BaseHTTPRequestHandler):
                 for event in events:
                     if slow and event['type'] == 'response.output_item.done':
                         time.sleep(5)
+                    if 'activity-archive-stream' in request_text and event['type'] == 'response.completed':
+                        time.sleep(5)
                     self.wfile.write(('event: ' + event['type'] + '\ndata: '
                         + json.dumps(event) + '\n\n').encode())
                     self.wfile.flush()

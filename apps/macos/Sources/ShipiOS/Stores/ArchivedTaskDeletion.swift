@@ -1,7 +1,7 @@
 import Foundation
 
 extension WorkspaceStore {
-  var archiveActionsBusy: Bool { deletingArchive || !restoringArchivedTaskIDs.isEmpty }
+  var archiveActionsBusy: Bool { archivingActivity || deletingArchive || !restoringArchivedTaskIDs.isEmpty }
   var canMutateArchive: Bool { !archiveActionsBusy && !libraryLoading && libraryReadError == nil }
 
   func restoreArchivedTaskWithFeedback(_ taskID: String) async {

@@ -3,6 +3,36 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testActivityArchivePreservesDirtyManagedWorktreeAndRestoresTask() async throws {
+    let (base, source) = try await fixture()
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
+    await store.restore()
+    store.library.visit(source.path)
+    let branch = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: branch, branch: nil, taskID: taskID,
+      environment: ManagedEnvironmentSnapshot.none)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    let checkout = URL(fileURLWithPath: record.path)
+    try write("edited in worktree\n", checkout.appendingPathComponent("file"))
+    try write("untracked\n", checkout.appendingPathComponent("extra"))
+    store.library.tasks.append(.init(id: taskID, project: record.path, title: "Archive dirty worktree", runIDs: ["finished"]))
+    store.library.unreadTasks.insert(taskID)
+    store.toggleActivity()
+    store.requestActivityArchive()
+    await store.confirmActivityArchive()
+    XCTAssertEqual(store.activityArchiveResult?.archivedIDs, [taskID])
+    await store.managedArchiveCleanupTask?.value
+    XCTAssertEqual(store.library.managedWorktrees.first?.archivedPruned, true)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: record.path))
+    let restored = await store.restoreManagedArchiveIfNeeded(taskID)
+    XCTAssertTrue(restored, store.archivedTaskDeletionError ?? "")
+    XCTAssertTrue(store.restoreArchivedTask(taskID))
+    XCTAssertEqual(try String(contentsOf: checkout.appendingPathComponent("file")), "edited in worktree\n")
+    XCTAssertEqual(try String(contentsOf: checkout.appendingPathComponent("extra")), "untracked\n")
+    await store.shutdown()
+  }
+
   @MainActor func testChosenEnvironmentSnapshotControlsSetupCleanupAndWorktreeActions() async throws {
     let (base, source) = try await fixture()
     var repository = URL(fileURLWithPath: #filePath)

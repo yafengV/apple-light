@@ -53,7 +53,9 @@ struct AppContentView: View {
       .allowsHitTesting(!store.hasSettingsConfirmation && store.presentedOverlay != .imagePreview && store.presentedOverlay?.isSearchDialog != true)
       .accessibilityHidden(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
       .overlay {
-        if let request = store.archiveDeletion {
+        if let request = store.activityArchiveRequest {
+          ActivityArchiveDialog(store: store, request: request).id(request.id)
+        } else if let request = store.archiveDeletion {
           ArchiveDeletionDialog(store: store, request: request).id(request.id)
         } else if let request = store.memoryDeletion {
           SettingsConfirmationDialog(title: request.title, message: request.message,

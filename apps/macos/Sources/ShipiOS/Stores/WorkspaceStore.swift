@@ -29,6 +29,10 @@ final class WorkspaceStore {
   }
   var destination: AppDestination = .workspace
   var activityError: String?
+  var activityArchiveRequest: ActivityArchiveRequest?
+  var activityArchiveResult: ActivityArchiveResult?
+  var archivingActivity = false
+  var activityArchivingTaskIDs: Set<String> = []
   var activitySession: ActivitySession?
   var showingActivity: Bool { activitySession != nil }
   var taskWindowOpenRequest: TaskWindowRoute?
@@ -236,7 +240,7 @@ final class WorkspaceStore {
   var deletingMemories = false
   var memoryDeletionError: String?
   var hasSettingsConfirmation: Bool {
-    archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil
+    archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil || activityArchiveRequest != nil
   }
   @ObservationIgnored var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?
@@ -414,6 +418,10 @@ final class WorkspaceStore {
 
   func canStartChat(taskID: String?) -> Bool {
     guard !busy, !managedTaskPreparing, !shuttingDown else { return false }
+    if let taskID {
+      guard !activityArchivingTaskIDs.contains(taskID),
+        library.tasks.contains(where: { $0.id == taskID && !$0.archived }) else { return false }
+    }
     let requestedProject = taskID.flatMap { id in
       library.tasks.first(where: { $0.id == id })?.project
     } ?? currentProjectKey

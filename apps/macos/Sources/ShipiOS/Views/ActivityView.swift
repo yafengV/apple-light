@@ -68,6 +68,10 @@ struct ActivityView: View {
     }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       .accessibilityIdentifier("activity-sidebar")
       .onAppear { listFocused = true }
+      .onChange(of: store.activityArchiveRequest?.id) { previous, current in
+        if previous != nil, current == nil, store.destination != .settings,
+          store.presentedOverlay == nil, !store.hasSettingsConfirmation { listFocused = true }
+      }
   }
 
   private var options: some View {
@@ -83,6 +87,8 @@ struct ActivityView: View {
       Divider()
       Button("全部标为已读") { store.markActivityRead() }
         .disabled(!store.activityPriorityEntries.contains(where: \.unread))
+      Button("归档任务") { store.requestActivityArchive() }
+        .disabled(store.activityArchiveEligibleIDs.isEmpty || !store.canMutateArchive)
     } label: { Image(systemName: "ellipsis") }
       .menuStyle(.borderlessButton).frame(width: 22)
       .help("活动视图选项").accessibilityLabel("活动视图选项")
