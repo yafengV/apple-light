@@ -50,25 +50,38 @@ extension WorkspaceStore {
   }
 
   func requestArchiveDeletion(_ kind: ArchiveDeletionRequest.Kind, ids: Set<String>) {
+    if kind == .task {
+      if ids.count == 1, let id = ids.first { requestTaskDeletion(id) }
+      return
+    }
     guard canMutateArchive, !hasSettingsConfirmation, presentedOverlay == nil, !ids.isEmpty else { return }
     archivedTaskDeletionError = nil
     archiveDeletion = .init(kind: kind, taskIDs: ids)
   }
 
-  func dismissArchiveDeletion() {
-    guard !deletingArchive else { return }
+  func dismissArchiveDeletion(requestID: UUID? = nil) {
+    guard !deletingArchive, requestID == nil || archiveDeletion?.id == requestID else { return }
     archiveDeletion = nil
     archivedTaskDeletionError = nil
   }
 
-  func confirmArchiveDeletion() async {
-    guard let request = archiveDeletion, !deletingArchive else { return }
+  func confirmArchiveDeletion(requestID: UUID? = nil) async {
+    guard let request = archiveDeletion, !archiveActionsBusy,
+      requestID == nil || request.id == requestID else { return }
     deletingArchive = true
-    defer { deletingArchive = false }
+    if request.kind == .task { activityArchivingTaskIDs.formUnion(request.taskIDs) }
+    defer {
+      deletingArchive = false
+      if request.kind == .task { activityArchivingTaskIDs.subtract(request.taskIDs) }
+    }
     // Publish the busy state before the atomic, main-actor library commit.
     // Build the candidate after yielding so intervening library updates survive.
     await Task.yield()
     guard archiveDeletion?.id == request.id else { return }
+    if request.kind == .task {
+      await performTaskDeletion(request)
+      return
+    }
     do {
       let eligible = Set(library.tasks.filter {
         request.taskIDs.contains($0.id) && $0.archived && !$0.isPopoutDraft
@@ -118,12 +131,23 @@ extension WorkspaceStore {
 
   @discardableResult func deleteArchivedTasks(_ taskIDs: Set<String>,
     validatedManaged: Set<String> = []) -> Bool {
+    deleteTasks(taskIDs, archivedOnly: true, validatedManaged: validatedManaged)
+  }
+
+  /// Direct deletion is called only after reserving the target and confirming it has stopped.
+  @discardableResult func deleteTasks(_ taskIDs: Set<String>, archivedOnly: Bool,
+    validatedManaged: Set<String> = []) -> Bool {
     guard !taskIDs.isEmpty else { return true }
     do {
       var candidate = library
       let originalTaskCount = candidate.tasks.count
       let originalTaskIDs = Set(candidate.tasks.map(\.id))
-      let eligible = Set(candidate.tasks.filter { taskIDs.contains($0.id) && $0.archived && !$0.isPopoutDraft }.map(\.id))
+      let eligible = Set(candidate.tasks.filter {
+        taskIDs.contains($0.id) && (archivedOnly ? $0.archived && !$0.isPopoutDraft : !$0.isTransient)
+      }.map(\.id))
+      if !archivedOnly, eligible.contains(where: { activeRun(taskID: $0) != nil }) {
+        throw AgentFailure(message: "任务尚未停止，不能删除。")
+      }
       let managed = candidate.managedWorktrees.filter { eligible.contains($0.taskID) }
       for record in managed {
         guard record.pendingHandoff == nil else {
@@ -166,6 +190,12 @@ extension WorkspaceStore {
       candidate.pendingManagedWorktreeDeletions.append(contentsOf: managed.filter {
         !alreadyPending.contains($0.taskID)
       })
+      // Archive is only a candidate eligibility marker; never publish an intermediate archive.
+      if !archivedOnly {
+        for index in candidate.tasks.indices where eligible.contains(candidate.tasks[index].id) {
+          candidate.tasks[index].archived = true
+        }
+      }
       let deletedRuns = candidate.deleteArchivedTasks(eligible)
       guard candidate.tasks.count != originalTaskCount else {
         archivedTaskDeletionError = nil
@@ -176,6 +206,7 @@ extension WorkspaceStore {
       let deletedDiffIDs = Set((library.chatRuns + library.forkRuns)
         .filter { deletedRuns.contains($0.id) }.compactMap { $0.codexTurnDiff?.id })
       try commitLibrary(candidate)
+      runs.removeAll { deletedRuns.contains($0.id) }
       if !managed.isEmpty { scheduleManagedDeletionCleanup() }
       let retainedSnapshotIDs = Set(candidate.chatRuns.map(\.id))
         .union(candidate.forkRunOrigins.values)
@@ -193,7 +224,7 @@ extension WorkspaceStore {
       archivedTaskDeletionError = nil
       return true
     } catch {
-      archivedTaskDeletionError = "无法删除归档任务：\(error.localizedDescription)"
+      archivedTaskDeletionError = "无法删除\(archivedOnly ? "归档任务" : "任务")：\(error.localizedDescription)"
       return false
     }
   }

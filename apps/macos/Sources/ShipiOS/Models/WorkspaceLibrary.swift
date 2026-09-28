@@ -603,6 +603,13 @@ struct WorkspaceLibrary: Codable {
     queuedMessages.removeAll { deletedTaskIDs.contains($0.taskID) }
     unreadTasks.subtract(deletedTaskIDs)
     recentTaskIDs.removeAll { deletedTaskIDs.contains($0) }
+    let deletedPins = Set(pinnedContentTabs.filter { deletedTaskIDs.contains($0.owner) }
+      .map { SidebarItem.contentTab($0.id).id })
+    pinnedContentTabs.removeAll { deletedTaskIDs.contains($0.owner) }
+    for id in deletedPins {
+      sidebar.placement[id] = nil
+      for section in Array(sidebar.order.keys) { sidebar.order[section]?.removeAll { $0 == id } }
+    }
 
     for id in runIDs {
       notes[id] = nil

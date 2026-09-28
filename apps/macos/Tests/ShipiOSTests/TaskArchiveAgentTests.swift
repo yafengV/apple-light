@@ -3,6 +3,12 @@ import XCTest
 
 @MainActor final class TaskArchiveAgentTests: XCTestCase {
   func testArchiveStopsRealLocalAgentJobAndPersistsOnlyItsTask() async throws {
+    try await checkStop(deleting: false)
+  }
+  func testDeletionStopsRealLocalAgentJobAndTombstonesOnlyItsTask() async throws {
+    try await checkStop(deleting: true)
+  }
+  private func checkStop(deleting: Bool) async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
       .deletingLastPathComponent()
@@ -26,20 +32,33 @@ import XCTest
     store.library.tasks.append(other)
     store.draft = "unsent local draft"
     XCTAssertTrue(store.commandEnabled("archive"))
-    await store.archiveTask(target.id)
-    XCTAssertTrue(store.activityArchiveNeedsStop)
-    XCTAssertEqual(store.archiveConfirmation()?.taskIDs, [target.id])
-    await store.confirmTaskArchive()
+    if deleting {
+      store.requestTaskDeletion(target.id)
+      XCTAssertEqual(store.archiveDeletion?.taskIDs, [target.id])
+      await store.confirmArchiveDeletion()
+      XCTAssertNil(store.archiveDeletion, store.archivedTaskDeletionError ?? "")
+    } else {
+      await store.archiveTask(target.id)
+      XCTAssertTrue(store.activityArchiveNeedsStop)
+      XCTAssertEqual(store.archiveConfirmation()?.taskIDs, [target.id])
+      await store.confirmTaskArchive()
+    }
     let completed = try await store.client.request("run.get", ["runId": .string(run.id)]).decode(AgentRun.self)
     XCTAssertEqual(completed.status, "cancelled")
     XCTAssertNil(store.activeRun(taskID: target.id))
-    XCTAssertEqual(store.activityArchiveResult?.archivedIDs, [target.id])
-    XCTAssertEqual(store.activityArchiveResult?.failures.count, 0, store.error ?? "")
-    XCTAssertEqual(store.library.drafts[target.id], "unsent local draft")
+    if deleting {
+      XCTAssertFalse(store.library.tasks.contains { $0.id == target.id })
+      XCTAssertTrue(store.library.deletedRunIDs.contains(run.id))
+      XCTAssertNil(store.library.drafts[target.id])
+    } else {
+      XCTAssertEqual(store.activityArchiveResult?.archivedIDs, [target.id])
+      XCTAssertEqual(store.activityArchiveResult?.failures.count, 0, store.error ?? "")
+      XCTAssertEqual(store.library.drafts[target.id], "unsent local draft")
+    }
     XCTAssertFalse(store.library.tasks.first(where: { $0.id == other.id })?.archived ?? true)
     XCTAssertNil(store.selectedTask)
     XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
-      .tasks.filter(\.archived).map(\.id), [target.id])
+      .tasks.filter(\.archived).map(\.id), deleting ? [] : [target.id])
     await store.shutdown()
   }
 }

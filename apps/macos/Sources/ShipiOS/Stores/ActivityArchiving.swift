@@ -22,7 +22,7 @@ extension WorkspaceStore {
 
   func canArchiveTask(_ id: String, inWindow windowID: String? = nil) -> Bool {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, canMutateArchive,
-      activityArchiveRequest == nil,
+      activityArchiveRequest == nil, archiveDeletion == nil,
       let task = library.tasks.first(where: { $0.id == id }) else { return false }
     if windowID == nil, hasSettingsConfirmation || renameTaskID != nil { return false }
     return taskCanArchive(task)
@@ -141,7 +141,8 @@ extension WorkspaceStore {
       level: result.failures.isEmpty ? .success : .error)
   }
 
-  private func stopActivityTask(_ taskID: String) async throws {
+  /// Archive and permanent deletion both wait for the actual request to finish stopping.
+  func stopActivityTask(_ taskID: String) async throws {
     guard let run = activeRun(taskID: taskID) else { return }
     let deadline = ContinuousClock.now.advanced(by: .seconds(8))
     if run.kind == "chat" {

@@ -3,6 +3,38 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testDirectTaskDeletionPreservesDirtyCheckoutWithoutArchivingIt() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    let snapshot = try await GitBranchService.snapshot(at: source)
+    let taskID = UUID().uuidString
+    let created = await store.createManagedWorktree(snapshot: snapshot, branch: nil, taskID: taskID)
+    let record = try XCTUnwrap(created, store.worktreeError ?? "")
+    let target = URL(fileURLWithPath: record.path)
+    try write("keep tracked edit\n", target.appendingPathComponent("file"))
+    try write("keep untracked\n", target.appendingPathComponent("extra"))
+    store.library.tasks.append(.init(id: taskID, project: record.path,
+      title: "Keep checkout", runIDs: []))
+    XCTAssertTrue(store.saveLibrary())
+    store.requestTaskDeletion(taskID)
+    XCTAssertNotNil(store.archiveDeletion)
+    await store.confirmArchiveDeletion()
+    XCTAssertNil(store.archivedTaskDeletionError)
+    XCTAssertNil(store.archiveDeletion)
+    XCTAssertFalse(store.library.tasks.contains { $0.id == taskID })
+    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
+    XCTAssertTrue(store.library.pendingManagedWorktreeDeletions.isEmpty)
+    XCTAssertTrue(store.library.permanentWorktrees.contains { $0.path == record.path && $0.ready })
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("file")), "keep tracked edit\n")
+    XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("extra")), "keep untracked\n")
+    XCTAssertEqual(try WorkspaceLibrary.load(from: data.appendingPathComponent("workspace.json"))
+      .projectTitle(record.path), "Keep checkout")
+    await store.shutdown()
+  }
+
   @MainActor func testActivityArchivePreservesDirtyManagedWorktreeAndRestoresTask() async throws {
     let (base, source) = try await fixture()
     let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))

@@ -22,6 +22,8 @@ struct SidebarTaskMenu: View {
           Button("归档任务") { Task { await store.archiveTask(taskID) } }
             .disabled(!store.canArchiveTask(taskID))
         }
+        Button("永久删除…", role: .destructive) { store.requestTaskDeletion(taskID) }
+          .disabled(!store.canDeleteTaskFromMenu(taskID))
         Divider()
         SidebarPlacementMenu(store: store, item: .task(taskID), showsOrdering: !activity)
         Divider()
