@@ -537,4 +537,76 @@ final class GitHubPRTests: XCTestCase {
     workspace.setProject(nil)
   }
 
+
+  @MainActor func testResponsesServiceGeneratesMissingPRBodyAndPreservesManualTitle() async throws {
+    let (root, service) = try await fixture()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.libraryLoaded = true
+    store.library.tasks = [WorkspaceTask(id: "owner", project: root.path, title: "Owner", runIDs: [])]
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.pullRequestInstructions = "Use Chinese; do not invent tests."
+    let workspace = DeveloperWorkspace(); workspace.root = root
+    workspace.pullRequestDraft = GitHubPRDraft(service: service)
+    await workspace.pullRequestDraft.load(at: root)
+    workspace.pullRequestDraft.title = "Manual title retained"
+    await store.createPullRequest(in: workspace, draft: true, taskID: "owner")
+    XCTAssertNil(workspace.pullRequestDraft.error)
+    XCTAssertEqual(workspace.pullRequestDraft.existing?.title, "Manual title retained")
+    XCTAssertEqual(workspace.pullRequestDraft.body, "## Summary\n\nResponses PR description.")
+    XCTAssertEqual(store.library.taskPullRequests["owner"]?.count, 1)
+    XCTAssertEqual(try creates(at: root).count, 1)
+    let records = try responses.records()
+    XCTAssertEqual(records.count, 1)
+    XCTAssertEqual(records.first?["path"].text, "/v1/responses")
+    let data = String(decoding: try JSONEncoder().encode(records), as: UTF8.self)
+    XCTAssertTrue(data.contains("Use Chinese; do not invent tests."))
+    XCTAssertTrue(data.contains("changed"))
+    XCTAssertTrue(records.allSatisfy { $0["body"]["tools"].items.isEmpty })
+  }
+
+  @MainActor func testResponsesInvalidPRGenerationKeepsInnerDraftAndNeverPublishes() async throws {
+    let (root, service) = try await fixture()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.pullRequestInstructions = "fixture-invalid-generation"
+    let workspace = DeveloperWorkspace(); workspace.root = root
+    workspace.pullRequestDraft = GitHubPRDraft(service: service)
+    await workspace.pullRequestDraft.load(at: root)
+    workspace.pullRequestDraft.body = "Manual body"
+    await store.createPullRequest(in: workspace, draft: false)
+    XCTAssertNotNil(workspace.pullRequestDraft.error)
+    XCTAssertEqual(workspace.pullRequestDraft.body, "Manual body")
+    XCTAssertNil(workspace.pullRequestDraft.existing)
+    XCTAssertEqual(try creates(at: root).count, 0)
+    XCTAssertFalse(workspace.gitBusy)
+  }
+
+  @MainActor func testResponsesPRCancellationKeepsInnerDraftAndNeverPublishes() async throws {
+    let (root, service) = try await fixture()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.pullRequestInstructions = "fixture-slow-generation"
+    let workspace = DeveloperWorkspace(); workspace.root = root
+    workspace.pullRequestDraft = GitHubPRDraft(service: service)
+    await workspace.pullRequestDraft.load(at: root)
+    workspace.pullRequestDraft.title = "Manual cancellation title"
+    let operation = Task { await store.createPullRequest(in: workspace, draft: false) }
+    try await responses.waitForRequest()
+    workspace.pullRequestDraft.cancelGeneration()
+    await operation.value
+    XCTAssertEqual(workspace.pullRequestDraft.title, "Manual cancellation title")
+    XCTAssertEqual(try creates(at: root).count, 0)
+    XCTAssertFalse(workspace.pullRequestDraft.generating)
+    XCTAssertFalse(workspace.gitBusy)
+  }
+
 }

@@ -67,10 +67,14 @@ extension WorkspaceStore {
     guard !library.gitPreferences.readOnlyReview, !workspace.generatingCommitMessage else { return }
     do {
       let configuration = modelConfiguration
-      _ = try configuration.endpoint("chat/completions")
+      try configuration.validateEndpoint()
       let key = try ModelKeychain.read(account: configuration.credentialAccount)
+      guard let repository = workspace.gitRoot else { return }
+      let generate = GitTextGenerator.make(config: configuration, key: key, repository: repository,
+        dataRoot: dataRoot, executable: executable)
       workspace.generateCommitMessage(config: configuration, key: key,
-        instructions: library.gitPreferences.commitInstructions, includeUnstaged: includeUnstaged)
+        instructions: library.gitPreferences.commitInstructions, includeUnstaged: includeUnstaged,
+        generate: generate)
     } catch { workspace.commitGenerationError = error.localizedDescription }
   }
 

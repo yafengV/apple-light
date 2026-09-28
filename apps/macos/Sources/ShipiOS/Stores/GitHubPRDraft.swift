@@ -313,16 +313,16 @@ extension WorkspaceStore {
         state.includeLocalChanges == originalInclude else { return }
       if state.needsGeneratedContent || needsCommitMessage {
         let configuration = modelConfiguration
-        _ = try configuration.endpoint("chat/completions")
+        try configuration.validateEndpoint()
         let key = try ModelKeychain.read(account: configuration.credentialAccount)
         let instructions = library.gitPreferences.pullRequestInstructions
         let commitInstructions = library.gitPreferences.commitInstructions
+        let generate = GitTextGenerator.make(config: configuration, key: key, repository: root,
+          dataRoot: dataRoot, executable: executable)
         generator = { content, title, body in
-          let result = try await ModelAPIClient().streamTurn(config: configuration, key: key,
-            messages: content.messages(instructions: instructions, title: title, body: body,
-              commitInstructions: commitInstructions), onDelta: { _ in })
-          guard result.calls.isEmpty else { throw AgentFailure(message: "PR 生成返回了意外的工具请求。") }
-          return try GitPullRequestText.parse(result.text)
+          let text = try await generate(content.messages(instructions: instructions, title: title,
+            body: body, commitInstructions: commitInstructions))
+          return try GitPullRequestText.parse(text)
         }
       } else { generator = nil }
     } catch {

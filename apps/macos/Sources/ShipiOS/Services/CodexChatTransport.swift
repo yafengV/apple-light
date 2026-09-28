@@ -115,7 +115,7 @@ final class CodexChatTransport {
     taskID: String, workspace: URL, executable: URL, additionalFolders: [String] = [],
     config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
-    fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
+    fileAppendix: String?, readOnly: Bool = false, textOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
     webSearchMode: AgentWebSearchMode,
@@ -166,7 +166,7 @@ final class CodexChatTransport {
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
           "resumeOnly": .bool(compact),
-          "readOnly": .bool(readOnly),
+          "readOnly": .bool(readOnly), "textOnly": .bool(textOnly),
           "additionalFolders": .array(folders.dropFirst().map(JSONValue.string)),
           "permissions": .object([
             "approvalPolicy": .string(permissions.approvalPolicy.rawValue),

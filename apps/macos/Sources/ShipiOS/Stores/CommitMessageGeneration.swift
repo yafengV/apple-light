@@ -2,7 +2,7 @@ import Foundation
 
 extension DeveloperWorkspace {
   func generateCommitMessage(config: ModelConfiguration, key: String?, instructions: String,
-    includeUnstaged: Bool = false) {
+    includeUnstaged: Bool = false, generate: GitTextGeneration? = nil) {
     guard let root = gitRoot, canCommit, !gitBusy, !reviewScope.isHistorical, !generatingCommitMessage else { return }
     let token = UUID(), originalMessage = commitMessage
     commitGenerationToken = token
@@ -20,11 +20,20 @@ extension DeveloperWorkspace {
       do {
         let context = try await GitCommitContext.capture(at: root, includeUnstaged: includeUnstaged)
         try Task.checkCancellation()
-        let result = try await ModelAPIClient().streamTurn(config: config, key: key,
-          messages: context.messages(instructions: instructions), onDelta: { _ in })
+        let messages = context.messages(instructions: instructions)
+        let output: String
+        if let generate { output = try await generate(messages) }
+        else {
+          guard config.apiProtocol == .chatCompletions else {
+            throw AgentFailure(message: "Responses 内容生成需要独立 Agent，请从提交弹层重新生成。")
+          }
+          let result = try await ModelAPIClient().streamTurn(config: config, key: key,
+            messages: messages, onDelta: { _ in })
+          guard result.calls.isEmpty else { throw AgentFailure(message: "提交说明生成返回了意外的工具请求。") }
+          output = result.text
+        }
         try Task.checkCancellation()
-        guard result.calls.isEmpty else { throw AgentFailure(message: "提交说明生成返回了意外的工具请求。") }
-        let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = output.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.utf8.count <= 16_384 else {
           throw AgentFailure(message: "模型未返回有效的提交说明，请重试。")
         }

@@ -27,6 +27,8 @@ pub struct StartThread {
     #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
+    pub text_only: bool,
+    #[serde(default)]
     pub additional_folders: Vec<PathBuf>,
     #[serde(default)]
     pub permissions: SessionPermissions,
@@ -362,6 +364,13 @@ impl CodexBridge {
     }
 
     pub async fn start(&self, request: StartThread) -> Result<ThreadInfo> {
+        ensure!(
+            !request.text_only
+                || (request.resume_origin.is_none()
+                    && request.fork_origin.is_none()
+                    && !request.resume_only),
+            "text generation cannot resume or fork a conversation"
+        );
         let task_id = request.task_id;
         let task_key = Uuid::parse_str(&task_id)
             .context("taskId must be a UUID")?
@@ -445,7 +454,13 @@ impl CodexBridge {
         };
         let resumed = previous.is_some();
         let forked = fork_source.is_some();
-        let session = if let Some(ref previous) = previous {
+        ensure!(
+            !request.text_only || previous.is_none(),
+            "text generation requires a fresh identity"
+        );
+        let session = if request.text_only {
+            CodexSession::start_text_generation(options).await?
+        } else if let Some(ref previous) = previous {
             CodexSession::resume(options, previous.rollout_path.clone()).await?
         } else if let Some(ref source) = fork_source {
             let origin = request.fork_origin.as_ref().expect("validated fork origin");
@@ -1173,6 +1188,7 @@ mod tests {
                 fork_origin: None,
                 resume_origin: None,
                         read_only: false,
+                        text_only: false,
                         additional_folders: Vec::new(),
                         permissions: SessionPermissions::default(),
                         responses: SessionResponsePreferences::default(),
@@ -1320,6 +1336,7 @@ mod tests {
                     fork_origin: None,
                     resume_origin: None,
                     read_only: false,
+                    text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
@@ -1348,6 +1365,7 @@ mod tests {
                     fork_origin: None,
                     resume_origin: None,
                     read_only: false,
+                    text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
@@ -1368,6 +1386,7 @@ mod tests {
                 fork_origin: None,
                 resume_origin: None,
                 read_only: false,
+                text_only: false,
                 additional_folders: Vec::new(),
                 permissions: custom_permissions,
                 responses: custom_responses,
@@ -1432,6 +1451,7 @@ mod tests {
             fork_origin: Some(fork_origin),
             resume_origin: None,
             read_only: false,
+            text_only: false,
             additional_folders: Vec::new(),
             permissions: SessionPermissions::default(),
             responses: SessionResponsePreferences::default(),
@@ -1484,6 +1504,7 @@ mod tests {
                 fork_origin: None,
                 resume_origin: None,
                 read_only: false,
+                text_only: false,
                 additional_folders: Vec::new(),
                 permissions: SessionPermissions::default(),
                 responses: SessionResponsePreferences::default(),

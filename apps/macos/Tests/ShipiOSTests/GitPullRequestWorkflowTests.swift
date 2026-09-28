@@ -55,8 +55,8 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     return Fixture(root: root, remote: remote, service: GitHubPRService(executable: executable), base: base, head: head)
   }
 
-  @MainActor private func workspace(_ fixture: Fixture) async -> (WorkspaceStore, DeveloperWorkspace) {
-    let store = WorkspaceStore(dataRoot: fixture.root.appendingPathComponent(".git/app-state"))
+  @MainActor private func workspace(_ fixture: Fixture, agentExecutable: URL? = nil) async -> (WorkspaceStore, DeveloperWorkspace) {
+    let store = WorkspaceStore(dataRoot: fixture.root.appendingPathComponent(".git/app-state"), agentExecutable: agentExecutable)
     store.libraryLoaded = true
     store.library.tasks = [WorkspaceTask(id: "owner", project: fixture.root.path, title: "Owner", runIDs: []),
       WorkspaceTask(id: "other", project: fixture.root.path, title: "Other", runIDs: [])]
@@ -891,6 +891,75 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     XCTAssertNil(draft.context)
     XCTAssertNil(store.beginPullRequestAction(.create, in: workspace))
     XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+
+  @MainActor func testResponsesCombinedGenerationCommitsPushesCreatesAndResetsModal() async throws {
+    let fixture = try await fixture()
+    try write("Responses local content\n", in: fixture)
+    let responses = try GitGenerationFixture(root: fixture.root)
+    defer { responses.stop() }
+    let (store, workspace) = await workspace(fixture, agentExecutable: GitGenerationFixture.binary)
+    // This test needs the real Core executable rather than the production app bundle in XCTest.
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.pullRequestInstructions = "Responses PR guidance"
+    store.library.gitPreferences.commitInstructions = "Responses commit guidance"
+    let draft = workspace.pullRequestDraft
+    draft.title = ""; draft.body = ""; workspace.commitMessage = ""
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.createDraft, in: workspace, taskID: "owner"))
+    await operation.value
+    XCTAssertNil(draft.error)
+    XCTAssertEqual(draft.existing?.title, "Responses PR title")
+    XCTAssertEqual(store.library.taskPullRequests["owner"]?.count, 1)
+    XCTAssertEqual(draft.title, "")
+    XCTAssertEqual(draft.body, "")
+    let message = try await git(["log", "-1", "--format=%s"], at: fixture.root)
+    XCTAssertEqual(message, "Responses local commit")
+    let remote = try await git(["rev-parse", "refs/heads/feature/topic"], at: fixture.remote)
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    XCTAssertEqual(remote, head)
+    XCTAssertEqual(try creates(fixture).count, 1)
+    let records = try responses.records()
+    XCTAssertEqual(records.count, 1)
+    let request = String(decoding: try JSONEncoder().encode(records), as: UTF8.self)
+    XCTAssertTrue(request.contains("Responses PR guidance"))
+    XCTAssertTrue(request.contains("Responses commit guidance"))
+    XCTAssertTrue(request.contains("Responses local content"))
+    XCTAssertTrue(request.contains("published feature"))
+  }
+
+
+  @MainActor func testResponsesBrowserGenerationCommitsPushesAndPreservesPrefilledForm() async throws {
+    let fixture = try await fixture()
+    try write("Responses browser local content\n", in: fixture)
+    let responses = try GitGenerationFixture(root: fixture.root)
+    defer { responses.stop() }
+    let (store, workspace) = await workspace(fixture, agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    workspace.pullRequestDraft.title = "Manual browser title"
+    workspace.pullRequestDraft.body = ""; workspace.commitMessage = ""
+    var opened: URL?
+    let operation = try XCTUnwrap(store.beginPullRequestAction(.openBrowser, in: workspace,
+      taskID: "owner", openURL: { opened = $0; return true }))
+    await operation.value
+    let draft = workspace.pullRequestDraft
+    XCTAssertNil(draft.error)
+    XCTAssertEqual(draft.title, "Manual browser title")
+    XCTAssertEqual(draft.body, "## Summary\n\nResponses PR description.")
+    XCTAssertTrue(draft.includeLocalChanges)
+    XCTAssertFalse(draft.modalActionPending)
+    let url = try XCTUnwrap(opened)
+    XCTAssertEqual(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+      .first(where: { $0.name == "title" })?.value, "Manual browser title")
+    XCTAssertNil(draft.existing)
+    XCTAssertNil(store.library.taskPullRequests["owner"])
+    XCTAssertEqual(try creates(fixture).count, 0)
+    let message = try await git(["log", "-1", "--format=%s"], at: fixture.root)
+    XCTAssertEqual(message, "Responses local commit")
+    let remote = try await git(["rev-parse", "refs/heads/feature/topic"], at: fixture.remote)
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    XCTAssertEqual(remote, head)
+    XCTAssertEqual(try responses.records().count, 1)
   }
 
 }

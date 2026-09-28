@@ -170,4 +170,96 @@ final class GitCommitGenerationTests: XCTestCase {
     let head = try await LocalWorkspaceService.git(["rev-parse", "--verify", "HEAD"], at: root)
     XCTAssertNotEqual(head.status, 0)
   }
+
+  @MainActor func testResponsesServiceGeneratesCommitFromStagedContentAndGuidanceWithoutWritingGit() async throws {
+    let workspace = try await workspace()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.commitInstructions = "fixture-echo-generation Keep Chinese subjects"
+    try "unstaged-only-excluded".write(to: root.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
+    let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    store.generateCommitMessage(in: workspace)
+    await workspace.commitGenerationTask?.value
+    XCTAssertNil(workspace.commitGenerationError)
+    let messages = try JSONDecoder().decode([ChatMessage].self, from: Data(workspace.commitMessage.utf8))
+    XCTAssertTrue(messages.first?.content.contains("Keep Chinese subjects") == true)
+    XCTAssertTrue(messages.last?.content.contains("staged-only") == true)
+    XCTAssertFalse(workspace.commitMessage.contains("unstaged-only-excluded"))
+    XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+    let head = try await LocalWorkspaceService.git(["rev-parse", "--verify", "HEAD"], at: root)
+    XCTAssertNotEqual(head.status, 0)
+    XCTAssertEqual(try responses.records().first?["path"].text, "/v1/responses")
+  }
+
+  @MainActor func testResponsesAutomaticCommitCancellationDoesNotStageOrCreateBranch() async throws {
+    let workspace = try await workspace()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.commitInstructions = "fixture-slow-generation"
+    try "working version".write(to: root.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
+    let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    let operation = Task { await store.performGitAction(.commit, in: workspace,
+      includeUnstaged: true, newBranch: "codex/responses-cancelled") }
+    try await responses.waitForRequest()
+    workspace.cancelCommitMessageGeneration()
+    let result = await operation.value
+    XCTAssertFalse(result)
+    XCTAssertEqual(workspace.commitMessage, "")
+    XCTAssertFalse(workspace.gitActionRunning)
+    XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+    let branch = try await GitReviewService.checked(["branch", "--show-current"], at: root)
+    XCTAssertEqual(branch.trimmingCharacters(in: .newlines), "main")
+  }
+
+  @MainActor func testResponsesManualEditAndIndexChangeRejectGeneratedCommitText() async throws {
+    let workspace = try await workspace()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.commitInstructions = "fixture-slow-generation"
+    store.generateCommitMessage(in: workspace)
+    try await responses.waitForRequest()
+    workspace.commitMessage = "Manual replacement"
+    await workspace.commitGenerationTask?.value
+    XCTAssertEqual(workspace.commitMessage, "Manual replacement")
+    XCTAssertTrue(workspace.commitGenerationError?.contains("手动修改") == true)
+    store.generateCommitMessage(in: workspace)
+    try await responses.waitForRequest(count: 2)
+    try "new staged content".write(to: root.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
+    _ = try await GitReviewService.checked(["add", "file.txt"], at: root)
+    await workspace.commitGenerationTask?.value
+    XCTAssertEqual(workspace.commitMessage, "Manual replacement")
+    XCTAssertTrue(workspace.commitGenerationError?.contains("暂存内容") == true)
+  }
+
+
+  @MainActor func testResponsesCancellationAfterPartialTextKeepsOriginalCommitDraft() async throws {
+    let workspace = try await workspace()
+    let responses = try GitGenerationFixture(root: root)
+    defer { responses.stop() }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
+      agentExecutable: GitGenerationFixture.binary)
+    store.modelConfiguration = responses.config
+    store.library.gitPreferences.commitInstructions = "fixture-partial-generation"
+    workspace.commitMessage = "Original draft"
+    store.generateCommitMessage(in: workspace)
+    let task = try XCTUnwrap(workspace.commitGenerationTask)
+    try await responses.waitForPhase("response.output_text.delta")
+    XCTAssertTrue(workspace.generatingCommitMessage)
+    XCTAssertEqual(workspace.commitMessage, "Original draft")
+    workspace.cancelCommitMessageGeneration()
+    await task.value
+    XCTAssertEqual(workspace.commitMessage, "Original draft")
+    XCTAssertNil(workspace.commitGenerationError)
+    XCTAssertFalse(workspace.generatingCommitMessage)
+  }
+
 }
