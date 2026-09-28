@@ -88,7 +88,28 @@ class Handler(BaseHTTPRequestHandler):
                                 skill_catalog.append(entry)
                         except (ValueError, TypeError):
                             pass
-            if 'codex-startup-failure' in request_text:
+            folder_probe = None
+            for message in body.get('input', []):
+                if not isinstance(message, dict) or message.get('role') != 'user':
+                    continue
+                for part in message.get('content', []):
+                    for line in part.get('text', '').splitlines():
+                        if line.startswith('SHIPIOS_MULTI_FOLDER_PROBE '):
+                            folder_probe = json.loads(line.split(' ', 1)[1])
+            if folder_probe:
+                call_id = 'fixture-folders-' + folder_probe['token']
+                completed = any(isinstance(entry, dict) and entry.get('call_id') == call_id
+                    and entry.get('type') == 'function_call_output' for entry in body.get('input', []))
+                if not completed:
+                    command = '; '.join('printf ' + shlex.quote(kind) + ' > '
+                        + shlex.quote(folder_probe[kind] + '/' + folder_probe['token'] + '.txt')
+                        for kind in ('primary', 'attached', 'outside')) + '; pwd'
+                    item = {'type': 'function_call', 'call_id': call_id, 'name': 'exec_command',
+                        'arguments': json.dumps({'cmd': command, 'yield_time_ms': 10000})}
+                else:
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'folder-reply',
+                        'content': [{'type': 'output_text', 'text': json.dumps(body, ensure_ascii=False)}]}
+            elif 'codex-startup-failure' in request_text:
                 if 'fixture-startup-failure' not in request_text:
                     item = {'type': 'function_call', 'call_id': 'fixture-startup-failure', 'name': 'exec_command',
                         'arguments': json.dumps({'cmd': 'printf should-not-run',

@@ -10,6 +10,9 @@ struct WorkspaceView: View {
 
   var body: some View {
     workspaceRoot
+    .sheet(item: $store.editingProject) { request in
+      ProjectEditView(store: store, request: request)
+    }
     .sheet(isPresented: $store.showingTaskStatus) {
       if let task = store.selectedTask {
         TaskStatusView(status: TaskStatusSnapshot(task: task,

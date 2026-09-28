@@ -58,6 +58,7 @@ final class WorkspaceStore {
   @ObservationIgnored var indexedFindTask: String?
   var renameTaskID: String?
   var renameProjectPath: String?
+  var editingProject: ProjectEditRequest?
   var renameDraft = ""
   var sidebarGroupEditor: SidebarGroupEditor?
   var sidebarGroupDraft = ""

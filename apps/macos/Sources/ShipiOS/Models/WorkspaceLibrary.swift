@@ -289,6 +289,8 @@ struct WorkspaceLibrary: Codable {
   var activityPreferences = ActivityPreferences()
   var tasks: [WorkspaceTask] = []
   var projects: [String] = []
+  /// Attached folders after the primary project directory. Project identity stays stable.
+  var projectAdditionalFolders: [String: [String]] = [:]
   /// nil migrates legacy selection; empty string is an explicit projectless workspace.
   var lastWorkspace: String?
   var chatRuns: [AgentRun] = []
@@ -377,7 +379,7 @@ struct WorkspaceLibrary: Codable {
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case activityPreferences, tasks, projects, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
+    case activityPreferences, tasks, projects, projectAdditionalFolders, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
@@ -404,6 +406,8 @@ struct WorkspaceLibrary: Codable {
     tasks = try c.decodeIfPresent([WorkspaceTask].self, forKey: .tasks) ?? []
     lastWorkspace = try c.decodeIfPresent(String.self, forKey: .lastWorkspace)
     projects = try c.decodeIfPresent([String].self, forKey: .projects) ?? []
+    projectAdditionalFolders = try c.decodeIfPresent([String: [String]].self,
+      forKey: .projectAdditionalFolders) ?? [:]
     notes = try c.decodeIfPresent([String: String].self, forKey: .notes) ?? [:]
     runBranches = try c.decodeIfPresent([String: String].self, forKey: .runBranches) ?? [:]
     draftImages = try c.decodeIfPresent([String: [ImageAttachment]].self, forKey: .draftImages) ?? [:]

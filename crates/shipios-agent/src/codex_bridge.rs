@@ -27,6 +27,8 @@ pub struct StartThread {
     #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
+    pub additional_folders: Vec<PathBuf>,
+    #[serde(default)]
     pub permissions: SessionPermissions,
     #[serde(default)]
     pub responses: SessionResponsePreferences,
@@ -429,6 +431,7 @@ impl CodexBridge {
         let options = SessionOptions {
             codex_home: home.clone(),
             project_root: self.project.clone(),
+            additional_folders: request.additional_folders,
             base_url: request.base_url,
             model: request.model,
             api_key: request.api_key,
@@ -1170,6 +1173,7 @@ mod tests {
                 fork_origin: None,
                 resume_origin: None,
                         read_only: false,
+                        additional_folders: Vec::new(),
                         permissions: SessionPermissions::default(),
                         responses: SessionResponsePreferences::default(),
                         web_search: SessionWebSearch::default(),
@@ -1316,6 +1320,7 @@ mod tests {
                     fork_origin: None,
                     resume_origin: None,
                     read_only: false,
+                    additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
@@ -1343,6 +1348,7 @@ mod tests {
                     fork_origin: None,
                     resume_origin: None,
                     read_only: false,
+                    additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
@@ -1362,6 +1368,7 @@ mod tests {
                 fork_origin: None,
                 resume_origin: None,
                 read_only: false,
+                additional_folders: Vec::new(),
                 permissions: custom_permissions,
                 responses: custom_responses,
                 web_search: custom_web_search,
@@ -1425,6 +1432,7 @@ mod tests {
             fork_origin: Some(fork_origin),
             resume_origin: None,
             read_only: false,
+            additional_folders: Vec::new(),
             permissions: SessionPermissions::default(),
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
@@ -1476,6 +1484,7 @@ mod tests {
                 fork_origin: None,
                 resume_origin: None,
                 read_only: false,
+                additional_folders: Vec::new(),
                 permissions: SessionPermissions::default(),
                 responses: SessionResponsePreferences::default(),
                 web_search: SessionWebSearch::default(),

@@ -10,11 +10,13 @@ final class CodexChatTransport {
     let endpoint: String
     let keyDigest: Data?
     let mcpDigest: Data
+    let additionalFolders: [String]
 
-    init(config: ModelConfiguration, key: String?, mcpData: Data) {
+    init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String]) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
       mcpDigest = Data(SHA256.hash(data: mcpData))
+      self.additionalFolders = additionalFolders
     }
   }
 
@@ -110,7 +112,7 @@ final class CodexChatTransport {
   }
 
   func startTurn(
-    taskID: String, workspace: URL, executable: URL,
+    taskID: String, workspace: URL, executable: URL, additionalFolders: [String] = [],
     config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, planMode: Bool = false,
@@ -124,6 +126,7 @@ final class CodexChatTransport {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
     defer { preparingTasks.remove(taskID) }
+    let folders = try ProjectFolders.canonical([workspace.path] + additionalFolders)
     let path = workspace.resolvingSymlinksInPath().standardizedFileURL.path
     if let previous = taskProjects[taskID], previous != path {
       await stop(taskID: taskID)
@@ -140,7 +143,8 @@ final class CodexChatTransport {
     let mcpData = try encoder.encode(enabledServers)
     let mcpValue = try JSONDecoder().decode(JSONValue.self, from: mcpData)
     let token = generation
-    let service = ServiceIdentity(config: config, key: key, mcpData: mcpData)
+    let service = ServiceIdentity(config: config, key: key, mcpData: mcpData,
+      additionalFolders: Array(folders.dropFirst()))
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }
@@ -163,6 +167,7 @@ final class CodexChatTransport {
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
           "resumeOnly": .bool(compact),
           "readOnly": .bool(readOnly),
+          "additionalFolders": .array(folders.dropFirst().map(JSONValue.string)),
           "permissions": .object([
             "approvalPolicy": .string(permissions.approvalPolicy.rawValue),
             "sandboxMode": .string(permissions.sandboxMode.rawValue),

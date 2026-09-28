@@ -66,6 +66,8 @@ struct ProjectActionsMenu: View {
       store.toggleProjectPin(path)
     }
     Button("重命名项目…") { store.beginRenamingProject(path) }
+    Button("编辑项目…") { store.beginEditingProject(path) }
+      .disabled(!store.libraryLoaded || store.busy)
     SidebarPlacementMenu(store: store, item: .project(path))
     Button("归档项目内的任务") { store.archiveProject(path) }
       .disabled(!store.library.tasks.contains { $0.project == path && !$0.archived })

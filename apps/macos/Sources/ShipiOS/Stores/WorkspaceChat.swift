@@ -132,6 +132,9 @@ extension WorkspaceStore {
         ? await branchForTaskHistory() : nil
       guard !shuttingDown, !Task.isCancelled else { return nil }
       let effectiveProject = taskProject ?? currentProjectKey
+      let savedFolders = library.additionalFolders(for: effectiveProject)
+      let attachedFolders = savedFolders.isEmpty ? []
+        : Array(try ProjectFolders.canonical([effectiveProject] + savedFolders).dropFirst())
       let skillProject = !pluginsEnabled || effectiveProject.isEmpty
         ? nil : URL(fileURLWithPath: effectiveProject, isDirectory: true)
       let pluginContext = try PluginStorage.promptContext(
@@ -157,7 +160,9 @@ extension WorkspaceStore {
       }
       let workspaceInstructions = projectlessDirectory.map {
         "此任务没有项目目录。需要创建草稿、生成资源或引用输出文件时，只能使用此任务的独立文件夹：\($0.path)。回答中的相对文件链接也应以该文件夹为根目录。"
-      } ?? ""
+      } ?? (attachedFolders.isEmpty ? "" : "此项目的主目录：\(effectiveProject)。附加文件夹可用于读取和修改文件：\n"
+        + attachedFolders.map { "- \($0)" }.joined(separator: "\n")
+        + "\n项目指令、技能和默认 Git 操作使用主目录。")
       let instructionPrefix = [
         systemInstructions, modeInstructions, review == nil ? "" : ModelCodeReviewContext.instructions,
         isSideChat ? "这是临时只读侧聊。只回答当前问题，不修改文件或运行有副作用的操作。主会话正在独立继续。" : "",
@@ -206,6 +211,9 @@ extension WorkspaceStore {
       }
       if let projectlessDirectory {
         request["workspace"] = .string(projectlessDirectory.path)
+      }
+      if !attachedFolders.isEmpty {
+        request["additional_folders"] = .array(attachedFolders.map(JSONValue.string))
       }
       if let goalDefinition {
         request["goal_objective"] = .string(goalDefinition.objective)
@@ -303,7 +311,8 @@ extension WorkspaceStore {
               taskID: review == nil ? (taskID ?? run.id) : run.id, workspace: workspace,
               config: config, key: key, messages: effectiveMessages, mode: mode,
               goalInstructions: mode == .goal ? modeInstructions : nil, review: review,
-              compact: compact, sideChat: isSideChat, unattended: automationID != nil)
+              compact: compact, sideChat: isSideChat, unattended: automationID != nil,
+              additionalFolders: attachedFolders)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
               messages: effectiveMessages, bindings: tools, skills: activeDiscovery.skills)
@@ -359,7 +368,7 @@ extension WorkspaceStore {
     runID: String, taskID: String, workspace: URL,
     config: ModelConfiguration, key: String?, messages: [ChatMessage],
     mode: ChatMode, goalInstructions: String?, review: ModelCodeReviewContext?, compact: Bool = false,
-    sideChat: Bool = false, unattended: Bool = false
+    sideChat: Bool = false, unattended: Bool = false, additionalFolders: [String] = []
   ) async throws -> ModelTokenUsage? {
     let initialText = messages.map { "[\($0.role)]\n\($0.content)" }.joined(separator: "\n\n")
     let images = messages.last?.images ?? []
@@ -377,7 +386,8 @@ extension WorkspaceStore {
     var permissions = library.agentRuntimePreferences
     if unattended { permissions.approvalPolicy = .never }
     let stream = try await codexTransport.startTurn(
-      taskID: taskID, workspace: workspace, executable: executable, config: config, key: key,
+      taskID: taskID, workspace: workspace, executable: executable, additionalFolders: additionalFolders,
+      config: config, key: key,
       initialText: initialText, continuationText: Self.codexContinuationText(messages: messages), images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat,
       planMode: mode == .plan, goalInstructions: goalInstructions,

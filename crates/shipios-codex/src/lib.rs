@@ -42,6 +42,7 @@ use url::Url;
 pub struct SessionOptions {
     pub codex_home: PathBuf,
     pub project_root: PathBuf,
+    pub additional_folders: Vec<PathBuf>,
     pub base_url: String,
     pub model: String,
     pub api_key: Option<String>,
@@ -326,6 +327,23 @@ enum SessionHistory {
     Fork(Vec<codex_history::RolloutItem>),
 }
 
+fn session_workspace_roots(
+    project: &std::path::Path,
+    folders: &[PathBuf],
+) -> Result<Vec<AbsolutePathBuf>> {
+    let mut seen = HashSet::new();
+    let mut roots = Vec::new();
+    for path in std::iter::once(project).chain(folders.iter().map(PathBuf::as_path)) {
+        ensure!(path.is_absolute(), "workspace folder must be absolute");
+        let canonical = path.canonicalize().context("resolve workspace folder")?;
+        ensure!(canonical.is_dir(), "workspace folder is not a directory");
+        if seen.insert(canonical.clone()) {
+            roots.push(AbsolutePathBuf::from_absolute_path_checked(canonical)?);
+        }
+    }
+    Ok(roots)
+}
+
 /// Read an exact completed turn prefix. Never include later or still-running source turns.
 fn fork_prefix(
     path: &std::path::Path,
@@ -416,6 +434,7 @@ impl CodexSession {
             .canonicalize()
             .context("resolve project root")?;
         ensure!(project.is_dir(), "project root is not a directory");
+        let workspace_roots = session_workspace_roots(&project, &options.additional_folders)?;
         std::fs::create_dir_all(&options.codex_home).context("create ShipiOS Codex home")?;
         let home = options.codex_home.canonicalize()?;
         let mut home_guard = SessionHomeGuard::acquire(home.clone())?;
@@ -423,7 +442,7 @@ impl CodexSession {
             Config::load_default_with_cli_overrides_for_codex_home(home.clone(), Vec::new())
                 .await?;
         config.cwd = AbsolutePathBuf::from_absolute_path_checked(project.clone())?;
-        config.workspace_roots = vec![config.cwd.clone()];
+        config.workspace_roots = workspace_roots;
         config.workspace_roots_explicit = true;
         config.model = Some(options.model.clone());
         config.mcp_servers = Constrained::allow_any(configured_mcp_servers(options.mcp_servers)?);
@@ -774,6 +793,34 @@ impl CodexSession {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn attached_workspace_roots_keep_primary_deduplicate_aliases_and_reject_invalid_paths() {
+        let temp = tempfile::tempdir().unwrap();
+        let primary = temp.path().join("Primary");
+        let secondary = temp.path().join("Secondary");
+        std::fs::create_dir(&primary).unwrap();
+        std::fs::create_dir(&secondary).unwrap();
+        let alias = temp.path().join("Alias");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&secondary, &alias).unwrap();
+        #[cfg(not(unix))]
+        let alias = secondary.clone();
+        let roots =
+            super::session_workspace_roots(&primary, &[secondary.clone(), alias, primary.clone()])
+                .unwrap();
+        assert_eq!(roots.len(), 2);
+        assert_eq!(roots[0].as_path(), primary.canonicalize().unwrap());
+        assert_eq!(roots[1].as_path(), secondary.canonicalize().unwrap());
+        assert!(
+            super::session_workspace_roots(&primary, &[std::path::PathBuf::from("relative")])
+                .is_err()
+        );
+        assert!(super::session_workspace_roots(&primary, &[temp.path().join("Missing")]).is_err());
+        let file = temp.path().join("File");
+        std::fs::write(&file, "data").unwrap();
+        assert!(super::session_workspace_roots(&primary, &[file]).is_err());
+    }
+
     use super::*;
 
     #[test]
