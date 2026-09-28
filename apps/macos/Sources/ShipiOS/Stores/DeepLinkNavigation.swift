@@ -57,7 +57,7 @@ extension WorkspaceStore {
     } else if let originURL {
       for candidate in library.orderedProjects {
         guard let remote = try? await GitReviewService.checked(
-          ["remote", "get-url", "origin"], at: URL(fileURLWithPath: candidate)) else { continue }
+          ["remote", "get-url", "origin"], at: URL(fileURLWithPath: library.primaryFolder(for: candidate))) else { continue }
         if remote.trimmingCharacters(in: .whitespacesAndNewlines) == originURL {
           target = candidate
           break
@@ -77,11 +77,11 @@ extension WorkspaceStore {
     if let target { await newTask(in: target) }
     else { await newChat() }
     guard destination == .workspace, selectedTask == nil,
-      target == nil || project?.path == target else {
+      target.map({ project?.path == library.primaryFolder(for: $0) }) ?? true else {
       error = error ?? "无法打开新任务链接。"
       return
     }
-    library.linkedNewTaskDraftIDs[currentProjectKey] = UUID()
+    library.linkedNewTaskDraftIDs[currentDraftProjectKey] = UUID()
     draft = prompt ?? ""
     focusComposer = UUID()
   }

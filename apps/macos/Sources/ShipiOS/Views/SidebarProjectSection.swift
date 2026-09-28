@@ -25,7 +25,7 @@ struct SidebarProjectSection: View {
             Spacer(minLength: 0)
           }.appFont(size: 12, weight: .medium).padding(.vertical, 9).padding(.leading, 9)
             .contentShape(Rectangle())
-        }.buttonStyle(.plain).help(path)
+        }.buttonStyle(.plain).help(store.library.primaryFolder(for: path))
           .accessibilityLabel("\(expanded ? "收起" : "展开")项目：\(store.library.projectTitle(path))")
           .accessibilityValue(expanded ? "已展开" : "已收起")
         Menu {
@@ -70,8 +70,10 @@ struct ProjectActionsMenu: View {
       .disabled(!store.libraryLoaded || store.busy)
     SidebarPlacementMenu(store: store, item: .project(path))
     Button("归档项目内的任务") { store.archiveProject(path) }
-      .disabled(!store.library.tasks.contains { $0.project == path && !$0.archived })
+      .disabled(!store.library.tasks.contains { store.library.sidebarProject(for: $0) == path && !$0.archived })
     Divider()
-    Button("在 Finder 中显示") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+    Button("在 Finder 中显示") {
+      NSWorkspace.shared.open(URL(fileURLWithPath: store.library.primaryFolder(for: path)))
+    }
   }
 }

@@ -309,16 +309,17 @@ extension WorkspaceStore {
     do {
       guard let seed = paths.first(where: { path in
         var isDirectory: ObjCBool = false
-        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+        return FileManager.default.fileExists(atPath: library.primaryFolder(for: path), isDirectory: &isDirectory)
           && isDirectory.boolValue
       }) else { throw AgentFailure(message: "没有可读取的项目目录。") }
-      try browser.start(executable: executable, project: URL(fileURLWithPath: seed),
+      try browser.start(executable: executable, project: URL(fileURLWithPath: library.primaryFolder(for: seed)),
         dataDirectory: temporary)
       _ = try await browser.request("initialize", ["protocolVersion": .number(1)])
       for path in paths {
         guard environmentCatalogRequest == request else { break }
         do {
-          let result = try await browser.request("environment.list", ["projectPath": .string(path)])
+          let result = try await browser.request("environment.list",
+            ["projectPath": .string(library.primaryFolder(for: path))])
           let entries = try result.decode([LocalEnvironmentEntry].self)
           if environmentCatalogRequest == request { environmentCatalog[path] = entries }
         } catch {

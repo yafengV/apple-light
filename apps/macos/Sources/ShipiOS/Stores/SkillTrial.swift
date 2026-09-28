@@ -46,8 +46,10 @@ extension WorkspaceStore {
       return true
     } catch {
       skillTrialInProgress = true
-      if !shuttingDown, currentProjectKey != previousProject {
-        _ = await openTaskScope(previousProject)
+      if !shuttingDown {
+        if currentProjectKey != previousProject {
+          _ = await openTaskScope(previousProject)
+        }
         destination = previousDestination
       }
       pluginsError = error.localizedDescription

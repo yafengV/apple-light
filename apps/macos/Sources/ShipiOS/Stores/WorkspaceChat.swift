@@ -67,6 +67,8 @@ extension WorkspaceStore {
   )
     async -> String?
   {
+    if explicitTaskID == nil, selectedTask == nil,
+      !(await applyPrimaryToNewTask()) { return nil }
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
     guard canStartChat(taskID: requestedTaskID) else { return nil }
     if requestedTaskID == nil,

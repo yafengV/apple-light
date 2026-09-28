@@ -55,8 +55,8 @@ extension WorkspaceStore {
   }
 
   func beginWorktreeCreation(from path: String) {
-    guard libraryLoaded, !busy, activeLocalRun == nil, library.projects.contains(path) else { return }
-    worktreeSource = path
+    guard libraryLoaded, !busy, activeLocalRun == nil, library.isKnownProjectScope(path) else { return }
+    worktreeSource = library.primaryFolder(for: path)
     worktreeError = nil
     setOverlay(.worktreeCreation, presented: true)
   }
@@ -88,7 +88,7 @@ extension WorkspaceStore {
   @discardableResult func createPermanentWorktree(snapshot: GitBranchSnapshot,
     branch: GitBranchChoice?, title: String) async -> PermanentWorktree? {
     guard libraryLoaded, !busy, activeLocalRun == nil,
-      library.projects.contains(where: { GitBranchService.canonicalRoot(URL(fileURLWithPath: $0)) == snapshot.root }) else {
+      library.projectScopePaths.contains(where: { GitBranchService.canonicalRoot(URL(fileURLWithPath: $0)) == snapshot.root }) else {
       worktreeError = "请等待当前任务完成，并从已添加的项目创建工作树。"
       return nil
     }
@@ -151,7 +151,7 @@ extension WorkspaceStore {
     guard libraryLoaded, !busy, activeLocalRun == nil,
       UUID(uuidString: taskID) != nil,
       !library.managedWorktrees.contains(where: { $0.path == snapshot.root.path }),
-      library.projects.contains(where: {
+      library.projectScopePaths.contains(where: {
         GitBranchService.canonicalRoot(URL(fileURLWithPath: $0)) == snapshot.root
       }) else {
       worktreeError = "请从已添加的 Git 项目创建托管工作树任务。"

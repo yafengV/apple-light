@@ -36,7 +36,7 @@ extension PluginStorage {
 extension WorkspaceStore {
   var skillLibraryProjectPaths: [String] {
     var seen = Set<String>()
-    let saved = (library.projects + library.tasks.map(\.project)).sorted()
+    let saved = (library.projects.map { library.primaryFolder(for: $0) } + library.tasks.map(\.project)).sorted()
     return ([currentProjectKey] + saved).filter { $0.hasPrefix("/") && seen.insert($0).inserted }
   }
 }

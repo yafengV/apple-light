@@ -84,14 +84,15 @@ extension WorkspaceStore {
   }
 
   func newTask(in path: String) async {
-    guard !busy, project?.path == path || activeLocalRun == nil else { return }
-    let switching = project?.path != path || !connected
+    let primary = library.primaryFolder(for: path)
+    guard !busy, project?.path == primary || activeLocalRun == nil else { return }
+    let switching = project?.path != primary || !connected
     if switching {
       recordNavigation()
       await open(URL(fileURLWithPath: path))
     }
-    guard connected, project?.path == path else { return }
-    library.collapsedProjects.remove(path)
+    guard connected, project?.path == primary else { return }
+    library.collapsedProjects.remove(library.projectOwner(for: path))
     newTask(recordHistory: !switching)
     rememberProjectSelection()
     saveLibrary()

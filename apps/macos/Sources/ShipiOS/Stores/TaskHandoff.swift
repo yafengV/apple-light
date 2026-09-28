@@ -23,7 +23,7 @@ extension WorkspaceStore {
     libraryLoaded && !busy && !managedTaskPreparing && recoveringHandoffTaskIDs.isEmpty
       && activeLocalRun == nil
       && handoffCheckoutsAreIdle(for: task) && !task.archived && !task.isTransient
-      && !task.project.isEmpty && library.projects.contains(task.project)
+      && !task.project.isEmpty && library.isKnownProjectScope(task.project)
       && !library.isPermanentWorktree(task.project)
       && !library.managedWorktrees.contains { $0.path == task.project }
   }

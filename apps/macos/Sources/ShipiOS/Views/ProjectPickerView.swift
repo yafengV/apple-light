@@ -9,7 +9,7 @@ enum ProjectPickerOption: Hashable, Identifiable {
     let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
     let projects = library.orderedProjects.filter { path in
       search.isEmpty || library.projectTitle(path).localizedStandardContains(search)
-        || path.localizedStandardContains(search)
+        || library.configuredFolders(for: path).contains { $0.localizedStandardContains(search) }
     }.map(Self.project)
     if search.isEmpty { return [.projectless] + projects + [.addFolder] }
     return projects + [.addFolder]
@@ -30,7 +30,7 @@ struct ProjectPickerView: View {
   private var selection: ProjectPickerOption? {
     if let selectedOption, options.contains(selectedOption) { return selectedOption }
     if query.isEmpty, let path = store.project?.path {
-      let current = ProjectPickerOption.project(path)
+      let current = ProjectPickerOption.project(store.library.projectOwner(for: path))
       if options.contains(current) { return current }
     }
     return options.first
@@ -87,10 +87,13 @@ struct ProjectPickerView: View {
           .foregroundStyle(.secondary)
         VStack(alignment: .leading, spacing: 3) {
           Text(store.library.projectTitle(path)).lineLimit(1)
-          Text(path).appFont(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+          Text(store.library.primaryFolder(for: path)).appFont(.caption).foregroundStyle(.secondary)
+            .lineLimit(1).truncationMode(.middle)
         }
         Spacer(minLength: 0)
-        if store.project?.path == path { Image(systemName: "checkmark").accessibilityLabel("当前项目") }
+        if store.library.projectOwner(for: store.currentProjectKey) == path {
+          Image(systemName: "checkmark").accessibilityLabel("当前项目")
+        }
       }
       Spacer(minLength: 0)
     }.frame(maxWidth: .infinity, alignment: .leading)

@@ -199,31 +199,7 @@ extension WorkspaceStore {
       }
       do {
         guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
-        let source = URL(fileURLWithPath: project)
-        let useWorktree = state.selectedExecution == .worktree && !project.isEmpty
-          && FileManager.default.fileExists(atPath: source.appendingPathComponent(".git").path)
-        let record = useWorktree
-          ? try await prepareAutomationWorktree(sourcePath: project, taskID: ownerID,
-            environmentSelection: state.environmentSelection(for: project)) : nil
-        let runProject = record?.path ?? project
-        var candidate = library
-        if let index = candidate.tasks.firstIndex(where: { $0.id == ownerID }) {
-          candidate.tasks[index].project = runProject
-          if candidate.tasks[index].runIDs.isEmpty,
-            candidate.tasks[index].modelSelection == nil {
-            candidate.tasks[index].modelSelection = automationModelSelection(state)
-          }
-        } else {
-          var task = WorkspaceTask(id: ownerID, project: runProject, title: item.name, runIDs: [])
-          task.modelSelection = automationModelSelection(state)
-          candidate.tasks.insert(task, at: 0)
-        }
-        if let record {
-          var profile = candidate.profiles[project] ?? BuildProfile()
-          record.environment?.apply(to: &profile)
-          candidate.profiles[runProject] = profile
-        }
-        try commitLibrary(candidate)
+        // Recovery belongs to its recorded task, even if project defaults have since changed.
         if let existingRunID = library.tasks.first(where: { $0.id == ownerID })?.runIDs.last,
           let existingRun = library.chatRuns.first(where: { $0.id == existingRunID }) {
           guard existingRun.request["automation_id"].text == id.uuidString else {
@@ -237,6 +213,34 @@ extension WorkspaceStore {
             taskID: ownerID, runID: existingRunID)
           continue
         }
+        let existingTask = library.tasks.first(where: { $0.id == ownerID })
+        let sourcePath = library.managedWorktree(forTaskID: ownerID)?.source
+          ?? existingTask?.project ?? library.primaryFolder(for: project)
+        let source = URL(fileURLWithPath: sourcePath)
+        let useWorktree = state.selectedExecution == .worktree && !project.isEmpty
+          && FileManager.default.fileExists(atPath: source.appendingPathComponent(".git").path)
+        let record = useWorktree
+          ? try await prepareAutomationWorktree(sourcePath: sourcePath, taskID: ownerID,
+            environmentSelection: state.environmentSelection(for: project)) : nil
+        let runProject = record?.path ?? sourcePath
+        var candidate = library
+        if let index = candidate.tasks.firstIndex(where: { $0.id == ownerID }) {
+          candidate.tasks[index].project = runProject
+          if candidate.tasks[index].runIDs.isEmpty,
+            candidate.tasks[index].modelSelection == nil {
+            candidate.tasks[index].modelSelection = automationModelSelection(state)
+          }
+        } else {
+          var task = WorkspaceTask(id: ownerID, project: runProject, title: item.name, runIDs: [])
+          task.modelSelection = automationModelSelection(state)
+          candidate.tasks.insert(task, at: 0)
+        }
+        if let record {
+          var profile = candidate.profiles[sourcePath] ?? BuildProfile()
+          record.environment?.apply(to: &profile)
+          candidate.profiles[runProject] = profile
+        }
+        try commitLibrary(candidate)
         guard let runID = await startChat(item.prompt, taskID: ownerID, automationID: id) else {
           throw AgentFailure(message: error ?? "自动化当前无法启动，请稍后重试。")
         }

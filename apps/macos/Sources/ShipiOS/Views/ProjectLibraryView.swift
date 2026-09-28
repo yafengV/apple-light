@@ -18,14 +18,14 @@ struct ProjectLibraryView: View {
       List(
         store.library.orderedProjects.filter {
           query.isEmpty || store.library.projectTitle($0).localizedCaseInsensitiveContains(query)
-            || $0.localizedCaseInsensitiveContains(query)
+            || store.library.configuredFolders(for: $0).contains { $0.localizedCaseInsensitiveContains(query) }
         }, id: \.self
       ) { path in
         HStack {
           Image(systemName: store.library.isPermanentWorktree(path) ? "arrow.triangle.branch" : "folder")
           VStack(alignment: .leading) {
             Text(store.library.projectTitle(path)).appFont(.headline)
-            Text(path).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(store.library.primaryFolder(for: path)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
           }
           Spacer()
           Button {

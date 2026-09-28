@@ -50,10 +50,10 @@ final class ProjectFolderTransportTests: XCTestCase {
     return (store, root, primary, attached, outside)
   }
 
-  @MainActor private func edit(_ store: WorkspaceStore, folders: [String]) throws {
-    store.beginEditingProject(store.currentProjectKey)
+  @MainActor private func edit(_ store: WorkspaceStore, folders: [String], primary: String? = nil) throws {
+    store.beginEditingProject(store.library.projectOwner(for: store.currentProjectKey))
     let request = try XCTUnwrap(store.editingProject)
-    try store.saveProjectEdit(request, title: request.title, folders: folders)
+    try store.saveProjectEdit(request, title: request.title, folders: folders, primary: primary)
     store.editingProject = nil
   }
 
@@ -161,6 +161,107 @@ final class ProjectFolderTransportTests: XCTestCase {
     let (_, normal) = try await probe(store: store, primary: primary, attached: attached, outside: outside)
     XCTAssertTrue(FileManager.default.fileExists(atPath: attached.appendingPathComponent(normal + ".txt").path))
     XCTAssertFalse(FileManager.default.fileExists(atPath: outside.appendingPathComponent(normal + ".txt").path))
+    await store.shutdown()
+  }
+
+  @MainActor func testNewPrimaryUsesNewDirectoryWhileOldCoreTaskAndSidebarSurviveRestart() async throws {
+    let (store, root, primary, attached, outside) = try await fixture()
+    let executable = store.executable
+    let (_, originalProof) = try await probe(store: store, primary: primary, attached: attached, outside: outside)
+    let oldTask = try XCTUnwrap(store.selectedTask)
+    let originalThread = try XCTUnwrap(oldTask.codexThreadID)
+    store.draft = "old task draft"
+    store.library.drafts["new:" + primary.path] = "new project draft"
+    try edit(store, folders: [primary.path], primary: attached.path)
+    XCTAssertEqual(store.currentProjectKey, primary.path, "Editing does not move the selected task")
+    let (_, oldFollowup) = try await probe(store: store, primary: primary, attached: attached, outside: outside)
+    XCTAssertEqual(store.selectedTask?.codexThreadID, originalThread)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: primary.appendingPathComponent("cwd-" + oldFollowup + ".txt").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: attached.appendingPathComponent("cwd-" + oldFollowup + ".txt").path))
+    await store.newTask(in: primary.path)
+    XCTAssertEqual(store.currentProjectKey, attached.path)
+    XCTAssertNil(store.selectedTask)
+    XCTAssertEqual(store.draft, "new project draft")
+    let (freshRun, freshProof) = try await probe(store: store, primary: attached, attached: primary, outside: outside)
+    let newTask = try XCTUnwrap(store.selectedTask)
+    XCTAssertEqual(freshRun.project, attached.path)
+    XCTAssertNotEqual(newTask.codexThreadID, originalThread)
+    XCTAssertEqual(store.library.projects, [primary.path], "Primary changes do not add another project")
+    XCTAssertEqual(store.library.sidebarProject(for: oldTask), primary.path)
+    XCTAssertEqual(store.library.sidebarProject(for: newTask), primary.path)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: attached.appendingPathComponent("cwd-" + freshProof + ".txt").path))
+    XCTAssertEqual(store.library.drafts[oldTask.id], "old task draft")
+    await store.shutdown()
+
+    let reopened = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: executable)
+    await reopened.restore()
+    reopened.notificationPreferences = .init(timing: .never)
+    XCTAssertEqual(reopened.currentProjectKey, attached.path)
+    XCTAssertEqual(reopened.selectedTask?.id, newTask.id)
+    XCTAssertEqual(reopened.library.projects, [primary.path])
+    let selected = await reopened.selectTaskAwaitingScope(oldTask)
+    XCTAssertTrue(selected)
+    XCTAssertEqual(reopened.currentProjectKey, primary.path)
+    XCTAssertEqual(reopened.draft, "old task draft")
+    let (continued, restoredProof) = try await probe(store: reopened, primary: primary, attached: attached, outside: outside)
+    XCTAssertEqual(reopened.selectedTask?.codexThreadID, originalThread)
+    XCTAssertTrue(continued.result?["response"].text?.contains(originalProof) == true)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: primary.appendingPathComponent("cwd-" + restoredProof + ".txt").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: attached.appendingPathComponent("cwd-" + restoredProof + ".txt").path))
+    await reopened.newChat()
+    XCTAssertEqual(reopened.currentProjectKey, attached.path)
+    XCTAssertNil(reopened.selectedTask)
+    await reopened.shutdown()
+  }
+
+  @MainActor func testSendingUnsubmittedDraftAfterPrimaryChangeUsesNewSkillAndGitScope() async throws {
+    let (store, _, primary, attached, _) = try await fixture(api: .chatCompletions)
+    try PluginStorage.createRepositorySkill(id: "main-skill", description: "OLD-PRIMARY-SKILL",
+      instructions: "old body", project: primary)
+    try PluginStorage.createRepositorySkill(id: "new-skill", description: "NEW-PRIMARY-SKILL",
+      instructions: "new body", project: attached)
+    _ = try await GitReviewService.checked(["init"], at: attached)
+    try edit(store, folders: [primary.path], primary: attached.path)
+    store.draft = "skill-dependency-request-echo"
+    let started = await store.startChat(store.draft, consumeDraft: true)
+    let id = try XCTUnwrap(started, store.error ?? "No new primary chat")
+    await store.modelTask(runID: id)?.value
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    XCTAssertEqual(run.project, attached.path)
+    XCTAssertEqual(store.workspace.root?.path, attached.path)
+    let response = try XCTUnwrap(run.result?["response"].text)
+    XCTAssertTrue(response.contains("NEW-PRIMARY-SKILL"))
+    XCTAssertFalse(response.contains("OLD-PRIMARY-SKILL"))
+    XCTAssertEqual(store.workspace.gitRoot?.path, attached.path)
+    XCTAssertEqual(store.draft, "")
+    XCTAssertEqual(store.library.projects, [primary.path])
+    await store.shutdown()
+  }
+
+  @MainActor func testNewTaskDeepLinkAndAutomationResolvePrimaryWithoutChangingProjectSelection() async throws {
+    let (store, _, original, primary, _) = try await fixture(api: .chatCompletions)
+    try edit(store, folders: [original.path], primary: primary.path)
+    let oldTask = WorkspaceTask(id: UUID().uuidString, project: original.path, title: "Old", runIDs: [])
+    store.library.tasks.insert(oldTask, at: 0)
+    store.selection = oldTask.id
+    store.draft = "original task draft"
+    var automation = ShipAutomation(name: "Primary automation", prompt: "skill-dependency-request-echo")
+    automation.setProject(original.path, selected: true)
+    XCTAssertTrue(store.saveAutomation(automation))
+    await store.runAutomation(automation.id)
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.request["automation_id"].text == automation.id.uuidString })
+    XCTAssertEqual(run.project, primary.path)
+    XCTAssertEqual(store.currentProjectKey, original.path)
+    XCTAssertEqual(store.selectedTask?.id, oldTask.id)
+    XCTAssertEqual(store.draft, "original task draft")
+    XCTAssertEqual(store.automationPreferences.items.first?.selectedProjects, [original.path])
+    XCTAssertEqual(store.library.sidebarProject(for: try XCTUnwrap(store.library.task(containing: run.id))), original.path)
+    await store.openDeepLink(.newTask(prompt: "linked-primary", path: original.path, originURL: nil))
+    XCTAssertEqual(store.currentProjectKey, primary.path)
+    XCTAssertNil(store.selectedTask)
+    XCTAssertEqual(store.draft, "linked-primary")
+    XCTAssertEqual(store.library.drafts[oldTask.id], "original task draft")
     await store.shutdown()
   }
 }

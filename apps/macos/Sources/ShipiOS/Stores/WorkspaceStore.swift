@@ -368,8 +368,8 @@ final class WorkspaceStore {
   }
   var draftKey: String {
     if let selectedTask { return selectedTask.id }
-    let base = "new:\(project?.path ?? "none")"
-    return library.linkedNewTaskDraftIDs[currentProjectKey]
+    let base = "new:\(project == nil ? "none" : currentDraftProjectKey)"
+    return library.linkedNewTaskDraftIDs[currentDraftProjectKey]
       .map { "\(base):link:\($0.uuidString)" } ?? base
   }
   var draft: String {
@@ -387,6 +387,7 @@ final class WorkspaceStore {
     return activeRun(taskID: task.id)
   }
   var currentProjectKey: String { project?.path ?? "" }
+  var currentDraftProjectKey: String { library.projectOwner(for: currentProjectKey) }
   var canStartChat: Bool { canStartChat(taskID: selectedTask?.id) }
   var canStart: Bool {
     project != nil && connected && !busy && !managedTaskPreparing
@@ -535,7 +536,7 @@ final class WorkspaceStore {
     if let path = library.lastWorkspace ?? library.projects.first, !path.isEmpty,
       FileManager.default.fileExists(atPath: path)
     {
-      await open(URL(fileURLWithPath: path))
+      await open(URL(fileURLWithPath: path), usePrimary: library.lastWorkspace == nil)
     } else {
       await openProjectless()
     }
@@ -609,7 +610,7 @@ final class WorkspaceStore {
       }
     }
     if key.isEmpty { await openProjectless() }
-    else { await open(URL(fileURLWithPath: key)) }
+    else { await open(URL(fileURLWithPath: key), usePrimary: false) }
     return currentProjectKey == key && (key.isEmpty || connected)
   }
 
@@ -662,10 +663,13 @@ final class WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
 
-  func open(_ url: URL) async {
+  func open(_ url: URL, usePrimary: Bool = true) async {
     guard activeLocalRun == nil || !connected, !busy else { return }
     guard await loadLibrary() else { return }
-    let canonical = url.resolvingSymlinksInPath().standardizedFileURL
+    let requested = url.resolvingSymlinksInPath().standardizedFileURL
+    let canonical = usePrimary
+      ? URL(fileURLWithPath: library.primaryFolder(for: requested.path), isDirectory: true)
+        .resolvingSymlinksInPath().standardizedFileURL : requested
     if project == canonical && connected {
       returnToWorkspace()
       return
@@ -774,6 +778,7 @@ final class WorkspaceStore {
   }
 
   func start(_ kind: String, note: String = "", consumeDraft: Bool = false) async {
+    if selectedTask == nil, !(await applyPrimaryToNewTask()) { return }
     if kind == "chat" {
       await startChat(
         note, consumeDraft: consumeDraft, images: consumeDraft ? draftImages : [],
@@ -950,8 +955,12 @@ final class WorkspaceStore {
       Task { await newTask(in: managed.source) }
       return
     }
+    if let project, library.primaryFolder(for: project.path) != project.path {
+      Task { await newTask(in: library.projectOwner(for: project.path)) }
+      return
+    }
     destination = .workspace
-    library.linkedNewTaskDraftIDs[currentProjectKey] = nil
+    library.linkedNewTaskDraftIDs[currentDraftProjectKey] = nil
     dismissCodeReviewMode()
     if recordHistory { recordNavigation() }
     selection = nil
@@ -1013,10 +1022,11 @@ final class WorkspaceStore {
     focusedWorkspaceTabID = nil
     showingArchived = task.archived
     chatMode = library.goalSessions[task.id]?.status == .active ? .goal : .standard
-    library.collapsedProjects.remove(task.project)
+    let sidebarProject = library.sidebarProject(for: task)
+    library.collapsedProjects.remove(sidebarProject)
     for section in [
       library.sidebarSection(for: .task(task.id)),
-      library.sidebarSection(for: .project(task.project)),
+      library.sidebarSection(for: .project(sidebarProject)),
     ] {
       if let index = library.sidebar.groups.firstIndex(where: { $0.id == section }) {
         library.sidebar.groups[index].collapsed = false

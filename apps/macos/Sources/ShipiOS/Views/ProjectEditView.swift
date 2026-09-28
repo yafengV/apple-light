@@ -6,6 +6,7 @@ struct ProjectEditView: View {
   let request: ProjectEditRequest
   @State private var title: String
   @State private var folders: [String]
+  @State private var primary: String
   @State private var error: String?
   @FocusState private var nameFocused: Bool
 
@@ -13,7 +14,8 @@ struct ProjectEditView: View {
     self.store = store
     self.request = request
     _title = State(initialValue: request.title)
-    _folders = State(initialValue: request.folders)
+    _folders = State(initialValue: [request.primaryPath] + request.folders)
+    _primary = State(initialValue: request.primaryPath)
   }
 
   var body: some View {
@@ -28,10 +30,9 @@ struct ProjectEditView: View {
       }
       ScrollView {
         VStack(spacing: 0) {
-          folderRow(request.project, primary: true)
-          ForEach(folders, id: \.self) { path in
-            Divider()
-            folderRow(path, primary: false)
+          ForEach(Array(folders.enumerated()), id: \.element) { index, path in
+            if index > 0 { Divider() }
+            folderRow(path, primary: path == primary)
           }
         }
       }.frame(minHeight: 90, maxHeight: 280)
@@ -65,6 +66,11 @@ struct ProjectEditView: View {
       }
       Spacer()
       if !primary {
+        Button("设为主目录") {
+          self.primary = path
+          error = nil
+        }.buttonStyle(.borderless)
+          .accessibilityLabel("设为主目录：\(path)")
         Button {
           folders.removeAll { $0 == path }
           error = nil
@@ -85,8 +91,7 @@ struct ProjectEditView: View {
     panel.beginSheetModal(for: window) { response in
       guard response == .OK, store.editingProject?.id == request.id else { return }
       do {
-        folders = Array(try ProjectFolders.canonical([request.project] + folders + panel.urls.map(\.path))
-          .dropFirst())
+        folders = try ProjectFolders.canonical(folders + panel.urls.map(\.path))
         error = nil
       } catch { self.error = error.localizedDescription }
     }
@@ -94,8 +99,9 @@ struct ProjectEditView: View {
 
   private func save() {
     do {
-      try store.saveProjectEdit(request, title: title, folders: folders)
+      try store.saveProjectEdit(request, title: title, folders: folders.filter { $0 != primary }, primary: primary)
       store.editingProject = nil
+      Task { await store.applyPrimaryToNewTask() }
     } catch { self.error = error.localizedDescription }
   }
 }

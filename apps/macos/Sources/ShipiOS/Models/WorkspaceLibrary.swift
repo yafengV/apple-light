@@ -291,6 +291,10 @@ struct WorkspaceLibrary: Codable {
   var projects: [String] = []
   /// Attached folders after the primary project directory. Project identity stays stable.
   var projectAdditionalFolders: [String: [String]] = [:]
+  /// Project IDs remain their original path even when the default cwd changes.
+  var projectPrimaryFolders: [String: String] = [:]
+  /// Previously selected primary directories keep their task/project association.
+  var projectScopeOwners: [String: String] = [:]
   /// nil migrates legacy selection; empty string is an explicit projectless workspace.
   var lastWorkspace: String?
   var chatRuns: [AgentRun] = []
@@ -379,7 +383,7 @@ struct WorkspaceLibrary: Codable {
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case activityPreferences, tasks, projects, projectAdditionalFolders, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
+    case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
@@ -408,6 +412,10 @@ struct WorkspaceLibrary: Codable {
     projects = try c.decodeIfPresent([String].self, forKey: .projects) ?? []
     projectAdditionalFolders = try c.decodeIfPresent([String: [String]].self,
       forKey: .projectAdditionalFolders) ?? [:]
+    projectPrimaryFolders = try c.decodeIfPresent([String: String].self,
+      forKey: .projectPrimaryFolders) ?? [:]
+    projectScopeOwners = try c.decodeIfPresent([String: String].self,
+      forKey: .projectScopeOwners) ?? [:]
     notes = try c.decodeIfPresent([String: String].self, forKey: .notes) ?? [:]
     runBranches = try c.decodeIfPresent([String: String].self, forKey: .runBranches) ?? [:]
     draftImages = try c.decodeIfPresent([String: [ImageAttachment]].self, forKey: .draftImages) ?? [:]
@@ -510,14 +518,16 @@ struct WorkspaceLibrary: Codable {
   func projectTitle(_ path: String) -> String {
     if path.isEmpty { return "无项目" }
     if let managed = managedWorktrees.first(where: { $0.path == path }) {
-      return (projectNames[managed.source] ?? URL(fileURLWithPath: managed.source).lastPathComponent)
+      let owner = projectOwner(for: managed.source)
+      return (projectNames[owner] ?? URL(fileURLWithPath: owner).lastPathComponent)
         + " · 工作树"
     }
-    return projectNames[path] ?? URL(fileURLWithPath: path).lastPathComponent
+    let owner = projectOwner(for: path)
+    return projectNames[owner] ?? URL(fileURLWithPath: owner).lastPathComponent
   }
 
   func sidebarProject(for task: WorkspaceTask) -> String {
-    managedWorktree(forTaskID: task.id)?.source ?? task.project
+    projectOwner(for: managedWorktree(forTaskID: task.id)?.source ?? task.project)
   }
 
   func isPermanentWorktree(_ path: String) -> Bool {
@@ -543,12 +553,14 @@ struct WorkspaceLibrary: Codable {
         return saved
       }
     }
-    return visible(project: project, query: "", archived: false).first?.selectionID
+    return visible(project: project, query: "", archived: false)
+      .first(where: { $0.project == project })?.selectionID
   }
 
   mutating func visit(_ project: String) {
-    projects.removeAll { $0 == project }
-    projects.insert(project, at: 0)
+    let owner = projectOwner(for: project)
+    projects.removeAll { $0 == owner }
+    projects.insert(owner, at: 0)
   }
 
   mutating func reconcile(_ runs: [AgentRun], project: String) {

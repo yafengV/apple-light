@@ -6,7 +6,7 @@ extension WorkspaceStore {
       activeLocalRun == nil, !taskForkIsReserved(id),
       let task = taskMenuTarget(id), !task.archived, !task.project.isEmpty,
       !handoffBlocksProject(task.project),
-      library.projects.contains(task.project)
+      library.isKnownProjectScope(task.project)
         || library.managedWorktrees.contains(where: { $0.path == task.project && $0.ready }),
       !library.managedWorktrees.contains(where: {
         $0.containsTask(id) && ($0.pendingForkSourceTaskID != nil || $0.archivedPruned == true)

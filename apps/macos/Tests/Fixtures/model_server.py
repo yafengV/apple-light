@@ -103,7 +103,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not completed:
                     command = '; '.join('printf ' + shlex.quote(kind) + ' > '
                         + shlex.quote(folder_probe[kind] + '/' + folder_probe['token'] + '.txt')
-                        for kind in ('primary', 'attached', 'outside')) + '; pwd'
+                        for kind in ('primary', 'attached', 'outside'))
+                    command += '; pwd > ' + shlex.quote('cwd-' + folder_probe['token'] + '.txt') + '; pwd'
                     item = {'type': 'function_call', 'call_id': call_id, 'name': 'exec_command',
                         'arguments': json.dumps({'cmd': command, 'yield_time_ms': 10000})}
                 else:

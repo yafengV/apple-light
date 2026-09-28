@@ -388,7 +388,7 @@ struct LocalEnvironmentSettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
               HStack {
                 Button {
-                  Task { await openEnvironmentProject(path) }
+                  Task { await openEnvironmentProject(store.library.primaryFolder(for: path)) }
                 } label: {
                   HStack(spacing: 12) {
                     Image(systemName: store.library.isPermanentWorktree(path)
@@ -396,19 +396,19 @@ struct LocalEnvironmentSettingsView: View {
                       .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 3) {
                       Text(store.library.projectTitle(path)).foregroundStyle(.primary)
-                      Text(path).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                      Text(store.library.primaryFolder(for: path)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                   }.contentShape(Rectangle())
                 }.buttonStyle(.plain)
-                  .disabled(projectUnavailable(path))
+                  .disabled(projectUnavailable(store.library.primaryFolder(for: path)))
                   .accessibilityLabel("打开项目环境：\(store.library.projectTitle(path))")
                 Button {
-                  Task { await openEnvironmentProject(path, createNew: true) }
+                  Task { await openEnvironmentProject(store.library.primaryFolder(for: path), createNew: true) }
                 } label: { Image(systemName: "plus") }
                   .buttonStyle(.plain)
-                  .disabled(projectUnavailable(path))
+                  .disabled(projectUnavailable(store.library.primaryFolder(for: path)))
                   .accessibilityLabel("添加环境到 \(store.library.projectTitle(path))")
               }
               if let entries = store.environmentCatalog[path] {
@@ -448,7 +448,7 @@ struct LocalEnvironmentSettingsView: View {
 
   private func catalogEnvironmentRow(path: String, entry: LocalEnvironmentEntry) -> some View {
     Button {
-      Task { await openEnvironmentProject(path, selectionID: entry.id) }
+      Task { await openEnvironmentProject(store.library.primaryFolder(for: path), selectionID: entry.id) }
     } label: {
       HStack(spacing: 8) {
         Image(systemName: entry.error == nil ? "shippingbox" : "exclamationmark.triangle")

@@ -100,7 +100,7 @@ extension WorkspaceStore {
       generalSettingsError = "工作区尚未完成加载，请稍后再新建窗口。"
       return nil
     }
-    let project = popoutWindowProjectlessDefault ? "" : currentProjectKey
+    let project = popoutWindowProjectlessDefault ? "" : library.primaryFolder(for: currentProjectKey)
     let now = Date()
     let task = WorkspaceTask(
       id: UUID().uuidString, project: project, title: "新任务", runIDs: [], popoutDraft: true,
