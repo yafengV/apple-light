@@ -97,7 +97,7 @@ struct PluginSkillsView: View {
         if let skill = removing { _ = store.removeStandaloneSkill(skill.id) }
         removing = nil
       }
-    } message: { Text("仅移除 ShipiOS 中的副本，原始技能文件夹保持不变。") }
+    } message: { Text("移除 ShipiOS 私有目录中的这个技能及其资源。其他目录的文件保持不变。") }
   }
 
   private func skillCard(_ skill: PluginSkillReference) -> some View {
@@ -319,7 +319,7 @@ private struct PluginSkillPreview: View {
           if store.removeStandaloneSkill(skill.id) { dismiss() }
           else { actionError = store.pluginsError }
         }
-      } message: { Text("仅移除 ShipiOS 中的副本，原始技能文件夹保持不变。") }
+      } message: { Text("移除 ShipiOS 私有目录中的这个技能及其资源。其他目录的文件保持不变。") }
       .task(id: "\(reload)|\(store.repositorySkillRevision)") {
         source = nil
         error = nil

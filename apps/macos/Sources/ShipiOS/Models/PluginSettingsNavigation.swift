@@ -25,18 +25,23 @@ enum PluginSettingsSection: String, CaseIterable, Identifiable {
 }
 
 extension WorkspaceStore {
+  func pluginSettingsCount(_ section: PluginSettingsSection) -> Int {
+    if section == .skills { return installedPluginSkills.count }
+    return section.count(in: pluginPreferences.installed)
+      + (section == .mcpServers ? mcpServers.count : 0)
+  }
+
   func reconcilePluginSettingsTarget() {
     if let field = settingsSearchRequest?.result.field,
       let section = field.pluginSection,
       !visiblePluginSettingsSections.contains(section)
-        || (field == .skillsInstalled && section.count(in: pluginPreferences.installed,
-          standaloneSkills: pluginPreferences.standaloneSkills.count) == 0) {
+        || (field == .skillsInstalled && pluginSettingsCount(.skills) == 0) {
       settingsSearchRequest = nil
     }
   }
   var visiblePluginSettingsSections: [PluginSettingsSection] {
     PluginSettingsSection.visible(in: pluginPreferences.installed, pluginsEnabled: pluginsEnabled,
-      standaloneSkills: pluginPreferences.standaloneSkills.count)
+      standaloneSkills: installedPluginSkills.filter(\.isStandalone).count)
   }
   var activePluginSettingsSection: PluginSettingsSection {
     if !pluginsEnabled { return .mcpServers }

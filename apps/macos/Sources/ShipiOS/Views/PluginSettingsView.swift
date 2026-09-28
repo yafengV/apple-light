@@ -39,7 +39,7 @@ struct PluginSettingsView: View {
             get: { store.activePluginSettingsSection }, set: { store.pluginSettingsSection = $0 }
           )) {
             ForEach(store.visiblePluginSettingsSections) { section in
-              Text("\(section.title) \(section.count(in: store.pluginPreferences.installed, standaloneSkills: store.pluginPreferences.standaloneSkills.count) + (section == .mcpServers ? store.mcpServers.count : 0))").tag(section)
+              Text("\(section.title) \(store.pluginSettingsCount(section))").tag(section)
             }
           }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 300)
         }

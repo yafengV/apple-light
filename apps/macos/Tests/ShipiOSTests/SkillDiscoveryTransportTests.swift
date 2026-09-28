@@ -106,4 +106,43 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     XCTAssertFalse(disabledText.contains("UPDATED-DISCOVERY-PURPOSE"))
     await store.shutdown()
   }
+
+  @MainActor func testBothProtocolsDiscoverDirectlyAddedPrivateSkillWithoutImport() async throws {
+    for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
+      let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      defer { try? FileManager.default.removeItem(at: root) }
+      let store = try await prepare(protocol: api, root: root)
+      try FileManager.default.removeItem(at: root.appendingPathComponent("Project/.agents/skills/review"))
+      let file = store.dataRoot.appendingPathComponent("Skills/private-review/SKILL.md")
+      try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try Data("---\nname: Private Review\ndescription: PRIVATE-DISCOVERY-PURPOSE\n---\nPRIVATE-FULL-INSTRUCTIONS".utf8)
+        .write(to: file)
+      await store.refreshSkillsIfChanged()
+      XCTAssertEqual(store.composerSkills.map(\.id), ["user:private-review"])
+      XCTAssertEqual(store.pluginSettingsCount(.skills), 1)
+      XCTAssertTrue(store.pluginPreferences.standaloneSkills.isEmpty)
+      let prompt = api == .chatCompletions ? "implicit-skill-read" : "codex-skill-discovery"
+      let started = await store.startChat(prompt)
+      let id = try XCTUnwrap(started, store.error ?? "No chat started")
+      await store.modelTask(runID: id)?.value
+      let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+      XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+      let response = try XCTUnwrap(run.result?["response"].text)
+      XCTAssertTrue(response.contains("PRIVATE-FULL-INSTRUCTIONS"))
+      let body = try JSONDecoder().decode(JSONValue.self, from: Data(response.utf8))
+      let initial: String
+      if api == .chatCompletions {
+        initial = body["messages"].items.first?["content"].text ?? ""
+        XCTAssertEqual(run.result?["invoked_skills"].items.compactMap(\.text), ["user:private-review"])
+      } else {
+        initial = body["input"].items.filter { ["developer", "system", "user"].contains($0["role"].text ?? "") }
+          .flatMap { $0["content"].items.compactMap { $0["text"].text } }.joined(separator: "\n")
+        XCTAssertTrue(run.toolExecutions.contains { $0.toolName == "命令" && $0.status == .succeeded })
+      }
+      XCTAssertTrue(initial.contains("PRIVATE-DISCOVERY-PURPOSE"), "Catalog missing for \(api)")
+      XCTAssertFalse(initial.contains("PRIVATE-FULL-INSTRUCTIONS"))
+      XCTAssertTrue(try PluginStorage.load(root: store.dataRoot).standaloneSkills.isEmpty)
+      await store.shutdown()
+    }
+  }
 }

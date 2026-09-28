@@ -231,7 +231,7 @@ extension WorkspaceStore {
   func composerSkills(for projectPath: String) -> [PluginSkillReference] {
     guard pluginsEnabled else { return [] }
     let installed = pluginSkills.filter { skill in
-      !pluginPreferences.disabledSkillIDs.contains(skill.id)
+      pluginPreferences.isSkillEnabled(skill)
         && (skill.isStandalone || pluginPreferences.installed.contains { $0.id == skill.pluginID && $0.enabled })
     }
     return installed + ((try? repositorySkills(for: projectPath)) ?? []).filter { pluginPreferences.isSkillEnabled($0) }

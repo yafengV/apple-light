@@ -93,6 +93,9 @@ struct PluginPreferences: Codable, Equatable {
     if skill.isRepository {
       return !disabledRepositorySkillPaths.contains(skill.fileURL.resolvingSymlinksInPath().path)
     }
+    if skill.isStandalone {
+      return !disabledSkillIDs.contains { $0.caseInsensitiveCompare(skill.id) == .orderedSame }
+    }
     return !disabledSkillIDs.contains(skill.id)
   }
 }
@@ -536,9 +539,11 @@ enum PluginStorage {
 
   static func setSkillEnabled(_ enabled: Bool, id: String, root: URL) throws -> PluginPreferences {
     var preferences = try load(root: root)
-    guard try skills(preferences: preferences, root: root, includeDisabled: true).contains(where: { $0.id == id }) else {
+    guard let skill = try skills(preferences: preferences, root: root, includeDisabled: true)
+      .first(where: { $0.id == id }) else {
       throw AgentFailure(message: "找不到这个技能，请重新加载插件。")
     }
+    if skill.isStandalone { registerStandaloneSkill(skill.skillID, preferences: &preferences) }
     if enabled { preferences.disabledSkillIDs.remove(id) } else { preferences.disabledSkillIDs.insert(id) }
     try save(preferences, root: root)
     return preferences

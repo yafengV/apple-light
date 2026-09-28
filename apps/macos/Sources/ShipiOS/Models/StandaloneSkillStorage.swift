@@ -22,7 +22,7 @@ extension PluginStorage {
       throw AgentFailure(message: "技能说明不能超过 64 KiB。")
     }
     var preferences = try load(root: root)
-    guard !preferences.standaloneSkills.contains(where: { $0.caseInsensitiveCompare(id) == .orderedSame }) else {
+    guard try !standaloneSkillIDs(preferences: preferences, root: root).contains(where: { $0.caseInsensitiveCompare(id) == .orderedSame }) else {
       throw AgentFailure(message: "这个独立技能已安装。")
     }
     let directory = root.appendingPathComponent("Skills", isDirectory: true)
@@ -42,8 +42,7 @@ extension PluginStorage {
       try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
       try FileManager.default.moveItem(at: staging, to: destination)
       moved = true
-      preferences.standaloneSkills.append(id)
-      preferences.standaloneSkills.sort()
+      registerStandaloneSkill(id, preferences: &preferences)
       try save(preferences, root: root)
       return preferences
     } catch {
@@ -62,7 +61,8 @@ extension PluginStorage {
     let skillID = String(id.dropFirst(5))
     try validateID(skillID)
     let preferences = try load(root: root)
-    guard preferences.standaloneSkills.contains(skillID) else {
+    guard try standaloneSkillReferences(preferences: preferences, root: root, includeDisabled: true)
+      .contains(where: { $0.id == id }) else {
       throw AgentFailure(message: "找不到这个独立技能，请重新加载。")
     }
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -98,7 +98,7 @@ extension PluginStorage {
       throw AgentFailure(message: "请选择包含 SKILL.md 的真实技能文件夹。")
     }
     var preferences = try load(root: root)
-    guard !preferences.standaloneSkills.contains(where: { $0.caseInsensitiveCompare(id) == .orderedSame }) else {
+    guard try !standaloneSkillIDs(preferences: preferences, root: root).contains(where: { $0.caseInsensitiveCompare(id) == .orderedSame }) else {
       throw AgentFailure(message: "这个独立技能已安装。")
     }
     _ = try skillTitle(source.appendingPathComponent("SKILL.md"), fallback: id, sourceName: id)
@@ -140,8 +140,7 @@ extension PluginStorage {
       try FileManager.default.copyItem(at: source, to: staging)
       try FileManager.default.moveItem(at: staging, to: destination)
       moved = true
-      preferences.standaloneSkills.append(id)
-      preferences.standaloneSkills.sort()
+      registerStandaloneSkill(id, preferences: &preferences)
       try save(preferences, root: root)
       return preferences
     } catch {
@@ -153,15 +152,25 @@ extension PluginStorage {
 
   static func removeStandaloneSkill(id: String, root: URL) throws -> PluginPreferences {
     var preferences = try load(root: root)
-    guard id.hasPrefix("user:"), let index = preferences.standaloneSkills.firstIndex(of: String(id.dropFirst(5))) else {
-      throw AgentFailure(message: "只能卸载已安装的独立技能；插件内技能需通过插件管理。")
+    guard id.hasPrefix("user:") else {
+      throw AgentFailure(message: "只能卸载独立技能；插件内技能需通过插件管理。")
+    }
+    let skillID = String(id.dropFirst(5))
+    try validateID(skillID)
+    if !preferences.standaloneSkills.contains(skillID) {
+      guard try standaloneSkillReferences(preferences: preferences, root: root, includeDisabled: true)
+        .contains(where: { $0.id == id }) else {
+        throw AgentFailure(message: "只能卸载已安装的独立技能；插件内技能需通过插件管理。")
+      }
     }
     try validateStandaloneDirectory(root: root)
-    let folder = standaloneSkillURL(root: root, id: preferences.standaloneSkills[index])
+    let folder = standaloneSkillURL(root: root, id: skillID)
     let staging = folder.deletingLastPathComponent().appendingPathComponent(".remove-" + UUID().uuidString)
     let exists = FileManager.default.fileExists(atPath: folder.path)
     if exists { try FileManager.default.moveItem(at: folder, to: staging) }
-    preferences.standaloneSkills.remove(at: index)
+    let equivalent = preferences.standaloneSkills.filter { $0.caseInsensitiveCompare(skillID) == .orderedSame }
+    preferences.standaloneSkills.removeAll { $0.caseInsensitiveCompare(skillID) == .orderedSame }
+    for old in equivalent { preferences.disabledSkillIDs.remove("user:" + old) }
     preferences.disabledSkillIDs.remove(id)
     do {
       try save(preferences, root: root)
@@ -176,9 +185,10 @@ extension PluginStorage {
   static func standaloneSkillReferences(
     preferences: PluginPreferences, root: URL, includeDisabled: Bool
   ) throws -> [PluginSkillReference] {
-    if !preferences.standaloneSkills.isEmpty { try validateStandaloneDirectory(root: root) }
-    return try preferences.standaloneSkills.compactMap { id in
-      if !includeDisabled && preferences.disabledSkillIDs.contains("user:" + id) { return nil }
+    return try standaloneSkillIDs(preferences: preferences, root: root).compactMap { id in
+      if !includeDisabled && preferences.disabledSkillIDs.contains(where: {
+        $0.caseInsensitiveCompare("user:" + id) == .orderedSame
+      }) { return nil }
       let directory = standaloneSkillURL(root: root, id: id)
       let expected = standaloneSkillURL(root: root.resolvingSymlinksInPath(), id: id)
       guard directory.resolvingSymlinksInPath().path == expected.path else {
@@ -193,7 +203,7 @@ extension PluginStorage {
     }
   }
 
-  private static func validateStandaloneDirectory(root: URL) throws {
+  static func validateStandaloneDirectory(root: URL) throws {
     let directory = root.appendingPathComponent("Skills", isDirectory: true)
     guard directory.resolvingSymlinksInPath().path == root.resolvingSymlinksInPath()
       .appendingPathComponent("Skills", isDirectory: true).path else {
