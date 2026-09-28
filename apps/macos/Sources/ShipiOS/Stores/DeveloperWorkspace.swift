@@ -78,6 +78,7 @@ final class DeveloperWorkspace {
   var showingManagedBranchSetup = false
   var gitCommands = GitWorkflowCommandState()
   var pullRequestLinkOpening = GitPullRequestLinkOpening()
+  let pullRequestMergeCommand = GitPullRequestMergeCommandState()
   var gitPresentationTaskID: String?
   var gitPresentationForceDraft = false
   var showingCommitPush = false
@@ -105,6 +106,7 @@ final class DeveloperWorkspace {
     clearGitPresentation()
     gitCommands.cancel()
     pullRequestLinkOpening.cancel()
+    pullRequestMergeCommand.cancel()
     showingManagedBranchSetup = false
     managedBranchRequest = nil
     managedBranchSetup.cancel()
@@ -447,6 +449,7 @@ final class DeveloperWorkspace {
     clearGitPresentation()
     gitCommands.cancel()
     pullRequestLinkOpening.cancel()
+    pullRequestMergeCommand.cancel()
     showingManagedBranchSetup = false
     managedBranchRequest = nil
     managedBranchSetup.cancel()

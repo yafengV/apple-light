@@ -8,6 +8,9 @@ private struct GitWorkflowPresentation: ViewModifier {
   let currentTaskID: () -> String?
   let keyboardAllowed: () -> Bool
   let openPullRequestLink: (@MainActor (URL) async -> Bool)?
+  let selectedPullRequest: (() -> GitHubPullRequest?)?
+  let activePullRequestURLs: (() -> [String])?
+  let openPullRequestDetails: (@MainActor (GitHubPullRequest, Bool) async -> Bool)?
 
   private var request: GitWorkflowCommandRequest {
     .init(repository: .init(root: workspace.gitAvailable ? workspace.gitRoot : nil,
@@ -17,15 +20,17 @@ private struct GitWorkflowPresentation: ViewModifier {
         || workspace.generatingCommitMessage || workspace.pullRequestDraft.creating),
       primary: workspace.isPrimaryReviewRepository)
   }
+  private var commands: GitWorkflowCommandContext {
+    .init(store: store, workspace: workspace, taskID: taskID, request: request,
+      available: available, currentTaskID: currentTaskID, openPullRequestLink: openPullRequestLink,
+      selectedPullRequest: selectedPullRequest, activePullRequestURLs: activePullRequestURLs,
+      openPullRequestDetails: openPullRequestDetails)
+  }
   func body(content: Content) -> some View {
     content
-      .focusedSceneValue(\.gitWorkflowCommands,
-        GitWorkflowCommandContext(store: store, workspace: workspace, taskID: taskID,
-          request: request, available: available, currentTaskID: currentTaskID, openPullRequestLink: openPullRequestLink))
-      .background(GitWorkflowKeyboardBridge(commands: .init(store: store, workspace: workspace,
-        taskID: taskID, request: request, available: available, currentTaskID: currentTaskID, openPullRequestLink: openPullRequestLink),
-        shortcuts: store.shortcuts, allowed: keyboardAllowed)
-        .frame(width: 0, height: 0))
+      .focusedSceneValue(\.gitWorkflowCommands, commands)
+      .background(GitWorkflowKeyboardBridge(commands: commands,
+        shortcuts: store.shortcuts, allowed: keyboardAllowed).frame(width: 0, height: 0))
       .task(id: request) {
         let draft = workspace.pullRequestDraft
         await workspace.gitCommands.load(request) { root, primary in
@@ -33,6 +38,9 @@ private struct GitWorkflowPresentation: ViewModifier {
             try await draft.inspectEntry(at: $0)
           }
         }
+      }
+      .task(id: commands.mergeRequest) {
+        await workspace.pullRequestMergeCommand.load(commands.mergeRequest)
       }
       .sheet(isPresented: $workspace.showingCommitPush, onDismiss: workspace.clearGitPresentation) {
         GitCommitPushView(store: store, workspace: workspace,
@@ -53,10 +61,10 @@ private struct GitWorkflowPresentation: ViewModifier {
         workspace.showingCommitPush = false; workspace.showingPullRequest = false
         workspace.showingManagedBranchSetup = false; workspace.managedBranchRequest = nil
         workspace.managedBranchSetup.cancel()
-        workspace.pullRequestLinkOpening.cancel()
+        workspace.pullRequestLinkOpening.cancel(); workspace.pullRequestMergeCommand.cancel()
         workspace.clearGitPresentation()
       }
-      .onDisappear { workspace.gitCommands.cancel(); workspace.pullRequestLinkOpening.cancel() }
+      .onDisappear { workspace.gitCommands.cancel(); workspace.pullRequestLinkOpening.cancel(); workspace.pullRequestMergeCommand.cancel() }
   }
 }
 
@@ -65,10 +73,13 @@ extension View {
     taskID: String?, currentTaskID: @escaping () -> String?,
     keyboardAllowed: @escaping () -> Bool,
     openPullRequestLink: (@MainActor (URL) async -> Bool)? = nil,
+    selectedPullRequest: (() -> GitHubPullRequest?)? = nil,
+    activePullRequestURLs: (() -> [String])? = nil,
+    openPullRequestDetails: (@MainActor (GitHubPullRequest, Bool) async -> Bool)? = nil,
     available: @escaping () -> Bool) -> some View {
     modifier(GitWorkflowPresentation(store: store, workspace: workspace,
       taskID: taskID, available: available, currentTaskID: currentTaskID, keyboardAllowed: keyboardAllowed,
-      openPullRequestLink: openPullRequestLink))
+      openPullRequestLink: openPullRequestLink, selectedPullRequest: selectedPullRequest, activePullRequestURLs: activePullRequestURLs, openPullRequestDetails: openPullRequestDetails))
   }
 }
 

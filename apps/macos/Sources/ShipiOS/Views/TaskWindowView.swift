@@ -168,7 +168,7 @@ struct TaskWindowView: View {
               }
               if summaryInline {
                 Divider()
-                TaskSummaryView(store: store, task: task, runs: taskRuns, library: store.library,
+                TaskSummaryView(task: task, runs: taskRuns, library: store.library,
                   openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                   openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -188,7 +188,7 @@ struct TaskWindowView: View {
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                   canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
                   canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount,
-                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) },
+                  openPullRequest: { taskSummary.dismissPopover(); _ = tabs.openPullRequest($0) },
                   browserTabs: TaskSummaryBrowserTabs.collect(owner: taskID,
                     contentTabs: tabs.tabs, browserTabs: browser.session.tabs),
                   focusBrowserTab: { id in
@@ -253,7 +253,7 @@ struct TaskWindowView: View {
             .popover(isPresented: Binding(
               get: { taskSummary.showsPopover },
               set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
-              TaskSummaryView(store: store, task: task, runs: taskRuns, library: store.library,
+              TaskSummaryView(task: task, runs: taskRuns, library: store.library,
                 openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                 openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -273,7 +273,7 @@ struct TaskWindowView: View {
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages(draft: taskID) } },
                 canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
                 canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount,
-                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: taskID) },
+                openPullRequest: { taskSummary.dismissPopover(); _ = tabs.openPullRequest($0) },
                 browserTabs: TaskSummaryBrowserTabs.collect(owner: taskID,
                   contentTabs: tabs.tabs, browserTabs: browser.session.tabs),
                 focusBrowserTab: { id in
@@ -444,6 +444,14 @@ struct TaskWindowView: View {
     .gitWorkflowPresentation(store: store, workspace: taskWorkspace, taskID: taskID,
       currentTaskID: { task?.id }, keyboardAllowed: { searchMode == nil }, openPullRequestLink: { url in
         await store.openTaskWebLink(url, taskID: taskID, openInApp: { tabs.openBrowser($0, presentation: $1) })
+      }, selectedPullRequest: {
+        let selected = [tabs.focused, tabs.selected(.left), tabs.selected(.right)].compactMap { $0 }
+        return selected.first(where: { $0.kind == .pullRequest }).flatMap { store.pullRequestContent($0) }
+      }, activePullRequestURLs: {
+        [tabs.selected(.left)?.pullRequestURL, tabs.selected(.right)?.pullRequestURL].compactMap { $0 }
+      }, openPullRequestDetails: { request, confirm in
+        guard store.preparePullRequestContent(request, taskID: taskID) else { return false }
+        return tabs.openPullRequest(request, mergeConfirmation: confirm)
       }) {
       task != nil && !otherWindowModalActive && (searchMode == nil || searchMode == .commands)
     }
@@ -1109,6 +1117,11 @@ struct TaskWindowView: View {
           addImage: { store.chooseImages(draft: taskID) },
           canAddFile: store.taskWindowFiles(taskID).count < FileAttachmentStorage.maxCount,
           canAddImage: store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount)
+      case .pullRequest:
+        TaskPullRequestTabView(store: store, tab: tab, presentations: tabs.pullRequestPresentations,
+          openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: taskID,
+            openInApp: { tabs.openBrowser($0, presentation: $1) }) } },
+          close: { tabs.close(tab.id) })
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

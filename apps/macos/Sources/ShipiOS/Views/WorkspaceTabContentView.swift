@@ -36,6 +36,10 @@ struct WorkspaceTabContentView: View {
         ContentUnavailableView("来源不可用", systemImage: "square.stack",
           description: Text("此任务可能已移除。"))
       }
+    case .pullRequest:
+      TaskPullRequestTabView(store: store, tab: tab, presentations: store.pullRequestTabPresentations,
+        openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: tab.owner) } },
+        close: { store.closeWorkspaceTab(tab.id) })
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)
@@ -109,7 +113,16 @@ struct WorkspaceTabWindowView: View {
                 guard accepted, !Task.isCancelled else { return false }
                 if store.webLinkTarget == .inAppBrowser, store.currentWorkspaceTabOwner == owner { showMainWindow() }
                 return true
+              }, openPullRequestDetails: { request, confirm in
+                let accepted = await store.openPullRequestContent(request, taskID: owner, mergeConfirmation: confirm)
+                guard accepted, !Task.isCancelled else { return false }
+                if let route = store.detachedWorkspaceTabRoute(WorkspaceContentTab.pullRequest(request.url, owner: owner).id) {
+                  openWindow(value: route)
+                } else { showMainWindow() }
+                return true
               })
+          } else if tab.kind == .pullRequest {
+            DetachedPullRequestView(store: store, tab: tab, close: { store.closeWorkspaceTab(tab.id) })
           } else if let browserID = tab.browserID {
             BrowserPanel(store: store, session: store.workspace.browser,
               context: browserContext(tab), showsTabStrip: false, tabID: browserID)

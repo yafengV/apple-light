@@ -47,6 +47,9 @@ extension WorkspaceStore {
     case .sources:
       guard saved.id == WorkspaceContentTab.sources(owner: owner).id,
         library.tasks.contains(where: { $0.id == owner }) else { return .close }
+    case .pullRequest:
+      let candidate = WorkspaceContentTab.pullRequest(saved.committedURL ?? "", owner: owner)
+      guard saved.id == candidate.id, pullRequestContent(candidate) != nil else { return .close }
     case .browser:
       guard saved.id.hasPrefix("browser:"), UUID(uuidString: String(saved.id.dropFirst(8))) != nil else { return .close }
     case .terminal:

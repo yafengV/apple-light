@@ -66,13 +66,25 @@ struct WorkspaceView: View {
       }
     }
     .gitWorkflowPresentation(store: store, workspace: store.workspace, taskID: store.selectedTask?.id,
-      currentTaskID: { store.selectedTask?.id }, keyboardAllowed: { store.presentedOverlay == nil }) {
+      currentTaskID: { store.selectedTask?.id }, keyboardAllowed: { store.presentedOverlay == nil },
+      openPullRequestDetails: { request, confirm in
+        guard let owner = store.selectedTask?.id else { return false }
+        return await revealPullRequest(request, taskID: owner, confirm: confirm)
+      }) {
       store.destination == .workspace && !store.restoringLibrary && store.renameTaskID == nil
         && store.editingProject == nil && !store.showingModelPicker && !store.showingBranchPicker
         && !store.showingTaskStatus && !store.hasSettingsConfirmation
         && (store.presentedOverlay == nil || store.presentedOverlay == .commands)
     }
     .tint(store.appearance.accentHex == nil ? .primary : store.appearance.accentColor)
+  }
+
+  private func revealPullRequest(_ request: GitHubPullRequest, taskID: String, confirm: Bool) async -> Bool {
+    guard await store.openPullRequestContent(request, taskID: taskID, mergeConfirmation: confirm) else { return false }
+    if let route = store.detachedWorkspaceTabRoute(WorkspaceContentTab.pullRequest(request.url, owner: taskID).id) {
+      openWindow(value: route)
+    }
+    return true
   }
 
   private var workspaceRoot: some View {
@@ -205,7 +217,7 @@ struct WorkspaceView: View {
               .popover(isPresented: Binding(
                 get: { taskSummary.showsPopover },
                 set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
-                TaskSummaryView(store: store, task: task, runs: store.conversationRuns, library: store.library,
+                TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
                   openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                   openFile: { taskSummary.dismissPopover(); store.preview($0) },
@@ -219,7 +231,10 @@ struct WorkspaceView: View {
                   addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                   canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
                   canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount,
-                  onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) },
+                  openPullRequest: { request in
+                    taskSummary.dismissPopover()
+                    Task { _ = await revealPullRequest(request, taskID: task.id, confirm: false) }
+                  },
                   browserTabs: TaskSummaryBrowserTabs.collect(owner: task.id,
                     contentTabs: store.workspaceTabs, browserTabs: store.workspace.browser.tabs),
                   focusBrowserTab: { browserID in
@@ -363,7 +378,7 @@ struct WorkspaceView: View {
             }
             if summaryInline, let task = store.selectedTask {
               Divider()
-              TaskSummaryView(store: store, task: task, runs: store.conversationRuns, library: store.library,
+              TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
                 openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                 openFile: { taskSummary.dismissPopover(); store.preview($0) },
@@ -377,7 +392,10 @@ struct WorkspaceView: View {
                 addImage: { taskSummary.dismissPopover(); DispatchQueue.main.async { store.chooseImages() } },
                 canAddFile: store.draftFiles.count < FileAttachmentStorage.maxCount,
                 canAddImage: store.draftImages.count < ImageAttachmentStorage.maxCount,
-                onPullRequestUpdated: { _ = store.updateRecordedPullRequest($0, for: task.id) },
+                openPullRequest: { request in
+                    taskSummary.dismissPopover()
+                    Task { _ = await revealPullRequest(request, taskID: task.id, confirm: false) }
+                  },
                 browserTabs: TaskSummaryBrowserTabs.collect(owner: task.id,
                   contentTabs: store.workspaceTabs, browserTabs: store.workspace.browser.tabs),
                 focusBrowserTab: { browserID in

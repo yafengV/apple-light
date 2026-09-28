@@ -113,6 +113,7 @@ final class WorkspaceStore {
     }
   }
   var pane = "execution"
+  let pullRequestTabPresentations = PullRequestTabPresentations()
   var workspaceTabs: [WorkspaceContentTab] = []
   @ObservationIgnored var workspaceLayoutActiveOwner: String?
   @ObservationIgnored var restoredWorkspaceTabOwners: Set<String> = []
@@ -130,6 +131,7 @@ final class WorkspaceStore {
   var workspaceContentPaneSide: WorkspacePaneSide = .right
   var lastWorkspaceContentTabID: String?
   var closedWorkspaceTabs: [WorkspaceContentTab] = []
+  var closedPullRequestPlacements: [String: WorkspaceTabPlacement] = [:]
   @ObservationIgnored var reopeningWorkspaceTabOwner: String?
   var workspace = DeveloperWorkspace()
   @ObservationIgnored var legacyReviewFileRoots: [String: URL] = [:]

@@ -6,6 +6,8 @@ import Observation
   let taskID: String
   let browser: TaskWindowBrowser
   let panels: TaskWindowPanels
+  let pullRequestPresentations = PullRequestTabPresentations()
+  @ObservationIgnored var pullRequest: ((String) -> GitHubPullRequest?)?
   @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
   @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
   @ObservationIgnored var planDocument: ((String) -> CodexPlanDocument?)?
@@ -97,11 +99,17 @@ import Observation
   }
   func title(_ tab: WorkspaceContentTab) -> String {
     switch tab {
-    case .browser(let id, _): browser.session.tabs.first { $0.id == id }?.title ?? "浏览器"
-    case .review: "审查"
-    case .plan(let runID, _): planDocument?(runID)?.title ?? "计划"
-    case .sources: "来源"
-    case .terminal(let id, _): panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
+    case .browser(let id, _): return browser.session.tabs.first { $0.id == id }?.title ?? "浏览器"
+    case .review: return "审查"
+    case .plan(let runID, _): return planDocument?(runID)?.title ?? "计划"
+    case .sources: return "来源"
+    case .pullRequest(let url, _):
+      if let request = pullRequest?(url) {
+        let title = request.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Pull request #\(request.number)" : title
+      }
+      return "Pull Request"
+    case .terminal(let id, _): return panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
     }
   }
 
@@ -168,6 +176,16 @@ import Observation
     if !tabs.contains(tab) { tabs.append(tab) }
     move(tab.id, to: place)
   }
+  @discardableResult func openPullRequest(_ request: GitHubPullRequest,
+    in place: WorkspaceTabPlacement = .right, mergeConfirmation: Bool = false) -> Bool {
+    guard place == .left || place == .right, panels.workspace.root != nil,
+      pullRequest?(request.url)?.validatedURL != nil else { return false }
+    let tab = WorkspaceContentTab.pullRequest(request.url, owner: taskID)
+    if !tabs.contains(tab) { tabs.append(tab); placements[tab.id] = place }
+    if mergeConfirmation { pullRequestPresentations.request(tab.id) }
+    activate(tab.id)
+    return true
+  }
   func newTerminal(in place: WorkspaceTabPlacement = .bottom) {
     guard place != .detached, let terminal = panels.newTerminal() else { return }
     let tab = WorkspaceContentTab.terminal(terminal.id, owner: taskID)
@@ -223,6 +241,7 @@ import Observation
   }
   func close(_ id: String) {
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
+    pullRequestPresentations.clear(tab.id)
     onTabWillClose?(tab)
     if let browserID = tab.browserID { browser.session.close(browserID) }
     else {
@@ -283,6 +302,8 @@ import Observation
     case .review: openReview(in: state.placement, defaultScope: panels.workspace.reviewScope)
     case .plan(let runID, _): openPlan(runID: runID)
     case .sources: openSources(in: state.placement)
+    case .pullRequest(let url, _):
+      if let request = pullRequest?(url) { _ = openPullRequest(request, in: state.placement) }
     case .terminal: newTerminal(in: state.placement)
     }
   }
@@ -310,11 +331,12 @@ import Observation
   }
   func resetProjectTabs() {
     endDrag()
-    for tab in tabs where tab.kind == .review || tab.kind == .terminal {
+    for tab in tabs where tab.kind == .review || tab.kind == .terminal || tab.kind == .pullRequest {
+      pullRequestPresentations.clear(tab.id)
       clearSelection(tab.id); placements[tab.id] = nil
     }
-    tabs.removeAll { $0.kind == .review || $0.kind == .terminal }
-    closed.removeAll { $0.tab.kind == .review || $0.tab.kind == .terminal }
+    tabs.removeAll { $0.kind == .review || $0.kind == .terminal || $0.kind == .pullRequest }
+    closed.removeAll { $0.tab.kind == .review || $0.tab.kind == .terminal || $0.tab.kind == .pullRequest }
     repairSelection(.right); repairSelection(.bottom)
   }
 
@@ -327,7 +349,7 @@ import Observation
       return SavedWorkspaceTab(id: tab.id,
         kind: tab.kind,
         placement: placement(tab.id), address: page?.address,
-        committedURL: page?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
+        committedURL: tab.pullRequestURL ?? page?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
     }
     return TaskWindowTabLayout(project: panels.workspace.root?.path,
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
@@ -372,6 +394,10 @@ import Observation
         guard entry.id == WorkspaceContentTab.sources(owner: taskID).id else { continue }
         tab = .sources(owner: taskID)
         tabs.append(tab)
+      case .pullRequest:
+        let candidate = WorkspaceContentTab.pullRequest(entry.committedURL ?? "", owner: taskID)
+        guard sameProject, entry.id == candidate.id, pullRequest?(entry.committedURL ?? "")?.validatedURL != nil else { continue }
+        tab = candidate; tabs.append(tab)
       case .terminal:
         guard sameProject, entry.id.hasPrefix("terminal:"),
           let id = UUID(uuidString: String(entry.id.dropFirst(9))), panels.newTerminal(id: id) != nil else { continue }

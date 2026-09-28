@@ -10,6 +10,9 @@ struct TaskPullRequestDetailView: View {
   let onRefresh: (GitHubPullRequest) -> Void
   let back: () -> Void
   let close: () -> Void
+  var compact = true
+  var presentations: PullRequestTabPresentations? = nil
+  var tabID: String = ""
 
   @State private var state = GitHubPRDetailState()
   private var details: GitHubPRDetails? { state.snapshot?.details }
@@ -25,12 +28,13 @@ struct TaskPullRequestDetailView: View {
   var body: some View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
-        Button(action: back) { Image(systemName: "chevron.left") }
+        if compact { Button(action: back) { Image(systemName: "chevron.left") }
           .buttonStyle(.plain).help("返回摘要").accessibilityLabel("返回摘要")
+        }
         Text("Pull request #\(request.number)").appFont(.headline).lineLimit(1)
         Spacer(minLength: 0)
         Button(action: close) { Image(systemName: "xmark") }
-          .buttonStyle(.plain).help("关闭摘要").accessibilityLabel("关闭摘要")
+          .buttonStyle(.plain).help(compact ? "关闭摘要" : "关闭 PR").accessibilityLabel(compact ? "关闭摘要" : "关闭 PR")
       }.padding(.horizontal, 16).padding(.vertical, 13)
       Divider()
       ScrollView {
@@ -99,10 +103,14 @@ struct TaskPullRequestDetailView: View {
         .padding(16)
       }
     }
-    .frame(width: 316)
+    .frame(width: compact ? 316 : nil)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.regularMaterial)
-    .task(id: taskID + root.path + request.url) { state.cancel(); await refresh() }
-    .onDisappear { state.cancel() }
+    .task(id: taskID + root.path + request.url) { state.cancel(); await refresh(); consumeMergeRequest() }
+    .onChange(of: presentations?.token(tabID)) { _, _ in consumeMergeRequest() }
+    .onChange(of: state.snapshot) { _, _ in consumeMergeRequest() }
+    .onChange(of: root) { _, _ in presentations?.clear(tabID) }
+    .onDisappear { presentations?.clear(tabID); state.cancel() }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
         confirm: { apply(.merge(state.selectedMethod)) })
@@ -112,6 +120,15 @@ struct TaskPullRequestDetailView: View {
   private func refresh() async {
     await state.refresh(request, at: root, preferred: store.library.gitPreferences.pullRequestMergeMethod,
       valid: { valid }, updated: onRefresh)
+  }
+
+  private func consumeMergeRequest() {
+    guard let presentations, let token = presentations.token(tabID), !state.loading,
+      let snapshot = state.snapshot else { return }
+    presentations.consume(tabID, token: token)
+    guard valid, snapshot.isAuthor, !snapshot.details.isDraft,
+      snapshot.details.state.uppercased() != "MERGED" else { return }
+    state.showingMergeConfirmation = true
   }
 
   private func apply(_ action: GitHubPRMergeAction) {

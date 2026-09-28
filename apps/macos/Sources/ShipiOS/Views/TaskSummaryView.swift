@@ -3,7 +3,6 @@ import SwiftUI
 
 /// A task-local summary assembled only from records ShipiOS actually owns.
 struct TaskSummaryView: View {
-  let store: WorkspaceStore
   private enum Preview: Identifiable {
     case log(TaskSummaryOutputFile)
     case file(TaskSummaryLinkedFile)
@@ -15,7 +14,6 @@ struct TaskSummaryView: View {
     }
   }
   @State private var preview: Preview?
-  @State private var selectedPullRequest: (taskID: String, request: GitHubPullRequest)?
   @State private var showingOutputs = false
   @State private var linkedFiles: [TaskSummaryLinkedFile] = []
   let task: WorkspaceTask
@@ -30,7 +28,7 @@ struct TaskSummaryView: View {
   let addImage: () -> Void
   let canAddFile: Bool
   let canAddImage: Bool
-  let onPullRequestUpdated: (GitHubPullRequest) -> Void
+  let openPullRequest: (GitHubPullRequest) -> Void
   let browserTabs: [TaskSummaryBrowserTab]
   let focusBrowserTab: (UUID) -> Void
   let rootForRun: (AgentRun) -> URL?
@@ -50,14 +48,7 @@ struct TaskSummaryView: View {
 
   var body: some View {
     Group {
-      if let selection = selectedPullRequest, selection.taskID == task.id {
-        TaskPullRequestDetailView(store: store, taskID: task.id, request: selection.request,
-          root: URL(fileURLWithPath: task.project, isDirectory: true),
-          openExternal: openExternal,
-          onRefresh: onPullRequestUpdated,
-          back: { selectedPullRequest = nil },
-          close: { selectedPullRequest = nil; close() })
-      } else if showingOutputs {
+      if showingOutputs {
         TaskSummaryOutputsView(artifacts: runs.summaryArtifacts, linkedFiles: linkedFiles,
           previewLog: { preview = .log($0) }, openFile: openLinkedFile,
           refresh: refreshLinkedFiles,
@@ -66,7 +57,7 @@ struct TaskSummaryView: View {
         summaryContent
       }
     }
-    .onChange(of: task.id) { _, _ in selectedPullRequest = nil; showingOutputs = false }
+    .onChange(of: task.id) { _, _ in showingOutputs = false }
     .onChange(of: runs, initial: true) { _, current in
       linkedFiles = TaskSummaryLinkedFiles.collect(current, rootForRun: rootForRun)
     }
@@ -140,7 +131,7 @@ struct TaskSummaryView: View {
               }
               ForEach(pullRequests, id: \.url) { request in
                 if let url = request.validatedURL {
-                  Button { selectedPullRequest = (task.id, request) } label: {
+                  Button { openPullRequest(request) } label: {
                     HStack(alignment: .top, spacing: 8) {
                       Text("#\(request.number)").foregroundStyle(.secondary)
                       VStack(alignment: .leading, spacing: 3) {

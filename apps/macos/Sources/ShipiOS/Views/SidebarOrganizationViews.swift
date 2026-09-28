@@ -206,7 +206,7 @@ private struct SidebarPinnedContentTabRow: View {
       Task { await store.openPinnedWorkspaceTab(pin.id) }
     } label: {
       HStack(spacing: 8) {
-        Image(systemName: pin.kind == .browser ? "globe" : pin.kind == .terminal ? "terminal" : "square.stack.3d.up")
+        Image(systemName: pin.kind == .pullRequest ? "arrow.triangle.pullrequest" : pin.kind == .browser ? "globe" : pin.kind == .terminal ? "terminal" : "square.stack.3d.up")
           .appFont(size: 11).foregroundStyle(.tertiary).frame(width: 12)
         VStack(alignment: .leading, spacing: 3) {
           Text(store.pinnedWorkspaceTabTitle(pin)).lineLimit(1).appFont(size: 12)

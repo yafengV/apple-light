@@ -286,7 +286,7 @@ final class GitWorkflowCommandTests: XCTestCase {
     await workspace.gitCommands.load(req) { _, _ in self.snapshot(workspace.root!, problem: "Not authorized") }
     XCTAssertEqual(gitCommands(), ["git.commit"])
     await workspace.gitCommands.load(req) { _, _ in self.snapshot(workspace.root!) }
-    XCTAssertEqual(gitCommands(), GitWorkflowCommandContext.ids.filter { $0 != "git.createBranch" && $0 != "git.openPullRequest" })
+    XCTAssertEqual(gitCommands(), GitWorkflowCommandContext.ids.filter { $0 != "git.createBranch" && $0 != "git.openPullRequest" && $0 != "git.mergePullRequest" })
     XCTAssertEqual(CommandPaletteView.matchingCommands("草稿 PR", git: context).map(\.id), ["git.createDraftPullRequest"])
     store.library.gitPreferences.readOnlyReview = true
     XCTAssertTrue(gitCommands().isEmpty)

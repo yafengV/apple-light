@@ -46,6 +46,10 @@ extension WorkspaceStore {
     case .plan(let runID, let owner):
       return taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument?.title ?? "计划"
     case .sources: return "来源"
+    case .pullRequest:
+      guard let request = pullRequestContent(tab) else { return "Pull Request" }
+      let title = request.title.trimmingCharacters(in: .whitespacesAndNewlines)
+      return title.isEmpty ? "Pull request #\(request.number)" : title
     case .terminal(let id, _):
       return terminalSession(id)?.displayTitle ?? "终端"
     }
@@ -78,6 +82,9 @@ extension WorkspaceStore {
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .sources,
         title: "来源", restoreURL: nil)
+    case .pullRequest(let url, let owner):
+      reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
+        kind: .pullRequest, title: workspaceTabTitle(tab), restoreURL: url)
     case .terminal(_, let owner):
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .terminal,
@@ -204,6 +211,16 @@ extension WorkspaceStore {
         library.pinnedContentTabs[index].sourceWindowID = nil
         saveLibrary()
       }
+    case .pullRequest:
+      let tab = WorkspaceContentTab.pullRequest(pin.restoreURL ?? "", owner: pin.owner)
+      guard pin.sourceTabID == tab.id, let request = pullRequestContent(tab), openPullRequestContent(request) else {
+        error = "此 PR 标签不可用。可以保留固定项或取消固定。"
+        return
+      }
+      if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
+        library.pinnedContentTabs[index].sourceWindowID = nil
+        saveLibrary()
+      }
     case .terminal:
       guard project != nil else {
         error = "此终端标签的项目不可用。可以保留固定项或取消固定。"
@@ -254,7 +271,7 @@ extension WorkspaceStore {
       if workspace.browser.selection != browserID { workspace.browser.select(browserID) }
     case .review:
       Task { await workspace.refreshGit() }
-    case .plan, .sources: break
+    case .plan, .sources, .pullRequest: break
     case .terminal:
       focusTerminal()
     }
@@ -314,9 +331,11 @@ extension WorkspaceStore {
 
   func closeWorkspaceTab(_ id: String) {
     guard let tab = workspaceTabs.first(where: { $0.id == id }) else { return }
+    if tab.kind == .pullRequest { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
-    case .review, .plan, .sources:
+    case .review, .plan, .sources, .pullRequest:
+      pullRequestTabPresentations.clear(tab.id)
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
       workspaceTabs.removeAll { $0.id == id }
@@ -413,6 +432,9 @@ extension WorkspaceStore {
       return nil
     case .sources:
       error = "来源属于原任务，不能移到其他任务。"
+      return nil
+    case .pullRequest:
+      error = "PR 详情属于原任务，不能移到其他任务。"
       return nil
     case .terminal(let terminalID, _): migrated = .terminal(terminalID, owner: newOwner)
     }
@@ -549,6 +571,11 @@ extension WorkspaceStore {
       if owner == currentWorkspaceTabOwner { _ = openPlanDocument(runID: runID) }
     case .sources(let owner):
       if owner == currentWorkspaceTabOwner { _ = openTaskSources() }
+    case .pullRequest(_, let owner):
+      let placement = closedPullRequestPlacements.removeValue(forKey: tab.id) ?? .right
+      if owner == currentWorkspaceTabOwner, let request = pullRequestContent(tab) {
+        _ = openPullRequestContent(request, in: placement == .detached ? .right : placement)
+      }
     case .browser(_, let owner):
       reopeningWorkspaceTabOwner = owner
       _ = workspace.browser.reopenClosedTab()
@@ -613,6 +640,8 @@ extension WorkspaceStore {
     if closedWorkspaceTabs.count > 20 {
       closedWorkspaceTabs.removeFirst(closedWorkspaceTabs.count - 20)
     }
+    let ids = Set(closedWorkspaceTabs.map(\.id))
+    closedPullRequestPlacements = closedPullRequestPlacements.filter { ids.contains($0.key) }
   }
 
   func moveWorkspaceTabs(from oldOwner: String, to newOwner: String) {
@@ -626,6 +655,7 @@ extension WorkspaceStore {
       case .review: migrated = .review(owner: newOwner)
       case .plan(let runID, _): migrated = .plan(runID, owner: newOwner)
       case .sources: migrated = .sources(owner: newOwner)
+      case .pullRequest(let url, _): migrated = .pullRequest(url, owner: newOwner)
       case .terminal(let id, _): migrated = .terminal(id, owner: newOwner)
       }
       migratedIDs[tab.id] = migrated.id

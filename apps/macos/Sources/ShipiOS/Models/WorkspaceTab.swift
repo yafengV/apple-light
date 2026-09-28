@@ -50,6 +50,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   case review(owner: String)
   case plan(String, owner: String)
   case sources(owner: String)
+  case pullRequest(String, owner: String)
   case terminal(UUID, owner: String)
 
   var id: String {
@@ -58,13 +59,14 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .review(let owner): "review:\(owner)"
     case .plan(let runID, _): "plan:\(runID)"
     case .sources(let owner): "sources:\(owner)"
+    case .pullRequest(let url, let owner): "pull-request:\(owner):\(url)"
     case .terminal(let id, _): "terminal:\(id.uuidString)"
     }
   }
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .terminal(_, let owner): owner
+    case .browser(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .terminal(_, let owner): owner
     }
   }
 
@@ -77,6 +79,10 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     guard case .terminal(let id, _) = self else { return nil }
     return id
   }
+  var pullRequestURL: String? {
+    guard case .pullRequest(let url, _) = self else { return nil }
+    return url
+  }
 
   var icon: String {
     switch self {
@@ -84,6 +90,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .review: "square.stack.3d.up"
     case .plan: "text.document"
     case .sources: "square.stack"
+    case .pullRequest: "arrow.triangle.pullrequest"
     case .terminal: "terminal"
     }
   }
@@ -94,6 +101,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .review: .review
     case .plan: .plan
     case .sources: .sources
+    case .pullRequest: .pullRequest
     case .terminal: .terminal
     }
   }
@@ -104,6 +112,7 @@ enum PinnedWorkspaceTabKind: String, Codable {
   case review
   case plan
   case sources
+  case pullRequest
   case terminal
 }
 

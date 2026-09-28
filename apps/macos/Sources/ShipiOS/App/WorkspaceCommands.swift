@@ -80,6 +80,7 @@ struct WorkspaceCommands: Commands {
       command("branch")
       if gitCommands?.visible("git.createBranch") == true { command("git.createBranch") }
       if gitCommands?.visible("git.openPullRequest") == true { command("git.openPullRequest") }
+      if gitCommands?.visible("git.mergePullRequest") == true { command("git.mergePullRequest") }
       command("git.commit")
       if gitCommands?.visible("git.createPullRequest") == true {
         command("git.createPullRequest")

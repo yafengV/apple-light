@@ -40,6 +40,9 @@ import Observation
       tasks[taskID]?.planDocument = { [weak store] runID in
         store?.taskWindowRuns(taskID).first(where: { $0.id == runID })?.codexPlanDocument
       }
+      tasks[taskID]?.pullRequest = { [weak store] url in
+        store?.pullRequestContent(.pullRequest(url, owner: taskID))
+      }
       tasks[taskID]?.onTabWillClose = { [weak self] _ in self?.capturePins() }
       tasks[taskID]?.onTabReplaced = { [weak self] old, new in
         guard let self, let store = self.store else { return }
@@ -90,7 +93,7 @@ import Observation
     let browser = tab.browserID.flatMap { id in tabs.browser.session.tabs.first { $0.id == id } }
     return PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: tab.owner,
       kind: tab.kind,
-      title: tabs.title(tab), restoreURL: browser?.committedURL?.absoluteString ?? browser?.address,
+      title: tabs.title(tab), restoreURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString ?? browser?.address,
       sourceWindowID: id)
   }
   func capturePins() {

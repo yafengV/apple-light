@@ -5,6 +5,7 @@ struct DetachedReviewView: View {
   let owner: String
   let focusComposer: () -> Void
   let openPullRequestLink: @MainActor (URL) async -> Bool
+  let openPullRequestDetails: @MainActor (GitHubPullRequest, Bool) async -> Bool
   @FocusedValue(\.searchDialogActive) private var searchDialogActive
   @FocusedValue(\.imagePreviewActive) private var imagePreviewActive
   @State private var session = DetachedReviewSession()
@@ -22,7 +23,8 @@ struct DetachedReviewView: View {
     }
     .gitWorkflowPresentation(store: store, workspace: session.workspace, taskID: owner, currentTaskID: {
       store.library.tasks.contains(where: { $0.id == owner }) ? owner : nil
-    }, keyboardAllowed: { searchDialogActive != true && imagePreviewActive != true }, openPullRequestLink: openPullRequestLink) {
+    }, keyboardAllowed: { searchDialogActive != true && imagePreviewActive != true }, openPullRequestLink: openPullRequestLink,
+      openPullRequestDetails: openPullRequestDetails) {
       imagePreviewActive != true && !store.shuttingDown && !store.restoringLibrary && store.workspaceTabProject(owner: owner) == session.workspace.root
     }
     .task(id: root) {

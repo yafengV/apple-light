@@ -65,6 +65,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "git.createPullRequest", title: "创建 PR", icon: "arrow.triangle.pull", shortcut: ""),
     .init(id: "git.createDraftPullRequest", title: "创建草稿 PR", icon: "doc.badge.ellipsis", shortcut: ""),
     .init(id: "git.openPullRequest", title: "在 GitHub 打开 PR", icon: "arrow.up.right.square", shortcut: ""),
+    .init(id: "git.mergePullRequest", title: "合并 PR", icon: "arrow.triangle.merge", shortcut: ""),
     .init(id: "branch", title: "切换或创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "settings", title: "设置", icon: "gearshape", shortcut: "⌘,"),
     .init(id: "pet", title: "显示或隐藏宠物", icon: "pawprint", shortcut: "⌥Space"),

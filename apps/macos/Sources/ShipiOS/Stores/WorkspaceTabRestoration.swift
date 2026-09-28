@@ -11,7 +11,7 @@ extension WorkspaceStore {
       return SavedWorkspaceTab(id: tab.id,
         kind: tab.kind,
         placement: workspaceTabPlacement(tab.id), address: browser?.address,
-        committedURL: browser?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
+        committedURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
     }, active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
       bottom: activeBottomWorkspaceTabID, focused: focusedWorkspaceTabID,
       showingInspector: showingInspector, showingTerminal: showingTerminal,
@@ -102,6 +102,11 @@ extension WorkspaceStore {
       guard library.tasks.contains(where: { $0.id == owner }),
         saved.id == WorkspaceContentTab.sources(owner: owner).id else { return nil }
       tab = .sources(owner: owner)
+      workspaceTabs.append(tab)
+    case .pullRequest:
+      let candidate = WorkspaceContentTab.pullRequest(saved.committedURL ?? "", owner: owner)
+      guard saved.id == candidate.id, pullRequestContent(candidate) != nil else { return nil }
+      tab = candidate
       workspaceTabs.append(tab)
     case .terminal:
       guard let root = workspaceTabProject(owner: owner),
