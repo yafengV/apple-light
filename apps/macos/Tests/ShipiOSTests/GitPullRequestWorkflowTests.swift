@@ -441,4 +441,214 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     XCTAssertFalse(workspace.gitBusy)
     XCTAssertFalse(workspace.gitActionRunning)
   }
+
+  @MainActor func testBrowserFormCommitsAndPushesWithoutCreatingOrRecordingPR() async throws {
+    let fixture = try await fixture(published: false)
+    try write("browser local change\n", in: fixture)
+    let (store, workspace) = await workspace(fixture)
+    workspace.pullRequestDraft.title = "Literal + & # 中文"
+    workspace.pullRequestDraft.body = "## Description\n\n+ and & ? # `$(literal)` 中文"
+    let body = workspace.pullRequestDraft.body
+    var opened: URL?
+    await store.createPullRequest(in: workspace, draft: false, taskID: "owner", openInBrowser: true,
+      openURL: { opened = $0; return true })
+    let url = try XCTUnwrap(opened)
+    XCTAssertEqual(url.host, "github.com")
+    XCTAssertTrue(url.absoluteString.contains("/compare/main...feature%2Ftopic?"))
+    let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+    XCTAssertEqual(items.first { $0.name == "title" }?.value, "Literal + & # 中文")
+    XCTAssertEqual(items.first { $0.name == "body" }?.value, body)
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    let remote = try await git(["rev-parse", "refs/heads/feature/topic"], at: fixture.remote)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: fixture.root)
+    XCTAssertEqual(head, remote)
+    XCTAssertEqual(count, "3")
+    XCTAssertNil(workspace.pullRequestDraft.existing)
+    XCTAssertNil(workspace.pullRequestDraft.error)
+    XCTAssertEqual(workspace.pullRequestDraft.browserURL, url)
+    XCTAssertEqual(workspace.pullRequestDraft.context?.plan.commit, head)
+    XCTAssertTrue(workspace.pullRequestDraft.canCreate)
+    XCTAssertNil(store.library.taskPullRequests["owner"])
+    XCTAssertEqual(try creates(fixture).count, 0)
+    XCTAssertEqual(workspace.gitActionStatus, "已在浏览器中打开 PR 页面")
+    XCTAssertEqual(workspace.commitMessage, "")
+    XCTAssertFalse(workspace.gitBusy)
+    XCTAssertFalse(workspace.gitActionRunning)
+  }
+
+  @MainActor func testUncheckedBrowserFormPreservesLocalHeadIndexAndUntrackedFiles() async throws {
+    let fixture = try await fixture()
+    try write("unpushed\n", in: fixture)
+    _ = try await git(["commit", "-qam", "Unpublished local commit"], at: fixture.root)
+    try write("staged\n", in: fixture)
+    _ = try await git(["add", "file.txt"], at: fixture.root)
+    try write("unstaged\n", in: fixture)
+    try write("untracked\n", "other.txt", in: fixture)
+    let (store, workspace) = await workspace(fixture)
+    workspace.pullRequestDraft.includeLocalChanges = false
+    let index = try Data(contentsOf: fixture.root.appendingPathComponent(".git/index"))
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    var opened: URL?
+    await store.createPullRequest(in: workspace, draft: false, taskID: "owner", openInBrowser: true,
+      openURL: { opened = $0; return true })
+    XCTAssertNotNil(opened)
+    XCTAssertNil(workspace.pullRequestDraft.error)
+    let after = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    let remote = try await git(["rev-parse", "refs/heads/feature/topic"], at: fixture.remote)
+    XCTAssertEqual(after, head)
+    XCTAssertEqual(remote, fixture.head)
+    XCTAssertEqual(try Data(contentsOf: fixture.root.appendingPathComponent(".git/index")), index)
+    XCTAssertEqual(try String(contentsOf: fixture.root.appendingPathComponent("other.txt")), "untracked\n")
+    XCTAssertNil(store.library.taskPullRequests["owner"])
+    XCTAssertEqual(try creates(fixture).count, 0)
+    XCTAssertEqual(workspace.commitMessage, "Local changes")
+  }
+
+  @MainActor func testBrowserLaunchFailureRetainsDraftAndRetryDoesNotCommitTwice() async throws {
+    let fixture = try await fixture()
+    try write("local browser commit\n", in: fixture)
+    let (store, workspace) = await workspace(fixture)
+    let body = workspace.pullRequestDraft.body
+    await store.createPullRequest(in: workspace, draft: false, taskID: "owner", openInBrowser: true,
+      openURL: { _ in false })
+    XCTAssertNotNil(workspace.pullRequestDraft.error)
+    XCTAssertNil(workspace.pullRequestDraft.browserURL)
+    XCTAssertNil(workspace.pullRequestDraft.existing)
+    XCTAssertEqual(workspace.pullRequestDraft.title, "Manual title")
+    XCTAssertEqual(workspace.pullRequestDraft.body, body)
+    XCTAssertTrue(workspace.pullRequestDraft.canCreate)
+    let committed = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    var opens = 0
+    await store.createPullRequest(in: workspace, draft: false, taskID: "owner", openInBrowser: true,
+      openURL: { _ in opens += 1; return true })
+    let after = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    let count = try await git(["rev-list", "--count", "HEAD"], at: fixture.root)
+    XCTAssertEqual(after, committed)
+    XCTAssertEqual(count, "3")
+    XCTAssertEqual(opens, 1)
+    XCTAssertNil(workspace.pullRequestDraft.error)
+    XCTAssertNil(store.library.taskPullRequests["owner"])
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testOverlongBrowserURLFailsBeforeStagingCommitOrPush() async throws {
+    let fixture = try await fixture()
+    try write("local preserved change\n", in: fixture)
+    let (store, workspace) = await workspace(fixture)
+    workspace.pullRequestDraft.body = String(repeating: "界+", count: 2000)
+    let index = try Data(contentsOf: fixture.root.appendingPathComponent(".git/index"))
+    var opened = false
+    await store.createPullRequest(in: workspace, draft: false, openInBrowser: true,
+      openURL: { _ in opened = true; return true })
+    XCTAssertFalse(opened)
+    XCTAssertTrue(workspace.pullRequestDraft.error?.contains("地址过长") == true)
+    let head = try await git(["rev-parse", "HEAD"], at: fixture.root)
+    let remote = try await git(["rev-parse", "refs/heads/feature/topic"], at: fixture.remote)
+    XCTAssertEqual(head, fixture.head)
+    XCTAssertEqual(remote, fixture.head)
+    XCTAssertEqual(try Data(contentsOf: fixture.root.appendingPathComponent(".git/index")), index)
+    XCTAssertEqual(workspace.commitMessage, "Local changes")
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testBrowserFormGenerationPreservesManualTitleAndGeneratesCommitBeforeOpening() async throws {
+    let fixture = try await fixture()
+    try write("generated browser change\n", in: fixture)
+    let (_, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    draft.body = ""
+    var opened: URL?
+    let result = await draft.create(draft: false, generate: { content, title, body in
+      XCTAssertEqual(title, "Manual title")
+      XCTAssertEqual(body, "")
+      XCTAssertTrue(content.needsCommitMessage)
+      XCTAssertTrue(content.localDiff?.contains("generated browser change") == true)
+      return GitPullRequestText(title: "Ignored generated title", body: "Generated browser body",
+        commitMessage: "Generated browser commit")
+    }, prepareLocalChanges: true, browserOpener: { opened = $0; return true })
+    XCTAssertNil(result)
+    XCTAssertNil(draft.error)
+    let items = URLComponents(url: try XCTUnwrap(opened), resolvingAgainstBaseURL: false)?.queryItems
+    XCTAssertEqual(items?.first { $0.name == "title" }?.value, "Manual title")
+    XCTAssertEqual(items?.first { $0.name == "body" }?.value, "Generated browser body")
+    let message = try await git(["log", "-1", "--format=%s"], at: fixture.root)
+    XCTAssertEqual(message, "Generated browser commit")
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testBrowserInputChangedAfterSuccessfulPushNeverOpensStaleForm() async throws {
+    let fixture = try await fixture(published: false)
+    let (_, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    var opened = false
+    _ = await draft.create(draft: false, prepareLocalChanges: true,
+      onPushed: { _ in draft.title = "New manual title" },
+      browserOpener: { _ in opened = true; return true })
+    XCTAssertFalse(opened)
+    XCTAssertNil(draft.browserURL)
+    XCTAssertNotNil(draft.error)
+    XCTAssertEqual(draft.title, "New manual title")
+    XCTAssertTrue(draft.canCreate)
+    let remote = try await git(["rev-parse", "refs/heads/feature/topic"], at: fixture.remote)
+    XCTAssertEqual(remote, fixture.head)
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testBrowserAuthorizationRecheckedAfterGitPreparation() async throws {
+    let fixture = try await fixture(published: false)
+    let (_, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    var allowed = true, opened = false
+    _ = await draft.create(draft: false, prepareLocalChanges: true,
+      onPushed: { _ in allowed = false }, browserOpener: { _ in opened = true; return true },
+      authorize: { if !allowed { throw CancellationError() } })
+    XCTAssertFalse(opened)
+    XCTAssertNil(draft.browserURL)
+    XCTAssertNil(draft.existing)
+    XCTAssertEqual(try creates(fixture).count, 0)
+    XCTAssertFalse(draft.creating)
+  }
+
+
+  @MainActor func testExistingPRAppearingAfterPushOpensConfirmedPRInsteadOfCreationForm() async throws {
+    let fixture = try await fixture(published: false)
+    let (_, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    var opened: URL?
+    let result = await draft.create(draft: false, prepareLocalChanges: true, onPushed: { _ in
+      do {
+        let file = fixture.root.appendingPathComponent(".git/github-fixture.json")
+        var state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        state["pullRequests"] = [["number": 42, "url": "https://github.com/sample/project/pull/42",
+          "title": "Existing PR", "isDraft": false, "headRefName": "feature/topic",
+          "baseRefName": "main", "isCrossRepository": false]]
+        try JSONSerialization.data(withJSONObject: state).write(to: file)
+      } catch { XCTFail(error.localizedDescription) }
+    }, browserOpener: { opened = $0; return true })
+    XCTAssertNil(draft.error)
+    XCTAssertEqual(result?.number, 42)
+    XCTAssertEqual(draft.existing?.number, 42)
+    XCTAssertEqual(opened?.absoluteString, "https://github.com/sample/project/pull/42")
+    XCTAssertEqual(try creates(fixture).count, 0)
+  }
+
+  @MainActor func testModalDisappearanceDuringGenerationKeepsBackgroundWorkflowAndBrowserDraft() async throws {
+    let fixture = try await fixture()
+    let (_, workspace) = await workspace(fixture)
+    let draft = workspace.pullRequestDraft
+    draft.body = ""
+    var opened = false
+    _ = await draft.create(draft: false, generate: { _, _, _ in
+      await MainActor.run { draft.modalDidDisappear() }
+      try Task.checkCancellation()
+      return GitPullRequestText(title: "Generated", body: "Background description")
+    }, prepareLocalChanges: false, browserOpener: { _ in opened = true; return true })
+    XCTAssertTrue(opened)
+    XCTAssertNil(draft.error)
+    XCTAssertEqual(draft.title, "Manual title")
+    XCTAssertEqual(draft.body, "Background description")
+    XCTAssertEqual(try creates(fixture).count, 0)
+    XCTAssertFalse(draft.creating)
+  }
+
 }

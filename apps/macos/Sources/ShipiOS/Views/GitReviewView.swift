@@ -122,6 +122,19 @@ struct GitReviewView: View {
             .appFont(.caption)
           }.padding(10)
         }
+        if workspace.pullRequestDraft.context?.plan.root == workspace.gitRoot {
+          if workspace.pullRequestDraft.creating {
+            HStack {
+              ProgressView(workspace.pullRequestDraft.phase).controlSize(.small)
+              Spacer()
+              if workspace.pullRequestDraft.generating {
+                Button("取消生成") { workspace.pullRequestDraft.cancelGeneration() }
+              }
+            }.appFont(.caption).padding(10)
+          } else if let error = workspace.pullRequestDraft.error, error != workspace.error {
+            Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(10)
+          }
+        }
         if let error = workspace.error {
           Text(error).appFont(.caption).foregroundStyle(.orange).padding(10)
         }

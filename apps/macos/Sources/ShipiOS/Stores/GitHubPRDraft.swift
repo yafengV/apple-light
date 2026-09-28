@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Observation
 
 typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) async throws -> GitPullRequestText
@@ -11,6 +12,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
   private(set) var phase = ""
   private(set) var context: GitHubPRContext?
   private(set) var existing: GitHubPullRequest?
+  private(set) var browserURL: URL?
   private(set) var error: String?
   private(set) var loading = false
   private(set) var creating = false
@@ -37,7 +39,7 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
     if self.root != root { title = ""; body = ""; base = "" }
     self.root = root
     let operation = UUID(); token = operation
-    context = nil; existing = nil; error = nil; loading = true
+    context = nil; existing = nil; browserURL = nil; error = nil; loading = true
     defer { if token == operation { loading = false } }
     do {
       let value = try await service.inspect(at: root, allowUnpublished: allowUnpublished)
@@ -55,6 +57,9 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
     token = UUID(); loading = false
   }
 
+  // Selecting a PR action closes the modal while its background workflow continues.
+  func modalDidDisappear() { if !creating { cancelLoading() } }
+
   func cancelGeneration() { generationTask?.cancel() }
   func reportError(_ message: String) { error = message }
 
@@ -63,9 +68,10 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
     onCommitMessage: @escaping @MainActor (String) -> Void = { _ in },
     onCommitted: @escaping @MainActor () -> Void = {},
     onPushed: @escaping @MainActor (String) -> Void = { _ in },
-    authorize: GitMutationAuthorization = {}) async -> GitHubPullRequest? {
+    browserOpener: (@MainActor (URL) -> Bool)? = nil,
+    authorize: @escaping GitMutationAuthorization = {}) async -> GitHubPullRequest? {
     guard canCreate, let context else { return nil }
-    creating = true; error = nil
+    creating = true; error = nil; browserURL = nil
     phase = "正在检查分支与变更…"
     defer { creating = false; generating = false; generationTask = nil; phase = "" }
     let originalTitle = title, originalBody = body, originalBase = base
@@ -131,26 +137,59 @@ typealias GitHubPRGenerator = @Sendable (GitPullRequestContent, String, String) 
         }
       }
       try Task.checkCancellation()
-      let result: GitHubPullRequest
-      if let workflow {
-        let finalTitle = title, finalBody = body
-        let authorizeInput: GitMutationAuthorization = {
-          guard self.title == finalTitle, self.body == finalBody, self.base == originalBase,
-            self.includeLocalChanges == originalInclude else {
-            throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
-          }
-          try authorize()
+      // Validate the generated URL before any staging, commit or push.
+      if browserOpener != nil {
+        _ = try GitHubPRService.compareURL(repository: context.repository, base: base, head: context.head,
+          title: title, body: body)
+      }
+      let finalTitle = title, finalBody = body
+      let authorizeInput: GitMutationAuthorization = {
+        guard self.title == finalTitle, self.body == finalBody, self.base == originalBase,
+          self.includeLocalChanges == originalInclude else {
+          throw AgentFailure(message: "PR 内容已手动修改，未继续操作，请重新创建。")
         }
+        try authorize()
+      }
+      let destination: GitPullRequestDestination
+      if let workflow {
         if workflow.selection != nil { onCommitMessage(resolvedCommitMessage) }
-        result = try await workflow.execute(service: service, title: title, body: body, draft: draft,
-          commitMessage: resolvedCommitMessage, forceWithLease: forceWithLease, authorize: authorizeInput,
+        destination = try await workflow.execute(service: service, title: title, body: body, draft: draft,
+          commitMessage: resolvedCommitMessage, forceWithLease: forceWithLease,
+          openInBrowser: browserOpener != nil, authorize: authorizeInput,
           onPhase: { self.phase = $0 }, onCommitted: onCommitted, onPushed: onPushed)
+      } else if browserOpener != nil {
+        phase = "正在准备浏览器 PR 页面…"
+        destination = try await service.browserDestination(context, base: base, title: title, body: body,
+          publishedOnly: false, authorize: authorizeInput)
       } else {
         phase = "正在创建 PR…"
-        result = try await service.create(context, base: base, title: title, body: body, draft: draft, authorize: authorize)
+        destination = .pullRequest(try await service.create(context, base: base, title: title, body: body,
+          draft: draft, authorize: authorizeInput))
       }
-      existing = result
-      return result
+      switch destination {
+      case .pullRequest(let result):
+        if let browserOpener {
+          guard let url = context.repository.pullRequestURL(result.url) else {
+            throw AgentFailure(message: "PR 地址无效。")
+          }
+          try authorizeInput()
+          try Task.checkCancellation()
+          guard browserOpener(url) else { throw AgentFailure(message: "无法打开系统浏览器，请重试。") }
+          browserURL = url
+        }
+        existing = result
+        return result
+      case .browser(let url, let refreshed):
+        try authorizeInput()
+        try Task.checkCancellation()
+        guard let browserOpener, browserOpener(url) else {
+          throw AgentFailure(message: "无法打开系统浏览器，标题和描述已保留，请重试。")
+        }
+        browserURL = url
+        // The destination already checked this head; do not delay the browser handoff with another inspection.
+        self.context = refreshed
+        return nil
+      }
     } catch {
       if error is CancellationError { return nil }
       needsRefresh = error is GitHubPRRefreshRequired
@@ -212,7 +251,9 @@ extension WorkspaceStore {
     }
   }
 
-  func createPullRequest(in workspace: DeveloperWorkspace, draft: Bool, taskID: String? = nil) async {
+  func createPullRequest(in workspace: DeveloperWorkspace, draft: Bool, taskID: String? = nil,
+    openInBrowser: Bool = false,
+    openURL: @escaping @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }) async {
     guard !library.gitPreferences.readOnlyReview, !workspace.gitBusy, !workspace.gitActionRunning,
       workspace.isPrimaryReviewRepository,
       let root = workspace.gitRoot, workspace.pullRequestDraft.canCreate,
@@ -223,6 +264,7 @@ extension WorkspaceStore {
     var expectedCommitMessage = originalCommitMessage
     let prepare = state.context?.allowsLocalPreparation == true ? state.includeLocalChanges : nil
     let originalTitle = state.title, originalBody = state.body, originalBase = state.base
+    let originalInclude = state.includeLocalChanges
     let authorizeContext = workspace.gitMutationAuthorization(at: root)
     let authorize: GitMutationAuthorization = {
       try authorizeContext()
@@ -246,7 +288,8 @@ extension WorkspaceStore {
         needsCommitMessage = changes.files.contains { $0.staged || $0.unstaged }
       }
       try authorize()
-      guard state.title == originalTitle, state.body == originalBody, state.base == originalBase else { return }
+      guard state.title == originalTitle, state.body == originalBody, state.base == originalBase,
+        state.includeLocalChanges == originalInclude else { return }
       if state.needsGeneratedContent || needsCommitMessage {
         let configuration = modelConfiguration
         _ = try configuration.endpoint("chat/completions")
@@ -276,17 +319,21 @@ extension WorkspaceStore {
       }, onCommitted: {
         guard workspace.generationForGitMutation == generation, workspace.reviewRepositoryEpoch == epoch else { return }
         workspace.commitMessage = ""; expectedCommitMessage = ""
-        workspace.gitActionStatus = "本地变更已提交，继续推送并创建 PR"
+        workspace.gitActionStatus = openInBrowser ? "本地变更已提交，继续推送并打开 PR 页面" : "本地变更已提交，继续推送并创建 PR"
       }, onPushed: { status in
         guard workspace.generationForGitMutation == generation, workspace.reviewRepositoryEpoch == epoch else { return }
         workspace.gitActionStatus = status
-      }, authorize: authorize)
+      }, browserOpener: openInBrowser ? openURL : nil, authorize: authorize)
     if let result, workspace.gitRoot == root, workspace.pullRequestDraft === state,
       workspace.reviewRepositoryEpoch == epoch, workspace.generationForGitMutation == generation {
       workspace.gitActionStatus = "已创建或找到 PR #\(result.number)"
       if let project = workspace.root {
         _ = recordPullRequest(result, for: taskID, at: project, repository: repository)
       }
+    }
+    if state.browserURL != nil, workspace.pullRequestDraft === state,
+      workspace.reviewRepositoryEpoch == epoch, workspace.generationForGitMutation == generation {
+      workspace.gitActionStatus = "已在浏览器中打开 PR 页面"
     }
     if prepare != nil, workspace.generationForGitMutation == generation,
       workspace.reviewRepositoryEpoch == epoch { await workspace.refreshGit() }

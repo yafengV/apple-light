@@ -86,10 +86,10 @@ struct GitPullRequestWorkflow {
   }
 
   func execute(service: GitHubPRService, title: String, body: String, draft: Bool,
-    commitMessage: String, forceWithLease: Bool, authorize: GitMutationAuthorization,
+    commitMessage: String, forceWithLease: Bool, openInBrowser: Bool = false, authorize: GitMutationAuthorization,
     onPhase: @MainActor (String) -> Void,
     onCommitted: @MainActor () -> Void,
-    onPushed: @MainActor (String) -> Void) async throws -> GitHubPullRequest {
+    onPushed: @MainActor (String) -> Void) async throws -> GitPullRequestDestination {
     try await validate(service: service)
     var expectedHead = context.plan.commit
     if let selection {
@@ -137,8 +137,13 @@ struct GitPullRequestWorkflow {
       try await service.remoteCommit(context.repository, branch: base, at: context.plan.root) == baseCommit else {
       throw GitHubPRRefreshRequired(message: "分支或目标提交已改变，请重新检查后创建 PR。")
     }
+    if openInBrowser {
+      await onPhase("正在准备浏览器 PR 页面…")
+      return try await service.browserDestination(current, base: base, title: title, body: body,
+        publishedOnly: !includeLocalChanges, authorize: authorize)
+    }
     await onPhase("正在创建 PR…")
-    return try await service.create(current, base: base, title: title, body: body, draft: draft,
-      publishedOnly: !includeLocalChanges, authorize: authorize)
+    return .pullRequest(try await service.create(current, base: base, title: title, body: body, draft: draft,
+      publishedOnly: !includeLocalChanges, authorize: authorize))
   }
 }

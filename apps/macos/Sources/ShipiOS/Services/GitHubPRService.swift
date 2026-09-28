@@ -108,6 +108,54 @@ struct GitHubPRService: Sendable {
       state: "OPEN", checkedAt: Date())
   }
 
+  static func compareURL(repository: GitHubRepository, base: String, head: String,
+    title: String, body: String) throws -> URL {
+    let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !title.isEmpty, title.count <= 256, !title.contains("\n"), !title.contains("\r"),
+      body.utf8.count <= 65_536, !base.isEmpty, !head.isEmpty, base != head else {
+      throw AgentFailure(message: "请填写有效的源分支、目标分支、单行标题和描述。")
+    }
+    let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+    guard let basePath = base.addingPercentEncoding(withAllowedCharacters: safe),
+      let headPath = head.addingPercentEncoding(withAllowedCharacters: safe) else {
+      throw AgentFailure(message: "无法编码 PR 分支名称。")
+    }
+    var components = URLComponents()
+    components.scheme = "https"; components.host = "github.com"
+    components.percentEncodedPath = "/" + repository.fullName + "/compare/" + basePath + "..." + headPath
+    components.queryItems = [URLQueryItem(name: "expand", value: "1"),
+      URLQueryItem(name: "title", value: title), URLQueryItem(name: "body", value: body)]
+    // A literal '+' in a URL query must survive form-style query decoding.
+    components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+    guard let url = components.url, url.absoluteString.utf8.count < 8192 else {
+      throw AgentFailure(message: "预填 PR 地址过长，请缩短描述，或选择在应用内创建 PR。")
+    }
+    return url
+  }
+
+  func browserDestination(_ context: GitHubPRContext, base: String, title: String, body: String,
+    publishedOnly: Bool, authorize: GitMutationAuthorization) async throws -> GitPullRequestDestination {
+    let url = try Self.compareURL(repository: context.repository, base: base, head: context.head,
+      title: title, body: body)
+    let valid = try await LocalWorkspaceService.git(["check-ref-format", "refs/heads/" + base], at: context.plan.root)
+    guard valid.status == 0 else { throw AgentFailure(message: "请选择有效的目标分支。") }
+    let fresh = try await inspect(at: context.plan.root, remote: context.plan.remote, allowUnpublished: publishedOnly)
+    guard fresh.plan == context.plan, fresh.repository == context.repository else {
+      throw GitHubPRRefreshRequired(message: "分支、提交或远端已改变，请重新检查后打开 PR。")
+    }
+    if let existing = fresh.existing { return .pullRequest(existing) }
+    if let problem = fresh.creationProblem { throw AgentFailure(message: problem) }
+    if publishedOnly {
+      guard let published = context.publishedCommit, fresh.publishedCommit == published else {
+        throw GitHubPRRefreshRequired(message: "已发布的源分支已改变，请重新检查。")
+      }
+    }
+    _ = try await remoteCommit(context.repository, branch: base, at: context.plan.root)
+    try Task.checkCancellation()
+    try await authorize()
+    return .browser(url, context: fresh)
+  }
+
   func generationContent(_ context: GitHubPRContext, base: String) async throws -> GitPullRequestContent {
     let valid = try await LocalWorkspaceService.git(["check-ref-format", "refs/heads/" + base], at: context.plan.root)
     guard valid.status == 0, base != context.head else {

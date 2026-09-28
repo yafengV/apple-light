@@ -134,3 +134,9 @@ struct GitHubPRRefreshRequired: LocalizedError {
   let message: String
   var errorDescription: String? { message }
 }
+
+/// A browser form is not a created pull request and must not enter task PR history.
+enum GitPullRequestDestination: Equatable, Sendable {
+  case pullRequest(GitHubPullRequest)
+  case browser(URL, context: GitHubPRContext)
+}
