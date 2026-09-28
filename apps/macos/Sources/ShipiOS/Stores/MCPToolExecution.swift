@@ -16,8 +16,12 @@ extension WorkspaceStore {
   }
 
   func streamChatWithTools(runID: String, config: ModelConfiguration, key: String?, messages initial: [ChatMessage],
-    bindings: [MCPToolBinding]) async throws -> ModelTokenUsage? {
+    bindings: [MCPToolBinding], skills: [PluginSkillReference] = []) async throws -> ModelTokenUsage? {
     var messages = initial, transcript: [ChatMessage] = []
+    let toolDefinitions = bindings.map(\.wire) + (skills.isEmpty ? [] : [ModelSkillReadTool.wire])
+    guard toolDefinitions.count <= 128 else {
+      throw AgentFailure(message: "本轮技能与 MCP 工具合计超过 128 个，请停用不需要的服务器后重试。")
+    }
     var usage: ModelTokenUsage?
     for _ in 0..<16 {
       try Task.checkCancellation()
@@ -25,7 +29,7 @@ extension WorkspaceStore {
       let turn: ModelTurnResult
       do {
         turn = try await ModelAPIClient().streamTurn(config: config, key: key, messages: messages,
-          attachmentRoot: dataRoot, tools: bindings.map(\.wire)) { [weak self] delta in
+          attachmentRoot: dataRoot, tools: toolDefinitions) { [weak self] delta in
             await self?.appendChat(runID, delta: delta)
           }
       } catch {
@@ -47,18 +51,20 @@ extension WorkspaceStore {
             reasoningOutputTokens: previous.reasoningOutputTokens == nil && current.reasoningOutputTokens == nil ? nil
               : (previous.reasoningOutputTokens ?? 0) + (current.reasoningOutputTokens ?? 0))
         } else { usage = current }
-        if !bindings.isEmpty, let usage { try setChatResultField("usage", value: usage.jsonValue, runID: runID) }
+        if !toolDefinitions.isEmpty, let usage { try setChatResultField("usage", value: usage.jsonValue, runID: runID) }
       }
       let assistant = ChatMessage(role: "assistant", content: turn.text, toolCalls: turn.calls)
       messages.append(assistant); transcript.append(assistant)
       if turn.calls.isEmpty {
-        if !bindings.isEmpty { try saveToolTranscript(transcript, runID: runID) }
+        if !toolDefinitions.isEmpty { try saveToolTranscript(transcript, runID: runID) }
         return usage
       }
       for (index, call) in turn.calls.enumerated() {
         do {
           let output: String
-          if let binding = bindings.first(where: { $0.alias == call.name }) {
+          if call.name == ModelSkillReadTool.name, !skills.isEmpty {
+            output = try executeSkillRead(call, advertised: skills, runID: runID)
+          } else if let binding = bindings.first(where: { $0.alias == call.name }) {
             output = try await executeMCPCall(call, binding: binding, runID: runID)
           } else { output = "Tool error: the requested tool was not offered. No action was executed." }
           let result = ChatMessage(role: "tool", content: output, toolCallID: call.id)
@@ -167,7 +173,7 @@ extension WorkspaceStore {
     }
   }
 
-  private func saveToolExecution(_ execution: MCPToolExecution, runID: String) throws {
+  func saveToolExecution(_ execution: MCPToolExecution, runID: String) throws {
     guard let run = library.chatRuns.first(where: { $0.id == runID }) else { throw CancellationError() }
     var records = run.toolExecutions
     var items = run.responseItems ?? run.displayedResponseItems
@@ -186,7 +192,7 @@ extension WorkspaceStore {
     try setChatResultField("tool_messages", value: try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(messages)), runID: runID)
   }
 
-  private func setChatResultField(_ key: String, value: JSONValue, runID: String) throws {
+  func setChatResultField(_ key: String, value: JSONValue, runID: String) throws {
     try setChatResultFields([key: value], runID: runID)
   }
 

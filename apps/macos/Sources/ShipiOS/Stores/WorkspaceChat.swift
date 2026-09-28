@@ -132,10 +132,14 @@ extension WorkspaceStore {
         ? await branchForTaskHistory() : nil
       guard !shuttingDown, !Task.isCancelled else { return nil }
       let effectiveProject = taskProject ?? currentProjectKey
+      let skillProject = !pluginsEnabled || effectiveProject.isEmpty
+        ? nil : URL(fileURLWithPath: effectiveProject, isDirectory: true)
       let pluginContext = try PluginStorage.promptContext(
         prompt: prompt, preferences: activePluginPreferences, root: dataRoot,
-        repositoryRoot: !pluginsEnabled || effectiveProject.isEmpty
-          ? nil : URL(fileURLWithPath: effectiveProject, isDirectory: true))
+        repositoryRoot: skillProject)
+      let skillDiscovery = try PluginStorage.discoveryContext(
+        preferences: activePluginPreferences, root: dataRoot, repositoryRoot: skillProject,
+        readTool: !usesCodex)
       let runID = UUID().uuidString
       let projectlessOwner = taskID ?? runID
       let projectlessDirectory = effectiveProject.isEmpty
@@ -156,7 +160,7 @@ extension WorkspaceStore {
       let instructions = [
         systemInstructions, modeInstructions, review == nil ? "" : ModelCodeReviewContext.instructions,
         isSideChat ? "这是临时只读侧聊。只回答当前问题，不修改文件或运行有副作用的操作。主会话正在独立继续。" : "",
-        pluginContext.instructions, workspaceInstructions,
+        pluginContext.instructions, skillDiscovery.instructions, workspaceInstructions,
       ]
         .filter { !$0.isEmpty }.joined(separator: "\n\n")
       var messages = [ChatMessage(role: "system", content: instructions)]
@@ -273,7 +277,7 @@ extension WorkspaceStore {
               compact: compact, sideChat: isSideChat, unattended: automationID != nil)
           } else {
             usage = try await streamChatWithTools(runID: run.id, config: config, key: key,
-              messages: messages, bindings: tools)
+              messages: messages, bindings: tools, skills: skillDiscovery.skills)
           }
           let continueGoal = finishChat(run.id, status: "succeeded", usage: usage)
           removeModelTask(runID: run.id)
@@ -345,7 +349,7 @@ extension WorkspaceStore {
     if unattended { permissions.approvalPolicy = .never }
     let stream = try await codexTransport.startTurn(
       taskID: taskID, workspace: workspace, executable: executable, config: config, key: key,
-      initialText: initialText, continuationText: continuationText, images: images,
+      initialText: initialText, continuationText: Self.codexContinuationText(messages: messages), images: images,
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat,
       planMode: mode == .plan, goalInstructions: goalInstructions,
       mcpServers: mcpServers, permissions: permissions,

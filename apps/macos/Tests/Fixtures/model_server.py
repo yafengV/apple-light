@@ -1,6 +1,7 @@
 """Local-only deterministic HTTP fixture; never uses external credentials."""
 import json
 import os
+import shlex
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -46,7 +47,29 @@ class Handler(BaseHTTPRequestHandler):
             developer_inputs = [part.get('text', '') for message in body.get('input', [])
                 if message.get('role') == 'developer' for part in message.get('content', [])]
             current_developer = developer_inputs[-1] if developer_inputs else ''
-            if 'Generate a file named AGENTS.md' in request_text and 'init-guide-patch' not in request_text:
+            skill_catalog = []
+            for message in body.get('input', []):
+                if not isinstance(message, dict):
+                    continue
+                content = message.get('content', [])
+                if not isinstance(content, list):
+                    continue
+                for part in content:
+                    for line in part.get('text', '').splitlines():
+                        try:
+                            entry = json.loads(line)
+                            if isinstance(entry, dict) and all(key in entry for key in ('id', 'path', 'description')):
+                                skill_catalog.append(entry)
+                        except (ValueError, TypeError):
+                            pass
+            if 'codex-skill-discovery' in request_text:
+                if skill_catalog and 'fixture-skill-read' not in request_text:
+                    item = {'type': 'function_call', 'call_id': 'fixture-skill-read', 'name': 'exec_command',
+                        'arguments': json.dumps({'cmd': 'cat ' + shlex.quote(skill_catalog[-1]['path']), 'yield_time_ms': 10000})}
+                else:
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'skill-reply',
+                        'content': [{'type': 'output_text', 'text': json.dumps(body, ensure_ascii=False)}]}
+            elif 'Generate a file named AGENTS.md' in request_text and 'init-guide-patch' not in request_text:
                 item = {
                     'type': 'custom_tool_call', 'call_id': 'init-guide-patch',
                     'name': 'apply_patch',
@@ -344,6 +367,25 @@ class Handler(BaseHTTPRequestHandler):
             user_index = max((i for i, m in enumerate(body['messages']) if m['role'] == 'user'), default=0)
             user_prompt = body['messages'][user_index]['content']
             tool_results = [m for m in body['messages'][user_index+1:] if m['role'] == 'tool']
+            if isinstance(user_prompt, str) and user_prompt.startswith('implicit-skill-read') and not tool_results:
+                read_tool = next((tool for tool in body.get('tools', [])
+                    if tool['function']['name'] == 'shipios_read_skill'), None)
+                catalog = []
+                for line in system_text.splitlines():
+                    try:
+                        entry = json.loads(line)
+                        if isinstance(entry, dict) and all(key in entry for key in ('id', 'path', 'description')):
+                            catalog.append(entry)
+                    except (ValueError, TypeError):
+                        pass
+                if read_tool and catalog:
+                    call = {'index': 0, 'id': 'skill-read-1', 'type': 'function', 'function': {
+                        'name': 'shipios_read_skill', 'arguments': json.dumps({'skill_id': catalog[0]['id']})}}
+                    frame = {'choices': [{'delta': {'tool_calls': [call]}, 'finish_reason': None}]}
+                    self.wfile.write(('data: ' + json.dumps(frame) + '\n\n').encode())
+                    self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n')
+                    self.wfile.write(b'data: [DONE]\n\n')
+                    return
             if isinstance(user_prompt, str) and user_prompt.startswith('mcp-call') and body.get('tools'):
                 required = 2 if user_prompt == 'mcp-call-twice' or user_prompt.startswith('mcp-call-timeline') else 1
                 if len(tool_results) < required:
@@ -391,6 +433,8 @@ class Handler(BaseHTTPRequestHandler):
                         chunks += ['\n\nSHIPIOS_GOAL_STATUS: complete']
             if prompt.startswith('slow'):
                 chunks += ['.'] * 100
+            if isinstance(user_prompt, str) and user_prompt.startswith('implicit-skill-read'):
+                chunks = [json.dumps(body, ensure_ascii=False)]
             if prompt in ('context', 'image-context') or prompt.startswith('file-context\n'):
                 chunks = [json.dumps(body['messages'], ensure_ascii=False)]
             if prompt.endswith('plugin-context'):
