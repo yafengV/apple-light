@@ -2,15 +2,18 @@ import Foundation
 
 extension WorkspaceStore {
   var canForkConversation: Bool {
-    guard !busy, let task = selectedTask, !task.isSideChat,
+    guard !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
+      let task = selectedTask, !task.isTransient, !task.archived,
+      !taskForkIsReserved(task.id),
       task.project == currentProjectKey else { return false }
     guard !library.managedWorktrees.contains(where: { $0.taskID == task.id }) else { return false }
     return (try? library.forkHistory(taskID: task.id, availableRuns: runs)) != nil
   }
 
   func canForkTaskWindow(_ taskID: String, through runID: String? = nil) -> Bool {
-    guard libraryLoaded, !busy,
-      library.tasks.contains(where: { $0.id == taskID && !$0.isSideChat }) else { return false }
+    guard libraryLoaded, !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
+      !taskForkIsReserved(taskID),
+      library.tasks.contains(where: { $0.id == taskID && !$0.isTransient && !$0.archived }) else { return false }
     guard !library.managedWorktrees.contains(where: { $0.taskID == taskID }) else { return false }
     return (try? library.forkHistory(taskID: taskID, through: runID,
       availableRuns: taskWindowRuns(taskID))) != nil
@@ -19,7 +22,11 @@ extension WorkspaceStore {
   /// Persist a fork for the calling window without touching main-window navigation.
   func forkTaskWindowConversation(_ taskID: String, through runID: String? = nil,
     consumeCommand: Bool = false) throws -> WorkspaceTask {
-    guard libraryLoaded, !busy else { throw AgentFailure(message: "请等待工作区完成当前操作后再分叉。") }
+    guard libraryLoaded, !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
+      !taskForkIsReserved(taskID),
+      library.tasks.contains(where: { $0.id == taskID && !$0.isTransient && !$0.archived }) else {
+      throw AgentFailure(message: "任务不可用或正在归档/删除，请等待当前操作结束后再分叉。")
+    }
     guard !library.managedWorktrees.contains(where: { $0.taskID == taskID }) else {
       throw AgentFailure(message: "托管工作树任务需要创建独立检出后才能分叉。")
     }
@@ -62,5 +69,12 @@ extension WorkspaceStore {
       self.error = error.localizedDescription
       return nil
     }
+  }
+
+  /// Other windows cannot fork a target whose archive or deletion is being confirmed.
+  private func taskForkIsReserved(_ id: String) -> Bool {
+    activityArchivingTaskIDs.contains(id)
+      || activityArchiveRequest?.taskIDs.contains(id) == true
+      || archiveDeletion?.taskIDs.contains(id) == true
   }
 }

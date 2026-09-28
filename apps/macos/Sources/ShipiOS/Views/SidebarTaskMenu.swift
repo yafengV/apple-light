@@ -33,6 +33,13 @@ struct SidebarTaskMenu: View {
           Button("任务链接") { store.copyTaskFromMenu(taskID, content: .link) }
           Button("会话 Markdown") { store.copyTaskFromMenu(taskID, content: .markdown) }
         }
+        if !task.archived, !task.isTransient {
+          Menu("分叉") {
+            Button(store.taskMenuForkDestination(task)) {
+              Task { await store.forkTaskFromMenu(taskID) }
+            }.disabled(!store.canForkTaskFromMenu(taskID))
+          }
+        }
         if let pending = store.library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff {
           Button("继续移交") {
             Task {

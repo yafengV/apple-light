@@ -34,6 +34,7 @@ final class WorkspaceStore {
   var activityArchiveResult: ActivityArchiveResult?
   var archivingActivity = false
   var activityArchivingTaskIDs: Set<String> = []
+  var taskMenuForkingID: String?
   var activitySession: ActivitySession?
   var showingActivity: Bool { activitySession != nil }
   var taskWindowOpenRequest: TaskWindowRoute?

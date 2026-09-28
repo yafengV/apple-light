@@ -12,7 +12,14 @@ class Handler(BaseHTTPRequestHandler):
     plan_patch_attempts = 0
     def log_message(self, *args):
         pass
+    def trace_phase(self, phase):
+        path = os.getenv('FIXTURE_EVENT_LOG')
+        if path:
+            with open(path, 'a') as output:
+                output.write(json.dumps({'at': time.monotonic(), 'path': self.path,
+                                         'phase': phase}) + '\n')
     def do_GET(self):
+        self.trace_phase('get')
         if self.path.startswith('/slow-models/'):
             time.sleep(5)
         if self.path == '/redirect/models':
@@ -33,6 +40,7 @@ class Handler(BaseHTTPRequestHandler):
             pass
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        self.trace_phase('post')
         if self.path in ('/v1/responses', '/alt/v1/responses', '/model-budget/v1/responses',
                          '/small-model-budget/v1/responses', '/slow-models/v1/responses'):
             request_text = json.dumps(body)
@@ -396,6 +404,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(('event: ' + event['type'] + '\ndata: '
                         + json.dumps(event) + '\n\n').encode())
                     self.wfile.flush()
+                    self.trace_phase(event['type'])
             except (BrokenPipeError, ConnectionResetError):
                 pass
             return
