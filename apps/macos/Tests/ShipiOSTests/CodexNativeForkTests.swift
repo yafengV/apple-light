@@ -242,13 +242,39 @@ final class CodexNativeForkTests: XCTestCase {
     let nestedCreated = await reopened.forkTaskToNewWorktree(fork.id)
     let nested = try XCTUnwrap(nestedCreated, reopened.error ?? "")
     XCTAssertNotEqual(nested.project, fork.project)
-    let result = try await send("skill-dependency-request-echo", store: reopened)
+    // The nested child has not opened a Core thread yet. Its source checkout can already be
+    // archived, while the private source rollout and copied files remain available.
+    XCTAssertNil(reopened.library.tasks.first { $0.id == nested.id }?.codexThreadID)
+    reopened.updateTask(fork.id, archive: true)
+    await reopened.managedArchiveCleanupTask?.value
+    XCTAssertFalse(FileManager.default.fileExists(atPath: fork.project))
+    XCTAssertEqual(reopened.library.managedWorktrees.first { $0.taskID == fork.id }?.archivedPruned, true)
+    let result: AgentRun
+    do { result = try await send("codex-handoff-cwd-probe-return skill-dependency-request-echo", store: reopened) }
+    catch { await reopened.shutdown(); throw error }
     let nestedBody = try JSONDecoder().decode(JSONValue.self,
       from: Data(try XCTUnwrap(result.result?["response"].text).utf8))
     XCTAssertTrue(nestedBody.pretty.contains("swift-handoff-cwd-call"))
     XCTAssertTrue(nestedBody.pretty.contains("swift-handoff-local-call"))
+    let nestedInput = try nestedBody["input"].decode([JSONValue].self)
+    let nestedOutput = try XCTUnwrap(nestedInput.first { $0["type"].text == "function_call_output"
+      && $0["call_id"].text == "swift-handoff-return-call" })
+    XCTAssertTrue(nestedOutput.pretty.contains(nested.project), "New commands use the surviving child checkout")
+    let nativeNested = try XCTUnwrap(reopened.selectedTask)
+    XCTAssertNotEqual(nativeNested.codexThreadID, child.codexThreadID)
+    XCTAssertNotNil(reopened.codexConversationPath(for: nativeNested))
     XCTAssertEqual(reopened.library.managedWorktrees.first { $0.taskID == nested.id }?.source,
       GitBranchService.canonicalRoot(project).path)
     await reopened.shutdown()
+
+    let resumed = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+    await resumed.restore()
+    let savedNested = try XCTUnwrap(resumed.library.tasks.first { $0.id == nested.id })
+    let reopenedNested = await resumed.selectTaskAwaitingScope(savedNested)
+    XCTAssertTrue(reopenedNested, resumed.error ?? "")
+    _ = try await send("resume child without source checkout", store: resumed)
+    XCTAssertEqual(resumed.selectedTask?.codexThreadID, nativeNested.codexThreadID)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: fork.project), "Resuming does not recreate source")
+    await resumed.shutdown()
   }
 }

@@ -257,12 +257,17 @@ impl CodexBridge {
             origin.workspace.is_absolute(),
             "source workspace must be absolute"
         );
-        let workspace = origin
-            .workspace
-            .canonicalize()
-            .context("source workspace is unavailable")?;
-        ensure!(workspace.is_dir(), "source workspace is not a directory");
-        let project_data = if workspace == self.project.canonicalize()? {
+        let workspace = match origin.workspace.canonicalize() {
+            Ok(workspace) => {
+                ensure!(workspace.is_dir(), "source workspace is not a directory");
+                Some(workspace)
+            }
+            // A pruned checkout does not remove its private rollout. The captured spelling
+            // still identifies its project namespace; all private-home checks below remain.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error).context("source workspace is unavailable"),
+        };
+        let project_data = if workspace.as_ref() == Some(&self.project.canonicalize()?) {
             self.data_dir.clone()
         } else {
             let projects = self
@@ -981,6 +986,27 @@ mod tests {
             bridge.fork_source(&alias_origin, &child)?.thread_id,
             saved.thread_id
         );
+        std::fs::remove_dir_all(&origin.workspace)?;
+        assert_eq!(
+            bridge.fork_source(&origin, &child)?.thread_id,
+            saved.thread_id
+        );
+        assert_eq!(
+            bridge.fork_source(&alias_origin, &child)?.thread_id,
+            saved.thread_id
+        );
+        let unowned = ForkThreadOrigin {
+            workspace: temp.path().join("NeverOwnedWorkspace"),
+            task_id: task_id.clone(),
+            thread_id: saved.thread_id.clone(),
+            through_turn_id: "turn".to_owned(),
+        };
+        assert!(bridge.fork_source(&unowned, &child).is_err());
+        let standalone = CodexBridge::new(temp.path().join("Standalone"), bridge.project.clone());
+        assert!(standalone.fork_source(&origin, &child).is_err());
+        std::fs::write(&origin.workspace, "replaced with a file")?;
+        assert!(bridge.fork_source(&origin, &child).is_err());
+        std::fs::remove_file(&origin.workspace)?;
         origin.thread_id = Uuid::new_v4().to_string();
         assert!(bridge.fork_source(&origin, &child).is_err());
         origin.thread_id = saved.thread_id;
