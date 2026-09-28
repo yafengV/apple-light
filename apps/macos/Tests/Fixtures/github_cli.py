@@ -16,10 +16,11 @@ log = {"args": args}
 def arg(flag):
     return args[args.index(flag) + 1]
 
-if args[:2] == ["pr", "create"]:
+if args[:2] == ["pr", "create"] or (args[:2] == ["pr", "edit"] and "--body-file" in args):
     body_file = pathlib.Path(arg("--body-file"))
-    log["body"] = body_file.read_text()
+    log["body"] = body_file.read_bytes().decode("utf-8")
     log["bodyMode"] = oct(body_file.stat().st_mode & 0o777)
+    log["folderMode"] = oct(body_file.parent.stat().st_mode & 0o777)
 with (root / "github-requests.jsonl").open("a") as handle:
     handle.write(json.dumps(log) + "\n")
 
@@ -33,6 +34,9 @@ elif args[:2] == ["repo", "view"]:
 elif args[:2] == ["pr", "list"]:
     print(json.dumps(state.get("pullRequests", [])))
 elif args[:2] == ["pr", "view"]:
+    if state.get("detailReadDelay"):
+        import time
+        time.sleep(state["detailReadDelay"])
     if arg("--repo") != "sample/project":
         print("Wrong repository", file=sys.stderr)
         sys.exit(2)
@@ -149,6 +153,31 @@ elif args[:2] == ["pr", "merge"]:
     if state.get("failAfterAction"):
         sys.exit("Connection interrupted after server accepted request")
     print("Fixture action accepted")
+elif args[:2] == ["pr", "edit"]:
+    if state.get("editDelay"):
+        import time
+        time.sleep(state["editDelay"])
+    if state.get("editFailure"):
+        sys.exit("Fixture edit denied")
+    item = next((item for item in state.get("pullRequests", []) if str(item.get("number")) == args[2]), None)
+    if item is None or arg("--repo") != "sample/project":
+        sys.exit("Wrong PR")
+    if "--title" in args:
+        item["title"] = arg("--title")
+    if "--body-file" in args:
+        state["detailBody"] = pathlib.Path(arg("--body-file")).read_bytes().decode("utf-8")
+    state["actionAccepted"] = True
+    state_path.write_text(json.dumps(state))
+    if state.get("failAfterAction"):
+        sys.exit("Connection interrupted after server accepted request")
+    print("Fixture edit accepted")
+elif args[:2] == ["pr", "diff"]:
+    if state.get("diffFailure"):
+        sys.exit("Fixture diff unavailable")
+    if state.get("headAfterDiff"):
+        state["detailHead"] = state["headAfterDiff"]
+        state_path.write_text(json.dumps(state))
+    print(state.get("prDiff", "diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new"))
 else:
     print("Unsupported fixture command", args, file=sys.stderr)
     sys.exit(2)

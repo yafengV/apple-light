@@ -1,4 +1,4 @@
-"""Loopback Responses-only fixture for isolated Git text generations."""
+"""Loopback model fixture for isolated Git text generations."""
 import json
 import os
 import time
@@ -18,12 +18,13 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         with open(os.environ['GENERATION_REQUEST_LOG'], 'a') as output:
             output.write(json.dumps({'path': self.path, 'body': body}, ensure_ascii=False) + '\n')
-        if self.path != '/v1/responses':
+        chat = self.path == '/v1/chat/completions'
+        if self.path != '/v1/responses' and not chat:
             self.send_response(400)
             self.end_headers()
             self.wfile.write(b'{"error":{"message":"Responses only"}}')
             return
-        messages = []
+        messages = body.get('messages', []) if chat else []
         for entry in body.get('input', []):
             for part in entry.get('content', []) if isinstance(entry.get('content'), list) else []:
                 text = part.get('text', '')
@@ -54,10 +55,22 @@ class Handler(BaseHTTPRequestHandler):
             text = json.dumps(result)
         elif 'fixture-echo-generation' in system:
             text = json.dumps(messages, ensure_ascii=False)
+        elif 'Generate only the Markdown pull request description' in system:
+            text = '## Summary\n\nGenerated PR description.'
         elif not messages:
             text = 'Normal coding reply'
         else:
             text = 'Responses commit 世界'
+        if chat:
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.end_headers()
+            events = [{'choices': [{'index': 0, 'delta': {'content': text}, 'finish_reason': None}]},
+                      {'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]}]
+            for event in events:
+                self.wfile.write(('data: ' + json.dumps(event) + '\n\n').encode())
+            self.wfile.write(b'data: [DONE]\n\n')
+            return
         item = {'type': 'message', 'role': 'assistant', 'id': 'generation-message',
                 'content': [{'type': 'output_text', 'text': text}]}
         if 'fixture-tool-generation' in system and 'function_call_output' not in request_text:

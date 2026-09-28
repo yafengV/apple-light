@@ -16,6 +16,8 @@ struct TaskPullRequestDetailView: View {
   var tabID: String = ""
 
   @State private var state = GitHubPRDetailState()
+  @State private var editor = GitHubPREditState()
+  @State private var editorOwner = UUID()
   @State private var checks = GitHubPRChecksState()
   @State private var fixBranch: String?
   @State private var fixing = false
@@ -50,7 +52,8 @@ struct TaskPullRequestDetailView: View {
       Divider()
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {
-          Text(details?.title ?? request.title).appFont(.headline).textSelection(.enabled)
+          TaskPullRequestTitleView(editor: editor, snapshot: state.snapshot, request: request,
+            writable: writable, save: { save(.title) }, open: openExternal)
           HStack {
             Label(details?.statusLabel ?? (request.isDraft ? "草稿" : "最后记录为开放"),
               systemImage: details?.state.uppercased() == "MERGED" ? "checkmark.circle.fill"
@@ -70,13 +73,11 @@ struct TaskPullRequestDetailView: View {
               Label("存在合并冲突", systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.orange)
             }
-            if let body = details.body, !body.isEmpty {
-              Divider()
-              MessageMarkdownView(source: body, partPrefix: "pull-request") { url in
-                openExternal(url)
-              }
-            }
           }
+          Divider()
+          TaskPullRequestDescriptionView(editor: editor, snapshot: state.snapshot, request: request,
+            writable: writable, loading: state.loading, save: { save(.body) },
+            generate: generateDescription, open: openExternal)
           if state.snapshot != nil {
             Divider()
             TaskPullRequestChecksView(state: checks, openLink: openExternal,
@@ -122,7 +123,18 @@ struct TaskPullRequestDetailView: View {
     .frame(width: compact ? 316 : nil)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.regularMaterial)
-    .task(id: taskID + root.path + request.url) { state.cancel(); await refresh(); consumeMergeRequest() }
+    .task(id: taskID + root.path + request.url) {
+      editor.detach(editorOwner)
+      editor = GitHubPREditRegistry.shared.state(dataRoot: store.dataRoot, root: root, request: request)
+      editor.attach(editorOwner)
+      state.trackEditor(editor)
+      state.cancel(); await refresh(); consumeMergeRequest()
+    }
+    .onChange(of: editor.revision) { _, _ in
+      guard valid, let snapshot = editor.snapshot, snapshot.details.url == request.url else { return }
+      guard state.acceptEditorChanges(editor) != nil else { return }
+      onRefresh(snapshot.details.recorded(updating: request))
+    }
     .task(id: checksRequest) {
       await loadChecks()
       while !Task.isCancelled, checksRequest != nil,
@@ -144,7 +156,7 @@ struct TaskPullRequestDetailView: View {
     .onChange(of: presentations?.token(tabID)) { _, _ in consumeMergeRequest() }
     .onChange(of: state.snapshot) { _, _ in consumeMergeRequest() }
     .onChange(of: root) { _, _ in presentations?.clear(tabID) }
-    .onDisappear { presentations?.clear(tabID); state.cancel(); checks.cancel() }
+    .onDisappear { presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel() }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
         confirm: { apply(.merge(state.selectedMethod)) })
@@ -154,6 +166,28 @@ struct TaskPullRequestDetailView: View {
   private func refresh() async {
     await state.refresh(request, at: root, preferred: store.library.gitPreferences.pullRequestMergeMethod,
       valid: { valid }, updated: onRefresh)
+  }
+
+  private func save(_ field: GitHubPREditField) {
+    editor.save(field, snapshot: state.snapshot, request: request, at: root,
+      valid: { valid }, writable: { writable }, updated: onRefresh)
+  }
+
+  private func generateDescription() {
+    guard let snapshot = state.snapshot, writable else { return }
+    do {
+      let configuration = store.modelConfiguration
+      try configuration.validateEndpoint()
+      let key = try ModelKeychain.read(account: configuration.credentialAccount)
+      let generate = GitTextGenerator.make(config: configuration, key: key, repository: root,
+        dataRoot: store.dataRoot, executable: store.executable)
+      editor.generate(snapshot: snapshot, request: request,
+        instructions: store.library.gitPreferences.pullRequestInstructions, at: root,
+        valid: { valid }, writable: { writable }, generate: generate, updated: onRefresh)
+    } catch {
+      editor.reportGenerationError(error.localizedDescription, snapshot: snapshot,
+        request: request, writable: writable)
+    }
   }
 
   private func retryChecks() async {

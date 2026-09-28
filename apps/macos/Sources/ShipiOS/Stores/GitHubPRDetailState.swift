@@ -30,6 +30,7 @@ import Observation
   private let coordinator: GitHubPRActionCoordinator
   @ObservationIgnored private var generation = UUID()
   @ObservationIgnored private var readToken = UUID()
+  @ObservationIgnored private var observedEditorRevision: UUID?
   @ObservationIgnored private(set) var operation: Task<Void, Never>?
 
   init(service: GitHubPRService = GitHubPRService(), coordinator: GitHubPRActionCoordinator? = nil) {
@@ -37,6 +38,19 @@ import Observation
   }
 
   func busy(for request: GitHubPullRequest) -> Bool { coordinator.isBusy(request.url) }
+  func acceptMetadata(_ snapshot: GitHubPRMergeSnapshot) {
+    guard action == nil else { return }
+    readToken = UUID(); loading = false
+    self.snapshot = snapshot
+  }
+  func trackEditor(_ editor: GitHubPREditState) { observedEditorRevision = editor.revision }
+  func acceptEditorChanges(_ editor: GitHubPREditState) -> GitHubPRMergeSnapshot? {
+    guard observedEditorRevision != editor.revision else { return nil }
+    observedEditorRevision = editor.revision
+    guard let snapshot = editor.snapshot else { return nil }
+    acceptMetadata(snapshot)
+    return snapshot
+  }
   func mergeDisabledReason(for request: GitHubPullRequest, writable: Bool) -> String? {
     if busy(for: request) { return "另一个 PR 操作正在进行。" }
     if !writable { return "当前任务不能修改 PR。" }
