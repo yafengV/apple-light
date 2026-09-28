@@ -217,7 +217,7 @@ struct CodeReviewSettingsView: View {
           }))
         .settingsSearchTarget(.readOnlyReview)
         Button("打开当前项目审查") { store.openReviewFromSettings() }
-          .disabled(store.project == nil || !store.workspace.gitAvailable)
+          .disabled(store.project == nil)
       }
       Section("Pull Request 审查") {
         Text("自动 PR 审查需要代码托管连接。ShipiOS 当前不会伪造云端审查状态。")

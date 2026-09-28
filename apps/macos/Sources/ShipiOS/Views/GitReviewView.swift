@@ -126,9 +126,7 @@ struct GitReviewView: View {
           }.padding(10)
         }
       } else {
-        ContentUnavailableView(
-          "当前项目没有 Git 仓库", systemImage: "arrow.triangle.branch",
-          description: Text("在终端初始化或打开已有 Git 项目后查看变更。"))
+        GitReviewEmptyView(workspace: workspace)
       }
     }.onDisappear { workspace.cancelCommitMessageGeneration() }
     .sheet(isPresented: $workspace.showingCommitPush) {
