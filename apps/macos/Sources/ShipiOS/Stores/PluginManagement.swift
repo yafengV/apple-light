@@ -22,7 +22,11 @@ extension WorkspaceStore {
       installedPluginSkills = loaded.2
       pluginsLoaded = true
       pluginsError = nil
-    } catch { pluginsError = error.localizedDescription }
+    } catch {
+      pluginSkills = []
+      installedPluginSkills = []
+      pluginsError = error.localizedDescription
+    }
   }
 
   func repositorySkills(for projectPath: String) throws -> [PluginSkillReference] {

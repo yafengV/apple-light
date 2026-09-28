@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var quitting = false
   private var ready = false
   private var automationPoller: Task<Void, Never>?
+  private var skillPoller: Task<Void, Never>?
   private var pendingNotification: NotificationDestination?
   private var pendingDeepLinks: [ShipiOSDeepLink] = []
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -115,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     guard !quitting else { return .terminateLater }
     quitting = true
     stopAutomationPolling()
+    stopSkillMonitoring()
     Task {
       await store?.shutdown()
       sender.reply(toApplicationShouldTerminate: true)
@@ -142,6 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       }
       pointerCursorController.apply(store.appearance.usePointerCursors)
       startAutomationPolling()
+      startSkillMonitoring()
     }
     ready = true
     await openPendingNotification()
@@ -163,6 +166,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   func stopAutomationPolling() {
     automationPoller?.cancel()
     automationPoller = nil
+  }
+
+  func startSkillMonitoring(every interval: Duration = .seconds(2)) {
+    guard skillPoller == nil, let store else { return }
+    skillPoller = Task { [weak store] in
+      while !Task.isCancelled {
+        guard let store, !store.shuttingDown else { break }
+        await store.refreshSkillsIfChanged()
+        try? await Task.sleep(for: interval)
+      }
+    }
+  }
+
+  func stopSkillMonitoring() {
+    skillPoller?.cancel()
+    skillPoller = nil
   }
 
   private func openPendingDeepLinks() async {

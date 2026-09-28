@@ -4,6 +4,6 @@
 
 项目技能是仓库文件；新建和编辑能力见[第 337 篇](337-repository-skill-authoring.md)。ShipiOS 不扫描用户个人 Codex 的技能目录。项目目录或技能目录的符号链接会被拒绝。与私有技能重名时，普通 `$名称` 不会猜测来源，选择器插入精确文件引用。手动“重新加载”刷新外部文件变化。
 
-Codex [技能文档](https://learn.chatgpt.com/docs/build-skills)定义了仓库范围的 `.agents/skills` 位置及从当前目录到 Git 根目录的扫描规则。当前实现只在发现 Git 根目录时向上扫描；无 Git 根目录的普通文件夹仅使用所选项目本身。自动监测文件变化、隐式激活、符号链接技能以及当前 Codex Mac 的可见界面配对仍待完成。
+Codex [技能文档](https://learn.chatgpt.com/docs/build-skills)定义了仓库范围的 `.agents/skills` 位置及从当前目录到 Git 根目录的扫描规则。当前实现只在发现 Git 根目录时向上扫描；无 Git 根目录的普通文件夹仅使用所选项目本身。文件变化自动刷新见[第 340 篇](340-automatic-skill-source-refresh.md)；隐式激活、符号链接技能以及当前 Codex Mac 的可见界面配对仍待完成。
 
 相关定向回归 50 项通过，覆盖两个项目隔离、无项目排除、同名消歧、符号链接拒绝、候选、草稿、立即尝试和重新加载。`script/build_and_run.sh --build-app` 构建通过。全量 Swift 回归在本轮环境中遇到浏览器及提交说明夹具服务启动失败、锁屏下原生粘贴板测试失败，因此不能视作全量通过；已在这些失败后停止运行。完整双端页面验收仍为 0/43。

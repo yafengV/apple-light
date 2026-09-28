@@ -161,6 +161,8 @@ final class WorkspaceStore {
   var pluginSkills: [PluginSkillReference] = []
   var installedPluginSkills: [PluginSkillReference] = []
   @ObservationIgnored var repositorySkillCache: [String: [PluginSkillReference]] = [:]
+  @ObservationIgnored var skillSourceFingerprint: String?
+  @ObservationIgnored var checkingSkillSources = false
   var repositorySkillRevision = UUID()
   var pluginsLoaded = false
   var pluginsLoading = false

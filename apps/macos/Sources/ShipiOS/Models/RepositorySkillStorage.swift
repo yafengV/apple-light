@@ -96,7 +96,7 @@ extension PluginStorage {
     String(id.split(separator: "/", omittingEmptySubsequences: false).last ?? "")
   }
 
-  private static func repositoryScopes(project: URL) -> [URL] {
+  static func repositorySkillScopes(project: URL) -> [URL] {
     let project = project.standardizedFileURL
     var scopes = [project]
     var cursor = project
@@ -127,7 +127,7 @@ extension PluginStorage {
     guard rootValues.isDirectory == true else {
       throw AgentFailure(message: "项目目录不可用，无法读取项目技能。")
     }
-    return try repositoryScopes(project: project).flatMap { try repositorySkills(in: $0) }
+    return try repositorySkillScopes(project: project).flatMap { try repositorySkills(in: $0) }
   }
 
   private static func repositorySkills(in scope: URL) throws -> [PluginSkillReference] {

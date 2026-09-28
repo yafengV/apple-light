@@ -80,13 +80,12 @@ struct SkillsView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .task { if !store.pluginsLoaded { await store.loadPlugins() } }
     .task(id: "\(store.currentProjectKey)|\(store.repositorySkillRevision)|\(projectReload)") {
-      projectSkills = []
       projectError = nil
-      guard !store.currentProjectKey.isEmpty else { return }
+      guard !store.currentProjectKey.isEmpty else { projectSkills = []; return }
       projectLoading = true
       defer { projectLoading = false }
       do { projectSkills = try store.repositorySkills(for: store.currentProjectKey) }
-      catch { projectError = error.localizedDescription }
+      catch { projectSkills = []; projectError = error.localizedDescription }
     }
     .sheet(isPresented: $creating) {
       SkillCreationView(store: store, projectPath: store.currentProjectKey) { query = "" }

@@ -38,7 +38,8 @@ struct PluginSkillsView: View {
       } else {
         ForEach(skills) { skill in
           HStack(spacing: 12) {
-            SkillIconView(skill: skill, size: 32, fallbackColor: store.appearance.accentColor)
+            SkillIconView(skill: skill, size: 32, fallbackColor: store.appearance.accentColor,
+              revision: store.repositorySkillRevision)
             Button { preview = skill } label: {
               VStack(alignment: .leading, spacing: 4) {
                 Text(skill.title).appFont(.headline)
@@ -85,6 +86,9 @@ struct PluginSkillsView: View {
     .sheet(item: $preview) { skill in
       PluginSkillPreview(store: store, skill: skill)
     }
+    .onChange(of: skills) { _, updated in
+      if let id = preview?.id { preview = updated.first { $0.id == id } }
+    }
     .sheet(item: $editing) { skill in
       SkillEditorView(store: store, skill: skill)
     }
@@ -103,7 +107,8 @@ struct PluginSkillsView: View {
     return VStack(alignment: .leading, spacing: 12) {
       Button { preview = skill } label: {
         HStack(alignment: .top, spacing: 12) {
-          SkillIconView(skill: skill, fallbackColor: store.appearance.accentColor)
+          SkillIconView(skill: skill, fallbackColor: store.appearance.accentColor,
+            revision: store.repositorySkillRevision)
           VStack(alignment: .leading, spacing: 6) {
             Text(skill.title).appFont(.headline)
             if !skill.summary.isEmpty {
@@ -251,7 +256,8 @@ private struct PluginSkillPreview: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       HStack {
-        SkillIconView(skill: skill, large: true, size: 44, fallbackColor: store.appearance.accentColor)
+        SkillIconView(skill: skill, large: true, size: 44, fallbackColor: store.appearance.accentColor,
+          revision: store.repositorySkillRevision)
         Text(skill.title).appFont(.title2, weight: .semibold)
         Spacer()
         Picker("内容格式", selection: $showSource) {
@@ -315,7 +321,7 @@ private struct PluginSkillPreview: View {
           else { actionError = store.pluginsError }
         }
       } message: { Text("仅移除 ShipiOS 中的副本，原始技能文件夹保持不变。") }
-      .task(id: reload) {
+      .task(id: "\(reload)|\(store.repositorySkillRevision)") {
         source = nil
         error = nil
         let id = skill.id, root = store.dataRoot, repositoryRoot = skill.repositoryRoot

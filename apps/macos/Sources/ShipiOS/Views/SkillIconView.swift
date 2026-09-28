@@ -6,6 +6,7 @@ struct SkillIconView: View {
   var large = false
   var size: CGFloat = 38
   var fallbackColor: Color = .accentColor
+  var revision = UUID()
   @State private var icon: NSImage?
 
   private var url: URL? {
@@ -32,7 +33,7 @@ struct SkillIconView: View {
     .frame(width: size, height: size)
     .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
     .accessibilityHidden(true)
-    .task(id: url) {
+    .task(id: "\(url?.absoluteString ?? "")|\(revision)") {
       icon = nil
       guard let url else { return }
       let folder = skill.fileURL.deletingLastPathComponent()
