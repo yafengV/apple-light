@@ -3,6 +3,7 @@ import SwiftUI
 struct ActivityArchiveDialog: View {
   let store: WorkspaceStore
   let request: ActivityArchiveRequest
+  var onComplete: () -> Void = {}
   var body: some View {
     let stop = store.activityArchiveNeedsStop
     let single = request.scope == .task
@@ -13,7 +14,11 @@ struct ActivityArchiveDialog: View {
         : single ? "之后可在设置中恢复任务。" : "近期列表中的任务不会被归档。之后可在设置中恢复任务。",
       confirmLabel: stop ? "停止并归档" : "归档", busyLabel: "正在归档…",
       busy: store.archivingActivity, error: nil, width: 440,
-      identifier: "activity-archive-dialog", cancel: store.dismissActivityArchive,
-      confirm: { Task { await store.confirmActivityArchive() } })
+      identifier: "activity-archive-dialog",
+      cancel: { store.dismissTaskArchive(inWindow: request.presentationWindowID, requestID: request.id) },
+      confirm: { Task {
+        await store.confirmTaskArchive(inWindow: request.presentationWindowID, requestID: request.id)
+        onComplete()
+      } })
   }
 }

@@ -23,7 +23,8 @@ final class ActivityArchiveTransportTests: XCTestCase {
     if server?.isRunning == true { server.terminate(); server.waitUntilExit() }
   }
 
-  @MainActor private func checkArchive(_ api: ModelAPIProtocol, single: Bool = false) async throws {
+  private enum Surface { case activityBatch, activityRow, sidebar, command, taskWindow }
+  @MainActor private func checkArchive(_ api: ModelAPIProtocol, surface: Surface = .activityBatch) async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
       .deletingLastPathComponent()
@@ -55,21 +56,39 @@ final class ActivityArchiveTransportTests: XCTestCase {
     let queue = QueuedMessage(taskID: owner, text: "follow up")
     store.library.queuedMessages.append(queue)
     store.draft = "unsent draft"
-    store.toggleActivity()
-    if single { await store.archiveActivityTask(owner) }
-    else { store.requestActivityArchive() }
-    XCTAssertEqual(store.activityArchiveRequest?.scope, single ? .task : .priority)
+    let windowID = surface == .taskWindow ? UUID().uuidString : nil
+    switch surface {
+    case .activityBatch: store.toggleActivity(); store.requestActivityArchive()
+    case .activityRow: store.toggleActivity(); await store.archiveActivityTask(owner)
+    case .sidebar: await store.archiveTask(owner)
+    case .taskWindow: await store.archiveTask(owner, inWindow: windowID)
+    case .command:
+      XCTAssertTrue(store.commandEnabled("archive"))
+      store.executeCommand("archive")
+      let commandDeadline = ContinuousClock.now.advanced(by: .seconds(2))
+      while store.activityArchiveRequest == nil {
+        guard ContinuousClock.now < commandDeadline else { XCTFail("No archive confirmation"); return }
+        await Task.yield()
+      }
+    }
+    XCTAssertEqual(store.activityArchiveRequest?.scope, surface == .activityBatch ? .priority : .task)
+    XCTAssertEqual(store.activityArchiveRequest?.presentationWindowID, windowID)
+    if windowID != nil {
+      XCTAssertNil(store.archiveConfirmation())
+      await store.confirmTaskArchive()
+      XCTAssertNotNil(store.archiveConfirmation(inWindow: windowID))
+    }
     XCTAssertTrue(store.activityArchiveNeedsStop)
     store.newTask()
     let otherStarted = await store.startChat(api == .codexResponses ? "activity-archive-stream other" : "slow-other")
     let otherRunID = try XCTUnwrap(otherStarted, store.error ?? "No parallel run")
     let otherOwner = try XCTUnwrap(store.library.task(containing: otherRunID)?.id)
     let otherRequest = try XCTUnwrap(store.modelTask(runID: otherRunID))
-    let operation = Task { await store.confirmActivityArchive() }
+    let operation = Task { await store.confirmTaskArchive(inWindow: windowID) }
     while !store.archivingActivity && store.activityArchiveRequest != nil { await Task.yield() }
     XCTAssertFalse(store.canStartChat(taskID: owner))
-    let duplicate = Task { await store.confirmActivityArchive() }
-    store.dismissActivityArchive()
+    let duplicate = Task { await store.confirmTaskArchive(inWindow: windowID) }
+    store.dismissTaskArchive(inWindow: windowID)
     XCTAssertNotNil(store.activityArchiveRequest)
     await operation.value
     await duplicate.value
@@ -98,10 +117,29 @@ final class ActivityArchiveTransportTests: XCTestCase {
     try await checkArchive(.codexResponses)
   }
   @MainActor func testBasicChatSingleRowArchiveStopsOnlyItsActualStream() async throws {
-    try await checkArchive(.chatCompletions, single: true)
+    try await checkArchive(.chatCompletions, surface: .activityRow)
   }
   @MainActor func testCoreSingleRowArchiveStopsOnlyItsActualStream() async throws {
-    try await checkArchive(.codexResponses, single: true)
+    try await checkArchive(.codexResponses, surface: .activityRow)
+  }
+
+  @MainActor func testBasicChatOrdinarySidebarArchiveStopsActualStream() async throws {
+    try await checkArchive(.chatCompletions, surface: .sidebar)
+  }
+  @MainActor func testCoreOrdinarySidebarArchiveStopsActualStream() async throws {
+    try await checkArchive(.codexResponses, surface: .sidebar)
+  }
+  @MainActor func testBasicChatArchiveCommandStopsActualStream() async throws {
+    try await checkArchive(.chatCompletions, surface: .command)
+  }
+  @MainActor func testCoreArchiveCommandStopsActualStream() async throws {
+    try await checkArchive(.codexResponses, surface: .command)
+  }
+  @MainActor func testBasicChatTaskWindowArchiveStopsActualStream() async throws {
+    try await checkArchive(.chatCompletions, surface: .taskWindow)
+  }
+  @MainActor func testCoreTaskWindowArchiveStopsActualStream() async throws {
+    try await checkArchive(.codexResponses, surface: .taskWindow)
   }
 
 }

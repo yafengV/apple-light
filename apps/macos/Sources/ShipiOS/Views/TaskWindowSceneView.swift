@@ -45,6 +45,7 @@ struct TaskWindowSceneView: View {
     .onChange(of: route) { _, _ in resources.navigate = visit }
     .onDisappear {
       let closedTaskID = route?.taskID
+      store.dismissTaskArchive(inWindow: resources.id)
       resources.shutdown()
       if let closedTaskID, store.library.tasks.contains(where: { $0.id == closedTaskID && $0.isSideChat }) {
         Task { await store.closeSideChat(closedTaskID) }
@@ -129,6 +130,7 @@ struct TaskWindowSceneView: View {
   }
 
   private func visit(_ taskID: String) {
+    guard store.archiveConfirmation(inWindow: resources.id) == nil else { return }
     guard let route, navigation.visit(taskID, from: route.taskID, available: availableTasks) else { return }
     self.route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
   }

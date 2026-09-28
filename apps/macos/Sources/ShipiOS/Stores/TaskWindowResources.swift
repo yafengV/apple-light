@@ -107,6 +107,7 @@ import Observation
   }
   @discardableResult func reveal(_ pin: PinnedWorkspaceTab) -> Bool {
     guard pin.sourceWindowID == id, let store, let window, let navigate,
+      store.archiveConfirmation(inWindow: id) == nil,
       store.library.tasks.contains(where: { $0.id == pin.owner }) else { return false }
     if tasks[pin.owner] == nil,
       store.library.taskWindowTabLayouts[id]?[pin.owner]?.content.tabs.contains(where: { $0.id == pin.sourceTabID }) == true {

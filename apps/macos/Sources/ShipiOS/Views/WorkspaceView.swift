@@ -309,8 +309,9 @@ struct WorkspaceView: View {
                   store.updateTask(task.id, pin: !task.pinned)
                 }
                 Button(task.archived ? "恢复任务" : "归档任务") {
-                  store.updateTask(task.id, archive: !task.archived)
-                }.disabled(store.conversationRuns.contains { $0.isActive })
+                  if task.archived { store.updateTask(task.id, archive: false) }
+                  else { Task { await store.archiveTask(task.id) } }
+                }.disabled(!task.archived && !store.canArchiveTask(task.id))
               }
             } label: {
               Image(systemName: "ellipsis")

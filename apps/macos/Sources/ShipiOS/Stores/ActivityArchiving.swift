@@ -1,25 +1,45 @@
 import Foundation
 
 extension WorkspaceStore {
-  private func activityTaskCanArchive(_ task: WorkspaceTask) -> Bool {
-    !task.archived && !task.isTransient && !task.runIDs.isEmpty && !managedTaskPreparing
+  private func taskCanArchive(_ task: WorkspaceTask) -> Bool {
+    !task.archived && !task.isTransient && !managedTaskPreparing
       && !library.managedWorktrees.contains { $0.taskID == task.id && $0.pendingHandoff != nil }
   }
 
   var activityArchiveEligibleIDs: [String] {
-    activityPriorityEntries.filter { activityTaskCanArchive($0.task) }.map(\.id)
+    activityPriorityEntries.filter { taskCanArchive($0.task) }.map(\.id)
   }
 
   func canArchiveActivityTask(_ id: String) -> Bool {
-    showingActivity && canMutateArchive && taskMenuTarget(id).map(activityTaskCanArchive) == true
+    showingActivity && canArchiveTask(id) && taskMenuTarget(id) != nil
   }
 
   /// A row always addresses its own identity, including recent and separately pinned tasks.
   func archiveActivityTask(_ id: String) async {
     guard canArchiveActivityTask(id) else { return }
+    await archiveTask(id)
+  }
+
+  func canArchiveTask(_ id: String, inWindow windowID: String? = nil) -> Bool {
+    guard libraryLoaded, !restoringLibrary, !shuttingDown, canMutateArchive,
+      activityArchiveRequest == nil,
+      let task = library.tasks.first(where: { $0.id == id }) else { return false }
+    if windowID == nil, hasSettingsConfirmation || renameTaskID != nil { return false }
+    return taskCanArchive(task)
+  }
+
+  func archiveConfirmation(inWindow windowID: String? = nil) -> ActivityArchiveRequest? {
+    guard let request = activityArchiveRequest, request.presentationWindowID == windowID else { return nil }
+    return request
+  }
+
+  /// All task surfaces share fixed identity, stop confirmation and persistence semantics.
+  func archiveTask(_ id: String, inWindow windowID: String? = nil) async {
+    guard canArchiveTask(id, inWindow: windowID) else { return }
+    if windowID == nil, presentedOverlay != nil { return }
     activityError = nil
     activityArchiveResult = nil
-    let request = ActivityArchiveRequest(taskIDs: [id], scope: .task)
+    let request = ActivityArchiveRequest(taskIDs: [id], scope: .task, presentationWindowID: windowID)
     if activeRun(taskID: id) != nil { activityArchiveRequest = request }
     else { await performActivityArchive(request) }
   }
@@ -29,7 +49,7 @@ extension WorkspaceStore {
   }
 
   func requestActivityArchive() {
-    guard showingActivity, canMutateArchive, !hasSettingsConfirmation,
+    guard showingActivity, canMutateArchive, !hasSettingsConfirmation, activityArchiveRequest == nil,
       presentedOverlay == nil else { return }
     let ids = activityArchiveEligibleIDs
     guard !ids.isEmpty else { return }
@@ -39,12 +59,23 @@ extension WorkspaceStore {
   }
 
   func dismissActivityArchive() {
+    dismissTaskArchive()
+  }
+
+  func dismissTaskArchive(inWindow windowID: String? = nil, requestID: UUID? = nil) {
+    guard let request = archiveConfirmation(inWindow: windowID),
+      requestID == nil || request.id == requestID else { return }
     guard !archivingActivity else { return }
     activityArchiveRequest = nil
   }
 
   func confirmActivityArchive() async {
-    guard let request = activityArchiveRequest, !archivingActivity else { return }
+    await confirmTaskArchive()
+  }
+
+  func confirmTaskArchive(inWindow windowID: String? = nil, requestID: UUID? = nil) async {
+    guard let request = archiveConfirmation(inWindow: windowID), !archivingActivity,
+      requestID == nil || request.id == requestID else { return }
     await performActivityArchive(request)
   }
 
@@ -73,14 +104,14 @@ extension WorkspaceStore {
           throw AgentFailure(message: "任务已不存在。")
         }
         if task.archived { result.archivedIDs.append(id); continue }
-        guard activityTaskCanArchive(task) else {
+        guard taskCanArchive(task) else {
           throw AgentFailure(message: "任务仍有工作树操作或其他未完成操作。")
         }
         try await stopActivityTask(id)
         try Task.checkCancellation()
         // Rebuild the candidate after stopping so concurrent updates to other tasks survive.
         guard !shuttingDown, let index = library.tasks.firstIndex(where: { $0.id == id }),
-          activityTaskCanArchive(library.tasks[index]), activeRun(taskID: id) == nil else {
+          taskCanArchive(library.tasks[index]), activeRun(taskID: id) == nil else {
           throw AgentFailure(message: "任务状态已变化，未归档。")
         }
         var candidate = library
@@ -103,6 +134,7 @@ extension WorkspaceStore {
           (library.tasks.first(where: { $0.id == id })?.title ?? id) + "：" + message
         }
       }.joined(separator: "\n")
+      if !showingActivity { error = activityError }
     }
     activityArchiveRequest = nil
     notices.show(id: "activity-archive-\(request.id)", title: result.message,

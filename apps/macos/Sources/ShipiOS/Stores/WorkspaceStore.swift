@@ -240,7 +240,7 @@ final class WorkspaceStore {
   var deletingMemories = false
   var memoryDeletionError: String?
   var hasSettingsConfirmation: Bool {
-    archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil || activityArchiveRequest != nil
+    archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil || archiveConfirmation() != nil
   }
   @ObservationIgnored var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?
@@ -387,6 +387,7 @@ final class WorkspaceStore {
     project != nil && connected && !busy && !managedTaskPreparing
       && !handoffBlocksProject(currentProjectKey)
       && activeLocalRun == nil && !shuttingDown
+      && (selectedTask.map { !$0.archived && !activityArchivingTaskIDs.contains($0.id) } ?? true)
   }
   var canBuild: Bool {
     canStart && !container.isEmpty

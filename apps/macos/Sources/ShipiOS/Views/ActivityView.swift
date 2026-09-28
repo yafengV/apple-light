@@ -68,7 +68,7 @@ struct ActivityView: View {
     }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       .accessibilityIdentifier("activity-sidebar")
       .onAppear { listFocused = true }
-      .onChange(of: store.activityArchiveRequest?.id) { previous, current in
+      .onChange(of: store.archiveConfirmation()?.id) { previous, current in
         if previous != nil, current == nil, store.destination != .settings,
           store.presentedOverlay == nil, !store.hasSettingsConfirmation { listFocused = true }
       }

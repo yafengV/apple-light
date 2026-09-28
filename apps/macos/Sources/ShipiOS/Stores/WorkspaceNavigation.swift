@@ -134,7 +134,7 @@ extension WorkspaceStore {
     case "pin": if let t = selectedTask { updateTask(t.id, pin: !t.pinned) }
     case "unread":
       if let t = selectedTask { setTaskUnread(t.id, unread: true) }
-    case "archive": if let t = selectedTask { updateTask(t.id, archive: true) }
+    case "archive": if let task = selectedTask { Task { await archiveTask(task.id) } }
     case "copy-task-link": if let task = selectedTask { copyTaskDeepLink(task) }
     case "copy-session-id": if let task = selectedTask { copyCodexSessionID(task) }
     case "copy-conversation-path": if let task = selectedTask { copyCodexConversationPath(task) }
@@ -268,8 +268,7 @@ extension WorkspaceStore {
     case "reload-skills": return pluginsEnabled && !pluginsLoading
     case "rename", "pin", "unread": return destination == .workspace && selectedTask != nil
     case "archive":
-      return destination == .workspace && selectedTask != nil
-        && !conversationRuns.contains(where: \.isActive)
+      return destination == .workspace && selectedTask.map { canArchiveTask($0.id) } == true
     case "files", "tree", "review", "review-open", "terminal":
       return destination == .workspace && project != nil
     default: return true

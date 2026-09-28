@@ -14,14 +14,13 @@ struct SidebarTaskMenu: View {
         Button(store.library.unreadTasks.contains(taskID) ? "标记为已读" : "标记为未读") {
           store.toggleTaskReadFromMenu(taskID)
         }
-        if activity {
-          Button("归档任务") { Task { await store.archiveActivityTask(taskID) } }
-            .disabled(!store.canArchiveActivityTask(taskID))
-        } else {
-          Button(task.archived ? "恢复任务" : "归档任务") {
-            store.updateTask(taskID, archive: !task.archived)
-          }.disabled(store.activeRun(taskID: taskID) != nil || store.managedTaskPreparing ||
+        if task.archived {
+          Button("恢复任务") { store.updateTask(taskID, archive: false) }
+            .disabled(store.managedTaskPreparing ||
             store.library.managedWorktrees.contains { $0.taskID == taskID && $0.pendingHandoff != nil })
+        } else {
+          Button("归档任务") { Task { await store.archiveTask(taskID) } }
+            .disabled(!store.canArchiveTask(taskID))
         }
         Divider()
         SidebarPlacementMenu(store: store, item: .task(taskID), showsOrdering: !activity)

@@ -17,6 +17,7 @@ struct TaskWindowView: View {
   @State private var forkError: String?
   @State private var handoffError: String?
   @State private var actionError: String?
+  @State private var archiveReturnFocus: SearchDialogReturnFocus?
   @State private var mode = ChatMode.standard
   @State private var commandSelection = ComposerCommandSelection()
   @State private var pluginSelection = PluginMentionSelection()
@@ -373,6 +374,9 @@ struct TaskWindowView: View {
                 Button(task.pinned ? "取消置顶" : "置顶任务") { performWindowCommand("pin") }
                 Button("标为未读") { performWindowCommand("unread") }
                 Button("复制任务内容") { store.copyTaskTranscript(task) }
+                Divider()
+                Button("归档任务") { performWindowCommand("archive") }
+                  .disabled(windowCommandsBlocked || !store.canArchiveTask(taskID, inWindow: resources.id))
               } label: { Image(systemName: "ellipsis") }
                 .accessibilityLabel("任务操作").help("任务操作")
               ShareLink(item: store.taskShareText(task)) {
@@ -423,12 +427,15 @@ struct TaskWindowView: View {
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
+      tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+        && store.archiveConfirmation(inWindow: resources.id) == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil)
+      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+        && store.archiveConfirmation(inWindow: resources.id) == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil))
+      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+        && store.archiveConfirmation(inWindow: resources.id) == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, searchMode == nil, renameTitle == nil else { return }
       imagePreviewReturnFocus = returnFocus
@@ -450,8 +457,27 @@ struct TaskWindowView: View {
     .appSurface()
   }
 
-  var body: some View {
+  private var archiveRoutedTaskContent: some View {
     routedTaskContent
+    .disabled(store.archiveConfirmation(inWindow: resources.id) != nil)
+    .allowsHitTesting(store.archiveConfirmation(inWindow: resources.id) == nil)
+    .accessibilityHidden(store.archiveConfirmation(inWindow: resources.id) != nil)
+    .overlay {
+      if let request = store.archiveConfirmation(inWindow: resources.id) {
+        ActivityArchiveDialog(store: store, request: request) {
+          finishWindowArchive()
+        }.id(request.id)
+      }
+    }
+    .onChange(of: store.archiveConfirmation(inWindow: resources.id)?.id) { previous, current in
+      if previous != nil, current == nil, task?.archived != true, !windowCommandsBlocked {
+        restoreArchiveFocus()
+      }
+    }
+  }
+
+  var body: some View {
+    archiveRoutedTaskContent
     .onChange(of: taskID) { _, _ in executionRunID = nil }
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
@@ -622,6 +648,7 @@ struct TaskWindowView: View {
   private var otherWindowModalActive: Bool {
     previewImage != nil || previewFile != nil || showingGoalEditor || showingTaskModelPicker
       || showingTaskStatus || renameTitle != nil || store.restoringLibrary
+      || store.archiveConfirmation(inWindow: resources.id) != nil
   }
   private var windowCommandsBlocked: Bool { otherWindowModalActive || searchMode != nil }
 
@@ -726,7 +753,7 @@ struct TaskWindowView: View {
       if canSend { enabled.insert("send") }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
       if !task.isTransient { enabled.formUnion(["pin", "unread", "rename"]) }
-      if !task.isTransient, !taskRuns.contains(where: \.isActive) { enabled.insert("archive") }
+      if store.canArchiveTask(taskID, inWindow: resources.id) { enabled.insert("archive") }
       if store.canOpenSideChat(from: taskID) { enabled.insert("open-side-chat") }
       if store.canHandOffToWorktree(task) { enabled.insert("worktree") }
       if store.canHandOffToLocal(task) { enabled.insert("local") }
@@ -853,8 +880,12 @@ struct TaskWindowView: View {
     case "pin": store.updateTask(taskID, pin: !task.pinned)
     case "unread": store.setTaskUnread(taskID, unread: true)
     case "archive":
-      store.updateTask(taskID, archive: true)
-      if store.library.tasks.first(where: { $0.id == taskID })?.archived == true { dismiss() }
+      archiveReturnFocus = SearchDialogReturnFocus(window: resources.window, destination: .workspace)
+      composerFocused = false
+      Task {
+        await store.archiveTask(taskID, inWindow: resources.id)
+        finishWindowArchive()
+      }
     case "plan":
       tabs.revealChat()
       if mode == .goal { store.pauseGoal(taskID) }
@@ -867,6 +898,25 @@ struct TaskWindowView: View {
     case "bottom-panel": tabs.toggleBottom()
     case "browser-address": taskWorkspace.showingFileLine = true
     default: break
+    }
+  }
+
+  private func finishWindowArchive() {
+    if store.library.tasks.first(where: { $0.id == taskID })?.archived == true { dismiss() }
+    else if store.archiveConfirmation(inWindow: resources.id) == nil {
+      actionError = store.activityError
+      restoreArchiveFocus()
+    }
+  }
+
+  private func restoreArchiveFocus() {
+    guard let previous = archiveReturnFocus else { return }
+    archiveReturnFocus = nil
+    if previous.view != nil {
+      previous.restore { !windowCommandsBlocked && store.archiveConfirmation(inWindow: resources.id) == nil }
+    } else if tabs.chatVisible, !windowCommandsBlocked {
+      composerFocused = true
+      taskComposerFocusRequest = UUID()
     }
   }
 

@@ -5,6 +5,8 @@ struct ActivityArchiveRequest: Identifiable {
   let id = UUID()
   let taskIDs: [String]
   var scope: Scope = .priority
+  /// Nil identifies the main window; task windows present their own confirmation.
+  var presentationWindowID: String?
 }
 
 struct ActivityArchiveResult: Equatable {
