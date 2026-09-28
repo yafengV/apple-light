@@ -5,7 +5,7 @@ extension WorkspaceStore {
     guard canMutateArchive, activityArchiveRequest == nil, !managedTaskPreparing,
       let task = taskMenuTarget(id), !task.isTransient else { return false }
     return !library.managedWorktrees.contains {
-      $0.taskID == id && $0.pendingHandoff != nil
+      $0.containsTask(id) && $0.pendingHandoff != nil
     }
   }
 
@@ -27,8 +27,8 @@ extension WorkspaceStore {
         !managedTaskPreparing else { throw AgentFailure(message: "任务已变化，未删除。") }
       try await stopActivityTask(id)
       try Task.checkCancellation()
-      let retained = library.managedWorktrees.filter {
-        $0.taskID == id && $0.archivedPruned != true
+      let retained = library.managedWorktreesReleased(deleting: [id]).filter {
+        $0.archivedPruned != true
           && FileManager.default.fileExists(atPath: $0.path)
       }
       for record in retained { try await WorktreeService.validateRetainedManaged(record) }

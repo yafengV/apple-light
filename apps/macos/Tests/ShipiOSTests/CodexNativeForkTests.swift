@@ -111,6 +111,69 @@ final class CodexNativeForkTests: XCTestCase {
     await resumed.shutdown()
   }
 
+  @MainActor func testSameManagedCheckoutForkPreservesNativeHistoryAndSharedLifetime() async throws {
+    let (store, project, agent) = try await fixture()
+    do {
+      _ = try await GitReviewService.checked(["init", "-q"], at: project)
+      _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+      _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+      try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+      _ = try await GitReviewService.checked(["add", "."], at: project)
+      _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+      store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
+      _ = try await send("codex-handoff-cwd-probe", store: store)
+      let local = try XCTUnwrap(store.selectedTask)
+      let created = await store.forkTaskToNewWorktree(local.id)
+      let parent = try XCTUnwrap(created, store.error ?? "")
+      _ = try await send("codex-handoff-cwd-probe", store: store)
+      let startedParent = try XCTUnwrap(store.selectedTask)
+      store.setTaskWindowDraft("preserve shared source draft", taskID: parent.id)
+      XCTAssertTrue(store.canForkConversation)
+      let child = try XCTUnwrap(store.forkConversation(), store.error ?? "")
+      XCTAssertEqual(child.project, parent.project)
+      let echoed = try await send("skill-dependency-request-echo", store: store)
+      let body = try JSONDecoder().decode(JSONValue.self,
+        from: Data(try XCTUnwrap(echoed.result?["response"].text).utf8))
+      XCTAssertTrue(body.pretty.contains("function_call_output"))
+      XCTAssertTrue(body.pretty.contains("swift-handoff-cwd-call"))
+      let startedChild = try XCTUnwrap(store.selectedTask)
+      XCTAssertNotEqual(startedChild.codexThreadID, startedParent.codexThreadID)
+      XCTAssertEqual(store.library.managedWorktrees.count, 1)
+      await store.archiveTask(parent.id)
+      await store.managedArchiveCleanupTask?.value
+      XCTAssertTrue(FileManager.default.fileExists(atPath: child.project))
+      XCTAssertEqual(store.library.drafts[parent.id], "preserve shared source draft")
+      let dataRoot = store.dataRoot
+      await store.shutdown()
+      let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+      do {
+        await reopened.restore()
+        let restoredChild = try XCTUnwrap(reopened.library.tasks.first { $0.id == child.id })
+        let opened = await reopened.selectTaskAwaitingScope(restoredChild)
+        XCTAssertTrue(opened, reopened.error ?? "")
+        _ = try await send("codex-handoff-cwd-probe-return", store: reopened)
+        XCTAssertEqual(reopened.selectedTask?.codexThreadID, startedChild.codexThreadID)
+        XCTAssertEqual(reopened.library.managedWorktree(forTaskID: child.id)?.taskID, parent.id)
+        XCTAssertEqual(reopened.library.sidebarProject(for: restoredChild), project.path)
+        await reopened.archiveTask(child.id)
+        await reopened.managedArchiveCleanupTask?.value
+        XCTAssertFalse(FileManager.default.fileExists(atPath: child.project))
+        let restored = await reopened.restoreManagedArchiveIfNeeded(child.id)
+        XCTAssertTrue(restored, reopened.archivedTaskDeletionError ?? "")
+        XCTAssertTrue(reopened.restoreArchivedTask(child.id))
+        let selected = await reopened.selectTaskAwaitingScope(
+          try XCTUnwrap(reopened.library.tasks.first { $0.id == child.id }))
+        XCTAssertTrue(selected)
+        let resumed = try await send("codex-handoff-cwd-probe-return skill-dependency-request-echo", store: reopened)
+        let resumedBody = try JSONDecoder().decode(JSONValue.self,
+          from: Data(try XCTUnwrap(resumed.result?["response"].text).utf8))
+        XCTAssertTrue(resumedBody.pretty.contains(child.project))
+        XCTAssertEqual(reopened.selectedTask?.codexThreadID, startedChild.codexThreadID)
+        await reopened.shutdown()
+      } catch { await reopened.shutdown(); throw error }
+    } catch { await store.shutdown(); throw error }
+  }
+
   @MainActor func testHistoricalNestedForkKeepsCompletedPrefixWhileSourceRuns() async throws {
     let (store, _, _) = try await fixture()
     let first = try await send("codex-handoff-cwd-probe", store: store)

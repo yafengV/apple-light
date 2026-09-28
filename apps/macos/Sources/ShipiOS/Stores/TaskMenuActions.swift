@@ -50,7 +50,8 @@ extension WorkspaceStore {
   }
 
   @discardableResult func openTaskInNewWindow(_ id: String) -> Bool {
-    guard let task = taskMenuTarget(id), !task.archived else { return false }
+    guard !busy, !managedTaskPreparing,
+      let task = taskMenuTarget(id), !task.archived else { return false }
     taskWindowOpenRequest = .newWindow(taskID: id, dataRoot: dataRoot)
     return true
   }

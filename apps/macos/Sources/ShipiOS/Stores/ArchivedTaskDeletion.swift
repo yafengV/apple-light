@@ -2,7 +2,8 @@ import Foundation
 
 extension WorkspaceStore {
   var archiveActionsBusy: Bool { archivingActivity || deletingArchive || !restoringArchivedTaskIDs.isEmpty }
-  var canMutateArchive: Bool { !archiveActionsBusy && !libraryLoading && libraryReadError == nil }
+  var canMutateArchive: Bool { !archiveActionsBusy && !managedTaskPreparing
+    && !libraryLoading && libraryReadError == nil }
 
   func restoreArchivedTaskWithFeedback(_ taskID: String) async {
     guard canMutateArchive, !hasSettingsConfirmation else { return }
@@ -86,8 +87,8 @@ extension WorkspaceStore {
       let eligible = Set(library.tasks.filter {
         request.taskIDs.contains($0.id) && $0.archived && !$0.isPopoutDraft
       }.map(\.id))
-      let retained = library.managedWorktrees.filter {
-        eligible.contains($0.taskID) && $0.archivedPruned != true
+      let retained = library.managedWorktreesReleased(deleting: eligible).filter {
+        $0.archivedPruned != true
           && FileManager.default.fileExists(atPath: $0.path)
       }
       for record in retained { try await WorktreeService.validateRetainedManaged(record) }
@@ -111,7 +112,7 @@ extension WorkspaceStore {
 
   @discardableResult func restoreArchivedTask(_ taskID: String) -> Bool {
     guard let index = library.tasks.firstIndex(where: { $0.id == taskID && $0.archived && !$0.isPopoutDraft }) else { return false }
-    if let managed = library.managedWorktrees.first(where: { $0.taskID == taskID }),
+    if let managed = library.managedWorktrees.first(where: { $0.containsTask(taskID) }),
       managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
       archivedTaskDeletionError = "请先恢复此任务的托管工作树。"
       return false
@@ -138,6 +139,10 @@ extension WorkspaceStore {
   @discardableResult func deleteTasks(_ taskIDs: Set<String>, archivedOnly: Bool,
     validatedManaged: Set<String> = []) -> Bool {
     guard !taskIDs.isEmpty else { return true }
+    guard !managedTaskPreparing else {
+      archivedTaskDeletionError = "工作树操作尚未完成，请稍后删除任务。"
+      return false
+    }
     do {
       var candidate = library
       let originalTaskCount = candidate.tasks.count
@@ -148,7 +153,10 @@ extension WorkspaceStore {
       if !archivedOnly, eligible.contains(where: { activeRun(taskID: $0) != nil }) {
         throw AgentFailure(message: "任务尚未停止，不能删除。")
       }
-      let managed = candidate.managedWorktrees.filter { eligible.contains($0.taskID) }
+      guard !candidate.managedWorktrees.contains(where: {
+        !$0.associatedTaskIDs.isDisjoint(with: eligible) && $0.pendingHandoff != nil
+      }) else { throw AgentFailure(message: "工作树仍有未完成的移交，请先恢复任务。") }
+      let managed = candidate.managedWorktreesReleased(deleting: eligible)
       for record in managed {
         guard record.pendingHandoff == nil else {
           throw AgentFailure(message: "工作树任务仍有未完成的移交，请先恢复任务：\(record.path)")
@@ -164,7 +172,7 @@ extension WorkspaceStore {
           }
           if !candidate.permanentWorktrees.contains(where: { $0.path == record.path }) {
             let checkout = record.checkout
-            let title = candidate.tasks.first(where: { $0.id == record.taskID })?.title
+            let title = candidate.managedTasks(for: record).first?.title
               ?? checkout.title
             var permanent = PermanentWorktree(id: checkout.id, source: checkout.source,
               path: checkout.path, commonDirectory: checkout.commonDirectory,
@@ -175,9 +183,7 @@ extension WorkspaceStore {
           }
           if !candidate.projects.contains(record.path) { candidate.projects.insert(record.path, at: 0) }
           if candidate.projectNames[record.path] == nil {
-            candidate.projectNames[record.path] = candidate.tasks.first(where: {
-              $0.id == record.taskID
-            })?.title ?? record.checkout.title
+            candidate.projectNames[record.path] = candidate.managedTasks(for: record).first?.title ?? record.checkout.title
           }
         }
         candidate.newTaskExecutions[record.taskID] = nil
@@ -185,7 +191,12 @@ extension WorkspaceStore {
           $0.value != record.taskID
         }
       }
-      candidate.managedWorktrees.removeAll { eligible.contains($0.taskID) }
+      let releasedKeys = Set(managed.map(\.taskID))
+      candidate.managedWorktrees.removeAll { releasedKeys.contains($0.taskID) }
+      for index in candidate.managedWorktrees.indices {
+        candidate.managedWorktrees[index].sharedTaskIDs =
+          candidate.managedWorktrees[index].sharedTaskIDs?.filter { !eligible.contains($0) }
+      }
       let alreadyPending = Set(candidate.pendingManagedWorktreeDeletions.map(\.taskID))
       candidate.pendingManagedWorktreeDeletions.append(contentsOf: managed.filter {
         !alreadyPending.contains($0.taskID)

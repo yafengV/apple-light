@@ -18,3 +18,5 @@
 - 最终 `./script/build_and_run.sh --build-app` 通过，`.cache/fork-pruned-source-app-build.log`；`codesign --verify --deep --strict dist/ShipiOS.app` 与 `git diff --check` 通过。打包未包含原生启动、焦点或窗口交互验收。
 
 这证明该具体目录清理边界已处理，不代表所有分叉历史、Core 生命周期或全部应用测试已完成。既有首次模型响应偶发超时仍未解决。托管相同检出分叉及其他 UI 交互仍缺；当前 Codex 原生双端配对保持 0/45，未重试尚待解锁确认的原生 UI。
+
+后续：同检出托管分叉及共享目录生命周期已在[第 363 篇](363-shared-managed-checkout-forks.md)继续实现和验证；本篇保留当时边界。

@@ -329,7 +329,7 @@ struct TaskWindowView: View {
             } label: { Image(systemName: "rectangle.split.2x1") }
               .accessibilityLabel("任务布局")
             if !task.isTransient {
-              if let pending = store.library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff {
+              if let pending = store.library.managedWorktrees.first(where: { $0.pendingHandoff?.snapshot.taskID == taskID })?.pendingHandoff {
                 Button {
                   Task {
                     let completed: Bool
@@ -377,7 +377,7 @@ struct TaskWindowView: View {
                   }
                 }.disabled(!store.canForkTaskToNewWorktree(taskID) || windowCommandsBlocked)
                 if store.library.managedWorktrees.contains(where: {
-                  $0.taskID == taskID && $0.pendingForkSourceTaskID != nil
+                  $0.containsTask(taskID) && $0.pendingForkSourceTaskID != nil
                 }) {
                   Button("继续创建分叉工作树") {
                     Task {

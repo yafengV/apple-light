@@ -1,10 +1,28 @@
 import Foundation
 
 extension WorkspaceStore {
+  /// A shared checkout move cannot clear files beneath another running task.
+  private func handoffCheckoutsAreIdle(for task: WorkspaceTask) -> Bool {
+    var paths: Set<String> = [task.project]
+    if let record = library.managedWorktree(forTaskID: task.id) {
+      paths.formUnion([record.source, record.path])
+      if let pending = record.pendingHandoff, pending.snapshot.taskID != task.id { return false }
+    }
+    return library.tasks.filter { paths.contains($0.project) }.allSatisfy {
+      activeRun(taskID: $0.id) == nil
+    }
+  }
+
+  func pendingHandoff(forTaskID id: String) -> PendingHandoff? {
+    guard let pending = library.managedWorktree(forTaskID: id)?.pendingHandoff,
+      pending.snapshot.taskID == id else { return nil }
+    return pending
+  }
+
   func canHandOffToWorktree(_ task: WorkspaceTask) -> Bool {
     libraryLoaded && !busy && !managedTaskPreparing && recoveringHandoffTaskIDs.isEmpty
       && activeLocalRun == nil
-      && activeRun(taskID: task.id) == nil && !task.archived && !task.isTransient
+      && handoffCheckoutsAreIdle(for: task) && !task.archived && !task.isTransient
       && !task.project.isEmpty && library.projects.contains(task.project)
       && !library.isPermanentWorktree(task.project)
       && !library.managedWorktrees.contains { $0.path == task.project }
@@ -13,8 +31,8 @@ extension WorkspaceStore {
   func canHandOffToLocal(_ task: WorkspaceTask) -> Bool {
     guard libraryLoaded, !busy, !managedTaskPreparing,
       recoveringHandoffTaskIDs.isEmpty, activeLocalRun == nil,
-      activeRun(taskID: task.id) == nil, !task.archived, !task.isTransient,
-      let record = library.managedWorktrees.first(where: { $0.taskID == task.id }) else {
+      handoffCheckoutsAreIdle(for: task), !task.archived, !task.isTransient,
+      let record = library.managedWorktrees.first(where: { $0.containsTask(task.id) }) else {
       return false
     }
     return record.ready && task.project == record.path
@@ -23,7 +41,7 @@ extension WorkspaceStore {
 
   /// Keep the task and its private Codex rollout, then reopen it from a detached checkout.
   @discardableResult func handOffTaskToWorktree(_ taskID: String) async -> Bool {
-    if library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff != nil {
+    if pendingHandoff(forTaskID: taskID) != nil {
       guard !managedTaskPreparing, recoveringHandoffTaskIDs.isEmpty else {
         worktreeError = "上一次任务移交仍待完成。"
         return false
@@ -56,13 +74,13 @@ extension WorkspaceStore {
       guard snapshot.canChange else {
         throw AgentFailure(message: "请打开 Git 仓库根目录后迁移任务。")
       }
-      if let retained = library.managedWorktrees.first(where: { $0.taskID == taskID }),
+      if let retained = library.managedWorktrees.first(where: { $0.containsTask(taskID) }),
         retained.archivedPruned == true || !FileManager.default.fileExists(atPath: retained.path) {
         guard await restoreManagedArchiveIfNeeded(taskID) else {
           throw AgentFailure(message: archivedTaskDeletionError ?? "无法恢复关联工作树。")
         }
       }
-      let existing = library.managedWorktrees.first { $0.taskID == taskID }
+      let existing = library.managedWorktrees.first { $0.containsTask(taskID) }
       guard existing == nil || existing?.source == snapshot.root.path else {
         throw AgentFailure(message: "此任务已关联其他项目的工作树。")
       }
@@ -165,7 +183,7 @@ extension WorkspaceStore {
       worktreeError = nil
       return true
     } catch {
-      if capturedFiles && !library.managedWorktrees.contains(where: { $0.taskID == taskID }) {
+      if capturedFiles && !library.managedWorktrees.contains(where: { $0.containsTask(taskID) }) {
         ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: taskID)
       }
       worktreeError = error.localizedDescription
@@ -177,7 +195,7 @@ extension WorkspaceStore {
   /// Check out the task's committed work on a reserved local branch. The worktree stays
   /// associated with the task, so another handoff returns to the same detached checkout.
   @discardableResult func handOffTaskToLocal(_ taskID: String) async -> Bool {
-    if library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff != nil {
+    if pendingHandoff(forTaskID: taskID) != nil {
       guard !managedTaskPreparing, recoveringHandoffTaskIDs.isEmpty else {
         worktreeError = "上一次任务移交仍待完成。"
         return false
@@ -196,7 +214,7 @@ extension WorkspaceStore {
     }
     guard let task = library.tasks.first(where: { $0.id == taskID }),
       canHandOffToLocal(task),
-      let original = library.managedWorktrees.first(where: { $0.taskID == taskID }) else {
+      let original = library.managedWorktrees.first(where: { $0.containsTask(taskID) }) else {
       worktreeError = "请等待任务完成，并从托管工作树移交现有任务。"
       error = worktreeError
       return false
@@ -210,7 +228,7 @@ extension WorkspaceStore {
           throw AgentFailure(message: archivedTaskDeletionError ?? "无法恢复关联工作树。")
         }
       }
-      guard let record = library.managedWorktrees.first(where: { $0.taskID == taskID }) else {
+      guard let record = library.managedWorktrees.first(where: { $0.containsTask(taskID) }) else {
         throw AgentFailure(message: "工作树任务记录已丢失。")
       }
       try await WorktreeService.validateRetainedManaged(record)
@@ -259,7 +277,7 @@ extension WorkspaceStore {
       }
       if record.handoffBranch == nil {
         var reserved = library
-        guard let index = reserved.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else {
+        guard let index = reserved.managedWorktrees.firstIndex(where: { $0.containsTask(taskID) }) else {
           throw AgentFailure(message: "工作树任务记录已丢失。")
         }
         reserved.managedWorktrees[index].handoffBranch = branch

@@ -4,7 +4,7 @@ extension WorkspaceStore {
   func beginDirtyHandoff(taskID: String, direction: HandoffDirection,
     source: URL, target: URL) async throws {
     guard library.managedWorktrees.contains(where: {
-      $0.taskID == taskID && $0.pendingHandoff == nil
+      $0.containsTask(taskID) && $0.pendingHandoff == nil
     }) else {
       throw AgentFailure(message: "上一次任务移交仍待完成。")
     }
@@ -12,7 +12,7 @@ extension WorkspaceStore {
       source: source, target: target, dataRoot: dataRoot)
     do {
       var candidate = library
-      guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else {
+      guard let index = candidate.managedWorktrees.firstIndex(where: { $0.containsTask(taskID) }) else {
         throw AgentFailure(message: "工作树任务记录已丢失。")
       }
       candidate.managedWorktrees[index].pendingHandoff = PendingHandoff(
@@ -28,7 +28,7 @@ extension WorkspaceStore {
   /// Resume after any persisted phase. No source cleanup starts until the target is verified.
   func finishPendingHandoff(taskID: String, openMovedTask: Bool) async throws {
     for _ in 0..<4 {
-      guard let pending = library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff else {
+      guard let pending = pendingHandoff(forTaskID: taskID) else {
         return
       }
       let snapshot = pending.snapshot
@@ -46,7 +46,8 @@ extension WorkspaceStore {
         guard let taskIndex = candidate.tasks.firstIndex(where: {
           $0.id == taskID && $0.project == snapshot.sourcePath
         }), let recordIndex = candidate.managedWorktrees.firstIndex(where: {
-          $0.taskID == taskID && $0.pendingHandoff?.phase == .finalizing
+          $0.containsTask(taskID) && $0.pendingHandoff?.snapshot.taskID == taskID
+            && $0.pendingHandoff?.phase == .finalizing
         }) else {
           throw AgentFailure(message: "任务或移交记录已改变，未移动会话。")
         }
@@ -65,7 +66,7 @@ extension WorkspaceStore {
       case .releasing:
         try await HandoffGitState.release(snapshot, dataRoot: dataRoot)
         var candidate = library
-        guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else {
+        guard let index = candidate.managedWorktrees.firstIndex(where: { $0.containsTask(taskID) }) else {
           throw AgentFailure(message: "工作树任务记录已丢失。")
         }
         candidate.managedWorktrees[index].pendingHandoff = nil
@@ -87,7 +88,7 @@ extension WorkspaceStore {
 
   func schedulePendingHandoffRecovery() {
     let pendingIDs = library.managedWorktrees.compactMap { record in
-      record.pendingHandoff == nil ? nil : record.taskID
+      record.pendingHandoff?.snapshot.taskID
     }
     guard !pendingIDs.isEmpty, pendingHandoffRecoveryTask == nil else { return }
     recoveringHandoffTaskIDs.formUnion(pendingIDs)
@@ -115,7 +116,7 @@ extension WorkspaceStore {
   private func updateHandoffPhase(taskID: String, to phase: HandoffPhase) throws {
     var candidate = library
     guard let index = candidate.managedWorktrees.firstIndex(where: {
-      $0.taskID == taskID && $0.pendingHandoff != nil
+      $0.containsTask(taskID) && $0.pendingHandoff?.snapshot.taskID == taskID
     }) else {
       throw AgentFailure(message: "任务移交记录已丢失。")
     }

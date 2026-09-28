@@ -157,7 +157,7 @@ extension WorkspaceStore {
       worktreeError = "请从已添加的 Git 项目创建托管工作树任务。"
       return nil
     }
-    if let existing = library.managedWorktrees.first(where: { $0.taskID == taskID }) {
+    if let existing = library.managedWorktree(forTaskID: taskID) {
       guard existing.source == snapshot.root.path else {
         worktreeError = "此任务已关联其他项目的工作树。"
         return nil
@@ -185,7 +185,7 @@ extension WorkspaceStore {
 
   @discardableResult func recoverManagedWorktree(taskID: String) async -> ManagedWorktree? {
     guard libraryLoaded, !busy, activeLocalRun == nil,
-      let record = library.managedWorktrees.first(where: { $0.taskID == taskID }) else { return nil }
+      let record = library.managedWorktree(forTaskID: taskID) else { return nil }
     if record.ready { return record }
     busy = true; worktreeError = nil
     defer { busy = false }

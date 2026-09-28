@@ -3,7 +3,7 @@ import Foundation
 extension WorkspaceStore {
   private func taskCanArchive(_ task: WorkspaceTask) -> Bool {
     !task.archived && !task.isTransient && !managedTaskPreparing
-      && !library.managedWorktrees.contains { $0.taskID == task.id && $0.pendingHandoff != nil }
+      && !library.managedWorktrees.contains { $0.containsTask(task.id) && $0.pendingHandoff != nil }
   }
 
   var activityArchiveEligibleIDs: [String] {
@@ -124,7 +124,7 @@ extension WorkspaceStore {
     if let selected = selectedTask?.id, result.archivedIDs.contains(selected) {
       newTask()
     }
-    for id in result.archivedIDs where library.managedWorktrees.contains(where: { $0.taskID == id }) {
+    for id in result.archivedIDs where library.managedWorktrees.contains(where: { $0.containsTask(id) }) {
       scheduleManagedArchiveCleanup(id)
     }
     activityArchiveResult = result

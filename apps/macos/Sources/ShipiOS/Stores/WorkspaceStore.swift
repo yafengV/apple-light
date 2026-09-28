@@ -291,7 +291,7 @@ final class WorkspaceStore {
   var libraryLoading = false
   var libraryReadError: String?
   @ObservationIgnored var scopeLoaded = false
-  @ObservationIgnored private var preparingProjectScope = false
+  @ObservationIgnored private(set) var preparingProjectScope = false
   var project: URL? {
     didSet {
       if project != oldValue {
@@ -426,7 +426,7 @@ final class WorkspaceStore {
       guard !activityArchivingTaskIDs.contains(taskID),
         library.tasks.contains(where: { $0.id == taskID && !$0.archived }) else { return false }
       guard !library.managedWorktrees.contains(where: {
-        $0.taskID == taskID && $0.pendingForkSourceTaskID != nil
+        $0.containsTask(taskID) && $0.pendingForkSourceTaskID != nil
       }) else { return false }
     }
     let requestedProject = taskID.flatMap { id in
@@ -983,7 +983,7 @@ final class WorkspaceStore {
   @discardableResult func selectTaskAwaitingScope(_ task: WorkspaceTask) async -> Bool {
     guard let current = library.tasks.first(where: { $0.id == task.id }), canSelectTask(current) else { return false }
     if library.managedWorktrees.contains(where: {
-      $0.taskID == current.id && $0.pendingForkSourceTaskID != nil
+      $0.containsTask(current.id) && $0.pendingForkSourceTaskID != nil
     }), await resumeWorktreeFork(current.id, openTask: false) == nil { return false }
     if currentProjectKey == current.project {
       selectTask(current)
@@ -1126,10 +1126,10 @@ final class WorkspaceStore {
     guard let index = library.tasks.firstIndex(where: { $0.id == id }) else { return }
     if archive != nil,
       managedTaskPreparing || library.managedWorktrees.contains(where: {
-        $0.taskID == id && $0.pendingHandoff != nil
+        $0.containsTask(id) && $0.pendingHandoff != nil
       }) { return }
     if archive == false,
-      let managed = library.managedWorktrees.first(where: { $0.taskID == id }),
+      let managed = library.managedWorktrees.first(where: { $0.containsTask(id) }),
       managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
       Task { await restoreArchivedTaskWithFeedback(id) }
       return
@@ -1159,7 +1159,7 @@ final class WorkspaceStore {
     }
     let saved = saveLibrary()
     if saved, archive == true,
-      library.managedWorktrees.contains(where: { $0.taskID == id }) {
+      library.managedWorktrees.contains(where: { $0.containsTask(id) }) {
       scheduleManagedArchiveCleanup(id)
     }
   }

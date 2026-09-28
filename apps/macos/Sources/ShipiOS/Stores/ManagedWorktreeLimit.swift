@@ -47,16 +47,18 @@ extension WorkspaceStore {
       $0.ready && $0.archivedPruned != true
         && FileManager.default.fileExists(atPath: $0.path)
     }.sorted { lhs, rhs in
-      let left = max(library.tasks.first(where: { $0.id == lhs.taskID })?.updatedAt
+      let left = max(library.managedTasks(for: lhs).compactMap(\.updatedAt).max()
         ?? lhs.checkout.createdAt, lhs.checkout.createdAt)
-      let right = max(library.tasks.first(where: { $0.id == rhs.taskID })?.updatedAt
+      let right = max(library.managedTasks(for: rhs).compactMap(\.updatedAt).max()
         ?? rhs.checkout.createdAt, rhs.checkout.createdAt)
       return left == right ? lhs.taskID < rhs.taskID : left < right
     }
     for record in oldest {
       guard library.automaticallyDeleteManagedWorktrees,
         managedWorktreeCount > library.managedWorktreeLimit else { break }
-      await pruneManagedWorktreeIfEligible(record.taskID, dueToLimit: true)
+      if let member = library.managedTasks(for: record).first {
+        await pruneManagedWorktreeIfEligible(member.id, dueToLimit: true)
+      }
     }
   }
 }

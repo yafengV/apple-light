@@ -28,22 +28,32 @@ extension WorkspaceStore {
     }
   }
 
-  func pruneManagedWorktreeIfEligible(_ taskID: String, dueToLimit: Bool = false) async {
+  func pruneManagedWorktreeIfEligible(_ requestedTaskID: String, dueToLimit: Bool = false) async {
     await Task.yield()
-    guard let task = library.tasks.first(where: { $0.id == taskID && ($0.archived || dueToLimit) }),
-      let record = library.managedWorktrees.first(where: { $0.taskID == task.id }),
-      !managedTaskPreparing, record.pendingForkSourceTaskID == nil,
-      record.pendingHandoff == nil,
-      activeRun(taskID: taskID) == nil else { return }
-    let noticeID = "managed-archive-" + taskID
-    if task.pinned {
-      notices.show(id: noticeID, title: "置顶任务的工作树已保留", level: .info)
+    // Archiving the selected task starts a source-project transition. Wait for that
+    // transition, then recheck every user; do not silently discard this cleanup.
+    while busy && preparingProjectScope && !shuttingDown {
+      do { try await Task.sleep(for: .milliseconds(25)) }
+      catch { return }
+    }
+    guard !shuttingDown, let record = library.managedWorktree(forTaskID: requestedTaskID),
+      !busy, !managedTaskPreparing, record.pendingForkSourceTaskID == nil,
+      record.pendingHandoff == nil else { return }
+    let members = library.managedTasks(for: record)
+    guard !members.isEmpty, members.allSatisfy({ $0.archived || dueToLimit }) else { return }
+    if members.contains(where: \.pinned) {
+      notices.show(id: "managed-archive-" + record.taskID,
+        title: "置顶任务的工作树已保留", level: .info)
       return
     }
-    if taskWindowResources.allObjects.contains(where: { $0.window != nil && $0.tasks[taskID] != nil }) {
+    guard managedCheckoutCanPrune(record, dueToLimit: dueToLimit) else { return }
+    // All snapshot paths and Git refs retain the original physical checkout identity.
+    let taskID = record.taskID
+    let noticeID = "managed-archive-" + taskID
+    if managedCheckoutHasOpenWindow(record) {
       try? await Task.sleep(for: .milliseconds(300))
     }
-    if taskWindowResources.allObjects.contains(where: { $0.window != nil && $0.tasks[taskID] != nil }) {
+    if managedCheckoutHasOpenWindow(record) {
       notices.show(id: noticeID, title: "任务窗口仍在使用工作树，已保留目录", level: .info)
       return
     }
@@ -58,6 +68,20 @@ extension WorkspaceStore {
     if record.archivedHead != nil, FileManager.default.fileExists(atPath: record.path) {
       notices.show(id: noticeID, title: "上次归档快照仍待处理，已保留目录；请恢复任务后重试", level: .info)
       return
+    }
+    guard !busy, !managedTaskPreparing,
+      let latest = library.managedWorktree(forTaskID: requestedTaskID), latest == record,
+      managedCheckoutCanPrune(record, dueToLimit: dueToLimit),
+      !managedCheckoutHasOpenWindow(record) else { return }
+    let ongoingChats = library.chatRuns.filter { modelTask(runID: $0.id) != nil }.map(\.id)
+    busy = true
+    managedTaskPreparing = true
+    managedTaskPreparationMessage = "正在清理工作树…"
+    defer {
+      busy = false
+      managedTaskPreparing = false
+      managedTaskPreparationMessage = "正在创建工作树…"
+      Task { await resumeChatsAfterWorktreePreparation(ongoingChats) }
     }
     var protectedHead: String?
     var protectedStash: String?
@@ -85,11 +109,8 @@ extension WorkspaceStore {
         throw AgentFailure(message: "工作树或来源仓库已改变，未运行清理脚本。")
       }
       try await runManagedWorktreeCleanup(record)
-      guard let currentTask = library.tasks.first(where: { $0.id == taskID }),
-        !managedTaskPreparing,
-        currentTask.archived || dueToLimit,
-        !currentTask.pinned, activeRun(taskID: taskID) == nil,
-        project?.path != record.path else { return }
+      guard managedCheckoutCanPrune(record, dueToLimit: dueToLimit),
+        !managedCheckoutHasOpenWindow(record), project?.path != record.path else { return }
       let status = try await GitReviewService.checked(
         ["status", "--porcelain=v1", "-z", "--untracked-files=all"], at: checkout)
       let ignored = try await GitReviewService.checked(
@@ -129,6 +150,10 @@ extension WorkspaceStore {
       _ = try await GitReviewService.checked(["update-ref", reference, head],
         at: URL(fileURLWithPath: record.source))
       protectedHead = head
+      guard managedCheckoutCanPrune(record, dueToLimit: dueToLimit),
+        !managedCheckoutHasOpenWindow(record), project?.path != record.path else {
+        throw AgentFailure(message: "任务重新开始使用工作树，已保留目录。")
+      }
       var candidate = library
       guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == taskID }) else { return }
       candidate.managedWorktrees[index].archivedHead = head
@@ -174,11 +199,28 @@ extension WorkspaceStore {
     }
   }
 
+  private func managedCheckoutCanPrune(_ record: ManagedWorktree, dueToLimit: Bool) -> Bool {
+    let members = library.managedTasks(for: record)
+    guard !members.isEmpty else { return false }
+    return members.allSatisfy {
+      ($0.archived || dueToLimit) && !$0.pinned && activeRun(taskID: $0.id) == nil
+    }
+  }
+
+  private func managedCheckoutHasOpenWindow(_ record: ManagedWorktree) -> Bool {
+    taskWindowResources.allObjects.contains { resources in
+      resources.window != nil && library.managedTasks(for: record).contains {
+        resources.tasks[$0.id] != nil
+      }
+    }
+  }
+
   /// Recreate a checkout pruned by archiving or the configured worktree limit.
-  func restoreManagedArchiveIfNeeded(_ taskID: String) async -> Bool {
+  func restoreManagedArchiveIfNeeded(_ requestedTaskID: String) async -> Bool {
     await managedArchiveCleanupTask?.value
     await managedLimitCleanupTask?.value
-    guard let record = library.managedWorktrees.first(where: { $0.taskID == taskID }) else { return true }
+    guard let record = library.managedWorktree(forTaskID: requestedTaskID) else { return true }
+    let taskID = record.taskID
     guard let head = record.archivedHead else {
       if FileManager.default.fileExists(atPath: record.path) { return true }
       archivedTaskDeletionError = "托管工作树目录缺失，无法恢复任务：\(record.path)"

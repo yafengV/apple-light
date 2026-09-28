@@ -9,7 +9,7 @@ extension WorkspaceStore {
       library.projects.contains(task.project)
         || library.managedWorktrees.contains(where: { $0.path == task.project && $0.ready }),
       !library.managedWorktrees.contains(where: {
-        $0.taskID == id && ($0.pendingForkSourceTaskID != nil || $0.archivedPruned == true)
+        $0.containsTask(id) && ($0.pendingForkSourceTaskID != nil || $0.archivedPruned == true)
       }) else { return false }
     return (try? library.forkHistory(taskID: id, availableRuns: taskWindowRuns(id))) != nil
   }
@@ -33,7 +33,7 @@ extension WorkspaceStore {
       managedTaskPreparing = false
       managedTaskPreparationMessage = "正在创建工作树…"
       scheduleManagedLimitCleanup()
-      Task { await resumeChatsAfterWorktreeFork(ongoingChats) }
+      Task { await resumeChatsAfterWorktreePreparation(ongoingChats) }
     }
     let source = URL(fileURLWithPath: sourceTask.project)
     var savedTaskID: String?
@@ -42,7 +42,7 @@ extension WorkspaceStore {
       let snapshot = try await GitBranchService.snapshot(at: source)
       guard snapshot.canChange else { throw AgentFailure(message: "新工作树分叉需要 Git 仓库根目录。") }
       let inheritedEnvironment = library.managedWorktrees.first(where: {
-        $0.taskID == id && $0.path == sourceTask.project
+        $0.containsTask(id) && $0.path == sourceTask.project
       })?.environment
       let environment = try await automationEnvironmentSnapshot(projectPath: sourceTask.project,
         selectionID: AutomationEnvironmentChoice.projectDefault, existing: inheritedEnvironment)
@@ -134,7 +134,7 @@ extension WorkspaceStore {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, !busy, !managedTaskPreparing,
       activeLocalRun == nil, !taskForkIsReserved(id),
       let task = library.tasks.first(where: { $0.id == id && !$0.archived }),
-      library.managedWorktrees.contains(where: { $0.taskID == id && $0.pendingForkSourceTaskID != nil })
+      library.managedWorktrees.contains(where: { $0.containsTask(id) && $0.pendingForkSourceTaskID != nil })
       else { return nil }
     managedTaskPreparing = true
     managedTaskPreparationMessage = "正在继续创建分叉工作树…"
@@ -143,7 +143,7 @@ extension WorkspaceStore {
       managedTaskPreparing = false
       managedTaskPreparationMessage = "正在创建工作树…"
       scheduleManagedLimitCleanup()
-      Task { await resumeChatsAfterWorktreeFork(ongoingChats) }
+      Task { await resumeChatsAfterWorktreePreparation(ongoingChats) }
     }
     do {
       try await finishWorktreeFork(id)
@@ -222,7 +222,7 @@ extension WorkspaceStore {
 
   /// Completing a source turn during directory preparation must not strand its queued input
   /// or an already-approved goal continuation behind the temporary start gate.
-  private func resumeChatsAfterWorktreeFork(_ ongoing: [String]) async {
+  func resumeChatsAfterWorktreePreparation(_ ongoing: [String]) async {
     for runID in ongoing {
       guard let run = library.chatRuns.first(where: { $0.id == runID && $0.status == "succeeded" }),
         let owner = library.task(containing: run.id), owner.runIDs.last == runID,

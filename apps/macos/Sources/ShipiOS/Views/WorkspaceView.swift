@@ -258,7 +258,7 @@ struct WorkspaceView: View {
               .accessibilityLabel("任务布局")
             }
             if let task = store.selectedTask,
-              let pending = store.library.managedWorktrees.first(where: { $0.taskID == task.id })?.pendingHandoff {
+              let pending = store.library.managedWorktrees.first(where: { $0.pendingHandoff?.snapshot.taskID == task.id })?.pendingHandoff {
               Button {
                 Task {
                   if pending.direction == .toWorktree { await store.handOffTaskToWorktree(task.id) }
@@ -293,7 +293,7 @@ struct WorkspaceView: View {
                 Button("分叉到新工作树") { Task { await store.forkTaskToNewWorktree(task.id) } }
                   .disabled(!store.canForkTaskToNewWorktree(task.id))
                 if store.library.managedWorktrees.contains(where: {
-                  $0.taskID == task.id && $0.pendingForkSourceTaskID != nil
+                  $0.containsTask(task.id) && $0.pendingForkSourceTaskID != nil
                 }) {
                   Button("继续创建分叉工作树") { Task { await store.resumeWorktreeFork(task.id) } }
                     .disabled(store.busy || store.managedTaskPreparing)

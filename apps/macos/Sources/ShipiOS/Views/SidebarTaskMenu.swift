@@ -17,7 +17,7 @@ struct SidebarTaskMenu: View {
         if task.archived {
           Button("恢复任务") { store.updateTask(taskID, archive: false) }
             .disabled(store.managedTaskPreparing ||
-            store.library.managedWorktrees.contains { $0.taskID == taskID && $0.pendingHandoff != nil })
+            store.library.managedWorktrees.contains { $0.containsTask(taskID) && $0.pendingHandoff != nil })
         } else {
           Button("归档任务") { Task { await store.archiveTask(taskID) } }
             .disabled(!store.canArchiveTask(taskID))
@@ -35,7 +35,7 @@ struct SidebarTaskMenu: View {
         }
         if !task.archived, !task.isTransient {
           if store.library.managedWorktrees.contains(where: {
-            $0.taskID == taskID && $0.pendingForkSourceTaskID != nil
+            $0.containsTask(taskID) && $0.pendingForkSourceTaskID != nil
           }) {
             Button("继续创建分叉工作树") { Task { await store.resumeWorktreeFork(taskID) } }
               .disabled(store.busy || store.managedTaskPreparing)
@@ -49,7 +49,7 @@ struct SidebarTaskMenu: View {
             }.disabled(!store.canForkTaskToNewWorktree(taskID))
           }
         }
-        if let pending = store.library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff {
+        if let pending = store.library.managedWorktrees.first(where: { $0.pendingHandoff?.snapshot.taskID == taskID })?.pendingHandoff {
           Button("继续移交") {
             Task {
               if pending.direction == .toWorktree { await store.handOffTaskToWorktree(taskID) }
@@ -57,7 +57,7 @@ struct SidebarTaskMenu: View {
             }
           }.disabled(!store.canHandOffToWorktree(task) && !store.canHandOffToLocal(task))
         } else if store.library.managedWorktrees.contains(where: {
-          $0.taskID == taskID && $0.path == task.project
+          $0.containsTask(taskID) && $0.path == task.project
         }) {
           Button("移交到本地") { Task { await store.handOffTaskToLocal(taskID) } }
             .disabled(!store.canHandOffToLocal(task))

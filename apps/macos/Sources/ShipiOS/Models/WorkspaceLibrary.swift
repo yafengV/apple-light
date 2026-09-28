@@ -513,7 +513,7 @@ struct WorkspaceLibrary: Codable {
   }
 
   func sidebarProject(for task: WorkspaceTask) -> String {
-    managedWorktrees.first(where: { $0.taskID == task.id })?.source ?? task.project
+    managedWorktree(forTaskID: task.id)?.source ?? task.project
   }
 
   func isPermanentWorktree(_ path: String) -> Bool {

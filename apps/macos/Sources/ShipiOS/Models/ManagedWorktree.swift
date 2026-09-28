@@ -56,9 +56,12 @@ struct ManagedEnvironmentSnapshot: Codable, Equatable {
   }
 }
 
-/// A checkout reserved for one task, separate from a permanent worktree project.
+/// One physical checkout with a stable snapshot identity, shared by same-checkout forks.
 struct ManagedWorktree: Codable, Identifiable, Equatable {
+  /// Stable key for protected Git refs and private snapshots, even after the creator is deleted.
   let taskID: String
+  /// Additional associated tasks. Older records implicitly contain only their creator.
+  var sharedTaskIDs: [String]? = nil
   var checkout: PermanentWorktree
   /// A protected Git stash commit captured without changing the source checkout.
   var sourceStashCommit: String? = nil
@@ -82,6 +85,10 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var archivedStashCommit: String? = nil
   var archivedCopiedFiles: [ManagedSourceFile]? = nil
   var archivedPruned: Bool? = nil
+
+  var associatedTaskIDs: Set<String> { Set(sharedTaskIDs ?? []).union([taskID]) }
+
+  func containsTask(_ id: String) -> Bool { associatedTaskIDs.contains(id) }
 
   var id: UUID { checkout.id }
   var source: String { checkout.source }
