@@ -289,6 +289,16 @@ struct WorkspaceView: View {
               }
               Divider()
               Button("分叉到新任务") { store.forkConversation() }.disabled(!store.canForkConversation)
+              if let task = store.selectedTask {
+                Button("分叉到新工作树") { Task { await store.forkTaskToNewWorktree(task.id) } }
+                  .disabled(!store.canForkTaskToNewWorktree(task.id))
+                if store.library.managedWorktrees.contains(where: {
+                  $0.taskID == task.id && $0.pendingForkSourceTaskID != nil
+                }) {
+                  Button("继续创建分叉工作树") { Task { await store.resumeWorktreeFork(task.id) } }
+                    .disabled(store.busy || store.managedTaskPreparing)
+                }
+              }
               Button("打开临时侧聊") { store.executeCommand("open-side-chat") }
                 .disabled(!store.commandEnabled("open-side-chat"))
               Button("刷新任务") { Task { await store.reload() } }.disabled(store.project != nil && !store.connected)

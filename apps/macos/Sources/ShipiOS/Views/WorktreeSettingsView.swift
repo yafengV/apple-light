@@ -63,6 +63,19 @@ struct WorktreeSettingsView: View {
           }.padding(.vertical, 5)
         }
       }
+      let pendingForks = store.library.managedWorktrees.filter { $0.pendingForkSourceTaskID != nil }
+      if !pendingForks.isEmpty {
+        Section("待完成的分叉工作树") {
+          ForEach(pendingForks) { record in
+            VStack(alignment: .leading, spacing: 8) {
+              Text(store.library.tasks.first(where: { $0.id == record.taskID })?.title ?? record.checkout.title)
+              Text(record.path).appFont(.caption).textSelection(.enabled)
+              Button("继续创建 / 初始化") { Task { await store.resumeWorktreeFork(record.taskID) } }
+                .disabled(store.busy || store.managedTaskPreparing || store.activeLocalRun != nil)
+            }
+          }
+        }
+      }
       if store.busy { ProgressView("正在处理…").controlSize(.small) }
       if let error = store.worktreeError {
         Section { Text(error).foregroundStyle(.red).textSelection(.enabled) }

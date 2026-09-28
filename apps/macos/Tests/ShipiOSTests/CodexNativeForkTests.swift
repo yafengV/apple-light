@@ -166,4 +166,89 @@ final class CodexNativeForkTests: XCTestCase {
     XCTAssertNotNil(store.codexConversationPath(for: child))
     await store.shutdown()
   }
+
+  @MainActor func testNewWorktreeForkPreservesNativeToolsRunsInOwnCheckoutAndResumes() async throws {
+    let (store, project, agent) = try await fixture()
+    _ = try await GitReviewService.checked(["init", "-q"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+    try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+    _ = try await GitReviewService.checked(["add", "."], at: project)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+    store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
+    let first = try await send("codex-handoff-cwd-probe", store: store)
+    let parent = try XCTUnwrap(store.selectedTask)
+    store.draft = "preserve parent draft"
+    try Data("dirty captured\n".utf8).write(to: project.appendingPathComponent("tracked"))
+    store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.legacy
+    store.library.profiles[project.path] = BuildProfile(worktreeSetupScript: "sleep 6")
+    let started = await store.startChat("activity-archive-stream")
+    let active = try XCTUnwrap(started)
+    let sourceHandle = try XCTUnwrap(store.modelTask(runID: active))
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while store.library.chatRuns.first(where: { $0.id == active })?.result?["response"].text?.isEmpty != false {
+      guard ContinuousClock.now < deadline else {
+        XCTFail("Source stream unavailable before worktree fork"); await store.shutdown(); return
+      }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    store.library.queuedMessages.append(QueuedMessage(taskID: parent.id, text: "source queue must continue"))
+    let created = await store.forkTaskToNewWorktree(parent.id)
+    let fork = try XCTUnwrap(created, store.error ?? "")
+    XCTAssertEqual(store.selectedTask?.id, fork.id)
+    XCTAssertNotEqual(fork.project, parent.project)
+    XCTAssertEqual(fork.codexForkOrigin?.throughTurnID, first.result?["codex_turn_id"].text)
+    await sourceHandle.value
+    let queueDeadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while store.library.queuedMessages.contains(where: { $0.taskID == parent.id }) {
+      guard ContinuousClock.now < queueDeadline else {
+        XCTFail("Source queue was stranded by fork preparation"); await store.shutdown(); return
+      }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    let sourceFollowup = try XCTUnwrap(store.library.tasks.first { $0.id == parent.id }?.runIDs.last)
+    XCTAssertNotEqual(sourceFollowup, active)
+    await store.modelTask(runID: sourceFollowup)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == sourceFollowup }?.status, "succeeded")
+    let continued = try await send("codex-handoff-cwd-probe-local skill-dependency-request-echo", store: store)
+    let body = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(continued.result?["response"].text).utf8))
+    let input = try body["input"].decode([JSONValue].self)
+    XCTAssertTrue(body.pretty.contains("swift-handoff-cwd-call"), "Inherit source's real tool call")
+    XCTAssertFalse(body.pretty.contains("activity-archive-stream"), "Exclude the source's active suffix")
+    XCTAssertFalse(body.pretty.contains("source queue must continue"), "Keep the original fixed fork boundary")
+    let output = try XCTUnwrap(input.first { $0["type"].text == "function_call_output"
+      && $0["call_id"].text == "swift-handoff-local-call" })
+    XCTAssertTrue(output.pretty.contains(fork.project), "Execute new tools in the independent checkout")
+    let child = try XCTUnwrap(store.selectedTask)
+    XCTAssertNotEqual(child.codexThreadID, parent.codexThreadID)
+    XCTAssertNotNil(store.codexConversationPath(for: child))
+    _ = try await send("codex-patch", store: store)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: URL(fileURLWithPath: fork.project)
+      .appendingPathComponent("patch-proof.txt").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("patch-proof.txt").path))
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("tracked")), "dirty captured\n")
+    XCTAssertEqual(store.library.drafts[parent.id], "preserve parent draft")
+    let dataRoot = store.dataRoot
+    await store.shutdown()
+
+    let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+    await reopened.restore()
+    let restored = try XCTUnwrap(reopened.library.tasks.first { $0.id == fork.id })
+    let opened = await reopened.selectTaskAwaitingScope(restored)
+    XCTAssertTrue(opened, reopened.error ?? "")
+    _ = try await send("resume worktree child", store: reopened)
+    XCTAssertEqual(reopened.selectedTask?.codexThreadID, child.codexThreadID)
+    let nestedCreated = await reopened.forkTaskToNewWorktree(fork.id)
+    let nested = try XCTUnwrap(nestedCreated, reopened.error ?? "")
+    XCTAssertNotEqual(nested.project, fork.project)
+    let result = try await send("skill-dependency-request-echo", store: reopened)
+    let nestedBody = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(result.result?["response"].text).utf8))
+    XCTAssertTrue(nestedBody.pretty.contains("swift-handoff-cwd-call"))
+    XCTAssertTrue(nestedBody.pretty.contains("swift-handoff-local-call"))
+    XCTAssertEqual(reopened.library.managedWorktrees.first { $0.taskID == nested.id }?.source,
+      GitBranchService.canonicalRoot(project).path)
+    await reopened.shutdown()
+  }
 }

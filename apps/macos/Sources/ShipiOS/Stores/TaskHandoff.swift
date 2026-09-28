@@ -18,6 +18,7 @@ extension WorkspaceStore {
       return false
     }
     return record.ready && task.project == record.path
+      && record.pendingForkSourceTaskID == nil
   }
 
   /// Keep the task and its private Codex rollout, then reopen it from a detached checkout.

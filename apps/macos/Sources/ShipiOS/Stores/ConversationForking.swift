@@ -72,7 +72,7 @@ extension WorkspaceStore {
   }
 
   /// Other windows cannot fork a target whose archive or deletion is being confirmed.
-  private func taskForkIsReserved(_ id: String) -> Bool {
+  func taskForkIsReserved(_ id: String) -> Bool {
     activityArchivingTaskIDs.contains(id)
       || activityArchiveRequest?.taskIDs.contains(id) == true
       || archiveDeletion?.taskIDs.contains(id) == true

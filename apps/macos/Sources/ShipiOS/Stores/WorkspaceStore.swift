@@ -425,6 +425,9 @@ final class WorkspaceStore {
     if let taskID {
       guard !activityArchivingTaskIDs.contains(taskID),
         library.tasks.contains(where: { $0.id == taskID && !$0.archived }) else { return false }
+      guard !library.managedWorktrees.contains(where: {
+        $0.taskID == taskID && $0.pendingForkSourceTaskID != nil
+      }) else { return false }
     }
     let requestedProject = taskID.flatMap { id in
       library.tasks.first(where: { $0.id == id })?.project
@@ -979,6 +982,9 @@ final class WorkspaceStore {
   /// finished loading and its restored content windows have been scheduled.
   @discardableResult func selectTaskAwaitingScope(_ task: WorkspaceTask) async -> Bool {
     guard let current = library.tasks.first(where: { $0.id == task.id }), canSelectTask(current) else { return false }
+    if library.managedWorktrees.contains(where: {
+      $0.taskID == current.id && $0.pendingForkSourceTaskID != nil
+    }), await resumeWorktreeFork(current.id, openTask: false) == nil { return false }
     if currentProjectKey == current.project {
       selectTask(current)
       return true

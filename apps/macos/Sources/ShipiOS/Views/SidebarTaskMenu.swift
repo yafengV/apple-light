@@ -34,10 +34,19 @@ struct SidebarTaskMenu: View {
           Button("会话 Markdown") { store.copyTaskFromMenu(taskID, content: .markdown) }
         }
         if !task.archived, !task.isTransient {
+          if store.library.managedWorktrees.contains(where: {
+            $0.taskID == taskID && $0.pendingForkSourceTaskID != nil
+          }) {
+            Button("继续创建分叉工作树") { Task { await store.resumeWorktreeFork(taskID) } }
+              .disabled(store.busy || store.managedTaskPreparing)
+          }
           Menu("分叉") {
             Button(store.taskMenuForkDestination(task)) {
               Task { await store.forkTaskFromMenu(taskID) }
             }.disabled(!store.canForkTaskFromMenu(taskID))
+            Button("分叉到新工作树") {
+              Task { await store.forkTaskToNewWorktree(taskID) }
+            }.disabled(!store.canForkTaskToNewWorktree(taskID))
           }
         }
         if let pending = store.library.managedWorktrees.first(where: { $0.taskID == taskID })?.pendingHandoff {

@@ -29,7 +29,8 @@ extension WorkspaceStore {
         if let preference = library.newTaskEnvironmentSelections[projectPath],
           preference != AutomationEnvironmentChoice.projectDefault {
           selected = preference
-        } else if let fileName = profile.environmentFileName {
+        } else if let fileName = profile.environmentFileName,
+          entries.contains(where: { $0.id == fileName && $0.error == nil }) {
           selected = fileName
         } else if let defaultFile = entries.first(where: {
           $0.fileName == "environment.toml" && !$0.inherited && $0.error == nil
@@ -47,7 +48,7 @@ extension WorkspaceStore {
       else if selected == WorktreeEnvironmentChoice.legacy { environment = legacy() }
       else {
         guard entries.contains(where: { $0.id == selected && $0.error == nil }) else {
-          throw AgentFailure(message: "计划任务所选环境已不可用，请在自动化编辑器中重新选择。")
+          throw AgentFailure(message: "所选项目环境已不可用，请在环境设置中重新选择。")
         }
         let loaded = try await browser.request("environment.load", ["fileName": .string(selected)])
         environment = try decodeManagedEnvironment(selectionID: selected, loaded: loaded)

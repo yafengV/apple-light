@@ -32,6 +32,7 @@ extension WorkspaceStore {
     await Task.yield()
     guard let task = library.tasks.first(where: { $0.id == taskID && ($0.archived || dueToLimit) }),
       let record = library.managedWorktrees.first(where: { $0.taskID == task.id }),
+      !managedTaskPreparing, record.pendingForkSourceTaskID == nil,
       record.pendingHandoff == nil,
       activeRun(taskID: taskID) == nil else { return }
     let noticeID = "managed-archive-" + taskID
@@ -85,6 +86,7 @@ extension WorkspaceStore {
       }
       try await runManagedWorktreeCleanup(record)
       guard let currentTask = library.tasks.first(where: { $0.id == taskID }),
+        !managedTaskPreparing,
         currentTask.archived || dueToLimit,
         !currentTask.pinned, activeRun(taskID: taskID) == nil,
         project?.path != record.path else { return }

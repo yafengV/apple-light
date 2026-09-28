@@ -73,6 +73,10 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var handoffBranch: String? = nil
   /// Persisted before touching the target; retained until both checkouts and the task move agree.
   var pendingHandoff: PendingHandoff? = nil
+  /// A saved fork owns its checkout before creation/setup. Cleared only once it can run.
+  var pendingForkSourceTaskID: String? = nil
+  /// Setup uses the captured checkout; Git lifecycle uses the stable repository source.
+  var forkSourcePath: String? = nil
   /// Protected by refs/shipios/managed-archive/<taskID> until this checkout is restored.
   var archivedHead: String? = nil
   var archivedStashCommit: String? = nil

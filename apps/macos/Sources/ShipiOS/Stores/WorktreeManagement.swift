@@ -193,7 +193,7 @@ extension WorkspaceStore {
     catch { worktreeError = error.localizedDescription; return nil }
   }
 
-  private func finishManagedWorktree(_ record: ManagedWorktree) async throws -> ManagedWorktree {
+  func finishManagedWorktree(_ record: ManagedWorktree) async throws -> ManagedWorktree {
     try await WorktreeService.createOrRecover(record.checkout)
     let checkout = record.checkout
     var readyCheckout = PermanentWorktree(id: checkout.id, source: checkout.source,
@@ -270,7 +270,8 @@ extension WorkspaceStore {
       ?? library.profiles[record.source]?.macOSSetupScript ?? ""
     if !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
       try await LocalEnvironmentScriptService.run(script, phase: .setup,
-        source: URL(fileURLWithPath: record.source), worktree: URL(fileURLWithPath: record.path))
+        source: URL(fileURLWithPath: current.forkSourcePath ?? record.source),
+        worktree: URL(fileURLWithPath: record.path))
     }
     var candidate = library
     guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == record.taskID }) else {

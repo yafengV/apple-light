@@ -368,6 +368,24 @@ struct TaskWindowView: View {
               Menu {
                 Button("分叉到新任务") { forkTask() }
                   .disabled(!store.canForkTaskWindow(taskID) || windowCommandsBlocked)
+                Button("分叉到新工作树") {
+                  Task {
+                    if let fork = await store.forkTaskToNewWorktree(taskID, openTask: false) {
+                      onNavigate(fork.id)
+                      forkError = nil
+                    } else { forkError = store.worktreeError }
+                  }
+                }.disabled(!store.canForkTaskToNewWorktree(taskID) || windowCommandsBlocked)
+                if store.library.managedWorktrees.contains(where: {
+                  $0.taskID == taskID && $0.pendingForkSourceTaskID != nil
+                }) {
+                  Button("继续创建分叉工作树") {
+                    Task {
+                      if await store.resumeWorktreeFork(taskID, openTask: false) != nil { forkError = nil }
+                      else { forkError = store.worktreeError }
+                    }
+                  }.disabled(store.busy || store.managedTaskPreparing || windowCommandsBlocked)
+                }
                 Button("打开临时侧聊") { openSideChat() }
                   .disabled(!store.canOpenSideChat(from: taskID) || windowCommandsBlocked)
                 Button("重命名任务") { performWindowCommand("rename") }
