@@ -5,8 +5,9 @@ use nucleo::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashSet,
     io::{BufRead, Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -28,6 +29,7 @@ enum Input {
 struct Entry {
     path: String,
     is_directory: bool,
+    root_path: Option<String>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +37,8 @@ struct Match {
     path: String,
     is_directory: bool,
     score: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    root_path: Option<String>,
 }
 #[derive(Serialize)]
 struct Update {
@@ -45,8 +49,18 @@ struct Update {
 
 /// One read-only index per open search surface. EOF stops the walker and matcher.
 pub fn serve(root: &Path) -> Result<()> {
-    let root = root.canonicalize()?;
-    ensure!(root.is_dir(), "Search root must be a directory");
+    serve_roots(root, &[])
+}
+
+pub fn serve_roots(root: &Path, additional: &[PathBuf]) -> Result<()> {
+    let mut roots = Vec::new();
+    for path in std::iter::once(root).chain(additional.iter().map(PathBuf::as_path)) {
+        let canonical = path.canonicalize()?;
+        ensure!(canonical.is_dir(), "Search root must be a directory");
+        if !roots.contains(&canonical) {
+            roots.push(canonical);
+        }
+    }
     let (sender, receiver) = mpsc::channel();
     let reader_sender = sender.clone();
     std::thread::spawn(move || {
@@ -81,29 +95,39 @@ pub fn serve(root: &Path) -> Result<()> {
     let engine = Nucleo::<Entry>::new(Config::DEFAULT.match_paths(), Arc::new(|| {}), Some(2), 1);
     let injector = engine.injector();
     std::thread::spawn(move || {
-        for entry in ignore::WalkBuilder::new(&root)
-            .hidden(false)
-            .follow_links(true)
-            .require_git(true)
-            .build()
-        {
+        let mut seen = HashSet::new();
+        for (index, root) in roots.iter().enumerate() {
             if cancelled.load(Ordering::Relaxed) {
                 break;
             }
-            let Ok(entry) = entry else { continue };
-            let Ok(path) = entry.path().strip_prefix(&root) else {
-                continue;
-            };
-            let Some(path) = path.to_str().filter(|p| !p.is_empty()) else {
-                continue;
-            };
-            injector.push(
-                Entry {
-                    path: path.to_owned(),
-                    is_directory: entry.file_type().is_some_and(|kind| kind.is_dir()),
-                },
-                |entry, cols| cols[0] = Utf32String::from(entry.path.as_str()),
-            );
+            for entry in ignore::WalkBuilder::new(root)
+                .hidden(false)
+                .follow_links(true)
+                .require_git(true)
+                .build()
+            {
+                if cancelled.load(Ordering::Relaxed) {
+                    break;
+                }
+                let Ok(entry) = entry else { continue };
+                let Ok(path) = entry.path().strip_prefix(root) else {
+                    continue;
+                };
+                let Some(path) = path.to_str().filter(|p| !p.is_empty()) else {
+                    continue;
+                };
+                if !seen.insert(entry.path().to_path_buf()) {
+                    continue;
+                }
+                injector.push(
+                    Entry {
+                        path: path.to_owned(),
+                        is_directory: entry.file_type().is_some_and(|kind| kind.is_dir()),
+                        root_path: (index > 0).then(|| root.to_string_lossy().into_owned()),
+                    },
+                    |entry, cols| cols[0] = Utf32String::from(entry.path.as_str()),
+                );
+            }
         }
         let _ = sender.send(Input::Scanned);
     });
@@ -183,6 +207,7 @@ fn run(
                         path: item.data.path.clone(),
                         is_directory: item.data.is_directory,
                         score: matched.score,
+                        root_path: item.data.root_path.clone(),
                     })
                 })
                 .collect();
@@ -249,6 +274,7 @@ mod tests {
                 Entry {
                     path: path.into(),
                     is_directory: false,
+                    root_path: None,
                 },
                 |entry, cols| cols[0] = Utf32String::from(entry.path.as_str()),
             );

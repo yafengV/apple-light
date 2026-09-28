@@ -131,7 +131,8 @@ extension WorkspaceStore {
     target.fileOpenRequest = request
     target.fileOpenError = nil
     do {
-      try await ExternalEditorService.open(path, root: root, line: line, editor: preferredEditor)
+      let location = try target.fileLocation(path)
+      try await ExternalEditorService.open(location.path, root: location.root, line: line, editor: preferredEditor)
     } catch {
       if target.root == root, target.fileOpenRequest == request {
         target.fileOpenError = error.localizedDescription

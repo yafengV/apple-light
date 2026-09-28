@@ -24,12 +24,14 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   private let timeout: Duration
   var processIdentifier: Int32 { process.processIdentifier }
 
-  init(root: URL, executable: URL, timeout: Duration = .seconds(20)) throws {
+  init(root: URL, executable: URL, timeout: Duration = .seconds(20), additionalRoots: [URL] = []) throws {
     self.timeout = timeout
     let child = Process(), stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
     process = child; input = stdin.fileHandleForWriting
     child.executableURL = executable
     child.arguments = ["--project", root.path, "search-files-session"]
+      + Array(WorkspaceFileScope.roots(primary: root, additional: additionalRoots).dropFirst())
+        .flatMap { ["--additional-root", $0.path] }
     child.currentDirectoryURL = root
     child.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory(), "LANG": "en_US.UTF-8"]
     child.standardInput = stdin; child.standardOutput = stdout; child.standardError = stderr

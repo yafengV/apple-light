@@ -5,9 +5,19 @@ struct WorkspaceFileSearchResult: Decodable, Equatable, Sendable, Identifiable {
   let path: String
   let isDirectory: Bool
   let score: Int
-  var id: String { path }
+  var rootPath: String? = nil
+  var sourceRoot: URL? {
+    rootPath.map { URL(fileURLWithPath: $0, isDirectory: true).resolvingSymlinksInPath().standardizedFileURL }
+  }
+  var workspacePath: String { sourceRoot?.appendingPathComponent(path).path ?? path }
+  var id: String { workspacePath }
   var title: String { (path as NSString).lastPathComponent }
   var directory: String { (path as NSString).deletingLastPathComponent }
+  var displayDirectory: String {
+    guard let rootPath else { return directory }
+    let title = URL(fileURLWithPath: rootPath).lastPathComponent
+    return directory.isEmpty ? title : title + "/" + directory
+  }
   func directoryURL(root: URL) throws -> URL {
     let url = try LocalWorkspaceService.resolvedFile(path, root: root)
     guard isDirectory, try url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
@@ -39,6 +49,7 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
   let query: String
   let executable: URL
   var retry = 0
+  var additionalRoots: [URL] = []
 }
 
 @MainActor @Observable final class WorkspaceFileSearchCatalog {
@@ -54,7 +65,8 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
 
   init(sessionFactory: @escaping @MainActor (WorkspaceFileSearchRequest) throws -> any FileSearchSession = { request in
     guard let root = request.root else { throw AgentFailure(message: "请先选择项目。") }
-    return try WorkspaceFileSearchSession(root: root, executable: request.executable)
+    return try WorkspaceFileSearchSession(root: root, executable: request.executable,
+      additionalRoots: request.additionalRoots)
   }) {
     self.sessionFactory = sessionFactory
   }
@@ -69,7 +81,8 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
     loader: Loader? = nil) async {
     let token = UUID()
     version = token
-    if self.request?.root != request.root || self.request?.executable != request.executable || self.request?.retry != request.retry {
+    if self.request?.root != request.root || self.request?.additionalRoots != request.additionalRoots
+      || self.request?.executable != request.executable || self.request?.retry != request.retry {
       session?.close(); session = nil
       results = []; resultsRequest = nil
     }

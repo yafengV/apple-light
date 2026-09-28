@@ -58,7 +58,10 @@ enum Action {
         query: String,
     },
     /// Stream queries/results over stdio while reusing the workspace index.
-    SearchFilesSession,
+    SearchFilesSession {
+        #[arg(long = "additional-root")]
+        additional_roots: Vec<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -86,8 +89,8 @@ fn main() -> Result<()> {
 
 async fn run() -> Result<()> {
     let args = Args::parse();
-    if matches!(args.command, Action::SearchFilesSession) {
-        return shipios_tools::file_search_session::serve(&args.project);
+    if let Action::SearchFilesSession { additional_roots } = &args.command {
+        return shipios_tools::file_search_session::serve_roots(&args.project, additional_roots);
     }
     if let Action::SearchFiles { query } = &args.command {
         println!(

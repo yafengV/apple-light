@@ -2,6 +2,7 @@ import Foundation
 
 extension WorkspaceStore {
   func bindGitReviewPolicy(to workspace: DeveloperWorkspace, taskID: String? = nil) {
+    workspace.setAdditionalFileRoots(additionalWorkspaceFolders(for: workspace.root))
     workspace.isGitReviewReadOnly = { [weak self] in
       self?.library.gitPreferences.readOnlyReview != false
     }

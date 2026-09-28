@@ -19,15 +19,16 @@ struct FileWorkspaceView: View {
       }
       if workspace.selectedFile != nil { fileTabs }
       List {
-        OutlineGroup(WorkspaceFileNode.tree(workspace.files.filter {
-          workspace.fileQuery.isEmpty || $0.localizedCaseInsensitiveContains(workspace.fileQuery)
-        }), children: \.children) { node in
-          if node.children != nil {
-            Label(node.title, systemImage: "folder").appFont(.caption)
+        ForEach(workspace.fileGroups) { group in
+          if workspace.fileRoots.count > 1 {
+            Section {
+              fileTree(group)
+            } header: {
+              Label(group.root.lastPathComponent, systemImage: "folder")
+                .help(group.root.path)
+            }
           } else {
-            Button { workspace.selectFile(node.path) } label: {
-              Label(node.title, systemImage: "doc.text").appFont(.caption).lineLimit(1).help(node.path)
-            }.buttonStyle(.plain)
+            fileTree(group)
           }
         }
       }.frame(minHeight: 90, idealHeight: 180, maxHeight: workspace.selectedFile == nil ? .infinity : 180)
@@ -58,6 +59,21 @@ struct FileWorkspaceView: View {
       }
     }.overlay(alignment: .topTrailing) {
       if workspace.loading { ProgressView().controlSize(.small).padding(12).allowsHitTesting(false) }
+    }
+  }
+
+  private func fileTree(_ group: WorkspaceFileGroup) -> some View {
+    OutlineGroup(WorkspaceFileNode.tree(group.paths.filter {
+      workspace.fileQuery.isEmpty || $0.localizedCaseInsensitiveContains(workspace.fileQuery)
+        || group.root.path.localizedCaseInsensitiveContains(workspace.fileQuery)
+    }, root: group.root == workspace.fileRoots.first ? nil : group.root), children: \.children) { node in
+      if node.children != nil {
+        Label(node.title, systemImage: "folder").appFont(.caption)
+      } else {
+        Button { workspace.selectFile(node.path) } label: {
+          Label(node.title, systemImage: "doc.text").appFont(.caption).lineLimit(1).help(node.path)
+        }.buttonStyle(.plain)
+      }
     }
   }
 

@@ -28,14 +28,15 @@ struct WorkspaceFileSearchView: View {
   @FocusState private var focus: Field?
   private enum Field { case query, cancel, retry }
   private var request: WorkspaceFileSearchRequest {
-    .init(root: workspace.root, query: query, executable: executable, retry: retries)
+    .init(root: workspace.root, query: query, executable: executable, retry: retries,
+      additionalRoots: workspace.additionalFileRoots)
   }
   private var results: [WorkspaceFileSearchResult] {
     catalog.results(for: request)
   }
   private var selection: String? {
-    if let selectedPath, results.contains(where: { $0.path == selectedPath }) { return selectedPath }
-    return results.first?.path
+    if let selectedPath, results.contains(where: { $0.id == selectedPath }) { return selectedPath }
+    return results.first?.id
   }
   var body: some View {
     SearchDialog(identifier: "file-search-dialog", cancel: cancel) {
@@ -83,14 +84,14 @@ struct WorkspaceFileSearchView: View {
             HStack(spacing: 10) {
               Image(systemName: result.isDirectory ? "folder" : "doc.text")
               Text(result.title).lineLimit(1)
-              if !result.directory.isEmpty { Text(result.directory).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
+              if !result.displayDirectory.isEmpty { Text(result.displayDirectory).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
               Spacer(minLength: 0)
             }.frame(maxWidth: .infinity, alignment: .leading)
               .padding(.vertical, 5).contentShape(Rectangle())
-          }.buttonStyle(.plain).help(result.path)
-            .searchResultPointer { pointerSelection = true; selectedPath = result.path }
-            .listRowBackground(result.path == selection ? Color.primary.opacity(0.08) : .clear)
-            .accessibilityAddTraits(result.path == selection ? .isSelected : []).tag(result.path).id(result.path)
+          }.buttonStyle(.plain).help(result.workspacePath)
+            .searchResultPointer { pointerSelection = true; selectedPath = result.id }
+            .listRowBackground(result.id == selection ? Color.primary.opacity(0.08) : .clear)
+            .accessibilityAddTraits(result.id == selection ? .isSelected : []).tag(result.id).id(result.id)
         }.onChange(of: selection) { _, path in
           if !pointerSelection, let path { reader.scrollTo(path) }
         }
@@ -111,8 +112,8 @@ struct WorkspaceFileSearchView: View {
     case .cancel: cancel()
     case .move(let delta):
       if !results.isEmpty {
-        let index = results.firstIndex(where: { $0.path == selection }) ?? 0
-        selectedPath = results[min(max(0, index + delta), results.count - 1)].path
+        let index = results.firstIndex(where: { $0.id == selection }) ?? 0
+        selectedPath = results[min(max(0, index + delta), results.count - 1)].id
       }
       focus = .query
     case .submit:
@@ -132,15 +133,18 @@ struct WorkspaceFileSearchView: View {
   }
 
   private func openSelected() {
-    guard let result = results.first(where: { $0.path == selection }) else { return }
+    guard let result = results.first(where: { $0.id == selection }) else { return }
     openResult(result)
   }
 
   private func openResult(_ result: WorkspaceFileSearchResult) {
-    guard result.isDirectory else { open(result.path); return }
     do {
-      guard let root = workspace.root else { return }
-      let directory = try result.directoryURL(root: root)
+      let location = try workspace.fileLocation(result.workspacePath)
+      guard result.isDirectory else { open(result.workspacePath); return }
+      let directory = location.url
+      guard try directory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else {
+        throw AgentFailure(message: "目录已不存在，请重新搜索。")
+      }
       guard NSWorkspace.shared.open(directory) else { throw AgentFailure(message: "无法在访达中打开目录，请重试。") }
       cancel()
     } catch { openError = error.localizedDescription }

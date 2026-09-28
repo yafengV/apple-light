@@ -21,6 +21,9 @@ struct DetachedReviewView: View {
       session.configure(store: store, owner: owner)
       if root != nil { await session.workspace.refreshGit() }
     }
+    .onChange(of: store.additionalWorkspaceFolders(for: root)) { _, _ in
+      session.configure(store: store, owner: owner)
+    }
     .onChange(of: session.workspace.reviewScope) { _, _ in session.saveScope(store: store) }
     .onDisappear { session.saveScope(store: store); session.shutdown() }
   }

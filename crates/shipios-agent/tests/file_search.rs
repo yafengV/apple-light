@@ -9,11 +9,19 @@ fn session_reuses_index_handles_query_changes_and_exits_on_eof() {
         time::{Duration, Instant},
     };
     let root = tempfile::tempdir().unwrap();
+    let attached = tempfile::tempdir().unwrap();
     fs::write(root.path().join("AlphaBeta.swift"), "").unwrap();
+    fs::write(attached.path().join("AlphaBeta.swift"), "attached").unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_shipios-agent"))
         .arg("--project")
         .arg(root.path())
         .arg("search-files-session")
+        .arg("--additional-root")
+        .arg(attached.path())
+        .arg("--additional-root")
+        .arg(attached.path())
+        .arg("--additional-root")
+        .arg(root.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -41,7 +49,17 @@ fn session_reuses_index_handles_query_changes_and_exits_on_eof() {
         }
     };
     writeln!(input, "{}", serde_json::json!({"id":1,"query":"ab"})).unwrap();
-    assert_eq!(receive(1)["files"][0]["path"], "AlphaBeta.swift");
+    let results = receive(1);
+    let files = results["files"].as_array().unwrap();
+    assert_eq!(files.len(), 2, "Repeated roots must not duplicate results");
+    assert!(files.iter().all(|file| file["path"] == "AlphaBeta.swift"));
+    assert!(files.iter().any(|file| file["rootPath"].is_null()));
+    assert!(
+        files
+            .iter()
+            .any(|file| file["rootPath"]
+                == attached.path().canonicalize().unwrap().to_str().unwrap())
+    );
     // The original walk is complete: later queries reuse that snapshot, rather than rescanning.
     fs::write(root.path().join("NewAfterScan.swift"), "").unwrap();
     writeln!(input, "{}", serde_json::json!({"id":2,"query":"AfterScan"})).unwrap();

@@ -6,7 +6,16 @@ import WebKit
 
 @MainActor @Observable
 final class WorkspaceStore {
-  var library = WorkspaceLibrary() { didSet { synchronizeActivityPriority() } }
+  var library = WorkspaceLibrary() {
+    didSet {
+      synchronizeActivityPriority()
+      if oldValue.projectAdditionalFolders != library.projectAdditionalFolders
+        || oldValue.projectPrimaryFolders != library.projectPrimaryFolders
+        || oldValue.projectScopeOwners != library.projectScopeOwners {
+        synchronizeWorkspaceFileRoots()
+      }
+    }
+  }
   var dictation = SpeechDictation()
   @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences
@@ -710,7 +719,7 @@ final class WorkspaceStore {
       selection = library.rememberedSelection(project: canonical.path)
       chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active
         ? .goal : .standard
-      workspace.setProject(canonical)
+      workspace.setProject(canonical, additionalFolders: additionalWorkspaceFolders(for: canonical))
       events = []
       logText = ""
       inspection = preparedInspection

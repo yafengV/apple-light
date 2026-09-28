@@ -4,6 +4,8 @@ import Observation
 @MainActor @Observable
 final class DeveloperWorkspace {
   var root: URL?
+  private(set) var additionalFileRoots: [URL] = []
+  var fileRoots: [URL] { WorkspaceFileScope.roots(primary: root, additional: additionalFileRoots) }
   var files: [String] = []
   var fileQuery = ""
   var selectedFile: String?
@@ -81,10 +83,11 @@ final class DeveloperWorkspace {
   var generationForGitMutation: UUID { generation }
   private var generation = UUID()
   private var fileVersion = UUID()
+  private var filesVersion = UUID()
   private var diffVersion = UUID()
   private var gitVersion = UUID()
 
-  func setProject(_ root: URL?) {
+  func setProject(_ root: URL?, additionalFolders: [URL] = []) {
     showingCommitPush = false
     showingPullRequest = false
     pullRequestDraft.cancelLoading()
@@ -100,7 +103,9 @@ final class DeveloperWorkspace {
     diffVersion = UUID()
     gitVersion = UUID()
     fileVersion = UUID()
+    filesVersion = UUID()
     self.root = root
+    additionalFileRoots = Array(WorkspaceFileScope.roots(primary: root, additional: additionalFolders).dropFirst())
     loading = false
     gitBusy = false
     files = []
@@ -141,21 +146,74 @@ final class DeveloperWorkspace {
     diff = ""
     error = nil
     guard root != nil else { return }
+    let token = generation, filesToken = filesVersion
     Task {
-      await refreshFiles()
-      await refreshGit()
+      guard generation == token else { return }
+      if filesVersion == filesToken { await refreshFiles() }
+      if generation == token { await refreshGit() }
     }
   }
   func refreshFiles() async {
-    guard let root else { return }
-    let token = generation
+    guard let primary = fileRoots.first else { return }
+    let roots = fileRoots, token = UUID()
+    filesVersion = token
     loading = true
     filesError = nil
-    defer { if token == generation { loading = false } }
-    do {
-      let paths = try await LocalWorkspaceService.files(at: root)
-      if token == generation { files = paths }
-    } catch { if token == generation { filesError = error.localizedDescription } }
+    defer { if token == filesVersion { loading = false } }
+    var paths: [String] = [], failures: [String] = [], seen = Set<String>()
+    for root in roots {
+      do {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: root.path, isDirectory: &isDirectory),
+          isDirectory.boolValue, FileManager.default.isReadableFile(atPath: root.path) else {
+          throw AgentFailure(message: "文件夹不可用：\(root.path)")
+        }
+        for path in try await LocalWorkspaceService.files(at: root) {
+          guard let location = try? WorkspaceFileScope.location(root.appendingPathComponent(path).path, roots: roots),
+            seen.insert(location.url.path).inserted else { continue }
+          paths.append(WorkspaceFileScope.key(location, primary: primary))
+        }
+      } catch { failures.append(error.localizedDescription) }
+      guard token == filesVersion, !Task.isCancelled else { return }
+    }
+    files = paths
+    filesError = failures.isEmpty ? nil : failures.joined(separator: "\n")
+  }
+
+  func fileLocation(_ path: String) throws -> WorkspaceFileLocation {
+    try WorkspaceFileScope.location(path, roots: fileRoots)
+  }
+
+  var fileGroups: [WorkspaceFileGroup] {
+    let roots = fileRoots
+    guard let primary = roots.first else { return [] }
+    var grouped: [String: [String]] = [:]
+    // Listing already canonicalizes entries. Rendering must not resolve every
+    // file on disk again; selection/opening revalidates the actual destination.
+    for path in files {
+      if path.hasPrefix("/") {
+        guard let folder = roots.first(where: { path.hasPrefix($0.path + "/") }) else { continue }
+        grouped[folder.path, default: []].append(String(path.dropFirst(folder.path.count + 1)))
+      } else {
+        grouped[primary.path, default: []].append(path)
+      }
+    }
+    return roots.map { .init(root: $0, paths: grouped[$0.path] ?? []) }
+  }
+
+  func setAdditionalFileRoots(_ additional: [URL]) {
+    let updated = Array(WorkspaceFileScope.roots(primary: root, additional: additional).dropFirst())
+    guard updated != additionalFileRoots else { return }
+    additionalFileRoots = updated
+    filesVersion = UUID()
+    fileVersion = UUID()
+    fileOpenRequest = UUID()
+    fileOpenError = nil
+    let retained = openFiles.filter { (try? fileLocation($0)) != nil }
+    for path in openFiles where !retained.contains(path) { closeFile(path) }
+    if let selectedFile { selectFile(selectedFile) }
+    let token = filesVersion
+    Task { if filesVersion == token { await refreshFiles() } }
   }
   func openFile(_ path: String) async {
     await selectFile(path)?.value
@@ -163,8 +221,11 @@ final class DeveloperWorkspace {
 
   /// Select synchronously: a delayed fallback must never reopen a closed tab.
   @discardableResult
-  func selectFile(_ path: String) -> Task<Void, Never>? {
+  func selectFile(_ requestedPath: String) -> Task<Void, Never>? {
     guard let root else { return nil }
+    let path = (try? fileLocation(requestedPath)).map {
+      WorkspaceFileScope.key($0, primary: fileRoots.first ?? root)
+    } ?? requestedPath
     let token = UUID()
     fileVersion = token
     selectedFile = path
@@ -178,9 +239,13 @@ final class DeveloperWorkspace {
     fileLineRange = nil
     fileFocusRequest = UUID()
     let reader = fileReader
+    let roots = fileRoots
     return Task { [weak self] in
       let result: Result<String, Error>
-      do { result = .success(try await reader(path, root)) }
+      do {
+        let location = try WorkspaceFileScope.location(path, roots: roots)
+        result = .success(try await reader(location.path, location.root))
+      }
       catch { result = .failure(error) }
       guard let self, self.fileVersion == token, self.root == root,
         self.selectedFile == path, self.openFiles.contains(path) else { return }

@@ -10,7 +10,7 @@ import Observation
     let root = store.workspaceTabProject(owner: owner)
     guard self.owner != owner || workspace.root != root else { return }
     self.owner = owner
-    workspace.setProject(root)
+    workspace.setProject(root, additionalFolders: store.additionalWorkspaceFolders(for: root))
     workspace.reviewScope = store.currentWorkspaceTabOwner == owner
       ? store.workspace.reviewScope
       : store.library.workspaceTabLayouts[owner]?.reviewScope ?? store.library.gitPreferences.defaultReviewScope
