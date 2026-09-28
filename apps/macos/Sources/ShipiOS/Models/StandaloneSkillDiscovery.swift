@@ -7,7 +7,7 @@ extension PluginStorage {
       try validateStandaloneDirectory(root: root)
     }
     var found: [String: String] = [:]
-    // Include registered folders so reference validation still catches corrupt imported links.
+    // Include registered folders and preserve disabled preferences across source changes.
     // Actual directory spelling wins when a case-only rename refers to the same file.
     for id in preferences.standaloneSkills {
       if FileManager.default.fileExists(atPath: standaloneSkillURL(root: root, id: id)
@@ -19,7 +19,8 @@ extension PluginStorage {
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
     for folder in folders {
       let values = try folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-      guard values.isDirectory == true, values.isSymbolicLink != true,
+      guard values.isDirectory == true || values.isSymbolicLink == true,
+        (try? folder.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
         FileManager.default.fileExists(atPath: folder.appendingPathComponent("SKILL.md").path) else { continue }
       let id = folder.lastPathComponent
       try validateID(id)

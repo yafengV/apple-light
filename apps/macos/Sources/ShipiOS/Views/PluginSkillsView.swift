@@ -97,7 +97,7 @@ struct PluginSkillsView: View {
         if let skill = removing { _ = store.removeStandaloneSkill(skill.id) }
         removing = nil
       }
-    } message: { Text("移除 ShipiOS 私有目录中的这个技能及其资源。其他目录的文件保持不变。") }
+    } message: { Text(removing?.removalDescription ?? "移除这个技能入口。") }
   }
 
   private func skillCard(_ skill: PluginSkillReference) -> some View {
@@ -157,6 +157,8 @@ private struct SkillEditorView: View {
   var contextProjectPath: String? = nil
   @Environment(\.dismiss) private var dismiss
   @State private var original: String?
+  @State private var originalFileURL: URL?
+  @State private var originalIsLinked = false
   @State private var draft = ""
   @State private var error: String?
   @State private var reload = UUID()
@@ -177,6 +179,10 @@ private struct SkillEditorView: View {
       }
       Text(skill.fileURL.path).appFont(.caption).foregroundStyle(.secondary)
         .textSelection(.enabled)
+      if originalIsLinked, let originalFileURL {
+        Text("保存会修改链接目标文件：\(originalFileURL.path)")
+          .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+      }
       if original == nil && error == nil {
         ProgressView("正在读取技能…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -199,10 +205,11 @@ private struct SkillEditorView: View {
           let saved: Bool
           if let project = skill.repositoryRoot {
             saved = store.updateRepositorySkill(id: skill.id, text: draft,
-              expectedOriginal: original, project: project, contextProjectPath: contextProjectPath)
+              expectedOriginal: original, project: project, contextProjectPath: contextProjectPath,
+              expectedFileURL: originalFileURL)
           } else {
             saved = store.updateStandaloneSkill(id: skill.id, text: draft,
-              expectedOriginal: original)
+              expectedOriginal: original, expectedFileURL: originalFileURL)
           }
           if saved {
             dismiss()
@@ -223,15 +230,19 @@ private struct SkillEditorView: View {
     } message: { Text("当前未保存的修改会被丢弃。") }
     .task(id: reload) {
       original = nil
+      originalFileURL = nil
+      originalIsLinked = false
       error = nil
       let id = skill.id, root = store.dataRoot, repositoryRoot = skill.repositoryRoot
       do {
-        let text = try await Task.detached(priority: .userInitiated) {
-          try PluginStorage.readSkill(id: id, root: root, repositoryRoot: repositoryRoot)
+        let document = try await Task.detached(priority: .userInitiated) {
+          try PluginStorage.readSkillDocument(id: id, root: root, repositoryRoot: repositoryRoot)
         }.value
         guard !Task.isCancelled else { return }
-        original = text
-        draft = text
+        original = document.text
+        originalFileURL = document.fileURL
+        originalIsLinked = document.isLinkedSource
+        draft = document.text
       } catch {
         guard !Task.isCancelled else { return }
         self.error = error.localizedDescription
@@ -246,6 +257,7 @@ private struct PluginSkillPreview: View {
   var projectPath: String? = nil
   @Environment(\.dismiss) private var dismiss
   @State private var source: String?
+  @State private var linkedFileURL: URL?
   @State private var error: String?
   @State private var showSource = false
   @State private var reload = UUID()
@@ -266,6 +278,10 @@ private struct PluginSkillPreview: View {
         Button("关闭") { dismiss() }.keyboardShortcut(.cancelAction)
       }
       Text(skill.pluginName + " · $" + skill.mention).foregroundStyle(.secondary).textSelection(.enabled)
+      if let linkedFileURL {
+        Text("链接目标：\(linkedFileURL.path)").appFont(.caption)
+          .foregroundStyle(.secondary).textSelection(.enabled)
+      }
       if !skill.summary.isEmpty {
         Text(skill.summary).foregroundStyle(.secondary).textSelection(.enabled)
       }
@@ -319,17 +335,19 @@ private struct PluginSkillPreview: View {
           if store.removeStandaloneSkill(skill.id) { dismiss() }
           else { actionError = store.pluginsError }
         }
-      } message: { Text("移除 ShipiOS 私有目录中的这个技能及其资源。其他目录的文件保持不变。") }
+      } message: { Text(skill.removalDescription) }
       .task(id: "\(reload)|\(store.repositorySkillRevision)") {
         source = nil
+        linkedFileURL = nil
         error = nil
         let id = skill.id, root = store.dataRoot, repositoryRoot = skill.repositoryRoot
         do {
-          let text = try await Task.detached(priority: .userInitiated) {
-            try PluginStorage.readSkill(id: id, root: root, repositoryRoot: repositoryRoot)
+          let document = try await Task.detached(priority: .userInitiated) {
+            try PluginStorage.readSkillDocument(id: id, root: root, repositoryRoot: repositoryRoot)
           }.value
           guard !Task.isCancelled else { return }
-          source = text
+          source = document.text
+          linkedFileURL = document.isLinkedSource ? document.fileURL : nil
         } catch {
           guard !Task.isCancelled else { return }
           self.error = error.localizedDescription

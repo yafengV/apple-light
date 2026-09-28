@@ -37,7 +37,7 @@ extension WorkspaceStore {
       let updated = try PluginStorage.skills(preferences: PluginStorage.load(root: dataRoot), root: dataRoot)
         + PluginStorage.repositorySkills(project: URL(fileURLWithPath: currentProjectKey, isDirectory: true))
       guard let resolved = updated.first(where: {
-        $0.fileURL.resolvingSymlinksInPath() == requested.fileURL.resolvingSymlinksInPath()
+        $0.sourceFileURL == requested.sourceFileURL
       }) else { throw AgentFailure(message: "技能已移除，未创建任务。") }
       skillTrialInProgress = false
       guard trySkill(resolved.id, recordHistory: false) else {

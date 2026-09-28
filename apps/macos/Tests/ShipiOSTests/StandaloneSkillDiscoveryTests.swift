@@ -116,7 +116,7 @@ final class StandaloneSkillDiscoveryTests: XCTestCase {
     XCTAssertFalse(FileManager.default.fileExists(atPath: file.deletingLastPathComponent().path))
   }
 
-  func testAutomaticDiscoverySkipsUnregisteredLinksAndRejectsLinkedSkillFileAndRoot() throws {
+  func testAutomaticDiscoveryFollowsFolderLinkButRejectsLinkedSkillFileAndRoot() throws {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: base) }
     let external = base.appendingPathComponent("External")
@@ -125,7 +125,7 @@ final class StandaloneSkillDiscoveryTests: XCTestCase {
     try FileManager.default.createDirectory(at: root.appendingPathComponent("Skills"), withIntermediateDirectories: true)
     try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("Skills/linked"),
       withDestinationURL: outside.deletingLastPathComponent())
-    XCTAssertTrue(try PluginStorage.skills(preferences: PluginPreferences(), root: root).isEmpty)
+    XCTAssertEqual(try PluginStorage.skills(preferences: PluginPreferences(), root: root).map(\.id), ["user:linked"])
     let folder = root.appendingPathComponent("Skills/review")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     try FileManager.default.createSymbolicLink(at: folder.appendingPathComponent("SKILL.md"), withDestinationURL: outside)

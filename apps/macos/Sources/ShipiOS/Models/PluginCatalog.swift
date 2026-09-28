@@ -37,6 +37,17 @@ struct PluginSkillReference: Equatable, Identifiable {
   var isStandalone = false
   var repositoryRoot: URL? = nil
   var interface = SkillInterfaceMetadata()
+  var resolvedFileURL: URL? = nil
+
+  var sourceFileURL: URL { resolvedFileURL ?? fileURL.resolvingSymlinksInPath() }
+  var isLinkedSource: Bool {
+    (isStandalone || isRepository) && sourceFileURL.deletingLastPathComponent().path
+      != fileURL.deletingLastPathComponent().deletingLastPathComponent().resolvingSymlinksInPath()
+        .appendingPathComponent(skillID).path
+  }
+  var removalDescription: String {
+    "移除 ShipiOS 私有目录中的这个技能入口。普通文件夹及其资源会被删除；符号链接只删除链接，目标文件保持不变。"
+  }
 
   var isRepository: Bool { repositoryRoot != nil }
   var id: String {
@@ -549,7 +560,14 @@ enum PluginStorage {
     return preferences
   }
 
-  static func readSkill(id: String, root: URL, repositoryRoot: URL? = nil) throws -> String {
+  static func readSkill(id: String, root: URL, repositoryRoot: URL? = nil,
+    expectedFileURL: URL? = nil) throws -> String {
+    try readSkillDocument(id: id, root: root, repositoryRoot: repositoryRoot,
+      expectedFileURL: expectedFileURL).text
+  }
+
+  static func readSkillDocument(id: String, root: URL, repositoryRoot: URL? = nil,
+    expectedFileURL: URL? = nil) throws -> SkillDocument {
     let preferences = try load(root: root)
     var available = try skills(preferences: preferences, root: root, includeDisabled: true)
     if let repositoryRoot { available += try repositorySkills(project: repositoryRoot) }
@@ -557,8 +575,12 @@ enum PluginStorage {
       .first(where: { $0.id == id }) else {
       throw AgentFailure(message: "找不到这个技能，请重新加载插件。")
     }
+    if let expectedFileURL, skill.sourceFileURL.standardizedFileURL != expectedFileURL.standardizedFileURL {
+      throw AgentFailure(message: "技能链接目标已更改。请重新载入后再继续。")
+    }
     var total = 0
-    return try skillText(skill, total: &total)
+    return try SkillDocument(text: skillText(skill, total: &total), fileURL: skill.sourceFileURL,
+      isLinkedSource: skill.isLinkedSource)
   }
 
   static func skills(
@@ -747,12 +769,15 @@ enum PluginStorage {
     return value
   }
   private static func skillText(_ skill: PluginSkillReference, total: inout Int) throws -> String {
-    let values = try skill.fileURL.resourceValues(
+    let file = skill.isStandalone || skill.isRepository
+      ? try localSkillFile(in: skill.fileURL.deletingLastPathComponent(), expectedFileURL: skill.sourceFileURL)
+      : skill.fileURL
+    let values = try file.resourceValues(
       forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
     guard values.isRegularFile == true, values.isSymbolicLink != true,
       let size = values.fileSize, size <= 65_536
     else { throw AgentFailure(message: "插件 \(skill.pluginName) 包含无效或过大的技能文件。") }
-    let data = try Data(contentsOf: skill.fileURL, options: .mappedIfSafe)
+    let data = try Data(contentsOf: file, options: .mappedIfSafe)
     guard let text = String(data: data, encoding: .utf8) else {
       throw AgentFailure(message: "插件 \(skill.pluginName) 的技能文件不是 UTF-8。")
     }

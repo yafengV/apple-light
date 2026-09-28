@@ -36,7 +36,7 @@ struct SkillIconView: View {
     .task(id: "\(url?.absoluteString ?? "")|\(revision)") {
       icon = nil
       guard let url else { return }
-      let folder = skill.fileURL.deletingLastPathComponent()
+      let folder = skill.sourceFileURL.deletingLastPathComponent()
       let data = await Task.detached(priority: .utility) {
         try? PluginStorage.skillIconData(at: url, in: folder)
       }.value

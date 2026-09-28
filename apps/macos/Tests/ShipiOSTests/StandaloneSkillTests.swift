@@ -208,7 +208,8 @@ final class StandaloneSkillTests: XCTestCase {
     let installed = PluginStorage.standaloneSkillURL(root: root, id: "review")
     try FileManager.default.removeItem(at: installed)
     try FileManager.default.createSymbolicLink(at: installed, withDestinationURL: source)
-    XCTAssertThrowsError(try PluginStorage.readSkill(id: "user:review", root: root))
+    XCTAssertEqual(try PluginStorage.readSkill(id: "user:review", root: root),
+      try String(contentsOf: source.appendingPathComponent("SKILL.md")))
     _ = try PluginStorage.removeStandaloneSkill(id: "user:review", root: root)
     XCTAssertTrue(FileManager.default.fileExists(atPath: source.appendingPathComponent("SKILL.md").path))
   }

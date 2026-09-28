@@ -25,17 +25,18 @@ enum SkillSourceSnapshot {
       } catch { record("error:\((error as NSError).code)") }
     }
     func skill(_ folder: URL) {
-      file(folder.appendingPathComponent("SKILL.md"), within: folder)
-      file(folder.appendingPathComponent("agents/openai.yaml"), within: folder)
-      if FileManager.default.fileExists(atPath: folder.appendingPathComponent("SKILL.md").path),
-        let interface = try? PluginStorage.skillInterface(in: folder) {
+      let target = folder.resolvingSymlinksInPath()
+      file(target.appendingPathComponent("SKILL.md"), within: target)
+      file(target.appendingPathComponent("agents/openai.yaml"), within: target)
+      if FileManager.default.fileExists(atPath: target.appendingPathComponent("SKILL.md").path),
+        let interface = try? PluginStorage.skillInterface(in: target) {
         for icon in Set([interface.iconSmallURL, interface.iconLargeURL].compactMap { $0 })
           .sorted(by: { $0.path < $1.path }) {
-          file(icon, within: folder, content: false)
+          file(icon, within: target, content: false)
         }
       }
     }
-    func directory(_ url: URL, within boundary: URL, recursive: Bool = false) {
+    func directory(_ url: URL, within boundary: URL, recursive: Bool = false, followSkillLinks: Bool = false) {
       record(url.standardizedFileURL.path)
       let path = url.standardizedFileURL.path, rootPath = boundary.standardizedFileURL.path
       guard path.hasPrefix(rootPath + "/"), url.resolvingSymlinksInPath().path
@@ -43,7 +44,7 @@ enum SkillSourceSnapshot {
         record("linked"); return
       }
       // The roots are private app directories or validated repository skill locations.
-      // Enumeration skips linked folders and reads only skill documents and metadata.
+      // Only local skill children may be links; imported plugin packages stay contained.
       let manager = FileManager.default
       do {
         let children = try manager.contentsOfDirectory(at: url,
@@ -52,14 +53,19 @@ enum SkillSourceSnapshot {
         for child in children {
           record(child.lastPathComponent)
           let values = try child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-          guard values.isDirectory == true, values.isSymbolicLink != true else { continue }
+          guard values.isDirectory == true || (followSkillLinks && values.isSymbolicLink == true) else { continue }
+          if values.isSymbolicLink == true {
+            guard followSkillLinks else { continue }
+            record(child.resolvingSymlinksInPath().path)
+            guard (try? child.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+          }
           skill(child)
           if recursive { directory(child, within: boundary, recursive: true) }
         }
       } catch { record("error:\((error as NSError).code)") }
     }
     file(root.appendingPathComponent("plugins.json"), within: root)
-    directory(root.appendingPathComponent("Skills"), within: root)
+    directory(root.appendingPathComponent("Skills"), within: root, followSkillLinks: true)
     let packages = root.appendingPathComponent("Plugins")
     record(packages.path)
     if packages.resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().appendingPathComponent("Plugins").path,
@@ -77,7 +83,7 @@ enum SkillSourceSnapshot {
     })
     for path in scopes.sorted() {
       let scope = URL(fileURLWithPath: path)
-      directory(scope.appendingPathComponent(".agents/skills"), within: scope)
+      directory(scope.appendingPathComponent(".agents/skills"), within: scope, followSkillLinks: true)
     }
     return hash.finalize().map { String(format: "%02x", $0) }.joined()
   }

@@ -145,4 +145,39 @@ final class SkillDiscoveryTransportTests: XCTestCase {
       await store.shutdown()
     }
   }
+
+  @MainActor func testBothProtocolsReadLinkedPrivateAndProjectSkillTargets() async throws {
+    for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
+      let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      defer { try? FileManager.default.removeItem(at: root) }
+      let store = try await prepare(protocol: api, root: root)
+      let repositoryFolder = root.appendingPathComponent("Project/.agents/skills/review")
+      try FileManager.default.removeItem(at: repositoryFolder)
+      let target = root.appendingPathComponent("Shared Skills (external)/review")
+      try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+      try Data("---\nname: Linked Review\ndescription: LINKED-TRANSPORT-PURPOSE\n---\nLINKED-TRANSPORT-INSTRUCTIONS".utf8)
+        .write(to: target.appendingPathComponent("SKILL.md"))
+      try FileManager.default.createSymbolicLink(at: repositoryFolder, withDestinationURL: target)
+      let privateFolder = store.dataRoot.appendingPathComponent("Skills/private-review")
+      try FileManager.default.createDirectory(at: privateFolder.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try FileManager.default.createSymbolicLink(at: privateFolder, withDestinationURL: target)
+      await store.refreshSkillsIfChanged()
+      XCTAssertEqual(store.composerSkills.count, 2)
+      XCTAssertTrue(store.composerSkills.allSatisfy(\.isLinkedSource))
+      let started = await store.startChat(api == .chatCompletions ? "implicit-skill-read" : "codex-skill-discovery")
+      let id = try XCTUnwrap(started, store.error ?? "No linked skill request")
+      await store.modelTask(runID: id)?.value
+      let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+      XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+      XCTAssertTrue(run.result?["response"].text?.contains("LINKED-TRANSPORT-INSTRUCTIONS") == true)
+      if api == .chatCompletions {
+        XCTAssertEqual(run.result?["invoked_skills"].items.compactMap(\.text), ["user:private-review"])
+      } else {
+        XCTAssertTrue(run.toolExecutions.contains { $0.toolName == "命令" && $0.status == .succeeded
+          && $0.output?.contains("LINKED-TRANSPORT-INSTRUCTIONS") == true })
+      }
+      XCTAssertTrue(store.pluginPreferences.standaloneSkills.isEmpty)
+      await store.shutdown()
+    }
+  }
 }

@@ -60,7 +60,8 @@ extension WorkspaceStore {
   }
 
   @discardableResult func updateRepositorySkill(
-    id: String, text: String, expectedOriginal: String, project: URL, contextProjectPath: String? = nil
+    id: String, text: String, expectedOriginal: String, project: URL, contextProjectPath: String? = nil,
+    expectedFileURL: URL? = nil
   ) -> Bool {
     do {
       let context = contextProjectPath ?? currentProjectKey
@@ -73,7 +74,7 @@ extension WorkspaceStore {
         return false
       }
       try PluginStorage.updateRepositorySkill(id: id, text: text,
-        expectedOriginal: expectedOriginal, project: project)
+        expectedOriginal: expectedOriginal, project: project, expectedFileURL: expectedFileURL)
       refreshRepositorySkills(for: context)
       pluginsError = nil
       return true
@@ -216,12 +217,12 @@ extension WorkspaceStore {
   }
 
   @discardableResult func updateStandaloneSkill(
-    id: String, text: String, expectedOriginal: String
+    id: String, text: String, expectedOriginal: String, expectedFileURL: URL? = nil
   ) -> Bool {
     guard pluginsLoaded else { return false }
     do {
       try PluginStorage.updateStandaloneSkill(
-        id: id, text: text, expectedOriginal: expectedOriginal, root: dataRoot)
+        id: id, text: text, expectedOriginal: expectedOriginal, root: dataRoot, expectedFileURL: expectedFileURL)
       try refreshPluginSkills()
       pluginsError = nil
       return true

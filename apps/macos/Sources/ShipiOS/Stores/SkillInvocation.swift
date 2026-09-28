@@ -16,9 +16,10 @@ extension WorkspaceStore {
     let current = try PluginStorage.discoveryContext(preferences: preferences, root: dataRoot,
       repositoryRoot: repository, readTool: true)
     guard let skill = current.skills.first(where: {
-      $0.id == id && $0.fileURL.resolvingSymlinksInPath() == offered.fileURL.resolvingSymlinksInPath()
+      $0.id == id && $0.sourceFileURL == offered.sourceFileURL
     }) else { throw AgentFailure(message: "技能已停用、移除或不再允许隐式调用。") }
-    return (skill, try PluginStorage.readSkill(id: id, root: dataRoot, repositoryRoot: repository))
+    return (skill, try PluginStorage.readSkill(id: id, root: dataRoot, repositoryRoot: repository,
+      expectedFileURL: offered.sourceFileURL))
   }
 
   func executeSkillRead(

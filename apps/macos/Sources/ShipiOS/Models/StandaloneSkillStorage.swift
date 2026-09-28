@@ -53,7 +53,7 @@ extension PluginStorage {
   }
 
   static func updateStandaloneSkill(
-    id: String, text: String, expectedOriginal: String, root: URL
+    id: String, text: String, expectedOriginal: String, root: URL, expectedFileURL: URL? = nil
   ) throws {
     guard id.hasPrefix("user:") else {
       throw AgentFailure(message: "只能编辑独立技能；插件内技能由插件管理。")
@@ -71,16 +71,7 @@ extension PluginStorage {
     }
     try validateStandaloneDirectory(root: root)
     let directory = standaloneSkillURL(root: root, id: skillID)
-    let expected = standaloneSkillURL(root: root.resolvingSymlinksInPath(), id: skillID)
-    guard directory.resolvingSymlinksInPath().path == expected.path else {
-      throw AgentFailure(message: "独立技能目录不能使用符号链接。")
-    }
-    let file = directory.appendingPathComponent("SKILL.md")
-    let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-    guard values.isRegularFile == true, values.isSymbolicLink != true,
-      let size = values.fileSize, size <= 65_536 else {
-      throw AgentFailure(message: "独立技能文件无效或超过 64 KiB。")
-    }
+    let file = try localSkillFile(in: directory, expectedFileURL: expectedFileURL)
     let current = try Data(contentsOf: file)
     guard current == Data(expectedOriginal.utf8) else {
       throw AgentFailure(message: "技能文件已在外部更改。请重新载入后再编辑。")
@@ -167,6 +158,7 @@ extension PluginStorage {
     let folder = standaloneSkillURL(root: root, id: skillID)
     let staging = folder.deletingLastPathComponent().appendingPathComponent(".remove-" + UUID().uuidString)
     let exists = FileManager.default.fileExists(atPath: folder.path)
+      || (try? folder.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
     if exists { try FileManager.default.moveItem(at: folder, to: staging) }
     let equivalent = preferences.standaloneSkills.filter { $0.caseInsensitiveCompare(skillID) == .orderedSame }
     preferences.standaloneSkills.removeAll { $0.caseInsensitiveCompare(skillID) == .orderedSame }
@@ -190,16 +182,13 @@ extension PluginStorage {
         $0.caseInsensitiveCompare("user:" + id) == .orderedSame
       }) { return nil }
       let directory = standaloneSkillURL(root: root, id: id)
-      let expected = standaloneSkillURL(root: root.resolvingSymlinksInPath(), id: id)
-      guard directory.resolvingSymlinksInPath().path == expected.path else {
-        throw AgentFailure(message: "独立技能目录不能使用符号链接。")
-      }
       let file = directory.appendingPathComponent("SKILL.md")
       guard FileManager.default.fileExists(atPath: file.path) else { return nil }
-      let metadata = try skillMetadata(file, fallback: id, sourceName: id)
+      let resolved = try localSkillFile(in: directory)
+      let metadata = try skillMetadata(resolved, fallback: id, sourceName: id)
       return PluginSkillReference(pluginID: "", pluginName: "本地技能", skillID: id,
         title: metadata.title, fileURL: file, mention: id, summary: metadata.summary,
-        isStandalone: true, interface: metadata.interface)
+        isStandalone: true, interface: metadata.interface, resolvedFileURL: resolved)
     }
   }
 

@@ -77,7 +77,7 @@ extension PluginStorage {
   }
 
   static func updateRepositorySkill(
-    id: String, text: String, expectedOriginal: String, project: URL
+    id: String, text: String, expectedOriginal: String, project: URL, expectedFileURL: URL? = nil
   ) throws {
     guard id == "repo:" + project.standardizedFileURL.path + "/" + projectSkillID(from: id) else {
       throw AgentFailure(message: "只能编辑项目技能。")
@@ -90,16 +90,7 @@ extension PluginStorage {
     }
     let directory = try repositorySkillDirectory(project: project, create: false)
     let folder = directory.appendingPathComponent(skillID, isDirectory: true)
-    guard folder.resolvingSymlinksInPath().path == directory.resolvingSymlinksInPath()
-      .appendingPathComponent(skillID).path else {
-      throw AgentFailure(message: "项目技能目录不能使用符号链接。")
-    }
-    let file = folder.appendingPathComponent("SKILL.md")
-    let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-    guard values.isRegularFile == true, values.isSymbolicLink != true,
-      let size = values.fileSize, size <= 65_536 else {
-      throw AgentFailure(message: "项目技能文件无效或超过 64 KiB。")
-    }
+    let file = try localSkillFile(in: folder, expectedFileURL: expectedFileURL)
     guard try Data(contentsOf: file) == Data(expectedOriginal.utf8) else {
       throw AgentFailure(message: "技能文件已在外部更改。请重新载入后再编辑。")
     }
@@ -161,21 +152,18 @@ extension PluginStorage {
     var found: [PluginSkillReference] = []
     for folder in folders {
       let values = try folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-      guard values.isDirectory == true else { continue }
-      guard values.isSymbolicLink != true,
-        folder.resolvingSymlinksInPath().path == canonical
-          .appendingPathComponent(".agents/skills/\(folder.lastPathComponent)").path else {
-        throw AgentFailure(message: "项目技能目录不能使用符号链接。")
-      }
+      guard values.isDirectory == true || values.isSymbolicLink == true,
+        (try? folder.resolvingSymlinksInPath().resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
       let id = folder.lastPathComponent
       try validateID(id)
       let file = folder.appendingPathComponent("SKILL.md")
       guard FileManager.default.fileExists(atPath: file.path) else { continue }
-      let metadata = try skillMetadata(file, fallback: id, sourceName: id)
+      let resolved = try localSkillFile(in: folder)
+      let metadata = try skillMetadata(resolved, fallback: id, sourceName: id)
       found.append(PluginSkillReference(
         pluginID: "", pluginName: "项目技能 · \(scope.lastPathComponent)", skillID: id,
         title: metadata.title, fileURL: file, mention: "repo/" + id,
-        summary: metadata.summary, repositoryRoot: scope, interface: metadata.interface))
+        summary: metadata.summary, repositoryRoot: scope, interface: metadata.interface, resolvedFileURL: resolved))
     }
     return found.sorted {
       $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
