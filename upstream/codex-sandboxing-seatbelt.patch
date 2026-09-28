@@ -1,0 +1,150 @@
+--- a/codex-rs/sandboxing/src/seatbelt.rs
++++ b/codex-rs/sandboxing/src/seatbelt.rs
+@@ -598,3 +598,3 @@
+-            let regex =
+-                seatbelt_protected_metadata_name_regex(&root, &metadata_name).replace('"', "\\\"");
+-            require_parts.push(format!(r#"(require-not (regex #"{regex}"))"#));
++            let regex = seatbelt_protected_metadata_name_regex(&root, &metadata_name);
++            let filter = seatbelt_regex_filter(&regex, param_prefix, &mut params);
++            require_parts.push(format!("(require-not {filter})"));
+@@ -616,0 +617,12 @@
++// Modified by ShipiOS: SBPL regex literals do not escape embedded double quotes.
++// Pass exceptional patterns as argv parameters so they cannot terminate the policy literal.
++fn seatbelt_regex_filter(regex: &str, prefix: &str, params: &mut Vec<(String, PathBuf)>) -> String {
++    if regex.contains(['"', '\n', '\r']) {
++        let name = format!("{prefix}_REGEX_{}", params.len());
++        params.push((name.clone(), PathBuf::from(regex)));
++        format!("(regex (param \"{name}\"))")
++    } else {
++        format!(r#"(regex #"{regex}")"#)
++    }
++}
++
+@@ -651,0 +664 @@
++    params: &mut Vec<(String, PathBuf)>,
+@@ -671,3 +684,3 @@
+-            let regex = regex.replace('"', "\\\"");
+-            policy_components.push(format!(r#"(deny file-read* (regex #"{regex}"))"#));
+-            policy_components.push(format!(r#"(deny file-write* (regex #"{regex}"))"#));
++            let filter = seatbelt_regex_filter(&regex, "UNREADABLE", params);
++            policy_components.push(format!("(deny file-read* {filter})"));
++            policy_components.push(format!("(deny file-write* {filter})"));
+@@ -681 +694 @@
+-                let regex = regex.replace('"', "\\\"");
++                let filter = seatbelt_regex_filter(&regex, "UNREADABLE", params);
+@@ -683 +696 @@
+-                    r#"(deny file-write-unlink (require-all (vnode-type DIRECTORY) (regex #"{regex}")))"#
++                    "(deny file-write-unlink (require-all (vnode-type DIRECTORY) {filter}))"
+@@ -1035,2 +1048,6 @@
+-    let deny_read_policy =
+-        build_seatbelt_unreadable_glob_policy(file_system_sandbox_policy, sandbox_policy_cwd);
++    let mut regex_params = Vec::new();
++    let deny_read_policy = build_seatbelt_unreadable_glob_policy(
++        file_system_sandbox_policy,
++        sandbox_policy_cwd,
++        &mut regex_params,
++    );
+@@ -1070,0 +1088 @@
++        regex_params,
+--- a/codex-rs/sandboxing/src/seatbelt_tests.rs
++++ b/codex-rs/sandboxing/src/seatbelt_tests.rs
+@@ -1061 +1061,2 @@
+-        let seatbelt_policy = build_seatbelt_unreadable_glob_policy(&policy, temp_dir.path());
++        let seatbelt_policy =
++            build_seatbelt_unreadable_glob_policy(&policy, temp_dir.path(), &mut Vec::new());
+@@ -1898 +1899 @@
+-        &config_toml.display()
++        config_toml.display()
+@@ -1936 +1937 @@
+-        &pre_commit_hook.display()
++        pre_commit_hook.display()
+@@ -1974 +1975 @@
+-        &allowed_file.display()
++        allowed_file.display()
+@@ -2788,0 +2790,86 @@
++
++// ShipiOS regression: parsing a special cwd must not open a metadata or glob protection gap.
++#[test]
++fn special_paths_allow_ordinary_writes_and_keep_metadata_and_globs_protected() {
++    for name in [
++        "quoted\" workspace",
++        "汉字\" \\backslash",
++        "line\n\" (allow default)",
++    ] {
++        let temp = TempDir::new().expect("temporary directory");
++        let root = temp.path().join(name);
++        fs::create_dir(&root).expect("workspace");
++        let ordinary = root.join("ordinary.txt");
++        let secret = root.join("secret.env");
++        fs::write(&secret, "fixture-secret").expect("fixture file");
++        let mut policy = restricted_write_policy(&[root.as_path()]);
++        // Glob syntax requires escaping a literal backslash in the static prefix.
++        let pattern_root = root.display().to_string().replace('\\', "\\\\");
++        policy.entries.push(FileSystemSandboxEntry {
++            path: FileSystemPath::GlobPattern {
++                pattern: format!("{pattern_root}/*.env"),
++            },
++            access: FileSystemAccessMode::Deny,
++            missing_path_behavior: None,
++        });
++        let run = |script: &str, path: &Path| {
++            let args = create_seatbelt_command_args(CreateSeatbeltCommandArgsParams {
++                command: vec![
++                    "/bin/sh".into(),
++                    "-c".into(),
++                    script.into(),
++                    "sh".into(),
++                    path.display().to_string(),
++                ],
++                file_system_sandbox_policy: &policy,
++                network_sandbox_policy: NetworkSandboxPolicy::Restricted,
++                sandbox_policy_cwd: &root,
++                enforce_managed_network: false,
++                managed_network: None,
++                environment_id: None,
++                network: None,
++                extra_allow_unix_sockets: &[],
++            })
++            .expect("seatbelt arguments");
++            Command::new(MACOS_PATH_TO_SEATBELT_EXECUTABLE)
++                .args(&args)
++                .current_dir(&root)
++                .output()
++                .expect("sandbox command")
++        };
++        let normal = run("printf ordinary > \"$1\"", &ordinary);
++        assert!(
++            normal.status.success(),
++            "cwd {name:?}: {}",
++            String::from_utf8_lossy(&normal.stderr)
++        );
++        assert_eq!(
++            fs::read_to_string(&ordinary).expect("ordinary file"),
++            "ordinary"
++        );
++        for metadata in [".git", ".codex", ".agents"] {
++            let path = root.join(metadata);
++            let blocked = run("mkdir \"$1\"", &path);
++            assert!(
++                !blocked.status.success(),
++                "must deny first creation of {metadata} in {name:?}"
++            );
++            assert!(!path.exists());
++            assert!(!String::from_utf8_lossy(&blocked.stderr).contains("unbound variable"));
++        }
++        let blocked_read = run("cat \"$1\"", &secret);
++        assert!(
++            !blocked_read.status.success(),
++            "must deny reading protected glob in {name:?}"
++        );
++        let blocked_write = run("printf changed > \"$1\"", &secret);
++        assert!(
++            !blocked_write.status.success(),
++            "must deny writing protected glob in {name:?}"
++        );
++        assert_eq!(
++            fs::read_to_string(&secret).expect("protected fixture"),
++            "fixture-secret"
++        );
++    }
++}

@@ -80,7 +80,15 @@ class Handler(BaseHTTPRequestHandler):
                                 skill_catalog.append(entry)
                         except (ValueError, TypeError):
                             pass
-            if 'codex-skill-discovery' in request_text:
+            if 'codex-startup-failure' in request_text:
+                if 'fixture-startup-failure' not in request_text:
+                    item = {'type': 'function_call', 'call_id': 'fixture-startup-failure', 'name': 'exec_command',
+                        'arguments': json.dumps({'cmd': 'printf should-not-run',
+                            'workdir': '/shipios-nonexistent-workdir-fixture', 'yield_time_ms': 10000})}
+                else:
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'startup-reply',
+                        'content': [{'type': 'output_text', 'text': json.dumps(body, ensure_ascii=False)}]}
+            elif 'codex-skill-discovery' in request_text:
                 if skill_catalog and 'fixture-skill-read' not in request_text:
                     skill_path = skill_catalog[-1]['path']
                     prefix, separator, suffix = skill_path.partition('/')

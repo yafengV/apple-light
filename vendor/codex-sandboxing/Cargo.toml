@@ -1,0 +1,39 @@
+[package]
+name = "codex-sandboxing"
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "codex_sandboxing"
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+codex-mxc-sandbox = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-network-proxy = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-protocol = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-utils-absolute-path = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-utils-path-uri = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-utils-pty = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-windows-sandbox = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+anyhow = "1"
+dunce = "1.0.4"
+libc = "0.2.182"
+serde_json = "1"
+regex-lite = "0.1.8"
+tokio = { version = "1", features = ["rt", "sync"] }
+tracing = { version = "0.1.44", features = ["log"] }
+url = "2"
+which = "8"
+
+[target.'cfg(windows)'.dependencies]
+codex-otel = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-utils-home-dir = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+
+[dev-dependencies]
+anyhow = "1"
+pretty_assertions = "1.4.1"
+tempfile = "3.23.0"
+tokio = { version = "1", features = ["macros", "rt", "time"] }

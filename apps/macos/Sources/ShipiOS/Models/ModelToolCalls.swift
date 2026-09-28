@@ -137,23 +137,57 @@ enum CodexCommandTimeline {
 
   /// The tool result can include the first output chunk before Core starts
   /// sending live deltas, and later may contain the complete command output.
+  /// A command can fail during process setup before Core emits its begin/end events.
+  /// Keep the model-issued call and its raw result visible in that case as well.
+  static func applyResponseItem(_ event: JSONValue, executions: inout [MCPToolExecution],
+    items: inout [ChatResponseItem]) -> Bool {
+    let item = event["item"]
+    guard event["type"].text == "raw_response_item" else { return false }
+    if item["type"].text == "function_call", item["name"].text == "exec_command",
+      let callID = item["call_id"].text, !callID.isEmpty,
+      let raw = item["arguments"].text {
+      guard !executions.contains(where: { $0.serverID == serverID && $0.callID == callID }) else { return false }
+      let arguments = (try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8))) ?? .null
+      let command = arguments["cmd"].text ?? raw
+      let cwd = arguments["workdir"].text ?? ""
+      let execution = MCPToolExecution(callID: callID, serverID: serverID, serverName: "Codex",
+        toolName: "命令", arguments: String((cwd.isEmpty ? command : cwd + "\n$ " + command).prefix(65_536)),
+        status: .running)
+      executions.append(execution)
+      items.append(.tool(execution.id))
+      return true
+    }
+    return applyToolResult(event, executions: &executions)
+  }
+
   static func applyToolResult(_ event: JSONValue, executions: inout [MCPToolExecution]) -> Bool {
     let item = event["item"]
     guard event["type"].text == "raw_response_item",
       item["type"].text == "function_call_output",
       let callID = item["call_id"].text,
       let output = item["output"].text,
-      let marker = output.range(of: "\nOutput:\n"),
       let index = executions.firstIndex(where: {
         $0.serverID == serverID && $0.callID == callID && $0.toolName == "命令"
       }) else { return false }
-    let actual = String(output[marker.upperBound...].prefix(65_536))
+    let marker = output.range(of: "\nOutput:\n")
+    let header = marker.map { String(output[..<$0.lowerBound]) } ?? ""
+    let exitCode = header.split(separator: "\n").first(where: { $0.hasPrefix("Process exited with code ") })
+      .flatMap { Int($0.dropFirst("Process exited with code ".count)) }
+    let setupFailure = marker == nil && ["Error", "failed to ", "exec_command failed"]
+      .contains(where: { output.hasPrefix($0) })
+    guard marker != nil || setupFailure else { return false }
+    let actual = String((marker.map { String(output[$0.upperBound...]) } ?? output).prefix(65_536))
     let existing = executions[index].output ?? ""
     let merged: String
     if actual.contains(existing) { merged = actual }
     else if existing.contains(actual) { merged = existing }
     else { merged = String((actual + existing).prefix(65_536)) }
-    guard existing != merged else { return false }
+    let previous = executions[index].status
+    if previous == .running {
+      if let exitCode { executions[index].status = exitCode == 0 ? .succeeded : .failed }
+      else if setupFailure { executions[index].status = .failed }
+    }
+    guard existing != merged || previous != executions[index].status else { return false }
     executions[index].output = merged.isEmpty ? nil : merged
     return true
   }

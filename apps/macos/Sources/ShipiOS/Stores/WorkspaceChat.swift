@@ -560,7 +560,8 @@ extension WorkspaceStore {
   private func recordCodexCommandResult(runID: String, event: JSONValue) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
     var executions = current.toolExecutions
-    guard CodexCommandTimeline.applyToolResult(event, executions: &executions) else { return }
+    var items = current.responseItems ?? []
+    guard CodexCommandTimeline.applyResponseItem(event, executions: &executions, items: &items) else { return }
     if let callID = event["item"]["call_id"].text,
       let execution = executions.first(where: {
         $0.serverID == CodexCommandTimeline.serverID && $0.callID == callID
@@ -568,7 +569,7 @@ extension WorkspaceStore {
       codexCommandOutputBuffers[runID, default: [:]][callID] = Data((execution.output ?? "").utf8)
     }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
-      toolExecutions: executions)
+      responseItems: items, toolExecutions: executions)
     saveLibrary()
   }
   private func recordCodexWebSearch(runID: String, event: JSONValue) {

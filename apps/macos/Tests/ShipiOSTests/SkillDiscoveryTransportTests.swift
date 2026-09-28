@@ -185,10 +185,7 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
       let container = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
       defer { try? FileManager.default.removeItem(at: container) }
-      // The pinned Core currently emits an invalid Seatbelt profile for quoted cwd paths.
-      // Keep that independent upstream defect explicit; Basic still exercises quoted roots.
-      let rootName = api == .chatCompletions ? "长目录 \"quoted\"/" : "长目录/"
-      let root = container.appendingPathComponent(rootName + String(repeating: "shared/", count: 8))
+      let root = container.appendingPathComponent("长目录 \"quoted\"/" + String(repeating: "shared/", count: 8))
       let store = try await prepare(protocol: api, root: root)
       for index in 0..<20 {
         let file = store.dataRoot.appendingPathComponent("Skills/prefix-\(index)/SKILL.md")
@@ -248,6 +245,28 @@ final class SkillDiscoveryTransportTests: XCTestCase {
       XCTAssertEqual(linked.sourceFileURL.path, target.appendingPathComponent("SKILL.md").resolvingSymlinksInPath().path)
       await store.shutdown()
     }
+  }
+
+  @MainActor func testCodexSetupFailureAppearsInTimelineAndSurvivesRestore() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await prepare(protocol: .codexResponses, root: root)
+    let started = await store.startChat("codex-startup-failure")
+    let id = try XCTUnwrap(started, store.error ?? "No setup failure request")
+    await store.modelTask(runID: id)?.value
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    let execution = try XCTUnwrap(run.toolExecutions.first { $0.callID == "fixture-startup-failure" },
+      "Missing failed command card: \(run.result?["response"].text ?? "")")
+    XCTAssertEqual(execution.status, .failed)
+    XCTAssertTrue(execution.output?.contains("directory") == true || execution.output?.contains("Directory") == true,
+      execution.output ?? "Missing failure output")
+    XCTAssertEqual(run.responseItems?.filter { $0 == .tool(execution.id) }.count, 1)
+    let restored = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    let stored = try XCTUnwrap(restored.chatRuns.first { $0.id == id })
+    XCTAssertEqual(stored.toolExecutions, run.toolExecutions)
+    XCTAssertEqual(stored.responseItems, run.responseItems)
+    await store.shutdown()
   }
 
   @MainActor func testBothProtocolsUseServiceModelWindowAndSwitchBackToCharacterFallback() async throws {
