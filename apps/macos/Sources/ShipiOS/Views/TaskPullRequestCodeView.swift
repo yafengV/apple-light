@@ -99,9 +99,13 @@ struct TaskPullRequestCodeView: View {
       Spacer(minLength: 0)
       Menu {
         Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
-        Button(state.allCollapsed ? "展开全部差异" : "收起全部差异") { state.toggleAll() }
+        Button(state.groupExpanded ? "收起全部差异" : "展开全部差异") { state.toggleAll() }
       } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton)
         .accessibilityLabel("差异选项")
+      Button(action: retry) { Image(systemName: "arrow.clockwise") }
+        .buttonStyle(.plain).help("刷新差异").accessibilityLabel("刷新差异")
+        .accessibilityIdentifier("pull-request-code-refresh")
+        .disabled(state.loading || metadataLoading)
       Button { state.split.toggle() } label: {
         Image(systemName: state.split ? "rectangle.split.1x2" : "rectangle.split.2x1")
       }.buttonStyle(.plain).help(state.split ? "切换为统一差异" : "切换为并排差异")

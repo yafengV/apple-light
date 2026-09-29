@@ -216,6 +216,11 @@ struct TaskPullRequestDetailView: View {
       await code.load(captured, valid: { valid && captured == codeRequest })
     }
     .onChange(of: codeRequest) { _, _ in if code.page != .code { code.invalidate() } }
+    .task(id: code.page == .code && !compact ? code.snapshot : nil) {
+      guard code.page == .code, !compact else { return }
+      let captured = codeRequest
+      await code.loadAttributes(valid: { valid && captured == codeRequest })
+    }
     .task(id: checksRequest) {
       await loadChecks()
       while !Task.isCancelled, checksRequest != nil,

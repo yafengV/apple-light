@@ -112,6 +112,39 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRGeneratedAttributes" in query:
+            if state.get("attributesGate"):
+                (root / "attributes-held").touch()
+                deadline = time.monotonic() + 10
+                while not (root / "attributes-release").exists():
+                    if time.monotonic() >= deadline:
+                        sys.exit("Attributes read gate was not released")
+                    time.sleep(0.01)
+            if state.get("attributesFailure"):
+                sys.exit("Attributes unavailable")
+            objects = {"nameWithOwner": state.get("attributesRepository", "sample/project")}
+            for key, expression in variables.items():
+                if key in ["owner", "name"]:
+                    continue
+                revision, path = expression.split(":", 1)
+                assert revision == state["head"]
+                text = state.get("attributeSources", {}).get(path)
+                objects["f" + key[1:]] = None if text is None else {
+                    "__typename": "Blob", "text": text, "isBinary": False,
+                    "isTruncated": False, "byteSize": len(text.encode("utf-8"))}
+            objects.update(state.get("attributesOverride", {}))
+            if state.get("attributesOmitAlias"):
+                objects.pop("f0", None)
+            if state.get("headAfterAttributes"):
+                state["detailHead"] = state["headAfterAttributes"]
+            if state.get("baseAfterAttributes"):
+                state["codeBase"] = state["baseAfterAttributes"]
+            state_path.write_text(json.dumps(state))
+            response = {"data": {"repository": objects}}
+            if state.get("attributesGraphQLError"):
+                response["errors"] = [{"message": "Attributes GraphQL failure"}]
+            print(json.dumps(response))
+            sys.exit(0)
         if "ShipiOSPRCodeIdentity" in query:
             if state.get("codeBaseAtIdentityRead"):
                 count = state.get("codeIdentityReadCount", 0) + 1

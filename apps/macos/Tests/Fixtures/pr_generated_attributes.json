@@ -1,0 +1,1026 @@
+{
+  "source": "Codex 26.911.61220 build 9647, public Lc/Hc matcher",
+  "sha256": "b7df1c1f5fee7721a1a388f96c1eb5c1452b8e23bde91c7924b1cb4404df1b67",
+  "paths": [
+    "main.swift",
+    "test.swift",
+    "Main.SWIFT",
+    "a.swift",
+    ".hidden",
+    "中文一.swift",
+    "中文😀.swift",
+    "😀.swift",
+    "Sources/main.swift",
+    "Sources/.hidden",
+    "Sources/sub/main.swift",
+    "Sources/sub/deep/main.swift",
+    "Tests/main.swift",
+    "SourcesX/main.swift",
+    "README.md",
+    "{main,test}.swift",
+    "@(main|test).swift",
+    "!main.swift",
+    "#main.swift",
+    "main.swift\\other",
+    "[abc.swift",
+    "Sources//main.swift",
+    "trailing[",
+    "é.swift",
+    "Sources",
+    "Sources/",
+    "😀😀.swift",
+    "𝔸.swift",
+    "١.swift",
+    "one\nfile.swift",
+    "a-b.swift",
+    "-a.swift",
+    "]file.swift",
+    "c.swift",
+    "_file.swift",
+    ":a.swift",
+    "éé.swift",
+    "aa.swift",
+    "ā.swift",
+    "😀one.swift"
+  ],
+  "cases": [
+    {
+      "pattern": "*.swift",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "a.swift",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "[abc.swift",
+        "Sources//main.swift",
+        "é.swift",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "**/*.swift",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "a.swift",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "[abc.swift",
+        "Sources//main.swift",
+        "é.swift",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "/main.swift",
+      "matches": [
+        "main.swift"
+      ]
+    },
+    {
+      "pattern": "/Sources/*.swift",
+      "matches": [
+        "Sources/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "Sources/**",
+      "matches": [
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Sources//main.swift",
+        "Sources/"
+      ]
+    },
+    {
+      "pattern": "Sources/**/main.swift",
+      "matches": [
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "Sources/",
+      "matches": [
+        "Sources/"
+      ]
+    },
+    {
+      "pattern": "Sources/*",
+      "matches": [
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "**",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        ".hidden",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        ".hidden",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "?.swift",
+      "matches": [
+        "a.swift",
+        "é.swift",
+        "١.swift",
+        "c.swift",
+        "ā.swift"
+      ]
+    },
+    {
+      "pattern": "[a-z]*.swift",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "a.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "Sources//main.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[!a-z]*.swift",
+      "matches": [
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "[abc.swift",
+        "é.swift",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "-a.swift",
+        "]file.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[^a-z]*.swift",
+      "matches": [
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "[abc.swift",
+        "é.swift",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "-a.swift",
+        "]file.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[[:alpha:]]*.swift",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "a.swift",
+        "中文一.swift",
+        "中文😀.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "Sources//main.swift",
+        "é.swift",
+        "𝔸.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift"
+      ]
+    },
+    {
+      "pattern": "{main,test}.swift",
+      "matches": [
+        "{main,test}.swift"
+      ]
+    },
+    {
+      "pattern": "@(main|test).swift",
+      "matches": [
+        "@(main|test).swift"
+      ]
+    },
+    {
+      "pattern": "!main.swift",
+      "matches": [
+        "!main.swift"
+      ]
+    },
+    {
+      "pattern": "#main.swift",
+      "matches": []
+    },
+    {
+      "pattern": "main\\.swift",
+      "matches": [
+        "main.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "[abc.swift",
+      "matches": [
+        "[abc.swift"
+      ]
+    },
+    {
+      "pattern": "中文?.swift",
+      "matches": [
+        "中文一.swift"
+      ]
+    },
+    {
+      "pattern": ".*",
+      "matches": [
+        ".hidden",
+        "Sources/.hidden"
+      ]
+    },
+    {
+      "pattern": "**/.hidden",
+      "matches": [
+        ".hidden",
+        "Sources/.hidden"
+      ]
+    },
+    {
+      "pattern": "**/**/main.swift",
+      "matches": [
+        "main.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "Sources/**/**",
+      "matches": [
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Sources//main.swift",
+        "Sources/"
+      ]
+    },
+    {
+      "pattern": "Sources//main.swift",
+      "matches": [
+        "Sources/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "Main.SWIFT",
+      "matches": [
+        "Main.SWIFT"
+      ]
+    },
+    {
+      "pattern": "[m]*",
+      "matches": [
+        "main.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "*[",
+      "matches": [
+        "trailing["
+      ]
+    },
+    {
+      "pattern": "**/*.swift/",
+      "matches": []
+    },
+    {
+      "pattern": "??.swift",
+      "matches": [
+        "😀.swift",
+        "𝔸.swift",
+        "-a.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "😀.swift",
+      "matches": [
+        "😀.swift"
+      ]
+    },
+    {
+      "pattern": "*😀*",
+      "matches": [
+        "中文😀.swift",
+        "😀.swift",
+        "😀😀.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[z-a]*",
+      "matches": []
+    },
+    {
+      "pattern": "[]]*",
+      "matches": [
+        "]file.swift"
+      ]
+    },
+    {
+      "pattern": "[!]]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        ".hidden",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[a\\-c]*",
+      "matches": [
+        "a.swift",
+        "a-b.swift",
+        "-a.swift",
+        "c.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[a-]*",
+      "matches": [
+        "a.swift",
+        "a-b.swift",
+        "-a.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[-a]*",
+      "matches": [
+        "a.swift",
+        "a-b.swift",
+        "-a.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[--a]*",
+      "matches": [
+        "Main.SWIFT",
+        "a.swift",
+        ".hidden",
+        "Sources/.hidden",
+        "README.md",
+        "@(main|test).swift",
+        "[abc.swift",
+        "Sources",
+        "Sources/",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "_file.swift",
+        ":a.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[!a-c]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        ".hidden",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "-a.swift",
+        "]file.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[a-zA-Z]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "main.swift\\other",
+        "Sources//main.swift",
+        "trailing[",
+        "Sources",
+        "Sources/",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[^[:alpha:]]*",
+      "matches": [
+        ".hidden",
+        "😀.swift",
+        "Sources/.hidden",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "[abc.swift",
+        "😀😀.swift",
+        "١.swift",
+        "-a.swift",
+        "]file.swift",
+        "_file.swift",
+        ":a.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[[:alpha:]_]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        "中文一.swift",
+        "中文😀.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "main.swift\\other",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "𝔸.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "_file.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift"
+      ]
+    },
+    {
+      "pattern": "[![:graph:]a]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        ".hidden",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[:alpha:]?.swift",
+      "matches": [
+        ":a.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "\\[abc.swift",
+      "matches": [
+        "[abc.swift"
+      ]
+    },
+    {
+      "pattern": "**/main.swift",
+      "matches": [
+        "main.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "Sources/**/",
+      "matches": [
+        "Sources/"
+      ]
+    },
+    {
+      "pattern": "**/Sources/**/main.swift",
+      "matches": [
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Sources//main.swift"
+      ]
+    },
+    {
+      "pattern": "[[:alnum:]]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        "中文一.swift",
+        "中文😀.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "main.swift\\other",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift"
+      ]
+    },
+    {
+      "pattern": "[[:ascii:]]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        ".hidden",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "Sources",
+        "Sources/",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "aa.swift"
+      ]
+    },
+    {
+      "pattern": "[[:blank:]]*",
+      "matches": []
+    },
+    {
+      "pattern": "[[:cntrl:]]*",
+      "matches": []
+    },
+    {
+      "pattern": "[[:digit:]]*",
+      "matches": [
+        "١.swift"
+      ]
+    },
+    {
+      "pattern": "[[:graph:]]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        ".hidden",
+        "中文一.swift",
+        "中文😀.swift",
+        "😀.swift",
+        "Sources/main.swift",
+        "Sources/.hidden",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "main.swift\\other",
+        "[abc.swift",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "😀😀.swift",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "-a.swift",
+        "]file.swift",
+        "c.swift",
+        "_file.swift",
+        ":a.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift",
+        "😀one.swift"
+      ]
+    },
+    {
+      "pattern": "[[:lower:]]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "a.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "main.swift\\other",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift"
+      ]
+    },
+    {
+      "pattern": "[[:print:]]*",
+      "matches": []
+    },
+    {
+      "pattern": "[[:punct:]]*",
+      "matches": [
+        ".hidden",
+        "Sources/.hidden",
+        "{main,test}.swift",
+        "@(main|test).swift",
+        "!main.swift",
+        "#main.swift",
+        "[abc.swift",
+        "-a.swift",
+        "]file.swift",
+        "_file.swift",
+        ":a.swift"
+      ]
+    },
+    {
+      "pattern": "[[:space:]]*",
+      "matches": []
+    },
+    {
+      "pattern": "[[:upper:]]*",
+      "matches": [
+        "Main.SWIFT",
+        "README.md",
+        "Sources",
+        "Sources/",
+        "𝔸.swift"
+      ]
+    },
+    {
+      "pattern": "[[:word:]]*",
+      "matches": [
+        "main.swift",
+        "test.swift",
+        "Main.SWIFT",
+        "a.swift",
+        "中文一.swift",
+        "中文😀.swift",
+        "Sources/main.swift",
+        "Sources/sub/main.swift",
+        "Sources/sub/deep/main.swift",
+        "Tests/main.swift",
+        "SourcesX/main.swift",
+        "README.md",
+        "main.swift\\other",
+        "Sources//main.swift",
+        "trailing[",
+        "é.swift",
+        "Sources",
+        "Sources/",
+        "𝔸.swift",
+        "١.swift",
+        "one\nfile.swift",
+        "a-b.swift",
+        "c.swift",
+        "_file.swift",
+        "éé.swift",
+        "aa.swift",
+        "ā.swift"
+      ]
+    },
+    {
+      "pattern": "[[:xdigit:]]*",
+      "matches": [
+        "a.swift",
+        "a-b.swift",
+        "c.swift",
+        "aa.swift"
+      ]
+    }
+  ]
+}
