@@ -77,6 +77,19 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRCodeIdentity" in query:
+            if state.get("codeReadFailure"):
+                sys.exit("Code identity unavailable")
+            item = next(x for x in state["pullRequests"] if x["number"] == variables["number"])
+            pr = {**item, "id": state.get("codeNodeID", "pr-node"),
+                  "baseRefOid": state.get("codeBase", "b" * 40),
+                  "headRefOid": state.get("detailHead", state["head"]),
+                  "changedFiles": state.get("codeChangedFiles", 1)}
+            if state.get("codeMismatch"):
+                pr["url"] = "https://github.com/other/project/pull/42"
+            print(json.dumps({"data": {"repository": {
+                "nameWithOwner": state.get("metadataRepository", "sample/project"), "pullRequest": pr}}}))
+            sys.exit(0)
         if state.get("discussionDelay"):
             time.sleep(state["discussionDelay"])
         if state.get("discussionFailure") or (state.get("discussionFailureAfterAction") and state.get("discussionAccepted")):
@@ -329,10 +342,22 @@ elif args[:2] == ["pr", "edit"]:
         sys.exit("Connection interrupted after server accepted request")
     print("Fixture edit accepted")
 elif args[:2] == ["pr", "diff"]:
+    if state.get("codeDiffGate"):
+        import time
+        (root / "code-diff-held").touch()
+        deadline = time.monotonic() + 10
+        while not (root / "code-diff-release").exists():
+            if time.monotonic() >= deadline:
+                sys.exit("Code diff gate was not released")
+            time.sleep(0.01)
+        state = json.loads(state_path.read_text())
     if state.get("diffFailure"):
         sys.exit("Fixture diff unavailable")
     if state.get("headAfterDiff"):
         state["detailHead"] = state["headAfterDiff"]
+        state_path.write_text(json.dumps(state))
+    if state.get("baseAfterDiff"):
+        state["codeBase"] = state["baseAfterDiff"]
         state_path.write_text(json.dumps(state))
     print(state.get("prDiff", "diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new"))
 else:

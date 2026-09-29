@@ -20,6 +20,8 @@ struct TaskPullRequestDetailView: View {
   @State private var editorOwner = UUID()
   @State private var checks = GitHubPRChecksState()
   @State private var discussion = GitHubPRDiscussionState()
+  @State private var code = GitHubPRCodeState()
+  @FocusState private var focusedPRPage: GitHubPRCodeState.Page?
   @State private var fixBranch: String?
   @State private var fixing = false
   @State private var fixError: String?
@@ -39,6 +41,11 @@ struct TaskPullRequestDetailView: View {
     return .init(taskID: taskID, root: root, pullRequest: current, headRevision: head)
   }
 
+  private var codeRequest: GitHubPRCodeRequest? {
+    guard valid, let head = state.snapshot?.headRevision else { return nil }
+    return .init(taskID: taskID, root: root, pullRequest: request, head: head)
+  }
+
   private var content: some View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
@@ -47,10 +54,41 @@ struct TaskPullRequestDetailView: View {
         }
         Text("Pull request #\(request.number)").appFont(.headline).lineLimit(1)
         Spacer(minLength: 0)
+        if !compact, discussion.snapshot?.canReview == true {
+          Button("提交审查") { discussion.openReview() }
+            .disabled(!discussion.canWrite(request, writable: writable))
+        }
         Button(action: close) { Image(systemName: "xmark") }
           .buttonStyle(.plain).help(compact ? "关闭摘要" : "关闭 PR").accessibilityLabel(compact ? "关闭摘要" : "关闭 PR")
       }.padding(.horizontal, 16).padding(.vertical, 13)
       Divider()
+      if !compact {
+        HStack(spacing: 4) {
+          ForEach(GitHubPRCodeState.Page.allCases, id: \.rawValue) { page in
+            Button(page == .summary ? "概览" : "Code") { code.page = page }
+              .buttonStyle(.plain).padding(.horizontal, 10).padding(.vertical, 6)
+              .background(code.page == page ? Color.primary.opacity(0.08) : .clear,
+                in: RoundedRectangle(cornerRadius: 6))
+              .accessibilityValue(code.page == page ? "已选中" : "未选中")
+              .accessibilityIdentifier("pull-request-page-" + page.rawValue)
+              .focused($focusedPRPage, equals: page)
+              .onKeyPress(.leftArrow) { selectPRPage(page == .summary ? .code : .summary); return .handled }
+              .onKeyPress(.rightArrow) { selectPRPage(page == .summary ? .code : .summary); return .handled }
+              .onKeyPress(.home) { selectPRPage(.summary); return .handled }
+              .onKeyPress(.end) { selectPRPage(.code); return .handled }
+          }
+          Spacer()
+        }.padding(.horizontal, 12).padding(.vertical, 4)
+        Divider()
+      }
+      if !compact, code.page == .code {
+        TaskPullRequestCodeView(state: code, discussion: discussion,
+          enabled: discussion.canWrite(request, writable: writable), writable: writable,
+          mentionRequest: discussion.snapshot.map { .init(pullRequest: request, root: root, viewer: $0.viewer) },
+          open: openExternal, submit: applyDiscussion, retry: retryCode,
+          retryComments: { Task { await loadDiscussion() } }, metadataLoading: state.loading,
+          metadataError: codeRequest == nil ? state.error : nil)
+      } else {
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {
           TaskPullRequestTitleView(editor: editor, snapshot: state.snapshot, request: request,
@@ -60,7 +98,7 @@ struct TaskPullRequestDetailView: View {
               systemImage: details?.state.uppercased() == "MERGED" ? "checkmark.circle.fill"
                 : "arrow.triangle.pullrequest")
             Spacer()
-            if discussion.snapshot?.canReview == true {
+            if compact, discussion.snapshot?.canReview == true {
               Button("提交审查") { discussion.openReview() }
                 .disabled(!discussion.canWrite(request, writable: writable))
             }
@@ -99,7 +137,8 @@ struct TaskPullRequestDetailView: View {
           TaskPullRequestActivityView(state: discussion,
             enabled: discussion.canWrite(request, writable: writable), writable: writable,
             mentionRequest: discussion.snapshot.map { .init(pullRequest: request, root: root, viewer: $0.viewer) }, open: openExternal,
-            retry: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, submit: applyDiscussion, fixes: commentFixControls)
+            retry: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, submit: applyDiscussion,
+            fixes: commentFixControls, openFile: compact ? nil : { code.open($0) })
           if let error = state.error {
             Label(error, systemImage: "exclamationmark.circle")
               .appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
@@ -128,6 +167,7 @@ struct TaskPullRequestDetailView: View {
         .appFont(.callout)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
+      }
       }
     }
   }
@@ -170,6 +210,12 @@ struct TaskPullRequestDetailView: View {
 
   var body: some View {
     discussionContent
+    .task(id: code.page == .code && !compact ? codeRequest : nil) {
+      guard code.page == .code, !compact else { return }
+      let captured = codeRequest
+      await code.load(captured, valid: { valid && captured == codeRequest })
+    }
+    .onChange(of: codeRequest) { _, _ in if code.page != .code { code.invalidate() } }
     .task(id: checksRequest) {
       await loadChecks()
       while !Task.isCancelled, checksRequest != nil,
@@ -191,7 +237,7 @@ struct TaskPullRequestDetailView: View {
     .onChange(of: presentations?.token(tabID)) { _, _ in consumeMergeRequest() }
     .onChange(of: state.snapshot) { _, _ in consumeMergeRequest() }
     .onChange(of: root) { _, _ in presentations?.clear(tabID) }
-    .onDisappear { presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel() }
+    .onDisappear { presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel(); code.cancel() }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
         confirm: { apply(.merge(state.selectedMethod)) })
@@ -214,6 +260,16 @@ struct TaskPullRequestDetailView: View {
 
   private func loadDiscussion() async {
     await discussion.load(request, at: root, valid: { valid })
+  }
+  private func retryCode() {
+    Task {
+      await refresh()
+      guard let captured = codeRequest else { return }
+      await code.refresh(captured, valid: { valid && captured == codeRequest })
+    }
+  }
+  private func selectPRPage(_ page: GitHubPRCodeState.Page) {
+    code.page = page; focusedPRPage = page
   }
   private func applyDiscussion(_ action: GitHubPRDiscussionAction, _ draftID: String?) {
     discussion.start(action, request: request, at: root, valid: { valid }, writable: { writable }, draftID: draftID,

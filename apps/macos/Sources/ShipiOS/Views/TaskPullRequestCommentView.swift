@@ -11,6 +11,8 @@ struct TaskPullRequestCommentView: View {
   let open: (URL) -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
   var fixes: PullRequestCommentFixControls? = nil
+  var openFile: ((GitHubPRCommentPosition) -> Void)? = nil
+  var showsCodeContext = true
   @State private var hovered = false
   @FocusState private var focusedControl: String?
   @Environment(\.appAppearance) private var appearance
@@ -29,9 +31,9 @@ struct TaskPullRequestCommentView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       header
-      if let thread { fileLocation(thread) }
+      if let thread, showsCodeContext { fileLocation(thread) }
       if !collapsed {
-        if let thread, !thread.diffHunk.isEmpty, thread.position != nil {
+        if let thread, showsCodeContext, !thread.diffHunk.isEmpty, thread.position != nil {
           TaskPullRequestThreadDiffView(thread: thread)
         }
         TaskPullRequestCommentContentView(comment: comment, state: state, enabled: enabled, writable: writable,
@@ -88,6 +90,12 @@ struct TaskPullRequestCommentView: View {
           .buttonStyle(.plain).focused($focusedControl, equals: "file")
           .onKeyPress(.return) { collapse.expand(card); return .handled }
           .accessibilityLabel("展开 " + thread.path + " 的评论")
+      } else if let openFile, let position = thread.position, position.isValid {
+        Button { openFile(position) } label: { Text((thread.path as NSString).lastPathComponent).lineLimit(1) }
+          .buttonStyle(.plain).focused($focusedControl, equals: "file")
+          .onKeyPress(.return) { openFile(position); return .handled }
+          .accessibilityLabel("在 Code 中打开 " + thread.path)
+          .accessibilityIdentifier("pr-comment-open-file-" + card.id)
       } else { Text((thread.path as NSString).lastPathComponent).lineLimit(1) }
       if let position = thread.position, collapsed || thread.diffHunk.isEmpty {
         Text(position.label).lineLimit(1)

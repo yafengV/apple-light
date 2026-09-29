@@ -41,11 +41,27 @@ enum CodexTurnDiffFiles {
     if let renamePath { return renamePath }
     if let oldPath { return oldPath }
     guard let header = lines.first else { return nil }
-    let tokens = gitTokens(String(header.dropFirst("diff --git ".count)))
-    return tokens.last.flatMap { markerPath($0) }
+    return headerPaths(header).new
   }
 
-  private static func markerPath(_ raw: String) -> String? {
+  static func headerPaths(_ header: String) -> (old: String?, new: String?) {
+    let source = String(header.dropFirst("diff --git ".count))
+    let tokens = gitTokens(source)
+    if tokens.count == 2 { return (markerPath(tokens[0]), markerPath(tokens[1])) }
+    // Git does not quote ordinary spaces. An unchanged path occurs identically on both sides.
+    if source.hasPrefix("a/") {
+      var cursor = source.startIndex
+      while let separator = source.range(of: " b/", range: cursor..<source.endIndex) {
+        let old = String(source[source.index(source.startIndex, offsetBy: 2)..<separator.lowerBound])
+        let new = String(source[separator.upperBound...])
+        if old == new { return (old, new) }
+        cursor = separator.upperBound
+      }
+    }
+    return (nil, nil)
+  }
+
+  static func markerPath(_ raw: String) -> String? {
     let value = raw.split(separator: "\t", maxSplits: 1, omittingEmptySubsequences: false)
       .first.map(String.init) ?? raw
     guard let decoded = decodeGitPath(value), decoded != "/dev/null" else { return nil }
@@ -55,7 +71,7 @@ enum CodexTurnDiffFiles {
     return decoded
   }
 
-  private static func gitTokens(_ source: String) -> [String] {
+  static func gitTokens(_ source: String) -> [String] {
     let bytes = Array(source.utf8)
     var tokens: [String] = []
     var cursor = 0
@@ -78,7 +94,7 @@ enum CodexTurnDiffFiles {
     return tokens
   }
 
-  private static func decodeGitPath(_ raw: String) -> String? {
+  static func decodeGitPath(_ raw: String) -> String? {
     let bytes = Array(raw.utf8)
     guard bytes.first == 34 else { return raw }
     guard bytes.count >= 2, bytes.last == 34 else { return nil }

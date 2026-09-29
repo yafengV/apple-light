@@ -10,6 +10,7 @@ struct TaskPullRequestActivityView: View {
   let confirm: () -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
   var fixes: PullRequestCommentFixControls? = nil
+  var openFile: ((GitHubPRCommentPosition) -> Void)? = nil
   @State private var expanded = true
   @State private var comments = GitHubPRCommentCollapseState()
 
@@ -36,7 +37,8 @@ struct TaskPullRequestActivityView: View {
               case .thread(let thread):
                 if let root = thread.comments.first {
                   TaskPullRequestCommentView(card: .init(comment: root, thread: thread), collapse: comments, state: state,
-                    enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit, fixes: fixes)
+                    enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit,
+                    fixes: fixes, openFile: openFile)
                 }
               case .event(let event):
                 TaskPullRequestActivityEventView(event: event)
