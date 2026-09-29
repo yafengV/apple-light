@@ -92,6 +92,7 @@ struct AppearanceSettingsView: View {
     Binding(
       get: { store.appearance[keyPath: palette][keyPath: value] },
       set: { newValue in
+        guard store.libraryLoaded, !store.restoringLibrary else { return }
         var appearance = store.appearance
         appearance[keyPath: palette][keyPath: value] = newValue
         store.appearance = appearance
@@ -117,12 +118,10 @@ struct AppearanceSettingsView: View {
       AppearanceFontPicker(store: store, role: .code, dark: dark)
         .settingsSearchTarget(.codeFont, when: !dark)
         .settingsSearchTarget(dark ? .darkCodeFont : .lightCodeFont)
-      Toggle("半透明侧栏", isOn: paletteBinding(key, \.translucentSidebar))
-      HStack {
-        Text("对比度")
-        Slider(value: paletteBinding(key, \.contrast), in: 0...100, step: 1)
-        Text("\(Int(palette.contrast))").monospacedDigit().frame(width: 28, alignment: .trailing)
-      }
+      Toggle("半透明侧边栏", isOn: paletteBinding(key, \.translucentSidebar))
+        .accessibilityLabel(dark ? "深色 半透明侧边栏" : "浅色 半透明侧边栏")
+        .disabled(!store.libraryLoaded || store.restoringLibrary)
+      AppearanceContrastRow(store: store, dark: dark)
       VStack(alignment: .leading, spacing: 7) {
         Text(title).appFont(.headline)
         Text("ShipiOS 主题预览 · Aa 0123").appFont(.caption)

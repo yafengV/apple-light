@@ -150,6 +150,9 @@ import XCTest
     let controls = find(host, as: AppearanceColorInput.Control.self); XCTAssertEqual(controls.count, 6)
     XCTAssertEqual(controls.filter { ["浅色背景色", "深色背景色", "浅色前景色", "深色前景色"].contains($0.field.accessibilityLabel() ?? "") }.count, 4)
     XCTAssertEqual(controls.filter { ["浅色模式下的自定义强调色", "深色自定义强调色"].contains($0.field.accessibilityLabel() ?? "") }.count, 2)
+    let contrast = find(host, as: AppearanceContrastSlider.Control.self); XCTAssertEqual(contrast.count, 2)
+    XCTAssertEqual(Set(contrast.compactMap { $0.accessibilityLabel() }), ["浅色 对比度", "深色 对比度"])
+    XCTAssertTrue(contrast.allSatisfy { $0.frame.size == .init(width: 192, height: 36) })
     let ink = try XCTUnwrap(controls.first { $0.field.accessibilityLabel() == "深色前景色" }); XCTAssertEqual(ink.field.stringValue, "#FFFFFF")
     XCTAssertEqual(store.appearance.resolvedColors["textForeground"].hex, "#dfdfdf"); XCTAssertFalse(window.isVisible)
   }
