@@ -15,6 +15,8 @@ struct GitHubPRComment: Codable, Identifiable, Equatable, Sendable {
   var reviewState: String? = nil
   var commit: String? = nil
   var avatarURL: String? = nil
+  var submittedAt: String? = nil
+  var activityDate: String { kind == .review ? submittedAt ?? createdAt : createdAt }
   var quotedBody: String { body.components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
 }
 
@@ -36,29 +38,6 @@ struct GitHubPRReviewThread: Codable, Identifiable, Equatable, Sendable {
   var originalStartLine: Int? = nil
 }
 
-struct GitHubPRActivityEvent: Identifiable, Equatable, Sendable {
-  let id: String
-  let kind: String
-  let author: String
-  let createdAt: String
-  let text: String
-  let url: String?
-}
-
-enum GitHubPRActivityItem: Identifiable, Equatable, Sendable {
-  case comment(GitHubPRComment), thread(GitHubPRReviewThread), event(GitHubPRActivityEvent)
-  var id: String {
-    switch self { case .comment(let x): "comment:" + x.id
-    case .thread(let x): "thread:" + x.id
-    case .event(let x): "event:" + x.id }
-  }
-  var createdAt: String {
-    switch self { case .comment(let x): x.createdAt
-    case .thread(let x): x.comments.first?.createdAt ?? ""
-    case .event(let x): x.createdAt }
-  }
-}
-
 struct GitHubPRDiscussionSnapshot: Equatable, Sendable {
   let requestURL: String
   let nodeID: String
@@ -70,15 +49,13 @@ struct GitHubPRDiscussionSnapshot: Equatable, Sendable {
   var threads: [GitHubPRReviewThread]
   var events: [GitHubPRActivityEvent]
   var omittedTypes: Set<String>
+  var isActivityPartial = false
+  var createdAt: String? = nil
+  var mergedAt: String? = nil
+  var mergedBy: String? = nil
   var canReview: Bool { state == "OPEN" && viewer.lowercased() != author.lowercased() }
   var allComments: [GitHubPRComment] { comments + threads.flatMap(\.comments) }
   var commentIDs: Set<String> { Set(allComments.map(\.id)) }
-  var activity: [GitHubPRActivityItem] {
-    (comments.map(GitHubPRActivityItem.comment) + threads.map(GitHubPRActivityItem.thread)
-      + events.map(GitHubPRActivityItem.event)).sorted {
-        $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt < $1.createdAt
-      }
-  }
   func comment(_ id: String) -> GitHubPRComment? { allComments.first { $0.id == id } }
 }
 

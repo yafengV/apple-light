@@ -107,7 +107,7 @@ extension GitHubPRService {
         result = "issueComment { \(discussionCommentFields) }"
       case .review:
         name = "updatePullRequestReview"; type = "UpdatePullRequestReviewInput"; input = ["pullRequestReviewId": .string(id)]
-        result = "pullRequestReview { \(discussionCommentFields) state commit { oid } }"
+        result = "pullRequestReview { \(discussionCommentFields) state submittedAt commit { oid } }"
       case .code:
         name = "updatePullRequestReviewComment"; type = "UpdatePullRequestReviewCommentInput"; input = ["pullRequestReviewCommentId": .string(id)]
         result = "pullRequestReviewComment { \(discussionCommentFields) }"
@@ -141,7 +141,7 @@ extension GitHubPRService {
       input = ["pullRequestId": .string(fresh.nodeID), "event": .string(decision.rawValue), "commitOID": .string(head)]
       let text = body.trimmingCharacters(in: .whitespacesAndNewlines)
       if !text.isEmpty { input["body"] = .string(text) }
-      result = "pullRequestReview { \(discussionCommentFields) state commit { oid } }"
+      result = "pullRequestReview { \(discussionCommentFields) state submittedAt commit { oid } }"
     }
     input["clientMutationId"] = .string(UUID().uuidString) // Correlation only; GitHub does not promise idempotency.
     return ("mutation ShipiOSPRDiscussionMutation($input:\(type)!) { action:\(name)(input:$input) { \(result) } }", input)

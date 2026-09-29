@@ -67,11 +67,100 @@ final class GitHubPRDiscussionTests: XCTestCase {
     let (root, service) = try await fixture(["discussionPageSize": 2, "discussionTimeline": timeline, "discussionThreads": threads])
     let result = try await service.discussion(for: request, at: root)
     XCTAssertEqual(result.comments.count, 3); XCTAssertEqual(result.threads.count, 2)
-    XCTAssertEqual(result.threads.first?.comments.count, 5); XCTAssertEqual(result.events.count, 2)
-    XCTAssertEqual(result.activity.first?.id, "event:commit-id")
-    XCTAssertEqual(result.omittedTypes, ["LabeledEvent"]); XCTAssertTrue(result.canReview)
+    XCTAssertEqual(result.threads.first?.comments.count, 5); XCTAssertEqual(result.events.count, 1)
+    XCTAssertEqual(result.activity.first?.id, "commits:commit-id")
+    XCTAssertTrue(result.omittedTypes.isEmpty); XCTAssertTrue(result.canReview)
     XCTAssertFalse(try XCTUnwrap(result.comment("review-1")).canDelete)
     XCTAssertTrue(try logs(root).contains { (($0["input"] as? [String: Any])?["query"] as? String)?.contains("ShipiOSPRDiscussionReplies") == true })
+  }
+
+  func testCurrentPRCommitListExcludesOldTimelineCommitsAndRetainsAuthorsAndLinks() async throws {
+    let commits: [[String: Any]] = [
+      ["oid": "current-a", "committedDate": "2026-09-29T08:00:00Z", "messageHeadline": "Current A",
+       "authors": ["nodes": [["name": "Name", "user": ["login": "login", "avatarUrl": "https://github.com/avatar"]]]]],
+      ["oid": "current-b", "committedDate": "2026-09-29T09:00:00Z", "authors": ["nodes": [["name": "Local Author"]]]]]
+    let (root, service) = try await fixture(["discussionCommits": commits, "discussionThreads": [],
+      "discussionTimeline": [["__typename": "PullRequestCommit", "commit": ["oid": "old", "committedDate": "2026-09-29T07:00:00Z"]]],
+      "discussionCreatedAt": "2026-09-29T06:00:00Z", "discussionMergedAt": "2026-09-29T12:00:00Z", "discussionMergedBy": "merger"])
+    let value = try await service.discussion(for: request, at: root)
+    XCTAssertEqual(value.events.map(\.id), ["current-a", "current-b"])
+    XCTAssertEqual(value.events.map(\.author), ["login", "Local Author"])
+    XCTAssertEqual(value.events[0].avatarURL, "https://github.com/avatar")
+    XCTAssertEqual(value.events[1].text, "current-b")
+    XCTAssertEqual(value.events[1].url, "https://github.com/sample/project/commit/current-b")
+    XCTAssertEqual(value.activity.map(\.id), ["event:opened:" + request.url, "commits:current-a", "event:merged:" + request.url])
+    XCTAssertEqual(value.mergedBy, "merger")
+    let queries = try logs(root).compactMap { ($0["input"] as? [String: Any])?["query"] as? String }
+    XCTAssertEqual(queries.filter { $0.contains("commits(last:100)") }.count, 1)
+    XCTAssertFalse(queries.contains { $0.contains("timelineItems") })
+    XCTAssertTrue(queries.contains { $0.contains("comments(first:100,after:") })
+    XCTAssertTrue(queries.contains { $0.contains("reviews(first:100,after:") })
+  }
+
+  func testCommitLimitUsesMostRecentHundredAndMarksPartialActivity() async throws {
+    let commits = (1...105).map { ["oid": "commit-\($0)", "committedDate": "2026-09-29T09:00:00Z"] }
+    let (root, service) = try await fixture(["discussionCommits": commits, "discussionTimeline": [], "discussionThreads": []])
+    let value = try await service.discussion(for: request, at: root)
+    XCTAssertEqual(value.events.count, 100); XCTAssertTrue(value.isActivityPartial)
+    XCTAssertEqual(value.events.first?.id, "commit-6"); XCTAssertEqual(value.events.last?.id, "commit-105")
+    XCTAssertEqual(value.activity.count, 1)
+    guard case .commitGroup(let group) = value.activity.first else { return XCTFail("Missing group") }
+    XCTAssertEqual(group.commits.count, 100)
+    try change(["discussionCommits": Array(commits.prefix(100))], root)
+    let complete = try await service.discussion(for: request, at: root)
+    XCTAssertFalse(complete.isActivityPartial)
+  }
+
+  func testReviewDatesAreSubmittedTimesAndBlankApprovalProducesOnlyEvent() async throws {
+    var review = comment("review-1", type: "PullRequestReview", body: " \n")
+    review["state"] = "APPROVED"; review["submittedAt"] = "2026-09-29T12:00:00Z"; review["commit"] = ["oid": head]
+    let (root, service) = try await fixture(["discussionTimeline": [review, comment("issue-1")], "discussionThreads": []])
+    let value = try await service.discussion(for: request, at: root)
+    XCTAssertEqual(value.activity.map(\.id), ["comment:issue-1", "event:review:review-1:approved"])
+    XCTAssertEqual(value.activity.last?.createdAt, "2026-09-29T12:00:00Z")
+    XCTAssertEqual(value.comment("review-1")?.body, " \n")
+  }
+
+  func testInvalidCommitSummaryCannotInstallAnIncompleteSnapshot() async throws {
+    let duplicate = ["oid": "duplicate", "committedDate": "2026-09-29T09:00:00Z"]
+    for fields: [String: Any] in [["discussionMalformedCommits": true], ["discussionCommits": [duplicate, duplicate]]] {
+      let (root, service) = try await fixture(fields)
+      _ = await failure { _ = try await service.discussion(for: self.request, at: root) }
+      XCTAssertTrue(try logs(root, mutationsOnly: true).isEmpty)
+    }
+  }
+
+  func testBlankReviewReceiptDuringReadOutageRetainsSubmissionTimeAndMetadata() async throws {
+    let (root, service) = try await fixture(["discussionFailureAfterAction": true, "discussionCreatedAt": "2026-09-29T08:00:00Z"])
+    let baseline = try await service.discussion(for: request, at: root)
+    let result = try await service.applyDiscussion(.review(body: "", decision: .approve, head: head), expected: baseline, request: request, at: root)
+    let review = try XCTUnwrap(result.snapshot.comments.last)
+    XCTAssertEqual(review.submittedAt, "2026-09-29T12:00:00Z")
+    XCTAssertEqual(result.snapshot.createdAt, baseline.createdAt)
+    XCTAssertTrue(result.notice?.contains("已接受") == true)
+    XCTAssertFalse(result.snapshot.activity.contains { $0.id == "comment:" + review.id })
+    XCTAssertTrue(result.snapshot.activity.contains { $0.id == "event:review:" + review.id + ":approved" })
+  }
+
+  func testOrdinaryCommentsReviewsThreadsAndRepliesAllPaginateIndependently() async throws {
+    let issues = (1...5).map { comment("issue-\($0)") }
+    let reviews = (1...5).map { index -> [String: Any] in
+      var value = comment("review-\(index)", type: "PullRequestReview")
+      value["state"] = "COMMENTED"; value["commit"] = ["oid": head]; return value
+    }
+    let threads = (1...3).map { index in thread("thread-\(index)", comments:
+      (1...5).map { comment("code-\(index)-\($0)", type: "PullRequestReviewComment") }) }
+    let (root, service) = try await fixture(["discussionPageSize": 2, "discussionTimeline": issues + reviews, "discussionThreads": threads])
+    let value = try await service.discussion(for: request, at: root)
+    XCTAssertEqual(value.comments.filter { $0.kind == .issue }.map(\.id), issues.compactMap { $0["id"] as? String })
+    XCTAssertEqual(value.comments.filter { $0.kind == .review }.map(\.id), reviews.compactMap { $0["id"] as? String })
+    XCTAssertEqual(value.threads.map { $0.comments.count }, [5, 5, 5])
+    XCTAssertEqual(value.activity.count, 13)
+    let queries = try logs(root).compactMap { ($0["input"] as? [String: Any])?["query"] as? String }
+    for (connection, pages) in [("comments", 3), ("reviews", 3), ("reviewThreads", 2)] {
+      XCTAssertEqual(queries.filter { $0.contains("query ShipiOSPRDiscussion(") && $0.contains(connection + "(first:100,after:") }.count, pages)
+    }
+    XCTAssertEqual(queries.filter { $0.contains("ShipiOSPRDiscussionReplies") }.count, 6)
   }
 
   func testPrivateJSONRequestsPreserveRawEditAndCleanUpAllTemporaryFiles() async throws {

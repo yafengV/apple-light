@@ -153,6 +153,7 @@ elif args and args[0] == "api":
                 node["state"] = {"COMMENT": "COMMENTED", "APPROVE": "APPROVED", "REQUEST_CHANGES": "CHANGES_REQUESTED"}[fields["event"]]
                 node["commit"] = {"oid": fields["commitOID"]}
                 timeline.append(node); result["pullRequestReview"] = node
+                node["submittedAt"] = node["createdAt"]
                 state["reviewDecision"] = node["state"]
             elif mutation.startswith("update"):
                 assert node is not None
@@ -185,9 +186,19 @@ elif args and args[0] == "api":
         assert variables["owner"] == "sample" and variables["name"] == "project" and variables["number"] == 42
         item = next(x for x in state["pullRequests"] if x["number"] == 42)
         pr = {**item, "id": "pr-node", "state": state.get("detailState", "OPEN"),
-              "headRefOid": state.get("detailHead", state["head"]), "author": {"login": state.get("author", "fixture-author")}}
-        if "timelineItems(first:" in query:
-            pr["timelineItems"] = connection(timeline, variables.get("after"))
+              "headRefOid": state.get("detailHead", state["head"]), "author": {"login": state.get("author", "fixture-author")},
+              "createdAt": state.get("discussionCreatedAt"), "mergedAt": state.get("discussionMergedAt"),
+              "mergedBy": {"login": state.get("discussionMergedBy")}}
+        if "commits(last:100)" in query:
+            commits = state.get("discussionCommits", [x["commit"] for x in timeline if x.get("__typename") == "PullRequestCommit"])
+            pr["commits"] = {"nodes": [{"commit": x} for x in commits[-100:]],
+                "pageInfo": {"hasPreviousPage": len(commits) > 100}}
+            if state.get("discussionMalformedCommits"):
+                pr["commits"]["pageInfo"] = {}
+        if "comments(first:100,after:" in query:
+            pr["comments"] = connection([x for x in timeline if x.get("__typename") == "IssueComment"], variables.get("after"))
+        if "reviews(first:100,after:" in query:
+            pr["reviews"] = connection([x for x in timeline if x.get("__typename") == "PullRequestReview"], variables.get("after"))
         if "reviewThreads(first:" in query:
             page = connection(threads, variables.get("after"))
             page["nodes"] = [{**x, "comments": connection(x["comments"])} for x in page["nodes"]]
@@ -196,10 +207,10 @@ elif args and args[0] == "api":
             "nameWithOwner": state.get("metadataRepository", "sample/project"), "pullRequest": pr}}}
         if state.get("discussionGraphQLError"):
             response["errors"] = [{"message": "Fixture GraphQL discussion error"}]
-        if "timelineItems(first:" in query and state.get("discussionHeadAfterPage"):
+        if "comments(first:100,after:" in query and state.get("discussionHeadAfterPage"):
             state["detailHead"] = state["discussionHeadAfterPage"]
             state_path.write_text(json.dumps(state))
-        if "timelineItems(first:" in query and state.get("discussionViewerAfterPage"):
+        if "comments(first:100,after:" in query and state.get("discussionViewerAfterPage"):
             state["viewer"] = state["discussionViewerAfterPage"]
             state_path.write_text(json.dumps(state))
         print(json.dumps(response))

@@ -21,9 +21,10 @@ struct TaskPullRequestActivityView: View {
           if state.loading { ProgressView("读取活动…").controlSize(.small) }
           else if state.readError != nil { Text("无法读取活动，请重试。").foregroundStyle(.secondary) }
           else if let snapshot = state.snapshot {
-            if !snapshot.omittedTypes.isEmpty {
-              Text("部分 GitHub 活动尚未显示：" + snapshot.omittedTypes.sorted().joined(separator: "、"))
-                .appFont(.caption).foregroundStyle(.secondary)
+            if snapshot.isActivityPartial {
+              Text("部分审查详情未能载入。").appFont(size: 14).foregroundStyle(.secondary)
+                .padding(8).frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
             }
             if snapshot.activity.isEmpty { Text("暂无活动").foregroundStyle(.secondary) }
             ForEach(snapshot.activity) { item in
@@ -34,19 +35,9 @@ struct TaskPullRequestActivityView: View {
               case .thread(let thread):
                 TaskPullRequestThreadView(thread: thread, state: state, enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit, fixes: fixes)
               case .event(let event):
-                HStack(alignment: .top) {
-                  Image(systemName: event.kind == "PullRequestCommit" ? "point.3.connected.trianglepath.dotted" : "circle.fill")
-                    .foregroundStyle(.secondary)
-                  VStack(alignment: .leading, spacing: 3) {
-                    Text(event.author + " · " + event.text).textSelection(.enabled)
-                    if event.kind == "PullRequestCommit" { Text(String(event.id.prefix(8))).appFont(.caption).monospaced() }
-                    Text(event.createdAt).appFont(.caption).foregroundStyle(.secondary)
-                  }
-                  Spacer(minLength: 0)
-                  if let raw = event.url, let url = TaskPullRequestCommentView.link(raw) {
-                    Button { open(url) } label: { Image(systemName: "arrow.up.right") }.buttonStyle(.plain).help("打开提交")
-                  }
-                }.appFont(.callout)
+                TaskPullRequestActivityEventView(event: event)
+              case .commitGroup(let group):
+                TaskPullRequestCommitGroupView(group: group, open: open)
               }
             }
           }
@@ -202,7 +193,7 @@ struct TaskPullRequestCommentView: View {
             .accessibilityLabel("评论操作")
         }
       }
-      Text(comment.createdAt).appFont(.caption).foregroundStyle(.secondary)
+      TaskPullRequestActivityDateView(value: comment.activityDate)
       if let draft, case .edit = draft.target {
         composer(draft, label: "保存更改")
       } else if expanded || draft != nil {

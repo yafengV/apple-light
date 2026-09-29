@@ -36,39 +36,42 @@ extension GitHubPRService {
   static let discussionCommentFields = """
     id body createdAt url author { login __typename avatarUrl } viewerCanUpdate viewerCanDelete
     """
-  private static let discussionTimelineFields = """
-    __typename
-    ... on IssueComment { \(discussionCommentFields) }
-    ... on PullRequestReview { \(discussionCommentFields) state commit { oid } }
-    ... on PullRequestCommit { commit { oid messageHeadline committedDate url author { name user { login } } } }
-    ... on ClosedEvent { id createdAt actor { login } }
-    ... on ReopenedEvent { id createdAt actor { login } }
-    ... on MergedEvent { id createdAt actor { login } }
-    ... on ReadyForReviewEvent { id createdAt actor { login } }
-    ... on ConvertToDraftEvent { id createdAt actor { login } }
-    ... on HeadRefForcePushedEvent { id createdAt actor { login } }
-    ... on ReviewRequestedEvent { id createdAt actor { login } requestedReviewer { ... on User { login } ... on Team { name } } }
-    ... on ReviewRequestRemovedEvent { id createdAt actor { login } requestedReviewer { ... on User { login } ... on Team { name } } }
-    """
   private static let discussionThreadFields = """
     id path line originalLine diffSide startLine startDiffSide originalStartLine isResolved isOutdated viewerCanReply viewerCanResolve viewerCanUnresolve
     comments(first:100) { totalCount nodes { \(discussionCommentFields) diffHunk } pageInfo { hasNextPage endCursor } }
     """
-  private static let discussionIdentityFields = "id number url state headRefOid author { login }"
+  private static let discussionIdentityFields = "id number url state headRefOid author { login } createdAt mergedAt mergedBy { login }"
 
   func discussion(for request: GitHubPullRequest, at root: URL) async throws -> GitHubPRDiscussionSnapshot {
     guard let url = request.validatedURL else { throw AgentFailure(message: "PR 链接无效。") }
     let parts = url.path.split(separator: "/").map(String.init)
     let variables: [String: JSONValue] = ["owner": .string(parts[0]), "name": .string(parts[1]), "number": .number(Double(request.number))]
-    var identity: GitHubPRDiscussionSnapshot?
-    var comments: [GitHubPRComment] = [], events: [GitHubPRActivityEvent] = [], omitted: Set<String> = []
+    let summaryQuery = """
+      query ShipiOSPRDiscussionSummary($owner:String!,$name:String!,$number:Int!) {
+        viewer { login } repository(owner:$owner,name:$name) { nameWithOwner pullRequest(number:$number) {
+          \(Self.discussionIdentityFields)
+          commits(last:100) { nodes { commit { oid messageHeadline committedDate url authors(first:1) { nodes { name user { login avatarUrl(size:48) } } } } } pageInfo { hasPreviousPage } }
+        } }
+      }
+      """
+    let summary = try await discussionGraphQL(summaryQuery, variables: variables, at: root)
+    let identity = try Self.discussionIdentity(summary, request: request, repository: parts[0] + "/" + parts[1])
+    let commitPage = summary["repository"]["pullRequest"]["commits"]
+    guard case .array(let commitNodes) = commitPage["nodes"], commitNodes.count <= 100,
+      let partial = commitPage["pageInfo"]["hasPreviousPage"].boolean else {
+      throw AgentFailure(message: "无法确认 PR 提交列表，请重新读取。")
+    }
+    let commits = commitNodes.compactMap { Self.discussionCommit($0["commit"], request: request) }
+    guard Set(commits.map(\.id)).count == commits.count else { throw AgentFailure(message: "PR 提交列表重复，请重新读取。") }
+    var comments: [GitHubPRComment] = []
     var threads: [GitHubPRReviewThread] = []
     // Paginate independently: one large connection never truncates another connection.
-    for connection in ["timelineItems", "reviewThreads"] {
+    for connection in ["comments", "reviews", "reviewThreads"] {
       var cursor: String?, seenCursors: Set<String> = [], seenIDs: Set<String> = [], total: Int?
       var finished = false, receivedCount = 0
       for _ in 0..<100 {
-        let fields = connection == "timelineItems" ? Self.discussionTimelineFields : Self.discussionThreadFields
+        let fields = connection == "reviewThreads" ? Self.discussionThreadFields
+          : Self.discussionCommentFields + (connection == "reviews" ? " state submittedAt commit { oid }" : "")
         let query = """
           query ShipiOSPRDiscussion($owner:String!,$name:String!,$number:Int!,$after:String) {
             viewer { login } repository(owner:$owner,name:$name) { nameWithOwner
@@ -82,7 +85,7 @@ extension GitHubPRService {
         let data = try await discussionGraphQL(query, variables: pageVariables, at: root)
         let pr = data["repository"]["pullRequest"]
         let current = try Self.discussionIdentity(data, request: request, repository: parts[0] + "/" + parts[1])
-        if let identity { try Self.verifyDiscussionIdentity(identity, current) } else { identity = current }
+        try Self.verifyDiscussionIdentity(identity, current)
         let page = pr[connection]
         guard let count = page["totalCount"].int, count >= 0, total == nil || total == count,
           case .array(let nodes) = page["nodes"] else {
@@ -91,26 +94,22 @@ extension GitHubPRService {
         total = count
         receivedCount += nodes.count
         for node in nodes {
-          let key = connection == "reviewThreads" ? node["id"].text
-            : node["__typename"].text == "PullRequestCommit" ? node["commit"]["oid"].text : node["id"].text
-          // Unhandled events expose their type, rather than pretending to render all GitHub activity.
+          let key = node["id"].text
           if let key {
             guard seenIDs.insert(key).inserted else { throw AgentFailure(message: "PR 活动分页返回重复内容，请重新读取。") }
           }
           if connection == "reviewThreads" {
             threads.append(try await discussionThread(node, at: root))
-          } else if let kind = Self.discussionKind(node["__typename"].text) {
-            comments.append(try Self.discussionComment(node, kind: kind))
-          } else if let event = Self.discussionEvent(node) { events.append(event) }
-          else { omitted.insert(node["__typename"].text ?? "未知活动") }
+          } else {
+            comments.append(try Self.discussionComment(node, kind: connection == "reviews" ? .review : .issue))
+          }
         }
         guard let hasNext = page["pageInfo"]["hasNextPage"].boolean else {
           throw AgentFailure(message: "PR 活动缺少分页状态。")
         }
         if !hasNext {
           guard receivedCount == count else { throw AgentFailure(message: "PR 活动读取不完整。") }
-          // Unknown timeline types have no common Node interface; count them via nodes.
-          if connection == "reviewThreads", seenIDs.count != count { throw AgentFailure(message: "PR 评论线程读取不完整。") }
+          if seenIDs.count != count { throw AgentFailure(message: "PR 活动读取不完整。") }
           finished = true; break
         }
         guard !nodes.isEmpty, let next = page["pageInfo"]["endCursor"].text, !next.isEmpty,
@@ -126,9 +125,8 @@ extension GitHubPRService {
       """
     let final = try Self.discussionIdentity(await discussionGraphQL(verify, variables: variables, at: root),
       request: request, repository: parts[0] + "/" + parts[1])
-    guard let identity else { throw AgentFailure(message: "无法确认 PR 活动来源。") }
     try Self.verifyDiscussionIdentity(identity, final)
-    var result = final; result.comments = comments; result.threads = threads; result.events = events; result.omittedTypes = omitted
+    var result = final; result.comments = comments; result.threads = threads; result.events = commits; result.omittedTypes = []; result.isActivityPartial = partial
     return result
   }
 
@@ -186,15 +184,13 @@ extension GitHubPRService {
       throw AgentFailure(message: "无法确认 PR、账户或头提交，活动没有载入。")
     }
     return .init(requestURL: request.url, nodeID: id, viewer: viewer, author: author, state: state, head: head,
-      comments: [], threads: [], events: [], omittedTypes: [])
+      comments: [], threads: [], events: [], omittedTypes: [],
+      createdAt: pr["createdAt"].text, mergedAt: pr["mergedAt"].text, mergedBy: pr["mergedBy"]["login"].text)
   }
   static func verifyDiscussionIdentity(_ a: GitHubPRDiscussionSnapshot, _ b: GitHubPRDiscussionSnapshot) throws {
     guard a.requestURL.lowercased() == b.requestURL.lowercased(), a.nodeID == b.nodeID,
       a.viewer.lowercased() == b.viewer.lowercased(), a.author.lowercased() == b.author.lowercased(),
       a.head == b.head, a.state == b.state else { throw AgentFailure(message: "PR 或账户在读取期间发生变化，请刷新后继续。") }
-  }
-  static func discussionKind(_ type: String?) -> GitHubPRCommentKind? {
-    switch type { case "IssueComment": .issue; case "PullRequestReview": .review; default: nil }
   }
   static func discussionComment(_ node: JSONValue, kind: GitHubPRCommentKind) throws -> GitHubPRComment {
     guard let id = node["id"].text, !id.isEmpty, let body = node["body"].text,
@@ -203,22 +199,15 @@ extension GitHubPRService {
       authorType: node["author"]["__typename"].text ?? "User", createdAt: date, url: node["url"].text,
       canUpdate: node["viewerCanUpdate"].boolean == true,
       canDelete: kind != .review && node["viewerCanDelete"].boolean == true,
-      reviewState: node["state"].text, commit: node["commit"]["oid"].text, avatarURL: node["author"]["avatarUrl"].text)
+      reviewState: node["state"].text, commit: node["commit"]["oid"].text, avatarURL: node["author"]["avatarUrl"].text, submittedAt: node["submittedAt"].text)
   }
-  private static func discussionEvent(_ node: JSONValue) -> GitHubPRActivityEvent? {
-    let kind = node["__typename"].text ?? ""
-    if kind == "PullRequestCommit", let id = node["commit"]["oid"].text {
-      return .init(id: id, kind: kind, author: node["commit"]["author"]["user"]["login"].text
-        ?? node["commit"]["author"]["name"].text ?? "未知作者",
-        createdAt: node["commit"]["committedDate"].text ?? "", text: node["commit"]["messageHeadline"].text ?? "提交",
-        url: node["commit"]["url"].text)
-    }
-    let labels = ["ClosedEvent": "关闭了 PR", "ReopenedEvent": "重新打开了 PR", "MergedEvent": "合并了 PR",
-      "ReadyForReviewEvent": "标记为可供审查", "ConvertToDraftEvent": "转换为草稿",
-      "HeadRefForcePushedEvent": "强制推送了源分支", "ReviewRequestedEvent": "请求审查", "ReviewRequestRemovedEvent": "移除了审查请求"]
-    guard let label = labels[kind], let id = node["id"].text, let date = node["createdAt"].text else { return nil }
-    let reviewer = node["requestedReviewer"]["login"].text ?? node["requestedReviewer"]["name"].text
-    return .init(id: id, kind: kind, author: node["actor"]["login"].text ?? "未知作者", createdAt: date,
-      text: label + (reviewer.map { " · " + $0 } ?? ""), url: nil)
+  private static func discussionCommit(_ commit: JSONValue, request: GitHubPullRequest) -> GitHubPRActivityEvent? {
+    guard let id = commit["oid"].text, !id.isEmpty, let date = commit["committedDate"].text else { return nil }
+    let author = commit["authors"]["nodes"].items.first ?? .null
+    let fallback = request.validatedURL?.deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("commit").appendingPathComponent(id)
+    return .init(id: id, kind: "PullRequestCommit", author: author["user"]["login"].text ?? author["name"].text ?? "",
+      createdAt: date, text: commit["messageHeadline"].text ?? id,
+      url: commit["url"].text ?? fallback?.absoluteString, avatarURL: author["user"]["avatarUrl"].text)
   }
 }
