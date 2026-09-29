@@ -25,7 +25,7 @@ extension WorkspaceStore {
 
   func openNoticeTask(_ notice: WorkspaceNotice) async {
     guard !hasSettingsConfirmation, presentedOverlay == nil, let taskID = notice.taskID else { return }
-    guard notices.items.contains(where: { $0.id == notice.id && $0.taskID == taskID && $0.level != .pending }) else { return }
+    guard notices.items.contains(where: { $0.id == notice.id && $0.generation == notice.generation && $0.taskID == taskID && $0.level != .pending }) else { return }
     guard let task = library.tasks.first(where: { $0.id == taskID && !$0.isPopoutDraft }) else {
       notices.show(id: notice.id, title: "任务已恢复，但无法打开：任务已不存在。", level: .error)
       return
@@ -37,7 +37,10 @@ extension WorkspaceStore {
     recordNavigation()
     if currentProjectKey != task.project {
       notices.show(id: notice.id, title: "正在打开任务…", level: .pending)
-      guard await openTaskScope(task.project) else {
+      guard let opening = notices.items.first(where: { $0.id == notice.id }) else { return }
+      let opened = await openTaskScope(task.project)
+      guard notices.items.contains(where: { $0.id == notice.id && $0.generation == opening.generation }) else { return }
+      guard opened else {
         notices.show(id: notice.id, title: "任务已恢复，但无法打开项目。", level: .error, taskID: taskID)
         return
       }
