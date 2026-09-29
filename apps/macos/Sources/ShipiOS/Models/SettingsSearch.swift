@@ -104,6 +104,14 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case skillsInstalled
 
   var id: String { "setting:" + rawValue }
+  var appearanceVariant: AppearanceMode? {
+    switch self {
+    case .lightPalette, .lightCodeTheme, .lightUIFont, .lightContentFont, .lightCodeFont, .lightThemeShare,
+      .uiFont, .codeFont, .importTheme, .exportTheme: .light
+    case .darkPalette, .darkCodeTheme, .darkUIFont, .darkContentFont, .darkCodeFont, .darkThemeShare: .dark
+    default: nil
+    }
+  }
   var requiresProject: Bool {
     [.environmentContainer, .environmentScheme, .environmentConfiguration].contains(self)
   }
@@ -459,7 +467,8 @@ enum SettingsSearch {
     for query: String, hasProject: Bool = false,
     shortcutBindings: [String: [ShortcutBinding]]? = nil,
     pluginSections: Set<PluginSettingsSection> = Set(PluginSettingsSection.allCases),
-    agentSandboxMode: AgentSandboxMode = .workspaceWrite
+    agentSandboxMode: AgentSandboxMode = .workspaceWrite,
+    appearanceTheme: String = "system"
   ) -> [SettingsSearchResult] {
     let terms = query.split(whereSeparator: \.isWhitespace).map(String.init)
     guard !terms.isEmpty else { return [] }
@@ -472,6 +481,7 @@ enum SettingsSearch {
           && (!$0.requiresProject || hasProject)
           && ($0.pluginSection.map { pluginSections.contains($0) } ?? true)
           && ($0 != .agentNetwork || agentSandboxMode == .workspaceWrite)
+          && ($0.appearanceVariant.map { AppearanceMode(preference: appearanceTheme).variants.contains($0) } ?? true)
           && matches([page.title, $0.title, $0.aliases].joined(separator: " "))
       }.map { SettingsSearchResult(page: page, field: $0) }
       let commands = page == .shortcuts ? DesktopCommand.all.filter { command in
@@ -506,7 +516,10 @@ extension WorkspaceStore {
       pluginSettingsQuery = ""
       pluginSettingsSection = section
     }
+    let visibleField = result.field.flatMap { field in
+      field.appearanceVariant.map { AppearanceMode(preference: appearance.theme).variants.contains($0) } == false ? nil : field
+    }
     settingsSearchRequest = SettingsSearchRequest(result: SettingsSearchResult(
-      page: settingsPage, field: result.field, commandID: result.commandID))
+      page: settingsPage, field: visibleField, commandID: result.commandID))
   }
 }

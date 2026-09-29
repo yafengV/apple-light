@@ -6,163 +6,133 @@ struct AppearanceSettingsView: View {
   private struct ImportTarget: Identifiable { let dark: Bool; var id: String { dark ? "dark" : "light" } }
   @State private var importTarget: ImportTarget?
   @State private var status: String?
+  private var available: Bool { store.libraryLoaded && !store.restoringLibrary }
+  private var variants: [AppearanceMode] { AppearanceMode(preference: store.appearance.theme).variants }
 
   var body: some View {
-    VStack(spacing: 0) {
-      if let error = store.generalSettingsError {
-        Text(error).foregroundStyle(.red).textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 24).padding(.vertical, 8)
-      }
-      Form {
-        Section("主题") {
-          SettingsMenuPicker("基础主题", selection: binding(\.theme), options: [
-            SettingsMenuOption(value: "system", title: "跟随系统"),
-            SettingsMenuOption(value: "light", title: "浅色"),
-            SettingsMenuOption(value: "dark", title: "深色")
-          ]).settingsSearchTarget(.theme)
+    SettingsScrollPage(title: SettingsPage.appearance.title, actions: {}, controls: {}) {
+      VStack(alignment: .leading, spacing: 40) {
+        if let error = store.generalSettingsError {
+          Text(error).foregroundStyle(.red).textSelection(.enabled)
         }
-        paletteSection("浅色主题", key: \.light, dark: false)
-          .id("light-appearance-palette")
-          .settingsSearchTarget(.lightPalette)
-        paletteSection("深色主题", key: \.dark, dark: true)
-          .id("dark-appearance-palette")
-          .settingsSearchTarget(.darkPalette)
-        Section("字号") {
-          AppearanceFontSizeRow(store: store, kind: .ui)
-          AppearanceFontSizeRow(store: store, kind: .code)
-        }
-        Section("交互") {
-          SettingsToggle(title: "交互控件使用指针光标",
-            description: "开启后，鼠标悬停在按钮和链接上会显示指针光标。", isOn: binding(\.usePointerCursors))
-            .settingsSearchTarget(.pointer)
-          SettingsSegmentedPicker(title: "差异标记", description: "使用颜色或 +/− 标记显示代码更改。",
-            selection: binding(\.diffMarkerStyle), options: [
-            SettingsSegmentOption(value: .color, title: "颜色", accessibilityLabel: "颜色差异标记"),
-            SettingsSegmentOption(value: .symbols, title: "+/−", accessibilityLabel: "加减号差异标记")
-          ])
-          .settingsSearchTarget(.diffMarkers)
-          SettingsSegmentedPicker(title: "减少动态效果", description: "减少界面动画，或跟随 macOS 辅助功能设置。",
-            selection: binding(\.reduceMotion),
-            options: ReduceMotionPreference.allCases.map {
-              SettingsSegmentOption(value: $0, title: $0.title)
-            })
-          .settingsSearchTarget(.reduceMotion)
-        }
-        Section("当前主题预览") {
-          VStack(alignment: .leading, spacing: 12) {
-            Text("准备好开始了吗？").appFont(size: 19, weight: .semibold)
-            Text("修改会立即生效。中文、English 与 0123456789。").appFont(size: 14)
-            Text("let greeting = \"Hello, ShipiOS\"").appFont(size: 12, design: .monospaced)
-            Label("主题预览", systemImage: "sparkle").foregroundStyle(store.appearance.accentColor)
-          }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-            .foregroundStyle(store.appearance.foregroundColor)
-            .background(store.appearance.backgroundColor, in: RoundedRectangle(cornerRadius: 8))
-        }
-        Section {
-          HStack {
-            Spacer()
-            Button("恢复默认外观") {
-              store.appearance = AppearancePreferences()
-              status = nil
+        VStack(alignment: .leading, spacing: 0) {
+          sectionTitle("主题")
+          VStack(spacing: 16) {
+            AppearanceModePicker(store: store).settingsSearchTarget(.theme)
+            AppearanceCodePreview(appearance: store.appearance)
+            VStack(spacing: 20) {
+              ForEach(variants) { variant in
+                paletteCard(dark: variant == .dark)
+                  .id(variant.rawValue + "-appearance-palette")
+                  .settingsSearchTarget(variant == .dark ? .darkPalette : .lightPalette)
+              }
             }
-            .disabled(store.appearance == AppearancePreferences())
           }
-          if let status { Text(status).appFont(.caption).textSelection(.enabled) }
         }
-      }.settingsFormStyle().appSurface()
-    }
-      .sheet(item: $importTarget) { target in
-        AppearanceThemeImportView(store: store, dark: target.dark, onClose: { importTarget = nil })
+        VStack(alignment: .leading, spacing: 0) {
+          sectionTitle("偏好设置")
+          preferences
+        }
+        if let status { Text(status).appFont(size: 12).foregroundStyle(.secondary).textSelection(.enabled) }
       }
+    }
+    .environment(\.appearanceSettingsLabel, true)
+    .toggleStyle(SettingsSwitchStyle())
+    .sheet(item: $importTarget) { target in
+      AppearanceThemeImportView(store: store, dark: target.dark, onClose: { importTarget = nil })
+    }
+  }
+
+  private func sectionTitle(_ title: String) -> some View {
+    Text(title).appFont(size: 14, weight: .medium).accessibilityAddTraits(.isHeader)
+      .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading).padding(.bottom, 6)
+  }
+  private var preferences: some View {
+    AppearanceSettingsCard {
+      SettingsToggle(title: "使用指针光标", description: "悬停交互元素时切换为指针光标",
+        isOn: binding(\.usePointerCursors))
+        .padding(.horizontal, 16).padding(.vertical, 12).settingsSearchTarget(.pointer)
+      AppearanceSettingsDivider()
+      SettingsSegmentedPicker(title: "减少动态效果", description: "减少动画效果或匹配系统设置",
+        selection: binding(\.reduceMotion), options: ReduceMotionPreference.allCases.map {
+          SettingsSegmentOption(value: $0, title: $0 == .system ? "系统" : $0.title)
+        }).settingsSearchTarget(.reduceMotion)
+      AppearanceSettingsDivider()
+      AppearanceFontSizeRow(store: store, kind: .ui)
+      AppearanceSettingsDivider()
+      AppearanceFontSizeRow(store: store, kind: .code)
+      AppearanceSettingsDivider()
+      SettingsSegmentedPicker(title: "差异标记", description: "使用颜色或 +/− 标记显示更改",
+        selection: binding(\.diffMarkerStyle), options: [
+          SettingsSegmentOption(value: .color, title: "颜色", accessibilityLabel: "颜色差异标记"),
+          SettingsSegmentOption(value: .symbols, title: "+/-", accessibilityLabel: "加号/减号差异标记")
+        ]).settingsSearchTarget(.diffMarkers)
+    }.labeledContentStyle(AppearanceSettingsRowStyle(compact: false)).disabled(!available)
   }
 
   private func binding<T>(_ key: WritableKeyPath<AppearancePreferences, T>) -> Binding<T> {
-    Binding(
-      get: { store.appearance[keyPath: key] },
-      set: { value in
-        var appearance = store.appearance
-        appearance[keyPath: key] = value
-        store.appearance = appearance
-      })
+    Binding(get: { store.appearance[keyPath: key] }, set: { value in
+      guard available else { return }
+      var appearance = store.appearance; appearance[keyPath: key] = value; _ = store.commitAppearance(appearance)
+    })
   }
-  private func paletteBinding<T>(
-    _ palette: WritableKeyPath<AppearancePreferences, AppearancePalette>,
-    _ value: WritableKeyPath<AppearancePalette, T>
-  ) -> Binding<T> {
-    Binding(
-      get: { store.appearance[keyPath: palette][keyPath: value] },
-      set: { newValue in
-        guard store.libraryLoaded, !store.restoringLibrary else { return }
-        var appearance = store.appearance
-        appearance[keyPath: palette][keyPath: value] = newValue
-        store.appearance = appearance
-      })
+  private func paletteBinding<T>(_ dark: Bool, _ value: WritableKeyPath<AppearancePalette, T>) -> Binding<T> {
+    Binding(get: { (dark ? store.appearance.dark : store.appearance.light)[keyPath: value] }, set: { newValue in
+      guard available else { return }
+      var appearance = store.appearance
+      if dark { appearance.dark[keyPath: value] = newValue } else { appearance.light[keyPath: value] = newValue }
+      _ = store.commitAppearance(appearance)
+    })
   }
-
-  private func paletteSection(
-    _ title: String, key: WritableKeyPath<AppearancePreferences, AppearancePalette>, dark: Bool
-  ) -> some View {
-    let palette = store.appearance[keyPath: key]
-    let colors = store.appearance.resolvedColors(dark: dark)
-    let background = colors["surface"].color
-    let foreground = colors["textForeground"].color
-    return Section {
-      AppearanceAccentPicker(store: store, dark: dark)
-      hexColorRow("背景色", key: \.background, dark: dark, value: store.appearance.themeShare(dark: dark).theme.surface)
-      hexColorRow("前景色", key: \.foreground, dark: dark, value: store.appearance.themeShare(dark: dark).theme.ink)
-      AppearanceFontPicker(store: store, role: .ui, dark: dark)
-        .settingsSearchTarget(.uiFont, when: !dark)
-        .settingsSearchTarget(dark ? .darkUIFont : .lightUIFont)
-      AppearanceFontPicker(store: store, role: .content, dark: dark)
-        .settingsSearchTarget(dark ? .darkContentFont : .lightContentFont)
-      AppearanceFontPicker(store: store, role: .code, dark: dark)
-        .settingsSearchTarget(.codeFont, when: !dark)
-        .settingsSearchTarget(dark ? .darkCodeFont : .lightCodeFont)
-      Toggle("半透明侧边栏", isOn: paletteBinding(key, \.translucentSidebar))
-        .accessibilityLabel(dark ? "深色 半透明侧边栏" : "浅色 半透明侧边栏")
-        .disabled(!store.libraryLoaded || store.restoringLibrary)
-      AppearanceContrastRow(store: store, dark: dark)
-      VStack(alignment: .leading, spacing: 7) {
-        Text(title).appFont(.headline)
-        Text("ShipiOS 主题预览 · Aa 0123").appFont(.caption)
-        Text("let ready = true").appFont(.caption, design: .monospaced)
-      }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-        .foregroundStyle(palette.foreground.flatMap(AppearancePreferences.color) ?? foreground)
-        .background(
-          store.appearance.paletteColor(
-            palette.background, fallback: background, dark: dark),
-          in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-          RoundedRectangle(cornerRadius: 8).strokeBorder(
-            colors["borderFocus"].color, lineWidth: 1))
-    } header: {
-      HStack {
-        Text(title)
+  private func paletteCard(dark: Bool) -> some View {
+    let title = dark ? "深色主题" : "浅色主题"
+    return AppearanceSettingsCard {
+      HStack(spacing: 8) {
+        Text(title).appFont(size: 13, weight: .medium).accessibilityAddTraits(.isHeader)
         Spacer(minLength: 8)
-        HStack(spacing: 8) {
-          Button("导入") { importTarget = .init(dark: dark) }
-            .accessibilityLabel("导入" + title)
-            .settingsSearchTarget(.importTheme, when: !dark)
-          Button("复制主题") {
-            do {
-              try AppearanceThemeClipboard.copy(store.appearance, dark: dark, to: .general)
-              status = "已复制" + title + "。"
-            } catch { status = "复制失败：" + error.localizedDescription }
-          }.accessibilityLabel("复制" + title).settingsSearchTarget(.exportTheme, when: !dark)
-        }.disabled(!store.libraryLoaded).settingsSearchTarget(dark ? .darkThemeShare : .lightThemeShare)
-        CodeThemePicker(store: store, dark: dark)
-          .disabled(!store.libraryLoaded)
-          .settingsSearchTarget(dark ? .darkCodeTheme : .lightCodeTheme)
-      }
-    }
+        Button {
+          guard available else { return }; importTarget = .init(dark: dark)
+        } label: { Image(systemName: "square.and.arrow.down").font(.system(size: 14)).frame(width: 28, height: 28) }
+          .buttonStyle(.plain).accessibilityLabel("导入" + title).help("导入" + title)
+          .settingsSearchTarget(.importTheme, when: !dark)
+        Button {
+          guard available else { return }
+          do { try AppearanceThemeClipboard.copy(store.appearance, dark: dark, to: .general); status = "已复制" + title + "。" }
+          catch { status = "复制失败：" + error.localizedDescription }
+        } label: { Image(systemName: "doc.on.doc").font(.system(size: 14)).frame(width: 28, height: 28) }
+          .buttonStyle(.plain).accessibilityLabel("复制" + title).help("复制" + title)
+          .settingsSearchTarget(.exportTheme, when: !dark)
+        CodeThemePicker(store: store, dark: dark).settingsSearchTarget(dark ? .darkCodeTheme : .lightCodeTheme)
+      }.padding(.horizontal, 16).padding(.vertical, 12).disabled(!available)
+        .settingsSearchTarget(dark ? .darkThemeShare : .lightThemeShare)
+      AppearanceSettingsDivider()
+      AppearanceAccentPicker(store: store, dark: dark)
+      AppearanceSettingsDivider()
+      hexColorRow("背景色", key: \.background, dark: dark, value: store.appearance.themeShare(dark: dark).theme.surface)
+      AppearanceSettingsDivider()
+      hexColorRow("前景色", key: \.foreground, dark: dark, value: store.appearance.themeShare(dark: dark).theme.ink)
+      AppearanceSettingsDivider()
+      AppearanceFontPicker(store: store, role: .ui, dark: dark)
+        .settingsSearchTarget(.uiFont, when: !dark).settingsSearchTarget(dark ? .darkUIFont : .lightUIFont)
+      AppearanceSettingsDivider()
+      AppearanceFontPicker(store: store, role: .content, dark: dark).settingsSearchTarget(dark ? .darkContentFont : .lightContentFont)
+      AppearanceSettingsDivider()
+      AppearanceFontPicker(store: store, role: .code, dark: dark)
+        .settingsSearchTarget(.codeFont, when: !dark).settingsSearchTarget(dark ? .darkCodeFont : .lightCodeFont)
+      AppearanceSettingsDivider()
+      Toggle("半透明侧边栏", isOn: paletteBinding(dark, \.translucentSidebar))
+        .appFont(size: 13, weight: .medium).padding(.horizontal, 16).padding(.vertical, 8)
+        .accessibilityLabel(dark ? "深色 半透明侧边栏" : "浅色 半透明侧边栏").disabled(!available)
+      AppearanceSettingsDivider()
+      AppearanceContrastRow(store: store, dark: dark)
+    }.labeledContentStyle(AppearanceSettingsRowStyle())
+      .accessibilityElement(children: .contain).accessibilityLabel(title)
   }
   private func hexColorRow(_ title: String, key: WritableKeyPath<AppearancePalette, String?>, dark: Bool, value: String) -> some View {
-    HStack {
-      Text(title)
-      Spacer(minLength: 8)
-      AppearanceColorInput(value: value, label: (dark ? "深色" : "浅色") + title, available: { store.libraryLoaded }) {
+    LabeledContent(title) {
+      AppearanceColorInput(value: value, label: (dark ? "深色" : "浅色") + title, available: { available }) {
         store.setAppearanceColor($0, key: key, dark: dark)
-      }.frame(width: 136, height: 28).disabled(!store.libraryLoaded)
+      }.frame(width: 136, height: 28).disabled(!available)
     }
   }
 }

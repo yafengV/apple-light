@@ -142,7 +142,7 @@ import XCTest
   func testFullHiddenAppearancePageHasSixColorTextControlsUsingRawInkNotDerivedText() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("appearance-color-page-" + UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }; let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
-    var appearance = AppearancePreferences(); appearance.theme = "dark"; store.appearance = appearance
+    var appearance = AppearancePreferences(); appearance.theme = "system"; store.appearance = appearance
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 1400), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, appearance).frame(width: 1000, height: 1400))
@@ -154,7 +154,7 @@ import XCTest
     XCTAssertEqual(Set(contrast.compactMap { $0.accessibilityLabel() }), ["浅色 对比度", "深色 对比度"])
     XCTAssertTrue(contrast.allSatisfy { $0.frame.size == .init(width: 192, height: 36) })
     let ink = try XCTUnwrap(controls.first { $0.field.accessibilityLabel() == "深色前景色" }); XCTAssertEqual(ink.field.stringValue, "#FFFFFF")
-    XCTAssertEqual(store.appearance.resolvedColors["textForeground"].hex, "#dfdfdf"); XCTAssertFalse(window.isVisible)
+    XCTAssertEqual(store.appearance.resolvedColors(dark: true)["textForeground"].hex, "#dfdfdf"); XCTAssertFalse(window.isVisible)
   }
   func testMarkedTextIsNotSanitizedOrSavedAndEnterDoesNotCommitPartialHex() async throws {
     let fixture = try makeSurface(); defer { fixture.close() }; try await settle(fixture.host)

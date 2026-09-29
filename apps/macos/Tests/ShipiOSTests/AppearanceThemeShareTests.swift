@@ -147,7 +147,7 @@ import XCTest
   }
   func testHiddenPageHasSixFamilyStylePairsAndNativeSelectionPersistsInItsOwnVariant() async throws {
     _ = NSApplication.shared
-    let (store, root) = store(); var appearance = AppearancePreferences(); appearance.theme = "light"; store.appearance = appearance
+    let (store, root) = store(); var appearance = AppearancePreferences(); appearance.theme = "system"; store.appearance = appearance
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 2000), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance)); window.contentView = host

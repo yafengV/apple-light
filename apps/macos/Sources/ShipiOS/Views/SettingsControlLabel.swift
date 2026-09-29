@@ -2,19 +2,20 @@ import SwiftUI
 
 /// A setting's explanation belongs to its label, not to another form row.
 struct SettingsControlLabel: View {
+  @Environment(\.appearanceSettingsLabel) private var appearanceLabel
   let title: String
   var description: String? = nil
 
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(title).appFont(.body, weight: .medium)
+      Text(title).appFont(size: appearanceLabel ? 13 : 14, weight: .medium)
       if let description, !description.isEmpty {
         Text(description).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
       }
     }
     .multilineTextAlignment(.leading)
-    .padding(.vertical, description == nil ? 0 : 4)
+    .padding(.vertical, description == nil || appearanceLabel ? 0 : 4)
     .alignmentGuide(.firstTextBaseline) { dimensions in
       description == nil ? dimensions[.firstTextBaseline] : dimensions[VerticalAlignment.center]
     }

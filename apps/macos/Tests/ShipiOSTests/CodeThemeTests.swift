@@ -156,7 +156,7 @@ import XCTest
   func testHiddenAppearancePageMenusApplyPresetWithoutChangingTaskOrOpeningAnotherWindow() async throws {
     _ = NSApplication.shared
     let (store, root) = tempStore(); store.library.drafts["fixture"] = "keep"
-    var appearance = AppearancePreferences(); appearance.theme = "light"; store.appearance = appearance
+    var appearance = AppearancePreferences(); appearance.theme = "system"; store.appearance = appearance
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 850, height: 1600),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
