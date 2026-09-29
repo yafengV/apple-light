@@ -26,7 +26,10 @@ struct GitHubPRCommentDraft: Equatable {
   private(set) var refreshing = false
   private(set) var readError: String?
   private(set) var busy = false
-  private(set) var error: String?
+  private(set) var errors: [GitHubPRDiscussionErrorOwner: String] = [:]
+  private(set) var pendingOwner: GitHubPRDiscussionErrorOwner?
+  private var lastErrorOwner = GitHubPRDiscussionErrorOwner.activity
+  var error: String? { errors[lastErrorOwner] ?? readError }
   private(set) var notice: String?
   private(set) var uncertain: GitHubPRDiscussionAttempt?
   var commentBody = ""
@@ -50,22 +53,38 @@ struct GitHubPRCommentDraft: Equatable {
   func canWrite(_ request: GitHubPullRequest, writable: Bool) -> Bool {
     writable && snapshot != nil && readError == nil && !loading && !busy && uncertain == nil && !coordinator.isBusy(request.url)
   }
-  func clearError() { guard !busy, uncertain == nil else { return }; error = nil }
+  func message(for owner: GitHubPRDiscussionErrorOwner) -> String? { errors[owner] }
+  var uncertainOwner: GitHubPRDiscussionErrorOwner? { uncertain.map { errorOwner($0.action) } }
+  func canEdit(_ owner: GitHubPRDiscussionErrorOwner, writable: Bool) -> Bool {
+    writable && snapshot != nil && readError == nil && !loading && pendingOwner != owner && uncertainOwner != owner
+  }
+  func clearError(_ owner: GitHubPRDiscussionErrorOwner = .activity) {
+    guard pendingOwner != owner, uncertainOwner != owner else { return }; errors[owner] = nil
+  }
+  private func errorOwner(_ action: GitHubPRDiscussionAction) -> GitHubPRDiscussionErrorOwner {
+    switch action {
+    case .post: pendingDraftID.map(GitHubPRDiscussionErrorOwner.draft) ?? .general
+    case .edit(let id, _, _): .draft(id)
+    case .review: .review
+    case .delete(let id, _): .delete(id)
+    case .resolve(let id, _): .thread(id)
+    }
+  }
   func beginEdit(_ comment: GitHubPRComment) {
-    guard !busy, uncertain == nil, comment.canUpdate else { return }
-    drafts[comment.id] = .init(target: .edit(comment), text: comment.body); error = nil
+    guard pendingOwner != .draft(comment.id), uncertainOwner != .draft(comment.id), comment.canUpdate else { return }
+    drafts[comment.id] = .init(target: .edit(comment), text: comment.body); errors[.draft(comment.id)] = nil
   }
   func beginReply(_ comment: GitHubPRComment, thread: GitHubPRReviewThread?, quote: Bool) {
-    guard !busy, uncertain == nil, thread == nil || thread?.canReply == true else { return }
+    guard pendingOwner != .draft(comment.id), uncertainOwner != .draft(comment.id), thread == nil || thread?.canReply == true else { return }
     drafts[comment.id] = .init(target: .reply(commentID: comment.id, threadID: thread?.id), text: quote ? comment.quotedBody : "")
-    error = nil
+    errors[.draft(comment.id)] = nil
   }
-  func cancelDraft(_ id: String) { guard !busy, uncertain == nil else { return }; drafts[id] = nil; error = nil }
+  func cancelDraft(_ id: String) { guard pendingOwner != .draft(id), uncertainOwner != .draft(id) else { return }; drafts[id] = nil; errors[.draft(id)] = nil }
   func openReview() {
     guard !busy, uncertain == nil, snapshot?.canReview == true else { return }
-    reviewHead = snapshot?.head; reviewFocus = UUID(); showingReview = true; error = nil
+    reviewHead = snapshot?.head; reviewFocus = UUID(); showingReview = true; errors[.review] = nil
   }
-  func closeReview() { guard !busy else { return }; showingReview = false; if uncertain == nil { error = nil } }
+  func closeReview() { guard pendingOwner != .review else { return }; showingReview = false; if uncertainOwner != .review { errors[.review] = nil } }
   func draftAction(_ id: String) -> GitHubPRDiscussionAction? {
     guard let draft = drafts[id] else { return nil }
     switch draft.target {
@@ -81,7 +100,7 @@ struct GitHubPRCommentDraft: Equatable {
     guard valid(), !busy else { return }
     let token = UUID(), owner = generation
     readToken = token; loading = snapshot == nil; refreshing = true; readError = nil
-    if uncertain == nil { error = nil }
+    errors[.activity] = nil
     defer { if readToken == token, generation == owner { loading = false; refreshing = false } }
     do {
       let result = try await service.discussion(for: request, at: root)
@@ -89,7 +108,7 @@ struct GitHubPRCommentDraft: Equatable {
       snapshot = result
     } catch {
       guard !Task.isCancelled, readToken == token, generation == owner, valid() else { return }
-      self.error = error.localizedDescription
+      errors[.activity] = error.localizedDescription; lastErrorOwner = .activity
       readError = error.localizedDescription
     }
   }
@@ -117,13 +136,13 @@ struct GitHubPRCommentDraft: Equatable {
   private func perform(action: GitHubPRDiscussionAction, request: GitHubPullRequest, valid: @escaping @MainActor () -> Bool,
     changed: @escaping @MainActor () -> Void,
     work: @escaping @MainActor () async throws -> GitHubPRDiscussionResult) -> Bool {
-    let token = UUID(), owner = generation
+    let token = UUID(), owner = generation, errorOwner = self.errorOwner(action)
     guard coordinator.begin(request.url, token: token) else { return false }
-    readToken = UUID(); loading = false; refreshing = false; busy = true; error = nil; notice = nil
+    readToken = UUID(); loading = false; refreshing = false; busy = true; pendingOwner = errorOwner; errors[errorOwner] = nil; notice = nil
     operation = Task {
       defer {
         coordinator.end(request.url, token: token)
-        if generation == owner { busy = false; operation = nil }
+        if generation == owner { busy = false; pendingOwner = nil; operation = nil }
       }
       do {
         let result = try await work()
@@ -145,13 +164,13 @@ struct GitHubPRCommentDraft: Equatable {
           if let snapshot = failure.snapshot { self.snapshot = snapshot }
           uncertain = failure.uncertain
         }
-        self.error = error.localizedDescription
+        errors[errorOwner] = error.localizedDescription; lastErrorOwner = errorOwner
       }
     }
     return true
   }
 
   func cancel() {
-    generation = UUID(); readToken = UUID(); operation?.cancel(); operation = nil; loading = false; refreshing = false; busy = false
+    generation = UUID(); readToken = UUID(); operation?.cancel(); operation = nil; loading = false; refreshing = false; busy = false; pendingOwner = nil
   }
 }

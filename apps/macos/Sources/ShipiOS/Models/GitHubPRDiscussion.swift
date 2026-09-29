@@ -122,3 +122,7 @@ struct GitHubPRDiscussionResult: Sendable {
   let snapshot: GitHubPRDiscussionSnapshot
   var notice: String? = nil
 }
+
+enum GitHubPRDiscussionErrorOwner: Hashable {
+  case activity, general, draft(String), review, delete(String), thread(String)
+}

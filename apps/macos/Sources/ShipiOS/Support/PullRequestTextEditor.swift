@@ -10,6 +10,11 @@ struct PullRequestTextEditor: NSViewRepresentable {
   let cancel: () -> Void
   var focusProbe: PullRequestEditorFocusProbe? = nil
   var accessibilityName: String? = nil
+  var selectionChanged: ((String, NSRange) -> Void)? = nil
+  var lostFocus: (() -> Void)? = nil
+  var handleKey: ((NSEvent) -> Bool)? = nil
+  var replacement: PullRequestTextReplacement? = nil
+  var growsWithContent = false
   @Environment(\.isEnabled) private var enabled
   @Environment(\.appAppearance) private var appearance
   func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -27,10 +32,17 @@ struct PullRequestTextEditor: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? TextView else { return }
     context.coordinator.parent = self
+    context.coordinator.updatingView = true
+    defer { context.coordinator.updatingView = false }
     editor.field = field; editor.submit = submit; editor.cancel = cancel
+    editor.handleKey = handleKey
     editor.isEditable = enabled; editor.isSelectable = enabled
-    let font = appearance.nativeFont(size: field == .title ? 16 : 13)
+    let font = appearance.nativeFont(size: field == .title || growsWithContent ? 16 : 13)
     editor.font = field == .title ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
+    if growsWithContent, !editor.hasMarkedText(), editor.defaultParagraphStyle?.minimumLineHeight != 28 {
+      let paragraph = NSMutableParagraphStyle(); paragraph.minimumLineHeight = 28; paragraph.maximumLineHeight = 28
+      editor.defaultParagraphStyle = paragraph; editor.typingAttributes[.paragraphStyle] = paragraph
+    }
     editor.textColor = NSColor(appearance.foregroundColor)
     editor.setAccessibilityLabel(accessibilityName ?? (field == .title ? "PR 标题" : "PR 描述"))
     focusProbe?.record(editor)
@@ -40,14 +52,19 @@ struct PullRequestTextEditor: NSViewRepresentable {
       editor.undoManager?.removeAllActions()
     }
     context.coordinator.updateFocus(editor, token: focus, enabled: enabled)
+    context.coordinator.updateReplacement(editor, replacement: replacement)
   }
   func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
-    guard field == .title, let editor = nsView.documentView as? TextView,
+    guard field == .title || growsWithContent, let editor = nsView.documentView as? TextView,
       let container = editor.textContainer, let layout = editor.layoutManager else { return nil }
     let width = max(60, proposal.width ?? 300)
     container.containerSize = NSSize(width: width - 4, height: .greatestFiniteMagnitude)
     layout.ensureLayout(for: container)
-    return CGSize(width: width, height: min(96, max(30, layout.usedRect(for: container).height + 10)))
+    let usedHeight = max(layout.usedRect(for: container).maxY, layout.extraLineFragmentRect.maxY) + 10
+    return CGSize(width: width, height: Self.fittedHeight(usedHeight, growing: growsWithContent))
+  }
+  static func fittedHeight(_ measured: CGFloat, growing: Bool) -> CGFloat {
+    growing ? min(192, max(38, measured)) : min(96, max(30, measured))
   }
   static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
     coordinator.active = false
@@ -58,8 +75,10 @@ struct PullRequestTextEditor: NSViewRepresentable {
   final class Coordinator: NSObject, NSTextViewDelegate {
     var parent: PullRequestTextEditor
     var active = true
+    var updatingView = false
     private var focused: UUID?
     private var scheduled: UUID?
+    private var scheduledReplacement: UUID?
     private weak var observedUndo: UndoManager?
     private var undoObservers: [NSObjectProtocol] = []
     init(_ parent: PullRequestTextEditor) { self.parent = parent }
@@ -107,9 +126,28 @@ struct PullRequestTextEditor: NSViewRepresentable {
         editor.setSelectedRange(NSRange(location: (GitHubPREditText.title(prefix) as NSString).length, length: 0))
       }
       parent.text = value
+      selectionChanged(editor)
     }
     func textDidBeginEditing(_ notification: Notification) {
-      if let editor = notification.object as? TextView { parent.focusProbe?.record(editor); observeUndo(editor) }
+      if let editor = notification.object as? TextView { parent.focusProbe?.record(editor); observeUndo(editor); selectionChanged(editor) }
+    }
+    func textDidEndEditing(_ notification: Notification) { if active { parent.lostFocus?() } }
+    func textViewDidChangeSelection(_ notification: Notification) {
+      if let editor = notification.object as? TextView { selectionChanged(editor) }
+    }
+    private func selectionChanged(_ editor: TextView) {
+      guard active, !updatingView, parent.enabled, editor.isEditable, !editor.hasMarkedText() else { return }
+      parent.selectionChanged?(editor.string, editor.selectedRange())
+    }
+    func updateReplacement(_ editor: TextView, replacement: PullRequestTextReplacement?) {
+      guard let replacement, scheduledReplacement != replacement.id else { return }
+      scheduledReplacement = replacement.id
+      DispatchQueue.main.async { [weak self, weak editor] in
+        guard let self, self.active, self.parent.enabled, let editor,
+          self.parent.replacement?.id == replacement.id else { return }
+        if let window = editor.window, window.firstResponder !== editor { return }
+        _ = editor.apply(replacement)
+      }
     }
     func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange,
       replacementString: String?) -> Bool {
@@ -126,11 +164,13 @@ struct PullRequestTextEditor: NSViewRepresentable {
     var field = GitHubPREditField.title
     var submit: () -> Void = {}
     var cancel: () -> Void = {}
+    var handleKey: ((NSEvent) -> Bool)?
     override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
     override var canBecomeKeyView: Bool { isEditable && super.canBecomeKeyView }
     override func keyDown(with event: NSEvent) {
       guard isEditable else { return }
       if !hasMarkedText() {
+        if handleKey?(event) == true { return }
         if event.keyCode == 36 || event.keyCode == 76 {
           if field == .title || !event.modifierFlags.intersection([.command, .control]).isEmpty {
             submit(); return
@@ -144,6 +184,17 @@ struct PullRequestTextEditor: NSViewRepresentable {
         }
       }
       super.keyDown(with: event)
+    }
+    @discardableResult func apply(_ replacement: PullRequestTextReplacement) -> Bool {
+      let length = (string as NSString).length
+      guard isEditable, !hasMarkedText(), string == replacement.expectedText,
+        selectedRange() == replacement.selection, replacement.range.location <= length,
+        replacement.range.length <= length - replacement.range.location else { return false }
+      breakUndoCoalescing()
+      insertText(replacement.text, replacementRange: replacement.range)
+      setSelectedRange(NSRange(location: replacement.range.location + replacement.text.utf16.count, length: 0))
+      breakUndoCoalescing()
+      return true
     }
   }
 }

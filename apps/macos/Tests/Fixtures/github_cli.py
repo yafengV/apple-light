@@ -39,6 +39,14 @@ elif args[:2] == ["repo", "view"]:
 elif args[:2] == ["pr", "list"]:
     print(json.dumps(state.get("pullRequests", [])))
 elif args[:2] == ["pr", "view"]:
+    if state.get("detailReadGate"):
+        import time
+        (root / "detail-read-held").touch()
+        deadline = time.monotonic() + 10
+        while not (root / "detail-read-release").exists():
+            if time.monotonic() >= deadline:
+                sys.exit("Detail read gate was not released")
+            time.sleep(0.01)
     if state.get("detailReadDelay"):
         import time
         time.sleep(state["detailReadDelay"])
@@ -94,6 +102,26 @@ elif args and args[0] == "api":
             if state.get("discussionRepeatCursor") and more:
                 end = "1"
             return {"totalCount": total, "nodes": nodes, "pageInfo": {"hasNextPage": more, "endCursor": end}}
+
+        if "ShipiOSPRMentionUsers" in query:
+            if state.get("mentionDelay"):
+                time.sleep(state["mentionDelay"])
+            if state.get("mentionFailure"):
+                sys.exit("Mention search unavailable")
+            item = next(x for x in state["pullRequests"] if x["number"] == variables["number"])
+            participants = state.get("mentionParticipants", [{"login": "reviewer", "avatarUrl": "https://avatars.githubusercontent.com/u/1"}])
+            mentionable = state.get("mentionableUsers", [])
+            term = variables["search"].lower()
+            mentionable = [x for x in mentionable if term in x["login"].lower() or term in x.get("name", "").lower()][:10]
+            response = {"data": {"viewer": {"login": state.get("mentionViewer", viewer)}, "repository": {
+                "nameWithOwner": state.get("metadataRepository", "sample/project"),
+                "mentionableUsers": {"nodes": mentionable}, "pullRequest": {
+                    "number": 43 if state.get("mentionMismatch") else item["number"], "url": item["url"],
+                    "participants": {"nodes": participants[:100]}}}}}
+            if state.get("mentionGraphQLError"):
+                response["errors"] = [{"message": "Mention GraphQL error"}]
+            print(json.dumps(response))
+            sys.exit(0)
 
         if "mutation ShipiOSPRDiscussionMutation" in query:
             if state.get("discussionMutationDelay"):

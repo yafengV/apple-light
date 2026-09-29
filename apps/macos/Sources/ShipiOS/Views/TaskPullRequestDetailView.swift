@@ -97,7 +97,8 @@ struct TaskPullRequestDetailView: View {
           }
           Divider()
           TaskPullRequestActivityView(state: discussion,
-            enabled: discussion.canWrite(request, writable: writable), open: openExternal,
+            enabled: discussion.canWrite(request, writable: writable), writable: writable,
+            mentionRequest: discussion.snapshot.map { .init(pullRequest: request, root: root, viewer: $0.viewer) }, open: openExternal,
             retry: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, submit: applyDiscussion)
           if let error = state.error {
             Label(error, systemImage: "exclamationmark.circle")

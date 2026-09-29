@@ -242,17 +242,21 @@ final class GitHubPREditTests: XCTestCase {
     let snapshot = try await service.mergeSnapshot(for: request, at: root)
     detail.acceptMetadata(snapshot)
     XCTAssertEqual(detail.snapshot, snapshot); XCTAssertFalse(detail.loading)
-    try change(["detailReadDelay": 0.4], root)
+    try change(["detailReadGate": true], root)
+    let held = root.appendingPathComponent(".git/detail-read-held"), release = root.appendingPathComponent(".git/detail-read-release")
+    defer { _ = FileManager.default.createFile(atPath: release.path, contents: Data()) }
     let old = Task { await detail.refresh(request, at: root, preferred: .merge,
       valid: { true }, updated: { _ in XCTFail("Superseded read must not publish") }) }
     for _ in 0..<200 {
-      if try logs(root, command: "view").count >= 2 { break }
+      if FileManager.default.fileExists(atPath: held.path) { break }
       try await Task.sleep(for: .milliseconds(10))
     }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: held.path), "Old read must be held before broadcasting new metadata")
     XCTAssertTrue(detail.loading)
-    try change(["detailReadDelay": 0], root)
+    try change(["detailReadGate": false], root)
     let updated = try await service.edit(.title, text: "new title", request: request, at: root)
     detail.acceptMetadata(updated)
+    XCTAssertTrue(FileManager.default.createFile(atPath: release.path, contents: Data()))
     await old.value
     XCTAssertEqual(detail.snapshot?.details.title, "new title")
     XCTAssertFalse(detail.loading)

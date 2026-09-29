@@ -3,6 +3,8 @@ import SwiftUI
 struct TaskPullRequestActivityView: View {
   let state: GitHubPRDiscussionState
   let enabled: Bool
+  let writable: Bool
+  let mentionRequest: GitHubPRMentionRequest?
   let open: (URL) -> Void
   let retry: () -> Void
   let confirm: () -> Void
@@ -27,9 +29,9 @@ struct TaskPullRequestActivityView: View {
               switch item {
               case .comment(let comment):
                 TaskPullRequestCommentView(comment: comment, thread: nil, state: state,
-                  enabled: enabled, open: open, submit: submit)
+                  enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit)
               case .thread(let thread):
-                TaskPullRequestThreadView(thread: thread, state: state, enabled: enabled, open: open, submit: submit)
+                TaskPullRequestThreadView(thread: thread, state: state, enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit)
               case .event(let event):
                 HStack(alignment: .top) {
                   Image(systemName: event.kind == "PullRequestCommit" ? "point.3.connected.trianglepath.dotted" : "circle.fill")
@@ -52,17 +54,18 @@ struct TaskPullRequestActivityView: View {
         Text("Activity\(state.snapshot.map { " · \($0.activity.count)" } ?? "")").appFont(.headline)
       }
       .id("pull-request-activity")
-      if let error = state.error {
+      if let error = state.message(for: .activity) {
         Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
-        if state.uncertain != nil { Button("重新读取操作结果", action: confirm).disabled(state.busy) }
-        else { Button("重新读取活动", action: retry).disabled(state.busy || state.refreshing) }
+        Button("重新读取活动", action: retry).disabled(state.busy || state.refreshing)
       }
+      if state.uncertain != nil { Button("重新读取操作结果", action: confirm).disabled(state.busy) }
       if let notice = state.notice { Text(notice).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
       if state.snapshot != nil {
         Divider()
         TaskPullRequestCommentComposer(text: Binding(get: { state.commentBody }, set: {
-          state.commentBody = $0; state.clearError()
-        }), label: "发表评论", focus: nil, enabled: enabled, busy: state.busy, cancel: nil) {
+          state.commentBody = $0; state.clearError(.general)
+        }), label: "发表评论", focus: nil, enabled: enabled, busy: state.pendingOwner == .general, cancel: nil,
+          inputEnabled: state.canEdit(.general, writable: writable), error: state.message(for: .general), mentionRequest: mentionRequest) {
           submit(.post(body: state.commentBody, thread: nil), nil)
         }
       }
@@ -75,12 +78,15 @@ private struct TaskPullRequestThreadView: View {
   let thread: GitHubPRReviewThread
   let state: GitHubPRDiscussionState
   let enabled: Bool
+  let writable: Bool
+  let mentionRequest: GitHubPRMentionRequest?
   let open: (URL) -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
   @State private var expanded: Bool
-  init(thread: GitHubPRReviewThread, state: GitHubPRDiscussionState, enabled: Bool,
+  init(thread: GitHubPRReviewThread, state: GitHubPRDiscussionState, enabled: Bool, writable: Bool,
+    mentionRequest: GitHubPRMentionRequest?,
     open: @escaping (URL) -> Void, submit: @escaping (GitHubPRDiscussionAction, String?) -> Void) {
-    self.thread = thread; self.state = state; self.enabled = enabled; self.open = open; self.submit = submit
+    self.thread = thread; self.state = state; self.enabled = enabled; self.writable = writable; self.mentionRequest = mentionRequest; self.open = open; self.submit = submit
     _expanded = State(initialValue: !thread.isResolved && thread.comments.first?.authorType == "User")
   }
   private var hasDraft: Bool { thread.comments.contains { state.drafts[$0.id] != nil } }
@@ -93,11 +99,12 @@ private struct TaskPullRequestThreadView: View {
         }
         ForEach(thread.comments) { comment in
           TaskPullRequestCommentView(comment: comment, thread: thread, state: state,
-            enabled: enabled, open: open, submit: submit)
+            enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit)
         }
         HStack {
           if let first = thread.comments.first, thread.canReply {
-            Button("回复") { state.beginReply(first, thread: thread, quote: false) }.disabled(!enabled)
+            Button("回复") { state.beginReply(first, thread: thread, quote: false) }
+              .disabled(!state.canEdit(.draft(first.id), writable: writable))
           }
           Spacer()
           if thread.isResolved ? thread.canUnresolve : thread.canResolve {
@@ -106,6 +113,7 @@ private struct TaskPullRequestThreadView: View {
             }.disabled(!enabled)
           }
         }
+        if let error = state.message(for: .thread(thread.id)) { Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled) }
       }.padding(.top, 8)
     } label: {
       HStack {
@@ -124,12 +132,14 @@ struct TaskPullRequestCommentView: View {
   let thread: GitHubPRReviewThread?
   let state: GitHubPRDiscussionState
   let enabled: Bool
+  let writable: Bool
+  let mentionRequest: GitHubPRMentionRequest?
   let open: (URL) -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
   @State private var expanded: Bool
-  init(comment: GitHubPRComment, thread: GitHubPRReviewThread?, state: GitHubPRDiscussionState, enabled: Bool,
+  init(comment: GitHubPRComment, thread: GitHubPRReviewThread?, state: GitHubPRDiscussionState, enabled: Bool, writable: Bool, mentionRequest: GitHubPRMentionRequest?,
     open: @escaping (URL) -> Void, submit: @escaping (GitHubPRDiscussionAction, String?) -> Void) {
-    self.comment = comment; self.thread = thread; self.state = state; self.enabled = enabled; self.open = open; self.submit = submit
+    self.comment = comment; self.thread = thread; self.state = state; self.enabled = enabled; self.writable = writable; self.mentionRequest = mentionRequest; self.open = open; self.submit = submit
     _expanded = State(initialValue: comment.authorType == "User")
   }
   private var draft: GitHubPRCommentDraft? { state.drafts[comment.id] }
@@ -151,9 +161,9 @@ struct TaskPullRequestCommentView: View {
           if thread == nil || thread?.canReply == true {
             Button("引用回复") { state.beginReply(comment, thread: thread, quote: true) }
           }
-          if comment.canDelete { Button("删除", role: .destructive) { state.deleteTarget = comment; state.clearError() } }
+          if comment.canDelete { Button("删除", role: .destructive) { state.deleteTarget = comment; state.clearError(.delete(comment.id)) } }
         } label: { Image(systemName: "ellipsis") }
-          .menuStyle(.borderlessButton).fixedSize().disabled(!enabled || draft != nil)
+          .menuStyle(.borderlessButton).fixedSize().disabled(!state.canEdit(.draft(comment.id), writable: writable) || draft != nil)
           .accessibilityLabel("评论操作")
       }
       Text(comment.createdAt).appFont(.caption).foregroundStyle(.secondary)
@@ -168,9 +178,10 @@ struct TaskPullRequestCommentView: View {
   }
   private func composer(_ draft: GitHubPRCommentDraft, label: String) -> some View {
     TaskPullRequestCommentComposer(text: Binding(get: { state.drafts[comment.id]?.text ?? "" }, set: {
-      state.drafts[comment.id]?.text = $0; state.clearError()
-    }), label: label, focus: draft.focus, enabled: enabled, busy: state.busy,
-      cancel: { state.cancelDraft(comment.id) }) {
+      state.drafts[comment.id]?.text = $0; state.clearError(.draft(comment.id))
+    }), label: label, focus: draft.focus, enabled: enabled, busy: state.pendingOwner == .draft(comment.id),
+      cancel: { state.cancelDraft(comment.id) }, inputEnabled: state.canEdit(.draft(comment.id), writable: writable),
+      error: state.message(for: .draft(comment.id)), mentionRequest: mentionRequest) {
         if let action = state.draftAction(comment.id) { submit(action, comment.id) }
       }
   }
@@ -187,32 +198,6 @@ struct TaskPullRequestCommentView: View {
   }
   static func reviewLabel(_ value: String) -> String {
     switch value { case "APPROVED": "已批准"; case "CHANGES_REQUESTED": "要求修改"; case "COMMENTED": "已审查"; case "DISMISSED": "已撤销审查"; default: value }
-  }
-}
-
-struct TaskPullRequestCommentComposer: View {
-  @Binding var text: String
-  let label: String
-  let focus: UUID?
-  let enabled: Bool
-  let busy: Bool
-  let cancel: (() -> Void)?
-  let submit: () -> Void
-  private var canSubmit: Bool { enabled && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      PullRequestTextEditor(text: $text, field: .body, focus: focus,
-        submit: { if canSubmit { submit() } }, cancel: {}, accessibilityName: label)
-        .frame(height: 92).padding(6).overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-        .disabled(!enabled)
-      HStack {
-        Spacer()
-        if let cancel { Button("取消", action: cancel).disabled(!enabled) }
-        Button(action: submit) {
-          HStack { if busy { ProgressView().controlSize(.small) }; Text(label) }
-        }.disabled(!canSubmit)
-      }
-    }
   }
 }
 

@@ -359,4 +359,95 @@ final class GitHubPRDiscussionTests: XCTestCase {
       XCTAssertTrue(GitHubPRService.discussionConfirmed(action, baseline: expected, current: result.snapshot))
     }
   }
+
+  @MainActor func testFailedDraftsKeepIndependentErrorsAcrossTypingAndRefresh() async throws {
+    let (root, service) = try await fixture(["discussionMutationGraphQLError": true])
+    let state = GitHubPRDiscussionState(service: service)
+    await state.load(request, at: root, valid: { true })
+    for id in ["issue-1", "code-1"] {
+      state.beginEdit(try XCTUnwrap(state.snapshot?.comment(id))); state.drafts[id]?.text = "Changed " + id
+      XCTAssertTrue(state.start(try XCTUnwrap(state.draftAction(id)), request: request, at: root,
+        valid: { true }, writable: { true }, draftID: id))
+      await state.operation?.value
+      XCTAssertNotNil(state.message(for: .draft(id)))
+    }
+    await state.load(request, at: root, valid: { true })
+    XCTAssertNotNil(state.message(for: .draft("issue-1"))); XCTAssertNotNil(state.message(for: .draft("code-1")))
+    XCTAssertNil(state.message(for: .activity))
+    state.drafts["code-1"]?.text = "New attempt"; state.clearError(.draft("code-1"))
+    XCTAssertNil(state.message(for: .draft("code-1"))); XCTAssertNotNil(state.message(for: .draft("issue-1")))
+    state.commentBody = "Other input"; state.clearError(.general)
+    XCTAssertNotNil(state.message(for: .draft("issue-1")))
+    try change(["discussionMutationGraphQLError": false], root)
+    XCTAssertTrue(state.start(try XCTUnwrap(state.draftAction("code-1")), request: request, at: root,
+      valid: { true }, writable: { true }, draftID: "code-1"))
+    await state.operation?.value
+    XCTAssertNil(state.drafts["code-1"]); XCTAssertNotNil(state.message(for: .draft("issue-1")))
+    XCTAssertEqual(state.drafts["issue-1"]?.text, "Changed issue-1")
+  }
+
+  @MainActor func testGeneralReviewDeleteAndThreadErrorsStayAtTheirOwners() async throws {
+    let (root, service) = try await fixture(["discussionMutationGraphQLError": true])
+    let state = GitHubPRDiscussionState(service: service)
+    await state.load(request, at: root, valid: { true })
+    let actions: [(GitHubPRDiscussionAction, GitHubPRDiscussionErrorOwner)] = [
+      (.post(body: "Comment", thread: nil), .general),
+      (.review(body: "Review", decision: .comment, head: head), .review),
+      (.delete(id: "issue-1", kind: .issue), .delete("issue-1")),
+      (.resolve(thread: "thread-1", resolved: true), .thread("thread-1"))]
+    for (action, owner) in actions {
+      XCTAssertTrue(state.start(action, request: request, at: root, valid: { true }, writable: { true }))
+      await state.operation?.value
+      XCTAssertNotNil(state.message(for: owner)); XCTAssertNil(state.message(for: .activity))
+    }
+    state.clearError(.review)
+    XCTAssertNil(state.message(for: .review))
+    for owner: GitHubPRDiscussionErrorOwner in [.general, .delete("issue-1"), .thread("thread-1")] {
+      XCTAssertNotNil(state.message(for: owner))
+    }
+  }
+
+  @MainActor func testPendingInputLocksOnlyItsOwnEditorAndPreservesOtherDraft() async throws {
+    let (root, service) = try await fixture(), state = GitHubPRDiscussionState(service: service)
+    await state.load(request, at: root, valid: { true })
+    let issue = try XCTUnwrap(state.snapshot?.comment("issue-1")), code = try XCTUnwrap(state.snapshot?.comment("code-1"))
+    state.beginReply(issue, thread: nil, quote: false); state.drafts[issue.id]?.text = "Pending reply"
+    try change(["discussionDelay": 0.1], root)
+    XCTAssertTrue(state.start(try XCTUnwrap(state.draftAction(issue.id)), request: request, at: root,
+      valid: { true }, writable: { true }, draftID: issue.id))
+    XCTAssertEqual(state.pendingOwner, .draft(issue.id))
+    XCTAssertFalse(state.canEdit(.draft(issue.id), writable: true))
+    XCTAssertTrue(state.canEdit(.general, writable: true)); XCTAssertTrue(state.canEdit(.draft(code.id), writable: true))
+    state.cancelDraft(issue.id); XCTAssertNotNil(state.drafts[issue.id])
+    state.beginEdit(code); state.drafts[code.id]?.text = "Still editable"
+    state.commentBody = "New general draft"
+    XCTAssertFalse(state.start(.post(body: state.commentBody, thread: nil), request: request, at: root,
+      valid: { true }, writable: { true }), "Writes still share PR ownership")
+    await state.operation?.value
+    XCTAssertNil(state.pendingOwner); XCTAssertNil(state.drafts[issue.id])
+    XCTAssertEqual(state.drafts[code.id]?.text, "Still editable"); XCTAssertEqual(state.commentBody, "New general draft")
+  }
+
+  @MainActor func testUncertainReplyErrorSurvivesRefreshAndOtherEditorChanges() async throws {
+    let (root, service) = try await fixture(["discussionFailAfterAction": true, "discussionFailureAfterAction": true])
+    let state = GitHubPRDiscussionState(service: service)
+    await state.load(request, at: root, valid: { true })
+    let code = try XCTUnwrap(state.snapshot?.comment("code-1")), thread = try XCTUnwrap(state.snapshot?.threads.first)
+    state.beginReply(code, thread: thread, quote: false); state.drafts[code.id]?.text = "Pending thread reply"
+    XCTAssertTrue(state.start(try XCTUnwrap(state.draftAction(code.id)), request: request, at: root,
+      valid: { true }, writable: { true }, draftID: code.id))
+    await state.operation?.value
+    XCTAssertEqual(state.uncertainOwner, .draft(code.id)); XCTAssertNotNil(state.message(for: .draft(code.id)))
+    state.clearError(.draft(code.id)); XCTAssertNotNil(state.message(for: .draft(code.id)))
+    state.commentBody = "Other draft"; state.clearError(.general)
+    try change(["discussionFailureAfterAction": false], root)
+    await state.load(request, at: root, valid: { true })
+    XCTAssertNotNil(state.message(for: .draft(code.id))); XCTAssertNotNil(state.uncertain)
+    XCTAssertFalse(state.canEdit(.draft(code.id), writable: true)); XCTAssertTrue(state.canEdit(.general, writable: true))
+    XCTAssertTrue(state.confirm(request: request, at: root, valid: { true })); await state.operation?.value
+    XCTAssertNil(state.uncertain); XCTAssertNil(state.message(for: .draft(code.id)))
+    XCTAssertNil(state.drafts[code.id]); XCTAssertEqual(state.commentBody, "Other draft")
+    XCTAssertEqual(try logs(root, mutationsOnly: true).count, 1)
+  }
+
 }
