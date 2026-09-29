@@ -21,6 +21,11 @@ if args[:2] == ["pr", "create"] or (args[:2] == ["pr", "edit"] and "--body-file"
     log["body"] = body_file.read_bytes().decode("utf-8")
     log["bodyMode"] = oct(body_file.stat().st_mode & 0o777)
     log["folderMode"] = oct(body_file.parent.stat().st_mode & 0o777)
+if args[:2] == ["api", "graphql"] and "--input" in args:
+    input_file = pathlib.Path(arg("--input"))
+    log["input"] = json.loads(input_file.read_text())
+    log["inputMode"] = oct(input_file.stat().st_mode & 0o777)
+    log["folderMode"] = oct(input_file.parent.stat().st_mode & 0o777)
 with (root / "github-requests.jsonl").open("a") as handle:
     handle.write(json.dumps(log) + "\n")
 
@@ -58,6 +63,119 @@ elif args[:2] == ["pr", "view"]:
         details["url"] = "https://github.com/other/project/pull/42"
     print(json.dumps(details))
 elif args and args[0] == "api":
+    if args[1] == "graphql" and "--input" in args:
+        # New discussion queries are isolated from the existing merge metadata fixture.
+        import re
+        import time
+        payload = log["input"]
+        query, variables = payload["query"], payload["variables"]
+        if state.get("discussionDelay"):
+            time.sleep(state["discussionDelay"])
+        if state.get("discussionFailure") or (state.get("discussionFailureAfterAction") and state.get("discussionAccepted")):
+            sys.exit("Discussion unavailable")
+        timeline = state.get("discussionTimeline", [])
+        threads = state.get("discussionThreads", [])
+        viewer = state.get("viewer", "fixture-author")
+
+        def comment(identifier, body, kind="IssueComment"):
+            return {"id": identifier, "body": body, "__typename": kind,
+                    "createdAt": "2026-09-29T12:00:00Z", "url": "https://github.com/sample/project/pull/42#" + identifier,
+                    "author": {"login": viewer, "__typename": "User"}, "viewerCanUpdate": True, "viewerCanDelete": True}
+
+        def connection(items, cursor=None):
+            size = state.get("discussionPageSize", 100)
+            start = int(cursor or 0)
+            nodes = items[start:start + size]
+            if cursor and state.get("discussionDuplicate"):
+                nodes = items[:size]
+            total = len(items) + (1 if cursor and state.get("discussionCountDrift") else 0)
+            more = start + size < len(items)
+            end = str(start + size) if more else None
+            if state.get("discussionRepeatCursor") and more:
+                end = "1"
+            return {"totalCount": total, "nodes": nodes, "pageInfo": {"hasNextPage": more, "endCursor": end}}
+
+        if "mutation ShipiOSPRDiscussionMutation" in query:
+            if state.get("discussionMutationDelay"):
+                time.sleep(state["discussionMutationDelay"])
+            if state.get("discussionMutationFailure"):
+                sys.exit("Discussion write denied")
+            if state.get("discussionMutationGraphQLError"):
+                print(json.dumps({"data": {"action": None}, "errors": [{"message": "Comment rejected by GitHub"}]}))
+                sys.exit(0)
+            mutation = re.search(r"action:(\w+)\(", query).group(1)
+            fields = variables["input"]
+            result = {"clientMutationId": fields["clientMutationId"]}
+            sequence = state.get("discussionSequence", 0) + 1
+            identifier = "created-" + str(sequence)
+            target = next((x for x in threads if x["id"] == fields.get("threadId", fields.get("pullRequestReviewThreadId"))), None)
+            all_comments = timeline + [x for t in threads for x in t["comments"]]
+            node = next((x for x in all_comments if x.get("id") == fields.get("id", fields.get("pullRequestReviewId", fields.get("pullRequestReviewCommentId")))), None)
+            if mutation == "addComment":
+                assert fields["subjectId"] == "pr-node"
+                node = comment(identifier, fields["body"])
+                timeline.append(node); result["commentEdge"] = {"node": node}
+            elif mutation == "addPullRequestReviewThreadReply":
+                assert target is not None
+                node = comment(identifier, fields["body"], "PullRequestReviewComment")
+                target["comments"].append(node); result["comment"] = node
+            elif mutation == "addPullRequestReview":
+                assert fields["pullRequestId"] == "pr-node"
+                node = comment(identifier, fields.get("body", ""), "PullRequestReview")
+                node["state"] = {"COMMENT": "COMMENTED", "APPROVE": "APPROVED", "REQUEST_CHANGES": "CHANGES_REQUESTED"}[fields["event"]]
+                node["commit"] = {"oid": fields["commitOID"]}
+                timeline.append(node); result["pullRequestReview"] = node
+                state["reviewDecision"] = node["state"]
+            elif mutation.startswith("update"):
+                assert node is not None
+                node["body"] = fields["body"]
+                name = {"updateIssueComment": "issueComment", "updatePullRequestReview": "pullRequestReview",
+                        "updatePullRequestReviewComment": "pullRequestReviewComment"}[mutation]
+                result[name] = node
+            elif mutation.startswith("delete"):
+                timeline = [x for x in timeline if x.get("id") != fields["id"]]
+                for thread in threads:
+                    thread["comments"] = [x for x in thread["comments"] if x["id"] != fields["id"]]
+                threads = [x for x in threads if x["comments"]]
+            elif mutation in ["resolveReviewThread", "unresolveReviewThread"]:
+                assert target is not None
+                target["isResolved"] = mutation == "resolveReviewThread"
+                result["thread"] = {"id": target["id"], "isResolved": target["isResolved"]}
+            else:
+                sys.exit("Unsupported discussion mutation")
+            state["discussionTimeline"], state["discussionThreads"] = timeline, threads
+            state["discussionSequence"], state["discussionAccepted"] = sequence, True
+            state_path.write_text(json.dumps(state))
+            if state.get("discussionFailAfterAction"):
+                sys.exit("Connection interrupted after accepting discussion mutation")
+            print(json.dumps({"data": {"action": result}}))
+            sys.exit(0)
+        if "ShipiOSPRDiscussionReplies" in query:
+            target = next((x for x in threads if x["id"] == variables["id"]), None)
+            print(json.dumps({"data": {"node": {"id": target["id"], "comments": connection(target["comments"], variables.get("after"))} if target else None}}))
+            sys.exit(0)
+        assert variables["owner"] == "sample" and variables["name"] == "project" and variables["number"] == 42
+        item = next(x for x in state["pullRequests"] if x["number"] == 42)
+        pr = {**item, "id": "pr-node", "state": state.get("detailState", "OPEN"),
+              "headRefOid": state.get("detailHead", state["head"]), "author": {"login": state.get("author", "fixture-author")}}
+        if "timelineItems(first:" in query:
+            pr["timelineItems"] = connection(timeline, variables.get("after"))
+        if "reviewThreads(first:" in query:
+            page = connection(threads, variables.get("after"))
+            page["nodes"] = [{**x, "comments": connection(x["comments"])} for x in page["nodes"]]
+            pr["reviewThreads"] = page
+        response = {"data": {"viewer": {"login": viewer}, "repository": {
+            "nameWithOwner": state.get("metadataRepository", "sample/project"), "pullRequest": pr}}}
+        if state.get("discussionGraphQLError"):
+            response["errors"] = [{"message": "Fixture GraphQL discussion error"}]
+        if "timelineItems(first:" in query and state.get("discussionHeadAfterPage"):
+            state["detailHead"] = state["discussionHeadAfterPage"]
+            state_path.write_text(json.dumps(state))
+        if "timelineItems(first:" in query and state.get("discussionViewerAfterPage"):
+            state["viewer"] = state["discussionViewerAfterPage"]
+            state_path.write_text(json.dumps(state))
+        print(json.dumps(response))
+        sys.exit(0)
     if args[1] == "graphql":
         if state.get("metadataFailure"):
             sys.exit("Metadata unavailable")

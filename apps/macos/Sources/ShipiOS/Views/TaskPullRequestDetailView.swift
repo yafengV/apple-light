@@ -19,6 +19,7 @@ struct TaskPullRequestDetailView: View {
   @State private var editor = GitHubPREditState()
   @State private var editorOwner = UUID()
   @State private var checks = GitHubPRChecksState()
+  @State private var discussion = GitHubPRDiscussionState()
   @State private var fixBranch: String?
   @State private var fixing = false
   @State private var fixError: String?
@@ -38,7 +39,7 @@ struct TaskPullRequestDetailView: View {
     return .init(taskID: taskID, root: root, pullRequest: current, headRevision: head)
   }
 
-  var body: some View {
+  private var content: some View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
         if compact { Button(action: back) { Image(systemName: "chevron.left") }
@@ -59,6 +60,10 @@ struct TaskPullRequestDetailView: View {
               systemImage: details?.state.uppercased() == "MERGED" ? "checkmark.circle.fill"
                 : "arrow.triangle.pullrequest")
             Spacer()
+            if discussion.snapshot?.canReview == true {
+              Button("提交审查") { discussion.openReview() }
+                .disabled(!discussion.canWrite(request, writable: writable))
+            }
             if state.loading { ProgressView().controlSize(.small) }
           }.appFont(.caption).foregroundStyle(.secondary)
           Text("\(details?.headRefName ?? request.headRefName) → \(details?.baseRefName ?? request.baseRefName)")
@@ -90,6 +95,10 @@ struct TaskPullRequestDetailView: View {
             TaskPullRequestActionsView(state: state, request: request, writable: writable,
               apply: apply)
           }
+          Divider()
+          TaskPullRequestActivityView(state: discussion,
+            enabled: discussion.canWrite(request, writable: writable), open: openExternal,
+            retry: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, submit: applyDiscussion)
           if let error = state.error {
             Label(error, systemImage: "exclamationmark.circle")
               .appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
@@ -98,7 +107,7 @@ struct TaskPullRequestDetailView: View {
             Text(notice).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
           }
           HStack {
-            Button("刷新状态") { Task { await refresh() } }
+            Button("刷新状态") { Task { await refresh(); await loadDiscussion() } }
               .disabled(state.loading || state.busy(for: request))
             Spacer()
             Menu {
@@ -120,6 +129,10 @@ struct TaskPullRequestDetailView: View {
         .padding(16)
       }
     }
+  }
+
+  private var editorContent: some View {
+    content
     .frame(width: compact ? 316 : nil)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.regularMaterial)
@@ -135,6 +148,27 @@ struct TaskPullRequestDetailView: View {
       guard state.acceptEditorChanges(editor) != nil else { return }
       onRefresh(snapshot.details.recorded(updating: request))
     }
+  }
+
+  private var discussionContent: some View {
+    editorContent
+    .task(id: taskID + root.path + request.url) {
+      discussion.cancel(); discussion = GitHubPRDiscussionState()
+      await loadDiscussion()
+    }
+    .onChange(of: GitHubPRDiscussionUpdates.shared.revision(dataRoot: store.dataRoot, request: request)) { _, _ in
+      if valid, !discussion.busy { Task { await refresh(); await loadDiscussion() } }
+    }
+    .onChange(of: state.snapshot) { _, value in
+      if let value, let current = discussion.snapshot,
+        current.head != value.headRevision || current.state != value.details.state.uppercased() {
+        Task { await loadDiscussion() }
+      }
+    }
+  }
+
+  var body: some View {
+    discussionContent
     .task(id: checksRequest) {
       await loadChecks()
       while !Task.isCancelled, checksRequest != nil,
@@ -156,16 +190,41 @@ struct TaskPullRequestDetailView: View {
     .onChange(of: presentations?.token(tabID)) { _, _ in consumeMergeRequest() }
     .onChange(of: state.snapshot) { _, _ in consumeMergeRequest() }
     .onChange(of: root) { _, _ in presentations?.clear(tabID) }
-    .onDisappear { presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel() }
+    .onDisappear { presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel() }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
         confirm: { apply(.merge(state.selectedMethod)) })
+    }
+    .sheet(isPresented: $discussion.showingReview) {
+      TaskPullRequestReviewDialog(state: discussion, enabled: discussion.canWrite(request, writable: writable),
+        submit: { if let action = discussion.reviewAction { applyDiscussion(action, nil) } }, confirm: confirmDiscussion)
+    }
+    .sheet(item: $discussion.deleteTarget) { comment in
+      TaskPullRequestDeleteCommentDialog(comment: comment, state: discussion,
+        enabled: discussion.canWrite(request, writable: writable),
+        submit: { applyDiscussion(.delete(id: comment.id, kind: comment.kind), nil) })
     }
   }
 
   private func refresh() async {
     await state.refresh(request, at: root, preferred: store.library.gitPreferences.pullRequestMergeMethod,
       valid: { valid }, updated: onRefresh)
+  }
+
+  private func loadDiscussion() async {
+    await discussion.load(request, at: root, valid: { valid })
+  }
+  private func applyDiscussion(_ action: GitHubPRDiscussionAction, _ draftID: String?) {
+    discussion.start(action, request: request, at: root, valid: { valid }, writable: { writable }, draftID: draftID,
+      changed: discussionChanged)
+  }
+  private func confirmDiscussion() {
+    discussion.confirm(request: request, at: root, valid: { valid },
+      changed: discussionChanged)
+  }
+  private func discussionChanged() {
+    GitHubPRDiscussionUpdates.shared.publish(dataRoot: store.dataRoot, request: request)
+    Task { await refresh(); await loadDiscussion() }
   }
 
   private func save(_ field: GitHubPREditField) {

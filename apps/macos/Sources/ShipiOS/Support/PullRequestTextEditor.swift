@@ -9,6 +9,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
   let submit: () -> Void
   let cancel: () -> Void
   var focusProbe: PullRequestEditorFocusProbe? = nil
+  var accessibilityName: String? = nil
   @Environment(\.isEnabled) private var enabled
   @Environment(\.appAppearance) private var appearance
   func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -31,7 +32,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
     let font = appearance.nativeFont(size: field == .title ? 16 : 13)
     editor.font = field == .title ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
     editor.textColor = NSColor(appearance.foregroundColor)
-    editor.setAccessibilityLabel(field == .title ? "PR 标题" : "PR 描述")
+    editor.setAccessibilityLabel(accessibilityName ?? (field == .title ? "PR 标题" : "PR 描述"))
     focusProbe?.record(editor)
     if !editor.hasMarkedText(), editor.string != text {
       let location = min(editor.selectedRange().location, (text as NSString).length)
