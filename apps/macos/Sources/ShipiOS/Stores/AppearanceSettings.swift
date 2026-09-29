@@ -1,6 +1,21 @@
 import Foundation
 
 extension WorkspaceStore {
+  @discardableResult func setAppearanceColor(_ color: String?, key: WritableKeyPath<AppearancePalette, String?>, dark: Bool) -> Bool {
+    var value = appearance
+    var palette = dark ? value.dark : value.light
+    palette[keyPath: key] = color
+    if key == \.accent { palette.accentSource = color == nil ? nil : "custom" }
+    if dark { value.dark = palette } else { value.light = palette }
+    return commitAppearance(value)
+  }
+  @discardableResult func setAppearanceFont(_ role: AppearanceFontRole, family: String?, face: AppearanceFontFace? = nil, dark: Bool) -> Bool {
+    commitAppearance(appearance.settingFont(role, family: family, face: face, dark: dark))
+  }
+  @discardableResult func importThemeShare(_ text: String, dark: Bool) -> Bool {
+    do { return commitAppearance(try appearance.importingThemeShare(text, dark: dark)) }
+    catch { generalSettingsError = error.localizedDescription; return false }
+  }
   var appearance: AppearancePreferences {
     get { library.appearance ?? AppearancePreferences() }
     set {

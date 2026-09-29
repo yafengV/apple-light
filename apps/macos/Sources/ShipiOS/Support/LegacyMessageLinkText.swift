@@ -82,11 +82,11 @@ struct LegacyMessageLinkText: NSViewRepresentable {
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = lineSpacing
     paragraph.alignment = alignment == .center ? .center : alignment == .trailing ? .right : .natural
-    let base = appearance.nativeFont(size: size)
+    let base = appearance.nativeFont(size: size, content: true)
     for run in text.runs {
       let intent = run.inlinePresentationIntent ?? []
-      var font = intent.contains(.code) ? NSFont.monospacedSystemFont(ofSize: base.pointSize, weight: weight)
-        : NSFont(descriptor: base.fontDescriptor.addingAttributes([
+      var font = intent.contains(.code) ? appearance.nativeFont(size: 12, code: true).withSize(base.pointSize)
+        : weight == .regular ? base : NSFont(descriptor: base.fontDescriptor.addingAttributes([
           .traits: [NSFontDescriptor.TraitKey.weight: weight.rawValue]]), size: base.pointSize) ?? base
       if intent.contains(.stronglyEmphasized) { font = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) }
       if intent.contains(.emphasized) { font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask) }

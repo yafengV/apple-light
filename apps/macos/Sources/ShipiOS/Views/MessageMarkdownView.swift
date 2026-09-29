@@ -15,7 +15,7 @@ struct MessageMarkdownView: View {
       .environment(\.conversationRunID, runID)
       .environment(\.conversationResponsePart, partPrefix)
       .environment(\.messageLinkActions, linkActions)
-      .appFont(size: 14).lineSpacing(5).textSelection(.enabled)
+      .appContentFont(size: 14).lineSpacing(5).textSelection(.enabled)
       .tint(appearance.accentColor)
       .environment(
         \.openURL,
@@ -57,7 +57,7 @@ private struct MessageBlockView: View {
     case .heading(let level):
       ConversationSearchText(block.text, id: .init(run: runID, part: partPrefix + "." + block.id),
         nativeFontSize: level == 1 ? 23 : level == 2 ? 19 : 16, nativeWeight: .semibold)
-        .appFont(size: level == 1 ? 23 : level == 2 ? 19 : 16, weight: .semibold)
+        .appContentFont(size: level == 1 ? 23 : level == 2 ? 19 : 16, weight: .semibold)
         .accessibilityAddTraits(.isHeader).padding(.top, 6)
     case .code(let language):
       MessageCodeBlock(

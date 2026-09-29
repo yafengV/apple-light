@@ -1,0 +1,1162 @@
+{
+  "version": "26.911.61220",
+  "build": "9647",
+  "cases": [
+    {
+      "value": {
+        "codeThemeId": "ayu",
+        "variant": "dark",
+        "theme": {
+          "accent": "#e6b450",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#bfbdb6",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#70bf56",
+            "diffRemoved": "#f26d78",
+            "skill": "#d0a1ff"
+          },
+          "surface": "#10141c"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"ayu\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#e6b450\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#bfbdb6\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#70bf56\",\"diffRemoved\":\"#f26d78\",\"skill\":\"#d0a1ff\"},\"surface\":\"#10141c\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22ayu%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23e6b450%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23bfbdb6%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2370bf56%22%2C%22diffRemoved%22%3A%22%23f26d78%22%2C%22skill%22%3A%22%23d0a1ff%22%7D%2C%22surface%22%3A%22%2310141c%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "catppuccin",
+        "variant": "dark",
+        "theme": {
+          "accent": "#cba6f7",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#cdd6f4",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#a6e3a1",
+            "diffRemoved": "#f38ba8",
+            "skill": "#cba6f7"
+          },
+          "surface": "#1e1e2e"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"catppuccin\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#cba6f7\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#cdd6f4\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#a6e3a1\",\"diffRemoved\":\"#f38ba8\",\"skill\":\"#cba6f7\"},\"surface\":\"#1e1e2e\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22catppuccin%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23cba6f7%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23cdd6f4%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23a6e3a1%22%2C%22diffRemoved%22%3A%22%23f38ba8%22%2C%22skill%22%3A%22%23cba6f7%22%7D%2C%22surface%22%3A%22%231e1e2e%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "catppuccin",
+        "variant": "light",
+        "theme": {
+          "accent": "#8839ef",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#4c4f69",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#40a02b",
+            "diffRemoved": "#d20f39",
+            "skill": "#8839ef"
+          },
+          "surface": "#eff1f5"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"catppuccin\",\"variant\":\"light\",\"theme\":{\"accent\":\"#8839ef\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#4c4f69\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#40a02b\",\"diffRemoved\":\"#d20f39\",\"skill\":\"#8839ef\"},\"surface\":\"#eff1f5\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22catppuccin%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%238839ef%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%234c4f69%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2340a02b%22%2C%22diffRemoved%22%3A%22%23d20f39%22%2C%22skill%22%3A%22%238839ef%22%7D%2C%22surface%22%3A%22%23eff1f5%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "absolutely",
+        "variant": "dark",
+        "theme": {
+          "accent": "#cc7d5e",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#f9f9f7",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#00c853",
+            "diffRemoved": "#ff5f38",
+            "skill": "#cc7d5e"
+          },
+          "surface": "#2d2d2b"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"absolutely\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#cc7d5e\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#f9f9f7\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#00c853\",\"diffRemoved\":\"#ff5f38\",\"skill\":\"#cc7d5e\"},\"surface\":\"#2d2d2b\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22absolutely%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23cc7d5e%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23f9f9f7%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300c853%22%2C%22diffRemoved%22%3A%22%23ff5f38%22%2C%22skill%22%3A%22%23cc7d5e%22%7D%2C%22surface%22%3A%22%232d2d2b%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "absolutely",
+        "variant": "light",
+        "theme": {
+          "accent": "#cc7d5e",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#2d2d2b",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#00c853",
+            "diffRemoved": "#ff5f38",
+            "skill": "#cc7d5e"
+          },
+          "surface": "#f9f9f7"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"absolutely\",\"variant\":\"light\",\"theme\":{\"accent\":\"#cc7d5e\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#2d2d2b\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#00c853\",\"diffRemoved\":\"#ff5f38\",\"skill\":\"#cc7d5e\"},\"surface\":\"#f9f9f7\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22absolutely%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23cc7d5e%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%232d2d2b%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300c853%22%2C%22diffRemoved%22%3A%22%23ff5f38%22%2C%22skill%22%3A%22%23cc7d5e%22%7D%2C%22surface%22%3A%22%23f9f9f7%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "codex",
+        "variant": "dark",
+        "theme": {
+          "accent": "#0169cc",
+          "accentSource": "chatgpt",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#fcfcfc",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#00a240",
+            "diffRemoved": "#e02e2a",
+            "skill": "#b06dff"
+          },
+          "surface": "#111111"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"codex\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#0169cc\",\"accentSource\":\"chatgpt\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#fcfcfc\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#00a240\",\"diffRemoved\":\"#e02e2a\",\"skill\":\"#b06dff\"},\"surface\":\"#111111\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22codex%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%230169cc%22%2C%22accentSource%22%3A%22chatgpt%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23fcfcfc%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300a240%22%2C%22diffRemoved%22%3A%22%23e02e2a%22%2C%22skill%22%3A%22%23b06dff%22%7D%2C%22surface%22%3A%22%23111111%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "codex",
+        "variant": "light",
+        "theme": {
+          "accent": "#0169cc",
+          "accentSource": "chatgpt",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#0d0d0d",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#00a240",
+            "diffRemoved": "#e02e2a",
+            "skill": "#751ed9"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"codex\",\"variant\":\"light\",\"theme\":{\"accent\":\"#0169cc\",\"accentSource\":\"chatgpt\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#0d0d0d\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#00a240\",\"diffRemoved\":\"#e02e2a\",\"skill\":\"#751ed9\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22codex%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%230169cc%22%2C%22accentSource%22%3A%22chatgpt%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%230d0d0d%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300a240%22%2C%22diffRemoved%22%3A%22%23e02e2a%22%2C%22skill%22%3A%22%23751ed9%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "dracula",
+        "variant": "dark",
+        "theme": {
+          "accent": "#ff79c6",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#f8f8f2",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#50fa7b",
+            "diffRemoved": "#ff5555",
+            "skill": "#ff79c6"
+          },
+          "surface": "#282a36"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"dracula\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#ff79c6\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#f8f8f2\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#50fa7b\",\"diffRemoved\":\"#ff5555\",\"skill\":\"#ff79c6\"},\"surface\":\"#282a36\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22dracula%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23ff79c6%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23f8f8f2%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2350fa7b%22%2C%22diffRemoved%22%3A%22%23ff5555%22%2C%22skill%22%3A%22%23ff79c6%22%7D%2C%22surface%22%3A%22%23282a36%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "everforest",
+        "variant": "dark",
+        "theme": {
+          "accent": "#a7c080",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#d3c6aa",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#a7c080",
+            "diffRemoved": "#e67e80",
+            "skill": "#d699b6"
+          },
+          "surface": "#2d353b"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"everforest\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#a7c080\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#d3c6aa\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#a7c080\",\"diffRemoved\":\"#e67e80\",\"skill\":\"#d699b6\"},\"surface\":\"#2d353b\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22everforest%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23a7c080%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23d3c6aa%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23a7c080%22%2C%22diffRemoved%22%3A%22%23e67e80%22%2C%22skill%22%3A%22%23d699b6%22%7D%2C%22surface%22%3A%22%232d353b%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "everforest",
+        "variant": "light",
+        "theme": {
+          "accent": "#93b259",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#5c6a72",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#8da101",
+            "diffRemoved": "#f85552",
+            "skill": "#df69ba"
+          },
+          "surface": "#fdf6e3"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"everforest\",\"variant\":\"light\",\"theme\":{\"accent\":\"#93b259\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#5c6a72\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#8da101\",\"diffRemoved\":\"#f85552\",\"skill\":\"#df69ba\"},\"surface\":\"#fdf6e3\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22everforest%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%2393b259%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%235c6a72%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%238da101%22%2C%22diffRemoved%22%3A%22%23f85552%22%2C%22skill%22%3A%22%23df69ba%22%7D%2C%22surface%22%3A%22%23fdf6e3%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "github",
+        "variant": "dark",
+        "theme": {
+          "accent": "#1f6feb",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#e6edf3",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#3fb950",
+            "diffRemoved": "#f85149",
+            "skill": "#bc8cff"
+          },
+          "surface": "#0d1117"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"github\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#1f6feb\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#e6edf3\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#3fb950\",\"diffRemoved\":\"#f85149\",\"skill\":\"#bc8cff\"},\"surface\":\"#0d1117\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22github%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%231f6feb%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23e6edf3%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%233fb950%22%2C%22diffRemoved%22%3A%22%23f85149%22%2C%22skill%22%3A%22%23bc8cff%22%7D%2C%22surface%22%3A%22%230d1117%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "github",
+        "variant": "light",
+        "theme": {
+          "accent": "#0969da",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#1f2328",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#1a7f37",
+            "diffRemoved": "#cf222e",
+            "skill": "#8250df"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"github\",\"variant\":\"light\",\"theme\":{\"accent\":\"#0969da\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#1f2328\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#1a7f37\",\"diffRemoved\":\"#cf222e\",\"skill\":\"#8250df\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22github%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%230969da%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%231f2328%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%231a7f37%22%2C%22diffRemoved%22%3A%22%23cf222e%22%2C%22skill%22%3A%22%238250df%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "gruvbox",
+        "variant": "dark",
+        "theme": {
+          "accent": "#458588",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#ebdbb2",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#ebdbb2",
+            "diffRemoved": "#cc241d",
+            "skill": "#b16286"
+          },
+          "surface": "#282828"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"gruvbox\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#458588\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#ebdbb2\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#ebdbb2\",\"diffRemoved\":\"#cc241d\",\"skill\":\"#b16286\"},\"surface\":\"#282828\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22gruvbox%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23458588%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23ebdbb2%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23ebdbb2%22%2C%22diffRemoved%22%3A%22%23cc241d%22%2C%22skill%22%3A%22%23b16286%22%7D%2C%22surface%22%3A%22%23282828%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "gruvbox",
+        "variant": "light",
+        "theme": {
+          "accent": "#458588",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#3c3836",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#3c3836",
+            "diffRemoved": "#cc241d",
+            "skill": "#b16286"
+          },
+          "surface": "#fbf1c7"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"gruvbox\",\"variant\":\"light\",\"theme\":{\"accent\":\"#458588\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#3c3836\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#3c3836\",\"diffRemoved\":\"#cc241d\",\"skill\":\"#b16286\"},\"surface\":\"#fbf1c7\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22gruvbox%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23458588%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%233c3836%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%233c3836%22%2C%22diffRemoved%22%3A%22%23cc241d%22%2C%22skill%22%3A%22%23b16286%22%7D%2C%22surface%22%3A%22%23fbf1c7%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "linear",
+        "variant": "dark",
+        "theme": {
+          "accent": "#606acc",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": "Inter"
+          },
+          "ink": "#e3e4e6",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#69c967",
+            "diffRemoved": "#ff7e78",
+            "skill": "#c2a1ff"
+          },
+          "surface": "#0f0f11"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"linear\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#606acc\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":\"Inter\"},\"ink\":\"#e3e4e6\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#69c967\",\"diffRemoved\":\"#ff7e78\",\"skill\":\"#c2a1ff\"},\"surface\":\"#0f0f11\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22linear%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23606acc%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3A%22Inter%22%7D%2C%22ink%22%3A%22%23e3e4e6%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2369c967%22%2C%22diffRemoved%22%3A%22%23ff7e78%22%2C%22skill%22%3A%22%23c2a1ff%22%7D%2C%22surface%22%3A%22%230f0f11%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "linear",
+        "variant": "light",
+        "theme": {
+          "accent": "#5e6ad2",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": "Inter"
+          },
+          "ink": "#1b1b1b",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#52a450",
+            "diffRemoved": "#c94446",
+            "skill": "#8160d8"
+          },
+          "surface": "#fcfcfd"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"linear\",\"variant\":\"light\",\"theme\":{\"accent\":\"#5e6ad2\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":\"Inter\"},\"ink\":\"#1b1b1b\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#52a450\",\"diffRemoved\":\"#c94446\",\"skill\":\"#8160d8\"},\"surface\":\"#fcfcfd\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22linear%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%235e6ad2%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3A%22Inter%22%7D%2C%22ink%22%3A%22%231b1b1b%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2352a450%22%2C%22diffRemoved%22%3A%22%23c94446%22%2C%22skill%22%3A%22%238160d8%22%7D%2C%22surface%22%3A%22%23fcfcfd%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "lobster",
+        "variant": "dark",
+        "theme": {
+          "accent": "#ff5c5c",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": "Satoshi"
+          },
+          "ink": "#e4e4e7",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#22c55e",
+            "diffRemoved": "#ff5c5c",
+            "skill": "#3b82f6"
+          },
+          "surface": "#111827"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"lobster\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#ff5c5c\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":\"Satoshi\"},\"ink\":\"#e4e4e7\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#22c55e\",\"diffRemoved\":\"#ff5c5c\",\"skill\":\"#3b82f6\"},\"surface\":\"#111827\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22lobster%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23ff5c5c%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3A%22Satoshi%22%7D%2C%22ink%22%3A%22%23e4e4e7%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2322c55e%22%2C%22diffRemoved%22%3A%22%23ff5c5c%22%2C%22skill%22%3A%22%233b82f6%22%7D%2C%22surface%22%3A%22%23111827%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "material",
+        "variant": "dark",
+        "theme": {
+          "accent": "#80cbc4",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#eeffff",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#c3e88d",
+            "diffRemoved": "#f07178",
+            "skill": "#c792ea"
+          },
+          "surface": "#212121"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"material\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#80cbc4\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#eeffff\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#c3e88d\",\"diffRemoved\":\"#f07178\",\"skill\":\"#c792ea\"},\"surface\":\"#212121\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22material%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%2380cbc4%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23eeffff%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23c3e88d%22%2C%22diffRemoved%22%3A%22%23f07178%22%2C%22skill%22%3A%22%23c792ea%22%7D%2C%22surface%22%3A%22%23212121%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "matrix",
+        "variant": "dark",
+        "theme": {
+          "accent": "#1eff5a",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": "ui-monospace, \"SFMono-Regular\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
+          },
+          "ink": "#b8ffca",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#1eff5a",
+            "diffRemoved": "#fa423e",
+            "skill": "#1eff5a"
+          },
+          "surface": "#040805"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"matrix\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#1eff5a\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":\"ui-monospace, \\\"SFMono-Regular\\\", \\\"SF Mono\\\", Menlo, Consolas, \\\"Liberation Mono\\\", monospace\"},\"ink\":\"#b8ffca\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#1eff5a\",\"diffRemoved\":\"#fa423e\",\"skill\":\"#1eff5a\"},\"surface\":\"#040805\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22matrix%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%231eff5a%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3A%22ui-monospace%2C%20%5C%22SFMono-Regular%5C%22%2C%20%5C%22SF%20Mono%5C%22%2C%20Menlo%2C%20Consolas%2C%20%5C%22Liberation%20Mono%5C%22%2C%20monospace%22%7D%2C%22ink%22%3A%22%23b8ffca%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%231eff5a%22%2C%22diffRemoved%22%3A%22%23fa423e%22%2C%22skill%22%3A%22%231eff5a%22%7D%2C%22surface%22%3A%22%23040805%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "monokai",
+        "variant": "dark",
+        "theme": {
+          "accent": "#99947c",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#f8f8f2",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#86b42b",
+            "diffRemoved": "#c4265e",
+            "skill": "#8c6bc8"
+          },
+          "surface": "#272822"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"monokai\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#99947c\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#f8f8f2\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#86b42b\",\"diffRemoved\":\"#c4265e\",\"skill\":\"#8c6bc8\"},\"surface\":\"#272822\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22monokai%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%2399947c%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23f8f8f2%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2386b42b%22%2C%22diffRemoved%22%3A%22%23c4265e%22%2C%22skill%22%3A%22%238c6bc8%22%7D%2C%22surface%22%3A%22%23272822%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "night-owl",
+        "variant": "dark",
+        "theme": {
+          "accent": "#44596b",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#d6deeb",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#c5e478",
+            "diffRemoved": "#ef5350",
+            "skill": "#c792ea"
+          },
+          "surface": "#011627"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"night-owl\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#44596b\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#d6deeb\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#c5e478\",\"diffRemoved\":\"#ef5350\",\"skill\":\"#c792ea\"},\"surface\":\"#011627\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22night-owl%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%2344596b%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23d6deeb%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23c5e478%22%2C%22diffRemoved%22%3A%22%23ef5350%22%2C%22skill%22%3A%22%23c792ea%22%7D%2C%22surface%22%3A%22%23011627%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "nord",
+        "variant": "dark",
+        "theme": {
+          "accent": "#88c0d0",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#d8dee9",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#a3be8c",
+            "diffRemoved": "#bf616a",
+            "skill": "#b48ead"
+          },
+          "surface": "#2e3440"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"nord\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#88c0d0\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#d8dee9\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#a3be8c\",\"diffRemoved\":\"#bf616a\",\"skill\":\"#b48ead\"},\"surface\":\"#2e3440\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22nord%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%2388c0d0%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23d8dee9%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23a3be8c%22%2C%22diffRemoved%22%3A%22%23bf616a%22%2C%22skill%22%3A%22%23b48ead%22%7D%2C%22surface%22%3A%22%232e3440%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "notion",
+        "variant": "dark",
+        "theme": {
+          "accent": "#3183d8",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#d9d9d8",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#4ec9b0",
+            "diffRemoved": "#fa423e",
+            "skill": "#3183d8"
+          },
+          "surface": "#191919"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"notion\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#3183d8\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#d9d9d8\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#4ec9b0\",\"diffRemoved\":\"#fa423e\",\"skill\":\"#3183d8\"},\"surface\":\"#191919\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22notion%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%233183d8%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23d9d9d8%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%234ec9b0%22%2C%22diffRemoved%22%3A%22%23fa423e%22%2C%22skill%22%3A%22%233183d8%22%7D%2C%22surface%22%3A%22%23191919%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "notion",
+        "variant": "light",
+        "theme": {
+          "accent": "#3183d8",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#37352f",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#008000",
+            "diffRemoved": "#a31515",
+            "skill": "#0000ff"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"notion\",\"variant\":\"light\",\"theme\":{\"accent\":\"#3183d8\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#37352f\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#008000\",\"diffRemoved\":\"#a31515\",\"skill\":\"#0000ff\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22notion%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%233183d8%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%2337352f%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23008000%22%2C%22diffRemoved%22%3A%22%23a31515%22%2C%22skill%22%3A%22%230000ff%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "oscurange",
+        "variant": "dark",
+        "theme": {
+          "accent": "#f9b98c",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#e6e6e6",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#40c977",
+            "diffRemoved": "#fa423e",
+            "skill": "#479ffa"
+          },
+          "surface": "#0b0b0f"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"oscurange\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#f9b98c\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#e6e6e6\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#40c977\",\"diffRemoved\":\"#fa423e\",\"skill\":\"#479ffa\"},\"surface\":\"#0b0b0f\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22oscurange%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23f9b98c%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23e6e6e6%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2340c977%22%2C%22diffRemoved%22%3A%22%23fa423e%22%2C%22skill%22%3A%22%23479ffa%22%7D%2C%22surface%22%3A%22%230b0b0f%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "one",
+        "variant": "dark",
+        "theme": {
+          "accent": "#4d78cc",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#abb2bf",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#8cc265",
+            "diffRemoved": "#e05561",
+            "skill": "#c162de"
+          },
+          "surface": "#282c34"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"one\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#4d78cc\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#abb2bf\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#8cc265\",\"diffRemoved\":\"#e05561\",\"skill\":\"#c162de\"},\"surface\":\"#282c34\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22one%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%234d78cc%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23abb2bf%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%238cc265%22%2C%22diffRemoved%22%3A%22%23e05561%22%2C%22skill%22%3A%22%23c162de%22%7D%2C%22surface%22%3A%22%23282c34%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "one",
+        "variant": "light",
+        "theme": {
+          "accent": "#526fff",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#383a42",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#3bba54",
+            "diffRemoved": "#e45649",
+            "skill": "#526fff"
+          },
+          "surface": "#fafafa"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"one\",\"variant\":\"light\",\"theme\":{\"accent\":\"#526fff\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#383a42\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#3bba54\",\"diffRemoved\":\"#e45649\",\"skill\":\"#526fff\"},\"surface\":\"#fafafa\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22one%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23526fff%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23383a42%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%233bba54%22%2C%22diffRemoved%22%3A%22%23e45649%22%2C%22skill%22%3A%22%23526fff%22%7D%2C%22surface%22%3A%22%23fafafa%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "proof",
+        "variant": "light",
+        "theme": {
+          "accent": "#3d755d",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#2f312d",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#3d755d",
+            "diffRemoved": "#ba2623",
+            "skill": "#5f6ac2"
+          },
+          "surface": "#f5f3ed"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"proof\",\"variant\":\"light\",\"theme\":{\"accent\":\"#3d755d\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#2f312d\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#3d755d\",\"diffRemoved\":\"#ba2623\",\"skill\":\"#5f6ac2\"},\"surface\":\"#f5f3ed\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22proof%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%233d755d%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%232f312d%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%233d755d%22%2C%22diffRemoved%22%3A%22%23ba2623%22%2C%22skill%22%3A%22%235f6ac2%22%7D%2C%22surface%22%3A%22%23f5f3ed%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "raycast",
+        "variant": "dark",
+        "theme": {
+          "accent": "#ff6363",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": "\"Jetbrains Mono\"",
+            "ui": "Inter"
+          },
+          "ink": "#fefefe",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#59d499",
+            "diffRemoved": "#ff6363",
+            "skill": "#cf2f98"
+          },
+          "surface": "#101010"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"raycast\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#ff6363\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":\"\\\"Jetbrains Mono\\\"\",\"ui\":\"Inter\"},\"ink\":\"#fefefe\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#59d499\",\"diffRemoved\":\"#ff6363\",\"skill\":\"#cf2f98\"},\"surface\":\"#101010\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22raycast%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23ff6363%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3A%22%5C%22Jetbrains%20Mono%5C%22%22%2C%22ui%22%3A%22Inter%22%7D%2C%22ink%22%3A%22%23fefefe%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2359d499%22%2C%22diffRemoved%22%3A%22%23ff6363%22%2C%22skill%22%3A%22%23cf2f98%22%7D%2C%22surface%22%3A%22%23101010%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "raycast",
+        "variant": "light",
+        "theme": {
+          "accent": "#ff6363",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": "\"Jetbrains Mono\"",
+            "ui": "Inter"
+          },
+          "ink": "#030303",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#006b4f",
+            "diffRemoved": "#b12424",
+            "skill": "#9a1b6e"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"raycast\",\"variant\":\"light\",\"theme\":{\"accent\":\"#ff6363\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":\"\\\"Jetbrains Mono\\\"\",\"ui\":\"Inter\"},\"ink\":\"#030303\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#006b4f\",\"diffRemoved\":\"#b12424\",\"skill\":\"#9a1b6e\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22raycast%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23ff6363%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3A%22%5C%22Jetbrains%20Mono%5C%22%22%2C%22ui%22%3A%22Inter%22%7D%2C%22ink%22%3A%22%23030303%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23006b4f%22%2C%22diffRemoved%22%3A%22%23b12424%22%2C%22skill%22%3A%22%239a1b6e%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "rose-pine",
+        "variant": "dark",
+        "theme": {
+          "accent": "#ea9a97",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#e0def4",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#9ccfd8",
+            "diffRemoved": "#908caa",
+            "skill": "#c4a7e7"
+          },
+          "surface": "#232136"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"rose-pine\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#ea9a97\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#e0def4\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#9ccfd8\",\"diffRemoved\":\"#908caa\",\"skill\":\"#c4a7e7\"},\"surface\":\"#232136\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22rose-pine%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23ea9a97%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23e0def4%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%239ccfd8%22%2C%22diffRemoved%22%3A%22%23908caa%22%2C%22skill%22%3A%22%23c4a7e7%22%7D%2C%22surface%22%3A%22%23232136%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "rose-pine",
+        "variant": "light",
+        "theme": {
+          "accent": "#d7827e",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#575279",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#56949f",
+            "diffRemoved": "#797593",
+            "skill": "#907aa9"
+          },
+          "surface": "#faf4ed"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"rose-pine\",\"variant\":\"light\",\"theme\":{\"accent\":\"#d7827e\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#575279\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#56949f\",\"diffRemoved\":\"#797593\",\"skill\":\"#907aa9\"},\"surface\":\"#faf4ed\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22rose-pine%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23d7827e%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23575279%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2356949f%22%2C%22diffRemoved%22%3A%22%23797593%22%2C%22skill%22%3A%22%23907aa9%22%7D%2C%22surface%22%3A%22%23faf4ed%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "sentry",
+        "variant": "dark",
+        "theme": {
+          "accent": "#7055f6",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#e6dff9",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#8ee6d7",
+            "diffRemoved": "#fa423e",
+            "skill": "#7055f6"
+          },
+          "surface": "#2d2935"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"sentry\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#7055f6\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#e6dff9\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#8ee6d7\",\"diffRemoved\":\"#fa423e\",\"skill\":\"#7055f6\"},\"surface\":\"#2d2935\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22sentry%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%237055f6%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23e6dff9%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%238ee6d7%22%2C%22diffRemoved%22%3A%22%23fa423e%22%2C%22skill%22%3A%22%237055f6%22%7D%2C%22surface%22%3A%22%232d2935%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "solarized",
+        "variant": "dark",
+        "theme": {
+          "accent": "#d30102",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#839496",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#859900",
+            "diffRemoved": "#dc322f",
+            "skill": "#d33682"
+          },
+          "surface": "#002b36"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"solarized\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#d30102\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#839496\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#859900\",\"diffRemoved\":\"#dc322f\",\"skill\":\"#d33682\"},\"surface\":\"#002b36\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22solarized%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23d30102%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23839496%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23859900%22%2C%22diffRemoved%22%3A%22%23dc322f%22%2C%22skill%22%3A%22%23d33682%22%7D%2C%22surface%22%3A%22%23002b36%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "solarized",
+        "variant": "light",
+        "theme": {
+          "accent": "#b58900",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#657b83",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#859900",
+            "diffRemoved": "#dc322f",
+            "skill": "#d33682"
+          },
+          "surface": "#fdf6e3"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"solarized\",\"variant\":\"light\",\"theme\":{\"accent\":\"#b58900\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#657b83\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#859900\",\"diffRemoved\":\"#dc322f\",\"skill\":\"#d33682\"},\"surface\":\"#fdf6e3\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22solarized%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23b58900%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23657b83%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23859900%22%2C%22diffRemoved%22%3A%22%23dc322f%22%2C%22skill%22%3A%22%23d33682%22%7D%2C%22surface%22%3A%22%23fdf6e3%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "tokyo-night",
+        "variant": "dark",
+        "theme": {
+          "accent": "#3d59a1",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#a9b1d6",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#449dab",
+            "diffRemoved": "#914c54",
+            "skill": "#9d7cd8"
+          },
+          "surface": "#1a1b26"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"tokyo-night\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#3d59a1\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#a9b1d6\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#449dab\",\"diffRemoved\":\"#914c54\",\"skill\":\"#9d7cd8\"},\"surface\":\"#1a1b26\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22tokyo-night%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%233d59a1%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23a9b1d6%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23449dab%22%2C%22diffRemoved%22%3A%22%23914c54%22%2C%22skill%22%3A%22%239d7cd8%22%7D%2C%22surface%22%3A%22%231a1b26%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "temple",
+        "variant": "dark",
+        "theme": {
+          "accent": "#e4f222",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#c7e6da",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#40c977",
+            "diffRemoved": "#fa423e",
+            "skill": "#e4f222"
+          },
+          "surface": "#02120c"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"temple\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#e4f222\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#c7e6da\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#40c977\",\"diffRemoved\":\"#fa423e\",\"skill\":\"#e4f222\"},\"surface\":\"#02120c\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22temple%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23e4f222%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23c7e6da%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2340c977%22%2C%22diffRemoved%22%3A%22%23fa423e%22%2C%22skill%22%3A%22%23e4f222%22%7D%2C%22surface%22%3A%22%2302120c%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "vercel",
+        "variant": "dark",
+        "theme": {
+          "accent": "#006efe",
+          "accentSource": "custom",
+          "contrast": 50,
+          "fonts": {
+            "code": "\"Geist Mono\", ui-monospace, \"SFMono-Regular\"",
+            "ui": "Geist, Inter"
+          },
+          "ink": "#ededed",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#00ad3a",
+            "diffRemoved": "#f13342",
+            "skill": "#9540d5"
+          },
+          "surface": "#000000"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"vercel\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#006efe\",\"accentSource\":\"custom\",\"contrast\":50,\"fonts\":{\"code\":\"\\\"Geist Mono\\\", ui-monospace, \\\"SFMono-Regular\\\"\",\"ui\":\"Geist, Inter\"},\"ink\":\"#ededed\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#00ad3a\",\"diffRemoved\":\"#f13342\",\"skill\":\"#9540d5\"},\"surface\":\"#000000\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22vercel%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23006efe%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A50%2C%22fonts%22%3A%7B%22code%22%3A%22%5C%22Geist%20Mono%5C%22%2C%20ui-monospace%2C%20%5C%22SFMono-Regular%5C%22%22%2C%22ui%22%3A%22Geist%2C%20Inter%22%7D%2C%22ink%22%3A%22%23ededed%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300ad3a%22%2C%22diffRemoved%22%3A%22%23f13342%22%2C%22skill%22%3A%22%239540d5%22%7D%2C%22surface%22%3A%22%23000000%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "vercel",
+        "variant": "light",
+        "theme": {
+          "accent": "#006aff",
+          "accentSource": "custom",
+          "contrast": 40,
+          "fonts": {
+            "code": "\"Geist Mono\", ui-monospace, \"SFMono-Regular\"",
+            "ui": "Geist, Inter"
+          },
+          "ink": "#171717",
+          "opaqueWindows": true,
+          "semanticColors": {
+            "diffAdded": "#28a948",
+            "diffRemoved": "#eb001d",
+            "skill": "#a100f8"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"vercel\",\"variant\":\"light\",\"theme\":{\"accent\":\"#006aff\",\"accentSource\":\"custom\",\"contrast\":40,\"fonts\":{\"code\":\"\\\"Geist Mono\\\", ui-monospace, \\\"SFMono-Regular\\\"\",\"ui\":\"Geist, Inter\"},\"ink\":\"#171717\",\"opaqueWindows\":true,\"semanticColors\":{\"diffAdded\":\"#28a948\",\"diffRemoved\":\"#eb001d\",\"skill\":\"#a100f8\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22vercel%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23006aff%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A40%2C%22fonts%22%3A%7B%22code%22%3A%22%5C%22Geist%20Mono%5C%22%2C%20ui-monospace%2C%20%5C%22SFMono-Regular%5C%22%22%2C%22ui%22%3A%22Geist%2C%20Inter%22%7D%2C%22ink%22%3A%22%23171717%22%2C%22opaqueWindows%22%3Atrue%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2328a948%22%2C%22diffRemoved%22%3A%22%23eb001d%22%2C%22skill%22%3A%22%23a100f8%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "vscode-plus",
+        "variant": "dark",
+        "theme": {
+          "accent": "#007acc",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#d4d4d4",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#369432",
+            "diffRemoved": "#f44747",
+            "skill": "#000080"
+          },
+          "surface": "#1e1e1e"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"vscode-plus\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#007acc\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#d4d4d4\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#369432\",\"diffRemoved\":\"#f44747\",\"skill\":\"#000080\"},\"surface\":\"#1e1e1e\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22vscode-plus%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23007acc%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23d4d4d4%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23369432%22%2C%22diffRemoved%22%3A%22%23f44747%22%2C%22skill%22%3A%22%23000080%22%7D%2C%22surface%22%3A%22%231e1e1e%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "vscode-plus",
+        "variant": "light",
+        "theme": {
+          "accent": "#007acc",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#000000",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#008000",
+            "diffRemoved": "#ee0000",
+            "skill": "#0000ff"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"vscode-plus\",\"variant\":\"light\",\"theme\":{\"accent\":\"#007acc\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#000000\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#008000\",\"diffRemoved\":\"#ee0000\",\"skill\":\"#0000ff\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22vscode-plus%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23007acc%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23000000%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%23008000%22%2C%22diffRemoved%22%3A%22%23ee0000%22%2C%22skill%22%3A%22%230000ff%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "xcode",
+        "variant": "dark",
+        "theme": {
+          "accent": "#5482ff",
+          "accentSource": "custom",
+          "contrast": 60,
+          "fonts": {
+            "code": "\"SFMono-Medium\"",
+            "ui": null
+          },
+          "ink": "#ffffff",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#67b7a4",
+            "diffRemoved": "#fc6a5d",
+            "skill": "#5482ff"
+          },
+          "surface": "#1f1f24"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"xcode\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#5482ff\",\"accentSource\":\"custom\",\"contrast\":60,\"fonts\":{\"code\":\"\\\"SFMono-Medium\\\"\",\"ui\":null},\"ink\":\"#ffffff\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#67b7a4\",\"diffRemoved\":\"#fc6a5d\",\"skill\":\"#5482ff\"},\"surface\":\"#1f1f24\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22xcode%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%235482ff%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3A%22%5C%22SFMono-Medium%5C%22%22%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23ffffff%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2367b7a4%22%2C%22diffRemoved%22%3A%22%23fc6a5d%22%2C%22skill%22%3A%22%235482ff%22%7D%2C%22surface%22%3A%22%231f1f24%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "xcode",
+        "variant": "light",
+        "theme": {
+          "accent": "#0e0eff",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "code": "\"SFMono-Regular\"",
+            "ui": null
+          },
+          "ink": "#000000",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#00a240",
+            "diffRemoved": "#c41a16",
+            "skill": "#0e0eff"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"xcode\",\"variant\":\"light\",\"theme\":{\"accent\":\"#0e0eff\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"code\":\"\\\"SFMono-Regular\\\"\",\"ui\":null},\"ink\":\"#000000\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#00a240\",\"diffRemoved\":\"#c41a16\",\"skill\":\"#0e0eff\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22xcode%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%230e0eff%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3A%22%5C%22SFMono-Regular%5C%22%22%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23000000%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300a240%22%2C%22diffRemoved%22%3A%22%23c41a16%22%2C%22skill%22%3A%22%230e0eff%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "codex",
+        "variant": "light",
+        "theme": {
+          "accent": "#339cff",
+          "accentSource": "chatgpt",
+          "contrast": 45,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#1a1c1f",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#00a240",
+            "diffRemoved": "#ba2623",
+            "skill": "#924ff7"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"codex\",\"variant\":\"light\",\"theme\":{\"accent\":\"#339cff\",\"accentSource\":\"chatgpt\",\"contrast\":45,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#1a1c1f\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#00a240\",\"diffRemoved\":\"#ba2623\",\"skill\":\"#924ff7\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22codex%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23339cff%22%2C%22accentSource%22%3A%22chatgpt%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%231a1c1f%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2300a240%22%2C%22diffRemoved%22%3A%22%23ba2623%22%2C%22skill%22%3A%22%23924ff7%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "codex",
+        "variant": "dark",
+        "theme": {
+          "accent": "#339cff",
+          "accentSource": "chatgpt",
+          "contrast": 60,
+          "fonts": {
+            "code": null,
+            "ui": null
+          },
+          "ink": "#ffffff",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#40c977",
+            "diffRemoved": "#fa423e",
+            "skill": "#ad7bf9"
+          },
+          "surface": "#181818"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"codex\",\"variant\":\"dark\",\"theme\":{\"accent\":\"#339cff\",\"accentSource\":\"chatgpt\",\"contrast\":60,\"fonts\":{\"code\":null,\"ui\":null},\"ink\":\"#ffffff\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#40c977\",\"diffRemoved\":\"#fa423e\",\"skill\":\"#ad7bf9\"},\"surface\":\"#181818\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22codex%22%2C%22variant%22%3A%22dark%22%2C%22theme%22%3A%7B%22accent%22%3A%22%23339cff%22%2C%22accentSource%22%3A%22chatgpt%22%2C%22contrast%22%3A60%2C%22fonts%22%3A%7B%22code%22%3Anull%2C%22ui%22%3Anull%7D%2C%22ink%22%3A%22%23ffffff%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%2340c977%22%2C%22diffRemoved%22%3A%22%23fa423e%22%2C%22skill%22%3A%22%23ad7bf9%22%7D%2C%22surface%22%3A%22%23181818%22%7D%7D"
+    },
+    {
+      "value": {
+        "codeThemeId": "github",
+        "variant": "light",
+        "theme": {
+          "accent": "#0969da",
+          "accentSource": "custom",
+          "contrast": 45,
+          "fonts": {
+            "ui": "\"界面字体 👩🏽‍💻\"",
+            "code": "Menlo",
+            "content": "\"内容字体\"",
+            "contentFace": {
+              "family": "内容字体",
+              "fullName": "内容字体 粗体",
+              "postscriptName": "Content-Bold"
+            }
+          },
+          "ink": "#1f2328",
+          "opaqueWindows": false,
+          "semanticColors": {
+            "diffAdded": "#1a7f37",
+            "diffRemoved": "#cf222e",
+            "skill": "#8250df"
+          },
+          "surface": "#ffffff"
+        }
+      },
+      "text": "codex-theme-v1:{\"codeThemeId\":\"github\",\"variant\":\"light\",\"theme\":{\"accent\":\"#0969da\",\"accentSource\":\"custom\",\"contrast\":45,\"fonts\":{\"ui\":\"\\\"界面字体 👩🏽‍💻\\\"\",\"code\":\"Menlo\",\"content\":\"\\\"内容字体\\\"\",\"contentFace\":{\"family\":\"内容字体\",\"fullName\":\"内容字体 粗体\",\"postscriptName\":\"Content-Bold\"}},\"ink\":\"#1f2328\",\"opaqueWindows\":false,\"semanticColors\":{\"diffAdded\":\"#1a7f37\",\"diffRemoved\":\"#cf222e\",\"skill\":\"#8250df\"},\"surface\":\"#ffffff\"}}",
+      "uriText": "codex-theme-v1:%7B%22codeThemeId%22%3A%22github%22%2C%22variant%22%3A%22light%22%2C%22theme%22%3A%7B%22accent%22%3A%22%230969da%22%2C%22accentSource%22%3A%22custom%22%2C%22contrast%22%3A45%2C%22fonts%22%3A%7B%22ui%22%3A%22%5C%22%E7%95%8C%E9%9D%A2%E5%AD%97%E4%BD%93%20%F0%9F%91%A9%F0%9F%8F%BD%E2%80%8D%F0%9F%92%BB%5C%22%22%2C%22code%22%3A%22Menlo%22%2C%22content%22%3A%22%5C%22%E5%86%85%E5%AE%B9%E5%AD%97%E4%BD%93%5C%22%22%2C%22contentFace%22%3A%7B%22family%22%3A%22%E5%86%85%E5%AE%B9%E5%AD%97%E4%BD%93%22%2C%22fullName%22%3A%22%E5%86%85%E5%AE%B9%E5%AD%97%E4%BD%93%20%E7%B2%97%E4%BD%93%22%2C%22postscriptName%22%3A%22Content-Bold%22%7D%7D%2C%22ink%22%3A%22%231f2328%22%2C%22opaqueWindows%22%3Afalse%2C%22semanticColors%22%3A%7B%22diffAdded%22%3A%22%231a7f37%22%2C%22diffRemoved%22%3A%22%23cf222e%22%2C%22skill%22%3A%22%238250df%22%7D%2C%22surface%22%3A%22%23ffffff%22%7D%7D"
+    }
+  ]
+}

@@ -1,12 +1,10 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct AppearanceSettingsView: View {
   @Bindable var store: WorkspaceStore
-  @State private var selectingCodeFont: Bool?
-  @State private var importing = false
-  @State private var exporting = false
+  private struct ImportTarget: Identifiable { let dark: Bool; var id: String { dark ? "dark" : "light" } }
+  @State private var importTarget: ImportTarget?
   @State private var status: String?
 
   var body: some View {
@@ -23,10 +21,8 @@ struct AppearanceSettingsView: View {
         .settingsSearchTarget(.lightPalette)
       paletteSection("深色主题", key: \.dark, dark: true)
         .settingsSearchTarget(.darkPalette)
-      Section("字体") {
-        fontRow("界面字体", code: false).settingsSearchTarget(.uiFont)
+      Section("字号") {
         Stepper("界面字号：\(Int(store.appearance.uiSize))", value: binding(\.uiSize), in: 11...20).settingsSearchTarget(.uiFontSize)
-        fontRow("代码字体", code: true).settingsSearchTarget(.codeFont)
         Stepper("代码字号：\(Int(store.appearance.codeSize))", value: binding(\.codeSize), in: 10...24).settingsSearchTarget(.codeFontSize)
         Text("代码字体同时用于代码块、文件预览、审查与终端。").appFont(.caption).foregroundStyle(.secondary)
       }
@@ -59,8 +55,6 @@ struct AppearanceSettingsView: View {
       }
       Section {
         HStack {
-          Button("导入主题…") { importing = true }.settingsSearchTarget(.importTheme)
-          Button("导出主题…") { exporting = true }.settingsSearchTarget(.exportTheme)
           Spacer()
           Button("恢复默认外观") {
             store.appearance = AppearancePreferences()
@@ -71,34 +65,8 @@ struct AppearanceSettingsView: View {
         if let status { Text(status).appFont(.caption).textSelection(.enabled) }
       }
     }.settingsFormStyle().appSurface()
-      .sheet(
-        isPresented: Binding(
-          get: { selectingCodeFont != nil }, set: { if !$0 { selectingCodeFont = nil } })
-      ) {
-        FontSelectionView(
-          code: selectingCodeFont == true,
-          selection: fontBinding(code: selectingCodeFont == true))
-      }
-      .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
-        do {
-          let url = try result.get()
-          let scoped = url.startAccessingSecurityScopedResource()
-          defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-          let handle = try FileHandle(forReadingFrom: url)
-          defer { try? handle.close() }
-          let data = try handle.read(upToCount: 65_537) ?? Data()
-          let value = try AppearanceThemeFile.decode(data)
-          status = store.commitAppearance(value) ? "已导入主题。" : "导入失败：" + (store.generalSettingsError ?? "主题未保存。")
-        } catch { status = "导入失败：" + error.localizedDescription }
-      }
-      .fileExporter(
-        isPresented: $exporting, document: ThemeDocument(appearance: store.appearance),
-        contentType: .json, defaultFilename: "ShipiOS-theme"
-      ) { result in
-        switch result {
-        case .success: status = "已导出主题。"
-        case .failure(let error): status = "导出失败：" + error.localizedDescription
-        }
+      .sheet(item: $importTarget) { target in
+        AppearanceThemeImportView(store: store, dark: target.dark, onClose: { importTarget = nil })
       }
   }
 
@@ -135,6 +103,14 @@ struct AppearanceSettingsView: View {
       paletteColorRow("强调色", palette: key, value: \.accent, fallback: .blue)
       paletteColorRow("背景色", palette: key, value: \.background, fallback: background)
       paletteColorRow("前景色", palette: key, value: \.foreground, fallback: foreground)
+      AppearanceFontPicker(store: store, role: .ui, dark: dark)
+        .settingsSearchTarget(.uiFont, when: !dark)
+        .settingsSearchTarget(dark ? .darkUIFont : .lightUIFont)
+      AppearanceFontPicker(store: store, role: .content, dark: dark)
+        .settingsSearchTarget(dark ? .darkContentFont : .lightContentFont)
+      AppearanceFontPicker(store: store, role: .code, dark: dark)
+        .settingsSearchTarget(.codeFont, when: !dark)
+        .settingsSearchTarget(dark ? .darkCodeFont : .lightCodeFont)
       Toggle("半透明侧栏", isOn: paletteBinding(key, \.translucentSidebar))
       HStack {
         Text("对比度")
@@ -158,6 +134,17 @@ struct AppearanceSettingsView: View {
       HStack {
         Text(title)
         Spacer(minLength: 8)
+        HStack(spacing: 8) {
+          Button("导入") { importTarget = .init(dark: dark) }
+            .accessibilityLabel("导入" + title)
+            .settingsSearchTarget(.importTheme, when: !dark)
+          Button("复制主题") {
+            do {
+              try AppearanceThemeClipboard.copy(store.appearance, dark: dark, to: .general)
+              status = "已复制" + title + "。"
+            } catch { status = "复制失败：" + error.localizedDescription }
+          }.accessibilityLabel("复制" + title).settingsSearchTarget(.exportTheme, when: !dark)
+        }.disabled(!store.libraryLoaded).settingsSearchTarget(dark ? .darkThemeShare : .lightThemeShare)
         SettingsMenuInput(title: dark ? "深色代码主题" : "浅色代码主题", selection: Binding(
           get: { dark ? store.appearance.codeThemes.dark : store.appearance.codeThemes.light },
           set: { _ = store.selectCodeTheme($0, dark: dark) }), options: CodeThemeCatalog.options(dark: dark).compactMap { preset in
@@ -171,30 +158,6 @@ struct AppearanceSettingsView: View {
       }
     }
   }
-  private func fontRow(_ title: String, code: Bool) -> some View {
-    LabeledContent(title) {
-      Button {
-        selectingCodeFont = code
-      } label: {
-        let family = code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont
-        Text(family.isEmpty ? "系统默认" : family)
-      }.accessibilityLabel("选择" + title)
-        .accessibilityValue(
-          (code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont).isEmpty
-            ? "系统默认" : (code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont))
-    }
-  }
-  private func fontBinding(code: Bool) -> Binding<String> {
-    Binding(get: { code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont }, set: { family in
-      var value = store.appearance
-      if value.isDark {
-        if code { value.dark.codeFont = family } else { value.dark.uiFont = family }
-      } else {
-        if code { value.light.codeFont = family } else { value.light.uiFont = family }
-      }
-      store.appearance = value
-    })
-  }
   private func paletteColorRow(
     _ title: String, palette: WritableKeyPath<AppearancePreferences, AppearancePalette>,
     value: WritableKeyPath<AppearancePalette, String?>, fallback: Color
@@ -205,66 +168,11 @@ struct AppearanceSettingsView: View {
         title,
         selection: Binding(
           get: { current.flatMap(AppearancePreferences.color) ?? fallback },
-          set: { paletteBinding(palette, value).wrappedValue = AppearancePreferences.hex($0) }),
+          set: { _ = store.setAppearanceColor(AppearancePreferences.hex($0), key: value, dark: palette == \.dark) }),
         supportsOpacity: false)
       Text(current ?? "自动").appFont(.caption).foregroundStyle(.secondary)
-      Button("重置") { paletteBinding(palette, value).wrappedValue = nil }
+      Button("重置") { _ = store.setAppearanceColor(nil, key: value, dark: palette == \.dark) }
         .disabled(current == nil).accessibilityLabel("重置" + title)
     }
-  }
-}
-
-private struct ThemeDocument: FileDocument {
-  static let readableContentTypes: [UTType] = [.json]
-  let appearance: AppearancePreferences
-  init(appearance: AppearancePreferences) { self.appearance = appearance }
-  init(configuration: ReadConfiguration) throws {
-    appearance = try AppearanceThemeFile.decode(configuration.file.regularFileContents ?? Data())
-  }
-  func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    return FileWrapper(
-      regularFileWithContents: try encoder.encode(AppearanceThemeFile(appearance: appearance)))
-  }
-}
-
-private struct FontSelectionView: View {
-  let code: Bool
-  @Binding var selection: String
-  @Environment(\.dismiss) private var dismiss
-  @State private var query = ""
-  @State private var families = NSFontManager.shared.availableFontFamilies.sorted()
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text(code ? "选择代码字体" : "选择界面字体").appFont(.title2, weight: .semibold)
-      TextField("搜索已安装字体", text: $query).textFieldStyle(.roundedBorder)
-      List {
-        choice("", title: "系统默认")
-        ForEach(
-          families.filter { query.isEmpty || $0.localizedCaseInsensitiveContains(query) },
-          id: \.self
-        ) { family in
-          choice(family, title: family)
-        }
-      }
-      HStack {
-        Spacer()
-        Button("关闭") { dismiss() }.keyboardShortcut(.cancelAction)
-      }
-    }.padding(20).frame(width: 440, height: 440)
-  }
-  private func choice(_ family: String, title: String) -> some View {
-    Button {
-      selection = family
-      dismiss()
-    } label: {
-      HStack {
-        Text(title)
-        Spacer()
-        if family == selection { Image(systemName: "checkmark") }
-      }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-    }.buttonStyle(.plain).accessibilityLabel(title)
-      .accessibilityAddTraits(family == selection ? .isSelected : [])
   }
 }

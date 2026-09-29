@@ -21,6 +21,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     preventSleep, enablePlugins
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
     pointer, diffMarkers, reduceMotion, importTheme, exportTheme
+  case lightUIFont, darkUIFont, lightContentFont, darkContentFont, lightCodeFont, darkCodeFont, lightThemeShare, darkThemeShare
   case apiURL, modelID, apiKey, reasoning, tokenUsage
 
   case profileName
@@ -125,7 +126,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   var page: SettingsPage {
     switch self {
     case .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
-      .pointer, .diffMarkers, .reduceMotion, .importTheme, .exportTheme: .appearance
+      .pointer, .diffMarkers, .reduceMotion, .importTheme, .exportTheme,
+      .lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont, .lightThemeShare, .darkThemeShare: .appearance
     case .apiURL, .modelID, .apiKey, .reasoning, .tokenUsage: .model
     case .profileName: .profile
     case .profileUsername: .profile
@@ -309,6 +311,14 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .darkCodeTheme: "深色代码主题"
     case .darkPalette: "深色主题颜色、侧栏透明度与对比度"
     case .uiFont: "界面字体"
+    case .lightUIFont: "浅色界面字体"
+    case .darkUIFont: "深色界面字体"
+    case .lightContentFont: "浅色内容字体"
+    case .darkContentFont: "深色内容字体"
+    case .lightCodeFont: "浅色代码字体"
+    case .darkCodeFont: "深色代码字体"
+    case .lightThemeShare: "浅色主题导入与复制"
+    case .darkThemeShare: "深色主题导入与复制"
     case .uiFontSize: "界面字号"
     case .codeFont: "代码字体"
     case .codeFontSize: "代码字号"
@@ -316,7 +326,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .diffMarkers: "差异标记"
     case .reduceMotion: "减少动态效果"
     case .importTheme: "导入主题"
-    case .exportTheme: "导出主题"
+    case .exportTheme: "复制主题"
     case .apiURL: "基础地址"
     case .modelID: "模型 ID"
     case .apiKey: "API Key"
@@ -416,6 +426,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .apiKey: "API 密钥"
     case .lightPalette, .darkPalette: "强调色 背景色 前景色 半透明侧栏"
     case .lightCodeTheme, .darkCodeTheme: "代码 主题 预设 颜色 theme syntax Codex Xcode Catppuccin GitHub"
+    case .lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont: "字体 样式 family face font style"
+    case .lightThemeShare, .darkThemeShare: "主题 导入 复制 分享 import copy export theme"
     default: rawValue
     }
   }
@@ -456,7 +468,8 @@ enum SettingsSearch {
     }
     return SettingsNavigation.pages.flatMap { page -> [SettingsSearchResult] in
       let fields = SettingsSearchField.allCases.filter {
-        $0.page == page && (!$0.requiresProject || hasProject)
+        $0.page == page && ![SettingsSearchField.uiFont, .codeFont, .importTheme, .exportTheme].contains($0)
+          && (!$0.requiresProject || hasProject)
           && ($0.pluginSection.map { pluginSections.contains($0) } ?? true)
           && ($0 != .agentNetwork || agentSandboxMode == .workspaceWrite)
           && matches([page.title, $0.title, $0.aliases].joined(separator: " "))

@@ -28,6 +28,7 @@ extension AppearancePreferences {
   var diffRemovedColor: Color { CodeSyntaxText.color(activePalette.diffRemoved ?? (isDark ? "#FA423E" : "#BA2623")) ?? .red }
   var effectiveUIFont: String { activePalette.uiFont ?? uiFont }
   var effectiveCodeFont: String { activePalette.codeFont ?? codeFont }
+  var effectiveContentFont: String { fontFamily(.content, dark: isDark) }
   var accentHex: String? { activePalette.accent ?? accent }
   var backgroundHex: String? { activePalette.background ?? background }
   var foregroundHex: String? { activePalette.foreground ?? foreground }
@@ -67,11 +68,15 @@ extension AppearancePreferences {
       .sRGB, red: channel(rgb.redComponent), green: channel(rgb.greenComponent),
       blue: channel(rgb.blueComponent), opacity: rgb.alphaComponent)
   }
-  func nativeFont(size: CGFloat, code: Bool = false) -> NSFont {
+  func nativeFont(size: CGFloat, code: Bool = false, content: Bool = false) -> NSFont {
+    let role: AppearanceFontRole = code ? .code : content ? .content : .ui
     let pointSize = code ? CGFloat(codeSize) + size - 12 : size * CGFloat(uiSize) / 13
-    let families = (code ? effectiveCodeFont : effectiveUIFont).split(separator: ",").map {
+    let families = fontFamily(role, dark: isDark).split(separator: ",").map {
       $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
     }
+    if let face = fontFace(role, dark: isDark), families.contains(where: { $0.caseInsensitiveCompare(face.family) == .orderedSame }),
+      let font = NSFont(name: face.postscriptName, size: pointSize),
+      font.familyName?.caseInsensitiveCompare(face.family) == .orderedSame { return font }
     for family in families where !family.isEmpty {
       if ["ui-monospace", "monospace"].contains(family.lowercased()) {
         return .monospacedSystemFont(ofSize: pointSize, weight: .regular)
@@ -85,12 +90,13 @@ extension AppearancePreferences {
     return code
       ? .monospacedSystemFont(ofSize: pointSize, weight: .regular) : .systemFont(ofSize: pointSize)
   }
-  func font(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
-    let native = nativeFont(size: size, code: design == .monospaced)
-    if (design == .monospaced ? effectiveCodeFont : effectiveUIFont).isEmpty {
+  func font(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default, content: Bool = false) -> Font {
+    let native = nativeFont(size: size, code: design == .monospaced, content: content)
+    if (design == .monospaced ? effectiveCodeFont : content ? effectiveContentFont : effectiveUIFont).isEmpty {
       return .system(size: native.pointSize, weight: weight, design: design)
     }
-    return Font.custom(native.fontName, size: native.pointSize).weight(weight)
+    let custom = Font.custom(native.fontName, size: native.pointSize)
+    return weight == .regular ? custom : custom.weight(weight)
   }
 }
 
@@ -99,8 +105,9 @@ private struct AppFontModifier: ViewModifier {
   var size: CGFloat
   var weight: Font.Weight
   var design: Font.Design
+  var usesContentFont = false
   func body(content: Content) -> some View {
-    content.font(appearance.font(size: size, weight: weight, design: design))
+    content.font(appearance.font(size: size, weight: weight, design: design, content: usesContentFont))
   }
 }
 
@@ -126,6 +133,9 @@ private struct AppSidebarSurfaceModifier: ViewModifier {
   }
 }
 extension View {
+  func appContentFont(size: CGFloat, weight: Font.Weight = .regular) -> some View {
+    modifier(AppFontModifier(size: size, weight: weight, design: .default, usesContentFont: true))
+  }
   /// Native containers paint their own background unless explicitly made transparent.
   func appSurface() -> some View { modifier(AppSurfaceModifier()) }
   func appSidebarSurface() -> some View { modifier(AppSidebarSurfaceModifier()) }

@@ -45,6 +45,10 @@ struct AppearancePalette: Codable, Equatable, Sendable {
   var uiFont: String?
   var codeFont: String?
   var contentFont: String?
+  var uiFace: AppearanceFontFace?
+  var codeFace: AppearanceFontFace?
+  var contentFace: AppearanceFontFace?
+  var accentSource: String?
 
   static let light = Self(contrast: 45)
   static let dark = Self(contrast: 60)
@@ -58,9 +62,13 @@ struct AppearancePalette: Codable, Equatable, Sendable {
     value.diffAdded = AppearancePreferences.validHex(diffAdded)
     value.diffRemoved = AppearancePreferences.validHex(diffRemoved)
     value.skill = AppearancePreferences.validHex(skill)
-    value.uiFont = uiFont.map { String($0.prefix(200)) }
-    value.codeFont = codeFont.map { String($0.prefix(200)) }
-    value.contentFont = contentFont.map { String($0.prefix(200)) }
+    value.uiFont = uiFont.map { String($0.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200)) }
+    value.codeFont = codeFont.map { String($0.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200)) }
+    value.contentFont = contentFont.map { String($0.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200)) }
+    value.uiFace = value.uiFont?.isEmpty == false ? uiFace?.normalized : nil
+    value.codeFace = value.codeFont?.isEmpty == false ? codeFace?.normalized : nil
+    value.contentFace = value.contentFont?.isEmpty == false ? contentFace?.normalized : nil
+    value.accentSource = ["custom", "chatgpt"].contains(accentSource ?? "") ? accentSource : nil
     return value
   }
 }
@@ -135,7 +143,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
     var value = self
     var palette = dark ? self.dark : light
     let patch = variant.patch
-    if let accent = patch.accent { palette.accent = accent }
+    if let accent = patch.accent { palette.accent = accent; palette.accentSource = id == "codex" ? "chatgpt" : "custom" }
     if let foreground = patch.ink { palette.foreground = foreground }
     if let background = patch.surface { palette.background = background }
     if let contrast = patch.contrast { palette.contrast = contrast }
@@ -144,9 +152,9 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
     if let removed = patch.semanticColors?.diffRemoved { palette.diffRemoved = removed }
     if let skill = patch.semanticColors?.skill { palette.skill = skill }
     if let fonts = patch.fonts {
-      if fonts.keys.contains("ui") { palette.uiFont = fonts["ui"]! ?? "" }
-      if fonts.keys.contains("code") { palette.codeFont = fonts["code"]! ?? "" }
-      if fonts.keys.contains("content") { palette.contentFont = fonts["content"]! ?? "" }
+      for role in AppearanceFontRole.allCases where fonts.keys.contains(role.rawValue) {
+        palette.setFont(role, family: fonts[role.rawValue]! ?? "")
+      }
     }
     if dark { value.dark = palette; value.codeThemes.dark = id }
     else { value.light = palette; value.codeThemes.light = id }

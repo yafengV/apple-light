@@ -9,7 +9,7 @@ struct CodexReasoningView: View {
       VStack(alignment: .leading, spacing: 10) {
         ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
           if !section.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            Text(section).appFont(.callout).textSelection(.enabled)
+            Text(section).appContentFont(size: 12).textSelection(.enabled)
               .frame(maxWidth: .infinity, alignment: .leading)
           }
         }

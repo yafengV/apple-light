@@ -1624,7 +1624,7 @@ private struct TaskWindowMessageView: View {
         HStack {
           Spacer(minLength: 36)
           ConversationSearchText(prompt, id: .init(run: run.id, part: "prompt"))
-            .textSelection(.enabled).padding(.horizontal, 16).padding(.vertical, 11)
+            .appContentFont(size: 14).textSelection(.enabled).padding(.horizontal, 16).padding(.vertical, 11)
             .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 15))
         }
       }
@@ -1659,7 +1659,7 @@ private struct TaskWindowMessageView: View {
           ConversationSearchText(run.title, id: .init(run: run.id, part: "operation"))
             .appFont(.callout, weight: .semibold)
           ConversationSearchText(run.displaySummary, id: .init(run: run.id, part: "summary"))
-            .textSelection(.enabled)
+            .appContentFont(size: 14).textSelection(.enabled)
         }
         if !run.isActive {
           HStack(spacing: 12) {

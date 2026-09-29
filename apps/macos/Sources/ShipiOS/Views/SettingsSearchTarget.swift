@@ -48,6 +48,9 @@ private struct SettingsSearchTarget: ViewModifier {
 }
 
 extension View {
+  @ViewBuilder func settingsSearchTarget(_ field: SettingsSearchField, when enabled: Bool) -> some View {
+    if enabled { modifier(SettingsSearchTarget(field: field)) } else { self }
+  }
   func settingsSearchTarget(_ field: SettingsSearchField) -> some View {
     modifier(SettingsSearchTarget(field: field))
   }

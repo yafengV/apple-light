@@ -86,7 +86,7 @@ struct ExecutionMessageView: View {
           store.library.notes[run.id].flatMap { $0.isEmpty ? nil : $0 } ?? store.library.runFiles[run.id]?.first?.name ?? (store.library.runImages[run.id]?.isEmpty == false ? "图片" : run.title),
           id: .init(run: run.id, part: "prompt")
         )
-        .appFont(size: 14).textSelection(.enabled).padding(.horizontal, 17).padding(
+        .appContentFont(size: 14).textSelection(.enabled).padding(.horizontal, 17).padding(
           .vertical, 12
         )
         .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
@@ -178,7 +178,7 @@ struct ExecutionMessageView: View {
           }
         } else {
           ConversationSearchText(run.displaySummary, id: .init(run: run.id, part: "summary"))
-            .appFont(size: 14).lineSpacing(5).textSelection(.enabled)
+            .appContentFont(size: 14).lineSpacing(5).textSelection(.enabled)
         }
         if run.kind == "doctor", let output = run.result?["command"]["stdout"].text, !output.isEmpty
         {
