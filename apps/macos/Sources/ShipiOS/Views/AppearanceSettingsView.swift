@@ -8,63 +8,70 @@ struct AppearanceSettingsView: View {
   @State private var status: String?
 
   var body: some View {
-    Form {
-      if let error = store.generalSettingsError { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-      Section("主题") {
-        SettingsMenuPicker("基础主题", selection: binding(\.theme), options: [
-          SettingsMenuOption(value: "system", title: "跟随系统"),
-          SettingsMenuOption(value: "light", title: "浅色"),
-          SettingsMenuOption(value: "dark", title: "深色")
-        ]).settingsSearchTarget(.theme)
+    VStack(spacing: 0) {
+      if let error = store.generalSettingsError {
+        Text(error).foregroundStyle(.red).textSelection(.enabled)
+          .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 24).padding(.vertical, 8)
       }
-      paletteSection("浅色主题", key: \.light, dark: false)
-        .settingsSearchTarget(.lightPalette)
-      paletteSection("深色主题", key: \.dark, dark: true)
-        .settingsSearchTarget(.darkPalette)
-      Section("字号") {
-        Stepper("界面字号：\(Int(store.appearance.uiSize))", value: binding(\.uiSize), in: 11...20).settingsSearchTarget(.uiFontSize)
-        Stepper("代码字号：\(Int(store.appearance.codeSize))", value: binding(\.codeSize), in: 10...24).settingsSearchTarget(.codeFontSize)
-        Text("代码字体同时用于代码块、文件预览、审查与终端。").appFont(.caption).foregroundStyle(.secondary)
-      }
-      Section("交互") {
-        SettingsToggle(title: "交互控件使用指针光标",
-          description: "开启后，鼠标悬停在按钮和链接上会显示指针光标。", isOn: binding(\.usePointerCursors))
-          .settingsSearchTarget(.pointer)
-        SettingsSegmentedPicker(title: "差异标记", description: "使用颜色或 +/− 标记显示代码更改。",
-          selection: binding(\.diffMarkerStyle), options: [
-          SettingsSegmentOption(value: .color, title: "颜色", accessibilityLabel: "颜色差异标记"),
-          SettingsSegmentOption(value: .symbols, title: "+/−", accessibilityLabel: "加减号差异标记")
-        ])
-        .settingsSearchTarget(.diffMarkers)
-        SettingsSegmentedPicker(title: "减少动态效果", description: "减少界面动画，或跟随 macOS 辅助功能设置。",
-          selection: binding(\.reduceMotion),
-          options: ReduceMotionPreference.allCases.map {
-            SettingsSegmentOption(value: $0, title: $0.title)
-          })
-        .settingsSearchTarget(.reduceMotion)
-      }
-      Section("当前主题预览") {
-        VStack(alignment: .leading, spacing: 12) {
-          Text("准备好开始了吗？").appFont(size: 19, weight: .semibold)
-          Text("修改会立即生效。中文、English 与 0123456789。").appFont(size: 14)
-          Text("let greeting = \"Hello, ShipiOS\"").appFont(size: 12, design: .monospaced)
-          Label("主题预览", systemImage: "sparkle").foregroundStyle(store.appearance.accentColor)
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-          .foregroundStyle(store.appearance.foregroundColor)
-          .background(store.appearance.backgroundColor, in: RoundedRectangle(cornerRadius: 8))
-      }
-      Section {
-        HStack {
-          Spacer()
-          Button("恢复默认外观") {
-            store.appearance = AppearancePreferences()
-            status = nil
-          }
-          .disabled(store.appearance == AppearancePreferences())
+      Form {
+        Section("主题") {
+          SettingsMenuPicker("基础主题", selection: binding(\.theme), options: [
+            SettingsMenuOption(value: "system", title: "跟随系统"),
+            SettingsMenuOption(value: "light", title: "浅色"),
+            SettingsMenuOption(value: "dark", title: "深色")
+          ]).settingsSearchTarget(.theme)
         }
-        if let status { Text(status).appFont(.caption).textSelection(.enabled) }
-      }
-    }.settingsFormStyle().appSurface()
+        paletteSection("浅色主题", key: \.light, dark: false)
+          .id("light-appearance-palette")
+          .settingsSearchTarget(.lightPalette)
+        paletteSection("深色主题", key: \.dark, dark: true)
+          .id("dark-appearance-palette")
+          .settingsSearchTarget(.darkPalette)
+        Section("字号") {
+          Stepper("界面字号：\(Int(store.appearance.uiSize))", value: binding(\.uiSize), in: 11...20).settingsSearchTarget(.uiFontSize)
+          Stepper("代码字号：\(Int(store.appearance.codeSize))", value: binding(\.codeSize), in: 10...24).settingsSearchTarget(.codeFontSize)
+          Text("代码字体同时用于代码块、文件预览、审查与终端。").appFont(.caption).foregroundStyle(.secondary)
+        }
+        Section("交互") {
+          SettingsToggle(title: "交互控件使用指针光标",
+            description: "开启后，鼠标悬停在按钮和链接上会显示指针光标。", isOn: binding(\.usePointerCursors))
+            .settingsSearchTarget(.pointer)
+          SettingsSegmentedPicker(title: "差异标记", description: "使用颜色或 +/− 标记显示代码更改。",
+            selection: binding(\.diffMarkerStyle), options: [
+            SettingsSegmentOption(value: .color, title: "颜色", accessibilityLabel: "颜色差异标记"),
+            SettingsSegmentOption(value: .symbols, title: "+/−", accessibilityLabel: "加减号差异标记")
+          ])
+          .settingsSearchTarget(.diffMarkers)
+          SettingsSegmentedPicker(title: "减少动态效果", description: "减少界面动画，或跟随 macOS 辅助功能设置。",
+            selection: binding(\.reduceMotion),
+            options: ReduceMotionPreference.allCases.map {
+              SettingsSegmentOption(value: $0, title: $0.title)
+            })
+          .settingsSearchTarget(.reduceMotion)
+        }
+        Section("当前主题预览") {
+          VStack(alignment: .leading, spacing: 12) {
+            Text("准备好开始了吗？").appFont(size: 19, weight: .semibold)
+            Text("修改会立即生效。中文、English 与 0123456789。").appFont(size: 14)
+            Text("let greeting = \"Hello, ShipiOS\"").appFont(size: 12, design: .monospaced)
+            Label("主题预览", systemImage: "sparkle").foregroundStyle(store.appearance.accentColor)
+          }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+            .foregroundStyle(store.appearance.foregroundColor)
+            .background(store.appearance.backgroundColor, in: RoundedRectangle(cornerRadius: 8))
+        }
+        Section {
+          HStack {
+            Spacer()
+            Button("恢复默认外观") {
+              store.appearance = AppearancePreferences()
+              status = nil
+            }
+            .disabled(store.appearance == AppearancePreferences())
+          }
+          if let status { Text(status).appFont(.caption).textSelection(.enabled) }
+        }
+      }.settingsFormStyle().appSurface()
+    }
       .sheet(item: $importTarget) { target in
         AppearanceThemeImportView(store: store, dark: target.dark, onClose: { importTarget = nil })
       }
@@ -145,14 +152,7 @@ struct AppearanceSettingsView: View {
             } catch { status = "复制失败：" + error.localizedDescription }
           }.accessibilityLabel("复制" + title).settingsSearchTarget(.exportTheme, when: !dark)
         }.disabled(!store.libraryLoaded).settingsSearchTarget(dark ? .darkThemeShare : .lightThemeShare)
-        SettingsMenuInput(title: dark ? "深色代码主题" : "浅色代码主题", selection: Binding(
-          get: { dark ? store.appearance.codeThemes.dark : store.appearance.codeThemes.light },
-          set: { _ = store.selectCodeTheme($0, dark: dark) }), options: CodeThemeCatalog.options(dark: dark).compactMap { preset in
-            guard let variant = preset.variant(dark: dark), let accent = variant.seed.accent,
-              let foreground = variant.seed.ink, let background = variant.seed.surface else { return nil }
-            return SettingsMenuOption(value: preset.id, title: preset.label,
-              swatch: .init(accent: accent, foreground: foreground, background: background))
-          })
+        CodeThemePicker(store: store, dark: dark)
           .disabled(!store.libraryLoaded)
           .settingsSearchTarget(dark ? .darkCodeTheme : .lightCodeTheme)
       }

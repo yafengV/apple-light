@@ -162,28 +162,33 @@ import XCTest
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance))
     window.contentView = host
-    func controls(_ view: NSView) -> [SettingsMenuControl] {
-      (view as? SettingsMenuControl).map { [$0] } ?? view.subviews.flatMap(controls)
+    func controls(_ view: NSView) -> [CodeThemeMenuButton.Control] {
+      (view as? CodeThemeMenuButton.Control).map { [$0] } ?? view.subviews.flatMap(controls)
     }
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
     let light = try XCTUnwrap(controls(host).first { $0.accessibilityLabel() == "浅色代码主题" })
     let dark = try XCTUnwrap(controls(host).first { $0.accessibilityLabel() == "深色代码主题" })
-    XCTAssertEqual(light.numberOfItems, 16); XCTAssertEqual(dark.numberOfItems, 27)
-    for control in [light, dark] { XCTAssertTrue(control.itemArray.allSatisfy { $0.image != nil }) }
-    let item = try XCTUnwrap(light.itemArray.firstIndex { $0.title == "GitHub" })
-    window.makeFirstResponder(light)
-    light.selectItem(at: item); light.sendAction(light.action, to: light.target)
+    let lightOwner = try XCTUnwrap(light.owner), darkOwner = try XCTUnwrap(dark.owner)
+    lightOwner.toggle(light, keyboard: false)
+    XCTAssertEqual(lightOwner.parent.menu.options.count, 16)
+    XCTAssertNotNil(lightOwner.popup); XCTAssertTrue(lightOwner.popup?.window === window)
+    lightOwner.choose("github", button: light)
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
     XCTAssertEqual(store.appearance.codeThemes, .init(light: "github"))
     XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json")).appearance?.codeThemes, .init(light: "github"))
     XCTAssertEqual(store.library.drafts["fixture"], "keep"); XCTAssertTrue(window.firstResponder === light)
-    XCTAssertEqual(light.titleOfSelectedItem, "GitHub"); XCTAssertFalse(window.isVisible)
+    XCTAssertEqual(light.title, "GitHub"); XCTAssertFalse(window.isVisible)
+    darkOwner.toggle(dark, keyboard: false); XCTAssertEqual(darkOwner.parent.menu.options.count, 27)
+    darkOwner.dismiss(dark, restore: true)
     try FileManager.default.removeItem(at: root); try Data("blocked".utf8).write(to: root)
-    let failed = try XCTUnwrap(light.itemArray.firstIndex { $0.title == "Xcode" })
-    light.selectItem(at: failed); light.sendAction(light.action, to: light.target)
+    lightOwner.toggle(light, keyboard: false); lightOwner.choose("xcode", button: light)
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
     XCTAssertEqual(store.appearance.codeThemes, .init(light: "github"))
-    XCTAssertEqual(light.titleOfSelectedItem, "GitHub"); XCTAssertNotNil(store.generalSettingsError)
+    XCTAssertEqual(light.title, "GitHub"); XCTAssertNotNil(store.generalSettingsError)
+    XCTAssertNil(lightOwner.popup); XCTAssertFalse(lightOwner.parent.menu.presented)
+    XCTAssertTrue(light.window === window, "The original picker must remain attached after showing an error")
+    XCTAssertTrue(controls(host).first { $0.accessibilityLabel() == "浅色代码主题" } === light, "Showing the error must retain the picker identity")
+    XCTAssertTrue(window.firstResponder === light)
     XCTAssertEqual(store.library.drafts["fixture"], "keep"); XCTAssertFalse(window.isVisible)
   }
 }

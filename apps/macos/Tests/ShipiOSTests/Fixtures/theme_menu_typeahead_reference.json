@@ -1,0 +1,3244 @@
+{
+  "cases": [
+    {
+      "variant": "light",
+      "current": null,
+      "query": "a",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "aaa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "Aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "g",
+      "expected": null
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "c",
+      "expected": null
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": null,
+      "query": "missing",
+      "expected": null
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "a",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "aa",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "aaa",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "Aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "g",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "c",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "absolutely",
+      "query": "missing",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "a",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "aa",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "aaa",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "Aa",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "g",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "c",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "catppuccin",
+      "query": "missing",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "a",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "aa",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "aaa",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "Aa",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "g",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "c",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "codex",
+      "query": "missing",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "a",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "aa",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "aaa",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "Aa",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "g",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "c",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "everforest",
+      "query": "missing",
+      "expected": "everforest"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "a",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "aa",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "aaa",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "Aa",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "g",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "c",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "github",
+      "query": "missing",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "a",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "aa",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "aaa",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "Aa",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "g",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "c",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "gruvbox",
+      "query": "missing",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "a",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "aa",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "aaa",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "Aa",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "g",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "c",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "linear",
+      "query": "missing",
+      "expected": "linear"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "a",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "aa",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "aaa",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "Aa",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "g",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "c",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "notion",
+      "query": "missing",
+      "expected": "notion"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "a",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "aa",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "aaa",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "Aa",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "g",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "c",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "one",
+      "query": "missing",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "a",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "aa",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "aaa",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "Aa",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "g",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "c",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "proof",
+      "query": "missing",
+      "expected": "proof"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "a",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "aa",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "aaa",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "Aa",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "g",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "c",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "raycast",
+      "query": "missing",
+      "expected": "raycast"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "a",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "aa",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "aaa",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "Aa",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "g",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "c",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "rose-pine",
+      "query": "missing",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "a",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "aa",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "aaa",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "Aa",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "g",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "c",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "solarized",
+      "query": "missing",
+      "expected": "solarized"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "a",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "aa",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "aaa",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "Aa",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "g",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "c",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "vercel",
+      "query": "missing",
+      "expected": "vercel"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "a",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "aa",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "aaa",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "Aa",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "g",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "c",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "vscode-plus",
+      "query": "missing",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "a",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "aaa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "Aa",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "g",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "c",
+      "expected": "xcode"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "light",
+      "current": "xcode",
+      "query": "missing",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "a",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "aaa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "Aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "g",
+      "expected": null
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "c",
+      "expected": null
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": null,
+      "query": "missing",
+      "expected": null
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "a",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "aa",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "aaa",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "Aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "g",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "c",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "absolutely",
+      "query": "missing",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "a",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "aa",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "aaa",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "Aa",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "g",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "c",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "ayu",
+      "query": "missing",
+      "expected": "ayu"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "a",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "aa",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "aaa",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "Aa",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "g",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "c",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "catppuccin",
+      "query": "missing",
+      "expected": "catppuccin"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "a",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "aa",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "aaa",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "Aa",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "g",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "c",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "codex",
+      "query": "missing",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "a",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "aa",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "aaa",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "Aa",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "g",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "c",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "dracula",
+      "query": "missing",
+      "expected": "dracula"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "a",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "aa",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "aaa",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "Aa",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "g",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "c",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "everforest",
+      "query": "missing",
+      "expected": "everforest"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "a",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "aa",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "aaa",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "Aa",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "g",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "c",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "github",
+      "query": "missing",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "a",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "aa",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "aaa",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "Aa",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "g",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "c",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "gruvbox",
+      "query": "missing",
+      "expected": "gruvbox"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "a",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "aa",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "aaa",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "Aa",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "g",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "c",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "linear",
+      "query": "missing",
+      "expected": "linear"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "a",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "aa",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "aaa",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "Aa",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "g",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "c",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "lobster",
+      "query": "missing",
+      "expected": "lobster"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "a",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "aa",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "aaa",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "Aa",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "g",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "c",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "material",
+      "query": "missing",
+      "expected": "material"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "a",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "aa",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "aaa",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "Aa",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "g",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "c",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "matrix",
+      "query": "missing",
+      "expected": "matrix"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "a",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "aa",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "aaa",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "Aa",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "g",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "c",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "monokai",
+      "query": "missing",
+      "expected": "monokai"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "a",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "aa",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "aaa",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "Aa",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "g",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "c",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "night-owl",
+      "query": "missing",
+      "expected": "night-owl"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "a",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "aa",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "aaa",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "Aa",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "g",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "c",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "nord",
+      "query": "missing",
+      "expected": "nord"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "a",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "aa",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "aaa",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "Aa",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "g",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "c",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "notion",
+      "query": "missing",
+      "expected": "notion"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "a",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "aa",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "aaa",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "Aa",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "g",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "c",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "one",
+      "query": "missing",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "a",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "aa",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "aaa",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "Aa",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "g",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "c",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "oscurange",
+      "query": "missing",
+      "expected": "oscurange"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "a",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "aa",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "aaa",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "Aa",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "g",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "c",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "raycast",
+      "query": "missing",
+      "expected": "raycast"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "a",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "aa",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "aaa",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "Aa",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "g",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "c",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "rose-pine",
+      "query": "missing",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "a",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "aa",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "aaa",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "Aa",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "g",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "c",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "sentry",
+      "query": "missing",
+      "expected": "sentry"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "a",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "aa",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "aaa",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "Aa",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "g",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "c",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "solarized",
+      "query": "missing",
+      "expected": "solarized"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "a",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "aa",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "aaa",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "Aa",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "g",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "c",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "temple",
+      "query": "missing",
+      "expected": "temple"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "a",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "aa",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "aaa",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "Aa",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "g",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "c",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "tokyo-night",
+      "query": "missing",
+      "expected": "tokyo-night"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "a",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "aa",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "aaa",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "Aa",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "g",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "c",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "vercel",
+      "query": "missing",
+      "expected": "vercel"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "a",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "aa",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "aaa",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "Aa",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "g",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "c",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "vscode-plus",
+      "query": "missing",
+      "expected": "vscode-plus"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "a",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "aa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "aaa",
+      "expected": "absolutely"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "Aa",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "AaGit",
+      "expected": "github"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "AaX",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "g",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "c",
+      "expected": "xcode"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "AaCod",
+      "expected": "codex"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "AaOne",
+      "expected": "one"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "AaRose",
+      "expected": "rose-pine"
+    },
+    {
+      "variant": "dark",
+      "current": "xcode",
+      "query": "missing",
+      "expected": "xcode"
+    }
+  ]
+}

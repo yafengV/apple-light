@@ -84,6 +84,7 @@ extension WorkspaceStore {
     guard destination == .settings, !hasSettingsConfirmation, presentedOverlay == nil,
       let window = targetWindow ?? NSApp?.keyWindow,
       window.attachedSheet == nil, NSApp?.modalWindow == nil,
+      !CodeThemeMenuButton.hasOpenMenu(in: window),
       shortcutCaptureCount == 0 else { return false }
     if let editor = window.firstResponder as? NSTextView,
       editor.isEditable || editor.hasMarkedText() { return false }

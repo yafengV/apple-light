@@ -12,17 +12,8 @@ struct SettingsMenuSwatch: Equatable {
   let accent: String
   let foreground: String
   let background: String
-  @MainActor var image: NSImage {
-    NSImage(size: .init(width: 28, height: 16), flipped: false) { rect in
-      NSColor(CodeSyntaxText.color(background) ?? .clear).setFill()
-      NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3).fill()
-      NSColor(CodeSyntaxText.color(foreground) ?? .primary).setFill()
-      NSBezierPath(rect: .init(x: 5, y: 5, width: 11, height: 2)).fill()
-      NSBezierPath(rect: .init(x: 5, y: 9, width: 8, height: 2)).fill()
-      NSColor(CodeSyntaxText.color(accent) ?? .accentColor).setFill()
-      NSBezierPath(roundedRect: .init(x: 20, y: 4, width: 4, height: 8), xRadius: 1, yRadius: 1).fill()
-      return true
-    }
+  @MainActor func image(appearance: AppearancePreferences) -> NSImage? {
+    ImageRenderer(content: ThemeColorSwatch(swatch: self).environment(\.appAppearance, appearance)).nsImage
   }
 }
 
@@ -84,7 +75,7 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
       for option in options {
         let item = NSMenuItem(title: option.title, action: nil, keyEquivalent: "")
         item.isEnabled = option.enabled
-        item.image = option.swatch?.image
+        item.image = option.swatch?.image(appearance: appearance)
         button.menu?.addItem(item)
       }
       coordinator.options = options
@@ -112,6 +103,9 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
         options.indices.contains(index), options[index].enabled else { return }
       let value = options[index].value
       if parent.selection != value { parent.selection = value }
+      // A rejected binding write leaves the model unchanged. Restore the
+      // actual popup too, even when the surrounding form retains its identity.
+      button.selectItem(at: options.firstIndex(where: { $0.value == parent.selection }) ?? -1)
     }
   }
 }

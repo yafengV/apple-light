@@ -64,6 +64,18 @@ import XCTest
     XCTAssertEqual(control.titleOfSelectedItem, "恢复后的选项")
     XCTAssertEqual(state.writes, 0)
   }
+  func testRejectedBindingRestoresActualPopupWithoutNeedingAFormRebuild() async throws {
+    let state = MenuState(); state.rejectWrite = true
+    let (window, host) = makeHost(state); defer { window.close() }
+    try await settle(host)
+    let control = try XCTUnwrap(findControl(host))
+    window.makeFirstResponder(control)
+    control.selectItem(at: 1); control.sendAction(control.action, to: control.target)
+    XCTAssertEqual(state.selection, 1); XCTAssertEqual(state.writes, 1)
+    XCTAssertEqual(control.indexOfSelectedItem, 0)
+    XCTAssertTrue(window.firstResponder === control)
+    XCTAssertFalse(window.isVisible)
+  }
 
   func testDisabledHiddenAndUnmountedMenusCannotActOrTakeFocus() async throws {
     let state = MenuState()
@@ -124,6 +136,7 @@ import XCTest
   var hideLabel = false
   var selection = 1
   var writes = 0
+  var rejectWrite = false
   var enabled = true
   var mounted = true
   var options: [SettingsMenuOption<Int>] = [
@@ -146,7 +159,7 @@ private struct MenuFixture: View {
 
   private var menu: some View {
     SettingsMenuPicker(state.title, selection: Binding(
-      get: { state.selection }, set: { state.selection = $0; state.writes += 1 }),
+      get: { state.selection }, set: { if !state.rejectWrite { state.selection = $0 }; state.writes += 1 }),
       options: state.options)
   }
 }
