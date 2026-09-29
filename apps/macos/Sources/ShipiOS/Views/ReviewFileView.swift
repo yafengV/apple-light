@@ -49,7 +49,8 @@ struct ReviewFileView: View {
                       store.beginReviewComment(anchor(line, patch: patch), taskID: taskID)
                     },
                     openLine: { openFile(line: line.workingLine) },
-                    tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)))
+                    tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)),
+                    changes: store.reviewWordDiffs ? syntax.changes(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)) : [])
                 }
                 ForEach(matchingComments(line, patch: patch)) { comment in
                   ReviewCommentView(store: store, comment: comment, taskID: taskID)
@@ -80,9 +81,9 @@ struct ReviewFileView: View {
       }
       loading = false
     }
-    .task(id: (patch?.fingerprint ?? "") + file.path + String(expanded)) {
+    .task(id: (patch?.fingerprint ?? "") + file.path + String(expanded) + String(store.reviewWordDiffs)) {
       guard expanded, let patch else { syntax.cancel(); return }
-      await syntax.load(CodeSyntaxInput(path: file.path, diff: patch))
+      await syntax.load(CodeSyntaxInput(path: file.path, diff: patch, wordDiffs: store.reviewWordDiffs))
     }
     .onDisappear { syntax.cancel() }
   }
@@ -159,6 +160,7 @@ struct ReviewCodeLine: View {
   var commentsEnabled = true
   var openEnabled = true
   var tokens: [CodeSyntaxToken]? = nil
+  var changes: [CodeWordRange] = []
   @Environment(\.appAppearance) private var appearance
   @State private var hovering = false
   @FocusState private var focused: Bool
@@ -175,7 +177,7 @@ struct ReviewCodeLine: View {
         .foregroundStyle(.secondary)
       Text(line.newLine.map(String.init) ?? "").frame(width: 38, alignment: .trailing)
         .foregroundStyle(.secondary)
-      CodeSyntaxText.text(line, tokens: tokens, marker: appearance.diffMarkerStyle, dark: appearance.isDark)
+      CodeWordDiffText(line: line, tokens: tokens, changes: changes, marker: appearance.diffMarkerStyle, dark: appearance.isDark)
         .textSelection(.enabled)
         .padding(.leading, 12)
         .padding(.trailing, 10)

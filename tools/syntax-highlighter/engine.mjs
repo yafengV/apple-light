@@ -5,6 +5,7 @@ import { getFiletypeFromFileName } from './node_modules/@pierre/diffs/dist/utils
 import light from './themes/light.json' with { type: 'json' };
 import dark from './themes/dark.json' with { type: 'json' };
 import { tokenizeSource } from './tokenize.mjs';
+import { diffWordRanges } from './word-diff.mjs';
 
 let engine;
 const languages = new Map();
@@ -31,6 +32,7 @@ export async function highlight(input) {
   const language = guessed && bundledLanguages[guessed] ? guessed : 'text';
   const value = await highlighter(language);
   const result = { language, left: [], right: [], recoveredTokenizations: 0 };
+  const changes = input.wordDiffs === true ? diffWordRanges(input.lines) : new Map();
   for (const side of ['left', 'right']) {
     const groups = new Map();
     for (const line of input.lines.filter(line => line[side])) {
@@ -61,7 +63,7 @@ export async function highlight(input) {
         // Shiki excludes line endings. Preserve CR and every source character;
         // the transport and Swift rendering never normalize or rewrite the code.
         if (cursor < end) spans.push(plain(source.slice(cursor, end)));
-        result[side].push({ id: row.id, tokens: spans });
+        result[side].push({ id: row.id, tokens: spans, changes: changes.get(row.id) ?? [] });
         start = end + 1;
       }
     }

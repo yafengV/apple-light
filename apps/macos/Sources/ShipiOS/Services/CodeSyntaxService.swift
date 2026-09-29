@@ -46,8 +46,11 @@ import WebKit
     try value.validate(input)
     cache[input.identity] = value; touch(input.identity)
     cacheBytes -= costs[input.identity] ?? 0
-    let cost = input.lines.reduce(0) { $0 + $1.text.utf8.count * 4 }
-      + (value.left + value.right).reduce(0) { $0 + $1.tokens.count * 128 }
+    let sourceCost = input.lines.reduce(0) { $0 + $1.text.utf8.count * 4 }
+    let rows = value.left + value.right
+    let tokenCost = rows.reduce(0) { $0 + $1.tokens.count * 128 }
+    let wordCost = rows.reduce(0) { $0 + $1.changes.count * 32 }
+    let cost = sourceCost + tokenCost + wordCost
     costs[input.identity] = cost; cacheBytes += cost
     while recency.count > 100 || cacheBytes > 16 * 1024 * 1024 {
       let removed = recency.removeFirst(); cache[removed] = nil

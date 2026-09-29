@@ -13,6 +13,7 @@ struct TaskPullRequestCodeView: View {
   var confirm: () -> Void = {}
   var metadataLoading = false
   var metadataError: String? = nil
+  var store: WorkspaceStore? = nil
   @State private var comments = GitHubPRCommentCollapseState()
   @State private var fileWidth: CGFloat = 260
   @State private var dragWidth: CGFloat?
@@ -20,6 +21,9 @@ struct TaskPullRequestCodeView: View {
   var body: some View {
     VStack(spacing: 0) {
       toolbar
+      if let error = store?.generalSettingsError {
+        Text(error).appFont(size: 12).foregroundStyle(.red).padding(8)
+      }
       if let identity = state.snapshot?.identity, discussion.isCodeStale(identity) {
         HStack {
           Text("PR 代码版本已变化，原评论草稿已保留。")
@@ -98,6 +102,7 @@ struct TaskPullRequestCodeView: View {
       }
       Spacer(minLength: 0)
       Menu {
+        if let store { CodeWordDiffMenu(store: store) }
         Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
         Button(state.groupExpanded ? "收起全部差异" : "展开全部差异") { state.toggleAll() }
       } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton)
@@ -127,7 +132,7 @@ struct TaskPullRequestCodeView: View {
           ForEach(state.files) { file in
             Section {
               TaskPullRequestCodeFileView(file: file, state: state, threads: threads(for: file), inline: inlineControls,
-                showsHeader: false, viewportWidth: width) { thread in
+                showsHeader: false, viewportWidth: width, wordDiffsEnabled: store?.reviewWordDiffs ?? false) { thread in
                 if let root = thread.comments.first {
                   TaskPullRequestCommentView(card: .init(comment: root, thread: thread), collapse: comments,
                     state: discussion, enabled: enabled, writable: writable, mentionRequest: mentionRequest,

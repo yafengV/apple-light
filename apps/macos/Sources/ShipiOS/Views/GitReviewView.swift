@@ -34,6 +34,11 @@ struct GitReviewView: View {
             Label(workspace.gitBranch, systemImage: "arrow.triangle.branch").lineLimit(1)
           }
           Spacer()
+          Menu { CodeWordDiffMenu(store: store) } label: { Image(systemName: "ellipsis") }
+            .menuStyle(.borderlessButton).accessibilityLabel("差异选项")
+          if let error = store.generalSettingsError {
+            Text(error).foregroundStyle(.red).help(error)
+          }
           if workspace.gitBusy || workspace.gitRefreshing {
             ProgressView().controlSize(.small)
               .accessibilityLabel(workspace.gitBusy ? "正在处理 Git 变更" : "正在读取 Git 变更")

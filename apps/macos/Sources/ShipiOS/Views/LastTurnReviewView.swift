@@ -54,7 +54,8 @@ private struct LastTurnReviewFileView: View {
                 store.beginReviewComment(anchor(line, patch: diff), taskID: taskID)
               }, openLine: { openFile(line: line.workingLine) },
                 commentsEnabled: snapshot.source.root != nil, openEnabled: snapshot.source.root != nil,
-                tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: diff.fingerprint)))
+                tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: diff.fingerprint)),
+                changes: store.reviewWordDiffs ? syntax.changes(line, identity: .init(path: file.path, fingerprint: diff.fingerprint)) : [])
               ForEach(store.reviewComments(taskID: taskID).filter { $0.anchor == anchor(line, patch: diff) }) { comment in
                 ReviewCommentView(store: store, comment: comment, taskID: taskID)
                   .frame(width: 280).padding(8)
@@ -64,8 +65,8 @@ private struct LastTurnReviewFileView: View {
         }
       }
     }.overlay(Rectangle().stroke(Color.primary.opacity(0.08), lineWidth: 1).allowsHitTesting(false))
-      .task(id: diff.fingerprint + file.path + String(expanded)) {
-        if expanded { await syntax.load(CodeSyntaxInput(path: file.path, diff: diff)) }
+      .task(id: diff.fingerprint + file.path + String(expanded) + String(store.reviewWordDiffs)) {
+        if expanded { await syntax.load(CodeSyntaxInput(path: file.path, diff: diff, wordDiffs: store.reviewWordDiffs)) }
         else { syntax.cancel() }
       }
       .onDisappear { syntax.cancel() }

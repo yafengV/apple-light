@@ -87,7 +87,7 @@ struct TaskPullRequestDetailView: View {
           mentionRequest: discussion.snapshot.map { .init(pullRequest: request, root: root, viewer: $0.viewer) },
           open: openExternal, submit: applyDiscussion, retry: retryCode,
           retryComments: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, metadataLoading: state.loading,
-          metadataError: codeRequest == nil ? state.error : nil)
+          metadataError: codeRequest == nil ? state.error : nil, store: store)
       } else {
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {

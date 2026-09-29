@@ -1,7 +1,7 @@
 {
   "format": 1,
-  "sha256": "4bcb9d97cff8045a7a51a3372d5ae18384249b06fa35e983d544f4709d10d35a",
-  "bytes": 8288673,
+  "sha256": "454957489c60edf4635a76df8da0064eee79de43b4a8fac87b0c5463ff0122b0",
+  "bytes": 8296131,
   "components": [
     {
       "name": "@pierre/diffs",
@@ -57,6 +57,11 @@
       "name": "comma-separated-tokens",
       "version": "2.0.3",
       "license": "MIT"
+    },
+    {
+      "name": "diff",
+      "version": "9.0.0",
+      "license": "BSD-3-Clause"
     },
     {
       "name": "hast-util-to-html",

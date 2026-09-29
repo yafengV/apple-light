@@ -7,6 +7,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   var inline: PullRequestInlineCommentControls? = nil
   var showsHeader = true
   var viewportWidth: CGFloat? = nil
+  var wordDiffsEnabled = false
   @State private var selection = PullRequestCodeSelection()
   @State private var selectionError: String?
   @State private var syntax = CodeSyntaxState()
@@ -32,8 +33,8 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
       .onChange(of: inline?.discussion.staleInline) { _, anchor in
         if anchor?.identity == inline?.code.identity { selection.clear() }
       }
-      .task(id: file.path + file.diff.fingerprint + String(collapsed)) {
-        if collapsed || file.binary { syntax.cancel() } else { await syntax.load(file) }
+      .task(id: file.path + file.diff.fingerprint + String(collapsed) + String(wordDiffsEnabled)) {
+        if collapsed || file.binary { syntax.cancel() } else { await syntax.load(.init(file, wordDiffs: wordDiffsEnabled)) }
       }
       .onDisappear { syntax.cancel() }
   }
@@ -132,7 +133,8 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
       .frame(width: 38, alignment: .trailing).padding(.trailing, 8)
   }
   private func code(_ line: ReviewDiffLine, side: GitHubPRCommentPosition.Side? = nil) -> some View {
-    CodeSyntaxText.text(line, tokens: syntax.tokens(line, in: file, side: side ?? (line.kind == .deletion ? .left : .right)),
+    CodeWordDiffText(line: line, tokens: syntax.tokens(line, in: file, side: side ?? (line.kind == .deletion ? .left : .right)),
+      changes: wordDiffsEnabled ? syntax.changes(line, identity: .init(path: file.path, fingerprint: file.diff.fingerprint), side: side) : [],
       marker: appearance.diffMarkerStyle, dark: appearance.isDark).appFont(size: 11, design: .monospaced)
       .textSelection(.enabled).fixedSize(horizontal: !state.wrap, vertical: true)
       .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8)

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import { highlight } from './engine.mjs';
 import { tokenizeSource } from './tokenize.mjs';
+import { wordRanges, diffWordRanges } from './word-diff.mjs';
 import { getFiletypeFromFileName } from './node_modules/@pierre/diffs/dist/utils/getFiletypeFromFileName.js';
 
 const row = (id, text, left = true, right = true) => ({ id, text, left, right });
@@ -102,4 +103,38 @@ test('persistent tokenization interruption fails after two attempts and restores
   const value = { getLanguage: () => grammar, codeToTokensWithThemes() { grammar.tokenizeLine2(); return [[]]; } };
   assert.throws(() => tokenizeSource(value, 'swift', 'source', {}), /per-line budget/);
   assert.equal(calls, 2); assert.equal(grammar.tokenizeLine2, original);
+});
+
+test('word-alt UTF-16 ranges match 2,062 cases computed by the current Codex worker', async () => {
+  const fixture = JSON.parse(await readFile('../../apps/macos/Tests/ShipiOSTests/Fixtures/word_diff_reference.json'));
+  assert.equal(fixture.cases.length, 2062);
+  for (const [index, item] of fixture.cases.entries()) {
+    assert.deepEqual(wordRanges(item.old, item.new), { left: item.left, right: item.right }, 'reference case ' + index);
+  }
+});
+test('word comparison pairs ordinal changed rows only within the same hunk and context block', () => {
+  const lines = [row(1, 'old', true, false), row(2, 'unpaired', true, false), row(3, 'new', false, true),
+    row(4, 'context'), row(5, 'left alone', true, false),
+    { ...row(6, 'new hunk alone', false, true), hunk: 2 }];
+  const result = diffWordRanges(lines);
+  assert.deepEqual([...result.keys()], [1, 3]);
+  assert.deepEqual(result.get(1), [{ location: 0, length: 3 }]);
+  assert.equal(diffWordRanges([row(1, 'whole new file', false, true)]).size, 0);
+});
+test('line limits count UTF-16; large changed files skip words at exactly the reference boundary', () => {
+  assert.equal(wordRanges('x'.repeat(998)+' a', 'x'.repeat(998)+' b').left.length, 1);
+  assert.equal(wordRanges('x'.repeat(999)+' a', 'x'.repeat(999)+' b').left.length, 0);
+  assert.equal(wordRanges('🚀'.repeat(500)+'a', '🚀'.repeat(500)+'b').left.length, 0);
+  const make = n => Array.from({ length: n }, (_, id) => ({ ...row(id, id % 2 ? 'new' : 'old', !(id % 2), !!(id % 2)), hunk: 1 }));
+  assert.equal(diffWordRanges(make(2000)).size, 2000);
+  assert.equal(diffWordRanges(make(2001)).size, 0);
+});
+test('actual highlighter returns word ranges alongside unchanged tokens and honors missing final newline', async () => {
+  const lines = [row(1, 'old\r', true, false), { ...row(2, 'new\r', false, true), hasNewline: false }];
+  const result = await highlight({ ...input('unknown.extension', lines), wordDiffs: true }); preserve(result, lines);
+  assert.deepEqual(result.left[0].changes, [{ location: 0, length: 3 }]);
+  assert.deepEqual(result.right[0].changes, [{ location: 0, length: 4 }]);
+  const off = await highlight(input('unknown.extension', lines));
+  assert.deepEqual(off.right[0].changes, []);
+  assert.deepEqual(off.right[0].tokens, result.right[0].tokens);
 });

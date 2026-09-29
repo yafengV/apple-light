@@ -297,6 +297,11 @@ extension WorkspaceStore {
     sleepPrevention.update(enabled: preventIdleSleep, hasRunningWork: running, force: force)
   }
 
+  var reviewWordDiffs: Bool {
+    get { library.reviewWordDiffs }
+    set { updateGeneralPreference(\.reviewWordDiffs, value: newValue) }
+  }
+
   private func updateGeneralPreference<Value: Equatable>(
     _ keyPath: WritableKeyPath<WorkspaceLibrary, Value>, value: Value
   ) {

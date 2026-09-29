@@ -352,6 +352,7 @@ struct WorkspaceLibrary: Codable {
   var browserComments: [String: [BrowserComment]] = [:]
   var preferredEditor = ExternalEditor.system.rawValue
   var appearance: AppearancePreferences?
+  var reviewWordDiffs = false
   var notifications: CompletionNotificationPreferences?
   var preventIdleSleep = false
   var followUpBehavior = FollowUpBehavior.queue
@@ -392,7 +393,7 @@ struct WorkspaceLibrary: Codable {
   enum CodingKeys: String, CodingKey {
     case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
-      reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
+      reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
@@ -459,6 +460,7 @@ struct WorkspaceLibrary: Codable {
       try c.decodeIfPresent(String.self, forKey: .preferredEditor) ?? ExternalEditor.system.rawValue
     appearance = try c.decodeIfPresent(AppearancePreferences.self, forKey: .appearance)?
       .normalized()
+    reviewWordDiffs = try c.decodeIfPresent(Bool.self, forKey: .reviewWordDiffs) ?? false
     notifications = try c.decodeIfPresent(CompletionNotificationPreferences.self, forKey: .notifications)
     preventIdleSleep = try c.decodeIfPresent(Bool.self, forKey: .preventIdleSleep) ?? false
     followUpBehavior = try c.decodeIfPresent(FollowUpBehavior.self, forKey: .followUpBehavior) ?? .queue
