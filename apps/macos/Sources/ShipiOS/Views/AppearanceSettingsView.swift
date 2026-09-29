@@ -107,8 +107,8 @@ struct AppearanceSettingsView: View {
     let foreground = colors["textForeground"].color
     return Section {
       paletteColorRow("强调色", palette: key, value: \.accent, fallback: colors["accent"].color)
-      paletteColorRow("背景色", palette: key, value: \.background, fallback: background)
-      paletteColorRow("前景色", palette: key, value: \.foreground, fallback: foreground)
+      hexColorRow("背景色", key: \.background, dark: dark, value: store.appearance.themeShare(dark: dark).theme.surface)
+      hexColorRow("前景色", key: \.foreground, dark: dark, value: store.appearance.themeShare(dark: dark).theme.ink)
       AppearanceFontPicker(store: store, role: .ui, dark: dark)
         .settingsSearchTarget(.uiFont, when: !dark)
         .settingsSearchTarget(dark ? .darkUIFont : .lightUIFont)
@@ -155,6 +155,15 @@ struct AppearanceSettingsView: View {
           .disabled(!store.libraryLoaded)
           .settingsSearchTarget(dark ? .darkCodeTheme : .lightCodeTheme)
       }
+    }
+  }
+  private func hexColorRow(_ title: String, key: WritableKeyPath<AppearancePalette, String?>, dark: Bool, value: String) -> some View {
+    HStack {
+      Text(title)
+      Spacer(minLength: 8)
+      AppearanceColorInput(value: value, label: (dark ? "深色" : "浅色") + title, available: { store.libraryLoaded }) {
+        store.setAppearanceColor($0, key: key, dark: dark)
+      }.frame(width: 136, height: 28).disabled(!store.libraryLoaded)
     }
   }
   private func paletteColorRow(
