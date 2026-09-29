@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import { highlight } from './engine.mjs';
+import { tokenizeSource } from './tokenize.mjs';
 import { getFiletypeFromFileName } from './node_modules/@pierre/diffs/dist/utils/getFiletypeFromFileName.js';
 
 const row = (id, text, left = true, right = true) => ({ id, text, left, right });
@@ -81,4 +82,24 @@ test('filename recognition matches the current worker for every default extensio
   const fixture = JSON.parse(await readFile('../../apps/macos/Tests/ShipiOSTests/Fixtures/code_syntax_reference.json'));
   for (const item of fixture.languageCases) assert.equal(getFiletypeFromFileName(item.path), item.expected, item.path);
   assert.equal(fixture.languageCases.length, 1380);
+});
+
+// Deliberately interrupt the underlying tokenizer to exercise cold-start
+// recovery deterministically rather than depending on machine timing.
+test('interrupted tokenization retries once and restores the original grammar method', () => {
+  let calls = 0, limits = [];
+  const grammar = { tokenizeLine2() { return { stoppedEarly: ++calls === 1 }; } };
+  const original = grammar.tokenizeLine2;
+  const value = { getLanguage: () => grammar, codeToTokensWithThemes(_source, options) {
+    limits.push(options.tokenizeTimeLimit); grammar.tokenizeLine2(); return [[{ content: calls === 1 ? 'partial' : 'complete' }]];
+  } };
+  assert.deepEqual(tokenizeSource(value, 'swift', 'source', {}).tokens, [{ content: 'complete' }]);
+  assert.equal(calls, 2); assert.deepEqual(limits, [500, 500]); assert.equal(grammar.tokenizeLine2, original);
+});
+test('persistent tokenization interruption fails after two attempts and restores the grammar', () => {
+  let calls = 0;
+  const grammar = { tokenizeLine2() { calls++; return { stoppedEarly: true }; } }, original = grammar.tokenizeLine2;
+  const value = { getLanguage: () => grammar, codeToTokensWithThemes() { grammar.tokenizeLine2(); return [[]]; } };
+  assert.throws(() => tokenizeSource(value, 'swift', 'source', {}), /per-line budget/);
+  assert.equal(calls, 2); assert.equal(grammar.tokenizeLine2, original);
 });

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct CodeSyntaxIdentity: Hashable, Sendable {
@@ -17,12 +18,24 @@ struct CodeSyntaxInput: Codable, Sendable {
   let lines: [Line]
   var identity: CodeSyntaxIdentity { .init(path: path, fingerprint: fingerprint) }
   init(_ file: GitHubPRCodeFile) {
-    path = file.path; fingerprint = file.diff.fingerprint
+    self.init(path: file.path, diff: file.diff)
+  }
+  init(path: String, diff: ReviewDiff) {
+    self.path = path; fingerprint = diff.fingerprint
     var hunk = 0
-    lines = file.diff.lines.compactMap {
+    lines = diff.lines.compactMap {
       if $0.kind == .header { hunk += 1 }
       guard $0.canComment else { return nil }
       return .init(id: $0.id, text: String($0.text.dropFirst()), left: $0.oldLine != nil, right: $0.newLine != nil, hunk: hunk)
+    }
+  }
+  /// Full source carries grammar state across every line, including blank lines.
+  /// Its identity cannot alias a partial diff with the same file name.
+  init(path: String, source: String) {
+    self.path = path
+    fingerprint = "source:" + SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
+    lines = source.components(separatedBy: "\n").enumerated().map {
+      .init(id: $0.offset, text: $0.element, left: false, right: true, hunk: 0)
     }
   }
 }
@@ -53,7 +66,7 @@ struct CodeSyntaxResult: Codable, Equatable, Sendable {
     for (rows, expected) in [(left, input.lines.filter(\.left)), (right, input.lines.filter(\.right))] {
       guard rows.count == expected.count else { throw invalid() }
       for (row, line) in zip(rows, expected) {
-        guard row.id == line.id, row.tokens.map(\.content).joined() == line.text,
+        guard row.id == line.id, row.tokens.map(\.content).joined().utf8.elementsEqual(line.text.utf8),
           row.tokens.allSatisfy({ $0.light.valid && $0.dark.valid }) else { throw invalid() }
       }
     }

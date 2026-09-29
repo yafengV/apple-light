@@ -1,6 +1,6 @@
 # ShipiOS offline syntax highlighting
 
-PR Code uses an application-owned Shiki engine in a nonpersistent, windowless WKWebView. The engine is bundled with the macOS app; it requires no Node installation, network access, user browser profile or installed Codex at runtime. SwiftUI renders returned tokens as selectable native text.
+PR Code, local review diffs, last-turn review and native file previews use an application-owned Shiki engine in a nonpersistent, windowless WKWebView. The engine is bundled with the macOS app; it requires no Node installation, network access, user browser profile or installed Codex at runtime. SwiftUI renders returned tokens as selectable native text.
 
 ## Rebuild
 
@@ -20,4 +20,6 @@ Dependencies are pinned in `package.json` and `package-lock.json`: Shiki 4.4.3, 
 
 The test fixture contains authored code samples and expected tokens produced by the current reference worker: 19 examples, 49 lines, eight languages, both light and dark variants. A further 1,380 filename/path cases compare language recognition with that worker. The bundled upstream catalogue has 242 canonical languages; availability does not establish complete grammar or UI parity. The reference and upstream Swift, Go and CSS registrations differ, although these fixed examples match. See `docs/399-pull-request-code-syntax-highlighting.md` for the verification scope.
 
-Partial diff hunks reset grammar state; each old/new side carries state independently within a hunk. Lines over the reference 1,000-character tokenization limit and unknown file types remain readable as plain text. Token output must preserve exact source text and row identities. Failure falls back to plain native text; theme switching selects an already computed variant.
+Full source preserves continuous grammar state and every line ending. Partial diff hunks reset grammar state; each old/new side carries state independently within a hunk. Lines over the reference 1,000-character tokenization limit and unknown file types remain readable as plain text. Token output must preserve exact source text and row identities. Failure falls back to plain native text; theme switching selects an already computed variant.
+
+The normal 500 ms per-line budget remains in force. Interrupted tokenization receives one bounded retry; persistent interruption fails to the native plain-text fallback instead of caching incomplete colors. Tests deterministically exercise both recovery and exhaustion. The engine returns a recovery count for diagnostics; it is not shown in product flows.

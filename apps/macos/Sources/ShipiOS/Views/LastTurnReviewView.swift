@@ -27,6 +27,7 @@ private struct LastTurnReviewFileView: View {
   let snapshot: LastTurnReviewSnapshot
   let file: CodexTurnDiffFile
   var taskID: String?
+  @State private var syntax = CodeSyntaxState()
   private var key: String { "lastTurn:" + snapshot.source.runID + ":" + file.path }
   private var expanded: Bool { !workspace.collapsedReviewFiles.contains(key) }
 
@@ -52,7 +53,8 @@ private struct LastTurnReviewFileView: View {
               ReviewCodeLine(line: line, addComment: {
                 store.beginReviewComment(anchor(line, patch: diff), taskID: taskID)
               }, openLine: { openFile(line: line.workingLine) },
-                commentsEnabled: snapshot.source.root != nil, openEnabled: snapshot.source.root != nil)
+                commentsEnabled: snapshot.source.root != nil, openEnabled: snapshot.source.root != nil,
+                tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: diff.fingerprint)))
               ForEach(store.reviewComments(taskID: taskID).filter { $0.anchor == anchor(line, patch: diff) }) { comment in
                 ReviewCommentView(store: store, comment: comment, taskID: taskID)
                   .frame(width: 280).padding(8)
@@ -62,6 +64,11 @@ private struct LastTurnReviewFileView: View {
         }
       }
     }.overlay(Rectangle().stroke(Color.primary.opacity(0.08), lineWidth: 1).allowsHitTesting(false))
+      .task(id: diff.fingerprint + file.path + String(expanded)) {
+        if expanded { await syntax.load(CodeSyntaxInput(path: file.path, diff: diff)) }
+        else { syntax.cancel() }
+      }
+      .onDisappear { syntax.cancel() }
   }
 
   private func toggle() {

@@ -33,8 +33,11 @@ struct FileSourcePreview: NSViewRepresentable {
   }
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
-    guard let text = scroll.documentView as? NSTextView else { return }
+    guard let text = scroll.documentView as? FilePreviewTextView else { return }
     let coordinator = context.coordinator
+    // Swift strings compare canonically; the byte revision also observes source
+    // changes that look equal but have different UTF-16 positions.
+    _ = workspace.fileContentVersion
     let identity = (workspace.root?.path ?? "") + "/" + (workspace.selectedFile ?? "")
     if coordinator.identity != identity {
       coordinator.savePosition(text)
@@ -48,13 +51,12 @@ struct FileSourcePreview: NSViewRepresentable {
     let root = (workspace.root?.path ?? "") + "/"
     let open = Set(workspace.openFiles.map { root + $0 })
     workspace.filePreviewPositions = workspace.filePreviewPositions.filter { open.contains($0.key) }
-    if text.string != workspace.fileText {
+    if !text.string.utf8.elementsEqual(workspace.fileText.utf8) {
       text.string = workspace.fileText
       text.setSelectedRange(NSRange(location: 0, length: 0))
     }
-    text.font = NSFont(name: appearance.codeFont, size: appearance.codeSize)
-      ?? .monospacedSystemFont(ofSize: appearance.codeSize, weight: .regular)
-    text.textColor = NSColor(appearance.foregroundColor)
+    text.syntax.update(text, path: workspace.selectedFile.map { _ in identity }, source: workspace.fileText,
+      ready: !workspace.fileLoading && workspace.fileError == nil, appearance: appearance)
     if !workspace.fileLoading, coordinator.needsRestore {
       coordinator.needsRestore = false
       let position = workspace.filePreviewPositions[identity]
@@ -90,6 +92,7 @@ struct FileSourcePreview: NSViewRepresentable {
 
   static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
     if let text = view.documentView as? NSTextView { coordinator.savePosition(text) }
+    (view.documentView as? FilePreviewTextView)?.syntax.stop()
     coordinator.stop()
   }
 
@@ -142,6 +145,7 @@ struct FileSourcePreview: NSViewRepresentable {
 }
 
 final class FilePreviewTextView: NSTextView {
+  let syntax = FilePreviewSyntaxController()
   weak var workspace: DeveloperWorkspace?
   var onFocus: (() -> Void)?
   override func becomeFirstResponder() -> Bool {

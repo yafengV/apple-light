@@ -12,6 +12,7 @@ struct ReviewFileView: View {
   @State private var patch: ReviewDiff?
   @State private var failure: String?
   @State private var loading = false
+  @State private var syntax = CodeSyntaxState()
   private var key: String { scope.rawValue + ":" + revision + ":" + file.path }
   private var expanded: Bool { !workspace.collapsedReviewFiles.contains(key) }
 
@@ -47,7 +48,8 @@ struct ReviewFileView: View {
                     addComment: {
                       store.beginReviewComment(anchor(line, patch: patch), taskID: taskID)
                     },
-                    openLine: { openFile(line: line.workingLine) })
+                    openLine: { openFile(line: line.workingLine) },
+                    tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)))
                 }
                 ForEach(matchingComments(line, patch: patch)) { comment in
                   ReviewCommentView(store: store, comment: comment, taskID: taskID)
@@ -62,6 +64,7 @@ struct ReviewFileView: View {
     }
     .overlay(Rectangle().stroke(Color.primary.opacity(0.08), lineWidth: 1).allowsHitTesting(false))
     .task(id: "\(workspace.reviewSnapshot):\(expanded)") {
+      syntax.cancel()
       guard expanded else { return }
       patch = nil
       failure = nil
@@ -77,6 +80,11 @@ struct ReviewFileView: View {
       }
       loading = false
     }
+    .task(id: (patch?.fingerprint ?? "") + file.path + String(expanded)) {
+      guard expanded, let patch else { syntax.cancel(); return }
+      await syntax.load(CodeSyntaxInput(path: file.path, diff: patch))
+    }
+    .onDisappear { syntax.cancel() }
   }
 
   private var header: some View {
@@ -150,6 +158,7 @@ struct ReviewCodeLine: View {
   let openLine: () -> Void
   var commentsEnabled = true
   var openEnabled = true
+  var tokens: [CodeSyntaxToken]? = nil
   @Environment(\.appAppearance) private var appearance
   @State private var hovering = false
   @FocusState private var focused: Bool
@@ -166,7 +175,8 @@ struct ReviewCodeLine: View {
         .foregroundStyle(.secondary)
       Text(line.newLine.map(String.init) ?? "").frame(width: 38, alignment: .trailing)
         .foregroundStyle(.secondary)
-      Text(line.displayText(markerStyle: appearance.diffMarkerStyle)).textSelection(.enabled)
+      CodeSyntaxText.text(line, tokens: tokens, marker: appearance.diffMarkerStyle, dark: appearance.isDark)
+        .textSelection(.enabled)
         .padding(.leading, 12)
         .padding(.trailing, 10)
         .foregroundStyle(line.kind == .header ? Color.secondary : Color.primary)

@@ -4,6 +4,7 @@ import { bundledLanguages } from 'shiki/langs';
 import { getFiletypeFromFileName } from './node_modules/@pierre/diffs/dist/utils/getFiletypeFromFileName.js';
 import light from './themes/light.json' with { type: 'json' };
 import dark from './themes/dark.json' with { type: 'json' };
+import { tokenizeSource } from './tokenize.mjs';
 
 let engine;
 const languages = new Map();
@@ -29,7 +30,7 @@ export async function highlight(input) {
   const guessed = getFiletypeFromFileName(input.path.replaceAll('\\', '/'));
   const language = guessed && bundledLanguages[guessed] ? guessed : 'text';
   const value = await highlighter(language);
-  const result = { language, left: [], right: [] };
+  const result = { language, left: [], right: [], recoveredTokenizations: 0 };
   for (const side of ['left', 'right']) {
     const groups = new Map();
     for (const line of input.lines.filter(line => line[side])) {
@@ -38,29 +39,31 @@ export async function highlight(input) {
       groups.get(key).push(line);
     }
     for (const rows of groups.values()) {
-    // Partial diffs reset their grammar state at each hunk, as in the reference
-    // worker. Within each side, preserve multi-line state and exclude metadata.
-    const source = rows.map(row => row.text).join('\n');
-    const tokens = language !== 'text'
-      ? value.codeToTokensWithThemes(source, { lang: language,
-          themes: { light: light.name, dark: dark.name }, tokenizeMaxLineLength: 1000 }).flat() : [];
-    let start = 0, index = 0;
-    for (const row of rows) {
-      const end = start + row.text.length, spans = [];
-      let cursor = start;
-      while (index < tokens.length && tokens[index].offset < end) {
-        const token = tokens[index++];
-        if (token.offset < start) continue;
-        if (token.offset > cursor) spans.push(plain(source.slice(cursor, token.offset)));
-        spans.push({ content: token.content, light: style(token.variants.light), dark: style(token.variants.dark) });
-        cursor = token.offset + token.content.length;
+      // Partial diffs reset their grammar state at each hunk, as in the reference
+      // worker. Within each side, preserve multi-line state and exclude metadata.
+      const source = rows.map(row => row.text).join('\n');
+      const highlighted = language !== 'text'
+        ? tokenizeSource(value, language, source, { light: light.name, dark: dark.name })
+        : { tokens: [], recovered: false };
+      const tokens = highlighted.tokens;
+      if (highlighted.recovered) result.recoveredTokenizations += 1;
+      let start = 0, index = 0;
+      for (const row of rows) {
+        const end = start + row.text.length, spans = [];
+        let cursor = start;
+        while (index < tokens.length && tokens[index].offset < end) {
+          const token = tokens[index++];
+          if (token.offset < start) continue;
+          if (token.offset > cursor) spans.push(plain(source.slice(cursor, token.offset)));
+          spans.push({ content: token.content, light: style(token.variants.light), dark: style(token.variants.dark) });
+          cursor = token.offset + token.content.length;
+        }
+        // Shiki excludes line endings. Preserve CR and every source character;
+        // the transport and Swift rendering never normalize or rewrite the code.
+        if (cursor < end) spans.push(plain(source.slice(cursor, end)));
+        result[side].push({ id: row.id, tokens: spans });
+        start = end + 1;
       }
-      // Shiki excludes line endings. Preserve CR and every source character;
-      // the transport and Swift rendering never normalize or rewrite the code.
-      if (cursor < end) spans.push(plain(source.slice(cursor, end)));
-      result[side].push({ id: row.id, tokens: spans });
-      start = end + 1;
-    }
     }
   }
   return result;

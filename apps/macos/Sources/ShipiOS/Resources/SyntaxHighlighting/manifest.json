@@ -1,7 +1,7 @@
 {
   "format": 1,
-  "sha256": "12600da3710db3bc5c8047f2d4252d4353dec96e04df75ed7599f83664656b12",
-  "bytes": 8288194,
+  "sha256": "4bcb9d97cff8045a7a51a3372d5ae18384249b06fa35e983d544f4709d10d35a",
+  "bytes": 8288673,
   "components": [
     {
       "name": "@pierre/diffs",

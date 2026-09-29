@@ -10,7 +10,12 @@ final class DeveloperWorkspace {
   var fileQuery = ""
   var selectedFile: String?
   var openFiles: [String] = []
-  var fileText = ""
+  var fileText = "" {
+    didSet {
+      if !oldValue.utf8.elementsEqual(fileText.utf8) { fileContentVersion = UUID() }
+    }
+  }
+  private(set) var fileContentVersion = UUID()
   var fileLoading = false
   var fileError: String?
   var fileOpenError: String?
