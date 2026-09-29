@@ -14,7 +14,7 @@ struct SettingsSearchInput: NSViewRepresentable {
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> NSSearchField {
-    let field = NSSearchField()
+    let field = Field()
     field.placeholderString = "搜索设置…"
     field.setAccessibilityLabel("搜索设置")
     field.sendsSearchStringImmediately = true
@@ -37,6 +37,7 @@ struct SettingsSearchInput: NSViewRepresentable {
     DispatchQueue.main.async { [weak field, weak coordinator] in
       guard let field, let coordinator, coordinator.active, coordinator.parent.visible,
         coordinator.parent.isEnabled,
+        WindowModalInteraction.allows(field),
         coordinator.focusRequest == focusRequest,
         let window = field.window, window.isKeyWindow, window.attachedSheet == nil,
         NSApp.modalWindow == nil,
@@ -50,14 +51,18 @@ struct SettingsSearchInput: NSViewRepresentable {
     field.target = nil
     coordinator.active = false
   }
+  final class Field: NSSearchField {
+    override var acceptsFirstResponder: Bool { super.acceptsFirstResponder && WindowModalInteraction.allows(self) }
+    override var canBecomeKeyView: Bool { super.canBecomeKeyView && WindowModalInteraction.allows(self) }
+  }
 
-  final class Coordinator: NSObject, NSSearchFieldDelegate {
+  @MainActor final class Coordinator: NSObject, NSSearchFieldDelegate {
     var parent: SettingsSearchInput
     var focusRequest: UUID?
     var active = true
     init(_ parent: SettingsSearchInput) { self.parent = parent }
     @objc func searchChanged(_ field: NSSearchField) {
-      guard active, parent.visible, parent.isEnabled, field.isEnabled,
+      guard active, parent.visible, parent.isEnabled, field.isEnabled, WindowModalInteraction.allows(field),
         (field.currentEditor() as? NSTextView)?.hasMarkedText() != true else { return }
       parent.query = field.stringValue
     }
@@ -67,7 +72,7 @@ struct SettingsSearchInput: NSViewRepresentable {
     }
     func control(_ control: NSControl, textView: NSTextView,
       doCommandBy commandSelector: Selector) -> Bool {
-      guard active, parent.visible, parent.isEnabled, control.isEnabled,
+      guard active, parent.visible, parent.isEnabled, control.isEnabled, WindowModalInteraction.allows(control),
         !textView.hasMarkedText() else { return false }
       switch commandSelector {
       case #selector(NSResponder.moveUp(_:)): parent.onMove(.up)

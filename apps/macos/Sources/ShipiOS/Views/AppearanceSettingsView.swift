@@ -84,12 +84,12 @@ struct AppearanceSettingsView: View {
         Text(title).appFont(size: 13, weight: .medium).accessibilityAddTraits(.isHeader)
         Spacer(minLength: 8)
         AppearanceActionButton(title: "导入", label: "导入" + title,
-          available: { available && !store.hasSettingsConfirmation }) { source in
+          available: { available }, interactionAvailable: { !store.hasSettingsConfirmation }) { source in
             store.beginAppearanceImport(dark: dark, source: source)
           }.fixedSize()
           .settingsSearchTarget(.importTheme, when: !dark)
         AppearanceActionButton(title: "复制主题", label: "复制" + title,
-          available: { available && !store.hasSettingsConfirmation }) { _ in
+          available: { available }, interactionAvailable: { !store.hasSettingsConfirmation }) { _ in
             do {
               try AppearanceThemeClipboard.copy(store.appearance, dark: dark, to: .general)
               store.notices.show(id: "appearance-theme-copy", title: "已复制" + title, level: .success)

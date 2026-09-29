@@ -52,8 +52,8 @@ struct AppearanceCodeSurface: NSViewRepresentable {
   }
   final class WebView: WKWebView {
     var available = true
-    override var acceptsFirstResponder: Bool { available && super.acceptsFirstResponder }
-    override func hitTest(_ point: NSPoint) -> NSView? { available ? super.hitTest(point) : nil }
+    override var acceptsFirstResponder: Bool { available && WindowModalInteraction.allows(self) && super.acceptsFirstResponder }
+    override func hitTest(_ point: NSPoint) -> NSView? { available && WindowModalInteraction.allows(self) ? super.hitTest(point) : nil }
   }
   var payload: [String: Any] {
     // Reading the environment also invalidates the surface when the system

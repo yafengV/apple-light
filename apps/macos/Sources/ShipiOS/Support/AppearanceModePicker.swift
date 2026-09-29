@@ -123,6 +123,7 @@ struct AppearanceModePicker: NSViewRepresentable {
     func canAct(_ group: Group) -> Bool {
       active && parent.enabled && parent.store.libraryLoaded && !parent.store.restoringLibrary && group.available
         && group.window != nil && !group.isHiddenOrHasHiddenAncestor && group.window?.attachedSheet == nil
+        && WindowModalInteraction.allows(group)
     }
     @discardableResult func choose(_ mode: AppearanceMode, in group: Group) -> Bool {
       guard canAct(group) else { return false }

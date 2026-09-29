@@ -224,6 +224,145 @@ import XCTest
     XCTAssertNil(store.appearanceThemeImport); XCTAssertEqual(session.value, ""); XCTAssertEqual(store.destination, .settings)
     XCTAssertEqual(store.library.drafts["fixture"], "keep draft"); XCTAssertFalse(window.isVisible)
   }
+  func testMainPageRetainsEnabledAppearanceWhileNativeBackgroundActionsAreInert() async throws {
+    let (store, _) = makeStore()
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: MainProbe(store: store)); window.contentView = host; try await settle(host)
+    let colors = find(host, AppearanceColorInput.Control.self), numbers = find(host, AppearanceFontSizeInput.Control.self)
+    let menus = find(host, SettingsPopupMenuButton.Control.self), radios = find(host, AppearanceModePicker.Radio.self)
+    let sliders = find(host, AppearanceContrastSlider.Control.self), headers = find(host, AppearanceActionButton.Control.self)
+    var controls: [NSControl] = colors.flatMap { [$0.field, $0.swatch] as [NSControl] }
+    controls.append(contentsOf: numbers); controls.append(contentsOf: menus); controls.append(contentsOf: radios)
+    controls.append(contentsOf: sliders); controls.append(contentsOf: headers)
+    XCTAssertEqual(colors.count, 6); XCTAssertEqual(numbers.count, 2); XCTAssertEqual(radios.count, 3); XCTAssertEqual(sliders.count, 2)
+    let enabled = controls.map(\.isEnabled), original = store.appearance
+    let color = try XCTUnwrap(colors.first), before = try drawnColor(color)
+    store.beginAppearanceImport(dark: false)
+    XCTAssertTrue(headers.allSatisfy(\.isEnabled))
+    XCTAssertTrue(headers.allSatisfy { !$0.acceptsFirstResponder && !$0.canAct() }, "Header callbacks are blocked even before the native scope mounts")
+    try await settle(host)
+    let view = try XCTUnwrap(find(host, AppearanceThemeImportView.Surface.self).first)
+    XCTAssertEqual(controls.map(\.isEnabled), enabled, "Modal inertness must not dim retained controls")
+    XCTAssertEqual(try drawnColor(color), before, "The color control's own drawing is unchanged beneath the backdrop")
+    XCTAssertTrue(controls.allSatisfy { !$0.acceptsFirstResponder })
+    XCTAssertFalse(try XCTUnwrap(headers.first).accessibilityPerformPress())
+    XCTAssertFalse(try XCTUnwrap(menus.first).accessibilityPerformPress())
+    XCTAssertFalse(try XCTUnwrap(radios.first).accessibilityPerformPress())
+    XCTAssertFalse(try XCTUnwrap(sliders.first?.owner).choose(99, in: sliders[0]))
+    color.field.stringValue = "#ABCDEF"; color.owner?.controlTextDidChange(.init(name: NSControl.textDidChangeNotification, object: color.field))
+    XCTAssertEqual(store.appearance, original)
+    XCTAssertTrue(view.field.acceptsFirstResponder); XCTAssertTrue(view.cancel.acceptsFirstResponder)
+    let search = try XCTUnwrap(find(host, SettingsSearchInput.Field.self).first)
+    XCTAssertTrue(search.isEnabled); XCTAssertFalse(search.acceptsFirstResponder)
+    let web = try XCTUnwrap(find(host, AppearanceCodeSurface.WebView.self).first)
+    XCTAssertTrue(web.available); XCTAssertFalse(web.acceptsFirstResponder); XCTAssertNil(web.hitTest(.init(x: 5, y: 5)))
+    XCTAssertTrue(view.close.accessibilityPerformPress()); try await settle(host)
+    XCTAssertEqual(controls.map(\.isEnabled), enabled)
+    XCTAssertTrue(headers.filter(\.isEnabled).allSatisfy(\.acceptsFirstResponder))
+    XCTAssertTrue(search.acceptsFirstResponder); XCTAssertTrue(WindowModalInteraction.allows(web)); XCTAssertFalse(window.isVisible)
+  }
+  func testModalRemovesExistingMenuAndColorPopupWithoutRestoringBackgroundFocus() async throws {
+    let (store, _) = makeStore()
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: MainProbe(store: store)); window.contentView = host; try await settle(host)
+    let menu = try XCTUnwrap(find(host, SettingsPopupMenuButton.Control.self).first { $0.isEnabled && !$0.visibleRect.isEmpty })
+    XCTAssertTrue(menu.accessibilityPerformPress()); try await settle(host)
+    XCTAssertFalse(window.contentView!.subviews.compactMap { $0 as? SettingsPopupMenuButton.HostingView }.isEmpty)
+    store.beginAppearanceImport(dark: false); try await settle(host)
+    XCTAssertTrue(window.contentView!.subviews.compactMap { $0 as? SettingsPopupMenuButton.HostingView }.isEmpty)
+    let first = try XCTUnwrap(find(host, AppearanceThemeImportView.Surface.self).first)
+    XCTAssertTrue(window.firstResponder === first.field.currentEditor()); XCTAssertFalse(menu.acceptsFirstResponder)
+    XCTAssertTrue(first.close.accessibilityPerformPress()); try await settle(host)
+    let color = try XCTUnwrap(find(host, AppearanceColorInput.Control.self).first { !$0.visibleRect.isEmpty })
+    color.owner?.toggle(color); try await settle(host)
+    XCTAssertNotNil(color.owner?.popup)
+    store.beginAppearanceImport(dark: false); try await settle(host)
+    let second = try XCTUnwrap(find(host, AppearanceThemeImportView.Surface.self).first)
+    XCTAssertNil(color.owner?.popup); XCTAssertTrue(window.firstResponder === second.field.currentEditor())
+    color.owner?.toggle(color); XCTAssertNil(color.owner?.popup); XCTAssertFalse(window.isVisible)
+  }
+  func testExternalFocusReturnsToLastModalControlAndSelectsInputOnlyOnEscape() async throws {
+    let (store, _) = makeStore(); store.beginAppearanceImport(dark: false)
+    store.appearanceThemeImport?.value = "partial draft"
+    let (window, host, view) = try await modal(store); defer { window.close() }
+    let owner = try XCTUnwrap(view.owner), editor = try XCTUnwrap(view.field.currentEditor() as? NSTextView)
+    editor.selectedRange = .init(location: 2, length: 3); owner.containFocus(in: view)
+    XCTAssertEqual(editor.selectedRange, .init(location: 2, length: 3))
+    let outside = NSButton(title: "关闭通知", target: nil, action: nil)
+    host.addSubview(outside); XCTAssertTrue(window.makeFirstResponder(outside))
+    owner.containFocus(in: view)
+    let restored = try XCTUnwrap(view.field.currentEditor() as? NSTextView)
+    XCTAssertTrue(window.firstResponder === restored); XCTAssertEqual(restored.selectedRange, .init(location: 0, length: 13))
+    XCTAssertTrue(window.makeFirstResponder(view.close)); owner.containFocus(in: view)
+    XCTAssertTrue(window.makeFirstResponder(outside)); owner.containFocus(in: view)
+    XCTAssertTrue(window.firstResponder === view.close, "Restore the last focused button rather than resetting to input")
+    view.close.isEnabled = false; XCTAssertTrue(window.makeFirstResponder(outside)); owner.containFocus(in: view)
+    XCTAssertTrue(window.firstResponder === view.field.currentEditor())
+    store.destination = .workspace; XCTAssertTrue(window.makeFirstResponder(outside)); owner.containFocus(in: view)
+    XCTAssertTrue(window.firstResponder === outside, "A stale modal cannot capture focus")
+    XCTAssertFalse(window.isVisible)
+  }
+  func testOutsideRightAndControlClickKeepDialogOpen() async throws {
+    let (store, _) = makeStore(); store.beginAppearanceImport(dark: false)
+    let (window, _, view) = try await modal(store); defer { window.close() }
+    let point = view.convert(.init(x: 8, y: 8), to: nil)
+    func event(_ type: NSEvent.EventType, _ flags: NSEvent.ModifierFlags) throws -> NSEvent {
+      try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: flags, timestamp: 2,
+        windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
+    }
+    view.rightMouseDown(with: try event(.rightMouseDown, [])); XCTAssertNotNil(store.appearanceThemeImport)
+    view.mouseDown(with: try event(.leftMouseDown, .control)); XCTAssertNotNil(store.appearanceThemeImport)
+    view.mouseDown(with: try event(.leftMouseDown, [])); XCTAssertNil(store.appearanceThemeImport); XCTAssertFalse(window.isVisible)
+  }
+  private func drawnColor(_ view: AppearanceColorInput.Control) throws -> Data {
+    let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 136, pixelsHigh: 28,
+      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+    NSGraphicsContext.saveGraphicsState(); defer { NSGraphicsContext.restoreGraphicsState() }
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap); view.draw(view.bounds)
+    return try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+  }
+  func testOutsideNotificationPointerDismissesWhileBackdropRetainsItsOriginalTarget() async throws {
+    let (store, _) = makeStore(); store.beginAppearanceImport(dark: false)
+    let session = try XCTUnwrap(store.appearanceThemeImport); session.value = "discard"
+    let (window, host, view) = try await modal(store); defer { window.close() }
+    let owner = try XCTUnwrap(view.owner)
+    func pointer(_ point: NSPoint, flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
+      try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: flags, timestamp: 2,
+        windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
+    }
+    let backdrop = try pointer(view.convert(.init(x: 8, y: 8), to: nil))
+    XCTAssertFalse(owner.handleOutsidePointer(backdrop, in: view)); XCTAssertTrue(store.appearanceThemeImport === session)
+    let toast = NSButton(title: "关闭通知", target: nil, action: nil); toast.frame = .init(x: 20, y: 20, width: 100, height: 28)
+    host.addSubview(toast, positioned: .above, relativeTo: nil)
+    let point = toast.convert(.init(x: 30, y: 10), to: nil)
+    XCTAssertTrue(host.hitTest(host.superview?.convert(point, from: nil) ?? point) === toast)
+    XCTAssertFalse(owner.handleOutsidePointer(try pointer(point, flags: .control), in: view)); XCTAssertNotNil(store.appearanceThemeImport)
+    XCTAssertTrue(owner.handleOutsidePointer(try pointer(point), in: view))
+    XCTAssertNil(store.appearanceThemeImport); XCTAssertEqual(session.value, "")
+    XCTAssertFalse(owner.handleOutsidePointer(try pointer(point), in: view)); XCTAssertFalse(window.isVisible)
+  }
+  func testRealMainWindowNoticeIsOutsideModalAndItsBodyClickKeepsTheNotice() async throws {
+    let (store, _) = makeStore(); store.beginAppearanceImport(dark: false)
+    store.notices.show(id: "import-result", title: "保留通知", level: .error)
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: MainProbe(store: store)); window.contentView = host; try await settle(host)
+    let view = try XCTUnwrap(find(host, AppearanceThemeImportView.Surface.self).first)
+    let point = host.convert(.init(x: host.bounds.midX, y: host.isFlipped ? 64 : host.bounds.height - 64), to: nil)
+    let hit = try XCTUnwrap(host.hitTest(host.superview?.convert(point, from: nil) ?? point))
+    XCTAssertFalse(hit === view || hit.isDescendant(of: view))
+    store.notices.dismiss("import-result"); try await settle(host)
+    let backdropHit = try XCTUnwrap(host.hitTest(host.superview?.convert(point, from: nil) ?? point))
+    XCTAssertTrue(backdropHit === view || backdropHit.isDescendant(of: view), "Removing the actual notice must expose the modal backdrop at the same point")
+    store.notices.show(id: "import-result", title: "保留通知", level: .error); try await settle(host)
+    let event = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 2,
+      windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
+    XCTAssertTrue(try XCTUnwrap(view.owner).handleOutsidePointer(event, in: view)); try await settle(host)
+    XCTAssertNil(store.appearanceThemeImport); XCTAssertEqual(store.notices.visible.first?.id, "import-result")
+    XCTAssertEqual(store.destination, .settings); XCTAssertEqual(store.settingsPage, .appearance); XCTAssertFalse(window.isVisible)
+  }
   private struct Probe: View {
     @Bindable var store: WorkspaceStore
     var body: some View {

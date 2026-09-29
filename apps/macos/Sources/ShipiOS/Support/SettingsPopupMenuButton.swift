@@ -103,7 +103,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       if !value, window?.firstResponder === self { window?.makeFirstResponder(nil) }
       super.isEnabled = value; needsDisplay = true
     }
-    override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor }
+    override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize { .init(width: buttonWidth, height: 28) }
     override func draw(_ dirtyRect: NSRect) {

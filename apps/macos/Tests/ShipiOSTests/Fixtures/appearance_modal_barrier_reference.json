@@ -1,0 +1,79 @@
+{
+  "initialSHA256": "01c04b2e5a96e5dd4c97e02ffa183f571a55bef7a221abd99404246c430f2212",
+  "sources": {
+    "layer": "247af6583754e211583997de6034dff43c338aa1b2ca2b789bef1ac211db499e",
+    "modal": "c9c3bc577cfb342ca790adb8e79fc22f97760f39d4591782a14be134d022c6f3",
+    "focusScope": "a2ed7c4bf25f28e4ad7ef5500a49827d2675f19b3339b5192a454ab215356b1f"
+  },
+  "pointerCases": [
+    {
+      "button": 0,
+      "ctrlKey": false,
+      "prevented": false
+    },
+    {
+      "button": 0,
+      "ctrlKey": true,
+      "prevented": true
+    },
+    {
+      "button": 1,
+      "ctrlKey": false,
+      "prevented": false
+    },
+    {
+      "button": 1,
+      "ctrlKey": true,
+      "prevented": false
+    },
+    {
+      "button": 2,
+      "ctrlKey": false,
+      "prevented": true
+    },
+    {
+      "button": 2,
+      "ctrlKey": true,
+      "prevented": true
+    }
+  ],
+  "closePrevented": true,
+  "focusOutsidePrevented": true,
+  "toastPointerDismissed": true,
+  "pointerAfter": {
+    "bodyPointerEvents": "none",
+    "background": {
+      "disabled": false,
+      "opacity": 1
+    },
+    "disabledLayers": 1
+  },
+  "pointerCleanup": {
+    "bodyPointerEvents": "auto",
+    "background": {
+      "disabled": false,
+      "opacity": 1
+    },
+    "disabledLayers": 0
+  },
+  "inputRestore": {
+    "focused": "input",
+    "selections": 1,
+    "preventScroll": true
+  },
+  "buttonRestore": {
+    "focused": "cancel",
+    "selections": 1
+  },
+  "tabLoop": {
+    "focused": "input",
+    "prevented": true,
+    "selections": 2
+  },
+  "remainingListeners": [],
+  "ariaProtectedNames": [
+    "dialog",
+    "live",
+    "script"
+  ]
+}

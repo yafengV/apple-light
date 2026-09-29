@@ -73,12 +73,12 @@ struct AppearanceColorInput: NSViewRepresentable {
   }
   final class Field: NSTextField {
     weak var container: Control?
-    override var acceptsFirstResponder: Bool { container?.active == true && isEnabled && !isHiddenOrHasHiddenAncestor }
+    override var acceptsFirstResponder: Bool { container?.active == true && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
   }
   final class Swatch: NSButton {
     weak var container: Control?
-    override var acceptsFirstResponder: Bool { container?.active == true && isEnabled && !isHiddenOrHasHiddenAncestor }
+    override var acceptsFirstResponder: Bool { container?.active == true && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override func draw(_ dirtyRect: NSRect) {
       guard let color = container?.color else { return }

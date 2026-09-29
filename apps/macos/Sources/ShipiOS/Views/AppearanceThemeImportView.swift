@@ -56,9 +56,16 @@ struct AppearanceThemeImportView: NSViewRepresentable {
     }
     override func resignFirstResponder() -> Bool { surface?.needsDisplay = true; return super.resignFirstResponder() }
   }
-  final class Surface: NSView {
+  final class Surface: NSView, WindowModalScope {
     weak var owner: Coordinator?
+    private weak var gatedWindow: NSWindow?
     var active = true
+    var modalRoot: NSView { self }
+    var modalScopeActive: Bool {
+      active && owner?.active == true && window != nil
+        && owner?.parent.store.appearanceThemeImport != nil
+        && owner?.parent.store.destination == .settings && owner?.parent.store.settingsPage == .appearance
+    }
     var colors = AppearancePreferences().resolvedColors
     let panel = NSView(), material = NSVisualEffectView()
     let decoration = Decoration()
@@ -86,7 +93,18 @@ struct AppearanceThemeImportView: NSViewRepresentable {
       setAccessibilityChildren([field, cancel, submit, close])
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window != nil { owner?.scheduleFocus(self) } }
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow(); removeScope()
+      guard let window, active, owner != nil else { return }
+      gatedWindow = window; WindowModalInteraction.install(self, in: window)
+      // Native menus live above the SwiftUI root. Remove them before focusing
+      // the modal, and invalidate their pending focus/selection callbacks.
+      window.contentView?.subviews.compactMap { $0 as? SettingsPopupMenuButton.HostingView }.forEach { $0.dismissMenu?() }
+      owner?.scheduleFocus(self)
+    }
+    func removeScope() {
+      if let gatedWindow { WindowModalInteraction.remove(self, from: gatedWindow) }; gatedWindow = nil
+    }
     override func layout() {
       super.layout(); let rect = dialogFrame; panel.frame = rect; material.frame = panel.bounds; decoration.frame = bounds
       label.frame = .init(x: rect.minX + 20, y: rect.minY + 20, width: rect.width - 70, height: 28)
@@ -116,8 +134,14 @@ struct AppearanceThemeImportView: NSViewRepresentable {
     }
     override func mouseDown(with event: NSEvent) {
       let point = convert(event.locationInWindow, from: nil)
-      if !dialogFrame.contains(point) { owner?.dismiss(self) }
+      if !dialogFrame.contains(point) {
+        if !event.modifierFlags.contains(.control) { owner?.dismiss(self) }
+      }
       else if point.y >= dialogFrame.minY + 60, point.y <= dialogFrame.minY + 96 { window?.makeFirstResponder(field) }
+    }
+    override func rightMouseDown(with event: NSEvent) {}
+    override func otherMouseDown(with event: NSEvent) {
+      if !dialogFrame.contains(convert(event.locationInWindow, from: nil)) { owner?.dismiss(self) }
     }
   }
   final class Decoration: NSView {
@@ -130,6 +154,8 @@ struct AppearanceThemeImportView: NSViewRepresentable {
     var parent: AppearanceThemeImportView
     var active = true, focused = false
     private var monitor: Any?
+    private var observers: [NSObjectProtocol] = []
+    private weak var lastFocused: NSView?
     init(_ parent: AppearanceThemeImportView) { self.parent = parent }
     func attach(_ view: Surface) {
       view.field.delegate = self
@@ -140,12 +166,27 @@ struct AppearanceThemeImportView: NSViewRepresentable {
         _ = self.parent.store.submitAppearanceImport(self.parent.session)
       }
       for button in [view.cancel, view.submit, view.close] { button.canAct = { [weak self, weak view] in self?.canDismiss(view) == true } }
-      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak view] event in
+      monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self, weak view] event in
         let handled = MainActor.assumeIsolated {
           guard let self, let view, let window = view.window, window.isKeyWindow, event.window === window else { return false }
-          return self.handle(event, in: view)
+          self.containFocus(in: view)
+          if event.type == .keyDown { return self.handle(event, in: view) }
+          self.handleOutsidePointer(event, in: view)
+          DispatchQueue.main.async { [weak self, weak view, weak window] in
+            guard let self, let view, let window, view.window === window, window.isKeyWindow else { return }
+            self.containFocus(in: view)
+          }
+          return false
         }
         return handled ? nil : event
+      }
+      for name in [NSWindow.didUpdateNotification, NSWindow.didBecomeKeyNotification] {
+        observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self, weak view] note in
+          MainActor.assumeIsolated {
+            guard let self, let view, let window = view.window, note.object as AnyObject? === window, window.isKeyWindow else { return }
+            self.containFocus(in: view)
+          }
+        })
       }
     }
     func canDismiss(_ view: Surface?) -> Bool {
@@ -156,12 +197,44 @@ struct AppearanceThemeImportView: NSViewRepresentable {
     }
     func canAct(_ view: Surface) -> Bool { canDismiss(view) && parent.store.canEditAppearanceImport(parent.session) }
     func dismiss(_ view: Surface) { guard canDismiss(view) else { return }; parent.store.dismissAppearanceImport(parent.session) }
+    @discardableResult func handleOutsidePointer(_ event: NSEvent, in view: Surface) -> Bool {
+      guard canDismiss(view), let window = view.window, event.window === window,
+        [.leftMouseDown, .otherMouseDown].contains(event.type),
+        !(event.type == .leftMouseDown && event.modifierFlags.contains(.control)),
+        let content = window.contentView,
+        let hit = content.hitTest(content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow),
+        hit !== view, !hit.isDescendant(of: view) else { return false }
+      // Toasts are outside the dialog DOM, but retain pointer events. Dismiss
+      // before their own action. Backdrop events stay routed to Surface so
+      // removal cannot turn the original click into a background action.
+      dismiss(view); return true
+    }
     func scheduleFocus(_ view: Surface) {
       guard !focused else { return }
       DispatchQueue.main.async { [weak self, weak view] in
         guard let self, let view, !self.focused, self.canAct(view) else { return }
         self.focused = view.window?.makeFirstResponder(view.field) == true
+        if self.focused { self.lastFocused = view.field }
       }
+    }
+    private func focusedControl(in view: Surface) -> NSView? {
+      let responder = view.window?.firstResponder
+      if let editor = responder as? NSTextView, let control = editor.delegate as? NSView,
+        control === view || control.isDescendant(of: view) { return control }
+      if let control = responder as? NSView, control === view || control.isDescendant(of: view) { return control }
+      return nil
+    }
+    func containFocus(in view: Surface) {
+      guard canDismiss(view), let window = view.window else { return }
+      if let control = focusedControl(in: view) { lastFocused = control; return }
+      let target: NSView
+      if let previous = lastFocused, previous.isDescendant(of: view), previous.acceptsFirstResponder { target = previous }
+      else { target = view.field.acceptsFirstResponder ? view.field : view.cancel }
+      guard window.makeFirstResponder(target) else { return }
+      lastFocused = target
+      // Radix's focusScope restores inputs with select:true when external
+      // focus escapes. Ordinary updates never change the editor selection.
+      if target === view.field { view.field.currentEditor()?.selectAll(nil) }
     }
     func controlTextDidChange(_ notification: Notification) {
       guard let field = notification.object as? Input, let view = field.surface, canAct(view) else { return }
@@ -169,10 +242,12 @@ struct AppearanceThemeImportView: NSViewRepresentable {
     }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
       // This input is not a form: Return does not submit or dismiss.
-      !textView.hasMarkedText() && selector == #selector(NSResponder.insertNewline(_:))
+      guard let input = control as? Input, let view = input.surface, canAct(view) else { return false }
+      return !textView.hasMarkedText() && selector == #selector(NSResponder.insertNewline(_:))
     }
     func handle(_ event: NSEvent, in view: Surface) -> Bool {
       guard canDismiss(view) else { return false }
+      containFocus(in: view)
       let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
       let editor = view.window?.firstResponder as? NSTextView
       if editor?.hasMarkedText() == true { return false }
@@ -183,13 +258,15 @@ struct AppearanceThemeImportView: NSViewRepresentable {
         let current = view.window?.firstResponder
         let index = controls.firstIndex { $0 === current || ($0 === view.field && editor?.delegate as AnyObject? === view.field) }
         let next = index.map { ($0 + (flags == .shift ? -1 : 1) + controls.count) % controls.count } ?? (flags == .shift ? controls.count - 1 : 0)
-        view.window?.makeFirstResponder(controls[next]); return true
+        view.window?.makeFirstResponder(controls[next]); lastFocused = controls[next]; return true
       }
       if flags.isEmpty, [36, 76].contains(event.keyCode), editor?.delegate as AnyObject? === view.field { return true }
       return false
     }
     func stop(_ view: Surface) {
       active = false; if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil
+      observers.forEach { NotificationCenter.default.removeObserver($0) }; observers = []; lastFocused = nil
+      view.removeScope()
       let current = view.window?.firstResponder
       let editor = current as? NSTextView
       if current === view.field || editor?.delegate as AnyObject? === view.field
@@ -197,6 +274,9 @@ struct AppearanceThemeImportView: NSViewRepresentable {
         view.window?.makeFirstResponder(nil)
       }
     }
-    deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+    deinit {
+      if let monitor { NSEvent.removeMonitor(monitor) }
+      observers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
   }
 }

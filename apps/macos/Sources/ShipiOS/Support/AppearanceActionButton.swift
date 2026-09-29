@@ -6,6 +6,7 @@ struct AppearanceActionButton: NSViewRepresentable {
   let title: String
   let label: String
   let available: () -> Bool
+  var interactionAvailable: () -> Bool = { true }
   let action: (Control) -> Void
   @Environment(\.isEnabled) private var enabled
   @Environment(\.appAppearance) private var appearance
@@ -13,7 +14,7 @@ struct AppearanceActionButton: NSViewRepresentable {
   func updateNSView(_ view: Control, context: Context) {
     view.title = title; view.setAccessibilityLabel(label)
     view.font = appearance.nativeFont(size: 13); view.preferences = appearance
-    view.canAct = { enabled && available() }; view.activate = { [weak view] in if let view { action(view) } }
+    view.canAct = { enabled && available() && interactionAvailable() }; view.activate = { [weak view] in if let view { action(view) } }
     view.isEnabled = enabled && available(); view.invalidateIntrinsicContentSize(); view.needsDisplay = true
   }
   static func dismantleNSView(_ view: Control, coordinator: ()) {
@@ -33,7 +34,7 @@ struct AppearanceActionButton: NSViewRepresentable {
       target = self; action = #selector(pressed)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor }
+    override var acceptsFirstResponder: Bool { active && isEnabled && canAct() && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize {
       if closeIcon { return .init(width: 22, height: 22) }

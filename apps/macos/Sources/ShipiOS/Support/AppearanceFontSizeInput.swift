@@ -76,7 +76,7 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       }
     }
     private func applyEnabled(_ value: Bool) { super.isEnabled = value; needsDisplay = true }
-    override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor }
+    override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize { .init(width: 64, height: 28) }
     override var alignmentRectInsets: NSEdgeInsets { .init(top: 0, left: 0, bottom: 0, right: 0) }

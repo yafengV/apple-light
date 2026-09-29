@@ -49,7 +49,8 @@ struct AppContentView: View {
             .accessibilityHidden(store.destination != .settings)
         }
       }
-      .disabled(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
+      .disabled((store.hasSettingsConfirmation && store.appearanceThemeImport == nil)
+        || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
       .allowsHitTesting(!store.hasSettingsConfirmation && store.presentedOverlay != .imagePreview && store.presentedOverlay?.isSearchDialog != true)
       .accessibilityHidden(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
       .overlay {

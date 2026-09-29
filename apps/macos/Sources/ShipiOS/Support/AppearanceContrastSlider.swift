@@ -118,7 +118,7 @@ struct AppearanceContrastSlider: NSViewRepresentable {
   @MainActor final class Coordinator {
     var parent: AppearanceContrastSlider; var active = true
     init(_ parent: AppearanceContrastSlider) { self.parent = parent }
-    func canAct(_ view: Control) -> Bool { active && parent.enabled && parent.available() && view.isEnabled && !view.isHiddenOrHasHiddenAncestor && view.window != nil && view.window?.attachedSheet == nil }
+    func canAct(_ view: Control) -> Bool { active && parent.enabled && parent.available() && view.isEnabled && !view.isHiddenOrHasHiddenAncestor && view.window != nil && view.window?.attachedSheet == nil && WindowModalInteraction.allows(view) }
     @discardableResult func choose(_ value: Double, in view: Control) -> Bool {
       guard canAct(view) else { return false }; let next = rangeValue(value)
       if next != rangeValue(parent.value) { parent.value = next }
