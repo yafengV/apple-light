@@ -15,6 +15,7 @@ struct CodeThemePicker: View {
 }
 
 struct CodeThemeMenuContent: View {
+  @Environment(\.appAppearance) private var appearance
   let store: WorkspaceStore
   let menu: CodeThemeMenuState
   let choose: (String) -> Void
@@ -33,7 +34,7 @@ struct CodeThemeMenuContent: View {
                 }
               }.padding(.horizontal, 8).frame(height: 34).contentShape(Rectangle())
             }.buttonStyle(.plain)
-              .background(preset.id == menu.highlightedID ? Color.primary.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
+              .background(preset.id == menu.highlightedID ? appearance.resolvedColors["buttonSecondaryBackgroundHover"].color : .clear, in: RoundedRectangle(cornerRadius: 12))
               .searchResultPointer(enabled: menu.presented) { menu.hover(preset.id) }
               .onHover { if !$0, menu.highlightedID == preset.id { menu.hover(nil) } }
               .accessibilityLabel(preset.label)
@@ -45,8 +46,10 @@ struct CodeThemeMenuContent: View {
         .onChange(of: menu.highlightedID) { _, id in if let id { reader.scrollTo(id) } }
     }
     .padding(4).frame(width: 240)
-    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+    .foregroundStyle(appearance.foregroundColor)
+    .background(appearance.resolvedColors["controlBackgroundOpaque"].color.opacity(0.9), in: RoundedRectangle(cornerRadius: 16))
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(appearance.resolvedColors["border"].color, lineWidth: 0.5))
     .accessibilityElement(children: .contain).accessibilityLabel(menu.dark ? "深色代码主题" : "浅色代码主题")
   }
 }

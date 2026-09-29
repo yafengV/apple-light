@@ -44,6 +44,7 @@ struct AppearanceFontPicker: View {
 }
 
 struct AppearanceFontMenuContent: View {
+  @Environment(\.appAppearance) private var appearance
   let menu: AppearanceFontMenuState
   let width: CGFloat
   let label: String
@@ -62,19 +63,21 @@ struct AppearanceFontMenuContent: View {
                 if option.id == selectedID { Image(systemName: "checkmark").font(.system(size: 12)).frame(width: 16) }
               }.padding(.horizontal, 8).frame(height: 26).contentShape(Rectangle())
             }.buttonStyle(.plain)
-              .background(option.id == menu.highlightedID ? Color.primary.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
+              .background(option.id == menu.highlightedID ? appearance.resolvedColors["buttonSecondaryBackgroundHover"].color : .clear, in: RoundedRectangle(cornerRadius: 12))
               .searchResultPointer(enabled: menu.presented) { menu.hover(option.id) }
               .onHover { if !$0, menu.highlightedID == option.id { menu.hover(nil) } }
               .accessibilityLabel(option.title).accessibilityValue(option.id == selectedID ? "已选择" : "")
               .accessibilityIdentifier("appearance-font-option:" + option.id).id(option.id)
-            if option.id == "default" { Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1).padding(.horizontal, 8).padding(.vertical, 4) }
+            if option.id == "default" { Rectangle().fill(appearance.resolvedColors["border"].color).frame(height: 1).padding(.horizontal, 8).padding(.vertical, 4) }
           }
         }
       }.onChange(of: menu.highlightedID) { _, id in if let id { reader.scrollTo(id) } }
     }
     .padding(4).frame(width: width)
-    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+    .foregroundStyle(appearance.foregroundColor)
+    .background(appearance.resolvedColors["controlBackgroundOpaque"].color.opacity(0.9), in: RoundedRectangle(cornerRadius: 16))
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(appearance.resolvedColors["border"].color, lineWidth: 0.5))
     .accessibilityElement(children: .contain).accessibilityLabel(label)
   }
 }

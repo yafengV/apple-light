@@ -26,7 +26,9 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       NSFontDescriptor.FeatureKey.selectorIdentifier: kMonospacedNumbersSelector
     ]]]), size: font.pointSize) ?? font
     field.textColor = NSColor(appearance.foregroundColor)
-    field.surface = NSColor(appearance.backgroundColor); field.needsDisplay = true
+    field.surface = appearance.resolvedColors["controlBackground"].nativeColor
+    field.border = appearance.resolvedColors["borderHeavy"].nativeColor
+    field.focusBorder = appearance.resolvedColors["borderFocus"].nativeColor; field.needsDisplay = true
     field.setAccessibilityHelp("px；" + AppearanceFontSize.text(kind.range.lowerBound) + "–" + AppearanceFontSize.text(kind.range.upperBound))
     field.setAccessibilityMinValue(NSNumber(value: kind.range.lowerBound))
     field.setAccessibilityMaxValue(NSNumber(value: kind.range.upperBound))
@@ -54,6 +56,8 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     weak var owner: Coordinator?
     var active = true
     var surface = NSColor.controlBackgroundColor
+    var border = NSColor.separatorColor
+    var focusBorder = NSColor.keyboardFocusIndicatorColor
     var hovered = false { didSet { needsDisplay = true } }
     var showsArrows: Bool { acceptsFirstResponder && (hovered || currentEditor() != nil) }
     private var hoverArea: NSTrackingArea?
@@ -78,9 +82,9 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     override var alignmentRectInsets: NSEdgeInsets { .init(top: 0, left: 0, bottom: 0, right: 0) }
     override func draw(_ dirtyRect: NSRect) {
       let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
-      surface.withAlphaComponent(isEnabled ? 1 : 0.5).setFill(); path.fill()
+      surface.withAlphaComponent(surface.alphaComponent * (isEnabled ? 1 : 0.5)).setFill(); path.fill()
       let ink = textColor ?? .labelColor
-      ink.withAlphaComponent(currentEditor() == nil ? 0.16 : 0.5).setStroke(); path.lineWidth = 1; path.stroke()
+      (currentEditor() == nil ? border : focusBorder).setStroke(); path.lineWidth = 1; path.stroke()
       super.draw(dirtyRect)
       guard showsArrows else { return }
       for (y, up) in [(bounds.midY + 4, true), (bounds.midY - 4, false)] {

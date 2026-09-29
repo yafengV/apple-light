@@ -40,7 +40,12 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     button.title = title
     button.font = appearance.nativeFont(size: fontSize)
     button.foreground = NSColor(appearance.foregroundColor)
-    button.surface = NSColor(appearance.backgroundColor)
+    button.surface = appearance.resolvedColors["textForeground"].opacity(0.025).nativeColor
+    button.hoverSurface = appearance.resolvedColors["buttonSecondaryBackgroundHover"].nativeColor
+    button.chevronColor = appearance.resolvedColors["textForegroundTertiary"].nativeColor
+    button.expanded = menu.presented
+    button.border = appearance.resolvedColors["border"].nativeColor
+    button.focusBorder = appearance.resolvedColors["borderFocus"].nativeColor
     button.buttonWidth = buttonWidth
     button.setAccessibilityLabel(label)
     button.setAccessibilityValue(button.title); button.setAccessibilityExpanded(menu.presented)
@@ -73,6 +78,13 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     var active = true
     var foreground = NSColor.labelColor
     var surface = NSColor.controlBackgroundColor
+    var hoverSurface = NSColor.controlBackgroundColor
+    var chevronColor = NSColor.secondaryLabelColor
+    var expanded = false { didSet { needsDisplay = true } }
+    var hovered = false { didSet { needsDisplay = true } }
+    private var hoverArea: NSTrackingArea?
+    var border = NSColor.separatorColor
+    var focusBorder = NSColor.keyboardFocusIndicatorColor
     var buttonWidth: CGFloat = 176
     private var requestedEnabled = true
     private var generation = UUID()
@@ -96,8 +108,9 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     override var intrinsicContentSize: NSSize { .init(width: buttonWidth, height: 28) }
     override func draw(_ dirtyRect: NSRect) {
       let rect = bounds.insetBy(dx: 0.5, dy: 0.5), path = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)
-      surface.withAlphaComponent(isEnabled ? 1 : 0.5).setFill(); path.fill()
-      foreground.withAlphaComponent(0.16).setStroke(); path.lineWidth = 1; path.stroke()
+      let fill = expanded || hovered ? hoverSurface : surface
+      fill.withAlphaComponent(fill.alphaComponent * (isEnabled ? 1 : 0.5)).setFill(); path.fill()
+      border.setStroke(); path.lineWidth = 1; path.stroke()
       let font = font ?? .systemFont(ofSize: 14)
       let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
       let label = NSAttributedString(string: title, attributes: [.font: font,
@@ -107,11 +120,19 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       chevron.move(to: .init(x: bounds.maxX - 19, y: bounds.midY + 2))
       chevron.line(to: .init(x: bounds.maxX - 15, y: bounds.midY - 2))
       chevron.line(to: .init(x: bounds.maxX - 11, y: bounds.midY + 2))
-      foreground.withAlphaComponent(isEnabled ? 0.65 : 0.35).setStroke(); chevron.lineWidth = 1.4; chevron.stroke()
+      chevronColor.withAlphaComponent(chevronColor.alphaComponent * (isEnabled ? 1 : 0.5)).setStroke(); chevron.lineWidth = 1.4; chevron.stroke()
       if window?.firstResponder === self {
-        foreground.withAlphaComponent(0.5).setStroke(); path.lineWidth = 2; path.stroke()
+        focusBorder.setStroke(); path.lineWidth = 2; path.stroke()
       }
     }
+    override func updateTrackingAreas() {
+      super.updateTrackingAreas()
+      if let hoverArea { removeTrackingArea(hoverArea) }
+      let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+      addTrackingArea(area); hoverArea = area
+    }
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
     override func mouseDown(with event: NSEvent) {
       guard acceptsFirstResponder else { return }; window?.makeFirstResponder(self); super.mouseDown(with: event)
     }
@@ -155,7 +176,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       if parent.choose(id) { dismiss(button, restore: true) }
     }
     func dismiss(_ button: Control, restore: Bool) {
-      parent.menu.dismiss(); popup?.removeFromSuperview(); popup = nil; button.setAccessibilityExpanded(false)
+      parent.menu.dismiss(); popup?.removeFromSuperview(); popup = nil; button.expanded = false; button.setAccessibilityExpanded(false)
       focusGeneration = UUID(); let token = focusGeneration
       if restore {
         DispatchQueue.main.async { [weak self, weak button] in
@@ -260,7 +281,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       let converted = content.convert(frame, from: nil)
       if host.frame != converted { host.frame = converted }; host.focusRingType = .none
       if host.superview !== content { content.addSubview(host, positioned: .above, relativeTo: nil); window.makeFirstResponder(host) }
-      popup = host; button.setAccessibilityExpanded(true)
+      popup = host; button.expanded = true; button.setAccessibilityExpanded(true)
     }
   }
 }

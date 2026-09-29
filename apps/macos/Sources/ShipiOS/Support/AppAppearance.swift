@@ -33,18 +33,17 @@ extension AppearancePreferences {
   var backgroundHex: String? { activePalette.background ?? background }
   var foregroundHex: String? { activePalette.foreground ?? foreground }
   var translucentSidebar: Bool { activePalette.translucentSidebar }
-  var accentColor: Color { accentHex.flatMap(Self.color) ?? .accentColor }
-  var backgroundColor: Color {
-    let base = backgroundHex.flatMap(Self.color) ?? Color(nsColor: .windowBackgroundColor)
-    return Self.adjusted(base, contrast: activePalette.contrast, dark: isDark)
-  }
-  var foregroundColor: Color { foregroundHex.flatMap(Self.color) ?? .primary }
+  func resolvedColors(dark: Bool) -> AppearanceResolvedColors { .init(theme: themeShare(dark: dark).theme, dark: dark) }
+  var resolvedColors: AppearanceResolvedColors { resolvedColors(dark: isDark) }
+  var accentColor: Color { resolvedColors["accent"].color }
+  var backgroundColor: Color { resolvedColors["surface"].color }
+  var foregroundColor: Color { resolvedColors["textForeground"].color }
   var selectionOpacity: Double { 0.045 + activePalette.contrast * 0.0011 }
   var shouldReduceMotion: Bool {
     reduceMotion.resolved(systemValue: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
   }
   func paletteColor(_ value: String?, fallback: Color, dark: Bool) -> Color {
-    Self.adjusted(value.flatMap(Self.color) ?? fallback, contrast: (dark ? self.dark : light).contrast, dark: dark)
+    value.flatMap(Self.color) ?? fallback
   }
   static func color(_ hex: String) -> Color? {
     guard let hex = validHex(hex), let rgb = UInt32(hex.dropFirst(), radix: 16) else { return nil }
@@ -57,16 +56,6 @@ extension AppearancePreferences {
     return String(
       format: "#%02X%02X%02X", Int((rgb.redComponent * 255).rounded()),
       Int((rgb.greenComponent * 255).rounded()), Int((rgb.blueComponent * 255).rounded()))
-  }
-  private static func adjusted(_ color: Color, contrast: Double, dark: Bool) -> Color {
-    guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return color }
-    let amount = (min(100, max(0, contrast)) - 50) / 500
-    func channel(_ value: CGFloat) -> CGFloat {
-      dark ? max(0, value * (1 - amount)) : min(1, value + (1 - value) * amount)
-    }
-    return Color(
-      .sRGB, red: channel(rgb.redComponent), green: channel(rgb.greenComponent),
-      blue: channel(rgb.blueComponent), opacity: rgb.alphaComponent)
   }
   func nativeFont(size: CGFloat, code: Bool = false, content: Bool = false) -> NSFont {
     let role: AppearanceFontRole = code ? .code : content ? .content : .ui
@@ -113,20 +102,19 @@ private struct AppSurfaceModifier: ViewModifier {
   @Environment(\.appAppearance) private var appearance
   func body(content: Content) -> some View {
     content
-      .scrollContentBackground(appearance.backgroundHex == nil ? .automatic : .hidden)
-      .background(appearance.backgroundHex == nil ? .clear : appearance.backgroundColor)
+      .scrollContentBackground(.hidden)
+      .background(appearance.backgroundColor)
   }
 }
 
 private struct AppSidebarSurfaceModifier: ViewModifier {
   @Environment(\.appAppearance) private var appearance
   func body(content: Content) -> some View {
-    content
-      .scrollContentBackground(appearance.backgroundHex == nil ? .automatic : .hidden)
+    let surface = appearance.resolvedColors["surfaceUnder"].color
+    content.scrollContentBackground(.hidden)
       .background {
-        Rectangle().fill(
-          appearance.translucentSidebar
-            ? AnyShapeStyle(.bar) : AnyShapeStyle(appearance.backgroundColor))
+        if appearance.translucentSidebar { Rectangle().fill(.bar).background(surface) }
+        else { Rectangle().fill(surface) }
       }
   }
 }
@@ -163,4 +151,9 @@ extension View {
     return appFont(
       size: size, weight: weight ?? (style == .headline ? .semibold : .regular), design: design)
   }
+}
+
+extension AppearanceRGBA {
+  var color: Color { Color(.sRGB, red: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255, opacity: alpha) }
+  var nativeColor: NSColor { NSColor(srgbRed: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255, alpha: alpha) }
 }

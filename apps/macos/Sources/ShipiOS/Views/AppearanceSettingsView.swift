@@ -102,11 +102,11 @@ struct AppearanceSettingsView: View {
     _ title: String, key: WritableKeyPath<AppearancePreferences, AppearancePalette>, dark: Bool
   ) -> some View {
     let palette = store.appearance[keyPath: key]
-    let background = dark
-      ? Color(.sRGB, red: 0.095, green: 0.095, blue: 0.095, opacity: 1) : .white
-    let foreground = dark ? Color.white : Color(.sRGB, white: 0.05, opacity: 1)
+    let colors = store.appearance.resolvedColors(dark: dark)
+    let background = colors["surface"].color
+    let foreground = colors["textForeground"].color
     return Section {
-      paletteColorRow("强调色", palette: key, value: \.accent, fallback: .blue)
+      paletteColorRow("强调色", palette: key, value: \.accent, fallback: colors["accent"].color)
       paletteColorRow("背景色", palette: key, value: \.background, fallback: background)
       paletteColorRow("前景色", palette: key, value: \.foreground, fallback: foreground)
       AppearanceFontPicker(store: store, role: .ui, dark: dark)
@@ -135,7 +135,7 @@ struct AppearanceSettingsView: View {
           in: RoundedRectangle(cornerRadius: 8))
         .overlay(
           RoundedRectangle(cornerRadius: 8).strokeBorder(
-            palette.accent.flatMap(AppearancePreferences.color) ?? .blue, lineWidth: 1))
+            colors["borderFocus"].color, lineWidth: 1))
     } header: {
       HStack {
         Text(title)
