@@ -9,6 +9,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   var viewportWidth: CGFloat? = nil
   @State private var selection = PullRequestCodeSelection()
   @State private var selectionError: String?
+  @State private var syntax = CodeSyntaxState()
   @ViewBuilder let comment: (GitHubPRReviewThread) -> Comment
   @Environment(\.appAppearance) private var appearance
   private var lines: [ReviewDiffLine] { file.diff.lines.filter { $0.canComment || $0.kind == .header } }
@@ -31,6 +32,10 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
       .onChange(of: inline?.discussion.staleInline) { _, anchor in
         if anchor?.identity == inline?.code.identity { selection.clear() }
       }
+      .task(id: file.path + file.diff.fingerprint + String(collapsed)) {
+        if collapsed || file.binary { syntax.cancel() } else { await syntax.load(file) }
+      }
+      .onDisappear { syntax.cancel() }
   }
   private var content: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -76,7 +81,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   @ViewBuilder private func splitCell(_ line: ReviewDiffLine?, left: Bool) -> some View {
     HStack(alignment: .top, spacing: 0) {
       if let line { gutter(line, side: left ? .left : .right) } else { number(nil) }
-      if let line { code(line) } else { Text(" ").frame(maxWidth: .infinity, alignment: .leading) }
+      if let line { code(line, side: left ? .left : .right) } else { Text(" ").frame(maxWidth: .infinity, alignment: .leading) }
     }.frame(maxWidth: .infinity, alignment: .leading).background(line.map(background) ?? .clear)
       .id(line.map { file.lineID($0) + (left ? "-left" : "") } ?? file.path + "-blank")
       .overlay(alignment: .topLeading) {
@@ -126,8 +131,9 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
     Text(value.map(String.init) ?? "").appFont(size: 11, design: .monospaced).foregroundStyle(.secondary)
       .frame(width: 38, alignment: .trailing).padding(.trailing, 8)
   }
-  private func code(_ line: ReviewDiffLine) -> some View {
-    Text(line.displayText(markerStyle: appearance.diffMarkerStyle)).appFont(size: 11, design: .monospaced)
+  private func code(_ line: ReviewDiffLine, side: GitHubPRCommentPosition.Side? = nil) -> some View {
+    CodeSyntaxText.text(line, tokens: syntax.tokens(line, in: file, side: side ?? (line.kind == .deletion ? .left : .right)),
+      marker: appearance.diffMarkerStyle, dark: appearance.isDark).appFont(size: 11, design: .monospaced)
       .textSelection(.enabled).fixedSize(horizontal: !state.wrap, vertical: true)
       .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8)
       .foregroundStyle(line.kind == .header ? Color.secondary : Color.primary)

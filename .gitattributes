@@ -1,0 +1,2 @@
+# Generated JavaScript includes significant whitespace inside template strings.
+/apps/macos/Sources/ShipiOS/Resources/SyntaxHighlighting/engine.js -diff -text linguist-generated=true

@@ -1,0 +1,8 @@
+{
+  "name": "shipios-syntax-highlighter",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build.mjs", "test": "node --test test.mjs" },
+  "dependencies": { "@pierre/diffs": "1.5.1", "shiki": "4.4.3" },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

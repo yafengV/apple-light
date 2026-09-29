@@ -1,0 +1,9123 @@
+{
+  "referenceVersion": "26.911.61220",
+  "referenceBuild": "9647",
+  "workerSHA256": "52842761c2b548b9840360e9bf1cddc23839303c59825eca3c87b7d270afae2b",
+  "grammars": [
+    {
+      "language": "swift",
+      "asset": "swift-4755c4cd30f9.js",
+      "referenceSHA256": "b9e90f6691ecd89130c0055b270bc13256917a4076840a96af22446ff6bd3410",
+      "upstreamEquivalent": false
+    },
+    {
+      "language": "python",
+      "asset": "python-8f8e1623a6a6.js",
+      "referenceSHA256": "e09162a6172dac76aab0c709c99ab4decb4d86d42a8d92ed2d93a210923b5ccf",
+      "upstreamEquivalent": true
+    },
+    {
+      "language": "typescript",
+      "asset": "typescript-4df47f27d3fe.js",
+      "referenceSHA256": "bafd42e8e3c5cc8c24ed6694ee437e0e1d462efd2f345073b71d35b7e5c69697",
+      "upstreamEquivalent": true
+    },
+    {
+      "language": "javascript",
+      "asset": "javascript-10faf18d0a18.js",
+      "referenceSHA256": "ea8f160bdaf907577c8eb5da1ca9dc053b5cf0752933d184f5ea3eb59c5192f3",
+      "upstreamEquivalent": true
+    },
+    {
+      "language": "rust",
+      "asset": "rust-c671aa37be1b.js",
+      "referenceSHA256": "f4198544a13696c336cae46be2a34ab1502774232e45d8f7bae2feebb1ee2b04",
+      "upstreamEquivalent": true
+    },
+    {
+      "language": "go",
+      "asset": "go-b572e347de2c.js",
+      "referenceSHA256": "2538facb3c1a99e0a4cc4ffe94ae2e9765888bf7ed3cf784b0653e55baf67667",
+      "upstreamEquivalent": false
+    },
+    {
+      "language": "css",
+      "asset": "css-1b819cc3492a.js",
+      "referenceSHA256": "aae91f143f4d7742d29ffbc7c1f392d665a743fedb73bfd3219b0de6f721d110",
+      "upstreamEquivalent": false
+    },
+    {
+      "language": "markdown",
+      "asset": "markdown-de8e50895596.js",
+      "referenceSHA256": "6775a5e913dc8e04567853ebe366d1aeb1de05adf8738d5401474d94659d1c99",
+      "upstreamEquivalent": true
+    }
+  ],
+  "cases": [
+    {
+      "path": "Main.swift",
+      "language": "swift",
+      "lines": [
+        "let name = \"你好 👩🏽‍💻\"",
+        "let count = 42",
+        "// a comment"
+      ],
+      "expected": [
+        [
+          {
+            "content": "let",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " name ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"你好 👩🏽‍💻\"",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "let",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " count ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "42",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "// a comment",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "Main.swift",
+      "language": "swift",
+      "lines": [
+        "/* open",
+        "nested /* body */",
+        "still comment",
+        "*/ let done = true"
+      ],
+      "expected": [
+        [
+          {
+            "content": "/* open",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "nested /* body */",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "still comment",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "*/",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "let",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " done ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "true",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "Main.swift",
+      "language": "swift",
+      "lines": [
+        "let text = #\"raw \\(value)\"#",
+        "func f<T>(_ value: T) -> T { value }"
+      ],
+      "expected": [
+        [
+          {
+            "content": "let",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " text ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "#\"raw \\(value)\"#",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "func",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "f",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "<",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "T",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ">(",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "_",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "value",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ": T",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ")",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "->",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " T ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " value ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "Main.swift",
+      "language": "swift",
+      "lines": [
+        "let long = \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"",
+        "let next = 1"
+      ],
+      "expected": [
+        [
+          {
+            "content": "let long = \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"",
+            "light": {
+              "color": null,
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": null,
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "let",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " next ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "1",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.py",
+      "language": "python",
+      "lines": [
+        "def hello(name: str):",
+        "    return f\"Hi {name}\"",
+        "count = 1"
+      ],
+      "expected": [
+        [
+          {
+            "content": "def",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "hello",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "(",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "name",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "str",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "):",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "    ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "return",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "f",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"Hi ",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "name",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "count ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "1",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.py",
+      "language": "python",
+      "lines": [
+        "\"\"\"open",
+        "doc comment",
+        "\"\"\"",
+        "print(\"done\")"
+      ],
+      "expected": [
+        [
+          {
+            "content": "\"\"\"open",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "doc comment",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "\"\"\"",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "print",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "(",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"done\"",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ")",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.ts",
+      "language": "typescript",
+      "lines": [
+        "interface User { name: string }",
+        "const value: User = { name: \"你好\" };"
+      ],
+      "expected": [
+        [
+          {
+            "content": "interface",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "User",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "name",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "string",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "const",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "value",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "User",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "name",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"你好\"",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "};",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.ts",
+      "language": "typescript",
+      "lines": [
+        "/* open",
+        "still comment",
+        "*/ const n = 1;"
+      ],
+      "expected": [
+        [
+          {
+            "content": "/* open",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "still comment",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "*/",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "const",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "n",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "1",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.ts",
+      "language": "typescript",
+      "lines": [
+        "const emoji = `hello ${name} 👩🏽‍💻`;"
+      ],
+      "expected": [
+        [
+          {
+            "content": "const",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "emoji",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "`",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "hello ",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "${",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "name",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " 👩🏽‍💻",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "`",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.js",
+      "language": "javascript",
+      "lines": [
+        "async function hello() { return true; }",
+        "const regex = /[a-z]+/gi;"
+      ],
+      "expected": [
+        [
+          {
+            "content": "async",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "function",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "hello",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "()",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "return",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "true",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "const",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "regex",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#001BCB",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#3D8DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "/",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "[",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "a-z",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "]",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "+",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "/",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "gi",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.js",
+      "language": "javascript",
+      "lines": [
+        "const text = `open",
+        "${name}",
+        "done`;"
+      ],
+      "expected": [
+        [
+          {
+            "content": "const",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "text",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "`",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "open",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "${",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "name",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "done",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "`",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.rs",
+      "language": "rust",
+      "lines": [
+        "fn main() { let x: u32 = 42; }",
+        "println!(\"hello\");"
+      ],
+      "expected": [
+        [
+          {
+            "content": "fn",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "main",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "()",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "let",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "x",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "u32",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "42",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "println!",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "(",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "hello",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ");",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.rs",
+      "language": "rust",
+      "lines": [
+        "/* comment",
+        "nested /* more */",
+        "*/ let done = true;"
+      ],
+      "expected": [
+        [
+          {
+            "content": "/* comment",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "nested /* more */",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "*/",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "let",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "done",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "true",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.go",
+      "language": "go",
+      "lines": [
+        "package main",
+        "func hello() string { return \"你好\" }"
+      ],
+      "expected": [
+        [
+          {
+            "content": "package",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "main",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "func",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "hello",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "()",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "string",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "return",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "\"你好\"",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.go",
+      "language": "go",
+      "lines": [
+        "/* open",
+        "still comment",
+        "*/ var n = 42"
+      ],
+      "expected": [
+        [
+          {
+            "content": "/* open",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "still comment",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "*/",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "var",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "n",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "=",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "42",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.css",
+      "language": "css",
+      "lines": [
+        ".card { color: #ff0000; width: 2rem; }"
+      ],
+      "expected": [
+        [
+          {
+            "content": ".",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "card",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "color",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "#ff0000",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "width",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "2",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "rem",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "main.css",
+      "language": "css",
+      "lines": [
+        "/* open",
+        "still comment",
+        "*/ .x { display: grid; }"
+      ],
+      "expected": [
+        [
+          {
+            "content": "/* open",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "still comment",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "*/",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ".",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "x",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "{",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "display",
+            "light": {
+              "color": "#0071EA",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#6DCBF4",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ":",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "grid",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": ";",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "}",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "lines": [
+        "# Heading",
+        "*italic* **bold** [link](https://example.com)",
+        "`inline code`"
+      ],
+      "expected": [
+        [
+          {
+            "content": "# Heading",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "*italic*",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 1
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 1
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "**bold**",
+            "light": {
+              "color": "#BD5800",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FA994C",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " ",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "[",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "link",
+            "light": {
+              "color": "#751ED9",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#B06DFF",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "]",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "(https://example.com)",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "`",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "inline code",
+            "light": {
+              "color": "#008809",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#85DF7B",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "`",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "lines": [
+        "> quote",
+        "- item",
+        "~~strike~~"
+      ],
+      "expected": [
+        [
+          {
+            "content": "> quote",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "-",
+            "light": {
+              "color": "#D53538",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#F67576",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": " item",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          }
+        ],
+        [
+          {
+            "content": "~~",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "strike",
+            "light": {
+              "color": "#0D0D0D",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#FCFCFC",
+              "fontStyle": 0
+            }
+          },
+          {
+            "content": "~~",
+            "light": {
+              "color": "#666666",
+              "fontStyle": 0
+            },
+            "dark": {
+              "color": "#999999",
+              "fontStyle": 0
+            }
+          }
+        ]
+      ]
+    }
+  ],
+  "languageCases": [
+    {
+      "path": "1c",
+      "expected": "1c"
+    },
+    {
+      "path": "file.1c",
+      "expected": "1c"
+    },
+    {
+      "path": "nested/file.1c",
+      "expected": "1c"
+    },
+    {
+      "path": "nested/1c",
+      "expected": "text"
+    },
+    {
+      "path": "abap",
+      "expected": "abap"
+    },
+    {
+      "path": "file.abap",
+      "expected": "abap"
+    },
+    {
+      "path": "nested/file.abap",
+      "expected": "abap"
+    },
+    {
+      "path": "nested/abap",
+      "expected": "text"
+    },
+    {
+      "path": "as",
+      "expected": "actionscript-3"
+    },
+    {
+      "path": "file.as",
+      "expected": "actionscript-3"
+    },
+    {
+      "path": "nested/file.as",
+      "expected": "actionscript-3"
+    },
+    {
+      "path": "nested/as",
+      "expected": "text"
+    },
+    {
+      "path": "ada",
+      "expected": "ada"
+    },
+    {
+      "path": "file.ada",
+      "expected": "ada"
+    },
+    {
+      "path": "nested/file.ada",
+      "expected": "ada"
+    },
+    {
+      "path": "nested/ada",
+      "expected": "text"
+    },
+    {
+      "path": "adb",
+      "expected": "ada"
+    },
+    {
+      "path": "file.adb",
+      "expected": "ada"
+    },
+    {
+      "path": "nested/file.adb",
+      "expected": "ada"
+    },
+    {
+      "path": "nested/adb",
+      "expected": "text"
+    },
+    {
+      "path": "ads",
+      "expected": "ada"
+    },
+    {
+      "path": "file.ads",
+      "expected": "ada"
+    },
+    {
+      "path": "nested/file.ads",
+      "expected": "ada"
+    },
+    {
+      "path": "nested/ads",
+      "expected": "text"
+    },
+    {
+      "path": "adoc",
+      "expected": "asciidoc"
+    },
+    {
+      "path": "file.adoc",
+      "expected": "asciidoc"
+    },
+    {
+      "path": "nested/file.adoc",
+      "expected": "asciidoc"
+    },
+    {
+      "path": "nested/adoc",
+      "expected": "text"
+    },
+    {
+      "path": "asciidoc",
+      "expected": "asciidoc"
+    },
+    {
+      "path": "file.asciidoc",
+      "expected": "asciidoc"
+    },
+    {
+      "path": "nested/file.asciidoc",
+      "expected": "asciidoc"
+    },
+    {
+      "path": "nested/asciidoc",
+      "expected": "text"
+    },
+    {
+      "path": "component.html",
+      "expected": "angular-html"
+    },
+    {
+      "path": "file.component.html",
+      "expected": "angular-html"
+    },
+    {
+      "path": "nested/file.component.html",
+      "expected": "angular-html"
+    },
+    {
+      "path": "nested/component.html",
+      "expected": "html"
+    },
+    {
+      "path": "component.ts",
+      "expected": "angular-ts"
+    },
+    {
+      "path": "file.component.ts",
+      "expected": "angular-ts"
+    },
+    {
+      "path": "nested/file.component.ts",
+      "expected": "angular-ts"
+    },
+    {
+      "path": "nested/component.ts",
+      "expected": "typescript"
+    },
+    {
+      "path": "conf",
+      "expected": "nginx"
+    },
+    {
+      "path": "file.conf",
+      "expected": "nginx"
+    },
+    {
+      "path": "nested/file.conf",
+      "expected": "nginx"
+    },
+    {
+      "path": "nested/conf",
+      "expected": "text"
+    },
+    {
+      "path": "htaccess",
+      "expected": "apache"
+    },
+    {
+      "path": "file.htaccess",
+      "expected": "apache"
+    },
+    {
+      "path": "nested/file.htaccess",
+      "expected": "apache"
+    },
+    {
+      "path": "nested/htaccess",
+      "expected": "text"
+    },
+    {
+      "path": "cls",
+      "expected": "tex"
+    },
+    {
+      "path": "file.cls",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/file.cls",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/cls",
+      "expected": "text"
+    },
+    {
+      "path": "trigger",
+      "expected": "apex"
+    },
+    {
+      "path": "file.trigger",
+      "expected": "apex"
+    },
+    {
+      "path": "nested/file.trigger",
+      "expected": "apex"
+    },
+    {
+      "path": "nested/trigger",
+      "expected": "text"
+    },
+    {
+      "path": "apl",
+      "expected": "apl"
+    },
+    {
+      "path": "file.apl",
+      "expected": "apl"
+    },
+    {
+      "path": "nested/file.apl",
+      "expected": "apl"
+    },
+    {
+      "path": "nested/apl",
+      "expected": "text"
+    },
+    {
+      "path": "applescript",
+      "expected": "applescript"
+    },
+    {
+      "path": "file.applescript",
+      "expected": "applescript"
+    },
+    {
+      "path": "nested/file.applescript",
+      "expected": "applescript"
+    },
+    {
+      "path": "nested/applescript",
+      "expected": "text"
+    },
+    {
+      "path": "scpt",
+      "expected": "applescript"
+    },
+    {
+      "path": "file.scpt",
+      "expected": "applescript"
+    },
+    {
+      "path": "nested/file.scpt",
+      "expected": "applescript"
+    },
+    {
+      "path": "nested/scpt",
+      "expected": "text"
+    },
+    {
+      "path": "ara",
+      "expected": "ara"
+    },
+    {
+      "path": "file.ara",
+      "expected": "ara"
+    },
+    {
+      "path": "nested/file.ara",
+      "expected": "ara"
+    },
+    {
+      "path": "nested/ara",
+      "expected": "text"
+    },
+    {
+      "path": "asm",
+      "expected": "asm"
+    },
+    {
+      "path": "file.asm",
+      "expected": "asm"
+    },
+    {
+      "path": "nested/file.asm",
+      "expected": "asm"
+    },
+    {
+      "path": "nested/asm",
+      "expected": "text"
+    },
+    {
+      "path": "s",
+      "expected": "riscv"
+    },
+    {
+      "path": "file.s",
+      "expected": "riscv"
+    },
+    {
+      "path": "nested/file.s",
+      "expected": "riscv"
+    },
+    {
+      "path": "nested/s",
+      "expected": "text"
+    },
+    {
+      "path": "astro",
+      "expected": "astro"
+    },
+    {
+      "path": "file.astro",
+      "expected": "astro"
+    },
+    {
+      "path": "nested/file.astro",
+      "expected": "astro"
+    },
+    {
+      "path": "nested/astro",
+      "expected": "text"
+    },
+    {
+      "path": "awk",
+      "expected": "awk"
+    },
+    {
+      "path": "file.awk",
+      "expected": "awk"
+    },
+    {
+      "path": "nested/file.awk",
+      "expected": "awk"
+    },
+    {
+      "path": "nested/awk",
+      "expected": "text"
+    },
+    {
+      "path": "bal",
+      "expected": "ballerina"
+    },
+    {
+      "path": "file.bal",
+      "expected": "ballerina"
+    },
+    {
+      "path": "nested/file.bal",
+      "expected": "ballerina"
+    },
+    {
+      "path": "nested/bal",
+      "expected": "text"
+    },
+    {
+      "path": "sh",
+      "expected": "zsh"
+    },
+    {
+      "path": "file.sh",
+      "expected": "zsh"
+    },
+    {
+      "path": "nested/file.sh",
+      "expected": "zsh"
+    },
+    {
+      "path": "nested/sh",
+      "expected": "text"
+    },
+    {
+      "path": "bash",
+      "expected": "zsh"
+    },
+    {
+      "path": "file.bash",
+      "expected": "zsh"
+    },
+    {
+      "path": "nested/file.bash",
+      "expected": "zsh"
+    },
+    {
+      "path": "nested/bash",
+      "expected": "text"
+    },
+    {
+      "path": "bat",
+      "expected": "cmd"
+    },
+    {
+      "path": "file.bat",
+      "expected": "cmd"
+    },
+    {
+      "path": "nested/file.bat",
+      "expected": "cmd"
+    },
+    {
+      "path": "nested/bat",
+      "expected": "text"
+    },
+    {
+      "path": "cmd",
+      "expected": "cmd"
+    },
+    {
+      "path": "file.cmd",
+      "expected": "cmd"
+    },
+    {
+      "path": "nested/file.cmd",
+      "expected": "cmd"
+    },
+    {
+      "path": "nested/cmd",
+      "expected": "text"
+    },
+    {
+      "path": "be",
+      "expected": "berry"
+    },
+    {
+      "path": "file.be",
+      "expected": "berry"
+    },
+    {
+      "path": "nested/file.be",
+      "expected": "berry"
+    },
+    {
+      "path": "nested/be",
+      "expected": "text"
+    },
+    {
+      "path": "beancount",
+      "expected": "beancount"
+    },
+    {
+      "path": "file.beancount",
+      "expected": "beancount"
+    },
+    {
+      "path": "nested/file.beancount",
+      "expected": "beancount"
+    },
+    {
+      "path": "nested/beancount",
+      "expected": "text"
+    },
+    {
+      "path": "bib",
+      "expected": "bibtex"
+    },
+    {
+      "path": "file.bib",
+      "expected": "bibtex"
+    },
+    {
+      "path": "nested/file.bib",
+      "expected": "bibtex"
+    },
+    {
+      "path": "nested/bib",
+      "expected": "text"
+    },
+    {
+      "path": "bicep",
+      "expected": "bicep"
+    },
+    {
+      "path": "file.bicep",
+      "expected": "bicep"
+    },
+    {
+      "path": "nested/file.bicep",
+      "expected": "bicep"
+    },
+    {
+      "path": "nested/bicep",
+      "expected": "text"
+    },
+    {
+      "path": "blade.php",
+      "expected": "blade"
+    },
+    {
+      "path": "file.blade.php",
+      "expected": "blade"
+    },
+    {
+      "path": "nested/file.blade.php",
+      "expected": "blade"
+    },
+    {
+      "path": "nested/blade.php",
+      "expected": "php"
+    },
+    {
+      "path": "bsl",
+      "expected": "bsl"
+    },
+    {
+      "path": "file.bsl",
+      "expected": "bsl"
+    },
+    {
+      "path": "nested/file.bsl",
+      "expected": "bsl"
+    },
+    {
+      "path": "nested/bsl",
+      "expected": "text"
+    },
+    {
+      "path": "c",
+      "expected": "c"
+    },
+    {
+      "path": "file.c",
+      "expected": "c"
+    },
+    {
+      "path": "nested/file.c",
+      "expected": "c"
+    },
+    {
+      "path": "nested/c",
+      "expected": "text"
+    },
+    {
+      "path": "h",
+      "expected": "objective-cpp"
+    },
+    {
+      "path": "file.h",
+      "expected": "objective-cpp"
+    },
+    {
+      "path": "nested/file.h",
+      "expected": "objective-cpp"
+    },
+    {
+      "path": "nested/h",
+      "expected": "text"
+    },
+    {
+      "path": "cs",
+      "expected": "csharp"
+    },
+    {
+      "path": "file.cs",
+      "expected": "csharp"
+    },
+    {
+      "path": "nested/file.cs",
+      "expected": "csharp"
+    },
+    {
+      "path": "nested/cs",
+      "expected": "text"
+    },
+    {
+      "path": "cpp",
+      "expected": "cpp"
+    },
+    {
+      "path": "file.cpp",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/file.cpp",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/cpp",
+      "expected": "text"
+    },
+    {
+      "path": "hpp",
+      "expected": "cpp"
+    },
+    {
+      "path": "file.hpp",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/file.hpp",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/hpp",
+      "expected": "text"
+    },
+    {
+      "path": "cc",
+      "expected": "cpp"
+    },
+    {
+      "path": "file.cc",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/file.cc",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/cc",
+      "expected": "text"
+    },
+    {
+      "path": "cxx",
+      "expected": "cpp"
+    },
+    {
+      "path": "file.cxx",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/file.cxx",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/cxx",
+      "expected": "text"
+    },
+    {
+      "path": "hh",
+      "expected": "cpp"
+    },
+    {
+      "path": "file.hh",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/file.hh",
+      "expected": "cpp"
+    },
+    {
+      "path": "nested/hh",
+      "expected": "text"
+    },
+    {
+      "path": "cdc",
+      "expected": "cdc"
+    },
+    {
+      "path": "file.cdc",
+      "expected": "cdc"
+    },
+    {
+      "path": "nested/file.cdc",
+      "expected": "cdc"
+    },
+    {
+      "path": "nested/cdc",
+      "expected": "text"
+    },
+    {
+      "path": "cairo",
+      "expected": "cairo"
+    },
+    {
+      "path": "file.cairo",
+      "expected": "cairo"
+    },
+    {
+      "path": "nested/file.cairo",
+      "expected": "cairo"
+    },
+    {
+      "path": "nested/cairo",
+      "expected": "text"
+    },
+    {
+      "path": "clar",
+      "expected": "clarity"
+    },
+    {
+      "path": "file.clar",
+      "expected": "clarity"
+    },
+    {
+      "path": "nested/file.clar",
+      "expected": "clarity"
+    },
+    {
+      "path": "nested/clar",
+      "expected": "text"
+    },
+    {
+      "path": "clj",
+      "expected": "clojure"
+    },
+    {
+      "path": "file.clj",
+      "expected": "clojure"
+    },
+    {
+      "path": "nested/file.clj",
+      "expected": "clojure"
+    },
+    {
+      "path": "nested/clj",
+      "expected": "text"
+    },
+    {
+      "path": "cljs",
+      "expected": "clojure"
+    },
+    {
+      "path": "file.cljs",
+      "expected": "clojure"
+    },
+    {
+      "path": "nested/file.cljs",
+      "expected": "clojure"
+    },
+    {
+      "path": "nested/cljs",
+      "expected": "text"
+    },
+    {
+      "path": "cljc",
+      "expected": "clojure"
+    },
+    {
+      "path": "file.cljc",
+      "expected": "clojure"
+    },
+    {
+      "path": "nested/file.cljc",
+      "expected": "clojure"
+    },
+    {
+      "path": "nested/cljc",
+      "expected": "text"
+    },
+    {
+      "path": "soy",
+      "expected": "soy"
+    },
+    {
+      "path": "file.soy",
+      "expected": "soy"
+    },
+    {
+      "path": "nested/file.soy",
+      "expected": "soy"
+    },
+    {
+      "path": "nested/soy",
+      "expected": "text"
+    },
+    {
+      "path": "cmake",
+      "expected": "cmake"
+    },
+    {
+      "path": "file.cmake",
+      "expected": "cmake"
+    },
+    {
+      "path": "nested/file.cmake",
+      "expected": "cmake"
+    },
+    {
+      "path": "nested/cmake",
+      "expected": "text"
+    },
+    {
+      "path": "CMakeLists.txt",
+      "expected": "cmake"
+    },
+    {
+      "path": "file.CMakeLists.txt",
+      "expected": "cmake"
+    },
+    {
+      "path": "nested/file.CMakeLists.txt",
+      "expected": "cmake"
+    },
+    {
+      "path": "nested/CMakeLists.txt",
+      "expected": "text"
+    },
+    {
+      "path": "cob",
+      "expected": "cobol"
+    },
+    {
+      "path": "file.cob",
+      "expected": "cobol"
+    },
+    {
+      "path": "nested/file.cob",
+      "expected": "cobol"
+    },
+    {
+      "path": "nested/cob",
+      "expected": "text"
+    },
+    {
+      "path": "cbl",
+      "expected": "cobol"
+    },
+    {
+      "path": "file.cbl",
+      "expected": "cobol"
+    },
+    {
+      "path": "nested/file.cbl",
+      "expected": "cobol"
+    },
+    {
+      "path": "nested/cbl",
+      "expected": "text"
+    },
+    {
+      "path": "cobol",
+      "expected": "cobol"
+    },
+    {
+      "path": "file.cobol",
+      "expected": "cobol"
+    },
+    {
+      "path": "nested/file.cobol",
+      "expected": "cobol"
+    },
+    {
+      "path": "nested/cobol",
+      "expected": "text"
+    },
+    {
+      "path": "CODEOWNERS",
+      "expected": "codeowners"
+    },
+    {
+      "path": "file.CODEOWNERS",
+      "expected": "codeowners"
+    },
+    {
+      "path": "nested/file.CODEOWNERS",
+      "expected": "codeowners"
+    },
+    {
+      "path": "nested/CODEOWNERS",
+      "expected": "text"
+    },
+    {
+      "path": "ql",
+      "expected": "ql"
+    },
+    {
+      "path": "file.ql",
+      "expected": "ql"
+    },
+    {
+      "path": "nested/file.ql",
+      "expected": "ql"
+    },
+    {
+      "path": "nested/ql",
+      "expected": "text"
+    },
+    {
+      "path": "coffee",
+      "expected": "coffeescript"
+    },
+    {
+      "path": "file.coffee",
+      "expected": "coffeescript"
+    },
+    {
+      "path": "nested/file.coffee",
+      "expected": "coffeescript"
+    },
+    {
+      "path": "nested/coffee",
+      "expected": "text"
+    },
+    {
+      "path": "lisp",
+      "expected": "lisp"
+    },
+    {
+      "path": "file.lisp",
+      "expected": "lisp"
+    },
+    {
+      "path": "nested/file.lisp",
+      "expected": "lisp"
+    },
+    {
+      "path": "nested/lisp",
+      "expected": "text"
+    },
+    {
+      "path": "cl",
+      "expected": "lisp"
+    },
+    {
+      "path": "file.cl",
+      "expected": "lisp"
+    },
+    {
+      "path": "nested/file.cl",
+      "expected": "lisp"
+    },
+    {
+      "path": "nested/cl",
+      "expected": "text"
+    },
+    {
+      "path": "lsp",
+      "expected": "lisp"
+    },
+    {
+      "path": "file.lsp",
+      "expected": "lisp"
+    },
+    {
+      "path": "nested/file.lsp",
+      "expected": "lisp"
+    },
+    {
+      "path": "nested/lsp",
+      "expected": "text"
+    },
+    {
+      "path": "log",
+      "expected": "log"
+    },
+    {
+      "path": "file.log",
+      "expected": "log"
+    },
+    {
+      "path": "nested/file.log",
+      "expected": "log"
+    },
+    {
+      "path": "nested/log",
+      "expected": "text"
+    },
+    {
+      "path": "v",
+      "expected": "verilog"
+    },
+    {
+      "path": "file.v",
+      "expected": "verilog"
+    },
+    {
+      "path": "nested/file.v",
+      "expected": "verilog"
+    },
+    {
+      "path": "nested/v",
+      "expected": "text"
+    },
+    {
+      "path": "cql",
+      "expected": "cql"
+    },
+    {
+      "path": "file.cql",
+      "expected": "cql"
+    },
+    {
+      "path": "nested/file.cql",
+      "expected": "cql"
+    },
+    {
+      "path": "nested/cql",
+      "expected": "text"
+    },
+    {
+      "path": "cr",
+      "expected": "crystal"
+    },
+    {
+      "path": "file.cr",
+      "expected": "crystal"
+    },
+    {
+      "path": "nested/file.cr",
+      "expected": "crystal"
+    },
+    {
+      "path": "nested/cr",
+      "expected": "text"
+    },
+    {
+      "path": "css",
+      "expected": "css"
+    },
+    {
+      "path": "file.css",
+      "expected": "css"
+    },
+    {
+      "path": "nested/file.css",
+      "expected": "css"
+    },
+    {
+      "path": "nested/css",
+      "expected": "text"
+    },
+    {
+      "path": "csv",
+      "expected": "csv"
+    },
+    {
+      "path": "file.csv",
+      "expected": "csv"
+    },
+    {
+      "path": "nested/file.csv",
+      "expected": "csv"
+    },
+    {
+      "path": "nested/csv",
+      "expected": "text"
+    },
+    {
+      "path": "cue",
+      "expected": "cue"
+    },
+    {
+      "path": "file.cue",
+      "expected": "cue"
+    },
+    {
+      "path": "nested/file.cue",
+      "expected": "cue"
+    },
+    {
+      "path": "nested/cue",
+      "expected": "text"
+    },
+    {
+      "path": "cypher",
+      "expected": "cypher"
+    },
+    {
+      "path": "file.cypher",
+      "expected": "cypher"
+    },
+    {
+      "path": "nested/file.cypher",
+      "expected": "cypher"
+    },
+    {
+      "path": "nested/cypher",
+      "expected": "text"
+    },
+    {
+      "path": "cyp",
+      "expected": "cypher"
+    },
+    {
+      "path": "file.cyp",
+      "expected": "cypher"
+    },
+    {
+      "path": "nested/file.cyp",
+      "expected": "cypher"
+    },
+    {
+      "path": "nested/cyp",
+      "expected": "text"
+    },
+    {
+      "path": "d",
+      "expected": "d"
+    },
+    {
+      "path": "file.d",
+      "expected": "d"
+    },
+    {
+      "path": "nested/file.d",
+      "expected": "d"
+    },
+    {
+      "path": "nested/d",
+      "expected": "text"
+    },
+    {
+      "path": "dart",
+      "expected": "dart"
+    },
+    {
+      "path": "file.dart",
+      "expected": "dart"
+    },
+    {
+      "path": "nested/file.dart",
+      "expected": "dart"
+    },
+    {
+      "path": "nested/dart",
+      "expected": "text"
+    },
+    {
+      "path": "dax",
+      "expected": "dax"
+    },
+    {
+      "path": "file.dax",
+      "expected": "dax"
+    },
+    {
+      "path": "nested/file.dax",
+      "expected": "dax"
+    },
+    {
+      "path": "nested/dax",
+      "expected": "text"
+    },
+    {
+      "path": "desktop",
+      "expected": "desktop"
+    },
+    {
+      "path": "file.desktop",
+      "expected": "desktop"
+    },
+    {
+      "path": "nested/file.desktop",
+      "expected": "desktop"
+    },
+    {
+      "path": "nested/desktop",
+      "expected": "text"
+    },
+    {
+      "path": "diff",
+      "expected": "diff"
+    },
+    {
+      "path": "file.diff",
+      "expected": "diff"
+    },
+    {
+      "path": "nested/file.diff",
+      "expected": "diff"
+    },
+    {
+      "path": "nested/diff",
+      "expected": "text"
+    },
+    {
+      "path": "patch",
+      "expected": "diff"
+    },
+    {
+      "path": "file.patch",
+      "expected": "diff"
+    },
+    {
+      "path": "nested/file.patch",
+      "expected": "diff"
+    },
+    {
+      "path": "nested/patch",
+      "expected": "text"
+    },
+    {
+      "path": "Dockerfile",
+      "expected": "dockerfile"
+    },
+    {
+      "path": "file.Dockerfile",
+      "expected": "dockerfile"
+    },
+    {
+      "path": "nested/file.Dockerfile",
+      "expected": "dockerfile"
+    },
+    {
+      "path": "nested/Dockerfile",
+      "expected": "text"
+    },
+    {
+      "path": "dockerfile",
+      "expected": "dockerfile"
+    },
+    {
+      "path": "file.dockerfile",
+      "expected": "dockerfile"
+    },
+    {
+      "path": "nested/file.dockerfile",
+      "expected": "dockerfile"
+    },
+    {
+      "path": "nested/dockerfile",
+      "expected": "text"
+    },
+    {
+      "path": "env",
+      "expected": "dotenv"
+    },
+    {
+      "path": "file.env",
+      "expected": "dotenv"
+    },
+    {
+      "path": "nested/file.env",
+      "expected": "dotenv"
+    },
+    {
+      "path": "nested/env",
+      "expected": "text"
+    },
+    {
+      "path": "dm",
+      "expected": "dream-maker"
+    },
+    {
+      "path": "file.dm",
+      "expected": "dream-maker"
+    },
+    {
+      "path": "nested/file.dm",
+      "expected": "dream-maker"
+    },
+    {
+      "path": "nested/dm",
+      "expected": "text"
+    },
+    {
+      "path": "edge",
+      "expected": "edge"
+    },
+    {
+      "path": "file.edge",
+      "expected": "edge"
+    },
+    {
+      "path": "nested/file.edge",
+      "expected": "edge"
+    },
+    {
+      "path": "nested/edge",
+      "expected": "text"
+    },
+    {
+      "path": "el",
+      "expected": "emacs-lisp"
+    },
+    {
+      "path": "file.el",
+      "expected": "emacs-lisp"
+    },
+    {
+      "path": "nested/file.el",
+      "expected": "emacs-lisp"
+    },
+    {
+      "path": "nested/el",
+      "expected": "text"
+    },
+    {
+      "path": "ex",
+      "expected": "elixir"
+    },
+    {
+      "path": "file.ex",
+      "expected": "elixir"
+    },
+    {
+      "path": "nested/file.ex",
+      "expected": "elixir"
+    },
+    {
+      "path": "nested/ex",
+      "expected": "text"
+    },
+    {
+      "path": "exs",
+      "expected": "elixir"
+    },
+    {
+      "path": "file.exs",
+      "expected": "elixir"
+    },
+    {
+      "path": "nested/file.exs",
+      "expected": "elixir"
+    },
+    {
+      "path": "nested/exs",
+      "expected": "text"
+    },
+    {
+      "path": "elm",
+      "expected": "elm"
+    },
+    {
+      "path": "file.elm",
+      "expected": "elm"
+    },
+    {
+      "path": "nested/file.elm",
+      "expected": "elm"
+    },
+    {
+      "path": "nested/elm",
+      "expected": "text"
+    },
+    {
+      "path": "erb",
+      "expected": "erb"
+    },
+    {
+      "path": "file.erb",
+      "expected": "erb"
+    },
+    {
+      "path": "nested/file.erb",
+      "expected": "erb"
+    },
+    {
+      "path": "nested/erb",
+      "expected": "text"
+    },
+    {
+      "path": "erl",
+      "expected": "erlang"
+    },
+    {
+      "path": "file.erl",
+      "expected": "erlang"
+    },
+    {
+      "path": "nested/file.erl",
+      "expected": "erlang"
+    },
+    {
+      "path": "nested/erl",
+      "expected": "text"
+    },
+    {
+      "path": "hrl",
+      "expected": "erlang"
+    },
+    {
+      "path": "file.hrl",
+      "expected": "erlang"
+    },
+    {
+      "path": "nested/file.hrl",
+      "expected": "erlang"
+    },
+    {
+      "path": "nested/hrl",
+      "expected": "text"
+    },
+    {
+      "path": "f",
+      "expected": "fortran-fixed-form"
+    },
+    {
+      "path": "file.f",
+      "expected": "fortran-fixed-form"
+    },
+    {
+      "path": "nested/file.f",
+      "expected": "fortran-fixed-form"
+    },
+    {
+      "path": "nested/f",
+      "expected": "text"
+    },
+    {
+      "path": "for",
+      "expected": "fortran-fixed-form"
+    },
+    {
+      "path": "file.for",
+      "expected": "fortran-fixed-form"
+    },
+    {
+      "path": "nested/file.for",
+      "expected": "fortran-fixed-form"
+    },
+    {
+      "path": "nested/for",
+      "expected": "text"
+    },
+    {
+      "path": "fs",
+      "expected": "fsharp"
+    },
+    {
+      "path": "file.fs",
+      "expected": "fsharp"
+    },
+    {
+      "path": "nested/file.fs",
+      "expected": "fsharp"
+    },
+    {
+      "path": "nested/fs",
+      "expected": "text"
+    },
+    {
+      "path": "fsi",
+      "expected": "fsharp"
+    },
+    {
+      "path": "file.fsi",
+      "expected": "fsharp"
+    },
+    {
+      "path": "nested/file.fsi",
+      "expected": "fsharp"
+    },
+    {
+      "path": "nested/fsi",
+      "expected": "text"
+    },
+    {
+      "path": "fsx",
+      "expected": "fsharp"
+    },
+    {
+      "path": "file.fsx",
+      "expected": "fsharp"
+    },
+    {
+      "path": "nested/file.fsx",
+      "expected": "fsharp"
+    },
+    {
+      "path": "nested/fsx",
+      "expected": "text"
+    },
+    {
+      "path": "f03",
+      "expected": "f03"
+    },
+    {
+      "path": "file.f03",
+      "expected": "f03"
+    },
+    {
+      "path": "nested/file.f03",
+      "expected": "f03"
+    },
+    {
+      "path": "nested/f03",
+      "expected": "text"
+    },
+    {
+      "path": "f08",
+      "expected": "f08"
+    },
+    {
+      "path": "file.f08",
+      "expected": "f08"
+    },
+    {
+      "path": "nested/file.f08",
+      "expected": "f08"
+    },
+    {
+      "path": "nested/f08",
+      "expected": "text"
+    },
+    {
+      "path": "f18",
+      "expected": "f18"
+    },
+    {
+      "path": "file.f18",
+      "expected": "f18"
+    },
+    {
+      "path": "nested/file.f18",
+      "expected": "f18"
+    },
+    {
+      "path": "nested/f18",
+      "expected": "text"
+    },
+    {
+      "path": "f77",
+      "expected": "f77"
+    },
+    {
+      "path": "file.f77",
+      "expected": "f77"
+    },
+    {
+      "path": "nested/file.f77",
+      "expected": "f77"
+    },
+    {
+      "path": "nested/f77",
+      "expected": "text"
+    },
+    {
+      "path": "f90",
+      "expected": "fortran-free-form"
+    },
+    {
+      "path": "file.f90",
+      "expected": "fortran-free-form"
+    },
+    {
+      "path": "nested/file.f90",
+      "expected": "fortran-free-form"
+    },
+    {
+      "path": "nested/f90",
+      "expected": "text"
+    },
+    {
+      "path": "f95",
+      "expected": "fortran-free-form"
+    },
+    {
+      "path": "file.f95",
+      "expected": "fortran-free-form"
+    },
+    {
+      "path": "nested/file.f95",
+      "expected": "fortran-free-form"
+    },
+    {
+      "path": "nested/f95",
+      "expected": "text"
+    },
+    {
+      "path": "fnl",
+      "expected": "fennel"
+    },
+    {
+      "path": "file.fnl",
+      "expected": "fennel"
+    },
+    {
+      "path": "nested/file.fnl",
+      "expected": "fennel"
+    },
+    {
+      "path": "nested/fnl",
+      "expected": "text"
+    },
+    {
+      "path": "fish",
+      "expected": "fish"
+    },
+    {
+      "path": "file.fish",
+      "expected": "fish"
+    },
+    {
+      "path": "nested/file.fish",
+      "expected": "fish"
+    },
+    {
+      "path": "nested/fish",
+      "expected": "text"
+    },
+    {
+      "path": "ftl",
+      "expected": "ftl"
+    },
+    {
+      "path": "file.ftl",
+      "expected": "ftl"
+    },
+    {
+      "path": "nested/file.ftl",
+      "expected": "ftl"
+    },
+    {
+      "path": "nested/ftl",
+      "expected": "text"
+    },
+    {
+      "path": "tres",
+      "expected": "gdresource"
+    },
+    {
+      "path": "file.tres",
+      "expected": "gdresource"
+    },
+    {
+      "path": "nested/file.tres",
+      "expected": "gdresource"
+    },
+    {
+      "path": "nested/tres",
+      "expected": "text"
+    },
+    {
+      "path": "res",
+      "expected": "gdresource"
+    },
+    {
+      "path": "file.res",
+      "expected": "gdresource"
+    },
+    {
+      "path": "nested/file.res",
+      "expected": "gdresource"
+    },
+    {
+      "path": "nested/res",
+      "expected": "text"
+    },
+    {
+      "path": "gd",
+      "expected": "gdscript"
+    },
+    {
+      "path": "file.gd",
+      "expected": "gdscript"
+    },
+    {
+      "path": "nested/file.gd",
+      "expected": "gdscript"
+    },
+    {
+      "path": "nested/gd",
+      "expected": "text"
+    },
+    {
+      "path": "gdshader",
+      "expected": "gdshader"
+    },
+    {
+      "path": "file.gdshader",
+      "expected": "gdshader"
+    },
+    {
+      "path": "nested/file.gdshader",
+      "expected": "gdshader"
+    },
+    {
+      "path": "nested/gdshader",
+      "expected": "text"
+    },
+    {
+      "path": "gs",
+      "expected": "genie"
+    },
+    {
+      "path": "file.gs",
+      "expected": "genie"
+    },
+    {
+      "path": "nested/file.gs",
+      "expected": "genie"
+    },
+    {
+      "path": "nested/gs",
+      "expected": "text"
+    },
+    {
+      "path": "feature",
+      "expected": "gherkin"
+    },
+    {
+      "path": "file.feature",
+      "expected": "gherkin"
+    },
+    {
+      "path": "nested/file.feature",
+      "expected": "gherkin"
+    },
+    {
+      "path": "nested/feature",
+      "expected": "text"
+    },
+    {
+      "path": "COMMIT_EDITMSG",
+      "expected": "git-commit"
+    },
+    {
+      "path": "file.COMMIT_EDITMSG",
+      "expected": "git-commit"
+    },
+    {
+      "path": "nested/file.COMMIT_EDITMSG",
+      "expected": "git-commit"
+    },
+    {
+      "path": "nested/COMMIT_EDITMSG",
+      "expected": "text"
+    },
+    {
+      "path": "git-rebase-todo",
+      "expected": "git-rebase"
+    },
+    {
+      "path": "file.git-rebase-todo",
+      "expected": "git-rebase"
+    },
+    {
+      "path": "nested/file.git-rebase-todo",
+      "expected": "git-rebase"
+    },
+    {
+      "path": "nested/git-rebase-todo",
+      "expected": "text"
+    },
+    {
+      "path": "gjs",
+      "expected": "glimmer-js"
+    },
+    {
+      "path": "file.gjs",
+      "expected": "glimmer-js"
+    },
+    {
+      "path": "nested/file.gjs",
+      "expected": "glimmer-js"
+    },
+    {
+      "path": "nested/gjs",
+      "expected": "text"
+    },
+    {
+      "path": "gleam",
+      "expected": "gleam"
+    },
+    {
+      "path": "file.gleam",
+      "expected": "gleam"
+    },
+    {
+      "path": "nested/file.gleam",
+      "expected": "gleam"
+    },
+    {
+      "path": "nested/gleam",
+      "expected": "text"
+    },
+    {
+      "path": "gts",
+      "expected": "glimmer-ts"
+    },
+    {
+      "path": "file.gts",
+      "expected": "glimmer-ts"
+    },
+    {
+      "path": "nested/file.gts",
+      "expected": "glimmer-ts"
+    },
+    {
+      "path": "nested/gts",
+      "expected": "text"
+    },
+    {
+      "path": "glsl",
+      "expected": "glsl"
+    },
+    {
+      "path": "file.glsl",
+      "expected": "glsl"
+    },
+    {
+      "path": "nested/file.glsl",
+      "expected": "glsl"
+    },
+    {
+      "path": "nested/glsl",
+      "expected": "text"
+    },
+    {
+      "path": "vert",
+      "expected": "glsl"
+    },
+    {
+      "path": "file.vert",
+      "expected": "glsl"
+    },
+    {
+      "path": "nested/file.vert",
+      "expected": "glsl"
+    },
+    {
+      "path": "nested/vert",
+      "expected": "text"
+    },
+    {
+      "path": "frag",
+      "expected": "glsl"
+    },
+    {
+      "path": "file.frag",
+      "expected": "glsl"
+    },
+    {
+      "path": "nested/file.frag",
+      "expected": "glsl"
+    },
+    {
+      "path": "nested/frag",
+      "expected": "text"
+    },
+    {
+      "path": "shader",
+      "expected": "shaderlab"
+    },
+    {
+      "path": "file.shader",
+      "expected": "shaderlab"
+    },
+    {
+      "path": "nested/file.shader",
+      "expected": "shaderlab"
+    },
+    {
+      "path": "nested/shader",
+      "expected": "text"
+    },
+    {
+      "path": "gp",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "file.gp",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "nested/file.gp",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "nested/gp",
+      "expected": "text"
+    },
+    {
+      "path": "plt",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "file.plt",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "nested/file.plt",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "nested/plt",
+      "expected": "text"
+    },
+    {
+      "path": "gnuplot",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "file.gnuplot",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "nested/file.gnuplot",
+      "expected": "gnuplot"
+    },
+    {
+      "path": "nested/gnuplot",
+      "expected": "text"
+    },
+    {
+      "path": "go",
+      "expected": "go"
+    },
+    {
+      "path": "file.go",
+      "expected": "go"
+    },
+    {
+      "path": "nested/file.go",
+      "expected": "go"
+    },
+    {
+      "path": "nested/go",
+      "expected": "text"
+    },
+    {
+      "path": "graphql",
+      "expected": "graphql"
+    },
+    {
+      "path": "file.graphql",
+      "expected": "graphql"
+    },
+    {
+      "path": "nested/file.graphql",
+      "expected": "graphql"
+    },
+    {
+      "path": "nested/graphql",
+      "expected": "text"
+    },
+    {
+      "path": "gql",
+      "expected": "graphql"
+    },
+    {
+      "path": "file.gql",
+      "expected": "graphql"
+    },
+    {
+      "path": "nested/file.gql",
+      "expected": "graphql"
+    },
+    {
+      "path": "nested/gql",
+      "expected": "text"
+    },
+    {
+      "path": "groovy",
+      "expected": "groovy"
+    },
+    {
+      "path": "file.groovy",
+      "expected": "groovy"
+    },
+    {
+      "path": "nested/file.groovy",
+      "expected": "groovy"
+    },
+    {
+      "path": "nested/groovy",
+      "expected": "text"
+    },
+    {
+      "path": "gvy",
+      "expected": "groovy"
+    },
+    {
+      "path": "file.gvy",
+      "expected": "groovy"
+    },
+    {
+      "path": "nested/file.gvy",
+      "expected": "groovy"
+    },
+    {
+      "path": "nested/gvy",
+      "expected": "text"
+    },
+    {
+      "path": "hack",
+      "expected": "hack"
+    },
+    {
+      "path": "file.hack",
+      "expected": "hack"
+    },
+    {
+      "path": "nested/file.hack",
+      "expected": "hack"
+    },
+    {
+      "path": "nested/hack",
+      "expected": "text"
+    },
+    {
+      "path": "haml",
+      "expected": "haml"
+    },
+    {
+      "path": "file.haml",
+      "expected": "haml"
+    },
+    {
+      "path": "nested/file.haml",
+      "expected": "haml"
+    },
+    {
+      "path": "nested/haml",
+      "expected": "text"
+    },
+    {
+      "path": "hbs",
+      "expected": "handlebars"
+    },
+    {
+      "path": "file.hbs",
+      "expected": "handlebars"
+    },
+    {
+      "path": "nested/file.hbs",
+      "expected": "handlebars"
+    },
+    {
+      "path": "nested/hbs",
+      "expected": "text"
+    },
+    {
+      "path": "handlebars",
+      "expected": "handlebars"
+    },
+    {
+      "path": "file.handlebars",
+      "expected": "handlebars"
+    },
+    {
+      "path": "nested/file.handlebars",
+      "expected": "handlebars"
+    },
+    {
+      "path": "nested/handlebars",
+      "expected": "text"
+    },
+    {
+      "path": "hs",
+      "expected": "haskell"
+    },
+    {
+      "path": "file.hs",
+      "expected": "haskell"
+    },
+    {
+      "path": "nested/file.hs",
+      "expected": "haskell"
+    },
+    {
+      "path": "nested/hs",
+      "expected": "text"
+    },
+    {
+      "path": "lhs",
+      "expected": "haskell"
+    },
+    {
+      "path": "file.lhs",
+      "expected": "haskell"
+    },
+    {
+      "path": "nested/file.lhs",
+      "expected": "haskell"
+    },
+    {
+      "path": "nested/lhs",
+      "expected": "text"
+    },
+    {
+      "path": "hx",
+      "expected": "haxe"
+    },
+    {
+      "path": "file.hx",
+      "expected": "haxe"
+    },
+    {
+      "path": "nested/file.hx",
+      "expected": "haxe"
+    },
+    {
+      "path": "nested/hx",
+      "expected": "text"
+    },
+    {
+      "path": "hcl",
+      "expected": "hcl"
+    },
+    {
+      "path": "file.hcl",
+      "expected": "hcl"
+    },
+    {
+      "path": "nested/file.hcl",
+      "expected": "hcl"
+    },
+    {
+      "path": "nested/hcl",
+      "expected": "text"
+    },
+    {
+      "path": "hjson",
+      "expected": "hjson"
+    },
+    {
+      "path": "file.hjson",
+      "expected": "hjson"
+    },
+    {
+      "path": "nested/file.hjson",
+      "expected": "hjson"
+    },
+    {
+      "path": "nested/hjson",
+      "expected": "text"
+    },
+    {
+      "path": "hlsl",
+      "expected": "hlsl"
+    },
+    {
+      "path": "file.hlsl",
+      "expected": "hlsl"
+    },
+    {
+      "path": "nested/file.hlsl",
+      "expected": "hlsl"
+    },
+    {
+      "path": "nested/hlsl",
+      "expected": "text"
+    },
+    {
+      "path": "fx",
+      "expected": "hlsl"
+    },
+    {
+      "path": "file.fx",
+      "expected": "hlsl"
+    },
+    {
+      "path": "nested/file.fx",
+      "expected": "hlsl"
+    },
+    {
+      "path": "nested/fx",
+      "expected": "text"
+    },
+    {
+      "path": "html",
+      "expected": "html"
+    },
+    {
+      "path": "file.html",
+      "expected": "html"
+    },
+    {
+      "path": "nested/file.html",
+      "expected": "html"
+    },
+    {
+      "path": "nested/html",
+      "expected": "text"
+    },
+    {
+      "path": "htm",
+      "expected": "html"
+    },
+    {
+      "path": "file.htm",
+      "expected": "html"
+    },
+    {
+      "path": "nested/file.htm",
+      "expected": "html"
+    },
+    {
+      "path": "nested/htm",
+      "expected": "text"
+    },
+    {
+      "path": "http",
+      "expected": "http"
+    },
+    {
+      "path": "file.http",
+      "expected": "http"
+    },
+    {
+      "path": "nested/file.http",
+      "expected": "http"
+    },
+    {
+      "path": "nested/http",
+      "expected": "text"
+    },
+    {
+      "path": "rest",
+      "expected": "http"
+    },
+    {
+      "path": "file.rest",
+      "expected": "http"
+    },
+    {
+      "path": "nested/file.rest",
+      "expected": "http"
+    },
+    {
+      "path": "nested/rest",
+      "expected": "text"
+    },
+    {
+      "path": "hxml",
+      "expected": "hxml"
+    },
+    {
+      "path": "file.hxml",
+      "expected": "hxml"
+    },
+    {
+      "path": "nested/file.hxml",
+      "expected": "hxml"
+    },
+    {
+      "path": "nested/hxml",
+      "expected": "text"
+    },
+    {
+      "path": "hy",
+      "expected": "hy"
+    },
+    {
+      "path": "file.hy",
+      "expected": "hy"
+    },
+    {
+      "path": "nested/file.hy",
+      "expected": "hy"
+    },
+    {
+      "path": "nested/hy",
+      "expected": "text"
+    },
+    {
+      "path": "imba",
+      "expected": "imba"
+    },
+    {
+      "path": "file.imba",
+      "expected": "imba"
+    },
+    {
+      "path": "nested/file.imba",
+      "expected": "imba"
+    },
+    {
+      "path": "nested/imba",
+      "expected": "text"
+    },
+    {
+      "path": "ini",
+      "expected": "ini"
+    },
+    {
+      "path": "file.ini",
+      "expected": "ini"
+    },
+    {
+      "path": "nested/file.ini",
+      "expected": "ini"
+    },
+    {
+      "path": "nested/ini",
+      "expected": "text"
+    },
+    {
+      "path": "cfg",
+      "expected": "ini"
+    },
+    {
+      "path": "file.cfg",
+      "expected": "ini"
+    },
+    {
+      "path": "nested/file.cfg",
+      "expected": "ini"
+    },
+    {
+      "path": "nested/cfg",
+      "expected": "text"
+    },
+    {
+      "path": "jade",
+      "expected": "pug"
+    },
+    {
+      "path": "file.jade",
+      "expected": "pug"
+    },
+    {
+      "path": "nested/file.jade",
+      "expected": "pug"
+    },
+    {
+      "path": "nested/jade",
+      "expected": "text"
+    },
+    {
+      "path": "pug",
+      "expected": "pug"
+    },
+    {
+      "path": "file.pug",
+      "expected": "pug"
+    },
+    {
+      "path": "nested/file.pug",
+      "expected": "pug"
+    },
+    {
+      "path": "nested/pug",
+      "expected": "text"
+    },
+    {
+      "path": "java",
+      "expected": "java"
+    },
+    {
+      "path": "file.java",
+      "expected": "java"
+    },
+    {
+      "path": "nested/file.java",
+      "expected": "java"
+    },
+    {
+      "path": "nested/java",
+      "expected": "text"
+    },
+    {
+      "path": "js",
+      "expected": "javascript"
+    },
+    {
+      "path": "file.js",
+      "expected": "javascript"
+    },
+    {
+      "path": "nested/file.js",
+      "expected": "javascript"
+    },
+    {
+      "path": "nested/js",
+      "expected": "text"
+    },
+    {
+      "path": "mjs",
+      "expected": "javascript"
+    },
+    {
+      "path": "file.mjs",
+      "expected": "javascript"
+    },
+    {
+      "path": "nested/file.mjs",
+      "expected": "javascript"
+    },
+    {
+      "path": "nested/mjs",
+      "expected": "text"
+    },
+    {
+      "path": "cjs",
+      "expected": "javascript"
+    },
+    {
+      "path": "file.cjs",
+      "expected": "javascript"
+    },
+    {
+      "path": "nested/file.cjs",
+      "expected": "javascript"
+    },
+    {
+      "path": "nested/cjs",
+      "expected": "text"
+    },
+    {
+      "path": "jinja",
+      "expected": "jinja"
+    },
+    {
+      "path": "file.jinja",
+      "expected": "jinja"
+    },
+    {
+      "path": "nested/file.jinja",
+      "expected": "jinja"
+    },
+    {
+      "path": "nested/jinja",
+      "expected": "text"
+    },
+    {
+      "path": "jinja2",
+      "expected": "jinja"
+    },
+    {
+      "path": "file.jinja2",
+      "expected": "jinja"
+    },
+    {
+      "path": "nested/file.jinja2",
+      "expected": "jinja"
+    },
+    {
+      "path": "nested/jinja2",
+      "expected": "text"
+    },
+    {
+      "path": "j2",
+      "expected": "jinja"
+    },
+    {
+      "path": "file.j2",
+      "expected": "jinja"
+    },
+    {
+      "path": "nested/file.j2",
+      "expected": "jinja"
+    },
+    {
+      "path": "nested/j2",
+      "expected": "text"
+    },
+    {
+      "path": "jison",
+      "expected": "jison"
+    },
+    {
+      "path": "file.jison",
+      "expected": "jison"
+    },
+    {
+      "path": "nested/file.jison",
+      "expected": "jison"
+    },
+    {
+      "path": "nested/jison",
+      "expected": "text"
+    },
+    {
+      "path": "jl",
+      "expected": "julia"
+    },
+    {
+      "path": "file.jl",
+      "expected": "julia"
+    },
+    {
+      "path": "nested/file.jl",
+      "expected": "julia"
+    },
+    {
+      "path": "nested/jl",
+      "expected": "text"
+    },
+    {
+      "path": "json",
+      "expected": "json"
+    },
+    {
+      "path": "file.json",
+      "expected": "json"
+    },
+    {
+      "path": "nested/file.json",
+      "expected": "json"
+    },
+    {
+      "path": "nested/json",
+      "expected": "text"
+    },
+    {
+      "path": "json5",
+      "expected": "json5"
+    },
+    {
+      "path": "file.json5",
+      "expected": "json5"
+    },
+    {
+      "path": "nested/file.json5",
+      "expected": "json5"
+    },
+    {
+      "path": "nested/json5",
+      "expected": "text"
+    },
+    {
+      "path": "jsonc",
+      "expected": "jsonc"
+    },
+    {
+      "path": "file.jsonc",
+      "expected": "jsonc"
+    },
+    {
+      "path": "nested/file.jsonc",
+      "expected": "jsonc"
+    },
+    {
+      "path": "nested/jsonc",
+      "expected": "text"
+    },
+    {
+      "path": "jsonl",
+      "expected": "jsonl"
+    },
+    {
+      "path": "file.jsonl",
+      "expected": "jsonl"
+    },
+    {
+      "path": "nested/file.jsonl",
+      "expected": "jsonl"
+    },
+    {
+      "path": "nested/jsonl",
+      "expected": "text"
+    },
+    {
+      "path": "jsonnet",
+      "expected": "jsonnet"
+    },
+    {
+      "path": "file.jsonnet",
+      "expected": "jsonnet"
+    },
+    {
+      "path": "nested/file.jsonnet",
+      "expected": "jsonnet"
+    },
+    {
+      "path": "nested/jsonnet",
+      "expected": "text"
+    },
+    {
+      "path": "libsonnet",
+      "expected": "jsonnet"
+    },
+    {
+      "path": "file.libsonnet",
+      "expected": "jsonnet"
+    },
+    {
+      "path": "nested/file.libsonnet",
+      "expected": "jsonnet"
+    },
+    {
+      "path": "nested/libsonnet",
+      "expected": "text"
+    },
+    {
+      "path": "jssm",
+      "expected": "jssm"
+    },
+    {
+      "path": "file.jssm",
+      "expected": "jssm"
+    },
+    {
+      "path": "nested/file.jssm",
+      "expected": "jssm"
+    },
+    {
+      "path": "nested/jssm",
+      "expected": "text"
+    },
+    {
+      "path": "jsx",
+      "expected": "jsx"
+    },
+    {
+      "path": "file.jsx",
+      "expected": "jsx"
+    },
+    {
+      "path": "nested/file.jsx",
+      "expected": "jsx"
+    },
+    {
+      "path": "nested/jsx",
+      "expected": "text"
+    },
+    {
+      "path": "kt",
+      "expected": "kotlin"
+    },
+    {
+      "path": "file.kt",
+      "expected": "kotlin"
+    },
+    {
+      "path": "nested/file.kt",
+      "expected": "kotlin"
+    },
+    {
+      "path": "nested/kt",
+      "expected": "text"
+    },
+    {
+      "path": "kts",
+      "expected": "kts"
+    },
+    {
+      "path": "file.kts",
+      "expected": "kts"
+    },
+    {
+      "path": "nested/file.kts",
+      "expected": "kts"
+    },
+    {
+      "path": "nested/kts",
+      "expected": "text"
+    },
+    {
+      "path": "kql",
+      "expected": "kusto"
+    },
+    {
+      "path": "file.kql",
+      "expected": "kusto"
+    },
+    {
+      "path": "nested/file.kql",
+      "expected": "kusto"
+    },
+    {
+      "path": "nested/kql",
+      "expected": "text"
+    },
+    {
+      "path": "tex",
+      "expected": "tex"
+    },
+    {
+      "path": "file.tex",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/file.tex",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/tex",
+      "expected": "text"
+    },
+    {
+      "path": "ltx",
+      "expected": "tex"
+    },
+    {
+      "path": "file.ltx",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/file.ltx",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/ltx",
+      "expected": "text"
+    },
+    {
+      "path": "lean",
+      "expected": "lean4"
+    },
+    {
+      "path": "file.lean",
+      "expected": "lean4"
+    },
+    {
+      "path": "nested/file.lean",
+      "expected": "lean4"
+    },
+    {
+      "path": "nested/lean",
+      "expected": "text"
+    },
+    {
+      "path": "less",
+      "expected": "less"
+    },
+    {
+      "path": "file.less",
+      "expected": "less"
+    },
+    {
+      "path": "nested/file.less",
+      "expected": "less"
+    },
+    {
+      "path": "nested/less",
+      "expected": "text"
+    },
+    {
+      "path": "liquid",
+      "expected": "liquid"
+    },
+    {
+      "path": "file.liquid",
+      "expected": "liquid"
+    },
+    {
+      "path": "nested/file.liquid",
+      "expected": "liquid"
+    },
+    {
+      "path": "nested/liquid",
+      "expected": "text"
+    },
+    {
+      "path": "lit",
+      "expected": "lit"
+    },
+    {
+      "path": "file.lit",
+      "expected": "lit"
+    },
+    {
+      "path": "nested/file.lit",
+      "expected": "lit"
+    },
+    {
+      "path": "nested/lit",
+      "expected": "text"
+    },
+    {
+      "path": "ll",
+      "expected": "llvm"
+    },
+    {
+      "path": "file.ll",
+      "expected": "llvm"
+    },
+    {
+      "path": "nested/file.ll",
+      "expected": "llvm"
+    },
+    {
+      "path": "nested/ll",
+      "expected": "text"
+    },
+    {
+      "path": "logo",
+      "expected": "logo"
+    },
+    {
+      "path": "file.logo",
+      "expected": "logo"
+    },
+    {
+      "path": "nested/file.logo",
+      "expected": "logo"
+    },
+    {
+      "path": "nested/logo",
+      "expected": "text"
+    },
+    {
+      "path": "lua",
+      "expected": "lua"
+    },
+    {
+      "path": "file.lua",
+      "expected": "lua"
+    },
+    {
+      "path": "nested/file.lua",
+      "expected": "lua"
+    },
+    {
+      "path": "nested/lua",
+      "expected": "text"
+    },
+    {
+      "path": "luau",
+      "expected": "luau"
+    },
+    {
+      "path": "file.luau",
+      "expected": "luau"
+    },
+    {
+      "path": "nested/file.luau",
+      "expected": "luau"
+    },
+    {
+      "path": "nested/luau",
+      "expected": "text"
+    },
+    {
+      "path": "Makefile",
+      "expected": "makefile"
+    },
+    {
+      "path": "file.Makefile",
+      "expected": "makefile"
+    },
+    {
+      "path": "nested/file.Makefile",
+      "expected": "makefile"
+    },
+    {
+      "path": "nested/Makefile",
+      "expected": "text"
+    },
+    {
+      "path": "mk",
+      "expected": "makefile"
+    },
+    {
+      "path": "file.mk",
+      "expected": "makefile"
+    },
+    {
+      "path": "nested/file.mk",
+      "expected": "makefile"
+    },
+    {
+      "path": "nested/mk",
+      "expected": "text"
+    },
+    {
+      "path": "makefile",
+      "expected": "makefile"
+    },
+    {
+      "path": "file.makefile",
+      "expected": "makefile"
+    },
+    {
+      "path": "nested/file.makefile",
+      "expected": "makefile"
+    },
+    {
+      "path": "nested/makefile",
+      "expected": "text"
+    },
+    {
+      "path": "md",
+      "expected": "markdown"
+    },
+    {
+      "path": "file.md",
+      "expected": "markdown"
+    },
+    {
+      "path": "nested/file.md",
+      "expected": "markdown"
+    },
+    {
+      "path": "nested/md",
+      "expected": "text"
+    },
+    {
+      "path": "markdown",
+      "expected": "markdown"
+    },
+    {
+      "path": "file.markdown",
+      "expected": "markdown"
+    },
+    {
+      "path": "nested/file.markdown",
+      "expected": "markdown"
+    },
+    {
+      "path": "nested/markdown",
+      "expected": "text"
+    },
+    {
+      "path": "marko",
+      "expected": "marko"
+    },
+    {
+      "path": "file.marko",
+      "expected": "marko"
+    },
+    {
+      "path": "nested/file.marko",
+      "expected": "marko"
+    },
+    {
+      "path": "nested/marko",
+      "expected": "text"
+    },
+    {
+      "path": "m",
+      "expected": "wolfram"
+    },
+    {
+      "path": "file.m",
+      "expected": "wolfram"
+    },
+    {
+      "path": "nested/file.m",
+      "expected": "wolfram"
+    },
+    {
+      "path": "nested/m",
+      "expected": "text"
+    },
+    {
+      "path": "mat",
+      "expected": "matlab"
+    },
+    {
+      "path": "file.mat",
+      "expected": "matlab"
+    },
+    {
+      "path": "nested/file.mat",
+      "expected": "matlab"
+    },
+    {
+      "path": "nested/mat",
+      "expected": "text"
+    },
+    {
+      "path": "mdc",
+      "expected": "mdc"
+    },
+    {
+      "path": "file.mdc",
+      "expected": "mdc"
+    },
+    {
+      "path": "nested/file.mdc",
+      "expected": "mdc"
+    },
+    {
+      "path": "nested/mdc",
+      "expected": "text"
+    },
+    {
+      "path": "mdx",
+      "expected": "mdx"
+    },
+    {
+      "path": "file.mdx",
+      "expected": "mdx"
+    },
+    {
+      "path": "nested/file.mdx",
+      "expected": "mdx"
+    },
+    {
+      "path": "nested/mdx",
+      "expected": "text"
+    },
+    {
+      "path": "wiki",
+      "expected": "wikitext"
+    },
+    {
+      "path": "file.wiki",
+      "expected": "wikitext"
+    },
+    {
+      "path": "nested/file.wiki",
+      "expected": "wikitext"
+    },
+    {
+      "path": "nested/wiki",
+      "expected": "text"
+    },
+    {
+      "path": "mediawiki",
+      "expected": "wikitext"
+    },
+    {
+      "path": "file.mediawiki",
+      "expected": "wikitext"
+    },
+    {
+      "path": "nested/file.mediawiki",
+      "expected": "wikitext"
+    },
+    {
+      "path": "nested/mediawiki",
+      "expected": "text"
+    },
+    {
+      "path": "mmd",
+      "expected": "mermaid"
+    },
+    {
+      "path": "file.mmd",
+      "expected": "mermaid"
+    },
+    {
+      "path": "nested/file.mmd",
+      "expected": "mermaid"
+    },
+    {
+      "path": "nested/mmd",
+      "expected": "text"
+    },
+    {
+      "path": "mermaid",
+      "expected": "mermaid"
+    },
+    {
+      "path": "file.mermaid",
+      "expected": "mermaid"
+    },
+    {
+      "path": "nested/file.mermaid",
+      "expected": "mermaid"
+    },
+    {
+      "path": "nested/mermaid",
+      "expected": "text"
+    },
+    {
+      "path": "mips",
+      "expected": "mipsasm"
+    },
+    {
+      "path": "file.mips",
+      "expected": "mipsasm"
+    },
+    {
+      "path": "nested/file.mips",
+      "expected": "mipsasm"
+    },
+    {
+      "path": "nested/mips",
+      "expected": "text"
+    },
+    {
+      "path": "mojo",
+      "expected": "mojo"
+    },
+    {
+      "path": "file.mojo",
+      "expected": "mojo"
+    },
+    {
+      "path": "nested/file.mojo",
+      "expected": "mojo"
+    },
+    {
+      "path": "nested/mojo",
+      "expected": "text"
+    },
+    {
+      "path": "🔥",
+      "expected": "mojo"
+    },
+    {
+      "path": "file.🔥",
+      "expected": "mojo"
+    },
+    {
+      "path": "nested/file.🔥",
+      "expected": "mojo"
+    },
+    {
+      "path": "nested/🔥",
+      "expected": "text"
+    },
+    {
+      "path": "move",
+      "expected": "move"
+    },
+    {
+      "path": "file.move",
+      "expected": "move"
+    },
+    {
+      "path": "nested/file.move",
+      "expected": "move"
+    },
+    {
+      "path": "nested/move",
+      "expected": "text"
+    },
+    {
+      "path": "nar",
+      "expected": "narrat"
+    },
+    {
+      "path": "file.nar",
+      "expected": "narrat"
+    },
+    {
+      "path": "nested/file.nar",
+      "expected": "narrat"
+    },
+    {
+      "path": "nested/nar",
+      "expected": "text"
+    },
+    {
+      "path": "nf",
+      "expected": "nextflow"
+    },
+    {
+      "path": "file.nf",
+      "expected": "nextflow"
+    },
+    {
+      "path": "nested/file.nf",
+      "expected": "nextflow"
+    },
+    {
+      "path": "nested/nf",
+      "expected": "text"
+    },
+    {
+      "path": "nim",
+      "expected": "nim"
+    },
+    {
+      "path": "file.nim",
+      "expected": "nim"
+    },
+    {
+      "path": "nested/file.nim",
+      "expected": "nim"
+    },
+    {
+      "path": "nested/nim",
+      "expected": "text"
+    },
+    {
+      "path": "nims",
+      "expected": "nim"
+    },
+    {
+      "path": "file.nims",
+      "expected": "nim"
+    },
+    {
+      "path": "nested/file.nims",
+      "expected": "nim"
+    },
+    {
+      "path": "nested/nims",
+      "expected": "text"
+    },
+    {
+      "path": "nimble",
+      "expected": "nim"
+    },
+    {
+      "path": "file.nimble",
+      "expected": "nim"
+    },
+    {
+      "path": "nested/file.nimble",
+      "expected": "nim"
+    },
+    {
+      "path": "nested/nimble",
+      "expected": "text"
+    },
+    {
+      "path": "nix",
+      "expected": "nix"
+    },
+    {
+      "path": "file.nix",
+      "expected": "nix"
+    },
+    {
+      "path": "nested/file.nix",
+      "expected": "nix"
+    },
+    {
+      "path": "nested/nix",
+      "expected": "text"
+    },
+    {
+      "path": "nu",
+      "expected": "nushell"
+    },
+    {
+      "path": "file.nu",
+      "expected": "nushell"
+    },
+    {
+      "path": "nested/file.nu",
+      "expected": "nushell"
+    },
+    {
+      "path": "nested/nu",
+      "expected": "text"
+    },
+    {
+      "path": "mm",
+      "expected": "objective-cpp"
+    },
+    {
+      "path": "file.mm",
+      "expected": "objective-cpp"
+    },
+    {
+      "path": "nested/file.mm",
+      "expected": "objective-cpp"
+    },
+    {
+      "path": "nested/mm",
+      "expected": "text"
+    },
+    {
+      "path": "ml",
+      "expected": "ocaml"
+    },
+    {
+      "path": "file.ml",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/file.ml",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/ml",
+      "expected": "text"
+    },
+    {
+      "path": "mli",
+      "expected": "ocaml"
+    },
+    {
+      "path": "file.mli",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/file.mli",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/mli",
+      "expected": "text"
+    },
+    {
+      "path": "mll",
+      "expected": "ocaml"
+    },
+    {
+      "path": "file.mll",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/file.mll",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/mll",
+      "expected": "text"
+    },
+    {
+      "path": "mly",
+      "expected": "ocaml"
+    },
+    {
+      "path": "file.mly",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/file.mly",
+      "expected": "ocaml"
+    },
+    {
+      "path": "nested/mly",
+      "expected": "text"
+    },
+    {
+      "path": "pas",
+      "expected": "pascal"
+    },
+    {
+      "path": "file.pas",
+      "expected": "pascal"
+    },
+    {
+      "path": "nested/file.pas",
+      "expected": "pascal"
+    },
+    {
+      "path": "nested/pas",
+      "expected": "text"
+    },
+    {
+      "path": "p",
+      "expected": "pascal"
+    },
+    {
+      "path": "file.p",
+      "expected": "pascal"
+    },
+    {
+      "path": "nested/file.p",
+      "expected": "pascal"
+    },
+    {
+      "path": "nested/p",
+      "expected": "text"
+    },
+    {
+      "path": "pl",
+      "expected": "prolog"
+    },
+    {
+      "path": "file.pl",
+      "expected": "prolog"
+    },
+    {
+      "path": "nested/file.pl",
+      "expected": "prolog"
+    },
+    {
+      "path": "nested/pl",
+      "expected": "text"
+    },
+    {
+      "path": "pm",
+      "expected": "perl"
+    },
+    {
+      "path": "file.pm",
+      "expected": "perl"
+    },
+    {
+      "path": "nested/file.pm",
+      "expected": "perl"
+    },
+    {
+      "path": "nested/pm",
+      "expected": "text"
+    },
+    {
+      "path": "t",
+      "expected": "perl"
+    },
+    {
+      "path": "file.t",
+      "expected": "perl"
+    },
+    {
+      "path": "nested/file.t",
+      "expected": "perl"
+    },
+    {
+      "path": "nested/t",
+      "expected": "text"
+    },
+    {
+      "path": "raku",
+      "expected": "raku"
+    },
+    {
+      "path": "file.raku",
+      "expected": "raku"
+    },
+    {
+      "path": "nested/file.raku",
+      "expected": "raku"
+    },
+    {
+      "path": "nested/raku",
+      "expected": "text"
+    },
+    {
+      "path": "p6",
+      "expected": "raku"
+    },
+    {
+      "path": "file.p6",
+      "expected": "raku"
+    },
+    {
+      "path": "nested/file.p6",
+      "expected": "raku"
+    },
+    {
+      "path": "nested/p6",
+      "expected": "text"
+    },
+    {
+      "path": "pl6",
+      "expected": "raku"
+    },
+    {
+      "path": "file.pl6",
+      "expected": "raku"
+    },
+    {
+      "path": "nested/file.pl6",
+      "expected": "raku"
+    },
+    {
+      "path": "nested/pl6",
+      "expected": "text"
+    },
+    {
+      "path": "php",
+      "expected": "php"
+    },
+    {
+      "path": "file.php",
+      "expected": "php"
+    },
+    {
+      "path": "nested/file.php",
+      "expected": "php"
+    },
+    {
+      "path": "nested/php",
+      "expected": "text"
+    },
+    {
+      "path": "phtml",
+      "expected": "php"
+    },
+    {
+      "path": "file.phtml",
+      "expected": "php"
+    },
+    {
+      "path": "nested/file.phtml",
+      "expected": "php"
+    },
+    {
+      "path": "nested/phtml",
+      "expected": "text"
+    },
+    {
+      "path": "pls",
+      "expected": "plsql"
+    },
+    {
+      "path": "file.pls",
+      "expected": "plsql"
+    },
+    {
+      "path": "nested/file.pls",
+      "expected": "plsql"
+    },
+    {
+      "path": "nested/pls",
+      "expected": "text"
+    },
+    {
+      "path": "sql",
+      "expected": "sql"
+    },
+    {
+      "path": "file.sql",
+      "expected": "sql"
+    },
+    {
+      "path": "nested/file.sql",
+      "expected": "sql"
+    },
+    {
+      "path": "nested/sql",
+      "expected": "text"
+    },
+    {
+      "path": "po",
+      "expected": "po"
+    },
+    {
+      "path": "file.po",
+      "expected": "po"
+    },
+    {
+      "path": "nested/file.po",
+      "expected": "po"
+    },
+    {
+      "path": "nested/po",
+      "expected": "text"
+    },
+    {
+      "path": "polar",
+      "expected": "polar"
+    },
+    {
+      "path": "file.polar",
+      "expected": "polar"
+    },
+    {
+      "path": "nested/file.polar",
+      "expected": "polar"
+    },
+    {
+      "path": "nested/polar",
+      "expected": "text"
+    },
+    {
+      "path": "pcss",
+      "expected": "postcss"
+    },
+    {
+      "path": "file.pcss",
+      "expected": "postcss"
+    },
+    {
+      "path": "nested/file.pcss",
+      "expected": "postcss"
+    },
+    {
+      "path": "nested/pcss",
+      "expected": "text"
+    },
+    {
+      "path": "pot",
+      "expected": "pot"
+    },
+    {
+      "path": "file.pot",
+      "expected": "pot"
+    },
+    {
+      "path": "nested/file.pot",
+      "expected": "pot"
+    },
+    {
+      "path": "nested/pot",
+      "expected": "text"
+    },
+    {
+      "path": "potx",
+      "expected": "potx"
+    },
+    {
+      "path": "file.potx",
+      "expected": "potx"
+    },
+    {
+      "path": "nested/file.potx",
+      "expected": "potx"
+    },
+    {
+      "path": "nested/potx",
+      "expected": "text"
+    },
+    {
+      "path": "pq",
+      "expected": "powerquery"
+    },
+    {
+      "path": "file.pq",
+      "expected": "powerquery"
+    },
+    {
+      "path": "nested/file.pq",
+      "expected": "powerquery"
+    },
+    {
+      "path": "nested/pq",
+      "expected": "text"
+    },
+    {
+      "path": "pqm",
+      "expected": "powerquery"
+    },
+    {
+      "path": "file.pqm",
+      "expected": "powerquery"
+    },
+    {
+      "path": "nested/file.pqm",
+      "expected": "powerquery"
+    },
+    {
+      "path": "nested/pqm",
+      "expected": "text"
+    },
+    {
+      "path": "ps1",
+      "expected": "powershell"
+    },
+    {
+      "path": "file.ps1",
+      "expected": "powershell"
+    },
+    {
+      "path": "nested/file.ps1",
+      "expected": "powershell"
+    },
+    {
+      "path": "nested/ps1",
+      "expected": "text"
+    },
+    {
+      "path": "psm1",
+      "expected": "powershell"
+    },
+    {
+      "path": "file.psm1",
+      "expected": "powershell"
+    },
+    {
+      "path": "nested/file.psm1",
+      "expected": "powershell"
+    },
+    {
+      "path": "nested/psm1",
+      "expected": "text"
+    },
+    {
+      "path": "psd1",
+      "expected": "powershell"
+    },
+    {
+      "path": "file.psd1",
+      "expected": "powershell"
+    },
+    {
+      "path": "nested/file.psd1",
+      "expected": "powershell"
+    },
+    {
+      "path": "nested/psd1",
+      "expected": "text"
+    },
+    {
+      "path": "prisma",
+      "expected": "prisma"
+    },
+    {
+      "path": "file.prisma",
+      "expected": "prisma"
+    },
+    {
+      "path": "nested/file.prisma",
+      "expected": "prisma"
+    },
+    {
+      "path": "nested/prisma",
+      "expected": "text"
+    },
+    {
+      "path": "pro",
+      "expected": "prolog"
+    },
+    {
+      "path": "file.pro",
+      "expected": "prolog"
+    },
+    {
+      "path": "nested/file.pro",
+      "expected": "prolog"
+    },
+    {
+      "path": "nested/pro",
+      "expected": "text"
+    },
+    {
+      "path": "P",
+      "expected": "prolog"
+    },
+    {
+      "path": "file.P",
+      "expected": "prolog"
+    },
+    {
+      "path": "nested/file.P",
+      "expected": "prolog"
+    },
+    {
+      "path": "nested/P",
+      "expected": "text"
+    },
+    {
+      "path": "properties",
+      "expected": "properties"
+    },
+    {
+      "path": "file.properties",
+      "expected": "properties"
+    },
+    {
+      "path": "nested/file.properties",
+      "expected": "properties"
+    },
+    {
+      "path": "nested/properties",
+      "expected": "text"
+    },
+    {
+      "path": "proto",
+      "expected": "protobuf"
+    },
+    {
+      "path": "file.proto",
+      "expected": "protobuf"
+    },
+    {
+      "path": "nested/file.proto",
+      "expected": "protobuf"
+    },
+    {
+      "path": "nested/proto",
+      "expected": "text"
+    },
+    {
+      "path": "pp",
+      "expected": "puppet"
+    },
+    {
+      "path": "file.pp",
+      "expected": "puppet"
+    },
+    {
+      "path": "nested/file.pp",
+      "expected": "puppet"
+    },
+    {
+      "path": "nested/pp",
+      "expected": "text"
+    },
+    {
+      "path": "purs",
+      "expected": "purescript"
+    },
+    {
+      "path": "file.purs",
+      "expected": "purescript"
+    },
+    {
+      "path": "nested/file.purs",
+      "expected": "purescript"
+    },
+    {
+      "path": "nested/purs",
+      "expected": "text"
+    },
+    {
+      "path": "py",
+      "expected": "python"
+    },
+    {
+      "path": "file.py",
+      "expected": "python"
+    },
+    {
+      "path": "nested/file.py",
+      "expected": "python"
+    },
+    {
+      "path": "nested/py",
+      "expected": "text"
+    },
+    {
+      "path": "pyw",
+      "expected": "python"
+    },
+    {
+      "path": "file.pyw",
+      "expected": "python"
+    },
+    {
+      "path": "nested/file.pyw",
+      "expected": "python"
+    },
+    {
+      "path": "nested/pyw",
+      "expected": "text"
+    },
+    {
+      "path": "pyi",
+      "expected": "python"
+    },
+    {
+      "path": "file.pyi",
+      "expected": "python"
+    },
+    {
+      "path": "nested/file.pyi",
+      "expected": "python"
+    },
+    {
+      "path": "nested/pyi",
+      "expected": "text"
+    },
+    {
+      "path": "qml",
+      "expected": "qml"
+    },
+    {
+      "path": "file.qml",
+      "expected": "qml"
+    },
+    {
+      "path": "nested/file.qml",
+      "expected": "qml"
+    },
+    {
+      "path": "nested/qml",
+      "expected": "text"
+    },
+    {
+      "path": "qmldir",
+      "expected": "qmldir"
+    },
+    {
+      "path": "file.qmldir",
+      "expected": "qmldir"
+    },
+    {
+      "path": "nested/file.qmldir",
+      "expected": "qmldir"
+    },
+    {
+      "path": "nested/qmldir",
+      "expected": "text"
+    },
+    {
+      "path": "qss",
+      "expected": "qss"
+    },
+    {
+      "path": "file.qss",
+      "expected": "qss"
+    },
+    {
+      "path": "nested/file.qss",
+      "expected": "qss"
+    },
+    {
+      "path": "nested/qss",
+      "expected": "text"
+    },
+    {
+      "path": "r",
+      "expected": "r"
+    },
+    {
+      "path": "file.r",
+      "expected": "r"
+    },
+    {
+      "path": "nested/file.r",
+      "expected": "r"
+    },
+    {
+      "path": "nested/r",
+      "expected": "text"
+    },
+    {
+      "path": "R",
+      "expected": "r"
+    },
+    {
+      "path": "file.R",
+      "expected": "r"
+    },
+    {
+      "path": "nested/file.R",
+      "expected": "r"
+    },
+    {
+      "path": "nested/R",
+      "expected": "text"
+    },
+    {
+      "path": "rkt",
+      "expected": "racket"
+    },
+    {
+      "path": "file.rkt",
+      "expected": "racket"
+    },
+    {
+      "path": "nested/file.rkt",
+      "expected": "racket"
+    },
+    {
+      "path": "nested/rkt",
+      "expected": "text"
+    },
+    {
+      "path": "rktl",
+      "expected": "racket"
+    },
+    {
+      "path": "file.rktl",
+      "expected": "racket"
+    },
+    {
+      "path": "nested/file.rktl",
+      "expected": "racket"
+    },
+    {
+      "path": "nested/rktl",
+      "expected": "text"
+    },
+    {
+      "path": "razor",
+      "expected": "razor"
+    },
+    {
+      "path": "file.razor",
+      "expected": "razor"
+    },
+    {
+      "path": "nested/file.razor",
+      "expected": "razor"
+    },
+    {
+      "path": "nested/razor",
+      "expected": "text"
+    },
+    {
+      "path": "cshtml",
+      "expected": "razor"
+    },
+    {
+      "path": "file.cshtml",
+      "expected": "razor"
+    },
+    {
+      "path": "nested/file.cshtml",
+      "expected": "razor"
+    },
+    {
+      "path": "nested/cshtml",
+      "expected": "text"
+    },
+    {
+      "path": "rb",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.rb",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.rb",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/rb",
+      "expected": "text"
+    },
+    {
+      "path": "rbw",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.rbw",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.rbw",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/rbw",
+      "expected": "text"
+    },
+    {
+      "path": "reg",
+      "expected": "reg"
+    },
+    {
+      "path": "file.reg",
+      "expected": "reg"
+    },
+    {
+      "path": "nested/file.reg",
+      "expected": "reg"
+    },
+    {
+      "path": "nested/reg",
+      "expected": "text"
+    },
+    {
+      "path": "regex",
+      "expected": "regexp"
+    },
+    {
+      "path": "file.regex",
+      "expected": "regexp"
+    },
+    {
+      "path": "nested/file.regex",
+      "expected": "regexp"
+    },
+    {
+      "path": "nested/regex",
+      "expected": "text"
+    },
+    {
+      "path": "rel",
+      "expected": "rel"
+    },
+    {
+      "path": "file.rel",
+      "expected": "rel"
+    },
+    {
+      "path": "nested/file.rel",
+      "expected": "rel"
+    },
+    {
+      "path": "nested/rel",
+      "expected": "text"
+    },
+    {
+      "path": "rs",
+      "expected": "rust"
+    },
+    {
+      "path": "file.rs",
+      "expected": "rust"
+    },
+    {
+      "path": "nested/file.rs",
+      "expected": "rust"
+    },
+    {
+      "path": "nested/rs",
+      "expected": "text"
+    },
+    {
+      "path": "rst",
+      "expected": "rst"
+    },
+    {
+      "path": "file.rst",
+      "expected": "rst"
+    },
+    {
+      "path": "nested/file.rst",
+      "expected": "rst"
+    },
+    {
+      "path": "nested/rst",
+      "expected": "text"
+    },
+    {
+      "path": "rake",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.rake",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.rake",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/rake",
+      "expected": "text"
+    },
+    {
+      "path": "gemspec",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.gemspec",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.gemspec",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/gemspec",
+      "expected": "text"
+    },
+    {
+      "path": "jbuilder",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.jbuilder",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.jbuilder",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/jbuilder",
+      "expected": "text"
+    },
+    {
+      "path": "builder",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.builder",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.builder",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/builder",
+      "expected": "text"
+    },
+    {
+      "path": "rabl",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.rabl",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.rabl",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/rabl",
+      "expected": "text"
+    },
+    {
+      "path": "arb",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.arb",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.arb",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/arb",
+      "expected": "text"
+    },
+    {
+      "path": "ru",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.ru",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.ru",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/ru",
+      "expected": "text"
+    },
+    {
+      "path": "podspec",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.podspec",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.podspec",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/podspec",
+      "expected": "text"
+    },
+    {
+      "path": "Gemfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Gemfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Gemfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Gemfile",
+      "expected": "text"
+    },
+    {
+      "path": "Rakefile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Rakefile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Rakefile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Rakefile",
+      "expected": "text"
+    },
+    {
+      "path": "Guardfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Guardfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Guardfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Guardfile",
+      "expected": "text"
+    },
+    {
+      "path": "Capfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Capfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Capfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Capfile",
+      "expected": "text"
+    },
+    {
+      "path": "Berksfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Berksfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Berksfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Berksfile",
+      "expected": "text"
+    },
+    {
+      "path": "Brewfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Brewfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Brewfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Brewfile",
+      "expected": "text"
+    },
+    {
+      "path": "Vagrantfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Vagrantfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Vagrantfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Vagrantfile",
+      "expected": "text"
+    },
+    {
+      "path": "Thorfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Thorfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Thorfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Thorfile",
+      "expected": "text"
+    },
+    {
+      "path": "Appraisals",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Appraisals",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Appraisals",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Appraisals",
+      "expected": "text"
+    },
+    {
+      "path": "Dangerfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "file.Dangerfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/file.Dangerfile",
+      "expected": "ruby"
+    },
+    {
+      "path": "nested/Dangerfile",
+      "expected": "text"
+    },
+    {
+      "path": "sas",
+      "expected": "sas"
+    },
+    {
+      "path": "file.sas",
+      "expected": "sas"
+    },
+    {
+      "path": "nested/file.sas",
+      "expected": "sas"
+    },
+    {
+      "path": "nested/sas",
+      "expected": "text"
+    },
+    {
+      "path": "sass",
+      "expected": "sass"
+    },
+    {
+      "path": "file.sass",
+      "expected": "sass"
+    },
+    {
+      "path": "nested/file.sass",
+      "expected": "sass"
+    },
+    {
+      "path": "nested/sass",
+      "expected": "text"
+    },
+    {
+      "path": "scala",
+      "expected": "scala"
+    },
+    {
+      "path": "file.scala",
+      "expected": "scala"
+    },
+    {
+      "path": "nested/file.scala",
+      "expected": "scala"
+    },
+    {
+      "path": "nested/scala",
+      "expected": "text"
+    },
+    {
+      "path": "sc",
+      "expected": "scala"
+    },
+    {
+      "path": "file.sc",
+      "expected": "scala"
+    },
+    {
+      "path": "nested/file.sc",
+      "expected": "scala"
+    },
+    {
+      "path": "nested/sc",
+      "expected": "text"
+    },
+    {
+      "path": "scm",
+      "expected": "scheme"
+    },
+    {
+      "path": "file.scm",
+      "expected": "scheme"
+    },
+    {
+      "path": "nested/file.scm",
+      "expected": "scheme"
+    },
+    {
+      "path": "nested/scm",
+      "expected": "text"
+    },
+    {
+      "path": "ss",
+      "expected": "scheme"
+    },
+    {
+      "path": "file.ss",
+      "expected": "scheme"
+    },
+    {
+      "path": "nested/file.ss",
+      "expected": "scheme"
+    },
+    {
+      "path": "nested/ss",
+      "expected": "text"
+    },
+    {
+      "path": "sld",
+      "expected": "scheme"
+    },
+    {
+      "path": "file.sld",
+      "expected": "scheme"
+    },
+    {
+      "path": "nested/file.sld",
+      "expected": "scheme"
+    },
+    {
+      "path": "nested/sld",
+      "expected": "text"
+    },
+    {
+      "path": "scss",
+      "expected": "scss"
+    },
+    {
+      "path": "file.scss",
+      "expected": "scss"
+    },
+    {
+      "path": "nested/file.scss",
+      "expected": "scss"
+    },
+    {
+      "path": "nested/scss",
+      "expected": "text"
+    },
+    {
+      "path": "sdbl",
+      "expected": "sdbl"
+    },
+    {
+      "path": "file.sdbl",
+      "expected": "sdbl"
+    },
+    {
+      "path": "nested/file.sdbl",
+      "expected": "sdbl"
+    },
+    {
+      "path": "nested/sdbl",
+      "expected": "text"
+    },
+    {
+      "path": "shadergraph",
+      "expected": "shader"
+    },
+    {
+      "path": "file.shadergraph",
+      "expected": "shader"
+    },
+    {
+      "path": "nested/file.shadergraph",
+      "expected": "shader"
+    },
+    {
+      "path": "nested/shadergraph",
+      "expected": "text"
+    },
+    {
+      "path": "st",
+      "expected": "smalltalk"
+    },
+    {
+      "path": "file.st",
+      "expected": "smalltalk"
+    },
+    {
+      "path": "nested/file.st",
+      "expected": "smalltalk"
+    },
+    {
+      "path": "nested/st",
+      "expected": "text"
+    },
+    {
+      "path": "sol",
+      "expected": "solidity"
+    },
+    {
+      "path": "file.sol",
+      "expected": "solidity"
+    },
+    {
+      "path": "nested/file.sol",
+      "expected": "solidity"
+    },
+    {
+      "path": "nested/sol",
+      "expected": "text"
+    },
+    {
+      "path": "sparql",
+      "expected": "sparql"
+    },
+    {
+      "path": "file.sparql",
+      "expected": "sparql"
+    },
+    {
+      "path": "nested/file.sparql",
+      "expected": "sparql"
+    },
+    {
+      "path": "nested/sparql",
+      "expected": "text"
+    },
+    {
+      "path": "rq",
+      "expected": "sparql"
+    },
+    {
+      "path": "file.rq",
+      "expected": "sparql"
+    },
+    {
+      "path": "nested/file.rq",
+      "expected": "sparql"
+    },
+    {
+      "path": "nested/rq",
+      "expected": "text"
+    },
+    {
+      "path": "spl",
+      "expected": "splunk"
+    },
+    {
+      "path": "file.spl",
+      "expected": "splunk"
+    },
+    {
+      "path": "nested/file.spl",
+      "expected": "splunk"
+    },
+    {
+      "path": "nested/spl",
+      "expected": "text"
+    },
+    {
+      "path": "config",
+      "expected": "ssh-config"
+    },
+    {
+      "path": "file.config",
+      "expected": "ssh-config"
+    },
+    {
+      "path": "nested/file.config",
+      "expected": "ssh-config"
+    },
+    {
+      "path": "nested/config",
+      "expected": "text"
+    },
+    {
+      "path": "do",
+      "expected": "stata"
+    },
+    {
+      "path": "file.do",
+      "expected": "stata"
+    },
+    {
+      "path": "nested/file.do",
+      "expected": "stata"
+    },
+    {
+      "path": "nested/do",
+      "expected": "text"
+    },
+    {
+      "path": "ado",
+      "expected": "stata"
+    },
+    {
+      "path": "file.ado",
+      "expected": "stata"
+    },
+    {
+      "path": "nested/file.ado",
+      "expected": "stata"
+    },
+    {
+      "path": "nested/ado",
+      "expected": "text"
+    },
+    {
+      "path": "dta",
+      "expected": "stata"
+    },
+    {
+      "path": "file.dta",
+      "expected": "stata"
+    },
+    {
+      "path": "nested/file.dta",
+      "expected": "stata"
+    },
+    {
+      "path": "nested/dta",
+      "expected": "text"
+    },
+    {
+      "path": "styl",
+      "expected": "stylus"
+    },
+    {
+      "path": "file.styl",
+      "expected": "stylus"
+    },
+    {
+      "path": "nested/file.styl",
+      "expected": "stylus"
+    },
+    {
+      "path": "nested/styl",
+      "expected": "text"
+    },
+    {
+      "path": "stylus",
+      "expected": "stylus"
+    },
+    {
+      "path": "file.stylus",
+      "expected": "stylus"
+    },
+    {
+      "path": "nested/file.stylus",
+      "expected": "stylus"
+    },
+    {
+      "path": "nested/stylus",
+      "expected": "text"
+    },
+    {
+      "path": "svelte",
+      "expected": "svelte"
+    },
+    {
+      "path": "file.svelte",
+      "expected": "svelte"
+    },
+    {
+      "path": "nested/file.svelte",
+      "expected": "svelte"
+    },
+    {
+      "path": "nested/svelte",
+      "expected": "text"
+    },
+    {
+      "path": "swift",
+      "expected": "swift"
+    },
+    {
+      "path": "file.swift",
+      "expected": "swift"
+    },
+    {
+      "path": "nested/file.swift",
+      "expected": "swift"
+    },
+    {
+      "path": "nested/swift",
+      "expected": "text"
+    },
+    {
+      "path": "sv",
+      "expected": "system-verilog"
+    },
+    {
+      "path": "file.sv",
+      "expected": "system-verilog"
+    },
+    {
+      "path": "nested/file.sv",
+      "expected": "system-verilog"
+    },
+    {
+      "path": "nested/sv",
+      "expected": "text"
+    },
+    {
+      "path": "svh",
+      "expected": "system-verilog"
+    },
+    {
+      "path": "file.svh",
+      "expected": "system-verilog"
+    },
+    {
+      "path": "nested/file.svh",
+      "expected": "system-verilog"
+    },
+    {
+      "path": "nested/svh",
+      "expected": "text"
+    },
+    {
+      "path": "service",
+      "expected": "systemd"
+    },
+    {
+      "path": "file.service",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/file.service",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/service",
+      "expected": "text"
+    },
+    {
+      "path": "socket",
+      "expected": "systemd"
+    },
+    {
+      "path": "file.socket",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/file.socket",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/socket",
+      "expected": "text"
+    },
+    {
+      "path": "device",
+      "expected": "systemd"
+    },
+    {
+      "path": "file.device",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/file.device",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/device",
+      "expected": "text"
+    },
+    {
+      "path": "timer",
+      "expected": "systemd"
+    },
+    {
+      "path": "file.timer",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/file.timer",
+      "expected": "systemd"
+    },
+    {
+      "path": "nested/timer",
+      "expected": "text"
+    },
+    {
+      "path": "talon",
+      "expected": "talonscript"
+    },
+    {
+      "path": "file.talon",
+      "expected": "talonscript"
+    },
+    {
+      "path": "nested/file.talon",
+      "expected": "talonscript"
+    },
+    {
+      "path": "nested/talon",
+      "expected": "text"
+    },
+    {
+      "path": "tasl",
+      "expected": "tasl"
+    },
+    {
+      "path": "file.tasl",
+      "expected": "tasl"
+    },
+    {
+      "path": "nested/file.tasl",
+      "expected": "tasl"
+    },
+    {
+      "path": "nested/tasl",
+      "expected": "text"
+    },
+    {
+      "path": "tcl",
+      "expected": "tcl"
+    },
+    {
+      "path": "file.tcl",
+      "expected": "tcl"
+    },
+    {
+      "path": "nested/file.tcl",
+      "expected": "tcl"
+    },
+    {
+      "path": "nested/tcl",
+      "expected": "text"
+    },
+    {
+      "path": "templ",
+      "expected": "templ"
+    },
+    {
+      "path": "file.templ",
+      "expected": "templ"
+    },
+    {
+      "path": "nested/file.templ",
+      "expected": "templ"
+    },
+    {
+      "path": "nested/templ",
+      "expected": "text"
+    },
+    {
+      "path": "tf",
+      "expected": "tf"
+    },
+    {
+      "path": "file.tf",
+      "expected": "tf"
+    },
+    {
+      "path": "nested/file.tf",
+      "expected": "tf"
+    },
+    {
+      "path": "nested/tf",
+      "expected": "text"
+    },
+    {
+      "path": "tfvars",
+      "expected": "tfvars"
+    },
+    {
+      "path": "file.tfvars",
+      "expected": "tfvars"
+    },
+    {
+      "path": "nested/file.tfvars",
+      "expected": "tfvars"
+    },
+    {
+      "path": "nested/tfvars",
+      "expected": "text"
+    },
+    {
+      "path": "toml",
+      "expected": "toml"
+    },
+    {
+      "path": "file.toml",
+      "expected": "toml"
+    },
+    {
+      "path": "nested/file.toml",
+      "expected": "toml"
+    },
+    {
+      "path": "nested/toml",
+      "expected": "text"
+    },
+    {
+      "path": "ts",
+      "expected": "typescript"
+    },
+    {
+      "path": "file.ts",
+      "expected": "typescript"
+    },
+    {
+      "path": "nested/file.ts",
+      "expected": "typescript"
+    },
+    {
+      "path": "nested/ts",
+      "expected": "text"
+    },
+    {
+      "path": "mts",
+      "expected": "typescript"
+    },
+    {
+      "path": "file.mts",
+      "expected": "typescript"
+    },
+    {
+      "path": "nested/file.mts",
+      "expected": "typescript"
+    },
+    {
+      "path": "nested/mts",
+      "expected": "text"
+    },
+    {
+      "path": "cts",
+      "expected": "typescript"
+    },
+    {
+      "path": "file.cts",
+      "expected": "typescript"
+    },
+    {
+      "path": "nested/file.cts",
+      "expected": "typescript"
+    },
+    {
+      "path": "nested/cts",
+      "expected": "text"
+    },
+    {
+      "path": "tsp",
+      "expected": "typespec"
+    },
+    {
+      "path": "file.tsp",
+      "expected": "typespec"
+    },
+    {
+      "path": "nested/file.tsp",
+      "expected": "typespec"
+    },
+    {
+      "path": "nested/tsp",
+      "expected": "text"
+    },
+    {
+      "path": "tsv",
+      "expected": "tsv"
+    },
+    {
+      "path": "file.tsv",
+      "expected": "tsv"
+    },
+    {
+      "path": "nested/file.tsv",
+      "expected": "tsv"
+    },
+    {
+      "path": "nested/tsv",
+      "expected": "text"
+    },
+    {
+      "path": "tsx",
+      "expected": "tsx"
+    },
+    {
+      "path": "file.tsx",
+      "expected": "tsx"
+    },
+    {
+      "path": "nested/file.tsx",
+      "expected": "tsx"
+    },
+    {
+      "path": "nested/tsx",
+      "expected": "text"
+    },
+    {
+      "path": "ttl",
+      "expected": "turtle"
+    },
+    {
+      "path": "file.ttl",
+      "expected": "turtle"
+    },
+    {
+      "path": "nested/file.ttl",
+      "expected": "turtle"
+    },
+    {
+      "path": "nested/ttl",
+      "expected": "text"
+    },
+    {
+      "path": "twig",
+      "expected": "twig"
+    },
+    {
+      "path": "file.twig",
+      "expected": "twig"
+    },
+    {
+      "path": "nested/file.twig",
+      "expected": "twig"
+    },
+    {
+      "path": "nested/twig",
+      "expected": "text"
+    },
+    {
+      "path": "typ",
+      "expected": "typst"
+    },
+    {
+      "path": "file.typ",
+      "expected": "typst"
+    },
+    {
+      "path": "nested/file.typ",
+      "expected": "typst"
+    },
+    {
+      "path": "nested/typ",
+      "expected": "text"
+    },
+    {
+      "path": "vv",
+      "expected": "v"
+    },
+    {
+      "path": "file.vv",
+      "expected": "v"
+    },
+    {
+      "path": "nested/file.vv",
+      "expected": "v"
+    },
+    {
+      "path": "nested/vv",
+      "expected": "text"
+    },
+    {
+      "path": "vala",
+      "expected": "vala"
+    },
+    {
+      "path": "file.vala",
+      "expected": "vala"
+    },
+    {
+      "path": "nested/file.vala",
+      "expected": "vala"
+    },
+    {
+      "path": "nested/vala",
+      "expected": "text"
+    },
+    {
+      "path": "vapi",
+      "expected": "vala"
+    },
+    {
+      "path": "file.vapi",
+      "expected": "vala"
+    },
+    {
+      "path": "nested/file.vapi",
+      "expected": "vala"
+    },
+    {
+      "path": "nested/vapi",
+      "expected": "text"
+    },
+    {
+      "path": "vb",
+      "expected": "vb"
+    },
+    {
+      "path": "file.vb",
+      "expected": "vb"
+    },
+    {
+      "path": "nested/file.vb",
+      "expected": "vb"
+    },
+    {
+      "path": "nested/vb",
+      "expected": "text"
+    },
+    {
+      "path": "vbs",
+      "expected": "vb"
+    },
+    {
+      "path": "file.vbs",
+      "expected": "vb"
+    },
+    {
+      "path": "nested/file.vbs",
+      "expected": "vb"
+    },
+    {
+      "path": "nested/vbs",
+      "expected": "text"
+    },
+    {
+      "path": "bas",
+      "expected": "vb"
+    },
+    {
+      "path": "file.bas",
+      "expected": "vb"
+    },
+    {
+      "path": "nested/file.bas",
+      "expected": "vb"
+    },
+    {
+      "path": "nested/bas",
+      "expected": "text"
+    },
+    {
+      "path": "vh",
+      "expected": "verilog"
+    },
+    {
+      "path": "file.vh",
+      "expected": "verilog"
+    },
+    {
+      "path": "nested/file.vh",
+      "expected": "verilog"
+    },
+    {
+      "path": "nested/vh",
+      "expected": "text"
+    },
+    {
+      "path": "vhd",
+      "expected": "vhdl"
+    },
+    {
+      "path": "file.vhd",
+      "expected": "vhdl"
+    },
+    {
+      "path": "nested/file.vhd",
+      "expected": "vhdl"
+    },
+    {
+      "path": "nested/vhd",
+      "expected": "text"
+    },
+    {
+      "path": "vhdl",
+      "expected": "vhdl"
+    },
+    {
+      "path": "file.vhdl",
+      "expected": "vhdl"
+    },
+    {
+      "path": "nested/file.vhdl",
+      "expected": "vhdl"
+    },
+    {
+      "path": "nested/vhdl",
+      "expected": "text"
+    },
+    {
+      "path": "vim",
+      "expected": "vimscript"
+    },
+    {
+      "path": "file.vim",
+      "expected": "vimscript"
+    },
+    {
+      "path": "nested/file.vim",
+      "expected": "vimscript"
+    },
+    {
+      "path": "nested/vim",
+      "expected": "text"
+    },
+    {
+      "path": "vue",
+      "expected": "vue"
+    },
+    {
+      "path": "file.vue",
+      "expected": "vue"
+    },
+    {
+      "path": "nested/file.vue",
+      "expected": "vue"
+    },
+    {
+      "path": "nested/vue",
+      "expected": "text"
+    },
+    {
+      "path": "vine.ts",
+      "expected": "vue-vine"
+    },
+    {
+      "path": "file.vine.ts",
+      "expected": "vue-vine"
+    },
+    {
+      "path": "nested/file.vine.ts",
+      "expected": "vue-vine"
+    },
+    {
+      "path": "nested/vine.ts",
+      "expected": "typescript"
+    },
+    {
+      "path": "vy",
+      "expected": "vyper"
+    },
+    {
+      "path": "file.vy",
+      "expected": "vyper"
+    },
+    {
+      "path": "nested/file.vy",
+      "expected": "vyper"
+    },
+    {
+      "path": "nested/vy",
+      "expected": "text"
+    },
+    {
+      "path": "wasm",
+      "expected": "wasm"
+    },
+    {
+      "path": "file.wasm",
+      "expected": "wasm"
+    },
+    {
+      "path": "nested/file.wasm",
+      "expected": "wasm"
+    },
+    {
+      "path": "nested/wasm",
+      "expected": "text"
+    },
+    {
+      "path": "wat",
+      "expected": "wasm"
+    },
+    {
+      "path": "file.wat",
+      "expected": "wasm"
+    },
+    {
+      "path": "nested/file.wat",
+      "expected": "wasm"
+    },
+    {
+      "path": "nested/wat",
+      "expected": "text"
+    },
+    {
+      "path": "wy",
+      "expected": "文言"
+    },
+    {
+      "path": "file.wy",
+      "expected": "文言"
+    },
+    {
+      "path": "nested/file.wy",
+      "expected": "文言"
+    },
+    {
+      "path": "nested/wy",
+      "expected": "text"
+    },
+    {
+      "path": "wgsl",
+      "expected": "wgsl"
+    },
+    {
+      "path": "file.wgsl",
+      "expected": "wgsl"
+    },
+    {
+      "path": "nested/file.wgsl",
+      "expected": "wgsl"
+    },
+    {
+      "path": "nested/wgsl",
+      "expected": "text"
+    },
+    {
+      "path": "wit",
+      "expected": "wit"
+    },
+    {
+      "path": "file.wit",
+      "expected": "wit"
+    },
+    {
+      "path": "nested/file.wit",
+      "expected": "wit"
+    },
+    {
+      "path": "nested/wit",
+      "expected": "text"
+    },
+    {
+      "path": "wl",
+      "expected": "wolfram"
+    },
+    {
+      "path": "file.wl",
+      "expected": "wolfram"
+    },
+    {
+      "path": "nested/file.wl",
+      "expected": "wolfram"
+    },
+    {
+      "path": "nested/wl",
+      "expected": "text"
+    },
+    {
+      "path": "nb",
+      "expected": "wolfram"
+    },
+    {
+      "path": "file.nb",
+      "expected": "wolfram"
+    },
+    {
+      "path": "nested/file.nb",
+      "expected": "wolfram"
+    },
+    {
+      "path": "nested/nb",
+      "expected": "text"
+    },
+    {
+      "path": "xml",
+      "expected": "xml"
+    },
+    {
+      "path": "file.xml",
+      "expected": "xml"
+    },
+    {
+      "path": "nested/file.xml",
+      "expected": "xml"
+    },
+    {
+      "path": "nested/xml",
+      "expected": "text"
+    },
+    {
+      "path": "xsl",
+      "expected": "xsl"
+    },
+    {
+      "path": "file.xsl",
+      "expected": "xsl"
+    },
+    {
+      "path": "nested/file.xsl",
+      "expected": "xsl"
+    },
+    {
+      "path": "nested/xsl",
+      "expected": "text"
+    },
+    {
+      "path": "xslt",
+      "expected": "xsl"
+    },
+    {
+      "path": "file.xslt",
+      "expected": "xsl"
+    },
+    {
+      "path": "nested/file.xslt",
+      "expected": "xsl"
+    },
+    {
+      "path": "nested/xslt",
+      "expected": "text"
+    },
+    {
+      "path": "yaml",
+      "expected": "yaml"
+    },
+    {
+      "path": "file.yaml",
+      "expected": "yaml"
+    },
+    {
+      "path": "nested/file.yaml",
+      "expected": "yaml"
+    },
+    {
+      "path": "nested/yaml",
+      "expected": "text"
+    },
+    {
+      "path": "yml",
+      "expected": "yml"
+    },
+    {
+      "path": "file.yml",
+      "expected": "yml"
+    },
+    {
+      "path": "nested/file.yml",
+      "expected": "yml"
+    },
+    {
+      "path": "nested/yml",
+      "expected": "text"
+    },
+    {
+      "path": "zs",
+      "expected": "zenscript"
+    },
+    {
+      "path": "file.zs",
+      "expected": "zenscript"
+    },
+    {
+      "path": "nested/file.zs",
+      "expected": "zenscript"
+    },
+    {
+      "path": "nested/zs",
+      "expected": "text"
+    },
+    {
+      "path": "zig",
+      "expected": "zig"
+    },
+    {
+      "path": "file.zig",
+      "expected": "zig"
+    },
+    {
+      "path": "nested/file.zig",
+      "expected": "zig"
+    },
+    {
+      "path": "nested/zig",
+      "expected": "text"
+    },
+    {
+      "path": "zsh",
+      "expected": "zsh"
+    },
+    {
+      "path": "file.zsh",
+      "expected": "zsh"
+    },
+    {
+      "path": "nested/file.zsh",
+      "expected": "zsh"
+    },
+    {
+      "path": "nested/zsh",
+      "expected": "text"
+    },
+    {
+      "path": "sty",
+      "expected": "tex"
+    },
+    {
+      "path": "file.sty",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/file.sty",
+      "expected": "tex"
+    },
+    {
+      "path": "nested/sty",
+      "expected": "text"
+    }
+  ]
+}

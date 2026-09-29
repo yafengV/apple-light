@@ -6,6 +6,7 @@
 /dist/
 /apps/macos/.build/
 /apps/macos/.swiftpm/
+/tools/syntax-highlighter/node_modules/
 .DS_Store
 .env
 .env.*
