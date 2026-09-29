@@ -1,0 +1,1101 @@
+{
+  "settingsSHA256": "3a2ff568faaa71fa98cde8ca59a04d525baf13ce81a470ea8ae72c5283800753",
+  "initialSHA256": "01c04b2e5a96e5dd4c97e02ffa183f571a55bef7a221abd99404246c430f2212",
+  "buttonsSHA256": "273d36683762281478f7663c4efc501366e8a7f497d2af38a0c6be1f48e44cda",
+  "cssSHA256": "d5573a93b11a7826bf232e754d1b6353777d01c0bc067174f1701743537f9eea",
+  "translationSHA256": "43e8401d13c6b4a2554c2263406a2bc67a5106ec6b277aea2f19d3ce978553c6",
+  "translations": {
+    "codex.dialog.closeButton": "关闭对话框",
+    "settings.general.appearance.chromeTheme.export": "复制主题",
+    "settings.general.appearance.chromeTheme.export.ariaLabel": "复制{variant}主题",
+    "settings.general.appearance.chromeTheme.export.success": "已复制{variant}主题",
+    "settings.general.appearance.chromeTheme.import": "导入",
+    "settings.general.appearance.chromeTheme.import.ariaLabel": "导入{variant}主题",
+    "settings.general.appearance.chromeTheme.import.dialog.ariaLabel": "{variant} 主题分享字符串",
+    "settings.general.appearance.chromeTheme.import.dialog.cancel": "取消",
+    "settings.general.appearance.chromeTheme.import.dialog.submit": "导入主题",
+    "settings.general.appearance.chromeTheme.import.dialog.title": "导入主题",
+    "settings.general.appearance.chromeTheme.import.error": "无法导入 {variant} 主题",
+    "settings.general.appearance.chromeTheme.import.success": "已导入 {variant} 主题"
+  },
+  "cases": [
+    {
+      "variant": "浅色",
+      "valid": false,
+      "open": false,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": false,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "浅色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": true,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "浅色",
+      "valid": false,
+      "open": true,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": true,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "浅色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": true,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "浅色",
+      "valid": true,
+      "open": false,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": false,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "浅色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": false,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "浅色",
+      "valid": true,
+      "open": true,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": true,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "浅色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": false,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "深色",
+      "valid": false,
+      "open": false,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": false,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "深色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": true,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "深色",
+      "valid": false,
+      "open": true,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": true,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "深色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": true,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "深色",
+      "valid": true,
+      "open": false,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": false,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "深色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": false,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    },
+    {
+      "variant": "深色",
+      "valid": true,
+      "open": true,
+      "tree": {
+        "type": "Dialog",
+        "props": {
+          "open": true,
+          "size": "default",
+          "contentProps": {},
+          "children": {
+            "type": "Body",
+            "props": {
+              "children": [
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "AccessibleTitle",
+                        "props": {
+                          "asChild": true,
+                          "children": {
+                            "type": "h2",
+                            "props": {
+                              "className": "sr-only",
+                              "children": "导入主题"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "title": "导入主题"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Input",
+                      "props": {
+                        "variant": "code",
+                        "aria-label": "深色 主题分享字符串",
+                        "autoFocus": true,
+                        "placeholder": "example",
+                        "spellCheck": false,
+                        "type": "text",
+                        "value": "draft"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Section",
+                  "props": {
+                    "children": {
+                      "type": "Footer",
+                      "props": {
+                        "className": "w-auto gap-2",
+                        "children": [
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "ghost",
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.cancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Button label for canceling the theme import dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "Button",
+                            "props": {
+                              "color": "primary",
+                              "disabled": false,
+                              "size": "toolbar",
+                              "children": {
+                                "type": "Message",
+                                "props": {
+                                  "id": "settings.general.appearance.chromeTheme.import.dialog.submit",
+                                  "defaultMessage": "Import theme",
+                                  "description": "Button label for submitting a theme import"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "callbacks": {
+        "changes": [
+          "changed"
+        ],
+        "closed": 1,
+        "submitted": 1
+      },
+      "inputKeys": [
+        "variant",
+        "aria-label",
+        "autoFocus",
+        "placeholder",
+        "spellCheck",
+        "type",
+        "value",
+        "onChange"
+      ]
+    }
+  ],
+  "wrapper": {
+    "contentOverflow": "hidden",
+    "contentPosition": "centered",
+    "radius": "default",
+    "showDialogClose": true,
+    "shouldIgnoreClickOutside": false,
+    "unstyledContent": false,
+    "viewportSized": false,
+    "variant": "default",
+    "size": "default",
+    "children": null
+  },
+  "body": {
+    "type": "div",
+    "props": {
+      "className": "flex flex-col gap-0 text-base leading-normal tracking-normal px-5 py-5",
+      "children": [
+        null,
+        null
+      ]
+    }
+  },
+  "section": {
+    "type": "div",
+    "props": {
+      "className": "flex w-full flex-col first:pt-0 pt-3",
+      "children": [
+        null,
+        null
+      ]
+    }
+  },
+  "heading": {
+    "type": "div",
+    "props": {
+      "className": "flex flex-col items-start gap-3",
+      "children": [
+        null,
+        null,
+        {
+          "type": "div",
+          "props": {
+            "className": "flex min-w-0 flex-1 flex-col gap-1 self-stretch",
+            "children": [
+              {
+                "type": "div",
+                "props": {
+                  "className": "heading-dialog min-w-0 font-semibold",
+                  "children": "x"
+                }
+              },
+              null
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "buttonGhost": {
+    "type": "button",
+    "props": {
+      "type": "button",
+      "className": "no-drag cursor-interaction items-center select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-default disabled:opacity-40 gap-1 border whitespace-nowrap flex rounded-button-toolbar text-tertiary enabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border-transparent button-toolbar py-0 text-sm leading-[18px]",
+      "disabled": false,
+      "children": [
+        false,
+        "取消"
+      ]
+    }
+  },
+  "buttonPrimary": {
+    "type": "button",
+    "props": {
+      "type": "button",
+      "className": "no-drag cursor-interaction items-center select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-default disabled:opacity-40 gap-1 border whitespace-nowrap flex rounded-button-toolbar border-default bg-primary-solid enabled:hover:bg-text/80 data-[state=open]:bg-text/80 text-primary-solid button-toolbar py-0 text-sm leading-[18px]",
+      "disabled": false,
+      "children": [
+        false,
+        "导入主题"
+      ]
+    }
+  },
+  "inputClasses": "w-full min-w-0 border text-default outline-none placeholder:text-tertiary aria-invalid:border-text-danger aria-invalid:ring-2 aria-invalid:ring-text-danger/20 disabled:cursor-not-allowed disabled:text-secondary h-9 rounded-md bg-primary-soft px-2.5 font-mono text-sm focus:border-ring disabled:bg-text/5 border-primary-outline",
+  "css": "*,:before,:after,::backdrop{--tw-shadow:0 0 #0000;--tw-shadow-color:initial;--tw-shadow-alpha:100%;--tw-inset-shadow:0 0 #0000;--tw-inset-shadow-color:initial;--tw-inset-shadow-alpha:100%;--tw-ring-color:initial;--tw-ring-shadow:0 0 #0000;--tw-inset-ring-color:initial;--tw-inset-ring-shadow:0 0 #0000;--tw-ring-inset:initial;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-offset-shadow:0 0 #0000;--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-translate-z:0;--tw-scale-x:1;--tw-scale-y:1;--tw-scale-z:1;--tw-rotate-x:initial;--tw-rotate-y:initial;--tw-rotate-z:initial;--tw-skew-x:initial;--tw-skew-y:initial;--tw-pan-x:initial;--tw-pan-y:initial;--tw-pinch-zoom:initial;--tw-scroll-snap-strictness:proximity;--tw-space-y-reverse:0;--tw-space-x-reverse:0;--tw-divide-x-reverse:0;--tw-border-style:solid;--tw-divide-y-reverse:0;--tw-gradient-position:initial;--tw-gradient-from:#0000;--tw-gradient-via:#0000;--tw-gradient-to:#0000;--tw-gradient-stops:initial;--tw-gradient-via-stops:initial;--tw-gradient-from-position:0%;--tw-gradient-via-position:50%;--tw-gradient-to-position:100%;--tw-mask-linear:linear-gradient(#fff, #fff);--tw-mask-radial:linear-gradient(#fff, #fff);--tw-mask-conic:linear-gradient(#fff, #fff);--tw-mask-left:linear-gradient(#fff, #fff);--tw-mask-right:linear-gradient(#fff, #fff);--tw-mask-bottom:linear-gradient(#fff, #fff);--tw-mask-top:linear-gradient(#fff, #fff);--tw-mask-bottom-from-position:0%;--tw-mask-bottom-to-position:100%;--tw-mask-bottom-from-color:black;--tw-mask-bottom-to-color:transparent;--tw-leading:initial;--tw-font-weight:initial;--tw-tracking:initial;--tw-ordinal:initial;--tw-slashed-zero:initial;--tw-numeric-figure:initial;--tw-numeric-spacing:initial;--tw-numeric-fraction:initial;--tw-outline-style:solid;--tw-blur:initial;--tw-brightness:initial;--tw-contrast:initial;--tw-grayscale:initial;--tw-hue-rotate:initial;--tw-invert:initial;--tw-opacity:initial;--tw-saturate:initial;--tw-sepia:initial;--tw-drop-shadow:initial;--tw-drop-shadow-color:initial;--tw-drop-shadow-alpha:100%;--tw-drop-shadow-size:initial;--tw-backdrop-blur:initial;--tw-backdrop-brightness:initial;--tw-backdrop-contrast:initial;--tw-backdrop-grayscale:initial;--tw-backdrop-hue-rotate:initial;--tw-backdrop-invert:initial;--tw-backdrop-opacity:initial;--tw-backdrop-saturate:initial;--tw-backdrop-sepia:initial;--tw-duration:initial;--tw-ease:initial;--tw-contain-size:initial;--tw-contain-layout:initial;--tw-contain-paint:initial;--tw-contain-style:initial;--tw-content:\"\";--top-fade:0;--bottom-fade:0;--edge-fade-distance:1rem;--left-fade:0;--right-fade:0}*,:after,:before,::backdrop{box-sizing:border-box;border:0 solid;margin:0;padding:0}::file-selector-button{box-sizing:border-box;border:0 solid;margin:0;padding:0}html,:host{-webkit-text-size-adjust:100%;tab-size:4;line-height:1.5;font-family:var(--default-font-family,-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", \"Noto Sans\", Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\");font-feature-settings:var(--default-font-feature-settings,normal);font-variation-settings:var(--default-font-variation-settings,normal);-webkit-tap-highlight-color:transparent}html,:host{font-synthesis-weight:none}html,:host{color:var(--color-text);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:var(--tracking-normal)}body{counter-reset:katexEqnNo mmlEqnNo}body{color:var(--color-text);font-family:var(--font-ui-family);font-weight:var(--font-ui-weight);background-color:#0000;height:100vh;padding:0}:root{--font-sans:var(--font-ui-family,var(--font-sans-default));--font-mono:var(--font-code-family,var(--font-mono-default));--spacing:.25rem;--text-sm:12px;--text-sm--line-height:calc(1.25 / .875);--text-base:14px;--text-base--line-height:calc(1.5 / 1);--font-weight-medium:500;--font-weight-semibold:600;--leading-normal:1.5;--radius-xs:calc(var(--radius-xs-base) * var(--corner-radius-scale));--radius-sm:calc(var(--radius-sm-base) * var(--corner-radius-scale));--radius-md:calc(var(--radius-md-base) * var(--corner-radius-scale));--radius-lg:calc(var(--radius-lg-base) * var(--corner-radius-scale));--radius-xl:calc(var(--radius-xl-base) * var(--corner-radius-scale));--radius-2xl:calc(var(--radius-2xl-base) * var(--corner-radius-scale));--radius-3xl:calc(var(--radius-3xl-base) * var(--corner-radius-scale));--radius-4xl:calc(var(--radius-4xl-base) * var(--corner-radius-scale));--radius-2xs:calc(var(--radius-2xs-base) * var(--corner-radius-scale));--radius-full:9999px;--font-mono-default:ui-monospace, \"SFMono-Regular\", \"SF Mono\", menlo, consolas, \"Liberation Mono\", monospace;--text-heading-md:20px;--corner-radius-scale:1;--radius-2xs-base:.125rem;--radius-xs-base:.25rem;--radius-sm-base:.375rem;--radius-md-base:.5rem;--radius-lg-base:.625rem;--radius-xl-base:.75rem;--radius-2xl-base:1rem;--radius-3xl-base:1.25rem;--radius-4xl-base:1.5rem;--spacing-token-button-composer:calc(var(--spacing) * 7);--spacing-button-toolbar-inline:calc(var(--spacing) * 2);--radius-button-action:var(--radius-lg);--radius-button-toolbar:var(--radius-lg);--radius-token-composer-single-line:calc(var(--spacing) * 5.5);--radius-token-row:10px;--radius-suggestion-menu:calc(var(--spacing) * 5);}[data-codex-window-type=electron]{--text-sm:13px;--text-xs:12px;--font-weight-medium:500;--font-ui-weight:430;background:0 0;overflow:hidden}.heading-dialog{font-size:var(--text-heading-md);font-weight:var(--font-weight-medium);letter-spacing:-.36px;line-height:28px}.sr-only{clip-path:inset(50%);white-space:nowrap;border-width:0;width:1px;height:1px;margin:-1px;padding:0;position:absolute;overflow:hidden}.flex{display:flex}.button-toolbar{height:var(--spacing-token-button-composer);padding-inline:var(--spacing-button-toolbar-inline)}.h-9{height:calc(var(--spacing) * 9)}.w-auto{width:auto}.w-full{width:100%}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-end{justify-content:flex-end}.gap-0{gap:0}.gap-2{gap:calc(var(--spacing) * 2)}.rounded-button-toolbar{border-radius:var(--radius-button-toolbar)}.rounded-md{border-radius:var(--radius-md)}.border{border-style:var(--tw-border-style);border-width:1px}.px-2\\.5{padding-inline:calc(var(--spacing) * 2.5)}.px-5{padding-inline:calc(var(--spacing) * 5)}.py-5{padding-block:calc(var(--spacing) * 5)}.pt-3{padding-top:calc(var(--spacing) * 3)}.font-mono{font-family:var(--font-mono)}.text-base{font-size:var(--text-base);line-height:var(--tw-leading,var(--text-base--line-height))}.text-sm{font-size:var(--text-sm);line-height:var(--tw-leading,var(--text-sm--line-height))}.leading-\\[18px\\]{--tw-leading:18px;line-height:18px}.leading-normal{--tw-leading:var(--leading-normal);line-height:var(--leading-normal)}.font-semibold{--tw-font-weight:var(--font-weight-semibold);font-weight:var(--font-weight-semibold)}.first\\:pt-0:first-child{padding-top:0}",
+  "modalWidthClass": "w-[520px]",
+  "closeHandlerPreventsDefaultWithoutTrigger": true
+}

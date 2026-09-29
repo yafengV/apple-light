@@ -3,9 +3,6 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
   @Bindable var store: WorkspaceStore
-  private struct ImportTarget: Identifiable { let dark: Bool; var id: String { dark ? "dark" : "light" } }
-  @State private var importTarget: ImportTarget?
-  @State private var status: String?
   private var available: Bool { store.libraryLoaded && !store.restoringLibrary }
   private var variants: [AppearanceMode] { AppearanceMode(preference: store.appearance.theme).variants }
 
@@ -33,14 +30,10 @@ struct AppearanceSettingsView: View {
           sectionTitle("偏好设置")
           preferences
         }
-        if let status { Text(status).appFont(size: 12).foregroundStyle(.secondary).textSelection(.enabled) }
       }
     }
     .environment(\.appearanceSettingsLabel, true)
     .toggleStyle(SettingsSwitchStyle())
-    .sheet(item: $importTarget) { target in
-      AppearanceThemeImportView(store: store, dark: target.dark, onClose: { importTarget = nil })
-    }
   }
 
   private func sectionTitle(_ title: String) -> some View {
@@ -90,17 +83,20 @@ struct AppearanceSettingsView: View {
       HStack(spacing: 8) {
         Text(title).appFont(size: 13, weight: .medium).accessibilityAddTraits(.isHeader)
         Spacer(minLength: 8)
-        Button {
-          guard available else { return }; importTarget = .init(dark: dark)
-        } label: { Image(systemName: "square.and.arrow.down").font(.system(size: 14)).frame(width: 28, height: 28) }
-          .buttonStyle(.plain).accessibilityLabel("导入" + title).help("导入" + title)
+        AppearanceActionButton(title: "导入", label: "导入" + title,
+          available: { available && !store.hasSettingsConfirmation }) { source in
+            store.beginAppearanceImport(dark: dark, source: source)
+          }.fixedSize()
           .settingsSearchTarget(.importTheme, when: !dark)
-        Button {
-          guard available else { return }
-          do { try AppearanceThemeClipboard.copy(store.appearance, dark: dark, to: .general); status = "已复制" + title + "。" }
-          catch { status = "复制失败：" + error.localizedDescription }
-        } label: { Image(systemName: "doc.on.doc").font(.system(size: 14)).frame(width: 28, height: 28) }
-          .buttonStyle(.plain).accessibilityLabel("复制" + title).help("复制" + title)
+        AppearanceActionButton(title: "复制主题", label: "复制" + title,
+          available: { available && !store.hasSettingsConfirmation }) { _ in
+            do {
+              try AppearanceThemeClipboard.copy(store.appearance, dark: dark, to: .general)
+              store.notices.show(id: "appearance-theme-copy", title: "已复制" + title, level: .success)
+            } catch {
+              // sa's export callback reports success only; failed copies have no toast.
+            }
+          }.fixedSize()
           .settingsSearchTarget(.exportTheme, when: !dark)
         CodeThemePicker(store: store, dark: dark).settingsSearchTarget(dark ? .darkCodeTheme : .lightCodeTheme)
       }.padding(.horizontal, 16).padding(.vertical, 12).disabled(!available)

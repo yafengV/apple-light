@@ -499,6 +499,7 @@ enum SettingsSearch {
 
 extension WorkspaceStore {
   func revealSetting(_ result: SettingsSearchResult) {
+    guard appearanceThemeImport == nil else { return }
     if let section = result.field?.pluginSection {
       guard visiblePluginSettingsSections.contains(section) else { return }
     }

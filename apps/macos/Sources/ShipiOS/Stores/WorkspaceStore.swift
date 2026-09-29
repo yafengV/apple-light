@@ -36,7 +36,13 @@ final class WorkspaceStore {
     get { presentedOverlay == .commands }
     set { setOverlay(.commands, presented: newValue) }
   }
-  var destination: AppDestination = .workspace
+  var destination: AppDestination = .workspace {
+    didSet {
+      if destination != .settings, let session = appearanceThemeImport {
+        dismissAppearanceImport(session)
+      }
+    }
+  }
   var activityError: String?
   var activityOpeningTaskID: String?
   var activityArchiveRequest: ActivityArchiveRequest?
@@ -74,6 +80,9 @@ final class WorkspaceStore {
   var sidebarGroupToDelete: SidebarGroup?
   var settingsPage: SettingsPage = .general {
     didSet {
+      if settingsPage != .appearance, let session = appearanceThemeImport {
+        dismissAppearanceImport(session)
+      }
       if oldValue != settingsPage { pluginDetailForwardRoute = nil }
       if let section = settingsPage.pluginSection {
         pluginSettingsSection = section
@@ -254,8 +263,10 @@ final class WorkspaceStore {
   var memoryDeletion: MemoryDeletionRequest?
   var deletingMemories = false
   var memoryDeletionError: String?
+  var appearanceThemeImport: AppearanceThemeImportSession?
   var hasSettingsConfirmation: Bool {
     archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil || archiveConfirmation() != nil
+      || appearanceThemeImport != nil
   }
   @ObservationIgnored var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?

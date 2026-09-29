@@ -36,6 +36,10 @@ extension WorkspaceStore {
       var candidate = library; candidate.appearance = value
       try candidate.save(to: dataRoot.appendingPathComponent("workspace.json"))
       library = candidate; generalSettingsError = nil
+      if let session = appearanceThemeImport,
+        !AppearanceMode(preference: value.theme).variants.contains(session.dark ? .dark : .light) {
+        dismissAppearanceImport(session)
+      }
       appearanceHandler?(value)
       return true
     } catch { generalSettingsError = error.localizedDescription; return false }
