@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-@MainActor @Observable final class CodeThemeMenuState {
+@MainActor @Observable final class CodeThemeMenuState: SettingsPopupMenuState {
   private(set) var presented = false
   private(set) var dark = false
   var highlightedID: String?

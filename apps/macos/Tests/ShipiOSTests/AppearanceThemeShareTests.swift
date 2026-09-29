@@ -151,34 +151,34 @@ import XCTest
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 2000), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance)); window.contentView = host
-    func controls(_ view: NSView) -> [SettingsMenuControl] { (view as? SettingsMenuControl).map { [$0] } ?? view.subviews.flatMap(controls) }
+    func controls(_ view: NSView) -> [SettingsPopupMenuButton.Control] { (view as? SettingsPopupMenuButton.Control).map { [$0] } ?? view.subviews.flatMap(controls) }
     try await Task.sleep(for: .milliseconds(200)); host.layoutSubtreeIfNeeded()
     for variant in ["浅色", "深色"] { for role in AppearanceFontRole.allCases {
       let control = try XCTUnwrap(controls(host).first { $0.accessibilityLabel() == variant + role.title })
       let style = try XCTUnwrap(controls(host).first { $0.accessibilityLabel() == variant + role.title + "样式" })
-      XCTAssertEqual(control.titleOfSelectedItem, role.defaultTitle); XCTAssertFalse(style.isEnabled)
+      XCTAssertEqual(control.title, role.defaultTitle); XCTAssertFalse(style.isEnabled)
     } }
     let content = try XCTUnwrap(controls(host).first { $0.accessibilityLabel() == "浅色内容字体" })
-    let index = try XCTUnwrap(content.itemArray.firstIndex { $0.title == "Menlo" })
-    window.makeFirstResponder(content); content.selectItem(at: index); content.sendAction(content.action, to: content.target)
+    let owner = try XCTUnwrap(content.owner)
+    window.makeFirstResponder(content); owner.toggle(content, keyboard: false); owner.choose("family:Menlo", button: content)
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
     XCTAssertEqual(store.appearance.light.contentFont, "\"Menlo\""); XCTAssertNil(store.appearance.dark.contentFont)
     XCTAssertTrue(window.firstResponder === content)
     let style = try XCTUnwrap(controls(host).first { $0.accessibilityLabel() == "浅色内容字体样式" })
     XCTAssertTrue(style.isEnabled)
-    let bold = try XCTUnwrap(style.itemArray.firstIndex { $0.title.lowercased() == "bold" })
-    style.selectItem(at: bold); style.sendAction(style.action, to: style.target)
+    let styleOwner = try XCTUnwrap(style.owner)
+    styleOwner.toggle(style, keyboard: true); styleOwner.choose("face:Menlo-Bold", button: style)
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
     XCTAssertEqual(store.appearance.light.contentFace?.postscriptName, "Menlo-Bold")
     XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json")).appearance, store.appearance)
-    content.selectItem(at: 0); content.sendAction(content.action, to: content.target)
+    owner.toggle(content, keyboard: true); owner.choose("default", button: content)
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
     XCTAssertEqual(store.appearance.light.contentFont, ""); XCTAssertNil(store.appearance.light.contentFace)
-    XCTAssertEqual(content.titleOfSelectedItem, "与界面字体相同"); XCTAssertFalse(style.isEnabled); XCTAssertFalse(window.isVisible)
+    XCTAssertEqual(content.title, "与界面字体相同"); XCTAssertFalse(style.isEnabled); XCTAssertFalse(window.isVisible)
     try FileManager.default.removeItem(at: root); try Data("blocked".utf8).write(to: root)
-    content.selectItem(at: index); content.sendAction(content.action, to: content.target)
+    owner.toggle(content, keyboard: false); owner.choose("family:Menlo", button: content)
     try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
-    XCTAssertEqual(store.appearance.light.contentFont, ""); XCTAssertEqual(content.titleOfSelectedItem, "与界面字体相同")
+    XCTAssertEqual(store.appearance.light.contentFont, ""); XCTAssertEqual(content.title, "与界面字体相同")
     XCTAssertFalse(style.isEnabled); XCTAssertNotNil(store.generalSettingsError); XCTAssertFalse(window.isVisible)
   }
   func testSearchHasIndependentFontAndThemeShareRoutesForBothVariants() {

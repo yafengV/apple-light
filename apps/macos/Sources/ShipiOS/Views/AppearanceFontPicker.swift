@@ -4,35 +4,77 @@ struct AppearanceFontPicker: View {
   @Bindable var store: WorkspaceStore
   let role: AppearanceFontRole
   let dark: Bool
+  var catalog: AppearanceFontCatalogSource = .shared
+  @State private var familyMenu = AppearanceFontMenuState(.family)
+  @State private var styleMenu = AppearanceFontMenuState(.style)
   private var palette: AppearancePalette { dark ? store.appearance.dark : store.appearance.light }
-  private var value: String {
-    role == .content ? palette.contentFont ?? "" : store.appearance.fontFamily(role, dark: dark)
+  private var value: String { role == .content ? palette.contentFont ?? "" : store.appearance.fontFamily(role, dark: dark) }
+  private var selection: AppearanceFontSelection {
+    // The existing store uses an empty string for a cleared/default override.
+    AppearanceFontSelection(value: value.isEmpty ? nil : value, face: palette.fontFace(role), role: role, families: catalog.families)
   }
-  private var family: AppearanceFontCatalog.Family? { AppearanceFontCatalog.family(value, code: role == .code) }
+  private var resolved: (family: AppearanceFontCatalog.Family, face: AppearanceFontCatalog.Face)? { selection.resolved }
+  private var label: String { selection.title }
   private var variant: String { dark ? "深色" : "浅色" }
-  private var selection: String { family.map { AppearanceFontCatalog.quote($0.name) } ?? value }
-  private var options: [SettingsMenuOption<String>] {
-    var choices: [SettingsMenuOption<String>] = [.init(value: "", title: role.defaultTitle)]
-    choices += AppearanceFontCatalog.options(code: role == .code).map { .init(value: AppearanceFontCatalog.quote($0.name), title: $0.name) }
-    if !selection.isEmpty, !choices.contains(where: { $0.value == selection }) { choices.insert(.init(value: selection, title: value), at: 1) }
-    return choices
-  }
+  private var available: Bool { catalog.loaded && store.libraryLoaded && !store.restoringLibrary }
+  private var styleAvailable: Bool { available && selection.styleEnabled }
   var body: some View {
     LabeledContent(role.title) {
-      HStack(spacing: 8) {
-        SettingsMenuInput(title: variant + role.title, selection: Binding(get: { selection }, set: {
-          _ = store.setAppearanceFont(role, family: $0.isEmpty ? nil : $0, dark: dark)
-        }), options: options)
-          .frame(maxWidth: 180)
-        SettingsMenuInput(title: variant + role.title + "样式", selection: Binding(
-          get: { palette.fontFace(role)?.postscriptName ?? family?.faces.first?.value.postscriptName ?? "" },
-          set: { name in
-            guard let family, let face = family.faces.first(where: { $0.value.postscriptName == name }) else { return }
-            _ = store.setAppearanceFont(role, family: AppearanceFontCatalog.quote(family.name),
-              face: face == family.faces.first ? nil : face.value, dark: dark)
-          }), options: family?.faces.map { .init(value: $0.value.postscriptName, title: $0.style) } ?? [.init(value: "", title: "常规")])
-          .frame(maxWidth: 150).disabled(family == nil || value.isEmpty)
+      if !catalog.loaded { ProgressView().controlSize(.mini).task { await catalog.load() } }
+      else {
+        HStack(spacing: 8) {
+          button(familyMenu, title: label, label: variant + role.title, width: 240, enabled: available)
+          button(styleMenu, title: resolved?.face.style ?? "常规", label: variant + role.title + "样式", width: 208, enabled: styleAvailable)
+        }
       }
-    }.disabled(!store.libraryLoaded)
+    }
+    .onDisappear { familyMenu.dismiss(); styleMenu.dismiss() }
+  }
+  private func button(_ menu: AppearanceFontMenuState, title: String, label: String, width: CGFloat, enabled: Bool) -> some View {
+    SettingsPopupMenuButton(title: title, label: label, menu: menu, buttonWidth: 144, fontSize: 12, menuWidth: width,
+      menuHeight: { menu.height }, available: enabled,
+      open: { keyboard in
+        (menu.kind == .family ? styleMenu : familyMenu).dismiss()
+        menu.open(role: role, value: value, face: palette.fontFace(role), families: catalog.families, keyboard: keyboard)
+      }, choose: { menu.choose($0, role: role, dark: dark, value: value, face: palette.fontFace(role), families: catalog.families, store: store) },
+      content: { AnyView(AppearanceFontMenuContent(menu: menu, width: width, label: label,
+        selectedID: menu.kind == .style ? resolved.map { "face:" + $0.face.value.postscriptName } : resolved.map { "family:" + $0.family.name } ?? (selection.selectedDefault ? "default" : nil), choose: $0)) })
+      .frame(width: 144, height: 28).disabled(!enabled)
+  }
+}
+
+struct AppearanceFontMenuContent: View {
+  let menu: AppearanceFontMenuState
+  let width: CGFloat
+  let label: String
+  let selectedID: String?
+  let choose: (String) -> Void
+  var body: some View {
+    ScrollViewReader { reader in
+      ScrollView {
+        VStack(spacing: 0) {
+          ForEach(menu.options) { option in
+            if option.id == "custom" { AppearanceCustomFontInput(menu: menu, label: label, apply: { choose("custom") }).frame(height: 28) }
+            Button { choose(option.id) } label: {
+              HStack(spacing: 6) {
+                Text(option.title).appFont(size: 13).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 4)
+                if option.id == selectedID { Image(systemName: "checkmark").font(.system(size: 12)).frame(width: 16) }
+              }.padding(.horizontal, 8).frame(height: 26).contentShape(Rectangle())
+            }.buttonStyle(.plain)
+              .background(option.id == menu.highlightedID ? Color.primary.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
+              .searchResultPointer(enabled: menu.presented) { menu.hover(option.id) }
+              .onHover { if !$0, menu.highlightedID == option.id { menu.hover(nil) } }
+              .accessibilityLabel(option.title).accessibilityValue(option.id == selectedID ? "已选择" : "")
+              .accessibilityIdentifier("appearance-font-option:" + option.id).id(option.id)
+            if option.id == "default" { Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1).padding(.horizontal, 8).padding(.vertical, 4) }
+          }
+        }
+      }.onChange(of: menu.highlightedID) { _, id in if let id { reader.scrollTo(id) } }
+    }
+    .padding(4).frame(width: width)
+    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+    .accessibilityElement(children: .contain).accessibilityLabel(label)
   }
 }

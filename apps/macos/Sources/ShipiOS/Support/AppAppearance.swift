@@ -71,17 +71,15 @@ extension AppearancePreferences {
   func nativeFont(size: CGFloat, code: Bool = false, content: Bool = false) -> NSFont {
     let role: AppearanceFontRole = code ? .code : content ? .content : .ui
     let pointSize = code ? CGFloat(codeSize) + size - 12 : (size * CGFloat(uiSize) / 14).rounded()
-    let families = fontFamily(role, dark: isDark).split(separator: ",").map {
-      $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-    }
-    if let face = fontFace(role, dark: isDark), families.contains(where: { $0.caseInsensitiveCompare(face.family) == .orderedSame }),
+    let families = AppearanceFontFamily.names(fontFamily(role, dark: isDark))
+    if let face = fontFace(role, dark: isDark), families.first?.caseInsensitiveCompare(face.family) == .orderedSame,
       let font = NSFont(name: face.postscriptName, size: pointSize),
       font.familyName?.caseInsensitiveCompare(face.family) == .orderedSame { return font }
     for family in families where !family.isEmpty {
       if ["ui-monospace", "monospace"].contains(family.lowercased()) {
         return .monospacedSystemFont(ofSize: pointSize, weight: .regular)
       }
-      if ["system-ui", "ui-sans-serif", "sans-serif"].contains(family.lowercased()) {
+      if ["-apple-system", "blinkmacsystemfont", "system-ui", "ui-sans-serif", "sans-serif"].contains(family.lowercased()) {
         return .systemFont(ofSize: pointSize)
       }
       if let font = NSFont(name: family, size: pointSize) { return font }

@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 
 @MainActor enum AppearanceFontCatalog {
   struct Face: Equatable { let value: AppearanceFontFace; let style: String; let weight: Int; let italic: Bool; let monospaced: Bool }
@@ -18,12 +19,44 @@ import AppKit
     }
     return faces.isEmpty ? nil : Family(name: family, faces: faces)
   }
-  static func options(code: Bool) -> [Family] { code ? families.filter { $0.faces.allSatisfy(\.monospaced) } : families }
-  static func family(_ value: String, code: Bool) -> Family? {
-    for name in value.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'")) }) {
-      if let found = options(code: code).first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) { return found }
-    }
-    return nil
+  static func family(_ value: String) -> Family? { resolve(value, families: families)?.family }
+  static func resolve(_ value: String?, face: AppearanceFontFace? = nil, families: [Family]?) -> (family: Family, face: Face)? {
+    guard let name = AppearanceFontFamily.first(value),
+      let family = families?.first(where: { $0.name.lowercased() == name.lowercased() }), let first = family.faces.first else { return nil }
+    let selected = face?.family.lowercased() == family.name.lowercased()
+      ? family.faces.first(where: { $0.value.postscriptName == face?.postscriptName }) : nil
+    return (family, selected ?? first)
   }
-  static func quote(_ value: String) -> String { "\"" + value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
+  static func quote(_ value: String) -> String { AppearanceFontFamily.quote(value) }
+}
+
+@MainActor struct AppearanceFontSelection {
+  let resolved: (family: AppearanceFontCatalog.Family, face: AppearanceFontCatalog.Face)?
+  let name: String?
+  let title: String
+  let styleEnabled: Bool
+  var selectedDefault: Bool { name == nil }
+  init(value: String?, face: AppearanceFontFace?, role: AppearanceFontRole, families: [AppearanceFontCatalog.Family]?) {
+    resolved = AppearanceFontCatalog.resolve(value, face: face, families: families)
+    name = resolved?.family.name ?? AppearanceFontFamily.displayName(value) ?? (role == .content ? value : nil)
+    title = name ?? role.defaultTitle
+    styleEnabled = families?.isEmpty == false && resolved != nil
+      && (role != .code || resolved?.family.faces.allSatisfy(\.monospaced) == true)
+  }
+}
+
+/// The query is shared and cached for this process; an empty/unavailable directory
+/// offers the same custom-value fallback as the reference application.
+@MainActor @Observable final class AppearanceFontCatalogSource {
+  static let shared = AppearanceFontCatalogSource()
+  private(set) var loaded = false
+  private(set) var families: [AppearanceFontCatalog.Family]?
+  private var loading = false
+  init() {}
+  init(families: [AppearanceFontCatalog.Family]?) { self.families = families; loaded = true }
+  func load() async {
+    guard !loaded, !loading else { return }; loading = true
+    await Task.yield()
+    families = AppearanceFontCatalog.families; loaded = true; loading = false
+  }
 }

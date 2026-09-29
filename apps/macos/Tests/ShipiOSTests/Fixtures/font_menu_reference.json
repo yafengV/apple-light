@@ -1,0 +1,7637 @@
+{
+  "referenceVersion": "26.911.61220 / 9647",
+  "parserSHA256": "534fde2365b7c3535443a58e3dceac3015b12b2c18c3778967b28f7299ae0725",
+  "settingsSHA256": "3a2ff568faaa71fa98cde8ca59a04d525baf13ce81a470ea8ae72c5283800753",
+  "families": [
+    {
+      "family": "Zed Mono",
+      "faces": [
+        {
+          "family": "Zed Mono",
+          "fullName": "Zed Mono Regular",
+          "postscriptName": "Zed-Regular",
+          "styleName": "Regular",
+          "isMonospaced": true
+        },
+        {
+          "family": "Zed Mono",
+          "fullName": "Zed Mono Bold",
+          "postscriptName": "Zed-Bold",
+          "styleName": "Bold",
+          "isMonospaced": true
+        }
+      ]
+    },
+    {
+      "family": "Georgia",
+      "faces": [
+        {
+          "family": "Georgia",
+          "fullName": "Georgia",
+          "postscriptName": "Georgia",
+          "styleName": "Regular",
+          "isMonospaced": false
+        },
+        {
+          "family": "Georgia",
+          "fullName": "Georgia Bold",
+          "postscriptName": "Georgia-Bold",
+          "styleName": "Bold",
+          "isMonospaced": false
+        }
+      ]
+    },
+    {
+      "family": "Mixed",
+      "faces": [
+        {
+          "family": "Mixed",
+          "fullName": "Mixed Mono",
+          "postscriptName": "Mixed-Mono",
+          "styleName": "Mono",
+          "isMonospaced": true
+        },
+        {
+          "family": "Mixed",
+          "fullName": "Mixed Variable",
+          "postscriptName": "Mixed-Variable",
+          "styleName": "Variable",
+          "isMonospaced": false
+        }
+      ]
+    }
+  ],
+  "parsers": [
+    {
+      "value": null,
+      "first": null,
+      "display": null
+    },
+    {
+      "value": "",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": " ",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": "Zed Mono",
+      "first": "Zed Mono",
+      "display": "Zed Mono"
+    },
+    {
+      "value": "zed mono",
+      "first": "zed mono",
+      "display": "zed mono"
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "first": "Zed Mono",
+      "display": "Zed Mono"
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "first": "Zed Mono",
+      "display": "Zed Mono"
+    },
+    {
+      "value": "Unknown, Georgia",
+      "first": "Unknown",
+      "display": "Unknown"
+    },
+    {
+      "value": "system-ui, Georgia",
+      "first": "system-ui",
+      "display": null
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "first": "monospace",
+      "display": null
+    },
+    {
+      "value": "Georgia",
+      "first": "Georgia",
+      "display": "Georgia"
+    },
+    {
+      "value": "\"Mixed\"",
+      "first": "Mixed",
+      "display": "Mixed"
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "first": "Unknown, font",
+      "display": "Unknown, font"
+    },
+    {
+      "value": "Missing",
+      "first": "Missing",
+      "display": "Missing"
+    },
+    {
+      "value": "\"system-ui\"",
+      "first": "system-ui",
+      "display": null
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "first": "Georgia",
+      "display": "Georgia"
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "first": "blinkmacsystemfont",
+      "display": null
+    },
+    {
+      "value": "serif",
+      "first": "serif",
+      "display": null
+    },
+    {
+      "value": "-apple-system",
+      "first": "-apple-system",
+      "display": null
+    },
+    {
+      "value": "ui-monospace",
+      "first": "ui-monospace",
+      "display": null
+    },
+    {
+      "value": "system-ui",
+      "first": "system-ui",
+      "display": null
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "first": "system-ui",
+      "display": null
+    },
+    {
+      "value": "\"系统默认\"",
+      "first": "系统默认",
+      "display": "系统默认"
+    },
+    {
+      "value": "\"Font, Comma\", serif",
+      "first": "Font, Comma",
+      "display": "Font, Comma"
+    },
+    {
+      "value": "\"Font\\\" Quote\", serif",
+      "first": "Font\" Quote",
+      "display": "Font\" Quote"
+    },
+    {
+      "value": "'Font\\' Quote', serif",
+      "first": "Font' Quote",
+      "display": "Font' Quote"
+    },
+    {
+      "value": "Escaped\\,Comma, Georgia",
+      "first": "Escaped,Comma",
+      "display": "Escaped,Comma"
+    },
+    {
+      "value": "Back\\\\slash, serif",
+      "first": "Back\\slash",
+      "display": "Back\\slash"
+    },
+    {
+      "value": "\"Emoji 😀, Font\", Georgia",
+      "first": "Emoji 😀, Font",
+      "display": "Emoji 😀, Font"
+    },
+    {
+      "value": "你好, serif",
+      "first": "你好",
+      "display": "你好"
+    },
+    {
+      "value": " \"unterminated, Georgia",
+      "first": "unterminated, Georgia",
+      "display": "unterminated, Georgia"
+    },
+    {
+      "value": "\"wrong'",
+      "first": "wrong",
+      "display": "wrong"
+    },
+    {
+      "value": "'single\"",
+      "first": "single",
+      "display": "single"
+    },
+    {
+      "value": "\"",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": "'",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": "\\",
+      "first": "\\",
+      "display": "\\"
+    },
+    {
+      "value": "\\,",
+      "first": ",",
+      "display": ","
+    },
+    {
+      "value": "\"\\\"",
+      "first": "\\",
+      "display": "\\"
+    },
+    {
+      "value": "Georgia\\\nFoo, serif",
+      "first": "Georgia\nFoo",
+      "display": "Georgia\nFoo"
+    },
+    {
+      "value": "A, Georgia",
+      "first": "A",
+      "display": "A"
+    },
+    {
+      "value": "﻿Georgia﻿, serif",
+      "first": "Georgia",
+      "display": "Georgia"
+    },
+    {
+      "value": " Georgia , serif",
+      "first": "Georgia",
+      "display": "Georgia"
+    },
+    {
+      "value": " Georgia ",
+      "first": "Georgia",
+      "display": "Georgia"
+    },
+    {
+      "value": " , Georgia",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": ",,,",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": "\"\", Georgia",
+      "first": null,
+      "display": null
+    },
+    {
+      "value": "\"A\\\\\", Georgia",
+      "first": "A\\",
+      "display": "A\\"
+    },
+    {
+      "value": "\\́, Georgia",
+      "first": "́",
+      "display": "́"
+    },
+    {
+      "value": "\"́Font\", Georgia",
+      "first": "́Font",
+      "display": "́Font"
+    },
+    {
+      "value": "\\😀, Georgia",
+      "first": "😀",
+      "display": "😀"
+    },
+    {
+      "value": "\"Emoji\\😀,Font\", Georgia",
+      "first": "Emoji😀,Font",
+      "display": "Emoji😀,Font"
+    }
+  ],
+  "cases": [
+    {
+      "value": null,
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "与界面字体相同",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "与界面字体相同",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "与界面字体相同",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "与界面字体相同",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "与界面字体相同",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "与界面字体相同",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": null,
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": " ",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": " ",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": " ",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": " ",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": " ",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": " ",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": " ",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": " ",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": null,
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": null,
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": null,
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": null,
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": null,
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": null,
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "zed mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": null,
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": null,
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": null,
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": null,
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": null,
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": null,
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Bold",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "'Zed Mono', Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Zed Mono",
+      "postscript": "Zed-Regular",
+      "title": "Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Unknown, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "monospace, \"Zed Mono\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "monospace, \"Zed Mono\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "monospace, \"Zed Mono\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "monospace, \"Zed Mono\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "monospace, \"Zed Mono\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "monospace, \"Zed Mono\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "monospace, \"Zed Mono\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": null,
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": null,
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": null,
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia-Bold",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia-Bold",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia-Bold",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": null,
+      "role": "ui",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": null,
+      "role": "content",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": null,
+      "role": "code",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Mixed\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Mixed",
+      "postscript": "Mixed-Mono",
+      "title": "Mixed",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Unknown, font\", Georgia",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Unknown, font",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "Missing",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "Missing",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "\"system-ui\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "\"system-ui\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "\"system-ui\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "\"system-ui\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "\"system-ui\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "\"system-ui\"",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"system-ui\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": null,
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": null,
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": null,
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia-Bold",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia-Bold",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia-Bold",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": true,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"Georgia\" , serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": "Georgia",
+      "postscript": "Georgia",
+      "title": "Georgia",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "blinkmacsystemfont",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "blinkmacsystemfont",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "blinkmacsystemfont",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "blinkmacsystemfont",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "blinkmacsystemfont",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "blinkmacsystemfont",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "blinkmacsystemfont",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "serif",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "serif",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "serif",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "serif",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "serif",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "serif",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "serif",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "-apple-system",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "-apple-system",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "-apple-system",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "-apple-system",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "-apple-system",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "-apple-system",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "-apple-system",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "ui-monospace",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "ui-monospace",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "ui-monospace",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "ui-monospace",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "ui-monospace",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "ui-monospace",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "ui-monospace",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "system-ui, Zed Mono",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "system-ui, Zed Mono",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": true,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": null,
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": null,
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": null,
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Zed Mono Bold",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "zEd mOnO",
+        "fullName": "Override",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Georgia",
+        "fullName": "Georgia Bold",
+        "postscriptName": "Georgia-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Other",
+        "fullName": "Wrong family",
+        "postscriptName": "Zed-Bold"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "ui",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "content",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono",
+        "Georgia",
+        "Mixed"
+      ]
+    },
+    {
+      "value": "\"系统默认\"",
+      "face": {
+        "family": "Zed Mono",
+        "fullName": "Missing",
+        "postscriptName": "Zed-Missing"
+      },
+      "role": "code",
+      "family": null,
+      "postscript": null,
+      "title": "系统默认",
+      "selectedDefault": false,
+      "styleEnabled": false,
+      "familyOptions": [
+        "Zed Mono"
+      ]
+    }
+  ]
+}
