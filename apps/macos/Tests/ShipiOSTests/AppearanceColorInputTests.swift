@@ -139,7 +139,7 @@ import XCTest
     XCTAssertEqual(above.minX, 6); XCTAssertEqual(above.minY, 42)
     XCTAssertNil(AppearanceColorInput.placement(anchor: .init(x: 0, y: 950, width: 14, height: 14), viewport: viewport))
   }
-  func testFullHiddenAppearancePageHasFourColorTextControlsUsingRawInkNotDerivedText() async throws {
+  func testFullHiddenAppearancePageHasSixColorTextControlsUsingRawInkNotDerivedText() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("appearance-color-page-" + UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }; let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     var appearance = AppearancePreferences(); appearance.theme = "dark"; store.appearance = appearance
@@ -147,7 +147,9 @@ import XCTest
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, appearance).frame(width: 1000, height: 1400))
     window.contentView = host; try await settle(host)
-    let controls = find(host, as: AppearanceColorInput.Control.self); XCTAssertEqual(controls.count, 4)
+    let controls = find(host, as: AppearanceColorInput.Control.self); XCTAssertEqual(controls.count, 6)
+    XCTAssertEqual(controls.filter { ["浅色背景色", "深色背景色", "浅色前景色", "深色前景色"].contains($0.field.accessibilityLabel() ?? "") }.count, 4)
+    XCTAssertEqual(controls.filter { ["浅色模式下的自定义强调色", "深色自定义强调色"].contains($0.field.accessibilityLabel() ?? "") }.count, 2)
     let ink = try XCTUnwrap(controls.first { $0.field.accessibilityLabel() == "深色前景色" }); XCTAssertEqual(ink.field.stringValue, "#FFFFFF")
     XCTAssertEqual(store.appearance.resolvedColors["textForeground"].hex, "#dfdfdf"); XCTAssertFalse(window.isVisible)
   }

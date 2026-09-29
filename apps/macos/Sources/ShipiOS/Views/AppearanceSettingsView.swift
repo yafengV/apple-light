@@ -106,7 +106,7 @@ struct AppearanceSettingsView: View {
     let background = colors["surface"].color
     let foreground = colors["textForeground"].color
     return Section {
-      paletteColorRow("强调色", palette: key, value: \.accent, fallback: colors["accent"].color)
+      AppearanceAccentPicker(store: store, dark: dark)
       hexColorRow("背景色", key: \.background, dark: dark, value: store.appearance.themeShare(dark: dark).theme.surface)
       hexColorRow("前景色", key: \.foreground, dark: dark, value: store.appearance.themeShare(dark: dark).theme.ink)
       AppearanceFontPicker(store: store, role: .ui, dark: dark)
@@ -164,23 +164,6 @@ struct AppearanceSettingsView: View {
       AppearanceColorInput(value: value, label: (dark ? "深色" : "浅色") + title, available: { store.libraryLoaded }) {
         store.setAppearanceColor($0, key: key, dark: dark)
       }.frame(width: 136, height: 28).disabled(!store.libraryLoaded)
-    }
-  }
-  private func paletteColorRow(
-    _ title: String, palette: WritableKeyPath<AppearancePreferences, AppearancePalette>,
-    value: WritableKeyPath<AppearancePalette, String?>, fallback: Color
-  ) -> some View {
-    let current = store.appearance[keyPath: palette][keyPath: value]
-    return HStack {
-      ColorPicker(
-        title,
-        selection: Binding(
-          get: { current.flatMap(AppearancePreferences.color) ?? fallback },
-          set: { _ = store.setAppearanceColor(AppearancePreferences.hex($0), key: value, dark: palette == \.dark) }),
-        supportsOpacity: false)
-      Text(current ?? "自动").appFont(.caption).foregroundStyle(.secondary)
-      Button("重置") { _ = store.setAppearanceColor(nil, key: value, dark: palette == \.dark) }
-        .disabled(current == nil).accessibilityLabel("重置" + title)
     }
   }
 }
