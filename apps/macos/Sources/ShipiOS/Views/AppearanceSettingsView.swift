@@ -28,9 +28,8 @@ struct AppearanceSettingsView: View {
           .id("dark-appearance-palette")
           .settingsSearchTarget(.darkPalette)
         Section("字号") {
-          Stepper("界面字号：\(Int(store.appearance.uiSize))", value: binding(\.uiSize), in: 11...20).settingsSearchTarget(.uiFontSize)
-          Stepper("代码字号：\(Int(store.appearance.codeSize))", value: binding(\.codeSize), in: 10...24).settingsSearchTarget(.codeFontSize)
-          Text("代码字体同时用于代码块、文件预览、审查与终端。").appFont(.caption).foregroundStyle(.secondary)
+          AppearanceFontSizeRow(store: store, kind: .ui)
+          AppearanceFontSizeRow(store: store, kind: .code)
         }
         Section("交互") {
           SettingsToggle(title: "交互控件使用指针光标",

@@ -70,7 +70,7 @@ extension AppearancePreferences {
   }
   func nativeFont(size: CGFloat, code: Bool = false, content: Bool = false) -> NSFont {
     let role: AppearanceFontRole = code ? .code : content ? .content : .ui
-    let pointSize = code ? CGFloat(codeSize) + size - 12 : size * CGFloat(uiSize) / 13
+    let pointSize = code ? CGFloat(codeSize) + size - 12 : (size * CGFloat(uiSize) / 14).rounded()
     let families = fontFamily(role, dark: isDark).split(separator: ",").map {
       $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
     }

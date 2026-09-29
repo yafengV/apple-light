@@ -33,8 +33,8 @@ final class AppearanceTests: XCTestCase {
     value.dark.contrast = .nan
     value = value.normalized()
     XCTAssertEqual(value.theme, "system")
-    XCTAssertEqual(value.uiSize, 13)
-    XCTAssertEqual(value.codeSize, 10)
+    XCTAssertEqual(value.uiSize, 14)
+    XCTAssertEqual(value.codeSize, 8)
     XCTAssertEqual(value.accent, "#AABBCC")
     XCTAssertNil(value.foreground)
     XCTAssertNil(value.background)
@@ -43,7 +43,7 @@ final class AppearanceTests: XCTestCase {
     XCTAssertEqual(value.dark.contrast, 50)
     value.uiSize = 100
     value.codeSize = .nan
-    XCTAssertEqual(value.normalized().uiSize, 20)
+    XCTAssertEqual(value.normalized().uiSize, 16)
     XCTAssertEqual(value.normalized().codeSize, 12)
   }
 
@@ -117,7 +117,8 @@ final class AppearanceTests: XCTestCase {
     XCTAssertEqual(terminal.pointSize, 17)
     XCTAssertEqual(review.pointSize, 16)
     XCTAssertEqual(theme.nativeFont(size: 13).familyName, "Helvetica")
-    XCTAssertEqual(theme.nativeFont(size: 13).pointSize, 16)
+    XCTAssertEqual(theme.nativeFont(size: 14).pointSize, 16)
+    XCTAssertEqual(theme.nativeFont(size: 13).pointSize, 15)
     theme.codeFont = "ShipiOS-Missing-Font-For-Test"
     XCTAssertEqual(theme.nativeFont(size: 12, code: true).pointSize, 17)
     XCTAssertNotEqual(theme.nativeFont(size: 12, code: true).familyName, theme.codeFont)

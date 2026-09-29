@@ -77,7 +77,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
   var theme = "system"
   var uiFont = ""
   var codeFont = ""
-  var uiSize: Double = 13
+  var uiSize: Double = AppearanceFontSize.ui.defaultValue
   var codeSize: Double = 12
   var accent: String?
   var background: String?
@@ -101,7 +101,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
     theme = try values.decodeIfPresent(String.self, forKey: .theme) ?? "system"
     uiFont = try values.decodeIfPresent(String.self, forKey: .uiFont) ?? ""
     codeFont = try values.decodeIfPresent(String.self, forKey: .codeFont) ?? ""
-    uiSize = try values.decodeIfPresent(Double.self, forKey: .uiSize) ?? 13
+    uiSize = try values.decodeIfPresent(Double.self, forKey: .uiSize) ?? AppearanceFontSize.ui.defaultValue
     codeSize = try values.decodeIfPresent(Double.self, forKey: .codeSize) ?? 12
     accent = try values.decodeIfPresent(String.self, forKey: .accent)
     background = try values.decodeIfPresent(String.self, forKey: .background)
@@ -126,8 +126,8 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
   func normalized() -> Self {
     var value = self
     if !["system", "light", "dark"].contains(theme) { value.theme = "system" }
-    value.uiSize = uiSize.isFinite ? min(20, max(11, uiSize)) : 13
-    value.codeSize = codeSize.isFinite ? min(24, max(10, codeSize)) : 12
+    value.uiSize = AppearanceFontSize.ui.normalized(uiSize)
+    value.codeSize = AppearanceFontSize.code.normalized(codeSize)
     value.uiFont = String(uiFont.prefix(200))
     value.codeFont = String(codeFont.prefix(200))
     value.accent = Self.validHex(accent)
