@@ -1,0 +1,103 @@
+{
+  "name": "shipios-vercel-light",
+  "type": "light",
+  "fg": "#171717",
+  "bg": "#ffffff",
+  "colors": {
+    "editor.background": "#ffffff",
+    "editor.foreground": "#171717"
+  },
+  "tokenColors": [
+    {
+      "scope": [
+        "comment",
+        "punctuation.definition.comment"
+      ],
+      "settings": {
+        "foreground": "#666666"
+      }
+    },
+    {
+      "scope": [
+        "string",
+        "string.quoted",
+        "constant.other.symbol",
+        "entity.other.attribute-name"
+      ],
+      "settings": {
+        "foreground": "#28A948"
+      }
+    },
+    {
+      "scope": [
+        "constant.numeric",
+        "constant.language",
+        "constant.language.boolean",
+        "constant.character.escape",
+        "regexp",
+        "string.regexp"
+      ],
+      "settings": {
+        "foreground": "#A100F8"
+      }
+    },
+    {
+      "scope": [
+        "keyword",
+        "keyword.control",
+        "storage",
+        "storage.type",
+        "storage.modifier"
+      ],
+      "settings": {
+        "foreground": "#006aff"
+      }
+    },
+    {
+      "scope": [
+        "entity.name.type",
+        "entity.other.inherited-class",
+        "support.class",
+        "support.type"
+      ],
+      "settings": {
+        "foreground": "#0059D1"
+      }
+    },
+    {
+      "scope": [
+        "entity.name.function",
+        "support.function",
+        "variable.function",
+        "meta.function-call"
+      ],
+      "settings": {
+        "foreground": "#A100F8"
+      }
+    },
+    {
+      "scope": [
+        "keyword.operator",
+        "punctuation.accessor",
+        "punctuation.definition.tag",
+        "punctuation",
+        "punctuation.bracket",
+        "punctuation.separator"
+      ],
+      "settings": {
+        "foreground": "#666666"
+      }
+    },
+    {
+      "scope": [
+        "variable",
+        "meta.object-literal.key",
+        "meta.object.member",
+        "meta.property-name"
+      ],
+      "settings": {
+        "foreground": "#171717"
+      }
+    }
+  ]
+}

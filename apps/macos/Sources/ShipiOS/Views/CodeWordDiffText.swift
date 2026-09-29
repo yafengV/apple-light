@@ -10,10 +10,12 @@ struct CodeWordDiffText: View {
   let changes: [CodeWordRange]
   let marker: DiffMarkerStyle
   let dark: Bool
+  @Environment(\.appAppearance) private var appearance
   var body: some View {
     if #available(macOS 15, *) {
       CodeSyntaxText.text(line, tokens: tokens, marker: marker, dark: dark, changes: changes)
-        .textRenderer(CodeWordDiffRenderer(kind: line.kind, dark: dark))
+        .textRenderer(CodeWordDiffRenderer(kind: line.kind, dark: dark,
+          additionColor: appearance.diffAddedColor, deletionColor: appearance.diffRemovedColor))
     } else {
       CodeSyntaxText.text(line, tokens: tokens, marker: marker, dark: dark)
     }
@@ -27,7 +29,10 @@ struct CodeWordDiffText: View {
 struct CodeWordDiffRenderer: TextRenderer {
   let kind: ReviewDiffLine.Kind
   let dark: Bool
+  var additionColor: Color? = nil
+  var deletionColor: Color? = nil
   var color: Color {
+    if let selected = kind == .deletion ? deletionColor : additionColor { return selected.opacity(dark ? 0.2 : 0.15) }
     let hex = kind == .deletion ? (dark ? 0xff6762 : 0xff2e3f) : (dark ? 0x5ecc71 : 0x0dbe4e)
     return Color(.sRGB, red: Double((hex >> 16) & 255) / 255,
       green: Double((hex >> 8) & 255) / 255, blue: Double(hex & 255) / 255, opacity: dark ? 0.2 : 0.15)

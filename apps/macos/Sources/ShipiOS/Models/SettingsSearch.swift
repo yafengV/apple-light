@@ -19,7 +19,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case editor, tips, sendShortcut, plainText, contextUsage, bottomPanel, webLinks,
     projectlessFolder, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
     preventSleep, enablePlugins
-  case theme, lightPalette, darkPalette, uiFont, uiFontSize, codeFont, codeFontSize,
+  case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
     pointer, diffMarkers, reduceMotion, importTheme, exportTheme
   case apiURL, modelID, apiKey, reasoning, tokenUsage
 
@@ -124,7 +124,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   }
   var page: SettingsPage {
     switch self {
-    case .theme, .lightPalette, .darkPalette, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
+    case .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
       .pointer, .diffMarkers, .reduceMotion, .importTheme, .exportTheme: .appearance
     case .apiURL, .modelID, .apiKey, .reasoning, .tokenUsage: .model
     case .profileName: .profile
@@ -305,6 +305,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .enablePlugins: "插件"
     case .theme: "基础主题"
     case .lightPalette: "浅色主题颜色、侧栏透明度与对比度"
+    case .lightCodeTheme: "浅色代码主题"
+    case .darkCodeTheme: "深色代码主题"
     case .darkPalette: "深色主题颜色、侧栏透明度与对比度"
     case .uiFont: "界面字体"
     case .uiFontSize: "界面字号"
@@ -413,6 +415,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .apiURL: "API base URL 服务地址"
     case .apiKey: "API 密钥"
     case .lightPalette, .darkPalette: "强调色 背景色 前景色 半透明侧栏"
+    case .lightCodeTheme, .darkCodeTheme: "代码 主题 预设 颜色 theme syntax Codex Xcode Catppuccin GitHub"
     default: rawValue
     }
   }

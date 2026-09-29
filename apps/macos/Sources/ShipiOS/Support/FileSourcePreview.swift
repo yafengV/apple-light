@@ -34,6 +34,7 @@ struct FileSourcePreview: NSViewRepresentable {
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let text = scroll.documentView as? FilePreviewTextView else { return }
+    scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
     let coordinator = context.coordinator
     // Swift strings compare canonically; the byte revision also observes source
     // changes that look equal but have different UTF-16 positions.

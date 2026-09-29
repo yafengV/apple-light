@@ -1,7 +1,7 @@
 {
   "format": 1,
-  "sha256": "454957489c60edf4635a76df8da0064eee79de43b4a8fac87b0c5463ff0122b0",
-  "bytes": 8296131,
+  "sha256": "b143d98543375763b5d44af62599180fa9afc0f9c8be8d683ef39d42234aa3a7",
+  "bytes": 8861982,
   "components": [
     {
       "name": "@pierre/diffs",
@@ -25,6 +25,11 @@
     },
     {
       "name": "@shikijs/primitive",
+      "version": "4.4.3",
+      "license": "MIT"
+    },
+    {
+      "name": "@shikijs/themes",
       "version": "4.4.3",
       "license": "MIT"
     },

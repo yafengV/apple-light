@@ -15,9 +15,19 @@ extension AppearancePreferences {
   var colorScheme: ColorScheme? { theme == "system" ? nil : theme == "dark" ? .dark : .light }
   var isDark: Bool {
     if theme != "system" { return theme == "dark" }
-    return NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    // Preferences can be read before the application is constructed.
+    return NSApp?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
   }
   var activePalette: AppearancePalette { isDark ? dark : light }
+  var activeCodeTheme: CodeThemePreset.Variant? {
+    CodeThemeCatalog.preset(isDark ? codeThemes.dark : codeThemes.light, dark: isDark)?.variant(dark: isDark)
+  }
+  var codeForegroundColor: Color { activeCodeTheme.flatMap { CodeSyntaxText.color($0.foreground) } ?? foregroundColor }
+  var codeBackgroundColor: Color { activeCodeTheme.flatMap { CodeSyntaxText.color($0.background) } ?? backgroundColor }
+  var diffAddedColor: Color { CodeSyntaxText.color(activePalette.diffAdded ?? (isDark ? "#40C977" : "#00A240")) ?? .green }
+  var diffRemovedColor: Color { CodeSyntaxText.color(activePalette.diffRemoved ?? (isDark ? "#FA423E" : "#BA2623")) ?? .red }
+  var effectiveUIFont: String { activePalette.uiFont ?? uiFont }
+  var effectiveCodeFont: String { activePalette.codeFont ?? codeFont }
   var accentHex: String? { activePalette.accent ?? accent }
   var backgroundHex: String? { activePalette.background ?? background }
   var foregroundHex: String? { activePalette.foreground ?? foreground }
@@ -58,20 +68,26 @@ extension AppearancePreferences {
       blue: channel(rgb.blueComponent), opacity: rgb.alphaComponent)
   }
   func nativeFont(size: CGFloat, code: Bool = false) -> NSFont {
-    let family = code ? codeFont : uiFont
     let pointSize = code ? CGFloat(codeSize) + size - 12 : size * CGFloat(uiSize) / 13
-    if !family.isEmpty,
-      let font = NSFontManager.shared.font(
-        withFamily: family, traits: [], weight: 5, size: pointSize)
-    {
-      return font
+    let families = (code ? effectiveCodeFont : effectiveUIFont).split(separator: ",").map {
+      $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+    }
+    for family in families where !family.isEmpty {
+      if ["ui-monospace", "monospace"].contains(family.lowercased()) {
+        return .monospacedSystemFont(ofSize: pointSize, weight: .regular)
+      }
+      if ["system-ui", "ui-sans-serif", "sans-serif"].contains(family.lowercased()) {
+        return .systemFont(ofSize: pointSize)
+      }
+      if let font = NSFont(name: family, size: pointSize) { return font }
+      if let font = NSFontManager.shared.font(withFamily: family, traits: [], weight: 5, size: pointSize) { return font }
     }
     return code
       ? .monospacedSystemFont(ofSize: pointSize, weight: .regular) : .systemFont(ofSize: pointSize)
   }
   func font(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
     let native = nativeFont(size: size, code: design == .monospaced)
-    if (design == .monospaced ? codeFont : uiFont).isEmpty {
+    if (design == .monospaced ? effectiveCodeFont : effectiveUIFont).isEmpty {
       return .system(size: native.pointSize, weight: weight, design: design)
     }
     return Font.custom(native.fontName, size: native.pointSize).weight(weight)

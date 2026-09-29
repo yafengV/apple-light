@@ -42,7 +42,7 @@ enum CodeSyntaxText {
       return result + text
     }
   }
-  private static func color(_ value: String) -> Color? {
+  static func color(_ value: String) -> Color? {
     guard let rgb = UInt64(value.dropFirst(), radix: 16) else { return nil }
     let alpha = value.count == 9 ? Double(rgb & 255) / 255 : 1
     let components = value.count == 9 ? rgb >> 8 : rgb

@@ -138,3 +138,30 @@ test('actual highlighter returns word ranges alongside unchanged tokens and hono
   assert.deepEqual(off.right[0].changes, []);
   assert.deepEqual(off.right[0].tokens, result.right[0].tokens);
 });
+
+test('all 43 selected theme variants match current-worker colors and font styles for 172 examples', async () => {
+  // The runtime emits one shared token stream for two themes. Boundaries from
+  // the other variant can split adjacent spans with the same visible style.
+  const merge = rows => rows.map(row => row.reduce((result, token) => {
+    const previous = result.at(-1);
+    if (previous && previous.style.color === token.style.color && previous.style.fontStyle === token.style.fontStyle) previous.content += token.content;
+    else result.push({ content: token.content, style: token.style });
+    return result;
+  }, []));
+  const fixture = JSON.parse(await readFile('../../apps/macos/Tests/ShipiOSTests/Fixtures/code_theme_tokens_reference.json'));
+  assert.equal(fixture.cases.length, 43);
+  for (const item of fixture.cases) for (const sample of item.samples) {
+    const lines = sample.lines.map((text, id) => row(id, text));
+    const result = await highlight({ ...input(sample.path, lines), themes: { [item.variant]: item.id } });
+    preserve(result, lines);
+    const actual = result.right.map(r => r.tokens.map(t => ({ content: t.content, style: t[item.variant] })));
+    assert.deepEqual(merge(actual), merge(sample.expected), item.id + '/' + item.variant + '/' + sample.path);
+  }
+});
+test('code theme defaults and invalid/unsupported variants fall back to Codex', async () => {
+  const lines = [row(1, 'let value = 42')];
+  const expected = await highlight(input('Main.swift', lines));
+  for (const themes of [{ light: '__proto__', dark: 'missing' }, { light: 'dracula', dark: 'proof' }]) {
+    assert.deepEqual(await highlight({ ...input('Main.swift', lines), themes }), expected);
+  }
+});

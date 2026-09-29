@@ -39,6 +39,12 @@ struct AppearancePalette: Codable, Equatable, Sendable {
   var foreground: String?
   var translucentSidebar = true
   var contrast: Double
+  var diffAdded: String?
+  var diffRemoved: String?
+  var skill: String?
+  var uiFont: String?
+  var codeFont: String?
+  var contentFont: String?
 
   static let light = Self(contrast: 45)
   static let dark = Self(contrast: 60)
@@ -49,6 +55,12 @@ struct AppearancePalette: Codable, Equatable, Sendable {
     value.background = AppearancePreferences.validHex(background)
     value.foreground = AppearancePreferences.validHex(foreground)
     value.contrast = contrast.isFinite ? min(100, max(0, contrast)) : 50
+    value.diffAdded = AppearancePreferences.validHex(diffAdded)
+    value.diffRemoved = AppearancePreferences.validHex(diffRemoved)
+    value.skill = AppearancePreferences.validHex(skill)
+    value.uiFont = uiFont.map { String($0.prefix(200)) }
+    value.codeFont = codeFont.map { String($0.prefix(200)) }
+    value.contentFont = contentFont.map { String($0.prefix(200)) }
     return value
   }
 }
@@ -67,10 +79,11 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
   var usePointerCursors = false
   var diffMarkerStyle = DiffMarkerStyle.color
   var reduceMotion = ReduceMotionPreference.system
+  var codeThemes = CodeThemePair()
 
   enum CodingKeys: String, CodingKey {
     case theme, uiFont, codeFont, uiSize, codeSize, accent, background, foreground
-    case light, dark, usePointerCursors, diffMarkerStyle, reduceMotion
+    case light, dark, usePointerCursors, diffMarkerStyle, reduceMotion, codeThemes
   }
 
   init() {}
@@ -98,6 +111,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
       try values.decodeIfPresent(DiffMarkerStyle.self, forKey: .diffMarkerStyle) ?? .color
     reduceMotion =
       try values.decodeIfPresent(ReduceMotionPreference.self, forKey: .reduceMotion) ?? .system
+    codeThemes = try values.decodeIfPresent(CodeThemePair.self, forKey: .codeThemes) ?? .init()
     self = normalized()
   }
 
@@ -113,7 +127,30 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
     value.foreground = Self.validHex(foreground)
     value.light = light.normalized()
     value.dark = dark.normalized()
+    value.codeThemes = codeThemes.normalized()
     return value
+  }
+  func selectingCodeTheme(_ id: String, dark: Bool) -> Self? {
+    guard let preset = CodeThemeCatalog.preset(id, dark: dark), let variant = preset.variant(dark: dark) else { return nil }
+    var value = self
+    var palette = dark ? self.dark : light
+    let patch = variant.patch
+    if let accent = patch.accent { palette.accent = accent }
+    if let foreground = patch.ink { palette.foreground = foreground }
+    if let background = patch.surface { palette.background = background }
+    if let contrast = patch.contrast { palette.contrast = contrast }
+    if let opaque = patch.opaqueWindows { palette.translucentSidebar = !opaque }
+    if let added = patch.semanticColors?.diffAdded { palette.diffAdded = added }
+    if let removed = patch.semanticColors?.diffRemoved { palette.diffRemoved = removed }
+    if let skill = patch.semanticColors?.skill { palette.skill = skill }
+    if let fonts = patch.fonts {
+      if fonts.keys.contains("ui") { palette.uiFont = fonts["ui"]! ?? "" }
+      if fonts.keys.contains("code") { palette.codeFont = fonts["code"]! ?? "" }
+      if fonts.keys.contains("content") { palette.contentFont = fonts["content"]! ?? "" }
+    }
+    if dark { value.dark = palette; value.codeThemes.dark = id }
+    else { value.light = palette; value.codeThemes.light = id }
+    return value.normalized()
   }
   static func validHex(_ value: String?) -> String? {
     guard let value else { return nil }

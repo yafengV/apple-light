@@ -126,7 +126,10 @@ final class AppearanceTests: XCTestCase {
   @MainActor func testColorConversionAndStoreResetDoNotModifyOtherPreferences() throws {
     XCTAssertEqual(
       AppearancePreferences.hex(try XCTUnwrap(AppearancePreferences.color("#123ABC"))), "#123ABC")
-    let store = WorkspaceStore()
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("appearance-" + UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
     store.library.preferredEditor = "xcode"
     store.library.drafts["qa"] = "保留草稿"
     var theme = AppearancePreferences()

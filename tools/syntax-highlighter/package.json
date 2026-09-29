@@ -9,7 +9,8 @@
   "dependencies": {
     "@pierre/diffs": "1.5.1",
     "shiki": "4.4.3",
-    "diff": "9.0.0"
+    "diff": "9.0.0",
+    "@shikijs/themes": "4.4.3"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

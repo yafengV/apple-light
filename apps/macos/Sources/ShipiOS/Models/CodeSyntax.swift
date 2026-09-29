@@ -5,6 +5,7 @@ struct CodeSyntaxIdentity: Hashable, Sendable {
   let path: String
   let fingerprint: String
   var wordDiffs = false
+  var themes = CodeThemePair()
   func matchesSource(_ other: Self) -> Bool { path == other.path && fingerprint == other.fingerprint }
 }
 struct CodeSyntaxInput: Codable, Sendable {
@@ -20,13 +21,24 @@ struct CodeSyntaxInput: Codable, Sendable {
   let fingerprint: String
   let lines: [Line]
   var wordDiffs = false
-  var identity: CodeSyntaxIdentity { .init(path: path, fingerprint: fingerprint, wordDiffs: wordDiffs) }
-  init(_ file: GitHubPRCodeFile, wordDiffs: Bool = false) {
-    self.init(path: file.path, diff: file.diff, wordDiffs: wordDiffs)
+  var themes = CodeThemePair()
+  var identity: CodeSyntaxIdentity { .init(path: path, fingerprint: fingerprint, wordDiffs: wordDiffs, themes: themes) }
+  enum CodingKeys: String, CodingKey { case path, fingerprint, lines, wordDiffs, themes }
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    path = try values.decode(String.self, forKey: .path)
+    fingerprint = try values.decode(String.self, forKey: .fingerprint)
+    lines = try values.decode([Line].self, forKey: .lines)
+    wordDiffs = try values.decodeIfPresent(Bool.self, forKey: .wordDiffs) ?? false
+    themes = try values.decodeIfPresent(CodeThemePair.self, forKey: .themes)?.normalized() ?? .init()
   }
-  init(path: String, diff: ReviewDiff, wordDiffs: Bool = false) {
+  init(_ file: GitHubPRCodeFile, wordDiffs: Bool = false, themes: CodeThemePair = .init()) {
+    self.init(path: file.path, diff: file.diff, wordDiffs: wordDiffs, themes: themes)
+  }
+  init(path: String, diff: ReviewDiff, wordDiffs: Bool = false, themes: CodeThemePair = .init()) {
     self.path = path; fingerprint = diff.fingerprint
     self.wordDiffs = wordDiffs
+    self.themes = themes.normalized()
     var hunk = 0
     let noEndings = Set(diff.lines.filter { $0.text.hasPrefix("\\ No newline") }.map { $0.id - 1 })
     lines = diff.lines.compactMap {
@@ -38,8 +50,9 @@ struct CodeSyntaxInput: Codable, Sendable {
   }
   /// Full source carries grammar state across every line, including blank lines.
   /// Its identity cannot alias a partial diff with the same file name.
-  init(path: String, source: String) {
+  init(path: String, source: String, themes: CodeThemePair = .init()) {
     self.path = path
+    self.themes = themes.normalized()
     fingerprint = "source:" + SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
     lines = source.components(separatedBy: "\n").enumerated().map {
       .init(id: $0.offset, text: $0.element, left: false, right: true, hunk: 0)

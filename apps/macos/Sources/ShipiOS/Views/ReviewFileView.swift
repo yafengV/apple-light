@@ -59,7 +59,7 @@ struct ReviewFileView: View {
                 }
               }
             }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-          }
+          }.background(store.appearance.codeBackgroundColor)
         }
       }
     }
@@ -81,9 +81,10 @@ struct ReviewFileView: View {
       }
       loading = false
     }
-    .task(id: (patch?.fingerprint ?? "") + file.path + String(expanded) + String(store.reviewWordDiffs)) {
+    .task(id: CodeSyntaxIdentity(path: file.path, fingerprint: (patch?.fingerprint ?? "") + String(expanded),
+      wordDiffs: store.reviewWordDiffs, themes: store.appearance.codeThemes)) {
       guard expanded, let patch else { syntax.cancel(); return }
-      await syntax.load(CodeSyntaxInput(path: file.path, diff: patch, wordDiffs: store.reviewWordDiffs))
+      await syntax.load(CodeSyntaxInput(path: file.path, diff: patch, wordDiffs: store.reviewWordDiffs, themes: store.appearance.codeThemes))
     }
     .onDisappear { syntax.cancel() }
   }
@@ -181,7 +182,7 @@ struct ReviewCodeLine: View {
         .textSelection(.enabled)
         .padding(.leading, 12)
         .padding(.trailing, 10)
-        .foregroundStyle(line.kind == .header ? Color.secondary : Color.primary)
+        .foregroundStyle(line.kind == .header ? Color.secondary : appearance.codeForegroundColor)
         .overlay {
           if line.canComment && (openEnabled || commentsEnabled) {
             CommandClickTarget(
@@ -202,8 +203,8 @@ struct ReviewCodeLine: View {
 
   private var diffBackground: Color {
     guard appearance.diffMarkerStyle == .color else { return .clear }
-    if line.kind == .addition { return Color.green.opacity(0.10) }
-    if line.kind == .deletion { return Color.red.opacity(0.10) }
+    if line.kind == .addition { return appearance.diffAddedColor.opacity(0.10) }
+    if line.kind == .deletion { return appearance.diffRemovedColor.opacity(0.10) }
     return .clear
   }
 }

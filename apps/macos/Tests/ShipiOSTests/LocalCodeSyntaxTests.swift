@@ -168,6 +168,23 @@ import XCTest
     try await Task.sleep(for: .milliseconds(25))
     XCTAssertNotEqual(hex(text, at: 0), "#0000FF"); XCTAssertNil(text.window)
   }
+  func testNativePresetChangeRejectsLateOldThemeWithIdenticalSource() async throws {
+    let (_, text) = native("let value = 1"), service = Pending(), controller = FilePreviewSyntaxController(service: service)
+    defer { controller.stop() }
+    let original = appearance()
+    controller.update(text, path: "Main.swift", source: text.string, ready: true, appearance: original); await Task.yield()
+    let github = try XCTUnwrap(original.selectingCodeTheme("github", dark: false))
+    controller.update(text, path: "Main.swift", source: text.string, ready: true, appearance: github); await Task.yield()
+    XCTAssertEqual(service.inputs.count, 2)
+    XCTAssertEqual(service.inputs[1].themes.light, "github")
+    text.setSelectedRange(.init(location: 4, length: 5)); let ranges = text.selectedRanges
+    service.continuations[1].resume(returning: plain(service.inputs[1], light: "#CF222E"))
+    try await Task.sleep(for: .milliseconds(25))
+    service.continuations[0].resume(returning: plain(service.inputs[0]))
+    try await Task.sleep(for: .milliseconds(25))
+    XCTAssertEqual(hex(text, at: 0), "#CF222E"); XCTAssertEqual(text.selectedRanges, ranges)
+    XCTAssertEqual(text.string, "let value = 1"); XCTAssertNil(text.window)
+  }
   func testFailureReloadAndSeparateNativePreviewsRemainIndependent() async throws {
     let (_, text) = native("let a = 1"), (_, other) = native("let a = 1"), service = Pending()
     let first = FilePreviewSyntaxController(service: service), second = FilePreviewSyntaxController(service: service)

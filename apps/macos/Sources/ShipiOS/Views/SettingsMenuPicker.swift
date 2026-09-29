@@ -5,6 +5,25 @@ struct SettingsMenuOption<Value: Hashable>: Equatable {
   let value: Value
   let title: String
   var enabled = true
+  var swatch: SettingsMenuSwatch? = nil
+}
+
+struct SettingsMenuSwatch: Equatable {
+  let accent: String
+  let foreground: String
+  let background: String
+  @MainActor var image: NSImage {
+    NSImage(size: .init(width: 28, height: 16), flipped: false) { rect in
+      NSColor(CodeSyntaxText.color(background) ?? .clear).setFill()
+      NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3).fill()
+      NSColor(CodeSyntaxText.color(foreground) ?? .primary).setFill()
+      NSBezierPath(rect: .init(x: 5, y: 5, width: 11, height: 2)).fill()
+      NSBezierPath(rect: .init(x: 5, y: 9, width: 8, height: 2)).fill()
+      NSColor(CodeSyntaxText.color(accent) ?? .accentColor).setFill()
+      NSBezierPath(roundedRect: .init(x: 20, y: 4, width: 4, height: 8), xRadius: 1, yRadius: 1).fill()
+      return true
+    }
+  }
 }
 
 /// A settings menu whose actual popup, rather than an inert SwiftUI wrapper,
@@ -65,6 +84,7 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
       for option in options {
         let item = NSMenuItem(title: option.title, action: nil, keyEquivalent: "")
         item.isEnabled = option.enabled
+        item.image = option.swatch?.image
         button.menu?.addItem(item)
       }
       coordinator.options = options

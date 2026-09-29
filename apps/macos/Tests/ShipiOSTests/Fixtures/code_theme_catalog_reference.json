@@ -1,0 +1,1488 @@
+{
+  "version": "26.911.61220",
+  "build": "9647",
+  "cases": [
+    {
+      "id": "ayu",
+      "label": "Ayu",
+      "variant": "dark",
+      "file": "ayu-dark-59045daadc2c.js",
+      "sha256": "aed6cd9ffc7f782a39a9c7b2ebefa79acfda5594cf5fbb7d6081a88bda6c9fd9",
+      "seed": {
+        "accent": "#e6b450",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#bfbdb6",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#70bf56",
+          "diffRemoved": "#f26d78",
+          "skill": "#d0a1ff"
+        },
+        "surface": "#10141c"
+      },
+      "patch": {
+        "accent": "#e6b450",
+        "ink": "#bfbdb6",
+        "semanticColors": {
+          "diffAdded": "#70bf56",
+          "diffRemoved": "#f26d78",
+          "skill": "#d0a1ff"
+        },
+        "surface": "#10141c"
+      }
+    },
+    {
+      "id": "catppuccin",
+      "label": "Catppuccin",
+      "variant": "dark",
+      "file": "catppuccin-mocha-927118befd47.js",
+      "sha256": "da54a77f22432ce40170ee0e06a4cfe1076de63f266fb88300ba378dbc1032a1",
+      "seed": {
+        "accent": "#cba6f7",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#cdd6f4",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#a6e3a1",
+          "diffRemoved": "#f38ba8",
+          "skill": "#cba6f7"
+        },
+        "surface": "#1e1e2e"
+      },
+      "patch": {
+        "accent": "#cba6f7",
+        "ink": "#cdd6f4",
+        "semanticColors": {
+          "diffAdded": "#a6e3a1",
+          "diffRemoved": "#f38ba8",
+          "skill": "#cba6f7"
+        },
+        "surface": "#1e1e2e"
+      }
+    },
+    {
+      "id": "catppuccin",
+      "label": "Catppuccin",
+      "variant": "light",
+      "file": "catppuccin-latte-c048339ad735.js",
+      "sha256": "f27ec29bafb05dff5a65ac8ccecd0b3fdb9d2ab852aca348a37d3d71d9017c01",
+      "seed": {
+        "accent": "#8839ef",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#4c4f69",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#40a02b",
+          "diffRemoved": "#d20f39",
+          "skill": "#8839ef"
+        },
+        "surface": "#eff1f5"
+      },
+      "patch": {
+        "accent": "#8839ef",
+        "ink": "#4c4f69",
+        "semanticColors": {
+          "diffAdded": "#40a02b",
+          "diffRemoved": "#d20f39",
+          "skill": "#8839ef"
+        },
+        "surface": "#eff1f5"
+      }
+    },
+    {
+      "id": "absolutely",
+      "label": "Absolutely",
+      "variant": "dark",
+      "file": "absolutely-dark-b2a6f19fe321.js",
+      "sha256": "d6fdcd964d0b9e73cae860f14799082f397edcd45f5b4b79e728551fd08c1a99",
+      "seed": {
+        "accent": "#cc7d5e",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#f9f9f7",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#00c853",
+          "diffRemoved": "#ff5f38",
+          "skill": "#cc7d5e"
+        },
+        "surface": "#2d2d2b"
+      },
+      "patch": {
+        "accent": "#cc7d5e",
+        "ink": "#f9f9f7",
+        "semanticColors": {
+          "diffAdded": "#00c853",
+          "diffRemoved": "#ff5f38",
+          "skill": "#cc7d5e"
+        },
+        "surface": "#2d2d2b"
+      }
+    },
+    {
+      "id": "absolutely",
+      "label": "Absolutely",
+      "variant": "light",
+      "file": "absolutely-light-8673969109af.js",
+      "sha256": "589eccff5fabcce0181ae135f5f378e16ee358ad1c223c696ef8273626629f8a",
+      "seed": {
+        "accent": "#cc7d5e",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#2d2d2b",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#00c853",
+          "diffRemoved": "#ff5f38",
+          "skill": "#cc7d5e"
+        },
+        "surface": "#f9f9f7"
+      },
+      "patch": {
+        "accent": "#cc7d5e",
+        "ink": "#2d2d2b",
+        "semanticColors": {
+          "diffAdded": "#00c853",
+          "diffRemoved": "#ff5f38",
+          "skill": "#cc7d5e"
+        },
+        "surface": "#f9f9f7"
+      }
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "variant": "dark",
+      "file": "codex-dark-c9c4e9fbc112.js",
+      "sha256": "18e559d9fc983253fb28288296bda817ee198a7363606e948c00202039ec1c0f",
+      "seed": {
+        "accent": "#0169cc",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#fcfcfc",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#00a240",
+          "diffRemoved": "#e02e2a",
+          "skill": "#b06dff"
+        },
+        "surface": "#111111"
+      },
+      "patch": {
+        "accent": "#0169cc",
+        "ink": "#fcfcfc",
+        "semanticColors": {
+          "diffAdded": "#00a240",
+          "diffRemoved": "#e02e2a",
+          "skill": "#b06dff"
+        },
+        "surface": "#111111"
+      }
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "variant": "light",
+      "file": "codex-light-d03f2716c66a.js",
+      "sha256": "bddacd4d49918c829b0d87e95ffb9f8e3ddea70d61bb191c525318f004b0f92c",
+      "seed": {
+        "accent": "#0169cc",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#0d0d0d",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#00a240",
+          "diffRemoved": "#e02e2a",
+          "skill": "#751ed9"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#0169cc",
+        "ink": "#0d0d0d",
+        "semanticColors": {
+          "diffAdded": "#00a240",
+          "diffRemoved": "#e02e2a",
+          "skill": "#751ed9"
+        },
+        "surface": "#ffffff"
+      }
+    },
+    {
+      "id": "dracula",
+      "label": "Dracula",
+      "variant": "dark",
+      "file": "dracula-605f9876c688.js",
+      "sha256": "49cba40c19154eee6fe1bf382ffc71e0e19b822bcbb0273aa11a1a6625ac36bf",
+      "seed": {
+        "accent": "#ff79c6",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#f8f8f2",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#50fa7b",
+          "diffRemoved": "#ff5555",
+          "skill": "#ff79c6"
+        },
+        "surface": "#282a36"
+      },
+      "patch": {
+        "accent": "#ff79c6",
+        "ink": "#f8f8f2",
+        "semanticColors": {
+          "diffAdded": "#50fa7b",
+          "diffRemoved": "#ff5555",
+          "skill": "#ff79c6"
+        },
+        "surface": "#282a36"
+      }
+    },
+    {
+      "id": "everforest",
+      "label": "Everforest",
+      "variant": "dark",
+      "file": "everforest-dark-63d183aa613a.js",
+      "sha256": "eadfe686def34f44a9994d0cc193c4742fd258c68e1685e33aaff729b615e1dd",
+      "seed": {
+        "accent": "#a7c080",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#d3c6aa",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#a7c080",
+          "diffRemoved": "#e67e80",
+          "skill": "#d699b6"
+        },
+        "surface": "#2d353b"
+      },
+      "patch": {
+        "accent": "#a7c080",
+        "ink": "#d3c6aa",
+        "semanticColors": {
+          "diffAdded": "#a7c080",
+          "diffRemoved": "#e67e80",
+          "skill": "#d699b6"
+        },
+        "surface": "#2d353b"
+      }
+    },
+    {
+      "id": "everforest",
+      "label": "Everforest",
+      "variant": "light",
+      "file": "everforest-light-5a517b6d12a3.js",
+      "sha256": "85a1d01fc2e6aad096447c5a4f2153f1bb5f177500e1029fdc5044d4e668978f",
+      "seed": {
+        "accent": "#93b259",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#5c6a72",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#8da101",
+          "diffRemoved": "#f85552",
+          "skill": "#df69ba"
+        },
+        "surface": "#fdf6e3"
+      },
+      "patch": {
+        "accent": "#93b259",
+        "ink": "#5c6a72",
+        "semanticColors": {
+          "diffAdded": "#8da101",
+          "diffRemoved": "#f85552",
+          "skill": "#df69ba"
+        },
+        "surface": "#fdf6e3"
+      }
+    },
+    {
+      "id": "github",
+      "label": "GitHub",
+      "variant": "dark",
+      "file": "github-dark-default-9f743f190d08.js",
+      "sha256": "e642e34e1427f88539a17cb00099e63d45357c7754c64cdd2329d3bfd662f51c",
+      "seed": {
+        "accent": "#1f6feb",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#e6edf3",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#3fb950",
+          "diffRemoved": "#f85149",
+          "skill": "#bc8cff"
+        },
+        "surface": "#0d1117"
+      },
+      "patch": {
+        "accent": "#1f6feb",
+        "ink": "#e6edf3",
+        "semanticColors": {
+          "diffAdded": "#3fb950",
+          "diffRemoved": "#f85149",
+          "skill": "#bc8cff"
+        },
+        "surface": "#0d1117"
+      }
+    },
+    {
+      "id": "github",
+      "label": "GitHub",
+      "variant": "light",
+      "file": "github-light-default-3fbb573f4f5b.js",
+      "sha256": "f766efd49c0e6f6332141e1e56dde7a6dfc623d459feebc144e8bedcf20ebfff",
+      "seed": {
+        "accent": "#0969da",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#1f2328",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#1a7f37",
+          "diffRemoved": "#cf222e",
+          "skill": "#8250df"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#0969da",
+        "ink": "#1f2328",
+        "semanticColors": {
+          "diffAdded": "#1a7f37",
+          "diffRemoved": "#cf222e",
+          "skill": "#8250df"
+        },
+        "surface": "#ffffff"
+      }
+    },
+    {
+      "id": "gruvbox",
+      "label": "Gruvbox",
+      "variant": "dark",
+      "file": "gruvbox-dark-medium-e21a3f3257c7.js",
+      "sha256": "57fd030a554d7c552cac77dc4cdd2254345eead980c2c666417a0c8f14be7402",
+      "seed": {
+        "accent": "#458588",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#ebdbb2",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#ebdbb2",
+          "diffRemoved": "#cc241d",
+          "skill": "#b16286"
+        },
+        "surface": "#282828"
+      },
+      "patch": {
+        "accent": "#458588",
+        "ink": "#ebdbb2",
+        "semanticColors": {
+          "diffAdded": "#ebdbb2",
+          "diffRemoved": "#cc241d",
+          "skill": "#b16286"
+        },
+        "surface": "#282828"
+      }
+    },
+    {
+      "id": "gruvbox",
+      "label": "Gruvbox",
+      "variant": "light",
+      "file": "gruvbox-light-medium-c6d9adc98066.js",
+      "sha256": "eed0c111ddd3af94774afcbf11eaffee4c276b596d28c465820440c1771cdb58",
+      "seed": {
+        "accent": "#458588",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#3c3836",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#3c3836",
+          "diffRemoved": "#cc241d",
+          "skill": "#b16286"
+        },
+        "surface": "#fbf1c7"
+      },
+      "patch": {
+        "accent": "#458588",
+        "ink": "#3c3836",
+        "semanticColors": {
+          "diffAdded": "#3c3836",
+          "diffRemoved": "#cc241d",
+          "skill": "#b16286"
+        },
+        "surface": "#fbf1c7"
+      }
+    },
+    {
+      "id": "linear",
+      "label": "Linear",
+      "variant": "dark",
+      "file": "linear-dark-c81a9b3ce811.js",
+      "sha256": "61b51cf5288b82310a16e4468db2f67fb4d4fe4507a21a5313d886aec9f147cc",
+      "seed": {
+        "accent": "#606acc",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": "Inter"
+        },
+        "ink": "#e3e4e6",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#69c967",
+          "diffRemoved": "#ff7e78",
+          "skill": "#c2a1ff"
+        },
+        "surface": "#0f0f11"
+      },
+      "patch": {
+        "accent": "#606acc",
+        "ink": "#e3e4e6",
+        "semanticColors": {
+          "diffAdded": "#69c967",
+          "diffRemoved": "#ff7e78",
+          "skill": "#c2a1ff"
+        },
+        "surface": "#0f0f11",
+        "fonts": {
+          "ui": "Inter"
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "linear",
+      "label": "Linear",
+      "variant": "light",
+      "file": "linear-light-2580168ffe56.js",
+      "sha256": "e276586c6186f33533fff5ff4cd6e2f2bb9483f60899f06b2e4b7490571065f7",
+      "seed": {
+        "accent": "#5e6ad2",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": "Inter"
+        },
+        "ink": "#1b1b1b",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#52a450",
+          "diffRemoved": "#c94446",
+          "skill": "#8160d8"
+        },
+        "surface": "#fcfcfd"
+      },
+      "patch": {
+        "accent": "#5e6ad2",
+        "ink": "#1b1b1b",
+        "semanticColors": {
+          "diffAdded": "#52a450",
+          "diffRemoved": "#c94446",
+          "skill": "#8160d8"
+        },
+        "surface": "#fcfcfd",
+        "fonts": {
+          "ui": "Inter"
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "lobster",
+      "label": "Lobster",
+      "variant": "dark",
+      "file": "lobster-dark-3ce181fe40b0.js",
+      "sha256": "25986f85b906aecd14954ed443afab08a636aeaa0d37702940abc4834d3e7dd6",
+      "seed": {
+        "accent": "#ff5c5c",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": "Satoshi"
+        },
+        "ink": "#e4e4e7",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#22c55e",
+          "diffRemoved": "#ff5c5c",
+          "skill": "#3b82f6"
+        },
+        "surface": "#111827"
+      },
+      "patch": {
+        "accent": "#ff5c5c",
+        "ink": "#e4e4e7",
+        "semanticColors": {
+          "diffAdded": "#22c55e",
+          "diffRemoved": "#ff5c5c",
+          "skill": "#3b82f6"
+        },
+        "surface": "#111827",
+        "fonts": {
+          "ui": "Satoshi"
+        }
+      }
+    },
+    {
+      "id": "material",
+      "label": "Material",
+      "variant": "dark",
+      "file": "material-theme-darker-92992c9f4af2.js",
+      "sha256": "a1bc1dd1f338ee47105b59a8cc32230df4de9e231f8a694c3e52f4e80c712b87",
+      "seed": {
+        "accent": "#80cbc4",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#eeffff",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#c3e88d",
+          "diffRemoved": "#f07178",
+          "skill": "#c792ea"
+        },
+        "surface": "#212121"
+      },
+      "patch": {
+        "accent": "#80cbc4",
+        "ink": "#eeffff",
+        "semanticColors": {
+          "diffAdded": "#c3e88d",
+          "diffRemoved": "#f07178",
+          "skill": "#c792ea"
+        },
+        "surface": "#212121"
+      }
+    },
+    {
+      "id": "matrix",
+      "label": "Matrix",
+      "variant": "dark",
+      "file": "matrix-dark-8e598871fc20.js",
+      "sha256": "8e2b1d159f45fb57b9fb9c8429327fa223e679ba3459a37033ddb300e228b698",
+      "seed": {
+        "accent": "#1eff5a",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": "ui-monospace, \"SFMono-Regular\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
+        },
+        "ink": "#b8ffca",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#1eff5a",
+          "diffRemoved": "#fa423e",
+          "skill": "#1eff5a"
+        },
+        "surface": "#040805"
+      },
+      "patch": {
+        "accent": "#1eff5a",
+        "ink": "#b8ffca",
+        "semanticColors": {
+          "diffAdded": "#1eff5a",
+          "diffRemoved": "#fa423e",
+          "skill": "#1eff5a"
+        },
+        "surface": "#040805",
+        "fonts": {
+          "code": null,
+          "ui": "ui-monospace, \"SFMono-Regular\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "monokai",
+      "label": "Monokai",
+      "variant": "dark",
+      "file": "monokai-b7510fddfe19.js",
+      "sha256": "61328bf9ee59fa69fef0ea32f14f7dc82e3788fbdf8e4888252594a76d1fb59c",
+      "seed": {
+        "accent": "#99947c",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#f8f8f2",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#86b42b",
+          "diffRemoved": "#c4265e",
+          "skill": "#8c6bc8"
+        },
+        "surface": "#272822"
+      },
+      "patch": {
+        "accent": "#99947c",
+        "ink": "#f8f8f2",
+        "semanticColors": {
+          "diffAdded": "#86b42b",
+          "diffRemoved": "#c4265e",
+          "skill": "#8c6bc8"
+        },
+        "surface": "#272822"
+      }
+    },
+    {
+      "id": "night-owl",
+      "label": "Night Owl",
+      "variant": "dark",
+      "file": "night-owl-451583c0d479.js",
+      "sha256": "b33f74ac12cdfaaa95d26fd27e257cc7f88eb0ae2ef551828ff5d141b4f45637",
+      "seed": {
+        "accent": "#44596b",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#d6deeb",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#c5e478",
+          "diffRemoved": "#ef5350",
+          "skill": "#c792ea"
+        },
+        "surface": "#011627"
+      },
+      "patch": {
+        "accent": "#44596b",
+        "ink": "#d6deeb",
+        "semanticColors": {
+          "diffAdded": "#c5e478",
+          "diffRemoved": "#ef5350",
+          "skill": "#c792ea"
+        },
+        "surface": "#011627"
+      }
+    },
+    {
+      "id": "nord",
+      "label": "Nord",
+      "variant": "dark",
+      "file": "nord-e28b01f8755a.js",
+      "sha256": "a2afae304c5886499799302ce0f0c0e450d290d77511b026442e53a2cf3ad214",
+      "seed": {
+        "accent": "#88c0d0",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#d8dee9",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#a3be8c",
+          "diffRemoved": "#bf616a",
+          "skill": "#b48ead"
+        },
+        "surface": "#2e3440"
+      },
+      "patch": {
+        "accent": "#88c0d0",
+        "ink": "#d8dee9",
+        "semanticColors": {
+          "diffAdded": "#a3be8c",
+          "diffRemoved": "#bf616a",
+          "skill": "#b48ead"
+        },
+        "surface": "#2e3440"
+      }
+    },
+    {
+      "id": "notion",
+      "label": "Notion",
+      "variant": "dark",
+      "file": "notion-dark-d55c52af1012.js",
+      "sha256": "c12b2c4eab28ddedcc4baf3b36301530459a08c03210652fed59089a14c134b2",
+      "seed": {
+        "accent": "#3183d8",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#d9d9d8",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#4ec9b0",
+          "diffRemoved": "#fa423e",
+          "skill": "#3183d8"
+        },
+        "surface": "#191919"
+      },
+      "patch": {
+        "accent": "#3183d8",
+        "ink": "#d9d9d8",
+        "semanticColors": {
+          "diffAdded": "#4ec9b0",
+          "diffRemoved": "#fa423e",
+          "skill": "#3183d8"
+        },
+        "surface": "#191919",
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "notion",
+      "label": "Notion",
+      "variant": "light",
+      "file": "notion-light-1bb891c506ed.js",
+      "sha256": "d4639379be96cef38b2fddb32f2c010bccf80068615cb82bc196fca900302331",
+      "seed": {
+        "accent": "#3183d8",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#37352f",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#008000",
+          "diffRemoved": "#a31515",
+          "skill": "#0000ff"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#3183d8",
+        "ink": "#37352f",
+        "semanticColors": {
+          "diffAdded": "#008000",
+          "diffRemoved": "#a31515",
+          "skill": "#0000ff"
+        },
+        "surface": "#ffffff",
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "oscurange",
+      "label": "Oscurange",
+      "variant": "dark",
+      "file": "oscurange-ca5be35ab399.js",
+      "sha256": "2656af8170a589876d2e4e60f7bfc35d8e4731aee0cdd20cb2c9e47789bc5c77",
+      "seed": {
+        "accent": "#f9b98c",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#e6e6e6",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#40c977",
+          "diffRemoved": "#fa423e",
+          "skill": "#479ffa"
+        },
+        "surface": "#0b0b0f"
+      },
+      "patch": {
+        "accent": "#f9b98c",
+        "ink": "#e6e6e6",
+        "semanticColors": {
+          "diffAdded": "#40c977",
+          "diffRemoved": "#fa423e",
+          "skill": "#479ffa"
+        },
+        "surface": "#0b0b0f"
+      }
+    },
+    {
+      "id": "one",
+      "label": "One",
+      "variant": "dark",
+      "file": "one-dark-pro-2efc50d2f63a.js",
+      "sha256": "05d41399ee67a5cb4b4a47640e19b05108bca762f2c74df6a196995f7bd2040f",
+      "seed": {
+        "accent": "#4d78cc",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#abb2bf",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#8cc265",
+          "diffRemoved": "#e05561",
+          "skill": "#c162de"
+        },
+        "surface": "#282c34"
+      },
+      "patch": {
+        "accent": "#4d78cc",
+        "ink": "#abb2bf",
+        "semanticColors": {
+          "diffAdded": "#8cc265",
+          "diffRemoved": "#e05561",
+          "skill": "#c162de"
+        },
+        "surface": "#282c34"
+      }
+    },
+    {
+      "id": "one",
+      "label": "One",
+      "variant": "light",
+      "file": "one-light-398a59da71b1.js",
+      "sha256": "d326e7e7c1f8bbf721103521bd5bf692510831e65f0c6d1197354deac001945c",
+      "seed": {
+        "accent": "#526fff",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#383a42",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#3bba54",
+          "diffRemoved": "#e45649",
+          "skill": "#526fff"
+        },
+        "surface": "#fafafa"
+      },
+      "patch": {
+        "accent": "#526fff",
+        "ink": "#383a42",
+        "semanticColors": {
+          "diffAdded": "#3bba54",
+          "diffRemoved": "#e45649",
+          "skill": "#526fff"
+        },
+        "surface": "#fafafa"
+      }
+    },
+    {
+      "id": "proof",
+      "label": "Proof",
+      "variant": "light",
+      "file": "proof-light-474d66c3e2ba.js",
+      "sha256": "d3f8cd43483d380622e6302280170afd134dee0adf8b931b89a9c9d961251aa0",
+      "seed": {
+        "accent": "#3d755d",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#2f312d",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#3d755d",
+          "diffRemoved": "#ba2623",
+          "skill": "#5f6ac2"
+        },
+        "surface": "#f5f3ed"
+      },
+      "patch": {
+        "accent": "#3d755d",
+        "ink": "#2f312d",
+        "semanticColors": {
+          "diffAdded": "#3d755d",
+          "diffRemoved": "#ba2623",
+          "skill": "#5f6ac2"
+        },
+        "surface": "#f5f3ed",
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "opaqueWindows": false
+      }
+    },
+    {
+      "id": "raycast",
+      "label": "Raycast",
+      "variant": "dark",
+      "file": "raycast-dark-f8661fad1789.js",
+      "sha256": "2beb72ab0f32f82aa612412c0e98ca732cef073e2fa6dbd86878def7fe5d455d",
+      "seed": {
+        "accent": "#ff6363",
+        "contrast": 60,
+        "fonts": {
+          "code": "\"Jetbrains Mono\"",
+          "ui": "Inter"
+        },
+        "ink": "#fefefe",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#59d499",
+          "diffRemoved": "#ff6363",
+          "skill": "#cf2f98"
+        },
+        "surface": "#101010"
+      },
+      "patch": {
+        "accent": "#ff6363",
+        "ink": "#fefefe",
+        "semanticColors": {
+          "diffAdded": "#59d499",
+          "diffRemoved": "#ff6363",
+          "skill": "#cf2f98"
+        },
+        "surface": "#101010",
+        "fonts": {
+          "code": "\"Jetbrains Mono\"",
+          "ui": "Inter"
+        },
+        "opaqueWindows": false
+      }
+    },
+    {
+      "id": "raycast",
+      "label": "Raycast",
+      "variant": "light",
+      "file": "raycast-light-93a89c5d6aff.js",
+      "sha256": "5b14fc832529f0c2f4a06ec5359905d39b80e4fcb926530f0f4e50a45edf728f",
+      "seed": {
+        "accent": "#ff6363",
+        "contrast": 45,
+        "fonts": {
+          "code": "\"Jetbrains Mono\"",
+          "ui": "Inter"
+        },
+        "ink": "#030303",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#006b4f",
+          "diffRemoved": "#b12424",
+          "skill": "#9a1b6e"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#ff6363",
+        "ink": "#030303",
+        "semanticColors": {
+          "diffAdded": "#006b4f",
+          "diffRemoved": "#b12424",
+          "skill": "#9a1b6e"
+        },
+        "surface": "#ffffff",
+        "fonts": {
+          "code": "\"Jetbrains Mono\"",
+          "ui": "Inter"
+        },
+        "opaqueWindows": false
+      }
+    },
+    {
+      "id": "rose-pine",
+      "label": "Rose Pine",
+      "variant": "dark",
+      "file": "rose-pine-moon-2a58dc938e12.js",
+      "sha256": "29d9e3c83cd9f18005d199dfd039deade181e3e777175c8434b0196ca7ed09c4",
+      "seed": {
+        "accent": "#ea9a97",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#e0def4",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#9ccfd8",
+          "diffRemoved": "#908caa",
+          "skill": "#c4a7e7"
+        },
+        "surface": "#232136"
+      },
+      "patch": {
+        "accent": "#ea9a97",
+        "ink": "#e0def4",
+        "semanticColors": {
+          "diffAdded": "#9ccfd8",
+          "diffRemoved": "#908caa",
+          "skill": "#c4a7e7"
+        },
+        "surface": "#232136"
+      }
+    },
+    {
+      "id": "rose-pine",
+      "label": "Rose Pine",
+      "variant": "light",
+      "file": "rose-pine-dawn-5610f6c37daa.js",
+      "sha256": "8aac9eabdd887606d061426b09b6d26834187f29b21bbc2a72cec1c3fb2bbc07",
+      "seed": {
+        "accent": "#d7827e",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#575279",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#56949f",
+          "diffRemoved": "#797593",
+          "skill": "#907aa9"
+        },
+        "surface": "#faf4ed"
+      },
+      "patch": {
+        "accent": "#d7827e",
+        "ink": "#575279",
+        "semanticColors": {
+          "diffAdded": "#56949f",
+          "diffRemoved": "#797593",
+          "skill": "#907aa9"
+        },
+        "surface": "#faf4ed"
+      }
+    },
+    {
+      "id": "sentry",
+      "label": "Sentry",
+      "variant": "dark",
+      "file": "sentry-dark-adf801c6f5dd.js",
+      "sha256": "5d94bda0b4196a096cb0816dee2e518e3116cd89632869431b8309e378234bb3",
+      "seed": {
+        "accent": "#7055f6",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#e6dff9",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#8ee6d7",
+          "diffRemoved": "#fa423e",
+          "skill": "#7055f6"
+        },
+        "surface": "#2d2935"
+      },
+      "patch": {
+        "accent": "#7055f6",
+        "ink": "#e6dff9",
+        "semanticColors": {
+          "diffAdded": "#8ee6d7",
+          "diffRemoved": "#fa423e",
+          "skill": "#7055f6"
+        },
+        "surface": "#2d2935",
+        "fonts": {
+          "code": null,
+          "ui": null
+        }
+      }
+    },
+    {
+      "id": "solarized",
+      "label": "Solarized",
+      "variant": "dark",
+      "file": "solarized-dark-900bef69d7b6.js",
+      "sha256": "e2a2b65d89cf41f2ecb76dbf3bee3a7e59cf53ecf07bdc70aa27fa7bc0760683",
+      "seed": {
+        "accent": "#d30102",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#839496",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#859900",
+          "diffRemoved": "#dc322f",
+          "skill": "#d33682"
+        },
+        "surface": "#002b36"
+      },
+      "patch": {
+        "accent": "#d30102",
+        "ink": "#839496",
+        "semanticColors": {
+          "diffAdded": "#859900",
+          "diffRemoved": "#dc322f",
+          "skill": "#d33682"
+        },
+        "surface": "#002b36"
+      }
+    },
+    {
+      "id": "solarized",
+      "label": "Solarized",
+      "variant": "light",
+      "file": "solarized-light-add32a0c42a0.js",
+      "sha256": "bec07b7a0af2f27cfb16ff5ae4ca46f8309611228d04f39ba9cc4c6ab8c8d1dd",
+      "seed": {
+        "accent": "#b58900",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#657b83",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#859900",
+          "diffRemoved": "#dc322f",
+          "skill": "#d33682"
+        },
+        "surface": "#fdf6e3"
+      },
+      "patch": {
+        "accent": "#b58900",
+        "ink": "#657b83",
+        "semanticColors": {
+          "diffAdded": "#859900",
+          "diffRemoved": "#dc322f",
+          "skill": "#d33682"
+        },
+        "surface": "#fdf6e3"
+      }
+    },
+    {
+      "id": "tokyo-night",
+      "label": "Tokyo Night",
+      "variant": "dark",
+      "file": "tokyo-night-ad7e7fceed95.js",
+      "sha256": "049b72c0386d124abb4ef9ca2fb709adcf2de43dd586c01b082a1b785029aada",
+      "seed": {
+        "accent": "#3d59a1",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#a9b1d6",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#449dab",
+          "diffRemoved": "#914c54",
+          "skill": "#9d7cd8"
+        },
+        "surface": "#1a1b26"
+      },
+      "patch": {
+        "accent": "#3d59a1",
+        "ink": "#a9b1d6",
+        "semanticColors": {
+          "diffAdded": "#449dab",
+          "diffRemoved": "#914c54",
+          "skill": "#9d7cd8"
+        },
+        "surface": "#1a1b26"
+      }
+    },
+    {
+      "id": "temple",
+      "label": "Temple",
+      "variant": "dark",
+      "file": "temple-dark-c776427ae904.js",
+      "sha256": "b69be1350686f2dc0109cbe900c52e02c4e9b72ad5c8feaf88c02a6bcdb87cc1",
+      "seed": {
+        "accent": "#e4f222",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#c7e6da",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#40c977",
+          "diffRemoved": "#fa423e",
+          "skill": "#e4f222"
+        },
+        "surface": "#02120c"
+      },
+      "patch": {
+        "accent": "#e4f222",
+        "ink": "#c7e6da",
+        "semanticColors": {
+          "diffAdded": "#40c977",
+          "diffRemoved": "#fa423e",
+          "skill": "#e4f222"
+        },
+        "surface": "#02120c"
+      }
+    },
+    {
+      "id": "vercel",
+      "label": "Vercel",
+      "variant": "dark",
+      "file": "vercel-dark-8171f12b5dd4.js",
+      "sha256": "784ea606a70d328cf261fca1c826e54dbfbde6059931b97bccf347e94ebebfa0",
+      "seed": {
+        "accent": "#006efe",
+        "contrast": 50,
+        "fonts": {
+          "code": "\"Geist Mono\", ui-monospace, \"SFMono-Regular\"",
+          "ui": "Geist, Inter"
+        },
+        "ink": "#ededed",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#00AD3A",
+          "diffRemoved": "#F13342",
+          "skill": "#9540D5"
+        },
+        "surface": "#000000"
+      },
+      "patch": {
+        "accent": "#006efe",
+        "ink": "#ededed",
+        "semanticColors": {
+          "diffAdded": "#00AD3A",
+          "diffRemoved": "#F13342",
+          "skill": "#9540D5"
+        },
+        "surface": "#000000",
+        "contrast": 50,
+        "fonts": {
+          "code": "\"Geist Mono\", ui-monospace, \"SFMono-Regular\"",
+          "ui": "Geist, Inter"
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "vercel",
+      "label": "Vercel",
+      "variant": "light",
+      "file": "vercel-light-89000c75bc6b.js",
+      "sha256": "bd17959a15e01e79aebcac6f081ddf2bdf1aa302e436fb068c349e216d1f19e1",
+      "seed": {
+        "accent": "#006aff",
+        "contrast": 40,
+        "fonts": {
+          "code": "\"Geist Mono\", ui-monospace, \"SFMono-Regular\"",
+          "ui": "Geist, Inter"
+        },
+        "ink": "#171717",
+        "opaqueWindows": true,
+        "semanticColors": {
+          "diffAdded": "#28A948",
+          "diffRemoved": "#EB001D",
+          "skill": "#A100F8"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#006aff",
+        "ink": "#171717",
+        "semanticColors": {
+          "diffAdded": "#28A948",
+          "diffRemoved": "#EB001D",
+          "skill": "#A100F8"
+        },
+        "surface": "#ffffff",
+        "contrast": 40,
+        "fonts": {
+          "code": "\"Geist Mono\", ui-monospace, \"SFMono-Regular\"",
+          "ui": "Geist, Inter"
+        },
+        "opaqueWindows": true
+      }
+    },
+    {
+      "id": "vscode-plus",
+      "label": "VS Code Plus",
+      "variant": "dark",
+      "file": "dark-plus-ca88dbaf67a9.js",
+      "sha256": "f568229fc5352c0ebe03a07cbbf9c602d0053e11ed3963bc5cda59321a5c6841",
+      "seed": {
+        "accent": "#007acc",
+        "contrast": 60,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#d4d4d4",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#369432",
+          "diffRemoved": "#f44747",
+          "skill": "#000080"
+        },
+        "surface": "#1e1e1e"
+      },
+      "patch": {
+        "accent": "#007acc",
+        "ink": "#d4d4d4",
+        "semanticColors": {
+          "diffAdded": "#369432",
+          "diffRemoved": "#f44747",
+          "skill": "#000080"
+        },
+        "surface": "#1e1e1e"
+      }
+    },
+    {
+      "id": "vscode-plus",
+      "label": "VS Code Plus",
+      "variant": "light",
+      "file": "light-plus-d73511b75757.js",
+      "sha256": "e2c2157971908dbf2c1b7ad8d915a69e7fa4c6a8c3a16bc68f569f7881f45842",
+      "seed": {
+        "accent": "#007acc",
+        "contrast": 45,
+        "fonts": {
+          "code": null,
+          "ui": null
+        },
+        "ink": "#000000",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#008000",
+          "diffRemoved": "#ee0000",
+          "skill": "#0000ff"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#007acc",
+        "ink": "#000000",
+        "semanticColors": {
+          "diffAdded": "#008000",
+          "diffRemoved": "#ee0000",
+          "skill": "#0000ff"
+        },
+        "surface": "#ffffff"
+      }
+    },
+    {
+      "id": "xcode",
+      "label": "Xcode",
+      "variant": "dark",
+      "file": "xcode-dark-9d2f28e07b66.js",
+      "sha256": "e08a654d7aac39058b58ef1ce87e03a45b902040402b270b1a1dc610550e4701",
+      "seed": {
+        "accent": "#5482ff",
+        "contrast": 60,
+        "fonts": {
+          "code": "\"SFMono-Medium\"",
+          "ui": null
+        },
+        "ink": "#ffffff",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#67b7a4",
+          "diffRemoved": "#fc6a5d",
+          "skill": "#5482ff"
+        },
+        "surface": "#1f1f24"
+      },
+      "patch": {
+        "accent": "#5482ff",
+        "ink": "#ffffff",
+        "semanticColors": {
+          "diffAdded": "#67b7a4",
+          "diffRemoved": "#fc6a5d",
+          "skill": "#5482ff"
+        },
+        "surface": "#1f1f24",
+        "fonts": {
+          "code": "\"SFMono-Medium\""
+        }
+      }
+    },
+    {
+      "id": "xcode",
+      "label": "Xcode",
+      "variant": "light",
+      "file": "xcode-light-3ca756033264.js",
+      "sha256": "aafb30e3b96e4873376cc49084967ef8aa0763046d8da81234be65e5e91442f0",
+      "seed": {
+        "accent": "#0e0eff",
+        "contrast": 45,
+        "fonts": {
+          "code": "\"SFMono-Regular\"",
+          "ui": null
+        },
+        "ink": "#000000",
+        "opaqueWindows": false,
+        "semanticColors": {
+          "diffAdded": "#00a240",
+          "diffRemoved": "#c41a16",
+          "skill": "#0e0eff"
+        },
+        "surface": "#ffffff"
+      },
+      "patch": {
+        "accent": "#0e0eff",
+        "ink": "#000000",
+        "semanticColors": {
+          "diffAdded": "#00a240",
+          "diffRemoved": "#c41a16",
+          "skill": "#0e0eff"
+        },
+        "surface": "#ffffff",
+        "fonts": {
+          "code": "\"SFMono-Regular\""
+        }
+      }
+    }
+  ]
+}

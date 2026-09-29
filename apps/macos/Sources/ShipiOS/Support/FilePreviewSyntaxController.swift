@@ -23,12 +23,15 @@ import SwiftUI
       stop(); self.path = nil; self.source = nil; input = nil; result = nil
       paint(text); return
     }
-    if self.path == path, self.source?.utf8.elementsEqual(source.utf8) == true {
+    let sameSource = self.path == path && self.source?.utf8.elementsEqual(source.utf8) == true
+    if sameSource, input?.themes == appearance.codeThemes {
       paint(text); return
     }
     stop(); self.path = path; self.source = source
-    let input = CodeSyntaxInput(path: path, source: source)
-    self.input = input; result = nil; error = nil; paintedAppearance = nil
+    let input = CodeSyntaxInput(path: path, source: source, themes: appearance.codeThemes)
+    self.input = input
+    if !sameSource { result = nil }
+    error = nil; paintedAppearance = nil
     paint(text)
     let token = generation, service = service
     task = Task { [weak self, weak text] in
@@ -52,7 +55,8 @@ import SwiftUI
     guard paintedAppearance != appearance || paintedDark != dark else { return }
     paintedAppearance = appearance; paintedDark = dark
     let font = appearance.nativeFont(size: 12, code: true)
-    let color = NSColor(appearance.foregroundColor)
+    let color = NSColor(appearance.codeForegroundColor)
+    text.drawsBackground = true; text.backgroundColor = NSColor(appearance.codeBackgroundColor)
     guard let storage = text.textStorage else { return }
     let selection = text.selectedRanges, origin = text.enclosingScrollView?.contentView.bounds.origin
     storage.beginEditing()

@@ -62,11 +62,12 @@ private struct LastTurnReviewFileView: View {
               }
             }
           }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-        }
+        }.background(store.appearance.codeBackgroundColor)
       }
     }.overlay(Rectangle().stroke(Color.primary.opacity(0.08), lineWidth: 1).allowsHitTesting(false))
-      .task(id: diff.fingerprint + file.path + String(expanded) + String(store.reviewWordDiffs)) {
-        if expanded { await syntax.load(CodeSyntaxInput(path: file.path, diff: diff, wordDiffs: store.reviewWordDiffs)) }
+      .task(id: CodeSyntaxIdentity(path: file.path, fingerprint: diff.fingerprint + String(expanded),
+        wordDiffs: store.reviewWordDiffs, themes: store.appearance.codeThemes)) {
+        if expanded { await syntax.load(CodeSyntaxInput(path: file.path, diff: diff, wordDiffs: store.reviewWordDiffs, themes: store.appearance.codeThemes)) }
         else { syntax.cancel() }
       }
       .onDisappear { syntax.cancel() }

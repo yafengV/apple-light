@@ -33,8 +33,10 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
       .onChange(of: inline?.discussion.staleInline) { _, anchor in
         if anchor?.identity == inline?.code.identity { selection.clear() }
       }
-      .task(id: file.path + file.diff.fingerprint + String(collapsed) + String(wordDiffsEnabled)) {
-        if collapsed || file.binary { syntax.cancel() } else { await syntax.load(.init(file, wordDiffs: wordDiffsEnabled)) }
+      .task(id: CodeSyntaxIdentity(path: file.path, fingerprint: file.diff.fingerprint + String(collapsed),
+        wordDiffs: wordDiffsEnabled, themes: appearance.codeThemes)) {
+        if collapsed || file.binary { syntax.cancel() }
+        else { await syntax.load(.init(file, wordDiffs: wordDiffsEnabled, themes: appearance.codeThemes)) }
       }
       .onDisappear { syntax.cancel() }
   }
@@ -78,6 +80,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
           }.padding(8)
         }
     }.frame(minWidth: state.wrap && viewportWidth != nil ? 0 : (state.split ? 560 : 300), maxWidth: .infinity, alignment: .leading)
+      .background(appearance.codeBackgroundColor)
   }
   @ViewBuilder private func splitCell(_ line: ReviewDiffLine?, left: Bool) -> some View {
     HStack(alignment: .top, spacing: 0) {
@@ -138,13 +141,13 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
       marker: appearance.diffMarkerStyle, dark: appearance.isDark).appFont(size: 11, design: .monospaced)
       .textSelection(.enabled).fixedSize(horizontal: !state.wrap, vertical: true)
       .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8)
-      .foregroundStyle(line.kind == .header ? Color.secondary : Color.primary)
+      .foregroundStyle(line.kind == .header ? Color.secondary : appearance.codeForegroundColor)
   }
   private func background(_ line: ReviewDiffLine) -> Color {
     if let target = state.position, file.matches(target),
       (target.side == .left ? line.oldLine : line.newLine) == target.line { return appearance.accentColor.opacity(0.2) }
     guard appearance.diffMarkerStyle == .color else { return .clear }
-    switch line.kind { case .addition: return .green.opacity(0.1); case .deletion: return .red.opacity(0.1); default: return .clear }
+    switch line.kind { case .addition: return appearance.diffAddedColor.opacity(0.1); case .deletion: return appearance.diffRemovedColor.opacity(0.1); default: return .clear }
   }
   private func lineThreads(_ line: ReviewDiffLine) -> [GitHubPRReviewThread] {
     threads.filter { thread in

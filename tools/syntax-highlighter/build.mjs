@@ -14,6 +14,7 @@ if (Object.values(result.metafile.outputs).some(output => output.imports.length)
 }
 const javascript = result.outputFiles.find(file => !file.path.endsWith('.LEGAL.txt'));
 await writeFile(path.join(destination, 'engine.js'), javascript.contents);
+await writeFile(path.join(destination, 'theme-catalog.json'), await readFile('theme-catalog.json'));
 const legal = result.outputFiles.find(file => file.path.endsWith('.LEGAL.txt'));
 if (legal) await writeFile(path.join(destination, 'engine.js.LEGAL.txt'), legal.contents);
 const packages = new Set(Object.keys(result.metafile.inputs).flatMap(file => {

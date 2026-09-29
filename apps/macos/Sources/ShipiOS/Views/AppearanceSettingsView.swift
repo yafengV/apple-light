@@ -11,6 +11,7 @@ struct AppearanceSettingsView: View {
 
   var body: some View {
     Form {
+      if let error = store.generalSettingsError { Text(error).foregroundStyle(.red).textSelection(.enabled) }
       Section("主题") {
         SettingsMenuPicker("基础主题", selection: binding(\.theme), options: [
           SettingsMenuOption(value: "system", title: "跟随系统"),
@@ -76,7 +77,7 @@ struct AppearanceSettingsView: View {
       ) {
         FontSelectionView(
           code: selectingCodeFont == true,
-          selection: selectingCodeFont == true ? binding(\.codeFont) : binding(\.uiFont))
+          selection: fontBinding(code: selectingCodeFont == true))
       }
       .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
         do {
@@ -86,8 +87,8 @@ struct AppearanceSettingsView: View {
           let handle = try FileHandle(forReadingFrom: url)
           defer { try? handle.close() }
           let data = try handle.read(upToCount: 65_537) ?? Data()
-          store.appearance = try AppearanceThemeFile.decode(data)
-          status = "已导入主题。"
+          let value = try AppearanceThemeFile.decode(data)
+          status = store.commitAppearance(value) ? "已导入主题。" : "导入失败：" + (store.generalSettingsError ?? "主题未保存。")
         } catch { status = "导入失败：" + error.localizedDescription }
       }
       .fileExporter(
@@ -130,7 +131,7 @@ struct AppearanceSettingsView: View {
     let background = dark
       ? Color(.sRGB, red: 0.095, green: 0.095, blue: 0.095, opacity: 1) : .white
     let foreground = dark ? Color.white : Color(.sRGB, white: 0.05, opacity: 1)
-    return Section(title) {
+    return Section {
       paletteColorRow("强调色", palette: key, value: \.accent, fallback: .blue)
       paletteColorRow("背景色", palette: key, value: \.background, fallback: background)
       paletteColorRow("前景色", palette: key, value: \.foreground, fallback: foreground)
@@ -153,6 +154,21 @@ struct AppearanceSettingsView: View {
         .overlay(
           RoundedRectangle(cornerRadius: 8).strokeBorder(
             palette.accent.flatMap(AppearancePreferences.color) ?? .blue, lineWidth: 1))
+    } header: {
+      HStack {
+        Text(title)
+        Spacer(minLength: 8)
+        SettingsMenuInput(title: dark ? "深色代码主题" : "浅色代码主题", selection: Binding(
+          get: { dark ? store.appearance.codeThemes.dark : store.appearance.codeThemes.light },
+          set: { _ = store.selectCodeTheme($0, dark: dark) }), options: CodeThemeCatalog.options(dark: dark).compactMap { preset in
+            guard let variant = preset.variant(dark: dark), let accent = variant.seed.accent,
+              let foreground = variant.seed.ink, let background = variant.seed.surface else { return nil }
+            return SettingsMenuOption(value: preset.id, title: preset.label,
+              swatch: .init(accent: accent, foreground: foreground, background: background))
+          })
+          .disabled(!store.libraryLoaded)
+          .settingsSearchTarget(dark ? .darkCodeTheme : .lightCodeTheme)
+      }
     }
   }
   private func fontRow(_ title: String, code: Bool) -> some View {
@@ -160,13 +176,24 @@ struct AppearanceSettingsView: View {
       Button {
         selectingCodeFont = code
       } label: {
-        let family = code ? store.appearance.codeFont : store.appearance.uiFont
+        let family = code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont
         Text(family.isEmpty ? "系统默认" : family)
       }.accessibilityLabel("选择" + title)
         .accessibilityValue(
-          (code ? store.appearance.codeFont : store.appearance.uiFont).isEmpty
-            ? "系统默认" : (code ? store.appearance.codeFont : store.appearance.uiFont))
+          (code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont).isEmpty
+            ? "系统默认" : (code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont))
     }
+  }
+  private func fontBinding(code: Bool) -> Binding<String> {
+    Binding(get: { code ? store.appearance.effectiveCodeFont : store.appearance.effectiveUIFont }, set: { family in
+      var value = store.appearance
+      if value.isDark {
+        if code { value.dark.codeFont = family } else { value.dark.uiFont = family }
+      } else {
+        if code { value.light.codeFont = family } else { value.light.uiFont = family }
+      }
+      store.appearance = value
+    })
   }
   private func paletteColorRow(
     _ title: String, palette: WritableKeyPath<AppearancePreferences, AppearancePalette>,
