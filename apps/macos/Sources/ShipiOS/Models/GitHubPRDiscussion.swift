@@ -17,7 +17,7 @@ struct GitHubPRComment: Codable, Identifiable, Equatable, Sendable {
   var avatarURL: String? = nil
   var submittedAt: String? = nil
   var activityDate: String { kind == .review ? submittedAt ?? createdAt : createdAt }
-  var quotedBody: String { body.components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
+  var quotedBody: String { body.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
 }
 
 struct GitHubPRReviewThread: Codable, Identifiable, Equatable, Sendable {

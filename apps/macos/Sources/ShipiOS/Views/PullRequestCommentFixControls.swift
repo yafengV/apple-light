@@ -56,7 +56,7 @@ struct PullRequestCommentComposerAttachments: View {
             VStack(alignment: .leading, spacing: 10) {
               ForEach(draft.comments) { attachment in
                 VStack(alignment: .leading, spacing: 6) {
-                  Text(attachment.thread.path + attachment.thread.line.map { ":\($0)" }.orEmpty)
+                  Text(attachment.position.map { $0.path + " · " + $0.label } ?? attachment.thread.path)
                     .appFont(.caption).textSelection(.enabled)
                   Text(attachment.body).appFont(.caption).lineLimit(5).textSelection(.enabled)
                   PullRequestCommentGuidanceView(attachment: attachment,
@@ -71,4 +71,3 @@ struct PullRequestCommentComposerAttachments: View {
     }
   }
 }
-private extension Optional where Wrapped == String { var orEmpty: String { self ?? "" } }

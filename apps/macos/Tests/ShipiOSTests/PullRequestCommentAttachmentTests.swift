@@ -73,7 +73,11 @@ import XCTest
 
   func testOnlyUnresolvedPositionedThreadsAttachAndRepliesAreCaptured() async throws {
     let store = try await fixture()
-    let selected = [thread(), thread("resolved", resolved: true), thread("no-line", line: nil), thread("no-side", side: nil)]
+    var unpositioned = thread("no-line", line: nil)
+    unpositioned = .init(id: unpositioned.id, path: unpositioned.path, line: nil, originalLine: nil, diffHunk: "",
+      isResolved: false, isOutdated: false, canReply: true, canResolve: true, canUnresolve: false,
+      comments: unpositioned.comments, diffSide: "RIGHT")
+    let selected = [thread(), thread("resolved", resolved: true), unpositioned, thread("no-side", side: nil)]
     try await attachComments(selected, store: store)
     let draft = try XCTUnwrap(store.pullRequestCheckDraft)
     XCTAssertEqual(draft.comments.map(\.id), ["one"]); XCTAssertTrue(draft.checks.isEmpty)
@@ -82,6 +86,19 @@ import XCTest
     XCTAssertTrue(store.library.chatRuns.isEmpty)
     let cold = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
     XCTAssertEqual(cold.pullRequestCheckDrafts, store.library.pullRequestCheckDrafts)
+  }
+
+  func testOutdatedOriginalLocationAttachmentsSurviveColdRestoreAndQueue() async throws {
+    let store = try await fixture(), item = thread("outdated", line: nil)
+    try await attachComments([item], store: store)
+    let attachment = try XCTUnwrap(store.pullRequestCheckDraft?.comments.first)
+    XCTAssertEqual(attachment.position?.line, 10); XCTAssertEqual(attachment.position?.startLine, 6)
+    let cold = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(cold.pullRequestCheckDrafts["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]?.comments.first, attachment)
+    active(store); store.draft = "Fix outdated feedback"; await store.sendDraft()
+    let queued = try XCTUnwrap(store.library.queuedMessages.first)
+    XCTAssertEqual(queued.pullRequestChecks?.comments.first?.position, attachment.position)
+    XCTAssertNil(queued.pullRequestChecks?.comments.first?.thread.line)
   }
 
   func testDeduplicationPreservesGuidanceAndManualPromptWhileAutoPromptCanBeReplaced() async throws {
@@ -210,9 +227,12 @@ import XCTest
       var configuration = ModelConfiguration(); configuration.apiProtocol = api
       configuration.baseURL = endpoint; configuration.model = api == .codexResponses ? "gpt-5.4" : "fixture-model"
       try store.saveModelConfiguration(configuration); store.notificationPreferences = .init(timing: .never)
-      try await attachComments([thread("selected")], store: store)
+      try await attachComments([thread("selected", line: nil)], store: store)
       XCTAssertTrue(store.setPullRequestCommentGuidance("Minimal change only", id: "selected", taskID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"))
       let saved = try XCTUnwrap(store.pullRequestCheckDraft)
+      XCTAssertNil(saved.comments[0].thread.line)
+      XCTAssertEqual(saved.comments[0].position?.line, 10)
+      XCTAssertEqual(saved.comments[0].position?.startLine, 6)
       if api == .chatCompletions {
         store.draft = "Check the selected CI"; await store.sendDraft()
       } else {
@@ -232,6 +252,7 @@ import XCTest
       let received = try String(contentsOf: log, encoding: .utf8)
       XCTAssertTrue(received.contains("Feedback selected")); XCTAssertTrue(received.contains("Reply selected") && received.contains("Minimal change only") && received.contains("RIGHT"))
       XCTAssertTrue(received.contains("sample/project/pull/42")); XCTAssertTrue(received.contains(saved.headRevision))
+      XCTAssertTrue(received.contains("start_line") && received.contains("position"))
       XCTAssertEqual(store.library.task(containing: run.id)?.id, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
       XCTAssertTrue(store.library.notes[run.id]?.contains("附加的 PR 审查线程") == true)
     }
