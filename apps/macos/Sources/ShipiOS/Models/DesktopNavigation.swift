@@ -1,6 +1,8 @@
 import Foundation
 
 struct DesktopCommand: Identifiable {
+  // Theme is a command-menu contributor, without a global shortcut command.
+  static let theme = Self(id: "theme", title: "主题", icon: "sun.max", shortcut: "")
   let id: String
   let title: String
   let icon: String
@@ -169,7 +171,7 @@ extension DesktopCommand {
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels
     case "projects", "project-picker", "open", "branch", "environment-action-1", "doctor", "build", "copy-location": .project
-    case "settings", "shortcuts", "plugins", "mcp-status", "automations": .configure
+    case "theme", "settings", "shortcuts", "plugins", "mcp-status", "automations": .configure
     case "open-skills", "reload-skills": .skills
     default: .app
     }

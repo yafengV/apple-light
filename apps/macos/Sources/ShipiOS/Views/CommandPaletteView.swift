@@ -10,6 +10,7 @@ struct CommandPaletteView: View {
   @State private var reload = UUID()
   @State private var cyclingSearchSections = false
   @State private var pointerSelection = false
+  @State var themeMenu = ThemeCommandMenu()
   @FocusState private var focus: Field?
   private enum Field { case query, cancel, retry, gitRetry }
   private struct ResultGroup: Identifiable {
@@ -18,29 +19,43 @@ struct CommandPaletteView: View {
     var commands: [DesktopCommand] = []
     var tasks: [TaskSearchResult] = []
     var browsers: [CommandBrowserResult] = []
+    var themes: [ThemeCommandItem] = []
   }
   private var searchQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
   private var request: TaskSearchRequest {
     TaskSearchRequest(query: searchQuery,
-      tasks: CommandMenuSearch.searchesTasks(query) ? store.library.tasks : [],
+      tasks: !themeMenu.entered && CommandMenuSearch.searchesTasks(query) ? store.library.tasks : [],
       names: store.library.projectNames, notes: store.library.notes, branches: store.library.runBranches,
       runs: catalog.history + store.library.localRuns + store.runs,
-      includeContentResults: CommandMenuSearch.searchesContent(query))
+      includeContentResults: !themeMenu.entered && CommandMenuSearch.searchesContent(query))
   }
   private var matches: [DesktopCommand] {
-    Self.matchingCommands(searchQuery, git: gitCommands)
+    Self.matchingCommands(searchQuery, git: gitCommands, appearance: store.appearance)
   }
-  static func matchingCommands(_ query: String, git: GitWorkflowCommandContext?) -> [DesktopCommand] {
-    DesktopCommand.search(query: query).filter {
+  static func matchingCommands(_ query: String, git: GitWorkflowCommandContext?, appearance: AppearancePreferences? = nil) -> [DesktopCommand] {
+    var matches = DesktopCommand.search(query: query)
+    if let appearance {
+      matches.removeAll { $0.id == "theme" }
+      if ThemeCommandMenu.rootMatches(query, appearance: appearance) {
+        matches.append(.theme)
+      }
+    }
+    return matches.filter {
       !GitWorkflowCommandContext.owns($0.id) || git?.enabled($0.id) == true
     }
   }
   private var taskResults: [TaskSearchResult] {
-    guard CommandMenuSearch.searchesTasks(query), !catalog.searching,
+    guard !themeMenu.entered, CommandMenuSearch.searchesTasks(query), !catalog.searching,
       catalog.resultsQuery == searchQuery else { return [] }
     return Array(catalog.results.prefix(TaskSearchPresentation.limit))
   }
   private var groups: [ResultGroup] {
+    if themeMenu.entered {
+      let rows = themeMenu.rows(query: query, appearance: store.appearance)
+      return [.init(id: "theme-actions", title: "", themes: rows.filter { if case .preset = $0.action { return false }; return true }),
+        ResultGroup(id: "theme-presets", title: "配色主题", themes: rows.filter { if case .preset = $0.action { return true }; return false })]
+        .filter { !$0.themes.isEmpty }
+    }
     var result: [ResultGroup] = []
     if searchQuery.isEmpty {
       let pinned = CommandMenuSearch.pinned(library: store.library,
@@ -60,19 +75,24 @@ struct CommandPaletteView: View {
   }
   private func commandGroups(_ commands: [DesktopCommand]) -> [ResultGroup] {
     DesktopCommandGroup.allCases.compactMap { group in
-      let matches = commands.filter { $0.group == group }
+      let members = commands.filter { $0.group == group }
+      let matches = members.filter { $0.id == "theme" } + members.filter { $0.id != "theme" }
       return matches.isEmpty ? nil : .init(id: "commands-\(group.rawValue)", title: group.title, commands: matches)
     }
   }
   private var selectableGroups: [[String]] {
     groups.map { group in
-      group.commands.filter { commandEnabled($0.id) }.map { "command:" + $0.id }
+      group.themes.map(\.id) + group.commands.filter { commandEnabled($0.id) }.map { "command:" + $0.id }
         + group.browsers.filter { canOpenBrowser($0) }.map(\.id)
         + group.tasks.filter { canSelectTask($0.task) }.map { "task:" + $0.id }
     }.filter { !$0.isEmpty }
   }
   private var selectable: [String] { selectableGroups.flatMap { $0 } }
   private var selection: String? {
+    if themeMenu.entered {
+      if let id = themeMenu.selectedID, selectable.contains(id) { return id }
+      return selectable.first
+    }
     if let selectedID, selectable.contains(selectedID) { return selectedID }
     return selectable.first
   }
@@ -82,18 +102,20 @@ struct CommandPaletteView: View {
       VStack(spacing: 0) {
         HStack {
           Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-          TextField("搜索命令与任务…", text: Binding(get: { query }, set: {
-            query = $0; selectedID = nil; cyclingSearchSections = false; pointerSelection = false
-          })).textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel("搜索命令与任务")
+          TextField(themeMenu.entered ? "搜索主题…" : "搜索命令与任务…", text: Binding(get: { query }, set: {
+            guard query != $0 else { return }
+            query = $0; selectedID = nil; themeMenu.selectedID = nil; cyclingSearchSections = false; pointerSelection = false
+          })).textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel(themeMenu.entered ? "搜索主题" : "搜索命令与任务")
           Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
         }.padding(18)
         Divider()
         ScrollViewReader { reader in
           List(selection: Binding(get: { selection }, set: { value in
-            if let value, selectable.contains(value) { selectedID = value }
+            if let value, selectable.contains(value) { select(value) }
           })) {
             ForEach(groups) { group in
               Section(group.title) {
+                ForEach(group.themes) { item in themeRow(item) }
                 ForEach(group.commands, id: \.paletteID) { item in commandRow(item) }
                 ForEach(group.browsers) { result in browserRow(result) }
                 ForEach(group.tasks, id: \.paletteID) { result in taskRow(result) }
@@ -108,7 +130,7 @@ struct CommandPaletteView: View {
               }
             }
         }
-        if CommandMenuSearch.searchesContent(query), !catalog.historyErrors.isEmpty {
+        if !themeMenu.entered, CommandMenuSearch.searchesContent(query), !catalog.historyErrors.isEmpty {
           HStack {
             Text("部分项目历史未能读取").help(catalog.historyErrors.joined(separator: "\n"))
             Spacer()
@@ -116,7 +138,7 @@ struct CommandPaletteView: View {
               .settingsActionFocus($focus, equals: .retry, activate: retry)
           }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 14)
         }
-        if let commands = gitCommands, commands.request.repository.root != nil {
+        if !themeMenu.entered, let commands = gitCommands, commands.request.repository.root != nil {
           if commands.loading {
             ProgressView("正在检查 Git 命令…").controlSize(.small).padding(10)
           } else if let error = commands.error {
@@ -147,14 +169,37 @@ struct CommandPaletteView: View {
     let id = "command:" + item.id
     return Button { invoke(id) } label: {
       HStack {
-        Label(item.title, systemImage: item.icon)
+        Label(item.title, systemImage: item.id == "theme" ? (store.appearance.isDark ? "moon" : "sun.max") : item.icon)
+        if item.id == "theme" { Text(ThemeCommandMenu.rootDescription(store.appearance)).foregroundStyle(.secondary) }
         Spacer()
         Text(store.shortcuts.label(item.id)).appFont(.caption).foregroundStyle(.secondary)
+        if item.id == "theme" { Image(systemName: "chevron.right").foregroundStyle(.secondary) }
       }.padding(.vertical, 6).contentShape(Rectangle())
     }.buttonStyle(.plain).disabled(!commandEnabled(item.id))
       .searchResultPointer(enabled: commandEnabled(item.id)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
       .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
+  }
+  private func resetSearch(focusQuery: Bool = true) {
+    query = ""; selectedID = nil; cyclingSearchSections = false; pointerSelection = false
+    focus = focusQuery ? .query : nil
+  }
+  private func themeRow(_ item: ThemeCommandItem) -> some View {
+    Button { invoke(item.id) } label: {
+      HStack {
+        if let icon = item.icon { Image(systemName: icon).frame(width: 18) }
+        Text(item.title)
+        if let description = item.description { Text(description).foregroundStyle(.secondary) }
+        Spacer()
+        if let swatch = item.swatch { ThemeColorSwatch(swatch: swatch) }
+        if item.selected { Image(systemName: "checkmark").foregroundStyle(.secondary) }
+      }.padding(.vertical, 6).contentShape(Rectangle())
+    }.buttonStyle(.plain)
+      .accessibilityLabel(item.action == .back ? "返回命令菜单" : item.title)
+      .accessibilityIdentifier(item.id)
+      .searchResultPointer(enabled: true) { selectFromPointer(item.id) }
+      .listRowBackground(item.id == selection ? Color.primary.opacity(0.08) : .clear)
+      .accessibilityAddTraits(item.id == selection ? .isSelected : []).tag(item.id).id(item.id)
   }
   private func taskRow(_ result: TaskSearchResult) -> some View {
     let id = "task:" + result.id
@@ -193,7 +238,10 @@ struct CommandPaletteView: View {
   private func selectFromPointer(_ id: String) {
     guard selectable.contains(id) else { return }
     pointerSelection = true
-    selectedID = id
+    select(id)
+  }
+  private func select(_ id: String?) {
+    if themeMenu.entered { themeMenu.selectedID = id } else { selectedID = id }
   }
   private func handleKey(_ key: SearchDialogKeyboardBridge.Key) {
     pointerSelection = false
@@ -208,7 +256,7 @@ struct CommandPaletteView: View {
       else if focus == .gitRetry { refreshGitCommands() }
       else { invoke() }
     case .move(let delta):
-      selectedID = TaskSearchRequest.nextSelection(selection, ids: selectable, offset: delta)
+      select(TaskSearchRequest.nextSelection(selection, ids: selectable, offset: delta))
       focus = .query
     case .tab(let reverse):
       let searchGroups = groups.compactMap { group -> [String]? in
@@ -222,8 +270,8 @@ struct CommandPaletteView: View {
         return
       }
       var fields: [Field] = [.query, .cancel]
-      if CommandMenuSearch.searchesContent(query), !catalog.historyErrors.isEmpty, !catalog.loading { fields.append(.retry) }
-      if let commands = gitCommands, !commands.loading, commands.error != nil { fields.append(.gitRetry) }
+      if !themeMenu.entered, CommandMenuSearch.searchesContent(query), !catalog.historyErrors.isEmpty, !catalog.loading { fields.append(.retry) }
+      if !themeMenu.entered, let commands = gitCommands, !commands.loading, commands.error != nil { fields.append(.gitRetry) }
       let index = fields.firstIndex(of: focus ?? .query) ?? 0
       focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
     }
@@ -232,6 +280,7 @@ struct CommandPaletteView: View {
     context?.canOpenBrowser(result) ?? store.canOpenCommandBrowserTab(result)
   }
   private func commandEnabled(_ id: String) -> Bool {
+    if id == "theme" { return store.libraryLoaded && !store.restoringLibrary }
     if GitWorkflowCommandContext.owns(id) { return gitCommands?.enabled(id) == true }
     return context?.commandEnabled(id) ?? store.paletteCommandEnabled(id)
   }
@@ -244,12 +293,20 @@ struct CommandPaletteView: View {
     Task { await gitCommands?.refresh() }
   }
   private func cancel() {
+    themeMenu.back()
+    resetSearch(focusQuery: false)
     if let context { context.cancel(); return }
     store.setOverlay(.commands, presented: false)
     store.restoreOverlayFocus()
   }
   private func invoke(_ id: String? = nil) {
     guard let id = id ?? selection, selectable.contains(id) else { return }
+    if id.hasPrefix("theme:") {
+      let returned = id == "theme:back"
+      if themeMenu.perform(id, store: store, close: cancel), returned { resetSearch() }
+      return
+    }
+    if id == "command:theme" { themeMenu.enter(); resetSearch(); return }
     if id.hasPrefix("command:") {
       let command = String(id.dropFirst(8))
       if GitWorkflowCommandContext.owns(command) {
