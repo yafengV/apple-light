@@ -35,14 +35,18 @@ import Observation
     return search.isEmpty ? files : files.filter { $0.path.localizedCaseInsensitiveContains(search) }
   }
   var allCollapsed: Bool { !files.isEmpty && files.allSatisfy { collapsed.contains($0.path) } }
-  func toggle(_ path: String) {
+  func toggle(_ path: String, all: Bool = false) {
     guard files.contains(where: { $0.path == path }) else { return }
+    if all { setAllExpanded(collapsed.contains(path)); return }
     if collapsed.contains(path) { collapsed.remove(path) } else { collapsed.insert(path) }
     collapseOverrides[path] = collapsed.contains(path)
   }
   func toggleAll() {
-    groupExpanded.toggle()
-    let close = !groupExpanded
+    setAllExpanded(!groupExpanded)
+  }
+  private func setAllExpanded(_ open: Bool) {
+    groupExpanded = open
+    let close = !open
     collapseOverrides = Dictionary(uniqueKeysWithValues: files.map { ($0.path, close) })
     applyCollapseDefaults()
   }

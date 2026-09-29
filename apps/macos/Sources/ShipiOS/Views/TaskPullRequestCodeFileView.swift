@@ -5,6 +5,8 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   let state: GitHubPRCodeState
   let threads: [GitHubPRReviewThread]
   var inline: PullRequestInlineCommentControls? = nil
+  var showsHeader = true
+  var viewportWidth: CGFloat? = nil
   @State private var selection = PullRequestCodeSelection()
   @State private var selectionError: String?
   @ViewBuilder let comment: (GitHubPRReviewThread) -> Comment
@@ -13,22 +15,26 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   private var collapsed: Bool { state.collapsed.contains(file.path) }
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      Button { state.toggle(file.path) } label: {
-        HStack(spacing: 8) {
-          Image(systemName: collapsed ? "chevron.right" : "chevron.down").appFont(size: 10)
-          Text(file.path).lineLimit(1)
-          Spacer(minLength: 12)
-          Text("+\(file.diff.additions)").foregroundStyle(.green)
-          Text("−\(file.diff.deletions)").foregroundStyle(.red)
-        }.appFont(size: 12).padding(10).contentShape(Rectangle())
-      }.buttonStyle(.plain).onKeyPress(.return) { state.toggle(file.path); return .handled }
-        .accessibilityLabel(file.path).accessibilityValue(collapsed ? "已收起" : "已展开")
+      if showsHeader { PullRequestCodeFileHeader(file: file, state: state) }
       if !collapsed {
         Divider()
+        if !state.wrap, let viewportWidth {
+          ScrollView(.horizontal) { content.frame(minWidth: viewportWidth, alignment: .leading) }
+            .fixedSize(horizontal: false, vertical: true)
+        } else { content }
+      }
+    }.frame(minWidth: viewportWidth == nil ? (state.split ? 560 : 300) : 0, maxWidth: .infinity, alignment: .leading)
+      .background(.quaternary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+      .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+      .onChange(of: file.diff.fingerprint) { _, _ in selection.clear(); selectionError = nil }
+      .onChange(of: inline?.code.identity) { _, _ in selection.clear(); selectionError = nil }
+      .onChange(of: inline?.discussion.staleInline) { _, anchor in
+        if anchor?.identity == inline?.code.identity { selection.clear() }
+      }
+  }
+  private var content: some View {
+    VStack(alignment: .leading, spacing: 0) {
         if let selectionError { Text(selectionError).appFont(size: 12).foregroundStyle(.red).padding(8) }
-        if let old = file.oldPath, old != file.path {
-          Text(old + " → " + file.path).appFont(size: 11).foregroundStyle(.secondary).padding(8)
-        }
         if file.binary { Text("二进制文件已修改").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
         else if lines.isEmpty { Text("文件内容没有文本差异").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
         else if state.split {
@@ -38,7 +44,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
               Divider()
               splitCell(row.right, left: false)
             }
-            ForEach(rowThreads(row)) { thread in comment(thread).padding(8) }
+            ForEach(rowThreads(row)) { thread in comment(thread).frame(width: viewportWidth.map { max(0, $0 - 16) }).padding(8) }
             draftRows(for: [row.left, row.right].compactMap { $0 })
           }
         } else {
@@ -47,7 +53,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
               gutter(line, side: .left); gutter(line, side: .right)
               code(line)
             }.background(background(line)).id(file.lineID(line))
-            ForEach(lineThreads(line)) { thread in comment(thread).padding(8) }
+            ForEach(lineThreads(line)) { thread in comment(thread).frame(width: viewportWidth.map { max(0, $0 - 16) }).padding(8) }
             draftRows(for: [line])
           }
         }
@@ -56,7 +62,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
             guard case .inline(_, let anchor) = draft.target else { return false }
             return !lines.contains { (anchor.position.side == .left ? $0.oldLine : $0.newLine) == anchor.position.line }
           }, id: \.id) { entry in
-            inlineDraft(entry.id, draft: entry.draft, controls: inline).padding(8)
+            inlineDraft(entry.id, draft: entry.draft, controls: inline).frame(width: viewportWidth.map { max(0, $0 - 16) }).padding(8)
           }
         }
         ForEach(unplacedThreads) { thread in
@@ -65,15 +71,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
             comment(thread)
           }.padding(8)
         }
-      }
-    }.frame(minWidth: state.split ? 560 : 300, maxWidth: .infinity, alignment: .leading)
-      .background(.quaternary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
-      .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
-      .onChange(of: file.diff.fingerprint) { _, _ in selection.clear(); selectionError = nil }
-      .onChange(of: inline?.code.identity) { _, _ in selection.clear(); selectionError = nil }
-      .onChange(of: inline?.discussion.staleInline) { _, anchor in
-        if anchor?.identity == inline?.code.identity { selection.clear() }
-      }
+    }.frame(minWidth: state.wrap && viewportWidth != nil ? 0 : (state.split ? 560 : 300), maxWidth: .infinity, alignment: .leading)
   }
   @ViewBuilder private func splitCell(_ line: ReviewDiffLine?, left: Bool) -> some View {
     HStack(alignment: .top, spacing: 0) {
@@ -97,7 +95,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
       ForEach(inlineDrafts.filter { _, draft in
         guard case .inline(_, let anchor) = draft.target else { return false }
         return rows.contains { (anchor.position.side == .left ? $0.oldLine : $0.newLine) == anchor.position.line }
-      }, id: \.id) { entry in inlineDraft(entry.id, draft: entry.draft, controls: inline).padding(8) }
+      }, id: \.id) { entry in inlineDraft(entry.id, draft: entry.draft, controls: inline).frame(width: viewportWidth.map { max(0, $0 - 16) }).padding(8) }
     }
   }
   private func inlineDraft(_ id: String, draft: GitHubPRCommentDraft, controls: PullRequestInlineCommentControls) -> some View {
@@ -117,6 +115,11 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
               _ = inline.discussion.beginInline(anchor); selectionError = nil
             } catch { selectionError = error.localizedDescription }
           }, path: file.path) }
+        .background {
+          if let position = state.position, file.matches(position), position.side == side, position.line == value {
+            PullRequestCodeScrollAnchor(request: state.navigation).frame(width: 1, height: 1)
+          }
+        }
     } else { number(value) }
   }
   private func number(_ value: Int?) -> some View {

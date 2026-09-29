@@ -118,16 +118,28 @@ struct TaskPullRequestCodeView: View {
   }
 
   private var differences: some View {
+    GeometryReader { geometry in differences(width: max(0, geometry.size.width - 24)) }
+  }
+  private func differences(width: CGFloat) -> some View {
     ScrollViewReader { proxy in
-      ScrollView(state.wrap ? .vertical : [.vertical, .horizontal]) {
-        LazyVStack(alignment: .leading, spacing: 14) {
+      ScrollView(.vertical) {
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
           ForEach(state.files) { file in
-            TaskPullRequestCodeFileView(file: file, state: state, threads: threads(for: file), inline: inlineControls) { thread in
-              if let root = thread.comments.first {
-                TaskPullRequestCommentView(card: .init(comment: root, thread: thread), collapse: comments,
-                  state: discussion, enabled: enabled, writable: writable, mentionRequest: mentionRequest,
-                  open: open, submit: submit, showsCodeContext: false)
-              }
+            Section {
+              TaskPullRequestCodeFileView(file: file, state: state, threads: threads(for: file), inline: inlineControls,
+                showsHeader: false, viewportWidth: width) { thread in
+                if let root = thread.comments.first {
+                  TaskPullRequestCommentView(card: .init(comment: root, thread: thread), collapse: comments,
+                    state: discussion, enabled: enabled, writable: writable, mentionRequest: mentionRequest,
+                    open: open, submit: submit, showsCodeContext: false)
+                }
+              }.padding(.bottom, 14)
+                .background(alignment: .topLeading) {
+                  PullRequestCodeScrollAnchor(request: state.selectedPath == file.path && state.position == nil ? state.navigation : nil,
+                    centered: false, topInset: 34).frame(width: 1, height: 1)
+                }
+            } header: {
+              PullRequestCodeFileHeader(file: file, state: state)
             }.id(file.path)
           }
           if let controls = inlineControls {
@@ -144,17 +156,10 @@ struct TaskPullRequestCodeView: View {
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
       }
       .task(id: state.navigation) {
-        guard let path = state.selectedPath, let file = state.files.first(where: { $0.path == path }) else { return }
-        // Materialize an offscreen file before addressing its nested line. Repeated jumps
-        // get a new task; changing tabs/disappearing cancels any pending positioning.
+        guard let path = state.selectedPath, state.files.contains(where: { $0.path == path }) else { return }
+        // Materialize an offscreen section. Native anchors then address the page's
+        // vertical document without changing its nested horizontal code scroller.
         proxy.scrollTo(path, anchor: .top)
-        if let row = state.rowTarget(in: file) {
-          for _ in 0..<4 {
-            do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
-            guard !Task.isCancelled else { return }
-            proxy.scrollTo(row, anchor: .center)
-          }
-        }
       }
     }
   }
