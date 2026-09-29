@@ -99,7 +99,7 @@ struct TaskPullRequestDetailView: View {
           TaskPullRequestActivityView(state: discussion,
             enabled: discussion.canWrite(request, writable: writable), writable: writable,
             mentionRequest: discussion.snapshot.map { .init(pullRequest: request, root: root, viewer: $0.viewer) }, open: openExternal,
-            retry: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, submit: applyDiscussion)
+            retry: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, submit: applyDiscussion, fixes: commentFixControls)
           if let error = state.error {
             Label(error, systemImage: "exclamationmark.circle")
               .appFont(.caption).foregroundStyle(.orange).textSelection(.enabled)
@@ -217,7 +217,12 @@ struct TaskPullRequestDetailView: View {
   }
   private func applyDiscussion(_ action: GitHubPRDiscussionAction, _ draftID: String?) {
     discussion.start(action, request: request, at: root, valid: { valid }, writable: { writable }, draftID: draftID,
-      changed: discussionChanged)
+      changed: {
+        if case .resolve(let id, true) = action, let scope = checksRequest {
+          _ = store.removePullRequestComments([id], taskID: taskID, request: scope)
+        }
+        discussionChanged()
+      })
   }
   private func confirmDiscussion() {
     discussion.confirm(request: request, at: root, valid: { valid },
@@ -286,6 +291,30 @@ struct TaskPullRequestDetailView: View {
       }
     }
   }
+  private var commentFixControls: PullRequestCommentFixControls {
+    let attached = checksRequest.flatMap { scope in
+      store.library.pullRequestCheckDrafts[taskID].flatMap { $0.matches(scope) ? $0.comments : nil }
+    } ?? []
+    let reason = discussion.readError != nil || discussion.snapshot?.head != checksRequest?.headRevision
+      ? "请先刷新 PR 评论与头提交。" : fixReason
+    return .init(attachments: attached, disabledReason: reason, busy: fixing,
+      add: attachComments, remove: { ids in
+        guard let scope = checksRequest else { return }
+        _ = store.removePullRequestComments(ids, taskID: taskID, request: scope)
+      }, guidance: { id, text in _ = store.setPullRequestCommentGuidance(text, id: id, taskID: taskID) })
+  }
+  private func attachComments(_ selected: [GitHubPRReviewThread]) {
+    guard !fixing, let scope = checksRequest, let snapshot = discussion.snapshot else { return }
+    fixing = true; fixError = nil
+    Task {
+      defer { fixing = false }
+      do {
+        _ = try await store.attachPullRequestComments(selected, request: scope, snapshot: snapshot,
+          valid: { valid && checksRequest == scope && discussion.snapshot == snapshot })
+      } catch { if valid, checksRequest == scope { fixError = error.localizedDescription } }
+    }
+  }
+
   private func removeChecks(_ selected: [GitHubPRCheck]) {
     guard let request = checksRequest else { return }
     _ = store.removePullRequestChecks(Set(selected.map(\.attachmentKey)), taskID: taskID, request: request)

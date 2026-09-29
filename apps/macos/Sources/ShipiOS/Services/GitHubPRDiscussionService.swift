@@ -51,7 +51,7 @@ extension GitHubPRService {
     ... on ReviewRequestRemovedEvent { id createdAt actor { login } requestedReviewer { ... on User { login } ... on Team { name } } }
     """
   private static let discussionThreadFields = """
-    id path line originalLine isResolved isOutdated viewerCanReply viewerCanResolve viewerCanUnresolve
+    id path line originalLine diffSide startLine startDiffSide originalStartLine isResolved isOutdated viewerCanReply viewerCanResolve viewerCanUnresolve
     comments(first:100) { totalCount nodes { \(discussionCommentFields) diffHunk } pageInfo { hasNextPage endCursor } }
     """
   private static let discussionIdentityFields = "id number url state headRefOid author { login }"
@@ -171,7 +171,8 @@ extension GitHubPRService {
       diffHunk: node["comments"]["nodes"].items.first?["diffHunk"].text ?? "",
       isResolved: resolved, isOutdated: outdated, canReply: node["viewerCanReply"].boolean == true,
       canResolve: node["viewerCanResolve"].boolean == true, canUnresolve: node["viewerCanUnresolve"].boolean == true,
-      comments: comments)
+      comments: comments, diffSide: node["diffSide"].text, startLine: node["startLine"].int,
+      startDiffSide: node["startDiffSide"].text, originalStartLine: node["originalStartLine"].int)
   }
 
   private static func discussionIdentity(_ data: JSONValue, request: GitHubPullRequest, repository: String) throws -> GitHubPRDiscussionSnapshot {

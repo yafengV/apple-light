@@ -216,7 +216,9 @@ extension GitHubPRService {
         let old = current.threads[index]
         current.threads[index] = .init(id: old.id, path: old.path, line: old.line, originalLine: old.originalLine,
           diffHunk: old.diffHunk, isResolved: resolved, isOutdated: old.isOutdated,
-          canReply: old.canReply, canResolve: old.canResolve, canUnresolve: old.canUnresolve, comments: old.comments)
+          canReply: old.canReply, canResolve: old.canResolve, canUnresolve: old.canUnresolve, comments: old.comments,
+          diffSide: old.diffSide, startLine: old.startLine, startDiffSide: old.startDiffSide,
+          originalStartLine: old.originalStartLine)
       }
     }
     return current

@@ -1,8 +1,8 @@
 import Foundation
 
-enum GitHubPRCommentKind: String, Sendable { case issue, review, code }
+enum GitHubPRCommentKind: String, Codable, Sendable { case issue, review, code }
 
-struct GitHubPRComment: Identifiable, Equatable, Sendable {
+struct GitHubPRComment: Codable, Identifiable, Equatable, Sendable {
   let id: String
   let kind: GitHubPRCommentKind
   let body: String
@@ -18,7 +18,7 @@ struct GitHubPRComment: Identifiable, Equatable, Sendable {
   var quotedBody: String { body.components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
 }
 
-struct GitHubPRReviewThread: Identifiable, Equatable, Sendable {
+struct GitHubPRReviewThread: Codable, Identifiable, Equatable, Sendable {
   let id: String
   let path: String
   let line: Int?
@@ -30,6 +30,10 @@ struct GitHubPRReviewThread: Identifiable, Equatable, Sendable {
   let canResolve: Bool
   let canUnresolve: Bool
   var comments: [GitHubPRComment]
+  var diffSide: String? = nil
+  var startLine: Int? = nil
+  var startDiffSide: String? = nil
+  var originalStartLine: Int? = nil
 }
 
 struct GitHubPRActivityEvent: Identifiable, Equatable, Sendable {

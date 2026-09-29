@@ -12,6 +12,7 @@ final class GitHubPRDiscussionTests: XCTestCase {
   }
   private func thread(_ id: String, comments: [[String: Any]]) -> [String: Any] {
     ["id": id, "path": "Sources/Main.swift", "line": 12, "originalLine": 10,
+      "diffSide": "RIGHT", "startLine": 8, "startDiffSide": "RIGHT", "originalStartLine": 6,
       "isResolved": false, "isOutdated": false, "viewerCanReply": true,
       "viewerCanResolve": true, "viewerCanUnresolve": true, "comments": comments]
   }
@@ -228,6 +229,27 @@ final class GitHubPRDiscussionTests: XCTestCase {
     XCTAssertTrue(result.notice?.contains("已接受") == true)
     XCTAssertEqual(result.snapshot.comments.last?.body, "Accepted", "The accepted receipt appears even while the reread is unavailable")
     XCTAssertEqual(try logs(root, mutationsOnly: true).count, 1)
+  }
+
+  func testResolveAndUnresolveReceiptsRetainThreadPositionsWhenRefreshFails() async throws {
+    for resolved in [true, false] {
+      var item = thread("thread-1", comments: [comment("code-1", type: "PullRequestReviewComment")])
+      item["isResolved"] = !resolved
+      let (root, service) = try await fixture(["discussionThreads": [item], "discussionFailureAfterAction": true])
+      let expected = try await service.discussion(for: request, at: root)
+      XCTAssertEqual(expected.threads[0].diffSide, "RIGHT")
+      XCTAssertEqual(expected.threads[0].startLine, 8)
+      XCTAssertEqual(expected.threads[0].startDiffSide, "RIGHT")
+      XCTAssertEqual(expected.threads[0].originalStartLine, 6)
+      let result = try await service.applyDiscussion(.resolve(thread: "thread-1", resolved: resolved),
+        expected: expected, request: request, at: root)
+      var encoded = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(expected.threads[0])) as? [String: Any])
+      encoded["isResolved"] = resolved
+      let preserved = try JSONDecoder().decode(GitHubPRReviewThread.self, from: JSONSerialization.data(withJSONObject: encoded))
+      XCTAssertEqual(result.snapshot.threads, [preserved])
+      XCTAssertTrue(result.notice?.contains("已接受") == true)
+      XCTAssertEqual(try logs(root, mutationsOnly: true).count, 1)
+    }
   }
 
   @MainActor func testMultipleDraftsQuotesAndSuccessfulPostOnlyClearTheirOwnInput() async throws {

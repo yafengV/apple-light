@@ -9,6 +9,7 @@ struct TaskPullRequestActivityView: View {
   let retry: () -> Void
   let confirm: () -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
+  var fixes: PullRequestCommentFixControls? = nil
   @State private var expanded = true
 
   var body: some View {
@@ -31,7 +32,7 @@ struct TaskPullRequestActivityView: View {
                 TaskPullRequestCommentView(comment: comment, thread: nil, state: state,
                   enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit)
               case .thread(let thread):
-                TaskPullRequestThreadView(thread: thread, state: state, enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit)
+                TaskPullRequestThreadView(thread: thread, state: state, enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit, fixes: fixes)
               case .event(let event):
                 HStack(alignment: .top) {
                   Image(systemName: event.kind == "PullRequestCommit" ? "point.3.connected.trianglepath.dotted" : "circle.fill")
@@ -51,7 +52,19 @@ struct TaskPullRequestActivityView: View {
           }
         }.padding(.top, 8)
       } label: {
-        Text("Activity\(state.snapshot.map { " · \($0.activity.count)" } ?? "")").appFont(.headline)
+        HStack {
+          Text("Activity\(state.snapshot.map { " · \($0.activity.count)" } ?? "")").appFont(.headline)
+          Spacer()
+          if let fixes {
+            let threads = state.snapshot?.threads.filter { PullRequestCommentAttachment(thread: $0).isValid } ?? []
+            let ids = Set(threads.map(\.id)), attached = !ids.isEmpty && ids.isSubset(of: fixes.ids)
+            if !threads.isEmpty {
+              Button(attached ? "Remove" : "Fix all") { if attached { fixes.remove(ids) } else { fixes.add(threads) } }
+                .buttonStyle(.plain).disabled(fixes.busy || !attached && fixes.disabledReason != nil)
+                .help(attached ? "移除评论附件" : fixes.disabledReason ?? "附加所有待处理审查线程")
+            }
+          }
+        }
       }
       .id("pull-request-activity")
       if let error = state.message(for: .activity) {
@@ -82,48 +95,66 @@ private struct TaskPullRequestThreadView: View {
   let mentionRequest: GitHubPRMentionRequest?
   let open: (URL) -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
+  let fixes: PullRequestCommentFixControls?
   @State private var expanded: Bool
   init(thread: GitHubPRReviewThread, state: GitHubPRDiscussionState, enabled: Bool, writable: Bool,
     mentionRequest: GitHubPRMentionRequest?,
-    open: @escaping (URL) -> Void, submit: @escaping (GitHubPRDiscussionAction, String?) -> Void) {
+    open: @escaping (URL) -> Void, submit: @escaping (GitHubPRDiscussionAction, String?) -> Void, fixes: PullRequestCommentFixControls? = nil) {
+    self.fixes = fixes
     self.thread = thread; self.state = state; self.enabled = enabled; self.writable = writable; self.mentionRequest = mentionRequest; self.open = open; self.submit = submit
     _expanded = State(initialValue: !thread.isResolved && thread.comments.first?.authorType == "User")
   }
   private var hasDraft: Bool { thread.comments.contains { state.drafts[$0.id] != nil } }
+  private var attached: PullRequestCommentAttachment? { fixes?.attachments.first { $0.id == thread.id } }
   var body: some View {
-    DisclosureGroup(isExpanded: Binding(get: { expanded || hasDraft }, set: { if !hasDraft { expanded = $0 } })) {
-      VStack(alignment: .leading, spacing: 10) {
-        if !thread.diffHunk.isEmpty {
-          ScrollView(.horizontal) { Text(thread.diffHunk).appFont(.caption).monospaced().textSelection(.enabled) }
-            .frame(maxHeight: 140).padding(8).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
-        }
-        ForEach(thread.comments) { comment in
-          TaskPullRequestCommentView(comment: comment, thread: thread, state: state,
-            enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit)
-        }
+    VStack(alignment: .leading, spacing: 8) {
+      DisclosureGroup(isExpanded: Binding(get: { expanded || hasDraft }, set: { if !hasDraft { expanded = $0 } })) {
+        VStack(alignment: .leading, spacing: 10) {
+          if !thread.diffHunk.isEmpty {
+            ScrollView(.horizontal) { Text(thread.diffHunk).appFont(.caption).monospaced().textSelection(.enabled) }
+              .frame(maxHeight: 140).padding(8).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+          }
+          ForEach(thread.comments) { comment in
+            TaskPullRequestCommentView(comment: comment, thread: thread, state: state,
+              enabled: enabled, writable: writable, mentionRequest: mentionRequest, open: open, submit: submit,
+              fixing: attached != nil)
+          }
+          if attached == nil {
+            HStack {
+              if let first = thread.comments.first, thread.canReply {
+                Button("回复") { state.beginReply(first, thread: thread, quote: false) }
+                  .disabled(!state.canEdit(.draft(first.id), writable: writable))
+              }
+              Spacer()
+              if thread.isResolved ? thread.canUnresolve : thread.canResolve {
+                Button(thread.isResolved ? "重新打开线程" : "解决线程") {
+                  submit(.resolve(thread: thread.id, resolved: !thread.isResolved), nil)
+                }.disabled(!enabled)
+              }
+            }
+          }
+          if let error = state.message(for: .thread(thread.id)) { Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled) }
+        }.padding(.top, 8)
+      } label: {
         HStack {
-          if let first = thread.comments.first, thread.canReply {
-            Button("回复") { state.beginReply(first, thread: thread, quote: false) }
-              .disabled(!state.canEdit(.draft(first.id), writable: writable))
-          }
+          Text(thread.path + (thread.line ?? thread.originalLine).map { ":\($0)" }.orEmpty).lineLimit(2)
           Spacer()
-          if thread.isResolved ? thread.canUnresolve : thread.canResolve {
-            Button(thread.isResolved ? "重新打开线程" : "解决线程") {
-              submit(.resolve(thread: thread.id, resolved: !thread.isResolved), nil)
-            }.disabled(!enabled)
-          }
+          if thread.isResolved { Text("已解决").foregroundStyle(.secondary) }
+          else if thread.isOutdated { Text("已过时").foregroundStyle(.secondary) }
+        }.appFont(.caption)
+      }
+      .onChange(of: thread.isResolved) { _, resolved in if resolved && !hasDraft { expanded = false } }
+      if let fixes {
+        if let attached {
+          PullRequestCommentGuidanceView(attachment: attached,
+            save: { fixes.guidance(thread.id, $0) }, remove: { fixes.remove([thread.id]) })
+        } else if PullRequestCommentAttachment(thread: thread).isValid {
+          HStack { Spacer(); Button("Fix") { fixes.add([thread]) }
+            .buttonStyle(.plain).disabled(fixes.busy || fixes.disabledReason != nil)
+            .help(fixes.disabledReason ?? "附加此审查线程") }
         }
-        if let error = state.message(for: .thread(thread.id)) { Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled) }
-      }.padding(.top, 8)
-    } label: {
-      HStack {
-        Text(thread.path + (thread.line ?? thread.originalLine).map { ":\($0)" }.orEmpty).lineLimit(2)
-        Spacer()
-        if thread.isResolved { Text("已解决").foregroundStyle(.secondary) }
-        else if thread.isOutdated { Text("已过时").foregroundStyle(.secondary) }
-      }.appFont(.caption)
+      }
     }
-    .onChange(of: thread.isResolved) { _, resolved in if resolved && !hasDraft { expanded = false } }
   }
 }
 
@@ -136,9 +167,12 @@ struct TaskPullRequestCommentView: View {
   let mentionRequest: GitHubPRMentionRequest?
   let open: (URL) -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
+  let fixing: Bool
   @State private var expanded: Bool
   init(comment: GitHubPRComment, thread: GitHubPRReviewThread?, state: GitHubPRDiscussionState, enabled: Bool, writable: Bool, mentionRequest: GitHubPRMentionRequest?,
-    open: @escaping (URL) -> Void, submit: @escaping (GitHubPRDiscussionAction, String?) -> Void) {
+    open: @escaping (URL) -> Void, submit: @escaping (GitHubPRDiscussionAction, String?) -> Void,
+    fixing: Bool = false) {
+    self.fixing = fixing
     self.comment = comment; self.thread = thread; self.state = state; self.enabled = enabled; self.writable = writable; self.mentionRequest = mentionRequest; self.open = open; self.submit = submit
     _expanded = State(initialValue: comment.authorType == "User")
   }
@@ -156,15 +190,17 @@ struct TaskPullRequestCommentView: View {
         if let raw = comment.url, let url = Self.link(raw) {
           Button { open(url) } label: { Image(systemName: "arrow.up.right") }.buttonStyle(.plain).help("在 GitHub 打开评论")
         }
-        Menu {
-          if comment.canUpdate { Button("编辑") { state.beginEdit(comment) } }
-          if thread == nil || thread?.canReply == true {
-            Button("引用回复") { state.beginReply(comment, thread: thread, quote: true) }
-          }
-          if comment.canDelete { Button("删除", role: .destructive) { state.deleteTarget = comment; state.clearError(.delete(comment.id)) } }
-        } label: { Image(systemName: "ellipsis") }
-          .menuStyle(.borderlessButton).fixedSize().disabled(!state.canEdit(.draft(comment.id), writable: writable) || draft != nil)
-          .accessibilityLabel("评论操作")
+        if !fixing {
+          Menu {
+            if comment.canUpdate { Button("编辑") { state.beginEdit(comment) } }
+            if thread == nil || thread?.canReply == true {
+              Button("引用回复") { state.beginReply(comment, thread: thread, quote: true) }
+            }
+            if comment.canDelete { Button("删除", role: .destructive) { state.deleteTarget = comment; state.clearError(.delete(comment.id)) } }
+          } label: { Image(systemName: "ellipsis") }
+            .menuStyle(.borderlessButton).fixedSize().disabled(!state.canEdit(.draft(comment.id), writable: writable) || draft != nil)
+            .accessibilityLabel("评论操作")
+        }
       }
       Text(comment.createdAt).appFont(.caption).foregroundStyle(.secondary)
       if let draft, case .edit = draft.target {

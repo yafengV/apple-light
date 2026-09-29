@@ -68,11 +68,11 @@ extension WorkspaceStore {
         link: check.validatedLink?.absoluteString, description: check.description, workflow: check.workflow)
       draft.checks.append(check)
     }
-    draft.id = UUID()
+    draft.id = UUID(); draft.generatedPrompt = draft.ciFixPrompt
     guard draft.isValid else { throw AgentFailure(message: "PR 检查附件无效，请刷新后重试。") }
     var candidate = library
     candidate.pullRequestCheckDrafts[request.taskID] = draft
-    candidate.drafts[request.taskID] = draft.fixPrompt
+    candidate.drafts[request.taskID] = draft.ciFixPrompt
     try commitLibrary(candidate)
     if selectedTask?.id == request.taskID { action = .chat }
     return true
@@ -87,7 +87,7 @@ extension WorkspaceStore {
     guard draft.checks.count != before else { return false }
     draft.id = UUID()
     var candidate = library
-    candidate.pullRequestCheckDrafts[taskID] = draft.checks.isEmpty ? nil : draft
+    candidate.pullRequestCheckDrafts[taskID] = draft.checks.isEmpty && draft.comments.isEmpty ? nil : draft
     do { try commitLibrary(candidate); return true }
     catch { self.error = error.localizedDescription; return false }
   }

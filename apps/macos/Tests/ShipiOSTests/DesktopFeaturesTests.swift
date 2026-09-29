@@ -1080,7 +1080,8 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertFalse(store.library.orderedProjects.contains(managed.path))
     XCTAssertEqual(store.library.chatRuns.first { $0.id == run.id }?.status, "succeeded",
       store.error ?? "")
-    XCTAssertFalse(store.canForkTaskWindow(task.id))
+    // Managed checkouts support same-checkout forks since the shared-task workflow.
+    XCTAssertTrue(store.canForkTaskWindow(task.id))
     XCTAssertEqual(store.library.drafts[task.id], "")
     XCTAssertNil(store.library.pendingManagedDraftTaskIDs[source.path])
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("README.md"),
@@ -1585,6 +1586,7 @@ final class ModelTransportTests: XCTestCase {
     let project = root.appendingPathComponent("Project", isDirectory: true)
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: project)
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
     await store.restore()
     config.apiProtocol = .codexResponses
@@ -1633,6 +1635,10 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(restored.library.chatRuns.first { $0.id == run.id }?.responseItems,
       finished.responseItems)
     XCTAssertEqual(restored.lastTurnReviewSource(taskID: owner), source)
+    // Repository discovery owns the restored review state; settle it before
+    // requesting an exact last-turn snapshot instead of racing the refresh.
+    await restored.workspace.refreshGit()
+    XCTAssertTrue(restored.workspace.gitAvailable)
     restored.workspace.reviewScope = .lastTurn
     await restored.workspace.loadDiff()
     XCTAssertEqual(restored.workspace.lastTurnReview?.unifiedDiff, snapshot.unifiedDiff)
