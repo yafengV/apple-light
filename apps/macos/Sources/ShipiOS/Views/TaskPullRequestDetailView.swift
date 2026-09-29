@@ -86,7 +86,7 @@ struct TaskPullRequestDetailView: View {
           enabled: discussion.canWrite(request, writable: writable), writable: writable,
           mentionRequest: discussion.snapshot.map { .init(pullRequest: request, root: root, viewer: $0.viewer) },
           open: openExternal, submit: applyDiscussion, retry: retryCode,
-          retryComments: { Task { await loadDiscussion() } }, metadataLoading: state.loading,
+          retryComments: { Task { await loadDiscussion() } }, confirm: confirmDiscussion, metadataLoading: state.loading,
           metadataError: codeRequest == nil ? state.error : nil)
       } else {
       ScrollView {

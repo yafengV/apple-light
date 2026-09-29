@@ -8,6 +8,7 @@ struct TaskPullRequestCommentComposer: View {
   let enabled: Bool
   let busy: Bool
   let cancel: (() -> Void)?
+  var inlineCode = false
   var inputEnabled: Bool? = nil
   var error: String? = nil
   var mentionRequest: GitHubPRMentionRequest? = nil
@@ -20,28 +21,35 @@ struct TaskPullRequestCommentComposer: View {
     VStack(alignment: .leading, spacing: 8) {
       VStack(spacing: 4) {
         PullRequestTextEditor(text: $text, field: .body, focus: focus,
-          submit: { if canSubmit { submit() } }, cancel: {}, accessibilityName: label,
+          submit: { if canSubmit { submit() } }, cancel: { if inlineCode && editable { cancel?() } }, accessibilityName: label,
           selectionChanged: { body, range in mentions.setContext(mentionRequest); mentions.select(text: body, range: range) },
           lostFocus: { mentions.blurred() }, handleKey: handleKey, replacement: mentions.replacement, growsWithContent: true)
           .frame(minHeight: 38, maxHeight: 192).padding(6).disabled(!editable)
         HStack {
-          if let login = mentionRequest?.viewer {
+          if !inlineCode, let login = mentionRequest?.viewer {
             Text(String(login.prefix(1)).uppercased()).appFont(.caption)
               .frame(width: 22, height: 22).background(.quaternary, in: Circle()).accessibilityHidden(true)
           }
           Spacer()
-          if let cancel {
-            Button(action: cancel) { Image(systemName: "xmark").frame(width: 24, height: 24) }
-              .buttonStyle(.plain).disabled(!editable).help(label == "保存更改" ? "取消编辑" : "取消回复")
-              .accessibilityLabel("取消")
+          if inlineCode {
+            if let cancel { Button("取消", action: cancel).disabled(!editable) }
+            Button(action: submit) {
+              HStack { if busy { ProgressView().controlSize(.small) }; Text("评论") }
+            }.buttonStyle(.borderedProminent).disabled(!canSubmit)
+          } else {
+            if let cancel {
+              Button(action: cancel) { Image(systemName: "xmark").frame(width: 24, height: 24) }
+                .buttonStyle(.plain).disabled(!editable).help(label == "保存更改" ? "取消编辑" : "取消回复")
+                .accessibilityLabel("取消")
+            }
+            Button(action: submit) {
+              Group {
+                if busy { ProgressView().controlSize(.small) }
+                else { Image(systemName: "arrow.up") }
+              }.frame(width: 26, height: 26)
+            }.buttonStyle(.borderedProminent).controlSize(.small).clipShape(Circle())
+              .disabled(!canSubmit).help(label).accessibilityLabel(label)
           }
-          Button(action: submit) {
-            Group {
-              if busy { ProgressView().controlSize(.small) }
-              else { Image(systemName: "arrow.up") }
-            }.frame(width: 26, height: 26)
-          }.buttonStyle(.borderedProminent).controlSize(.small).clipShape(Circle())
-            .disabled(!canSubmit).help(label).accessibilityLabel(label)
         }.padding(.horizontal, 8).padding(.bottom, 8)
       }
       .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))

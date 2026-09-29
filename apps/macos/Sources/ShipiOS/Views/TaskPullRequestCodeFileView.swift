@@ -4,6 +4,9 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   let file: GitHubPRCodeFile
   let state: GitHubPRCodeState
   let threads: [GitHubPRReviewThread]
+  var inline: PullRequestInlineCommentControls? = nil
+  @State private var selection = PullRequestCodeSelection()
+  @State private var selectionError: String?
   @ViewBuilder let comment: (GitHubPRReviewThread) -> Comment
   @Environment(\.appAppearance) private var appearance
   private var lines: [ReviewDiffLine] { file.diff.lines.filter { $0.canComment || $0.kind == .header } }
@@ -22,6 +25,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
         .accessibilityLabel(file.path).accessibilityValue(collapsed ? "已收起" : "已展开")
       if !collapsed {
         Divider()
+        if let selectionError { Text(selectionError).appFont(size: 12).foregroundStyle(.red).padding(8) }
         if let old = file.oldPath, old != file.path {
           Text(old + " → " + file.path).appFont(size: 11).foregroundStyle(.secondary).padding(8)
         }
@@ -35,14 +39,24 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
               splitCell(row.right, left: false)
             }
             ForEach(rowThreads(row)) { thread in comment(thread).padding(8) }
+            draftRows(for: [row.left, row.right].compactMap { $0 })
           }
         } else {
           ForEach(lines) { line in
             HStack(alignment: .top, spacing: 0) {
-              number(line.oldLine); number(line.newLine)
+              gutter(line, side: .left); gutter(line, side: .right)
               code(line)
             }.background(background(line)).id(file.lineID(line))
             ForEach(lineThreads(line)) { thread in comment(thread).padding(8) }
+            draftRows(for: [line])
+          }
+        }
+        if let inline {
+          ForEach(inlineDrafts.filter { _, draft in
+            guard case .inline(_, let anchor) = draft.target else { return false }
+            return !lines.contains { (anchor.position.side == .left ? $0.oldLine : $0.newLine) == anchor.position.line }
+          }, id: \.id) { entry in
+            inlineDraft(entry.id, draft: entry.draft, controls: inline).padding(8)
           }
         }
         ForEach(unplacedThreads) { thread in
@@ -55,10 +69,15 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
     }.frame(minWidth: state.split ? 560 : 300, maxWidth: .infinity, alignment: .leading)
       .background(.quaternary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
       .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+      .onChange(of: file.diff.fingerprint) { _, _ in selection.clear(); selectionError = nil }
+      .onChange(of: inline?.code.identity) { _, _ in selection.clear(); selectionError = nil }
+      .onChange(of: inline?.discussion.staleInline) { _, anchor in
+        if anchor?.identity == inline?.code.identity { selection.clear() }
+      }
   }
   @ViewBuilder private func splitCell(_ line: ReviewDiffLine?, left: Bool) -> some View {
     HStack(alignment: .top, spacing: 0) {
-      number(left ? line?.oldLine : line?.newLine)
+      if let line { gutter(line, side: left ? .left : .right) } else { number(nil) }
       if let line { code(line) } else { Text(" ").frame(maxWidth: .infinity, alignment: .leading) }
     }.frame(maxWidth: .infinity, alignment: .leading).background(line.map(background) ?? .clear)
       .id(line.map { file.lineID($0) + (left ? "-left" : "") } ?? file.path + "-blank")
@@ -67,6 +86,38 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
           Color.clear.frame(width: 1, height: 1).id(file.lineID(line))
         }
       }
+  }
+  private var inlineDrafts: [(id: String, draft: GitHubPRCommentDraft)] {
+    inline?.discussion.inlineDrafts.filter { _, draft in
+      if case .inline(_, let anchor) = draft.target { return anchor.position.path == file.path }; return false
+    } ?? []
+  }
+  @ViewBuilder private func draftRows(for rows: [ReviewDiffLine]) -> some View {
+    if let inline {
+      ForEach(inlineDrafts.filter { _, draft in
+        guard case .inline(_, let anchor) = draft.target else { return false }
+        return rows.contains { (anchor.position.side == .left ? $0.oldLine : $0.newLine) == anchor.position.line }
+      }, id: \.id) { entry in inlineDraft(entry.id, draft: entry.draft, controls: inline).padding(8) }
+    }
+  }
+  private func inlineDraft(_ id: String, draft: GitHubPRCommentDraft, controls: PullRequestInlineCommentControls) -> some View {
+    TaskPullRequestInlineCommentView(id: id, draft: draft, controls: controls) {
+      controls.discussion.cancelDraft(id); selection.clear()
+    }
+  }
+  @ViewBuilder private func gutter(_ line: ReviewDiffLine, side: GitHubPRCommentPosition.Side) -> some View {
+    let value = side == .left ? line.oldLine : line.newLine
+    if let value, let inline {
+      let point = GitHubPRCodePoint(side: side, line: value, row: line.id)
+      number(value).background(selection.contains(point) ? Color.accentColor.opacity(0.2) : .clear)
+        .overlay { PullRequestCodeGutter(point: point, selection: selection,
+          enabled: inline.enabled, selected: selection.contains(point), commit: { position in
+            do {
+              let anchor = try GitHubPRInlineAnchor(position: position, snapshot: inline.code)
+              _ = inline.discussion.beginInline(anchor); selectionError = nil
+            } catch { selectionError = error.localizedDescription }
+          }, path: file.path) }
+    } else { number(value) }
   }
   private func number(_ value: Int?) -> some View {
     Text(value.map(String.init) ?? "").appFont(size: 11, design: .monospaced).foregroundStyle(.secondary)

@@ -38,7 +38,7 @@ extension GitHubPRService {
     """
   private static let discussionThreadFields = """
     id path line originalLine diffSide startLine startDiffSide originalStartLine isResolved isOutdated viewerCanReply viewerCanResolve viewerCanUnresolve
-    comments(first:100) { totalCount nodes { \(discussionCommentFields) diffHunk } pageInfo { hasNextPage endCursor } }
+    comments(first:100) { totalCount nodes { \(discussionCommentFields) commit { oid } originalCommit { oid } diffHunk } pageInfo { hasNextPage endCursor } }
     """
   private static let discussionIdentityFields = "id number url state headRefOid author { login } createdAt mergedAt mergedBy { login }"
 
@@ -156,7 +156,7 @@ extension GitHubPRService {
       let query = """
         query ShipiOSPRDiscussionReplies($id:ID!,$after:String) {
           node(id:$id) { ... on PullRequestReviewThread { id comments(first:100,after:$after) {
-            totalCount nodes { \(Self.discussionCommentFields) diffHunk } pageInfo { hasNextPage endCursor }
+            totalCount nodes { \(Self.discussionCommentFields) commit { oid } originalCommit { oid } diffHunk } pageInfo { hasNextPage endCursor }
           } } }
         }
         """
@@ -199,7 +199,7 @@ extension GitHubPRService {
       authorType: node["author"]["__typename"].text ?? "User", createdAt: date, url: node["url"].text,
       canUpdate: node["viewerCanUpdate"].boolean == true,
       canDelete: kind != .review && node["viewerCanDelete"].boolean == true,
-      reviewState: node["state"].text, commit: node["commit"]["oid"].text, avatarURL: node["author"]["avatarUrl"].text, submittedAt: node["submittedAt"].text)
+      reviewState: node["state"].text, commit: node["commit"]["oid"].text, avatarURL: node["author"]["avatarUrl"].text, submittedAt: node["submittedAt"].text, originalCommit: node["originalCommit"]["oid"].text)
   }
   private static func discussionCommit(_ commit: JSONValue, request: GitHubPullRequest) -> GitHubPRActivityEvent? {
     guard let id = commit["oid"].text, !id.isEmpty, let date = commit["committedDate"].text else { return nil }

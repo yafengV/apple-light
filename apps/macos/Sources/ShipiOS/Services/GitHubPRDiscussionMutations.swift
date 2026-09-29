@@ -5,7 +5,7 @@ extension GitHubPRService {
     request: GitHubPullRequest, at root: URL, authorize: GitMutationAuthorization = {}) async throws -> GitHubPRDiscussionResult {
     let body: String?
     switch action {
-    case .post(let value, _), .edit(_, _, let value):
+    case .post(let value, _), .inline(let value, _), .edit(_, _, let value):
       guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AgentFailure(message: "请填写评论。") }
       body = value
     case .review(let value, let decision, _):
@@ -26,6 +26,9 @@ extension GitHubPRService {
     case .resolve(let id, _), .post(_, .some(let id)):
       guard expected.threads.contains(where: { $0.id == id }) else { throw AgentFailure(message: "线程不属于当前 PR。") }
     default: break
+    }
+    if case .inline(let body, let anchor) = action {
+      return try await postInlineComment(body, anchor: anchor, fresh: fresh, request: request, at: root, authorize: authorize)
     }
     let mutation = try Self.discussionMutation(action, fresh: fresh)
     // Existing-target mutations are idempotent on explicit retries after a lost response.
@@ -82,6 +85,7 @@ extension GitHubPRService {
     fresh: GitHubPRDiscussionSnapshot) throws -> (query: String, input: [String: JSONValue]) {
     var name: String, type: String, result: String, input: [String: JSONValue]
     switch action {
+    case .inline: throw AgentFailure(message: "代码评论必须使用绑定提交的评论接口。")
     case .post(let body, let thread):
       let text = body.trimmingCharacters(in: .whitespacesAndNewlines)
       if let thread {
@@ -150,6 +154,7 @@ extension GitHubPRService {
   static func discussionConfirmed(_ action: GitHubPRDiscussionAction, baseline: GitHubPRDiscussionSnapshot,
     current: GitHubPRDiscussionSnapshot) -> Bool {
     switch action {
+    case .inline(let body, let anchor): return inlineConfirmed(body, anchor: anchor, baseline: baseline, current: current)
     case .edit(let id, let kind, let body): return current.comment(id).map { $0.kind == kind && $0.body == body } == true
     case .delete(let id, _): return current.comment(id) == nil
     case .resolve(let id, let resolved): return current.threads.first { $0.id == id }?.isResolved == resolved
@@ -168,6 +173,7 @@ extension GitHubPRService {
   private static func discussionReceiptConfirms(_ action: GitHubPRDiscussionAction, receipt: JSONValue) -> Bool {
     let result = receipt["action"]
     switch action {
+    case .inline: return false
     case .post(let body, let thread):
       let node = thread == nil ? result["commentEdge"]["node"] : result["comment"]
       return node["id"].text != nil && node["body"].text == body.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -188,6 +194,7 @@ extension GitHubPRService {
     var current = snapshot
     let result = receipt["action"]
     switch action {
+    case .inline: break
     case .post(_, let thread):
       let node = thread == nil ? result["commentEdge"]["node"] : result["comment"]
       if let comment = try? discussionComment(node, kind: thread == nil ? .issue : .code) {

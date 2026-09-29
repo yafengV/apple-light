@@ -10,6 +10,7 @@ struct TaskPullRequestCodeView: View {
   let submit: (GitHubPRDiscussionAction, String?) -> Void
   let retry: () -> Void
   let retryComments: () -> Void
+  var confirm: () -> Void = {}
   var metadataLoading = false
   var metadataError: String? = nil
   @State private var comments = GitHubPRCommentCollapseState()
@@ -19,6 +20,27 @@ struct TaskPullRequestCodeView: View {
   var body: some View {
     VStack(spacing: 0) {
       toolbar
+      if let identity = state.snapshot?.identity, discussion.isCodeStale(identity) {
+        HStack {
+          Text("PR 代码版本已变化，原评论草稿已保留。")
+          Button("刷新差异", action: retry).disabled(state.loading || metadataLoading || discussion.busy)
+          Spacer(minLength: 0)
+        }.appFont(size: 12).padding(8)
+      }
+      if discussion.uncertain != nil {
+        HStack {
+          Text("评论结果尚未确认；草稿已保留，没有重复发送。")
+          Button("重新读取结果", action: confirm).disabled(discussion.busy)
+          Spacer(minLength: 0)
+        }.appFont(size: 12).padding(8)
+      }
+      if let notice = discussion.notice {
+        HStack {
+          Text(notice)
+          Button("刷新评论", action: retryComments).disabled(discussion.busy || discussion.refreshing)
+          Spacer(minLength: 0)
+        }.appFont(size: 12).padding(8)
+      }
       if discussion.loading {
         ProgressView("读取评论…").controlSize(.small).padding(8)
       } else if discussion.readError != nil {
@@ -60,6 +82,9 @@ struct TaskPullRequestCodeView: View {
       }
     }
     .accessibilityIdentifier("pull-request-code-page")
+    .onChange(of: state.snapshot) { _, snapshot in
+      if let snapshot { discussion.codeReloaded(snapshot) }
+    }
     .onChange(of: discussion.snapshot?.commentCards, initial: true) { _, cards in
       comments.sync(cards ?? [], drafts: discussion.drafts)
     }
@@ -93,13 +118,24 @@ struct TaskPullRequestCodeView: View {
       ScrollView(state.wrap ? .vertical : [.vertical, .horizontal]) {
         LazyVStack(alignment: .leading, spacing: 14) {
           ForEach(state.files) { file in
-            TaskPullRequestCodeFileView(file: file, state: state, threads: threads(for: file)) { thread in
+            TaskPullRequestCodeFileView(file: file, state: state, threads: threads(for: file), inline: inlineControls) { thread in
               if let root = thread.comments.first {
                 TaskPullRequestCommentView(card: .init(comment: root, thread: thread), collapse: comments,
                   state: discussion, enabled: enabled, writable: writable, mentionRequest: mentionRequest,
                   open: open, submit: submit, showsCodeContext: false)
               }
             }.id(file.path)
+          }
+          if let controls = inlineControls {
+            ForEach(discussion.inlineDrafts.filter { _, draft in
+              guard case .inline(_, let anchor) = draft.target else { return false }
+              return !state.files.contains { $0.path == anchor.position.path }
+            }, id: \.id) { entry in
+              VStack(alignment: .leading, spacing: 4) {
+                if case .inline(_, let anchor) = entry.draft.target { Text(anchor.position.path).appFont(size: 12).foregroundStyle(.secondary) }
+                TaskPullRequestInlineCommentView(id: entry.id, draft: entry.draft, controls: controls) { discussion.cancelDraft(entry.id) }
+              }
+            }
           }
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
       }
@@ -119,6 +155,11 @@ struct TaskPullRequestCodeView: View {
     }
   }
 
+  private var inlineControls: PullRequestInlineCommentControls? {
+    state.snapshot.map { .init(code: $0, discussion: discussion,
+      enabled: enabled && !metadataLoading && !discussion.isCodeStale($0.identity) && discussion.snapshot?.head.lowercased() == $0.identity.head.lowercased(),
+      writable: writable, mentionRequest: mentionRequest, submit: submit) }
+  }
   private func threads(for file: GitHubPRCodeFile) -> [GitHubPRReviewThread] {
     guard discussion.readError == nil, let snapshot = discussion.snapshot,
       snapshot.head.lowercased() == state.snapshot?.identity.head.lowercased() else { return [] }

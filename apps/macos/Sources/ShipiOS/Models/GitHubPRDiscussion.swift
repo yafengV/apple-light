@@ -16,6 +16,7 @@ struct GitHubPRComment: Codable, Identifiable, Equatable, Sendable {
   var commit: String? = nil
   var avatarURL: String? = nil
   var submittedAt: String? = nil
+  var originalCommit: String? = nil
   var activityDate: String { kind == .review ? submittedAt ?? createdAt : createdAt }
   var quotedBody: String { body.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
 }
@@ -73,12 +74,13 @@ enum GitHubPRReviewDecision: String, CaseIterable, Identifiable, Sendable {
 
 enum GitHubPRDiscussionAction: Equatable, Sendable {
   case post(body: String, thread: String?)
+  case inline(body: String, anchor: GitHubPRInlineAnchor)
   case edit(id: String, kind: GitHubPRCommentKind, body: String)
   case delete(id: String, kind: GitHubPRCommentKind)
   case resolve(thread: String, resolved: Bool)
   case review(body: String, decision: GitHubPRReviewDecision, head: String)
   var creates: Bool {
-    switch self { case .post, .review: true; default: false }
+    switch self { case .post, .inline, .review: true; default: false }
   }
 }
 
@@ -91,6 +93,7 @@ struct GitHubPRDiscussionFailure: LocalizedError {
   let message: String
   var snapshot: GitHubPRDiscussionSnapshot? = nil
   var uncertain: GitHubPRDiscussionAttempt? = nil
+  var staleInline: GitHubPRInlineAnchor? = nil
   var errorDescription: String? { message }
 }
 

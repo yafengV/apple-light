@@ -21,7 +21,7 @@ if args[:2] == ["pr", "create"] or (args[:2] == ["pr", "edit"] and "--body-file"
     log["body"] = body_file.read_bytes().decode("utf-8")
     log["bodyMode"] = oct(body_file.stat().st_mode & 0o777)
     log["folderMode"] = oct(body_file.parent.stat().st_mode & 0o777)
-if args[:2] == ["api", "graphql"] and "--input" in args:
+if args and args[0] == "api" and "--input" in args:
     input_file = pathlib.Path(arg("--input"))
     log["input"] = json.loads(input_file.read_text())
     log["inputMode"] = oct(input_file.stat().st_mode & 0o777)
@@ -71,6 +71,41 @@ elif args[:2] == ["pr", "view"]:
         details["url"] = "https://github.com/other/project/pull/42"
     print(json.dumps(details))
 elif args and args[0] == "api":
+    if "--method" in args and arg("--method") == "POST" and args[1].endswith("/pulls/42/comments"):
+        assert args[1] == "repos/sample/project/pulls/42/comments"
+        fields = log["input"]
+        status = state.get("inlineStatus", 201)
+        if status != 201:
+            print("HTTP/2.0 " + str(status) + " Fixture\nContent-Type: application/json\n\n" + json.dumps({"message": "Fixture rejection"}))
+            sys.exit(1)
+        if state.get("inlineNoAccept"):
+            sys.exit("Connection interrupted before any confirmed result")
+        sequence = state.get("discussionSequence", 0) + 1
+        identifier = "inline-" + str(sequence)
+        viewer = state.get("viewer", "fixture-author")
+        code = {"id": identifier, "__typename": "PullRequestReviewComment", "body": fields["body"],
+            "createdAt": "2026-09-29T12:00:00Z", "url": "https://github.com/sample/project/pull/42#" + identifier,
+            "author": {"login": viewer, "__typename": "User"}, "viewerCanUpdate": True, "viewerCanDelete": True,
+            "commit": {"oid": fields["commit_id"]}, "originalCommit": {"oid": fields["commit_id"]}, "diffHunk": state.get("prDiff", "")}
+        thread = {"id": "thread-" + identifier, "path": fields["path"], "line": fields["line"], "originalLine": fields["line"],
+            "diffSide": fields["side"], "startLine": fields.get("start_line"), "originalStartLine": fields.get("start_line"),
+            "startDiffSide": fields.get("start_side"), "isResolved": False, "isOutdated": False,
+            "viewerCanReply": True, "viewerCanResolve": True, "viewerCanUnresolve": True, "comments": [code]}
+        state.setdefault("discussionThreads", []).append(thread)
+        if state.get("inlineDuplicate"):
+            duplicate = json.loads(json.dumps(thread)); duplicate["id"] += "-duplicate"; duplicate["comments"][0]["id"] += "-duplicate"
+            state["discussionThreads"].append(duplicate)
+        state["discussionSequence"], state["discussionAccepted"] = sequence, True
+        state_path.write_text(json.dumps(state))
+        if state.get("inlineLostResponse"):
+            sys.exit("Connection interrupted after accepting comment")
+        receipt = {"node_id": identifier, "id": sequence, "body": fields["body"], "user": {"login": viewer},
+            "commit_id": fields["commit_id"], "path": fields["path"], "line": fields["line"], "side": fields["side"],
+            "start_line": fields.get("start_line"), "start_side": fields.get("start_side"),
+            "pull_request_url": "https://api.github.com/repos/sample/project/pulls/42"}
+        receipt.update(state.get("inlineReceiptOverride", {}))
+        print("HTTP/2.0 201 Created\nContent-Type: application/json\n\n" + json.dumps(receipt))
+        sys.exit(0)
     if args[1] == "graphql" and "--input" in args:
         # New discussion queries are isolated from the existing merge metadata fixture.
         import re
@@ -78,6 +113,12 @@ elif args and args[0] == "api":
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
         if "ShipiOSPRCodeIdentity" in query:
+            if state.get("codeBaseAtIdentityRead"):
+                count = state.get("codeIdentityReadCount", 0) + 1
+                state["codeIdentityReadCount"] = count
+                if str(count) in state["codeBaseAtIdentityRead"]:
+                    state["codeBase"] = state["codeBaseAtIdentityRead"][str(count)]
+                state_path.write_text(json.dumps(state))
             if state.get("codeReadFailure"):
                 sys.exit("Code identity unavailable")
             item = next(x for x in state["pullRequests"] if x["number"] == variables["number"])

@@ -4,7 +4,7 @@ extension GitHubPRService {
   func codeSnapshot(_ request: GitHubPRCodeRequest) async throws -> GitHubPRCodeSnapshot {
     let before = try await codeIdentity(request)
     guard before.head.lowercased() == request.head.lowercased() else {
-      throw AgentFailure(message: "PR 头提交已改变，请刷新 PR 后重试。")
+      throw GitHubPRCodeChanged(message: "PR 头提交已改变，请刷新 PR 后重试。")
     }
     guard let url = request.pullRequest.validatedURL else { throw AgentFailure(message: "PR 地址无效。") }
     let parts = url.pathComponents
@@ -12,7 +12,7 @@ extension GitHubPRService {
     let patch = try await run(["pr", "diff", String(request.pullRequest.number), "--repo", repository,
       "--color", "never"], at: request.root)
     let after = try await codeIdentity(request)
-    guard before == after else { throw AgentFailure(message: "PR 在读取差异时发生变化，请刷新后重试。") }
+    guard before == after else { throw GitHubPRCodeChanged(message: "PR 在读取差异时发生变化，请刷新后重试。") }
     let files = try GitHubPRCodeFile.parse(patch)
     guard files.count == before.changedFiles else {
       throw AgentFailure(message: "GitHub 返回的差异不完整，无法显示全部修改文件。请重试或在浏览器中查看。")
@@ -21,7 +21,7 @@ extension GitHubPRService {
     return .init(identity: after, files: files)
   }
 
-  private func codeIdentity(_ request: GitHubPRCodeRequest) async throws -> GitHubPRCodeIdentity {
+  func codeIdentity(_ request: GitHubPRCodeRequest) async throws -> GitHubPRCodeIdentity {
     guard let url = request.pullRequest.validatedURL else { throw AgentFailure(message: "PR 地址无效。") }
     let parts = url.pathComponents, repository = parts[1] + "/" + parts[2]
     let data = try await discussionGraphQL("""
