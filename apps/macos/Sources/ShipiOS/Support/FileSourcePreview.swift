@@ -51,6 +51,7 @@ struct FileSourcePreview: NSViewRepresentable {
     _ = workspace.fileContentVersion
     let identity = (workspace.root?.path ?? "") + "/" + (workspace.selectedFile ?? "")
     if coordinator.identity != identity {
+      coordinator.dismissSelectionAction()
       coordinator.savePosition(text)
       coordinator.identity = identity
       coordinator.needsRestore = true
@@ -59,6 +60,9 @@ struct FileSourcePreview: NSViewRepresentable {
       coordinator.needsRestore = true
     }
     coordinator.wasLoading = workspace.fileLoading
+    if workspace.fileLoading || workspace.selectionEdit.isPresented {
+      coordinator.dismissSelectionAction()
+    }
     let root = (workspace.root?.path ?? "") + "/"
     let open = Set(workspace.openFiles.map { root + $0 })
     workspace.filePreviewPositions = workspace.filePreviewPositions.filter { open.contains($0.key) }
@@ -132,6 +136,8 @@ struct FileSourcePreview: NSViewRepresentable {
     var focusRequest: UUID?
     var lineRequest: UUID?
     var applyingProgrammaticText = false
+    private var selectionAction: NSPopover?
+    private var selectionActionRange: NSRange?
     private var monitor: Any?
 
     @MainActor func savePosition(_ text: NSTextView) {
@@ -207,7 +213,16 @@ struct FileSourcePreview: NSViewRepresentable {
         return handled ? nil : event
       }
     }
-    func stop() { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+    func stop() {
+      dismissSelectionAction()
+      if let monitor { NSEvent.removeMonitor(monitor) }
+      monitor = nil
+    }
+    func dismissSelectionAction() {
+      selectionAction?.close()
+      selectionAction = nil
+      selectionActionRange = nil
+    }
     func textDidChange(_ notification: Notification) {
       guard !applyingProgrammaticText, let text = notification.object as? NSTextView,
         let workspace, workspace.selectedFileEditor != nil,
@@ -217,6 +232,33 @@ struct FileSourcePreview: NSViewRepresentable {
     func textViewDidChangeSelection(_ notification: Notification) {
       guard let text = notification.object as? FilePreviewTextView, let workspace else { return }
       workspace.selectionEdit.selectionChanged(in: text)
+      updateSelectionAction(in: text, workspace: workspace)
+    }
+    @MainActor private func updateSelectionAction(in text: FilePreviewTextView, workspace: DeveloperWorkspace) {
+      guard let range = workspace.selectionEdit.candidate, !workspace.selectionEdit.isPresented,
+        let path = workspace.selectedFile, text.isEditable,
+        let window = text.window, window.isKeyWindow, window.firstResponder === text else {
+        dismissSelectionAction()
+        return
+      }
+      if selectionAction?.isShown == true, selectionActionRange == range { return }
+      selectionAction?.close()
+      let screenRect = text.firstRect(forCharacterRange: range, actualRange: nil)
+      guard !screenRect.isEmpty else { return }
+      let anchor = text.convert(window.convertFromScreen(screenRect), from: nil)
+      let popover = NSPopover()
+      popover.behavior = .transient
+      popover.contentSize = NSSize(width: 160, height: 42)
+      popover.contentViewController = NSHostingController(rootView:
+        Button("编辑选区…") { [weak popover, weak workspace] in
+          if let workspace, workspace.selectedFile == path {
+            workspace.selectionEdit.open(path: path, source: workspace.fileText)
+          }
+          popover?.close()
+        }.buttonStyle(.plain).padding(10).frame(maxWidth: .infinity, alignment: .leading))
+      selectionAction = popover
+      selectionActionRange = range
+      popover.show(relativeTo: anchor, of: text, preferredEdge: .maxY)
     }
     deinit { stop() }
   }

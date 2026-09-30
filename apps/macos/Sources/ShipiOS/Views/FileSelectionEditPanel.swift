@@ -42,6 +42,7 @@ struct FileSelectionEditPanel: View {
         }.frame(height: 160)
         HStack {
           Button("拒绝") { session.close(); workspace.fileFocusRequest = UUID() }
+          Button("编辑要求") { session.revise(); instructionFocused = true }
           Spacer()
           if !session.canApply(path: workspace.selectedFile, source: workspace.fileText) {
             Text("文件或选区已变化，请重新生成").foregroundStyle(.orange).appFont(.caption)

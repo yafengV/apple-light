@@ -357,6 +357,11 @@ class Handler(BaseHTTPRequestHandler):
                                 'has_result': 'function_call_output' in request_text,
                             })}],
                     }
+            elif 'shipios-selection-edit-probe' in request_text:
+                replacement = ('FIXED' if '<selected_text>\\nTARGET\\n</selected_text>' in request_text
+                               else 'INVALID_SELECTION_CONTEXT')
+                item = {'type': 'message', 'role': 'assistant', 'id': 'selection-edit-reply',
+                    'content': [{'type': 'output_text', 'text': replacement}]}
             elif 'skill-dependency-request-echo' in request_text:
                 item = {
                     'type': 'message', 'role': 'assistant', 'id': 'dependency-request',
@@ -493,6 +498,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(b'data: {not json}\n\n')
                 return
             chunks = ['Hello ', '\u4e16\u754c', '!']
+            if 'shipios-selection-edit-probe' in prompt:
+                chunks = ['FIXED' if '<selected_text>\nTARGET\n</selected_text>' in prompt
+                          else 'INVALID_SELECTION_CONTEXT']
             if system_text.startswith('Generate a pull request title and description'):
                 if os.getenv('PR_REQUEST_LOG'):
                     with open(os.environ['PR_REQUEST_LOG'], 'w') as output:

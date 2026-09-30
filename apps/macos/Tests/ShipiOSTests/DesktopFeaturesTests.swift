@@ -722,6 +722,36 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testSelectionEditUsesBothIndependentModelProtocolsWithoutWritingFile() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let path = project.appendingPathComponent("shipios-selection-edit-probe.swift")
+    let source = "before TARGET after"
+    try source.write(to: path, atomically: true, encoding: .utf8)
+    for apiProtocol in [ModelAPIProtocol.chatCompletions, .codexResponses] {
+      let store = WorkspaceStore(dataRoot: root.appendingPathComponent(apiProtocol.rawValue),
+        agentExecutable: binary)
+      await store.restore()
+      config.apiProtocol = apiProtocol
+      try store.saveModelConfiguration(config)
+      let workspace = DeveloperWorkspace()
+      workspace.root = project
+      let request = FileSelectionEditRequest(path: path.path, source: source,
+        range: NSRange(location: 7, length: 6), instruction: "Replace TARGET")
+      let proposal = try await store.generateFileSelectionEdit(request, taskID: nil, workspace: workspace)
+      XCTAssertEqual(proposal.replacement, "FIXED")
+      XCTAssertEqual(proposal.content, "before FIXED after")
+      XCTAssertEqual(try String(contentsOf: path), source)
+      XCTAssertTrue(store.library.tasks.isEmpty, "Temporary model turns must not create user tasks")
+      await store.shutdown()
+    }
+  }
   @MainActor func testPopoutRerunKeepsMainDraftAndUsesOriginalTask() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

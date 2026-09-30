@@ -28,12 +28,15 @@ import XCTest
       return view.subviews.compactMap(preview).first
     }
     let text = try XCTUnwrap(preview(host))
+    text.setSelectedRange(NSRange(location: 3, length: 1))
+    workspace.selectionEdit.selectionChanged(in: text)
+    XCTAssertNil(workspace.selectionEdit.candidate, "Whitespace-only selections have no edit action")
     text.setSelectedRange(NSRange(location: 4, length: 3))
     workspace.selectionEdit.selectionChanged(in: text)
     workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
     workspace.selectionEdit.instruction = "uppercase"
     workspace.selectionEdit.generate { request in
-      try request.proposal(from: #"{"replacement":"TWO"}"#)
+      try request.proposal(from: "TWO")
     }
     for _ in 0..<20 where workspace.selectionEdit.proposal == nil {
       await Task.yield()
@@ -41,6 +44,11 @@ import XCTest
     XCTAssertNotNil(workspace.selectionEdit.proposal)
     XCTAssertEqual(text.string, "one two", "Generating must not modify the editor")
     XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("Edit.swift")), "one two")
+    workspace.selectionEdit.revise()
+    XCTAssertNil(workspace.selectionEdit.proposal)
+    XCTAssertEqual(workspace.selectionEdit.instruction, "uppercase")
+    workspace.selectionEdit.generate { request in try request.proposal(from: "TWO") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
     XCTAssertTrue(workspace.selectionEdit.accept(path: workspace.selectedFile, source: workspace.fileText))
     XCTAssertEqual(workspace.fileText, "one TWO")
     XCTAssertTrue(text.undoManager?.canUndo == true)
@@ -52,7 +60,7 @@ import XCTest
     workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
     workspace.selectionEdit.instruction = "uppercase"
     workspace.selectionEdit.generate { request in
-      try request.proposal(from: #"{"replacement":"TWO"}"#)
+      try request.proposal(from: "TWO")
     }
     for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
     text.setSelectedRange(NSRange(location: 0, length: 3))

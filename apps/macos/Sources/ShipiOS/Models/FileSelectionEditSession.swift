@@ -21,7 +21,13 @@ final class FileSelectionEditSession {
   func selectionChanged(in editor: FilePreviewTextView) {
     guard self.editor === editor else { return }
     let range = editor.selectedRange()
-    candidate = range.length > 0 && Range(range, in: editor.string) != nil ? range : nil
+    if range.length > 0, range.length <= FileSelectionEditRequest.maximumSelectionLength,
+      let swiftRange = Range(range, in: editor.string),
+      !editor.string[swiftRange].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      candidate = range
+    } else {
+      candidate = nil
+    }
   }
 
   func open(path: String, source: String) {
@@ -93,6 +99,12 @@ final class FileSelectionEditSession {
   }
 
   func cancel() {
+    cancelGeneration()
+    proposal = nil
+    error = nil
+  }
+
+  func revise() {
     cancelGeneration()
     proposal = nil
     error = nil

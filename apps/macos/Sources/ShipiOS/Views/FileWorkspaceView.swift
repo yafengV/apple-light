@@ -46,11 +46,6 @@ struct FileWorkspaceView: View {
               .disabled(!editor.hasUnsavedChanges || editor.saving || editor.changedOnDisk != nil)
               .help("保存文件 ⌘S")
           }
-          if workspace.selectedFileEditor != nil && workspace.selectionEdit.candidate != nil {
-            Button("编辑选区…") {
-              workspace.selectionEdit.open(path: file, source: workspace.fileText)
-            }.help("用已配置的模型生成选区修改并先审阅")
-          }
           Button("跳转到行…") { workspace.showingFileLine = true }
             .disabled(workspace.fileLoading || workspace.fileError != nil).help("跳转到行 \(store.shortcuts.label("browser-address"))")
           Button("在编辑器中打开") { Task { await store.openProjectFile(file, in: workspace) } }
