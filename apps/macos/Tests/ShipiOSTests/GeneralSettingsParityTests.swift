@@ -106,6 +106,8 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertNil(legacy.projectlessWorkspaceRoot)
     XCTAssertTrue(legacy.projectlessTaskDirectories.isEmpty)
     XCTAssertFalse(legacy.popoutWindowProjectlessDefault)
+    XCTAssertNil(legacy.popoutHomeRuntimePreferences)
+    XCTAssertTrue(legacy.taskRuntimePreferences.isEmpty)
     XCTAssertEqual(legacy.gitPreferences.reviewDelivery, .inline)
   }
 
@@ -372,6 +374,33 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertTrue(store.popoutHomeFiles.isEmpty)
   }
 
+  @MainActor func testPopoutPermissionsAreCapturedPerTaskAndRemovedWithDiscardedDraft() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let selected = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    XCTAssertTrue(store.savePopoutHomeRuntimePreferences(selected))
+    store.popoutHomeDraft = "Inspect without editing"
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      projectless: true))
+    XCTAssertEqual(store.runtimePermissions(for: task.id), selected)
+    XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .taskRuntimePreferences[task.id], selected)
+
+    XCTAssertTrue(store.saveAgentRuntimePreferences(AgentRuntimePreferences(
+      approvalPolicy: .onRequest, sandboxMode: .fullAccess, networkAccess: false)))
+    XCTAssertEqual(store.runtimePermissions(for: task.id), selected)
+    XCTAssertTrue(store.savePopoutHomeRuntimePreferences(nil))
+    store.popoutHomeDraft = "Use the new global permissions"
+    let following = try XCTUnwrap(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      projectless: true))
+    XCTAssertEqual(store.runtimePermissions(for: following.id).sandboxMode, .fullAccess)
+    store.discardPopoutTaskIfEmpty(task.id)
+    XCTAssertNil(store.library.taskRuntimePreferences[task.id])
+  }
+
   @MainActor func testPopoutDraftStaysHiddenPromotesOnFirstRunAndEmptyDraftCanBeDiscarded() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -379,6 +408,8 @@ final class GeneralSettingsParityTests: XCTestCase {
     store.libraryLoaded = true
     store.popoutWindowProjectlessDefault = true
     let draft = try XCTUnwrap(store.createPopoutTask())
+    XCTAssertEqual(store.runtimePermissions(for: draft.id), store.library.agentRuntimePreferences)
+    XCTAssertNotNil(store.library.taskRuntimePreferences[draft.id])
 
     XCTAssertTrue(store.library.visible(project: "", query: "", archived: false).isEmpty)
     XCTAssertFalse(store.library.sidebarItems(in: SidebarLayout.projectless).contains(.task(draft.id)))

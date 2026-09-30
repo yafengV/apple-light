@@ -374,6 +374,10 @@ struct WorkspaceLibrary: Codable {
   var defaultTerminalLocation = WorkspaceTabPlacement.bottom
   var gitPreferences = GitPreferences()
   var agentRuntimePreferences = AgentRuntimePreferences()
+  /// The popout composer may override the global permission defaults for its next task.
+  var popoutHomeRuntimePreferences: AgentRuntimePreferences?
+  /// Popout tasks keep the permission snapshot used to start their Codex thread.
+  var taskRuntimePreferences: [String: AgentRuntimePreferences] = [:]
   var agentResponsePreferences = AgentResponsePreferences()
   var agentWebSearchMode = AgentWebSearchMode.disabled
   var enabledAdvancedReasoningEfforts: Set<AgentAdvancedReasoningEffort> = []
@@ -402,7 +406,8 @@ struct WorkspaceLibrary: Codable {
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
-      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, agentResponsePreferences,
+      defaultTerminalLocation, gitPreferences, agentRuntimePreferences,
+      popoutHomeRuntimePreferences, taskRuntimePreferences, agentResponsePreferences,
       agentWebSearchMode, enabledAdvancedReasoningEfforts,
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
@@ -504,6 +509,10 @@ struct WorkspaceLibrary: Codable {
     gitPreferences.normalize()
     agentRuntimePreferences = try c.decodeIfPresent(AgentRuntimePreferences.self,
       forKey: .agentRuntimePreferences) ?? AgentRuntimePreferences()
+    popoutHomeRuntimePreferences = try c.decodeIfPresent(AgentRuntimePreferences.self,
+      forKey: .popoutHomeRuntimePreferences)
+    taskRuntimePreferences = try c.decodeIfPresent([String: AgentRuntimePreferences].self,
+      forKey: .taskRuntimePreferences) ?? [:]
     agentResponsePreferences = try c.decodeIfPresent(AgentResponsePreferences.self,
       forKey: .agentResponsePreferences) ?? AgentResponsePreferences()
     agentWebSearchMode = try c.decodeIfPresent(AgentWebSearchMode.self,
@@ -657,6 +666,7 @@ struct WorkspaceLibrary: Codable {
         if taskWindowTabLayouts[windowID]?.isEmpty == true { taskWindowTabLayouts[windowID] = nil }
       }
       goalSessions[id] = nil
+      taskRuntimePreferences[id] = nil
       projectlessTaskDirectories[id] = nil
       drafts[id] = nil
       draftImages[id] = nil

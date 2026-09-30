@@ -60,6 +60,8 @@ extension WorkspaceStore {
     let sourcePath = library.primaryFolder(for: selectedProject)
     let submittedImages = popoutHomeImages
     let submittedFiles = popoutHomeFiles
+    let submittedPermissions = library.popoutHomeRuntimePreferences
+      ?? library.agentRuntimePreferences
     do {
       _ = try ProjectFolders.canonical([sourcePath])
       let config = modelConfiguration(for: nil)
@@ -104,6 +106,7 @@ extension WorkspaceStore {
       let task = WorkspaceTask(id: taskID, project: record.path, title: "新任务",
         runIDs: [], popoutDraft: true, createdAt: now, updatedAt: now)
       candidate.tasks.insert(task, at: 0)
+      candidate.taskRuntimePreferences[taskID] = submittedPermissions
       candidate.drafts[taskID] = prompt
       candidate.draftImages[taskID] = candidate.draftImages[Self.popoutHomeDraftKey]
       candidate.draftFiles[taskID] = candidate.draftFiles[Self.popoutHomeDraftKey]

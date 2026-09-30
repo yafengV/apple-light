@@ -403,7 +403,7 @@ extension WorkspaceStore {
       !continuationText.isEmpty || !images.isEmpty || !files.isEmpty else {
       throw AgentFailure(message: "Codex 回合缺少输入。")
     }
-    var permissions = library.agentRuntimePreferences
+    var permissions = runtimePermissions(for: taskID)
     if unattended { permissions.approvalPolicy = .never }
     let stream = try await codexTransport.startTurn(
       taskID: taskID, workspace: workspace, executable: executable, additionalFolders: additionalFolders,

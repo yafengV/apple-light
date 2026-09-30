@@ -52,6 +52,9 @@ final class WorktreeTests: XCTestCase {
     await store.restore()
     store.library.visit(source.path)
     store.library.newTaskEnvironmentSelections[source.path] = WorktreeEnvironmentChoice.none
+    let permissions = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    store.library.popoutHomeRuntimePreferences = permissions
     XCTAssertTrue(store.saveLibrary())
     store.popoutHomeDraft = "Work on this in a checkout"
     try write("source edit\n", source.appendingPathComponent("file"))
@@ -76,6 +79,7 @@ final class WorktreeTests: XCTestCase {
     let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == task.id })
     XCTAssertTrue(record.ready)
     XCTAssertEqual(task.project, record.path)
+    XCTAssertEqual(store.runtimePermissions(for: task.id), permissions)
     XCTAssertTrue(store.canStartChat(taskID: task.id))
     XCTAssertEqual(store.taskWindowDraft(task.id), "Work on this in a checkout")
     XCTAssertEqual(store.popoutHomeDraft, "")

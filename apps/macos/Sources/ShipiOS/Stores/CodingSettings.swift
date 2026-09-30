@@ -1,6 +1,25 @@
 import Foundation
 
 extension WorkspaceStore {
+  func runtimePermissions(for taskID: String) -> AgentRuntimePreferences {
+    library.taskRuntimePreferences[taskID] ?? library.agentRuntimePreferences
+  }
+
+  @discardableResult func savePopoutHomeRuntimePreferences(
+    _ preferences: AgentRuntimePreferences?) -> Bool {
+    guard libraryLoaded else { return false }
+    do {
+      var candidate = library
+      candidate.popoutHomeRuntimePreferences = preferences
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return true
+    } catch {
+      generalSettingsError = error.localizedDescription
+      return false
+    }
+  }
+
   @discardableResult func saveAgentRuntimePreferences(_ preferences: AgentRuntimePreferences) -> Bool {
     let previous = library.agentRuntimePreferences
     library.agentRuntimePreferences = preferences

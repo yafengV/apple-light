@@ -127,6 +127,8 @@ extension WorkspaceStore {
     do {
       var candidate = library
       candidate.tasks.insert(task, at: 0)
+      candidate.taskRuntimePreferences[task.id] =
+        candidate.popoutHomeRuntimePreferences ?? candidate.agentRuntimePreferences
       candidate.drafts[task.id] = ""
       try commitLibrary(candidate)
       generalSettingsError = nil
@@ -170,6 +172,8 @@ extension WorkspaceStore {
     do {
       var candidate = library
       candidate.tasks.insert(task, at: 0)
+      candidate.taskRuntimePreferences[task.id] =
+        candidate.popoutHomeRuntimePreferences ?? candidate.agentRuntimePreferences
       candidate.drafts[task.id] = prompt
       candidate.draftImages[task.id] = candidate.draftImages[Self.popoutHomeDraftKey]
       candidate.draftFiles[task.id] = candidate.draftFiles[Self.popoutHomeDraftKey]
@@ -199,6 +203,7 @@ extension WorkspaceStore {
       candidate.browserComments[taskID] = nil
       candidate.pullRequestCheckDrafts[taskID] = nil
       candidate.goalSessions[taskID] = nil
+      candidate.taskRuntimePreferences[taskID] = nil
       candidate.projectlessTaskDirectories[taskID] = nil
       try commitLibrary(candidate)
     } catch { self.error = "无法清理未发送的弹出任务：\(error.localizedDescription)" }

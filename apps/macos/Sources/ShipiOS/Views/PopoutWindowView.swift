@@ -200,6 +200,7 @@ struct PopoutHomeView: View {
       projectMenu
       executionMenu
       environmentMenu
+      permissionsMenu
     } label: {
       Label((selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天")
         + (execution == .worktree ? " · 工作树" : ""),
@@ -294,6 +295,61 @@ struct PopoutHomeView: View {
       if selected == id { Label(title, systemImage: "checkmark") }
       else { Text(title) }
     }
+  }
+
+  private var permissionsMenu: some View {
+    Menu("权限") {
+      let effective = store.library.popoutHomeRuntimePreferences
+        ?? store.library.agentRuntimePreferences
+      Button {
+        _ = store.savePopoutHomeRuntimePreferences(nil)
+      } label: {
+        if store.library.popoutHomeRuntimePreferences == nil {
+          Label("沿用全局设置", systemImage: "checkmark")
+        } else { Text("沿用全局设置") }
+      }
+      Divider()
+      Menu("审批策略") {
+        ForEach(AgentApprovalPolicy.allCases, id: \.self) { policy in
+          Button {
+            var choice = effective
+            choice.approvalPolicy = policy
+            _ = store.savePopoutHomeRuntimePreferences(choice)
+          } label: {
+            if effective.approvalPolicy == policy {
+              Label(policy.title, systemImage: "checkmark")
+            } else { Text(policy.title) }
+          }
+        }
+      }
+      Menu("文件访问") {
+        ForEach(AgentSandboxMode.allCases, id: \.self) { mode in
+          Button {
+            var choice = effective
+            choice.sandboxMode = mode
+            if mode != .workspaceWrite { choice.networkAccess = false }
+            _ = store.savePopoutHomeRuntimePreferences(choice)
+          } label: {
+            if effective.sandboxMode == mode {
+              Label(mode.title, systemImage: "checkmark")
+            } else { Text(mode.title) }
+          }
+        }
+      }
+      if effective.sandboxMode == .workspaceWrite {
+        Button {
+          var choice = effective
+          choice.networkAccess.toggle()
+          _ = store.savePopoutHomeRuntimePreferences(choice)
+        } label: {
+          if effective.networkAccess {
+            Label("允许网络访问", systemImage: "checkmark")
+          } else { Text("允许网络访问") }
+        }
+      }
+    }
+    .disabled(submitting)
+    .help("为弹出窗口创建的新任务选择 Codex Core 权限")
   }
 
   private var sendShortcut: ComposerSendShortcut {
