@@ -133,7 +133,7 @@ struct WorkspaceView: View {
           .appSidebarSurface()
           .toolbar(removing: store.destination == .settings ? .sidebarToggle : nil)
           .frame(height: geometry.size.height)
-          .navigationSplitViewColumnWidth(min: 210, ideal: 245, max: 310)
+          .navigationSplitViewColumnWidth(min: 240, ideal: 275, max: 520)
       } detail: {
         workspaceDetail
       }

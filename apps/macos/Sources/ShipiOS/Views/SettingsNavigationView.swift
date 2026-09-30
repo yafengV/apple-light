@@ -131,7 +131,7 @@ struct SettingsNavigationView: View {
       }.focusSection()
     }
     .padding(.horizontal, 12).padding(.top, 16)
-    .frame(width: 220).appSidebarSurface()
+    .frame(width: 275).appSidebarSurface()
     .onAppear { store.settingsSearchFocusRequest = UUID() }
     .onDisappear { searchTabRequest = nil }
     .onChange(of: store.settingsSearchFocusRequest) { _, _ in

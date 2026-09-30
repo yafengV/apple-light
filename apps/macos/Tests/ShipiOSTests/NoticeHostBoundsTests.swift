@@ -40,6 +40,8 @@ import XCTest
     let workspace = try XCTUnwrap(tracker.bounds.workspace)
     XCTAssertGreaterThan(rootFrame.width, 1000)
     XCTAssertGreaterThan(detail.minX, rootFrame.minX)
+    XCTAssertGreaterThanOrEqual(detail.minX - rootFrame.minX, 275)
+    XCTAssertLessThan(detail.minX - rootFrame.minX, 290)
     XCTAssertGreaterThan(detail.width, 600)
     XCTAssertGreaterThanOrEqual(workspace.minX, detail.minX)
     XCTAssertLessThanOrEqual(workspace.maxX, detail.maxX)

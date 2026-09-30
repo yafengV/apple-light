@@ -110,6 +110,27 @@ final class SettingsLayoutTests: XCTestCase {
     }
   }
 
+  @MainActor func testOpenSourceLicensesSubpageRendersWithOneScrollDocument() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try "Alpha license terms".write(to: root.appendingPathComponent("Alpha-MIT.txt"),
+      atomically: true, encoding: .utf8)
+    try "Beta license terms".write(to: root.appendingPathComponent("Beta-NOTICE.txt"),
+      atomically: true, encoding: .utf8)
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: OpenSourceLicensesView(directory: root))
+    window.contentView = host
+    host.frame = NSRect(x: 0, y: 0, width: 960, height: 600)
+    try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(scrollViews(in: host).count, 1)
+    XCTAssertGreaterThan(try snapshot(host, named: "open-source-licenses").count, 5000)
+    XCTAssertFalse(window.isVisible)
+  }
+
   @MainActor func testSpecialPagesHaveOneScrollDocumentWithPopulatedLists() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
