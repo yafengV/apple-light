@@ -16,7 +16,7 @@ struct FileWorkspaceView: View {
         if workspace.selectedFile == nil {
           fileBrowser
         } else {
-          ZStack(alignment: .leading) {
+          ZStack(alignment: .trailing) {
             fileDetail(compact: true)
             if compactTreePresented {
               Color.black.opacity(0.12).contentShape(Rectangle())
@@ -28,10 +28,10 @@ struct FileWorkspaceView: View {
         }
       } else {
         HSplitView {
+          fileDetail(compact: false)
           if workspace.fileTreeVisible || workspace.selectedFile == nil {
             fileBrowser.frame(minWidth: 180, idealWidth: 230, maxWidth: 360)
           }
-          fileDetail(compact: false)
         }
       }
     }

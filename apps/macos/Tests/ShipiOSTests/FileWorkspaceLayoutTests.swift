@@ -24,7 +24,7 @@ import XCTest
     window.contentView = host
     host.frame.size = .init(width: 850, height: 600)
 
-    func editorX() async throws -> CGFloat {
+    func editorFrame() async throws -> CGRect {
       try await Task.sleep(for: .milliseconds(120))
       host.layoutSubtreeIfNeeded()
       func find(_ view: NSView) -> FilePreviewTextView? {
@@ -33,21 +33,24 @@ import XCTest
       }
       let editor = try XCTUnwrap(find(host))
       XCTAssertEqual(editor.string, "let value = 42\n")
-      return editor.convert(.zero, to: host).x
+      return editor.convert(editor.bounds, to: host)
     }
 
-    let withTree = try await editorX()
-    XCTAssertGreaterThan(withTree, 180)
+    let withTree = try await editorFrame()
+    XCTAssertLessThan(withTree.minX, 80)
+    XCTAssertLessThan(withTree.maxX, 710, "The visible tree should occupy the trailing side")
     workspace.fileTreeVisible = false
-    let withoutTree = try await editorX()
-    XCTAssertLessThan(withoutTree, 80)
+    let withoutTree = try await editorFrame()
+    XCTAssertLessThan(withoutTree.minX, 80)
+    XCTAssertGreaterThan(withoutTree.maxX, withTree.maxX + 150)
     workspace.fileTreeVisible = true
-    let restoredTree = try await editorX()
-    XCTAssertGreaterThan(restoredTree, 180)
+    let restoredTree = try await editorFrame()
+    XCTAssertLessThan(restoredTree.maxX, 710)
     window.setContentSize(.init(width: 500, height: 600))
     host.frame.size = .init(width: 500, height: 600)
-    let compactEditor = try await editorX()
-    XCTAssertLessThan(compactEditor, 80, "The editor should fill a narrow file panel")
+    let compactEditor = try await editorFrame()
+    XCTAssertLessThan(compactEditor.minX, 80)
+    XCTAssertGreaterThan(compactEditor.maxX, 450, "The editor should fill a narrow file panel")
     XCTAssertEqual(workspace.selectedFile, "Edit.swift")
   }
 }
