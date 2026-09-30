@@ -54,6 +54,10 @@ struct FileWorkspaceView: View {
           Text(error).foregroundStyle(.orange).textSelection(.enabled).appFont(.caption)
             .padding(.horizontal, 10).padding(.bottom, 8)
         }
+        if workspace.fileIsReadOnly, !workspace.fileLoading, workspace.fileError == nil {
+          Text("大文件已以只读方式打开；编辑请使用外部编辑器。")
+            .appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.bottom, 8)
+        }
         if let editor = workspace.selectedFileEditor, let error = editor.error {
           HStack {
             Text(error).foregroundStyle(.orange).textSelection(.enabled)
@@ -110,6 +114,11 @@ struct FileWorkspaceView: View {
       Text("文件在应用外发生更改").appFont(.title2, weight: .semibold)
       Text("比较两个版本后选择保留哪一份；再次保存前仍会检查磁盘是否又发生变化。")
         .foregroundStyle(.secondary)
+      if let editor = workspace.selectedFileEditor,
+        editor.changedOnDisk?.utf8.count ?? 0 > LocalWorkspaceService.maximumEditableTextBytes {
+        Text("磁盘版本超过应用内编辑上限。请先复制需要保留的本地文本，再保留磁盘版本。")
+          .foregroundStyle(.orange)
+      }
       HStack(spacing: 12) {
         conflictText("当前编辑", workspace.selectedFileEditor?.text ?? "")
         conflictText("磁盘版本", workspace.selectedFileEditor?.changedOnDisk ?? "")
@@ -126,6 +135,8 @@ struct FileWorkspaceView: View {
             if await workspace.useLocalFileEditsAfterConflict() { showingConflict = false }
           }
         }.buttonStyle(.borderedProminent)
+          .disabled((workspace.selectedFileEditor?.changedOnDisk?.utf8.count ?? 0)
+            > LocalWorkspaceService.maximumEditableTextBytes)
       }
     }.padding(20).frame(minWidth: 760, minHeight: 480)
   }

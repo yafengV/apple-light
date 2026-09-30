@@ -36,6 +36,16 @@ import XCTest
     XCTAssertTrue(text.undoManager?.canUndo == true)
     text.undoManager?.undo()
     XCTAssertEqual(workspace.fileText, "original")
+    text.setSelectedRange(NSRange(location: 1, length: 3))
+    try "external content".write(to: root.appendingPathComponent("Edit.swift"),
+      atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.fileText == "external content" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(text.string, "external content")
+    XCTAssertEqual(text.selectedRange(), NSRange(location: 1, length: 3))
   }
 
   func testFocusRequestWaitsForFileLoadAndDoesNotAffectMainWorkspace() async throws {

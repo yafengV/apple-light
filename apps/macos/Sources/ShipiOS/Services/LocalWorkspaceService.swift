@@ -5,8 +5,16 @@ struct CommandOutput: Sendable {
   let text: String
 }
 
+struct WorkspaceFileRevision: Equatable, Sendable {
+  let size: UInt64
+  let modifiedAt: TimeInterval
+  let fileNumber: UInt64
+}
+
 /// No shell interpolation. Output is drained into a temporary file to avoid pipe deadlocks.
 enum LocalWorkspaceService {
+  static let maximumEditableTextBytes = 1_048_576
+  static let maximumPreviewTextBytes = 20 * 1_048_576
   enum EditedFileSaveResult: Equatable {
     case saved
     case changedOnDisk(String)
@@ -99,14 +107,34 @@ enum LocalWorkspaceService {
   static func read(_ path: String, root: URL) throws -> String {
     let file = try resolvedFile(path, root: root)
     let values = try file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-    guard values.isRegularFile == true, (values.fileSize ?? 0) <= 1_048_576 else {
-      throw AgentFailure(message: "仅预览 1 MiB 以内的普通文本文件，请在外部应用打开。")
+    guard values.isRegularFile == true, (values.fileSize ?? 0) <= maximumPreviewTextBytes else {
+      throw AgentFailure(message: "仅预览 20 MiB 以内的普通文本文件，请在外部应用打开。")
     }
     let data = try Data(contentsOf: file)
+    guard data.count <= maximumPreviewTextBytes else {
+      throw AgentFailure(message: "文件已超过 20 MiB，请在外部应用打开。")
+    }
     guard !data.contains(0), let text = String(data: data, encoding: .utf8) else {
       throw AgentFailure(message: "这是二进制文件或不支持的编码，请在外部应用打开。")
     }
     return text
+  }
+  static func isLargeTextFile(_ path: String, root: URL) throws -> Bool {
+    let file = try resolvedFile(path, root: root)
+    let values = try file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+    guard values.isRegularFile == true else { throw AgentFailure(message: "文件不是普通文本文件。") }
+    return (values.fileSize ?? 0) > maximumEditableTextBytes
+  }
+  static func diskRevision(_ path: String, root: URL) throws -> WorkspaceFileRevision {
+    let file = try resolvedFile(path, root: root)
+    let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+    guard attributes[.type] as? FileAttributeType == .typeRegular else {
+      throw AgentFailure(message: "文件不再是普通文本文件。")
+    }
+    return WorkspaceFileRevision(
+      size: (attributes[.size] as? NSNumber)?.uint64Value ?? 0,
+      modifiedAt: (attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0,
+      fileNumber: (attributes[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0)
   }
   static func saveEditedFile(_ path: String, root: URL, expected: String,
     replacement: String) throws -> EditedFileSaveResult {

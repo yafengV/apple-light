@@ -17,6 +17,7 @@ final class DeveloperWorkspace {
   }
   private(set) var fileContentVersion = UUID()
   var fileLoading = false
+  var fileIsReadOnly = false
   var fileError: String?
   var fileOpenError: String?
   var fileOpenRequest = UUID()
@@ -25,6 +26,8 @@ final class DeveloperWorkspace {
   @ObservationIgnored var onFileEditResolved: ((String) -> Void)?
   var fileCloseRequest: String?
   @ObservationIgnored var fileAutosaveTasks: [String: Task<Void, Never>] = [:]
+  @ObservationIgnored var fileMonitorTask: Task<Void, Never>?
+  @ObservationIgnored var fileMonitorToken = UUID()
   var filesError: String?
   var fileFocusRequest = UUID()
   var showingFileLine = false
@@ -136,6 +139,7 @@ final class DeveloperWorkspace {
     filesVersion = UUID()
     for task in fileAutosaveTasks.values { task.cancel() }
     fileAutosaveTasks.removeAll()
+    stopFileMonitoring()
     self.root = root
     additionalFileRoots = Array(WorkspaceFileScope.roots(primary: root, additional: additionalFolders).dropFirst())
     loading = false
@@ -145,6 +149,7 @@ final class DeveloperWorkspace {
     selectedFile = nil
     fileText = ""
     fileLoading = false
+    fileIsReadOnly = false
     fileError = nil
     fileOpenError = nil
     fileOpenRequest = UUID()
@@ -272,6 +277,7 @@ final class DeveloperWorkspace {
     } ?? requestedPath
     let token = UUID()
     fileVersion = token
+    stopFileMonitoring()
     selectedFile = path
     if !openFiles.contains(path) { openFiles.append(path) }
     fileText = ""
@@ -279,6 +285,7 @@ final class DeveloperWorkspace {
     fileOpenError = nil
     fileOpenRequest = UUID()
     fileLoading = true
+    fileIsReadOnly = false
     showingFileLine = false
     fileLineRange = nil
     fileFocusRequest = UUID()
@@ -286,6 +293,7 @@ final class DeveloperWorkspace {
       session.hasUnsavedChanges || session.saving {
       fileText = session.text
       fileLoading = false
+      startFileMonitoring(path)
       return nil
     }
     if fileEditorSessions[editorKey(for: path)] == nil,
@@ -294,24 +302,29 @@ final class DeveloperWorkspace {
         baseText: recovered.baseText, text: recovered.text)
       fileText = recovered.text
       fileLoading = false
+      startFileMonitoring(path)
       return nil
     }
     let reader = fileReader
     let roots = fileRoots
     return Task { [weak self] in
-      let result: Result<String, Error>
+      let result: Result<(String, Bool), Error>
       do {
         let location = try WorkspaceFileScope.location(path, roots: roots)
-        result = .success(try await reader(location.path, location.root))
+        let text = try await reader(location.path, location.root)
+        let large = (try? LocalWorkspaceService.isLargeTextFile(location.path, root: location.root)) ?? false
+        result = .success((text, large))
       }
       catch { result = .failure(error) }
       guard let self, self.fileVersion == token, self.root == root,
         self.selectedFile == path, self.openFiles.contains(path) else { return }
       self.fileLoading = false
       switch result {
-      case .success(let text):
+      case .success(let (text, large)):
         self.fileText = text
-        self.fileEditorSessions[self.editorKey(for: path)] = FileEditorSession(baseText: text, text: text)
+        self.fileIsReadOnly = large
+        self.fileEditorSessions[self.editorKey(for: path)] = large ? nil : FileEditorSession(baseText: text, text: text)
+        self.startFileMonitoring(path)
       case .failure(let error): self.fileError = error.localizedDescription
       }
     }
@@ -334,12 +347,14 @@ final class DeveloperWorkspace {
     filePreviewPositions[(root?.path ?? "") + "/" + path] = nil
     guard selectedFile == path else { return }
     fileVersion = UUID()
+    stopFileMonitoring()
     selectedFile = nil
     fileText = ""
     fileError = nil
     fileOpenError = nil
     fileOpenRequest = UUID()
     fileLoading = false
+    fileIsReadOnly = false
     showingFileLine = false
     fileLineRange = nil
     if !openFiles.isEmpty { selectFile(openFiles[min(index, openFiles.count - 1)]) }

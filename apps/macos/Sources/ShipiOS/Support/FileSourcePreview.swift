@@ -59,14 +59,19 @@ struct FileSourcePreview: NSViewRepresentable {
     let open = Set(workspace.openFiles.map { root + $0 })
     workspace.filePreviewPositions = workspace.filePreviewPositions.filter { open.contains($0.key) }
     if !text.string.utf8.elementsEqual(workspace.fileText.utf8) {
+      let previousSelection = text.selectedRange()
       coordinator.applyingProgrammaticText = true
       text.string = workspace.fileText
       coordinator.applyingProgrammaticText = false
-      text.setSelectedRange(NSRange(location: 0, length: 0))
+      let length = (text.string as NSString).length
+      let location = min(previousSelection.location, length)
+      text.setSelectedRange(NSRange(location: location,
+        length: min(previousSelection.length, length - location)))
     }
     text.isEditable = workspace.selectedFileEditor != nil && !workspace.fileLoading && workspace.fileError == nil
     text.syntax.update(text, path: workspace.selectedFile.map { _ in identity }, source: workspace.fileText,
-      ready: !workspace.fileLoading && workspace.fileError == nil, appearance: appearance)
+      ready: !workspace.fileLoading && workspace.fileError == nil && !workspace.fileIsReadOnly,
+      appearance: appearance)
     if !workspace.fileLoading, coordinator.needsRestore {
       coordinator.needsRestore = false
       let position = workspace.filePreviewPositions[identity]

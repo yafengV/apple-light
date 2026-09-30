@@ -13,7 +13,7 @@ extension DeveloperWorkspace {
   }
 
   func beginEditingSelectedFile() {
-    guard let selectedFile, !fileLoading, fileError == nil else { return }
+    guard let selectedFile, !fileLoading, !fileIsReadOnly, fileError == nil else { return }
     let key = editorKey(for: selectedFile)
     if fileEditorSessions[key] == nil {
       fileEditorSessions[key] = FileEditorSession(baseText: fileText, text: fileText)
@@ -32,7 +32,7 @@ extension DeveloperWorkspace {
     if session.changedOnDisk == nil { scheduleFileAutosave(key: key) }
   }
 
-  private func scheduleFileAutosave(key: String) {
+  func scheduleFileAutosave(key: String) {
     fileAutosaveTasks.removeValue(forKey: key)?.cancel()
     guard fileEditorSessions[key]?.hasUnsavedChanges == true else { return }
     fileAutosaveTasks[key] = Task { [weak self] in

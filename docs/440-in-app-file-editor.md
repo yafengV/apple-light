@@ -6,4 +6,6 @@
 
 正常关闭独立任务窗口或应用时，尚未保存的文本及其基线进入权限为 0600 的 `workspace.json`，再次打开该文件时恢复草稿；恢复后保存仍检查磁盘冲突。保存成功或明确放弃会清除恢复记录。强制终止发生在自动保存前、外部文件实时监控、较大文件只读预览、复杂编辑器功能及当前 Codex Mac 的视觉和实际交互配对仍待处理。
 
+后续[第 441 篇](441-external-file-changes-and-large-preview.md)补上已选中文件的外部改动检查及 20 MiB 以内的大文件只读预览；本篇上述限制记录保留为阶段历史。
+
 文件编辑、原生文本输入、语法高亮、关联目录、任务窗口及工作区记录共 62 项定向回归通过，包含真实文件保存、自动保存、权限保持、冲突和重启恢复；新增的原生撤销断言又通过 5 项文件焦点回归。日志在 `.cache/file-editor-regressions.log` 和 `.cache/file-editor-native-tests.log`。`script/build_and_run.sh --verify` 构建、签名和进程启动通过，`codesign --verify --strict --deep` 通过。前台工具仍报告 Mac 锁屏，工作区可交互性和 Codex 双端实际页面配对尚未取得证据。

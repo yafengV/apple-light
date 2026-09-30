@@ -186,6 +186,55 @@ final class FileWorkspaceTests: XCTestCase {
     XCTAssertFalse(workspace.selectedFileEditor?.hasUnsavedChanges ?? true)
   }
 
+  func testLargeUTF8FileOpensReadOnlyInsteadOfFailingPreview() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let large = String(repeating: "a", count: LocalWorkspaceService.maximumEditableTextBytes + 1)
+    try large.write(to: root.appendingPathComponent("Large.txt"), atomically: true, encoding: .utf8)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Large.txt")
+    XCTAssertNil(workspace.fileError)
+    XCTAssertEqual(workspace.fileText.utf8.count, large.utf8.count)
+    XCTAssertTrue(workspace.fileIsReadOnly)
+    XCTAssertNil(workspace.selectedFileEditor)
+    try "small".write(to: root.appendingPathComponent("Large.txt"), atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.fileText == "small" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(workspace.fileText, "small")
+    XCTAssertFalse(workspace.fileIsReadOnly)
+    XCTAssertNotNil(workspace.selectedFileEditor)
+  }
+
+  func testExternalFileChangeRefreshesCleanEditorAndStopsDirtyAutosave() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("Watched.swift")
+    try "first".write(to: file, atomically: true, encoding: .utf8)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Watched.swift")
+    try "external-one".write(to: file, atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.fileText == "external-one" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(workspace.fileText, "external-one")
+    workspace.editSelectedFile("local")
+    try "external-two".write(to: file, atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.selectedFileEditor?.changedOnDisk == "external-two" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(workspace.fileText, "local")
+    XCTAssertEqual(workspace.selectedFileEditor?.changedOnDisk, "external-two")
+    XCTAssertEqual(try String(contentsOf: file), "external-two")
+  }
+
   func testEditorKeepsDraftAcrossTabsAndPromptsBeforeClosingDirtyFile() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
