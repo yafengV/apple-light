@@ -72,9 +72,6 @@ struct FileWorkspaceView: View {
         }
         Divider()
         if workspace.showingFileLine { linePicker }
-        if workspace.selectionEdit.isPresented {
-          FileSelectionEditPanel(store: store, workspace: workspace, taskID: taskID)
-        }
         if let error = workspace.fileError {
           HStack(alignment: .top) {
             Text(error).foregroundStyle(.orange).textSelection(.enabled)
@@ -82,7 +79,8 @@ struct FileWorkspaceView: View {
             Button("重试") { workspace.selectFile(file) }
           }.appFont(.caption).padding(10)
         }
-        FileSourcePreview(store: store, workspace: workspace).frame(maxHeight: .infinity)
+        FileSourcePreview(store: store, workspace: workspace, taskID: taskID)
+          .frame(maxHeight: .infinity)
           .overlay(alignment: .topTrailing) {
             if workspace.fileFind.isPresented {
               FileFindBar(workspace: workspace).padding(12)

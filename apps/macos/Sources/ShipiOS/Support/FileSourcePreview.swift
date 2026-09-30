@@ -4,6 +4,7 @@ import SwiftUI
 struct FileSourcePreview: NSViewRepresentable {
   let store: WorkspaceStore
   let workspace: DeveloperWorkspace
+  var taskID: String? = nil
   @Environment(\.appAppearance) private var appearance
 
   func makeCoordinator() -> Coordinator { Coordinator() }
@@ -36,7 +37,7 @@ struct FileSourcePreview: NSViewRepresentable {
     text.delegate = context.coordinator
     workspace.fileFind.bind(editor: text)
     workspace.selectionEdit.bind(editor: text)
-    context.coordinator.install(text, store: store, workspace: workspace)
+    context.coordinator.install(text, store: store, workspace: workspace, taskID: taskID)
     return scroll
   }
 
@@ -46,6 +47,7 @@ struct FileSourcePreview: NSViewRepresentable {
     workspace.selectionEdit.bind(editor: text)
     scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
     let coordinator = context.coordinator
+    coordinator.taskID = taskID
     // Swift strings compare canonically; the byte revision also observes source
     // changes that look equal but have different UTF-16 positions.
     _ = workspace.fileContentVersion
@@ -81,6 +83,7 @@ struct FileSourcePreview: NSViewRepresentable {
     text.syntax.update(text, path: workspace.selectedFile.map { _ in identity }, source: workspace.fileText,
       ready: !workspace.fileLoading && workspace.fileError == nil && !workspace.fileIsReadOnly,
       appearance: appearance)
+    coordinator.syncSelectionEditor(in: text, store: store, workspace: workspace)
     if !workspace.fileLoading, coordinator.needsRestore {
       coordinator.needsRestore = false
       let position = workspace.filePreviewPositions[identity]
@@ -138,6 +141,10 @@ struct FileSourcePreview: NSViewRepresentable {
     var applyingProgrammaticText = false
     private var selectionAction: NSPopover?
     private var selectionActionRange: NSRange?
+    private var selectionEditor: NSPopover?
+    private var selectionEditorShowsReview = false
+    weak var store: WorkspaceStore?
+    var taskID: String?
     private var monitor: Any?
 
     @MainActor func savePosition(_ text: NSTextView) {
@@ -147,8 +154,11 @@ struct FileSourcePreview: NSViewRepresentable {
       workspace.filePreviewPositions[identity] = FilePreviewPosition(
         selection: text.selectedRange(), origin: text.enclosingScrollView?.contentView.bounds.origin ?? .zero)
     }
-    func install(_ text: FilePreviewTextView, store: WorkspaceStore, workspace: DeveloperWorkspace) {
+    func install(_ text: FilePreviewTextView, store: WorkspaceStore, workspace: DeveloperWorkspace,
+      taskID: String?) {
       self.workspace = workspace
+      self.store = store
+      self.taskID = taskID
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
         [weak text, weak store, weak workspace] event in
         guard let binding = ShortcutBinding(event: event) else { return event }
@@ -215,6 +225,7 @@ struct FileSourcePreview: NSViewRepresentable {
     }
     func stop() {
       dismissSelectionAction()
+      dismissSelectionEditor()
       if let monitor { NSEvent.removeMonitor(monitor) }
       monitor = nil
     }
@@ -222,6 +233,47 @@ struct FileSourcePreview: NSViewRepresentable {
       selectionAction?.close()
       selectionAction = nil
       selectionActionRange = nil
+    }
+    func dismissSelectionEditor() {
+      selectionEditor?.close()
+      selectionEditor = nil
+      selectionEditorShowsReview = false
+    }
+    @MainActor func syncSelectionEditor(in text: FilePreviewTextView, store: WorkspaceStore,
+      workspace: DeveloperWorkspace) {
+      guard workspace.selectionEdit.isPresented, let request = workspace.selectionEdit.request,
+        workspace.selectedFile == request.path, !workspace.fileLoading,
+        NSMaxRange(request.range) <= (text.string as NSString).length,
+        let window = text.window else {
+        dismissSelectionEditor()
+        return
+      }
+      let width = max(320, min(520, window.frame.width - 32))
+      let showsReview = workspace.selectionEdit.proposal != nil
+      let height: CGFloat = showsReview ? 290 : 170
+      if let selectionEditor, selectionEditor.isShown {
+        if selectionEditorShowsReview != showsReview {
+          selectionEditorShowsReview = showsReview
+          selectionEditor.contentSize = NSSize(width: width, height: height)
+        }
+        return
+      }
+      guard let anchor = selectionAnchor(in: text, range: request.range, window: window) else { return }
+      let popover = NSPopover()
+      popover.behavior = .applicationDefined
+      popover.contentSize = NSSize(width: width, height: height)
+      popover.contentViewController = NSHostingController(rootView:
+        FileSelectionEditPanel(store: store, workspace: workspace, taskID: taskID,
+          onReviewChange: { [weak self] visible in
+            DispatchQueue.main.async { [weak self] in
+              guard let self, let editor = self.selectionEditor else { return }
+              self.selectionEditorShowsReview = visible
+              editor.contentSize = NSSize(width: width, height: visible ? 290 : 170)
+            }
+          }).frame(width: width, alignment: .topLeading))
+      selectionEditor = popover
+      selectionEditorShowsReview = showsReview
+      popover.show(relativeTo: anchor, of: text, preferredEdge: .maxY)
     }
     func textDidChange(_ notification: Notification) {
       guard !applyingProgrammaticText, let text = notification.object as? NSTextView,
@@ -243,22 +295,33 @@ struct FileSourcePreview: NSViewRepresentable {
       }
       if selectionAction?.isShown == true, selectionActionRange == range { return }
       selectionAction?.close()
-      let screenRect = text.firstRect(forCharacterRange: range, actualRange: nil)
-      guard !screenRect.isEmpty else { return }
-      let anchor = text.convert(window.convertFromScreen(screenRect), from: nil)
+      guard let anchor = selectionAnchor(in: text, range: range, window: window) else { return }
       let popover = NSPopover()
       popover.behavior = .transient
       popover.contentSize = NSSize(width: 160, height: 42)
       popover.contentViewController = NSHostingController(rootView:
-        Button("编辑选区…") { [weak popover, weak workspace] in
+        Button("编辑选区…") { [weak self, weak popover, weak workspace, weak text] in
           if let workspace, workspace.selectedFile == path {
             workspace.selectionEdit.open(path: path, source: workspace.fileText)
           }
           popover?.close()
+          self?.dismissSelectionAction()
+          DispatchQueue.main.async { [weak self, weak text, weak workspace] in
+            guard let self, let text, let workspace, let store = self.store else { return }
+            self.syncSelectionEditor(in: text, store: store, workspace: workspace)
+          }
         }.buttonStyle(.plain).padding(10).frame(maxWidth: .infinity, alignment: .leading))
       selectionAction = popover
       selectionActionRange = range
       popover.show(relativeTo: anchor, of: text, preferredEdge: .maxY)
+    }
+    @MainActor private func selectionAnchor(in text: FilePreviewTextView, range: NSRange,
+      window: NSWindow) -> NSRect? {
+      guard range.length > 0 else { return nil }
+      let trailing = NSRange(location: NSMaxRange(range) - 1, length: 1)
+      let screenRect = text.firstRect(forCharacterRange: trailing, actualRange: nil)
+      guard !screenRect.isEmpty else { return nil }
+      return text.convert(window.convertFromScreen(screenRect), from: nil)
     }
     deinit { stop() }
   }

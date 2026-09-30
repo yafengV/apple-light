@@ -4,6 +4,42 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class FilePreviewFocusTests: XCTestCase {
+  func testSelectionReviewPopoverSignalsHeightChanges() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let store = WorkspaceStore(dataRoot: root)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    workspace.selectedFile = "Edit.swift"
+    workspace.fileText = "one two"
+    let editor = FilePreviewTextView(frame: .init(x: 0, y: 0, width: 400, height: 200))
+    editor.string = workspace.fileText
+    editor.isEditable = true
+    workspace.selectionEdit.bind(editor: editor)
+    editor.setSelectedRange(NSRange(location: 4, length: 3))
+    workspace.selectionEdit.selectionChanged(in: editor)
+    workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
+    var reviewChanges: [Bool] = []
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 520, height: 300),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSelectionEditPanel(store: store, workspace: workspace,
+      taskID: nil, onReviewChange: { reviewChanges.append($0) }))
+    window.contentView = host
+    host.frame.size = .init(width: 520, height: 300)
+    try await Task.sleep(for: .milliseconds(100))
+    workspace.selectionEdit.instruction = "uppercase"
+    workspace.selectionEdit.generate { request in try request.proposal(from: "TWO") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertTrue(reviewChanges.contains(true), "The review controls must expand their anchored surface")
+    workspace.selectionEdit.revise()
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(reviewChanges.last, false, "Returning to the prompt must compact the anchored surface")
+  }
   func testSelectionEditRequiresReviewAndKeepsNativeUndo() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
