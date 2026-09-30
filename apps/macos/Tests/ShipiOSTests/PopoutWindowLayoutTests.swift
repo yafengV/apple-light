@@ -120,6 +120,49 @@ final class PopoutWindowLayoutTests: XCTestCase {
     }
   }
 
+  @MainActor func testRunningThreadAndItsQueueRenderAtFixedSize() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let task = try XCTUnwrap(store.createPopoutTask())
+    let run = AgentRun(id: "running-popout", kind: "chat", project: task.project,
+      status: "running", createdAt: 1, updatedAt: 1,
+      request: .object(["model": .string("Test Model")]), result: nil)
+    store.library.tasks[store.library.tasks.firstIndex(where: { $0.id == task.id })!].runIDs = [run.id]
+    store.runs = [run]
+    store.library.queuedMessages = [
+      QueuedMessage(taskID: task.id, text: "Next popout question"),
+      QueuedMessage(taskID: "other", text: "Unrelated main-window question"),
+    ]
+    store.setTaskWindowDraft("Follow-up", taskID: task.id)
+    XCTAssertTrue(store.taskWindowOwnsActiveRun(task.id))
+    XCTAssertEqual(store.library.queuedMessages.filter { $0.taskID == task.id }.count, 1)
+
+    let size = NSSize(width: 470, height: 640)
+    let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: PopoutThreadView(store: store, taskID: task.id,
+      onHome: {}, onOpenThread: { _ in }, onHide: {}))
+    window.contentView = host
+    host.frame.size = size
+    try await Task.sleep(for: .milliseconds(200))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertFalse(window.isVisible)
+    let image = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: image)
+    let data = try XCTUnwrap(image.representation(using: .png, properties: [:]))
+    XCTAssertGreaterThan(data.count, 5_000)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_POPOUT_SNAPSHOTS"] {
+      let folder = URL(fileURLWithPath: path)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      try data.write(to: folder.appendingPathComponent("popout-thread-running-queue.png"))
+    }
+  }
+
   @MainActor private func textViews(in view: NSView) -> [NSTextView] {
     (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { textViews(in: $0) }
   }

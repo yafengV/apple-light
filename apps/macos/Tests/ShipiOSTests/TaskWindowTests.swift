@@ -156,4 +156,65 @@ final class TaskWindowTests: XCTestCase {
     XCTAssertTrue(store.taskWindowImages("task").isEmpty)
     await store.shutdown()
   }
+
+  @MainActor func testEditingPopoutQueueRestoresOnlyItsTaskDraft() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.library.tasks = [
+      .init(id: "popout", project: "", title: "Popout", runIDs: []),
+      .init(id: "other", project: "", title: "Other", runIDs: []),
+    ]
+    store.library.drafts["other"] = "keep other draft"
+    let popoutMessage = QueuedMessage(taskID: "popout", text: "queued popout")
+    let otherMessage = QueuedMessage(taskID: "other", text: "queued other")
+    store.library.queuedMessages = [popoutMessage, otherMessage]
+    XCTAssertNotEqual(store.selectedTask?.id, "popout")
+
+    store.editQueuedMessage(popoutMessage, taskID: "popout")
+
+    XCTAssertEqual(store.taskWindowDraft("popout"), "queued popout")
+    XCTAssertEqual(store.taskWindowDraft("other"), "keep other draft")
+    XCTAssertEqual(store.library.queuedMessages, [otherMessage])
+    XCTAssertNil(store.error)
+  }
+
+  @MainActor func testEditingPopoutQueuePreservesExistingDraftAndMessage() {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.library.tasks = [.init(id: "popout", project: "", title: "Popout", runIDs: [])]
+    let message = QueuedMessage(taskID: "popout", text: "queued")
+    store.library.queuedMessages = [message]
+    store.library.drafts["popout"] = "unsent text"
+
+    store.editQueuedMessage(message, taskID: "popout")
+
+    XCTAssertEqual(store.taskWindowDraft("popout"), "unsent text")
+    XCTAssertEqual(store.library.queuedMessages, [message])
+    XCTAssertNotNil(store.error)
+  }
+
+  @MainActor func testSendingPopoutFollowUpQueuesOnlyItsTaskWhileRunning() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.library.tasks = [
+      .init(id: "popout", project: "", title: "Popout", runIDs: ["active"]),
+      .init(id: "other", project: "", title: "Other", runIDs: []),
+    ]
+    store.runs = [AgentRun(id: "active", kind: "chat", project: "", status: "running",
+      createdAt: 1, updatedAt: 1, request: .null, result: nil)]
+    store.library.drafts["other"] = "untouched main draft"
+    store.setTaskWindowDraft("follow up from popout", taskID: "popout")
+    XCTAssertNotEqual(store.selectedTask?.id, "popout")
+
+    await store.sendTaskWindowDraft("popout", mode: .standard)
+
+    XCTAssertEqual(store.library.queuedMessages.map(\.taskID), ["popout"])
+    XCTAssertEqual(store.library.queuedMessages.first?.text, "follow up from popout")
+    XCTAssertEqual(store.taskWindowDraft("popout"), "")
+    XCTAssertEqual(store.taskWindowDraft("other"), "untouched main draft")
+    XCTAssertNil(store.error)
+  }
 }

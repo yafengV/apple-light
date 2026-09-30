@@ -1050,24 +1050,31 @@ extension WorkspaceStore {
       try commitLibrary(candidate)
     } catch { self.error = error.localizedDescription }
   }
-  func editQueuedMessage(_ message: QueuedMessage) {
+  func editQueuedMessage(_ message: QueuedMessage, taskID: String? = nil) {
     guard !codexSteeringMessages.contains(message.id) else { return }
-    guard selectedTask?.id == message.taskID else { return }
-    guard draft.isEmpty, draftImages.isEmpty, draftFiles.isEmpty, pullRequestCheckDraft == nil, !importingImages, !importingFiles else {
+    guard (taskID ?? selectedTask?.id) == message.taskID,
+      library.queuedMessages.contains(message),
+      library.tasks.contains(where: { $0.id == message.taskID }) else { return }
+    let key = message.taskID
+    guard taskWindowDraft(key).isEmpty, taskWindowImages(key).isEmpty,
+      taskWindowFiles(key).isEmpty, library.pullRequestCheckDrafts[key] == nil,
+      !importingImages, !importingFiles else {
       error = "请先发送或清空现有草稿，再编辑队列消息。"
       return
     }
     do {
       var candidate = library
-      candidate.draftImages[draftKey] = message.images
-      candidate.draftFiles[draftKey] = message.files
-      candidate.drafts[draftKey] = message.text
-      candidate.pullRequestCheckDrafts[draftKey] = message.pullRequestChecks
+      candidate.draftImages[key] = message.images
+      candidate.draftFiles[key] = message.files
+      candidate.drafts[key] = message.text
+      candidate.pullRequestCheckDrafts[key] = message.pullRequestChecks
       candidate.queuedMessages.removeAll { $0.id == message.id }
       try commitLibrary(candidate)
-      action = .chat
-      chatMode = message.mode
-      focusComposer = UUID()
+      if taskID == nil {
+        action = .chat
+        chatMode = message.mode
+        focusComposer = UUID()
+      }
     } catch { self.error = error.localizedDescription }
   }
   func moveQueuedMessage(_ message: QueuedMessage, offset: Int) {

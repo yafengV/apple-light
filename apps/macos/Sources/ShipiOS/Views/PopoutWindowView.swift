@@ -173,6 +173,15 @@ struct PopoutThreadView: View {
     ComposerSendShortcut.commandEnter.rawValue
   private var runs: [AgentRun] { store.taskWindowRuns(taskID) }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
+  private var queuedCount: Int {
+    store.library.queuedMessages.filter { $0.taskID == taskID }.count
+  }
+  private var canSend: Bool {
+    (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
+      && (!draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        || !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty)
+      && !store.importingImages && !store.importingFiles
+  }
   private var draft: Binding<String> {
     Binding(get: { store.taskWindowDraft(taskID) },
       set: { store.setTaskWindowDraft($0, taskID: taskID) })
@@ -201,11 +210,39 @@ struct PopoutThreadView: View {
         .onChange(of: runs.map(\.id)) { _, _ in reader.scrollTo("end", anchor: .bottom) }
       }
       Divider()
+      if queuedCount > 0 {
+        ScrollView {
+          ComposerQueueView(store: store, taskID: taskID)
+        }
+        .frame(height: min(CGFloat(queuedCount) * 48, 112))
+        .padding(.horizontal, 14).padding(.top, 10)
+      }
+      if let active = store.activeRun(taskID: taskID) {
+        HStack(spacing: 8) {
+          ProgressView().controlSize(.small)
+          Text(active.title).appFont(.caption).foregroundStyle(.secondary)
+          Spacer()
+        }.padding(.horizontal, 16).padding(.top, 8)
+      }
       if !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty {
         VStack(alignment: .leading, spacing: 6) {
           ImageAttachmentsView(store: store, images: store.taskWindowImages(taskID), removable: true)
           FileAttachmentsView(store: store, files: store.taskWindowFiles(taskID), removable: true)
         }.padding(.horizontal, 14).padding(.top, 10)
+      }
+      if let error = store.error {
+        HStack(alignment: .top) {
+          Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+          Text(error).textSelection(.enabled)
+          Spacer()
+          Button {
+            store.error = nil
+          } label: { Image(systemName: "xmark") }
+            .buttonStyle(.plain).help("关闭提示")
+        }
+        .appFont(.caption).padding(10)
+        .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 14)
       }
       HStack(alignment: .bottom, spacing: 8) {
         Menu {
@@ -214,6 +251,7 @@ struct PopoutThreadView: View {
         } label: { Image(systemName: "plus") }
           .menuStyle(.borderlessButton)
           .accessibilityLabel("添加弹出会话附件")
+          .disabled(store.importingImages || store.importingFiles)
         ComposerTextEditor(text: draft,
           focused: $focused, plainTextMode: store.composerPlainTextMode,
           placeholder: "继续这个任务…", accessibilityLabel: "弹出会话消息",
@@ -226,12 +264,22 @@ struct PopoutThreadView: View {
             return true
           }, onPasteAttachments: { store.pasteAttachments($0, draft: taskID) })
           .frame(minHeight: 48, maxHeight: 90)
+        if store.taskWindowOwnsActiveRun(taskID) {
+          Button {
+            Task { await store.cancel(taskID: taskID) }
+          } label: {
+            Image(systemName: "stop.fill").frame(width: 28, height: 28)
+          }
+          .buttonStyle(.bordered).clipShape(Circle())
+          .help("停止任务").accessibilityLabel("停止弹出会话任务")
+        }
         Button {
           submit()
         } label: { Image(systemName: "arrow.up") }
           .buttonStyle(.borderedProminent)
-          .disabled(draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && store.taskWindowImages(taskID).isEmpty && store.taskWindowFiles(taskID).isEmpty)
+          .disabled(!canSend)
+          .help(store.activeChatRun(taskID: taskID) == nil
+            ? "发送消息" : store.followUpBehavior.composerLabel)
           .accessibilityLabel("发送弹出会话消息")
       }.padding(14)
     }
@@ -264,6 +312,7 @@ struct PopoutThreadView: View {
   }
 
   private func submit() {
+    guard canSend else { return }
     Task { await store.sendTaskWindowDraft(taskID, mode: .standard) }
   }
 

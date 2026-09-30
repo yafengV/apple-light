@@ -47,8 +47,11 @@ struct ComposerCommandsView: View {
 
 struct ComposerQueueView: View {
   @Bindable var store: WorkspaceStore
+  var taskID: String? = nil
   var body: some View {
-    let messages = store.library.queuedMessages.filter { $0.taskID == store.selectedTask?.id }
+    let messages = store.library.queuedMessages.filter {
+      $0.taskID == (taskID ?? store.selectedTask?.id)
+    }
     VStack(spacing: 5) {
       ForEach(messages) { message in
         HStack(spacing: 10) {
@@ -68,11 +71,11 @@ struct ComposerQueueView: View {
               .help("\(message.images.count) 张图片")
           }
           Menu {
-            Button("编辑") { store.editQueuedMessage(message) }
+            Button("编辑") { store.editQueuedMessage(message, taskID: taskID) }
             Button("上移") { store.moveQueuedMessage(message, offset: -1) }
             Button("下移") { store.moveQueuedMessage(message, offset: 1) }
             Button("立即发送") { Task { await store.sendQueuedMessage(message) } }.disabled(
-              !store.canStartChat)
+              !store.canStartChat(taskID: message.taskID))
             Button("删除", role: .destructive) { store.removeQueuedMessage(message.id) }
           } label: {
             Image(systemName: "ellipsis")
