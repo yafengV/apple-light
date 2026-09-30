@@ -1,4 +1,11 @@
 import Foundation
+import CryptoKit
+
+private struct MCPPersistentGrantIdentity: Encodable {
+  let server: MCPServerConfiguration
+  let tool: MCPToolDescription
+  let inheritedEnvironment: [String: String]
+}
 
 extension WorkspaceStore {
   func availableMCPTools() throws -> [MCPToolBinding] {
@@ -93,7 +100,10 @@ extension WorkspaceStore {
       try validateMCPBinding(binding)
       try saveToolExecution(execution, runID: runID)
       let decision: MCPApprovalDecision
-      if mcpTaskGrants.contains(grant) { decision = .allowOnce }
+      let unattended = library.chatRuns.first(where: { $0.id == runID })?
+        .request["automation_id"].text != nil
+      if !unattended && (mcpTaskGrants.contains(grant)
+        || persistentMCPToolAllowed(serverID: binding.serverID, tool: binding.tool)) { decision = .allowOnce }
       else { decision = await requestMCPApproval(execution, runID: runID) }
       try Task.checkCancellation()
       guard decision != .deny else {
@@ -139,6 +149,60 @@ extension WorkspaceStore {
       tools.contains(binding.tool) else {
       throw AgentFailure(message: "MCP 连接或工具定义已更改，本次调用未执行。")
     }
+  }
+
+  private func mcpToolGrantFingerprint(serverID: UUID, tool: MCPToolDescription) -> String? {
+    guard let server = mcpServers.first(where: { $0.id == serverID && $0.enabled }),
+      mcpConnectionTokens[serverID] != nil,
+      case .connected(_, let tools) = mcpConnectionStates[serverID],
+      tools.contains(tool) else { return nil }
+    let names: [String]
+    switch server.transport {
+    case .stdio: names = server.environmentPassthrough
+    case .streamableHTTP:
+      names = [server.bearerTokenEnvironmentVariable] + server.environmentHeaders.map(\.value)
+    }
+    let environment = ProcessInfo.processInfo.environment
+    let inherited = names.filter { !$0.isEmpty }.reduce(into: [String: String]()) {
+      $0[$1] = environment[$1] ?? ""
+    }
+    let identity = MCPPersistentGrantIdentity(server: server, tool: tool,
+      inheritedEnvironment: inherited)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    guard let data = try? encoder.encode(identity) else { return nil }
+    return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+  }
+
+  func persistentMCPToolAllowed(serverID: UUID, tool: MCPToolDescription) -> Bool {
+    guard let fingerprint = mcpToolGrantFingerprint(serverID: serverID, tool: tool) else { return false }
+    return library.mcpPersistentToolGrants[serverID.uuidString + ":" + tool.name] == fingerprint
+  }
+
+  func pruneChangedMCPPersistentToolGrants(serverID: UUID) throws {
+    let prefix = serverID.uuidString + ":"
+    guard case .connected(_, let tools) = mcpConnectionStates[serverID] else { return }
+    var candidate = library
+    for key in library.mcpPersistentToolGrants.keys where key.hasPrefix(prefix) {
+      let name = String(key.dropFirst(prefix.count))
+      if let tool = tools.first(where: { $0.name == name }),
+        persistentMCPToolAllowed(serverID: serverID, tool: tool) { continue }
+      candidate.mcpPersistentToolGrants[key] = nil
+    }
+    if candidate.mcpPersistentToolGrants != library.mcpPersistentToolGrants {
+      try commitLibrary(candidate)
+    }
+  }
+
+  @discardableResult func setPersistentMCPToolAllowed(_ allowed: Bool, serverID: UUID,
+    tool: MCPToolDescription) -> Bool {
+    let key = serverID.uuidString + ":" + tool.name
+    let fingerprint = mcpToolGrantFingerprint(serverID: serverID, tool: tool)
+    guard !allowed || fingerprint != nil else { return false }
+    var candidate = library
+    candidate.mcpPersistentToolGrants[key] = allowed ? fingerprint : nil
+    do { try commitLibrary(candidate); mcpServersError = nil; return true }
+    catch { mcpServersError = error.localizedDescription; return false }
   }
 
   func requestMCPApproval(

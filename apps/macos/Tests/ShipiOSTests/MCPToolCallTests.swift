@@ -116,6 +116,9 @@ final class MCPToolCallTests: XCTestCase {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = try await store(root)
+    let serverID = try XCTUnwrap(store.mcpServers.first?.id)
+    let tool = try XCTUnwrap(store.mcpConnectionStates[serverID]?.tools.first)
+    XCTAssertTrue(store.setPersistentMCPToolAllowed(true, serverID: serverID, tool: tool))
     let automation = ShipAutomation(name: "MCP review", prompt: "mcp-call")
     XCTAssertTrue(store.saveAutomation(automation))
     await store.runAutomation(automation.id)
@@ -218,6 +221,76 @@ final class MCPToolCallTests: XCTestCase {
     await second.value
     let calls = try String(contentsOf: root.appendingPathComponent("calls.jsonl"))
     XCTAssertEqual(calls.split(separator: "\n").count, 2)
+    await store.shutdown()
+  }
+
+  @MainActor func testPersistentToolGrantSurvivesRestartAndConfigurationChangeRevokesIt() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = try await store(root)
+    let serverID = try XCTUnwrap(first.mcpServers.first?.id)
+    let tool = try XCTUnwrap(first.mcpConnectionStates[serverID]?.tools.first)
+    XCTAssertTrue(first.setPersistentMCPToolAllowed(true, serverID: serverID, tool: tool))
+    XCTAssertTrue(first.persistentMCPToolAllowed(serverID: serverID, tool: tool))
+    let changedDefinition = MCPToolDescription(name: tool.name, title: tool.title,
+      summary: tool.summary, inputSchema: .object(["type": .string("string")]))
+    if case .connected(let version, var tools) = first.mcpConnectionStates[serverID] {
+      tools[0] = changedDefinition
+      first.mcpConnectionStates[serverID] = .connected(version, tools)
+      XCTAssertFalse(first.persistentMCPToolAllowed(serverID: serverID, tool: changedDefinition))
+    } else { XCTFail("Fixture MCP disconnected") }
+    await first.shutdown()
+
+    let restored = WorkspaceStore(dataRoot: root)
+    await restored.restore()
+    restored.modelConfiguration.baseURL = baseURL
+    restored.modelConfiguration.model = "fixture"
+    restored.notificationPreferences = .init(timing: .never)
+    restored.connectMCPServer(serverID)
+    await restored.mcpConnectionTasks[serverID]?.value
+    let restoredTool = try XCTUnwrap(restored.mcpConnectionStates[serverID]?.tools.first)
+    XCTAssertTrue(restored.persistentMCPToolAllowed(serverID: serverID, tool: restoredTool))
+    restored.draft = "mcp-call"
+    await restored.sendDraft()
+    await restored.modelTask?.value
+    XCTAssertEqual(restored.library.chatRuns.last?.toolExecutions.map(\.status), [.succeeded])
+    XCTAssertTrue(restored.mcpPendingApprovals.isEmpty)
+
+    var changed = try XCTUnwrap(restored.mcpServers.first)
+    changed.environment.append(.init(key: "UNRELATED_SETTING", value: "changed"))
+    XCTAssertTrue(restored.saveMCPServer(changed))
+    restored.connectMCPServer(serverID)
+    await restored.mcpConnectionTasks[serverID]?.value
+    let changedTool = try XCTUnwrap(restored.mcpConnectionStates[serverID]?.tools.first)
+    XCTAssertFalse(restored.persistentMCPToolAllowed(serverID: serverID, tool: changedTool))
+    XCTAssertTrue(restored.library.mcpPersistentToolGrants.isEmpty)
+    changed.environment.removeLast()
+    XCTAssertTrue(restored.saveMCPServer(changed))
+    restored.connectMCPServer(serverID)
+    await restored.mcpConnectionTasks[serverID]?.value
+    let revertedTool = try XCTUnwrap(restored.mcpConnectionStates[serverID]?.tools.first)
+    XCTAssertFalse(restored.persistentMCPToolAllowed(serverID: serverID, tool: revertedTool))
+    await restored.shutdown()
+  }
+
+  @MainActor func testChangedToolDefinitionPermanentlyRevokesPersistentGrant() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await store(root)
+    let serverID = try XCTUnwrap(store.mcpServers.first?.id)
+    let tool = try XCTUnwrap(store.mcpConnectionStates[serverID]?.tools.first)
+    XCTAssertTrue(store.setPersistentMCPToolAllowed(true, serverID: serverID, tool: tool))
+    guard case .connected(let version, var tools) = store.mcpConnectionStates[serverID] else {
+      XCTFail("Fixture MCP disconnected"); return
+    }
+    tools[0] = MCPToolDescription(name: tool.name, title: tool.title,
+      summary: tool.summary, inputSchema: .object(["type": .string("string")]))
+    store.mcpConnectionStates[serverID] = .connected(version, tools)
+    try store.pruneChangedMCPPersistentToolGrants(serverID: serverID)
+    XCTAssertTrue(store.library.mcpPersistentToolGrants.isEmpty)
+    tools[0] = tool
+    store.mcpConnectionStates[serverID] = .connected(version, tools)
+    XCTAssertFalse(store.persistentMCPToolAllowed(serverID: serverID, tool: tool))
     await store.shutdown()
   }
 

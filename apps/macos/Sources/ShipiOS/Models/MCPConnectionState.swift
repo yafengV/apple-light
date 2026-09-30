@@ -1,6 +1,6 @@
 import Foundation
 
-struct MCPToolDescription: Identifiable, Equatable {
+struct MCPToolDescription: Identifiable, Codable, Equatable {
   var id: String { name }
   let name: String
   let title: String

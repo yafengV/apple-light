@@ -26,6 +26,7 @@ extension WorkspaceStore {
         let tools = try await connection.initialize()
         guard !Task.isCancelled, mcpConnectionTokens[id] == token else { await connection.close(); return }
         mcpConnectionStates[id] = .connected(connection.serverName, tools)
+        try pruneChangedMCPPersistentToolGrants(serverID: id)
         mcpConnectionTasks[id] = nil
       } catch {
         guard mcpConnectionTokens[id] == token else { return }
@@ -45,6 +46,7 @@ extension WorkspaceStore {
         let tools = try await connection.listTools()
         guard !Task.isCancelled, mcpConnectionTokens[id] == token else { return }
         mcpConnectionStates[id] = .connected(connection.serverName, tools)
+        try pruneChangedMCPPersistentToolGrants(serverID: id)
         mcpRefreshingServers.remove(id)
         mcpConnectionTasks[id] = nil
       } catch {

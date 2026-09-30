@@ -41,9 +41,8 @@ extension WorkspaceStore {
         }
         candidate[index] = validated
       } else { candidate.append(validated) }
-      try MCPServerStorage.save(candidate, root: dataRoot)
+      guard persistMCPServers(candidate) else { return false }
       disconnectMCPServer(server.id)
-      mcpServers = candidate
       mcpServerEditor = nil
       mcpServersError = nil
       return true
@@ -92,6 +91,21 @@ extension WorkspaceStore {
 
   private func persistMCPServers(_ candidate: [MCPServerConfiguration]) -> Bool {
     do {
+      let changedIDs = mcpServers.filter { original in
+        guard let updated = candidate.first(where: { $0.id == original.id }) else { return true }
+        return !original.isEquivalent(to: updated)
+      }.map(\.id)
+      if !changedIDs.isEmpty {
+        var updatedLibrary = library
+        for id in changedIDs {
+          let prefix = id.uuidString + ":"
+          updatedLibrary.mcpPersistentToolGrants = updatedLibrary.mcpPersistentToolGrants
+            .filter { !$0.key.hasPrefix(prefix) }
+        }
+        if updatedLibrary.mcpPersistentToolGrants != library.mcpPersistentToolGrants {
+          try commitLibrary(updatedLibrary)
+        }
+      }
       try MCPServerStorage.save(candidate, root: dataRoot)
       mcpServers = candidate
       mcpServersError = nil

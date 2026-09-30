@@ -23,6 +23,11 @@ struct MCPToolsView: View {
           if case .failed(let message) = state { Text(message).foregroundStyle(.red) }
           ForEach(state.tools.filter { query.isEmpty || ($0.name + " " + $0.title + " " + $0.summary).localizedStandardContains(query) }) { tool in
             DisclosureGroup {
+              Toggle("始终允许此工具（自定义 API 会话）", isOn: Binding(
+                get: { store.persistentMCPToolAllowed(serverID: serverID, tool: tool) },
+                set: { _ = store.setPersistentMCPToolAllowed($0, serverID: serverID, tool: tool) }
+              ))
+              .help("授权仅对当前 MCP 服务器配置和工具定义有效；变更后需重新批准。Codex Core 会话仍逐次请求批准。")
               Text(tool.inputSchema.pretty).appFont(.caption, design: .monospaced).textSelection(.enabled)
             } label: {
               VStack(alignment: .leading, spacing: 4) {
@@ -36,7 +41,8 @@ struct MCPToolsView: View {
           if state.tools.isEmpty { Text("服务器未提供工具，或当前连接不可用。").foregroundStyle(.secondary) }
         }
       }
-      Text("已连接的工具可供会话使用；执行前会在对应任务中请求批准。")
+      if let error = store.mcpServersError { Text(error).foregroundStyle(.red).appFont(.caption) }
+      Text("已连接的工具可供会话使用；未持久授权的调用会在对应任务中请求批准。")
         .appFont(.caption).foregroundStyle(.secondary)
     }.padding(24).frame(minWidth: 560, minHeight: 400)
   }
