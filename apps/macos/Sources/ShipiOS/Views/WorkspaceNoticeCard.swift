@@ -10,8 +10,13 @@ struct WorkspaceNoticeCard: View {
   var isLast = false
   @Environment(\.appAppearance) private var appearance
   @Environment(\.colorScheme) private var scheme
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var closeHovered = false
   @State private var actionHovered = false
+  @State private var swipe = NoticeSwipeGesture()
+  @State private var swipeOffset: CGFloat = 0
+  @State private var swipeOut = false
+  @State private var cardWidth: CGFloat = 0
   private var resolved: AppearancePreferences {
     var value = appearance
     if value.theme == "system" { value.theme = scheme == .dark ? "dark" : "light" }
@@ -43,6 +48,7 @@ struct WorkspaceNoticeCard: View {
                 .background(closeHovered ? closeHoverColor : .clear, in: Circle())
                 .contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("关闭")
+              .disabled(swipeOffset != 0 || swipeOut)
               .focusable().focusEffectDisabled()
               .focused($focused, equals: notice.generation.uuidString + "-close")
               .onHover { closeHovered = $0 }
@@ -77,6 +83,13 @@ struct WorkspaceNoticeCard: View {
     .overlay(RoundedRectangle(cornerRadius: 15)
       .strokeBorder(focused == notice.generation.uuidString + "-row" ? resolved.resolvedColors["borderFocus"].color : .clear,
         lineWidth: 2).padding(-2).allowsHitTesting(false))
+    .background(GeometryReader { proxy in
+      Color.clear.preference(key: NoticeWidthKey.self, value: proxy.size.width)
+    })
+    .onPreferenceChange(NoticeWidthKey.self) { cardWidth = $0 }
+    .offset(x: swipeOffset)
+    .opacity(swipeOut ? 0 : 1)
+    .allowsHitTesting(!swipeOut)
     .onContinuousHover { phase in
       switch phase {
       case .active: interaction?.pointerMoved(over: notice.generation)
@@ -84,14 +97,39 @@ struct WorkspaceNoticeCard: View {
       }
     }
     .simultaneousGesture(DragGesture(minimumDistance: 0)
-      .onChanged { _ in interaction?.setInteracting(true) }
-      .onEnded { value in
-      interaction?.setInteracting(false)
-      if notice.level != .pending, value.translation.width > 60,
-        abs(value.translation.height) < value.translation.width {
-        store.notices.dismiss(notice.id, generation: notice.generation)
+      .onChanged { value in
+        guard notice.level != .pending, !swipeOut else { return }
+        if swipe.startedAt == nil {
+          swipe.begin(at: value.time.timeIntervalSinceReferenceDate,
+            onButton: actionHovered || closeHovered)
+          interaction?.setInteracting(true)
+        }
+        swipeOffset = swipe.move(x: value.translation.width, y: value.translation.height)
       }
-    })
+      .onEnded { value in
+        guard swipe.startedAt != nil else { return }
+        interaction?.setInteracting(false)
+        let dismiss = swipe.shouldDismiss(at: value.time.timeIntervalSinceReferenceDate)
+        let swipeDirection: CGFloat = swipe.horizontalOffset < 0 ? -1 : 1
+        swipe = NoticeSwipeGesture()
+        if dismiss {
+          if reduceMotion {
+            swipeOut = true
+            store.notices.dismiss(notice.id, generation: notice.generation)
+          } else {
+            withAnimation(.easeOut(duration: 0.2)) {
+              swipeOut = true
+              swipeOffset += swipeDirection * max(356, cardWidth)
+            }
+            Task { @MainActor in
+              try? await Task.sleep(for: .milliseconds(200))
+              store.notices.dismiss(notice.id, generation: notice.generation)
+            }
+          }
+        } else {
+          withAnimation(.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.4)) { swipeOffset = 0 }
+        }
+      })
   }
 
   private var descriptionColor: Color {
@@ -115,8 +153,14 @@ struct WorkspaceNoticeCard: View {
       .focusable().focusEffectDisabled()
       .focused($focused, equals: notice.generation.uuidString + "-view")
       .onHover { actionHovered = $0 }
-      .disabled((store.hasSettingsConfirmation && store.appearanceThemeImport == nil) || store.presentedOverlay != nil)
+      .disabled((store.hasSettingsConfirmation && store.appearanceThemeImport == nil)
+        || store.presentedOverlay != nil || swipeOffset != 0 || swipeOut)
   }
+}
+
+private struct NoticeWidthKey: PreferenceKey {
+  static var defaultValue: CGFloat = 0
+  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// CSS width:max-content bounded by the available viewport, including when the

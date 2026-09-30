@@ -1,0 +1,150 @@
+{
+  "initialSHA256": "01c04b2e5a96e5dd4c97e02ffa183f571a55bef7a221abd99404246c430f2212",
+  "sourceSHA256": "6ee362d34edc3538eeab9c0db276847fe30f7d6c7ad868e0e9051235fa7ac8f3",
+  "cases": {
+    "shortSlow": {
+      "effective": "44px",
+      "dismissed": 0,
+      "direction": null,
+      "swiping": false,
+      "swipeOut": false,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 4,
+          "value": false
+        }
+      ]
+    },
+    "shortFast": {
+      "effective": "44px",
+      "dismissed": 1,
+      "direction": "right",
+      "swiping": true,
+      "swipeOut": true,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 1,
+          "value": "right"
+        },
+        {
+          "index": 5,
+          "value": true
+        }
+      ]
+    },
+    "threshold": {
+      "effective": "45px",
+      "dismissed": 1,
+      "direction": "right",
+      "swiping": true,
+      "swipeOut": true,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 1,
+          "value": "right"
+        },
+        {
+          "index": 5,
+          "value": true
+        }
+      ]
+    },
+    "vertical": {
+      "effective": "0px",
+      "dismissed": 0,
+      "direction": null,
+      "swiping": false,
+      "swipeOut": false,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 4,
+          "value": false
+        }
+      ]
+    },
+    "resistedLeftSlow": {
+      "effective": "-15.384615384615385px",
+      "dismissed": 0,
+      "direction": null,
+      "swiping": false,
+      "swipeOut": false,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 4,
+          "value": false
+        }
+      ]
+    },
+    "resistedLeftFast": {
+      "effective": "-15.384615384615385px",
+      "dismissed": 1,
+      "direction": "left",
+      "swiping": true,
+      "swipeOut": true,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 1,
+          "value": "left"
+        },
+        {
+          "index": 5,
+          "value": true
+        }
+      ]
+    },
+    "button": {
+      "effective": "0px",
+      "dismissed": 0,
+      "direction": null,
+      "swiping": false,
+      "swipeOut": false,
+      "changes": [
+        {
+          "index": 4,
+          "value": false
+        }
+      ]
+    },
+    "selection": {
+      "effective": "0px",
+      "dismissed": 0,
+      "direction": null,
+      "swiping": false,
+      "swipeOut": false,
+      "changes": [
+        {
+          "index": 4,
+          "value": true
+        },
+        {
+          "index": 4,
+          "value": false
+        }
+      ]
+    }
+  }
+}
