@@ -3,11 +3,14 @@ import SwiftUI
 
 struct PopoutHomeView: View {
   @Bindable var store: WorkspaceStore
-  let onSubmit: (String, String?) -> Bool
+  let onSubmit: (String, String?, NewTaskExecution) async -> Bool
   let onOpenThread: (String) -> Void
   let onHide: () -> Void
   @State private var selectedProject: String?
   @State private var choseProject = false
+  @State private var execution = NewTaskExecution.local
+  @State private var worktreeEligible = false
+  @State private var submitting = false
   @State private var focused = false
   @State private var focusRequest = UUID()
   @State private var previewFile: FileAttachment?
@@ -37,8 +40,16 @@ struct PopoutHomeView: View {
         store.library.projectTitle($1)) == .orderedAscending
     }
   }
+  private var composerPlaceholder: String {
+    guard let selectedProject else { return "在任何项目外提问，或输入 / 选择操作…" }
+    let title = store.library.projectTitle(selectedProject)
+    return execution == .worktree
+      ? "在 \(title) 的工作树中提问…"
+      : "在 \(title) 中提问，或输入 / 选择操作…"
+  }
 
-  init(store: WorkspaceStore, onSubmit: @escaping (String, String?) -> Bool,
+  init(store: WorkspaceStore,
+    onSubmit: @escaping (String, String?, NewTaskExecution) async -> Bool,
     onOpenThread: @escaping (String) -> Void, onHide: @escaping () -> Void) {
     self.store = store
     self.onSubmit = onSubmit
@@ -70,9 +81,7 @@ struct PopoutHomeView: View {
       }
       ComposerTextEditor(text: draft,
         focused: $focused, plainTextMode: store.composerPlainTextMode,
-        placeholder: selectedProject.map {
-          "在 \(store.library.projectTitle($0)) 中提问，或输入 / 选择操作…"
-        } ?? "在任何项目外提问，或输入 / 选择操作…",
+        placeholder: composerPlaceholder,
         accessibilityLabel: "弹出窗口消息", focusRequest: focusRequest,
         onKey: { key, modifiers, composing in
           if handleSlashKey(key, modifiers: modifiers, composing: composing) { return true }
@@ -82,53 +91,14 @@ struct PopoutHomeView: View {
           return true
         }, onPasteAttachments: { store.pasteAttachments($0, draft: WorkspaceStore.popoutHomeDraftKey) })
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .disabled(submitting)
       if let error = store.generalSettingsError {
         Text(error).appFont(.caption).foregroundStyle(.red)
       }
       if let error = store.error {
         Text(error).appFont(.caption).foregroundStyle(.red)
       }
-      HStack(spacing: 12) {
-        Menu {
-          Button("添加图片…") { store.chooseImages(draft: WorkspaceStore.popoutHomeDraftKey) }
-          Button("添加文件…") { store.chooseFiles(draft: WorkspaceStore.popoutHomeDraftKey) }
-        } label: { Image(systemName: "plus") }
-          .menuStyle(.borderlessButton).accessibilityLabel("添加弹出窗口附件")
-        Menu {
-          Menu("项目") {
-            Button {
-              selectedProject = nil
-              choseProject = true
-            } label: {
-              if selectedProject == nil { Label("独立聊天", systemImage: "checkmark") }
-              else { Text("独立聊天") }
-            }
-            Divider()
-            ForEach(projectChoices, id: \.self) { project in
-              Button {
-                selectedProject = project
-                choseProject = true
-              } label: {
-                if selectedProject == project {
-                  Label(store.library.projectTitle(project), systemImage: "checkmark")
-                } else {
-                  Text(store.library.projectTitle(project))
-                }
-              }
-            }
-          }
-        } label: {
-          Label(selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天",
-            systemImage: "folder")
-            .lineLimit(1)
-        }
-        .menuStyle(.borderlessButton).accessibilityLabel("聊天设置")
-          .help("项目：" + (selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天"))
-        Spacer()
-        Button("发送", action: submit)
-          .buttonStyle(.borderedProminent)
-          .disabled(!hasContent || !store.libraryLoaded || store.importingImages || store.importingFiles)
-      }
+      controls
     }
     .padding(20)
     .frame(minWidth: 400, minHeight: 250)
@@ -166,6 +136,19 @@ struct PopoutHomeView: View {
         self.selectedProject = defaultProject
       }
     }
+    .onChange(of: selectedProject) { _, project in
+      worktreeEligible = false
+      if project == nil { execution = .local }
+    }
+    .task(id: selectedProject) {
+      guard let selectedProject else { worktreeEligible = false; return }
+      let source = store.library.primaryFolder(for: selectedProject)
+      let eligible = (try? await GitBranchService.snapshot(
+        at: URL(fileURLWithPath: source)))?.canChange == true
+      guard self.selectedProject == selectedProject else { return }
+      worktreeEligible = eligible
+      if !eligible { execution = .local }
+    }
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewFile == nil, previewImage == nil else { return }
       previewImage = image
@@ -188,13 +171,97 @@ struct PopoutHomeView: View {
     }
   }
 
+  private var controls: some View {
+    HStack(spacing: 12) {
+      Menu {
+        Button("添加图片…") { store.chooseImages(draft: WorkspaceStore.popoutHomeDraftKey) }
+        Button("添加文件…") { store.chooseFiles(draft: WorkspaceStore.popoutHomeDraftKey) }
+      } label: { Image(systemName: "plus") }
+        .menuStyle(.borderlessButton).accessibilityLabel("添加弹出窗口附件")
+        .disabled(submitting)
+      chatSettingsMenu
+      Spacer()
+      if submitting { ProgressView().controlSize(.small) }
+      Button("发送", action: submit)
+        .buttonStyle(.borderedProminent)
+        .disabled(submitting || !hasContent || !store.libraryLoaded
+          || store.importingImages || store.importingFiles
+          || (execution == .worktree && !worktreeEligible))
+    }
+  }
+
+  private var chatSettingsMenu: some View {
+    Menu {
+      projectMenu
+      executionMenu
+    } label: {
+      Label((selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天")
+        + (execution == .worktree ? " · 工作树" : ""),
+        systemImage: execution == .worktree ? "arrow.triangle.branch" : "folder")
+        .lineLimit(1)
+    }
+    .menuStyle(.borderlessButton).accessibilityLabel("聊天设置")
+      .help("项目：" + (selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天"))
+      .disabled(submitting)
+  }
+
+  private var projectMenu: some View {
+    Menu("项目") {
+      Button {
+        selectedProject = nil
+        choseProject = true
+      } label: {
+        if selectedProject == nil { Label("独立聊天", systemImage: "checkmark") }
+        else { Text("独立聊天") }
+      }
+      Divider()
+      ForEach(projectChoices, id: \.self) { project in
+        Button {
+          selectedProject = project
+          choseProject = true
+        } label: {
+          if selectedProject == project {
+            Label(store.library.projectTitle(project), systemImage: "checkmark")
+          } else {
+            Text(store.library.projectTitle(project))
+          }
+        }
+      }
+    }
+  }
+
+  private var executionMenu: some View {
+    Menu("启动模式") {
+      ForEach(NewTaskExecution.allCases) { choice in
+        Button {
+          execution = choice
+        } label: {
+          if execution == choice { Label(choice.title, systemImage: "checkmark") }
+          else { Text(choice.title) }
+        }
+        .disabled(choice == .worktree && !worktreeEligible)
+        .help(choice == .worktree && !worktreeEligible
+          ? "初始化 Git 代码仓库以在工作树中运行任务" : "")
+      }
+    }
+  }
+
   private var sendShortcut: ComposerSendShortcut {
     ComposerSendShortcut(rawValue: sendShortcutRaw) ?? .commandEnter
   }
 
   private func submit() {
-    guard store.libraryLoaded, !store.importingImages, !store.importingFiles, hasContent else { return }
-    _ = onSubmit(draft.wrappedValue, selectedProject)
+    guard !submitting, store.libraryLoaded, !store.importingImages,
+      !store.importingFiles, hasContent,
+      execution != .worktree || worktreeEligible else { return }
+    let prompt = draft.wrappedValue
+    let project = selectedProject
+    let mode = execution
+    submitting = true
+    Task {
+      _ = await onSubmit(prompt, project, mode)
+      submitting = false
+    }
   }
 
   private func restoreComposerFocus() {

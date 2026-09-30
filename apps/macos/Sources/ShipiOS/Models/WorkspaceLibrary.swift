@@ -387,6 +387,8 @@ struct WorkspaceLibrary: Codable {
   var newTaskExecutions: [String: NewTaskExecution] = [:]
   var newTaskEnvironmentSelections: [String: String] = [:]
   var pendingManagedDraftTaskIDs: [String: String] = [:]
+  /// A popout worktree can be resumed after checkout/setup succeeds but before its task is saved.
+  var pendingPopoutWorktreeTaskIDs: [String: String] = [:]
   var goalSessions: [String: GoalSession] = [:]
 
   init() {}
@@ -405,7 +407,7 @@ struct WorkspaceLibrary: Codable {
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
       newTaskExecutions, newTaskEnvironmentSelections,
-      pendingManagedDraftTaskIDs, goalSessions
+      pendingManagedDraftTaskIDs, pendingPopoutWorktreeTaskIDs, goalSessions
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -523,6 +525,8 @@ struct WorkspaceLibrary: Codable {
       forKey: .newTaskEnvironmentSelections) ?? [:]
     pendingManagedDraftTaskIDs = try c.decodeIfPresent([String: String].self,
       forKey: .pendingManagedDraftTaskIDs) ?? [:]
+    pendingPopoutWorktreeTaskIDs = try c.decodeIfPresent([String: String].self,
+      forKey: .pendingPopoutWorktreeTaskIDs) ?? [:]
     goalSessions = try c.decodeIfPresent([String: GoalSession].self, forKey: .goalSessions) ?? [:]
   }
   func projectTitle(_ path: String) -> String {

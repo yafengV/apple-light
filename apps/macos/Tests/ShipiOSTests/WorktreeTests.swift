@@ -3,6 +3,92 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testPopoutWorktreePreparationKeepsHomeDraftUntilCheckoutIsReady() async throws {
+    let (base, source) = try await fixture()
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.newTaskEnvironmentSelections[source.path] = WorktreeEnvironmentChoice.none
+    XCTAssertTrue(store.saveLibrary())
+    store.popoutHomeDraft = "Work on this in a checkout"
+    try write("source edit\n", source.appendingPathComponent("file"))
+    try write("source extra\n", source.appendingPathComponent("extra"))
+    let originalScope = store.currentProjectKey
+    let originalSelection = store.selection
+
+    let unavailable = await store.preparePopoutWorktreeTask(prompt: store.popoutHomeDraft,
+      project: source.path)
+    XCTAssertNil(unavailable)
+    XCTAssertEqual(store.popoutHomeDraft, "Work on this in a checkout")
+    XCTAssertTrue(store.library.pendingPopoutWorktreeTaskIDs.isEmpty)
+    var config = ModelConfiguration()
+    config.baseURL = "http://127.0.0.1:1/v1"
+    config.model = "fixture-model"
+    config.apiProtocol = .codexResponses
+    store.modelConfiguration = config
+
+    let prepared = await store.preparePopoutWorktreeTask(
+      prompt: store.popoutHomeDraft, project: source.path)
+    let task = try XCTUnwrap(prepared, store.generalSettingsError ?? "")
+    let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == task.id })
+    XCTAssertTrue(record.ready)
+    XCTAssertEqual(task.project, record.path)
+    XCTAssertTrue(store.canStartChat(taskID: task.id))
+    XCTAssertEqual(store.taskWindowDraft(task.id), "Work on this in a checkout")
+    XCTAssertEqual(store.popoutHomeDraft, "")
+    XCTAssertTrue(store.library.pendingPopoutWorktreeTaskIDs.isEmpty)
+    XCTAssertEqual(store.currentProjectKey, originalScope)
+    XCTAssertEqual(store.selection, originalSelection)
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "source edit\n")
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
+      .appendingPathComponent("file")), "source edit\n")
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
+      .appendingPathComponent("extra")), "source extra\n")
+    await store.shutdown()
+  }
+
+  @MainActor func testPopoutWorktreeFinishesSavedCheckoutWithoutCreatingAnother() async throws {
+    let (base, source) = try await fixture()
+    let data = base.appendingPathComponent("data")
+    let store = WorkspaceStore(dataRoot: data)
+    await store.restore()
+    store.library.visit(source.path)
+    store.library.newTaskEnvironmentSelections[source.path] = WorktreeEnvironmentChoice.none
+    let taskID = UUID().uuidString
+    store.library.pendingPopoutWorktreeTaskIDs[source.path] = taskID
+    XCTAssertTrue(store.saveLibrary())
+    store.popoutHomeDraft = "Resume the prepared checkout"
+    let record = try await store.prepareDetachedManagedWorktree(sourcePath: source.path,
+      taskID: taskID, environmentSelection: WorktreeEnvironmentChoice.none,
+      purpose: "弹出窗口任务")
+    XCTAssertTrue(record.ready)
+    XCTAssertEqual(try WorkspaceLibrary.load(from: data.appendingPathComponent("workspace.json"))
+      .pendingPopoutWorktreeTaskIDs[source.path], taskID)
+    var config = ModelConfiguration()
+    config.baseURL = "http://127.0.0.1:1/v1"
+    config.model = "fixture-model"
+    config.apiProtocol = .codexResponses
+    store.modelConfiguration = config
+
+    store.popoutHomeDraft = "Changed after submission started"
+    let stale = await store.preparePopoutWorktreeTask(
+      prompt: "Resume the prepared checkout", project: source.path)
+    XCTAssertNil(stale)
+    XCTAssertEqual(store.popoutHomeDraft, "Changed after submission started")
+    XCTAssertEqual(store.library.pendingPopoutWorktreeTaskIDs[source.path], taskID)
+    store.popoutHomeDraft = "Resume the prepared checkout"
+
+    let prepared = await store.preparePopoutWorktreeTask(
+      prompt: store.popoutHomeDraft, project: source.path)
+    let task = try XCTUnwrap(prepared, store.generalSettingsError ?? "")
+    XCTAssertEqual(task.id, taskID)
+    XCTAssertEqual(task.project, record.path)
+    XCTAssertEqual(store.library.managedWorktrees.filter { $0.taskID == taskID }.count, 1)
+    XCTAssertNil(store.library.pendingPopoutWorktreeTaskIDs[source.path])
+    XCTAssertEqual(store.taskWindowDraft(taskID), "Resume the prepared checkout")
+    await store.shutdown()
+  }
+
   @MainActor func testDirectTaskDeletionPreservesDirtyCheckoutWithoutArchivingIt() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")

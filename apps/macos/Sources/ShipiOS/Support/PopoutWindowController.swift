@@ -20,8 +20,9 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
     super.init()
     homeWindow.delegate = self
     homeWindow.contentView = NSHostingView(rootView: PopoutHomeView(store: store,
-      onSubmit: { [weak self] prompt, project in
-        self?.submit(prompt, project: project) ?? false
+      onSubmit: { [weak self] prompt, project, execution in
+        guard let self else { return false }
+        return await self.submit(prompt, project: project, execution: execution)
       }, onOpenThread: { [weak self] in self?.openThread($0) },
       onHide: { [weak self] in self?.hide() }))
   }
@@ -75,9 +76,20 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
     return false
   }
 
-  private func submit(_ prompt: String, project: String?) -> Bool {
-    guard let store,
-      let task = store.preparePopoutTask(prompt: prompt, project: project) else { return false }
+  private func submit(_ prompt: String, project: String?,
+    execution: NewTaskExecution) async -> Bool {
+    guard let store else { return false }
+    let task: WorkspaceTask?
+    if execution == .worktree {
+      guard let project else {
+        store.generalSettingsError = "请先选择一个 Git 项目。"
+        return false
+      }
+      task = await store.preparePopoutWorktreeTask(prompt: prompt, project: project)
+    } else {
+      task = store.preparePopoutTask(prompt: prompt, project: project)
+    }
+    guard let task else { return false }
     openThread(task.id)
     Task { await store.sendTaskWindowDraft(task.id, mode: .standard) }
     return true

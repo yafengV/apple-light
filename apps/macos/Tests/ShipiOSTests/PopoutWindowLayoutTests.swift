@@ -66,7 +66,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
 
     let cases: [(String, NSSize, AnyView)] = [
       ("home", NSSize(width: 470, height: 290), AnyView(PopoutHomeView(store: store,
-        onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
+        onSubmit: { _, _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
       ("thread", NSSize(width: 470, height: 640), AnyView(PopoutThreadView(store: store,
         taskID: task.id, onHome: {}, onOpenThread: { _ in },
         onOpenInMain: { _ in }, onHide: {})))
@@ -111,7 +111,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutHomeView(store: store,
-      onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))
+      onSubmit: { _, _, _ in false }, onOpenThread: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = NSSize(width: 470, height: 290)
     try await Task.sleep(for: .milliseconds(180))
@@ -144,7 +144,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutHomeView(store: store,
-      onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))
+      onSubmit: { _, _, _ in false }, onOpenThread: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = size
     try await Task.sleep(for: .milliseconds(180))
@@ -172,7 +172,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     store.setTaskWindowDraft("/", taskID: task.id)
     let cases: [(String, NSSize, AnyView)] = [
       ("home-slash", NSSize(width: 470, height: 290), AnyView(PopoutHomeView(store: store,
-        onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
+        onSubmit: { _, _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
       ("thread-slash", NSSize(width: 470, height: 640), AnyView(PopoutThreadView(store: store,
         taskID: task.id, onHome: {}, onOpenThread: { _ in },
         onOpenInMain: { _ in }, onHide: {})))
