@@ -25,6 +25,9 @@ import XCTest
     let parent = WorkspaceTask(id: UUID().uuidString, project: "", title: "Parent", runIDs: [completed.id, active.id])
     store.library.tasks = [parent]
     store.library.chatRuns = [completed, active]
+    let permissions = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    store.library.taskRuntimePreferences[parent.id] = permissions
     store.library.notes[completed.id] = "Original question"
     store.runs = [completed, active]
     store.selection = completed.id
@@ -34,6 +37,7 @@ import XCTest
     XCTAssertEqual(store.library.tasks.first(where: { $0.id == parent.id }), parent)
     XCTAssertEqual(side.sideChatParentID, parent.id)
     XCTAssertEqual(side.sideChatSourceRunIDs, [completed.id])
+    XCTAssertEqual(store.runtimePermissions(for: side.id), permissions)
     XCTAssertEqual(store.library.drafts[side.id], "Why?")
     XCTAssertEqual(store.library.chatContext(taskID: side.id).map(\.content),
       ["Original question", "Completed answer"])

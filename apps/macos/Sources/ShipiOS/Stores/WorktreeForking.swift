@@ -90,6 +90,7 @@ extension WorkspaceStore {
       var latest = library
       fork.project = checkout.path
       latest.tasks.insert(fork, at: 0)
+      latest.taskRuntimePreferences[fork.id] = candidate.taskRuntimePreferences[fork.id]
       latest.forkRuns.append(contentsOf: snapshots.map {
         AgentRun(id: $0.id, kind: $0.kind, project: checkout.path, status: $0.status,
           createdAt: $0.createdAt, updatedAt: $0.updatedAt, request: $0.request, result: $0.result)

@@ -67,6 +67,9 @@ extension WorkspaceLibrary {
         threadID: origin.threadID, throughTurnID: turnID)
     }
     tasks.insert(fork, at: 0)
+    if let permissions = taskRuntimePreferences[source.id] {
+      taskRuntimePreferences[fork.id] = permissions
+    }
     forkRuns.append(contentsOf: snapshots)
     forkRunOrigins.merge(origins) { _, new in new }
     notes.merge(copiedNotes) { _, new in new }

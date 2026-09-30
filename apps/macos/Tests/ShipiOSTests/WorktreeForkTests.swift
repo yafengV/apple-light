@@ -37,6 +37,10 @@ import XCTest
 
   func testForkCopiesIndexWorkingFilesAndFixedHistoryWithoutMovingSource() async throws {
     let (store, _, source, id) = try await fixture()
+    let permissions = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    store.library.taskRuntimePreferences[id] = permissions
+    XCTAssertTrue(store.saveLibrary())
     try write("staged\n", source.appendingPathComponent("tracked"))
     _ = try await GitReviewService.checked(["add", "tracked"], at: source)
     try write("working\n", source.appendingPathComponent("tracked"))
@@ -76,8 +80,10 @@ import XCTest
     XCTAssertEqual(store.taskWindowRuns(fork.id).map(\.project), [record.path])
     XCTAssertEqual(store.library.chatContext(taskID: fork.id).map(\.content), ["saved prompt", "saved reply"])
     XCTAssertEqual(fork.forkOrigin?.runID, "finished")
+    XCTAssertEqual(store.runtimePermissions(for: fork.id), permissions)
     let saved = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
     XCTAssertEqual(saved.tasks.first?.project, record.path)
+    XCTAssertEqual(saved.taskRuntimePreferences[fork.id], permissions)
     XCTAssertNil(saved.managedWorktrees.first?.pendingForkSourceTaskID)
     await store.shutdown()
   }

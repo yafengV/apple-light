@@ -31,6 +31,7 @@ extension WorkspaceStore {
       createdAt: now, updatedAt: now)
     var candidate = library
     candidate.tasks.insert(side, at: 0)
+    candidate.taskRuntimePreferences[side.id] = candidate.taskRuntimePreferences[parent.id]
     candidate.drafts[side.id] = prompt
     try commitLibrary(candidate)
     return side

@@ -54,6 +54,9 @@ final class ConversationForkTests: XCTestCase {
     library.queuedMessages = [QueuedMessage(taskID: "one", text: "original queue")]
     library.tasks[0].pinned = true
     library.tasks[0].archived = true
+    let permissions = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    library.taskRuntimePreferences["one"] = permissions
     let original = library.tasks[0]
     let fork = try library.forkConversation(taskID: "one", through: "build", availableRuns: runs)
     XCTAssertEqual(library.tasks.first { $0.id == "one" }, original)
@@ -71,6 +74,10 @@ final class ConversationForkTests: XCTestCase {
     XCTAssertEqual(library.drafts["one"], "original draft")
     XCTAssertNil(library.drafts[fork.id])
     XCTAssertEqual(library.queuedMessages.map(\.taskID), ["one"])
+    XCTAssertEqual(library.taskRuntimePreferences[fork.id], permissions)
+    let nested = try library.forkConversation(taskID: fork.id,
+      availableRuns: library.forkRuns)
+    XCTAssertEqual(library.taskRuntimePreferences[nested.id], permissions)
   }
 
   func testRunningTurnIsExcludedAndCannotBeExplicitForkPoint() throws {
