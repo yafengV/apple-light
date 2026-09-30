@@ -59,10 +59,12 @@ extension WorkspaceStore {
     case "sidebar": NotificationCenter.default.post(name: .toggleShipiOSSidebar, object: nil)
     case "send": Task { await sendDraft() }
     case "find-next":
-      if let tab = pageFindTab, tab.showingPageFind { tab.findInPage() }
+      if filesVisible, workspace.fileFind.isPresented { workspace.fileFind.move(1) }
+      else if let tab = pageFindTab, tab.showingPageFind { tab.findInPage() }
       else { moveFindMatch(1) }
     case "find-previous":
-      if let tab = pageFindTab, tab.showingPageFind { tab.findInPage(backwards: true) }
+      if filesVisible, workspace.fileFind.isPresented { workspace.fileFind.move(-1) }
+      else if let tab = pageFindTab, tab.showingPageFind { tab.findInPage(backwards: true) }
       else { moveFindMatch(-1) }
     case "previous-task": adjacentTaskOrTab(-1)
     case "next-task": adjacentTaskOrTab(1)
@@ -128,6 +130,8 @@ extension WorkspaceStore {
     case "find":
       if destination == .settings {
         settingsSearchFocusRequest = UUID()
+      } else if filesVisible, filePreviewFocused || workspace.fileFind.isPresented {
+        workspace.fileFind.open(editor: workspace.fileFind.editor, source: workspace.fileText)
       } else if let tab = pageFindTab {
         tab.openPageFind()
       } else {
@@ -250,6 +254,7 @@ extension WorkspaceStore {
     case "plan": return destination == .workspace && canStartChat
     case "compact": return destination == .workspace && canCompactConversation
     case "find-next", "find-previous":
+      if filesVisible, workspace.fileFind.isPresented { return !workspace.fileFind.matches.isEmpty }
       if let tab = pageFindTab, tab.showingPageFind { return !tab.pageFindQuery.isEmpty }
       return destination == .workspace && indexedFindText == findText
         && indexedFindTask == selectedTask?.id && !findMatches.isEmpty

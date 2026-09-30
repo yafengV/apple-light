@@ -79,6 +79,11 @@ struct FileWorkspaceView: View {
           }.appFont(.caption).padding(10)
         }
         FileSourcePreview(store: store, workspace: workspace).frame(maxHeight: .infinity)
+          .overlay(alignment: .topTrailing) {
+            if workspace.fileFind.isPresented {
+              FileFindBar(workspace: workspace).padding(12)
+            }
+          }
           .overlay { if workspace.fileLoading { ProgressView("正在读取文件…") } }
       }
     }.confirmationDialog("保存此文件的更改？", isPresented: Binding(

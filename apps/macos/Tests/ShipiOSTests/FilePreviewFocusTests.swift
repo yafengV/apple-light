@@ -48,6 +48,56 @@ import XCTest
     XCTAssertEqual(text.selectedRange(), NSRange(location: 1, length: 3))
   }
 
+  func testFileFindReplacesThroughNativeEditorAndKeepsUndo() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try "one two one".write(to: root.appendingPathComponent("Find.txt"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Find.txt")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 500, height: 350)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func preview(_ view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(preview).first
+    }
+    let text = try XCTUnwrap(preview(host))
+    let finder = workspace.fileFind
+    finder.query = "one"
+    finder.replacement = "three"
+    finder.open(editor: text, replacing: true, source: text.string)
+    for _ in 0..<30 {
+      if finder.matches.count == 2 { break }
+      try await Task.sleep(for: .milliseconds(30))
+    }
+    XCTAssertEqual(finder.matches.count, 2)
+    finder.replaceCurrent()
+    XCTAssertEqual(text.string, "three two one")
+    XCTAssertEqual(workspace.fileText, "three two one")
+    XCTAssertTrue(text.undoManager?.canUndo == true)
+    text.undoManager?.undo()
+    XCTAssertEqual(workspace.fileText, "one two one")
+    for _ in 0..<30 {
+      if finder.matches.count == 2 { break }
+      try await Task.sleep(for: .milliseconds(30))
+    }
+    finder.replaceAll()
+    XCTAssertEqual(text.string, "three two three")
+    XCTAssertEqual(workspace.fileText, "three two three")
+    text.undoManager?.undo()
+    XCTAssertEqual(workspace.fileText, "one two one")
+  }
+
   func testFocusRequestWaitsForFileLoadAndDoesNotAffectMainWorkspace() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

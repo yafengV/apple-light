@@ -34,12 +34,14 @@ struct FileSourcePreview: NSViewRepresentable {
     text.setAccessibilityLabel("文件内容")
     scroll.documentView = text
     text.delegate = context.coordinator
+    workspace.fileFind.bind(editor: text)
     context.coordinator.install(text, store: store, workspace: workspace)
     return scroll
   }
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let text = scroll.documentView as? FilePreviewTextView else { return }
+    workspace.fileFind.bind(editor: text)
     scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
     let coordinator = context.coordinator
     // Swift strings compare canonically; the byte revision also observes source
@@ -67,6 +69,7 @@ struct FileSourcePreview: NSViewRepresentable {
       let location = min(previousSelection.location, length)
       text.setSelectedRange(NSRange(location: location,
         length: min(previousSelection.length, length - location)))
+      if workspace.fileFind.isPresented { workspace.fileFind.refresh(in: text.string, reveal: true) }
     }
     text.isEditable = workspace.selectedFileEditor != nil && !workspace.fileLoading && workspace.fileError == nil
     text.syntax.update(text, path: workspace.selectedFile.map { _ in identity }, source: workspace.fileText,
@@ -107,6 +110,10 @@ struct FileSourcePreview: NSViewRepresentable {
 
   static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
     if let text = view.documentView as? NSTextView { coordinator.savePosition(text) }
+    if let text = view.documentView as? FilePreviewTextView,
+      coordinator.workspace?.fileFind.editor === text {
+      coordinator.workspace?.fileFind.bind(editor: nil)
+    }
     (view.documentView as? FilePreviewTextView)?.syntax.stop()
     coordinator.stop()
   }
@@ -128,7 +135,7 @@ struct FileSourcePreview: NSViewRepresentable {
       workspace.filePreviewPositions[identity] = FilePreviewPosition(
         selection: text.selectedRange(), origin: text.enclosingScrollView?.contentView.bounds.origin ?? .zero)
     }
-    func install(_ text: NSTextView, store: WorkspaceStore, workspace: DeveloperWorkspace) {
+    func install(_ text: FilePreviewTextView, store: WorkspaceStore, workspace: DeveloperWorkspace) {
       self.workspace = workspace
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
         [weak text, weak store, weak workspace] event in
@@ -139,6 +146,26 @@ struct FileSourcePreview: NSViewRepresentable {
             window.isKeyWindow, window.firstResponder === text, window.attachedSheet == nil,
             let store, let workspace
           else { return false }
+          if store.shortcuts.matches("find", binding) {
+            workspace.fileFind.open(editor: text, source: text.string)
+            return true
+          }
+          if binding == ShortcutBinding("⌘⌥F") {
+            workspace.fileFind.open(editor: text, replacing: true, source: text.string)
+            return true
+          }
+          if store.shortcuts.matches("find-next", binding), workspace.fileFind.isPresented {
+            workspace.fileFind.move(1)
+            return true
+          }
+          if store.shortcuts.matches("find-previous", binding), workspace.fileFind.isPresented {
+            workspace.fileFind.move(-1)
+            return true
+          }
+          if binding == ShortcutBinding("Escape"), workspace.fileFind.isPresented {
+            workspace.fileFind.close()
+            return true
+          }
           if binding == ShortcutBinding("⌘S"), workspace.selectedFileEditor != nil {
             Task { await workspace.saveSelectedFileEdits() }
             return true

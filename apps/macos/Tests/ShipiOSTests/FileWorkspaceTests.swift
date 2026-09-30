@@ -121,6 +121,32 @@ final class FileWorkspaceTests: XCTestCase {
     XCTAssertFalse(store.handleFileShortcut(ShortcutBinding("⌘W")))
   }
 
+  func testWindowFindCommandsStayInOpenFileFindBar() async {
+    let store = WorkspaceStore()
+    store.showingInspector = true
+    store.pane = "files"
+    store.workspace.root = URL(fileURLWithPath: "/fixture")
+    store.workspace.selectedFile = "Find.txt"
+    store.workspace.openFiles = ["Find.txt"]
+    store.workspace.fileText = "one one"
+    let finder = store.workspace.fileFind
+    finder.query = "one"
+    finder.open(editor: nil, source: store.workspace.fileText)
+    for _ in 0..<30 {
+      if finder.matches.count == 2 { break }
+      try? await Task.sleep(for: .milliseconds(30))
+    }
+    XCTAssertEqual(finder.matches.count, 2)
+    XCTAssertTrue(store.commandEnabled("find-next"))
+    store.executeCommand("find-next")
+    XCTAssertEqual(finder.selectedIndex, 1)
+    store.executeCommand("find-previous")
+    XCTAssertEqual(finder.selectedIndex, 0)
+    store.executeCommand("find")
+    XCTAssertTrue(finder.isPresented)
+    XCTAssertFalse(store.showingFind)
+  }
+
   func testSearchDismissalFocusOnlyReturnsToMatchingFileScope() async {
     let store = WorkspaceStore()
     store.workspace = DeveloperWorkspace(fileReader: { path, _ in path })

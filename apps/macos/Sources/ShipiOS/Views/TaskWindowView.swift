@@ -791,6 +791,9 @@ struct TaskWindowView: View {
       if store.canHandOffToWorktree(task) { enabled.insert("worktree") }
       if store.canHandOffToLocal(task) { enabled.insert("local") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
+      if taskWorkspace.fileFind.isPresented, !taskWorkspace.fileFind.matches.isEmpty {
+        enabled.formUnion(["find-next", "find-previous"])
+      }
       if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }),
         page.showingPageFind, !page.pageFindQuery.isEmpty {
@@ -863,7 +866,10 @@ struct TaskWindowView: View {
     case "dictation": Task { await store.toggleDictation(target: taskID) }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find":
-      if let id = tabs.focused?.browserID,
+      if taskWorkspace.fileFind.isPresented ||
+        (resources.window?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace {
+        taskWorkspace.fileFind.open(editor: taskWorkspace.fileFind.editor, source: taskWorkspace.fileText)
+      } else if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
       else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
     case "model": openTaskModelPicker()
@@ -902,11 +908,13 @@ struct TaskWindowView: View {
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next":
-      if let id = tabs.focused?.browserID,
+      if taskWorkspace.fileFind.isPresented { taskWorkspace.fileFind.move(1) }
+      else if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind { page.findInPage() }
       else { moveFindMatch(1) }
     case "find-previous":
-      if let id = tabs.focused?.browserID,
+      if taskWorkspace.fileFind.isPresented { taskWorkspace.fileFind.move(-1) }
+      else if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind {
         page.findInPage(backwards: true)
       } else { moveFindMatch(-1) }

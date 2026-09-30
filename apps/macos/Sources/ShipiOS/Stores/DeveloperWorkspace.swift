@@ -12,10 +12,14 @@ final class DeveloperWorkspace {
   var openFiles: [String] = []
   var fileText = "" {
     didSet {
-      if !oldValue.utf8.elementsEqual(fileText.utf8) { fileContentVersion = UUID() }
+      if !oldValue.utf8.elementsEqual(fileText.utf8) {
+        fileContentVersion = UUID()
+        fileFind.refresh(in: fileText)
+      }
     }
   }
   private(set) var fileContentVersion = UUID()
+  let fileFind = FileFindSession()
   var fileLoading = false
   var fileIsReadOnly = false
   var fileError: String?
@@ -140,6 +144,7 @@ final class DeveloperWorkspace {
     for task in fileAutosaveTasks.values { task.cancel() }
     fileAutosaveTasks.removeAll()
     stopFileMonitoring()
+    fileFind.close()
     self.root = root
     additionalFileRoots = Array(WorkspaceFileScope.roots(primary: root, additional: additionalFolders).dropFirst())
     loading = false
@@ -278,6 +283,7 @@ final class DeveloperWorkspace {
     let token = UUID()
     fileVersion = token
     stopFileMonitoring(path)
+    if selectedFile != path { fileFind.close() }
     selectedFile = path
     if !openFiles.contains(path) { openFiles.append(path) }
     fileText = ""
@@ -348,6 +354,7 @@ final class DeveloperWorkspace {
     filePreviewPositions[(root?.path ?? "") + "/" + path] = nil
     guard selectedFile == path else { return }
     fileVersion = UUID()
+    fileFind.close()
     selectedFile = nil
     fileText = ""
     fileError = nil
