@@ -1245,6 +1245,7 @@ final class WorkspaceStore {
         library.appearance = appearance.normalized()
       }
       libraryLoaded = true
+      bindFileEditorRecovery(to: workspace)
       discardRestoredSideChats()
       if error == previousReadError { error = nil }
       return true
@@ -1292,6 +1293,7 @@ final class WorkspaceStore {
     await managedLimitCleanupTask?.value
     await managedDeletionCleanupTask?.value
     captureWorkspaceTabLayout()
+    captureFileEditorRecovery(from: workspace)
     dictation.stop()
     shuttingDown = true
     await shutdownMCPConnections()

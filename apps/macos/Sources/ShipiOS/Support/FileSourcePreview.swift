@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A selectable, read-only source view with native focus and selection semantics.
+/// A selectable source editor with native focus and selection semantics.
 struct FileSourcePreview: NSViewRepresentable {
   let store: WorkspaceStore
   let workspace: DeveloperWorkspace
@@ -18,6 +18,11 @@ struct FileSourcePreview: NSViewRepresentable {
     text.isEditable = false
     text.isSelectable = true
     text.isRichText = false
+    text.isAutomaticQuoteSubstitutionEnabled = false
+    text.isAutomaticDashSubstitutionEnabled = false
+    text.isAutomaticTextReplacementEnabled = false
+    text.isContinuousSpellCheckingEnabled = false
+    text.allowsUndo = true
     text.drawsBackground = false
     text.isHorizontallyResizable = true
     text.isVerticallyResizable = true
@@ -28,6 +33,7 @@ struct FileSourcePreview: NSViewRepresentable {
     text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
     text.setAccessibilityLabel("文件内容")
     scroll.documentView = text
+    text.delegate = context.coordinator
     context.coordinator.install(text, store: store, workspace: workspace)
     return scroll
   }
@@ -53,9 +59,12 @@ struct FileSourcePreview: NSViewRepresentable {
     let open = Set(workspace.openFiles.map { root + $0 })
     workspace.filePreviewPositions = workspace.filePreviewPositions.filter { open.contains($0.key) }
     if !text.string.utf8.elementsEqual(workspace.fileText.utf8) {
+      coordinator.applyingProgrammaticText = true
       text.string = workspace.fileText
+      coordinator.applyingProgrammaticText = false
       text.setSelectedRange(NSRange(location: 0, length: 0))
     }
+    text.isEditable = workspace.selectedFileEditor != nil && !workspace.fileLoading && workspace.fileError == nil
     text.syntax.update(text, path: workspace.selectedFile.map { _ in identity }, source: workspace.fileText,
       ready: !workspace.fileLoading && workspace.fileError == nil, appearance: appearance)
     if !workspace.fileLoading, coordinator.needsRestore {
@@ -97,13 +106,14 @@ struct FileSourcePreview: NSViewRepresentable {
     coordinator.stop()
   }
 
-  final class Coordinator {
+  final class Coordinator: NSObject, NSTextViewDelegate {
     var identity: String?
     weak var workspace: DeveloperWorkspace?
     var needsRestore = false
     var wasLoading = false
     var focusRequest: UUID?
     var lineRequest: UUID?
+    var applyingProgrammaticText = false
     private var monitor: Any?
 
     @MainActor func savePosition(_ text: NSTextView) {
@@ -124,6 +134,10 @@ struct FileSourcePreview: NSViewRepresentable {
             window.isKeyWindow, window.firstResponder === text, window.attachedSheet == nil,
             let store, let workspace
           else { return false }
+          if binding == ShortcutBinding("⌘S"), workspace.selectedFileEditor != nil {
+            Task { await workspace.saveSelectedFileEdits() }
+            return true
+          }
           if workspace === store.workspace {
             guard store.handleFileShortcut(binding) else { return false }
           } else if binding == ShortcutBinding("⌘W"), let path = workspace.selectedFile {
@@ -141,6 +155,12 @@ struct FileSourcePreview: NSViewRepresentable {
       }
     }
     func stop() { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+    func textDidChange(_ notification: Notification) {
+      guard !applyingProgrammaticText, let text = notification.object as? NSTextView,
+        let workspace, workspace.selectedFileEditor != nil,
+        !text.string.utf8.elementsEqual(workspace.fileText.utf8) else { return }
+      workspace.editSelectedFile(text.string)
+    }
     deinit { stop() }
   }
 }

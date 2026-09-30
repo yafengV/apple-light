@@ -20,6 +20,11 @@ final class DeveloperWorkspace {
   var fileError: String?
   var fileOpenError: String?
   var fileOpenRequest = UUID()
+  var fileEditorSessions: [String: FileEditorSession] = [:]
+  var recoveredFileDrafts: [String: FileEditorRecoveryDraft] = [:]
+  @ObservationIgnored var onFileEditResolved: ((String) -> Void)?
+  var fileCloseRequest: String?
+  @ObservationIgnored var fileAutosaveTasks: [String: Task<Void, Never>] = [:]
   var filesError: String?
   var fileFocusRequest = UUID()
   var showingFileLine = false
@@ -129,6 +134,8 @@ final class DeveloperWorkspace {
     gitVersion = UUID()
     fileVersion = UUID()
     filesVersion = UUID()
+    for task in fileAutosaveTasks.values { task.cancel() }
+    fileAutosaveTasks.removeAll()
     self.root = root
     additionalFileRoots = Array(WorkspaceFileScope.roots(primary: root, additional: additionalFolders).dropFirst())
     loading = false
@@ -141,6 +148,7 @@ final class DeveloperWorkspace {
     fileError = nil
     fileOpenError = nil
     fileOpenRequest = UUID()
+    fileCloseRequest = nil
     filesError = nil
     showingFileLine = false
     fileLineRange = nil
@@ -242,7 +250,7 @@ final class DeveloperWorkspace {
     fileOpenRequest = UUID()
     fileOpenError = nil
     let retained = openFiles.filter { (try? fileLocation($0)) != nil }
-    for path in openFiles where !retained.contains(path) { closeFile(path) }
+    for path in openFiles where !retained.contains(path) { closeFile(path, preservingDraft: true) }
     if let selectedFile { selectFile(selectedFile) }
     let token = filesVersion
     let epoch = reviewRepositoryEpoch, gitToken = gitVersion
@@ -274,6 +282,20 @@ final class DeveloperWorkspace {
     showingFileLine = false
     fileLineRange = nil
     fileFocusRequest = UUID()
+    if let session = fileEditorSessions[editorKey(for: path)],
+      session.hasUnsavedChanges || session.saving {
+      fileText = session.text
+      fileLoading = false
+      return nil
+    }
+    if fileEditorSessions[editorKey(for: path)] == nil,
+      let recovered = recoveredFileDrafts[editorKey(for: path)] {
+      fileEditorSessions[editorKey(for: path)] = FileEditorSession(
+        baseText: recovered.baseText, text: recovered.text)
+      fileText = recovered.text
+      fileLoading = false
+      return nil
+    }
     let reader = fileReader
     let roots = fileRoots
     return Task { [weak self] in
@@ -287,14 +309,27 @@ final class DeveloperWorkspace {
         self.selectedFile == path, self.openFiles.contains(path) else { return }
       self.fileLoading = false
       switch result {
-      case .success(let text): self.fileText = text
+      case .success(let text):
+        self.fileText = text
+        self.fileEditorSessions[self.editorKey(for: path)] = FileEditorSession(baseText: text, text: text)
       case .failure(let error): self.fileError = error.localizedDescription
       }
     }
   }
 
-  func closeFile(_ path: String) {
+  func closeFile(_ path: String, preservingDraft: Bool = false) {
     guard let index = openFiles.firstIndex(of: path) else { return }
+    let key = editorKey(for: path)
+    if !preservingDraft, let session = fileEditorSessions[key], session.hasUnsavedChanges || session.saving {
+      fileCloseRequest = path
+      return
+    }
+    if !preservingDraft {
+      fileEditorSessions[key] = nil
+      recoveredFileDrafts[key] = nil
+      onFileEditResolved?(key)
+    }
+    fileAutosaveTasks.removeValue(forKey: key)?.cancel()
     openFiles.remove(at: index)
     filePreviewPositions[(root?.path ?? "") + "/" + path] = nil
     guard selectedFile == path else { return }

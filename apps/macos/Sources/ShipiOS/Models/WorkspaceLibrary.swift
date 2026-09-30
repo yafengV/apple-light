@@ -358,6 +358,8 @@ struct WorkspaceLibrary: Codable {
   var followUpBehavior = FollowUpBehavior.queue
   var browserHistory: [BrowserHistoryEntry] = []
   var browserPermissions = BrowserPermissionPreferences()
+  /// Unsaved source edits survive task-window teardown and normal app termination.
+  var fileEditorRecovery: [String: FileEditorRecoveryDraft] = [:]
   /// A fingerprint of the server configuration and advertised tool definition is required for each grant.
   var mcpPersistentToolGrants: [String: String] = [:]
   var browserDownloadPreferences = BrowserDownloadPreferences()
@@ -402,7 +404,7 @@ struct WorkspaceLibrary: Codable {
     case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
-      followUpBehavior, browserHistory, browserPermissions, mcpPersistentToolGrants, browserDownloadPreferences,
+      followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
@@ -477,6 +479,8 @@ struct WorkspaceLibrary: Codable {
     browserPermissions =
       try c.decodeIfPresent(BrowserPermissionPreferences.self, forKey: .browserPermissions)
       ?? BrowserPermissionPreferences()
+    fileEditorRecovery = try c.decodeIfPresent([String: FileEditorRecoveryDraft].self,
+      forKey: .fileEditorRecovery) ?? [:]
     mcpPersistentToolGrants =
       try c.decodeIfPresent([String: String].self, forKey: .mcpPersistentToolGrants) ?? [:]
     browserDownloadPreferences =

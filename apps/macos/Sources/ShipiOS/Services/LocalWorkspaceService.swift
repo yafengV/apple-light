@@ -7,6 +7,10 @@ struct CommandOutput: Sendable {
 
 /// No shell interpolation. Output is drained into a temporary file to avoid pipe deadlocks.
 enum LocalWorkspaceService {
+  enum EditedFileSaveResult: Equatable {
+    case saved
+    case changedOnDisk(String)
+  }
   static func command(_ executable: String, _ arguments: [String], at root: URL,
     indexFile: URL? = nil, cancelWithTask: Bool = false) async throws
     -> CommandOutput
@@ -103,6 +107,30 @@ enum LocalWorkspaceService {
       throw AgentFailure(message: "这是二进制文件或不支持的编码，请在外部应用打开。")
     }
     return text
+  }
+  static func saveEditedFile(_ path: String, root: URL, expected: String,
+    replacement: String) throws -> EditedFileSaveResult {
+    let file = try resolvedFile(path, root: root)
+    let values = try file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+    guard values.isRegularFile == true, (values.fileSize ?? 0) <= 1_048_576 else {
+      throw AgentFailure(message: "只能编辑 1 MiB 以内的普通文本文件。")
+    }
+    let current = try Data(contentsOf: file)
+    guard current.count <= 1_048_576, !current.contains(0),
+      let diskText = String(data: current, encoding: .utf8) else {
+      throw AgentFailure(message: "磁盘文件已变为不支持的格式，未覆盖。")
+    }
+    guard current == Data(expected.utf8) else { return .changedOnDisk(diskText) }
+    let replacementData = Data(replacement.utf8)
+    guard replacementData.count <= 1_048_576, !replacementData.contains(0) else {
+      throw AgentFailure(message: "编辑内容超过 1 MiB 或包含二进制数据。")
+    }
+    let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+    try replacementData.write(to: file, options: .atomic)
+    if let mode = attributes[.posixPermissions] {
+      try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: file.path)
+    }
+    return .saved
   }
   static func files(at root: URL) async throws -> [String] {
     let root = GitBranchService.canonicalRoot(root)

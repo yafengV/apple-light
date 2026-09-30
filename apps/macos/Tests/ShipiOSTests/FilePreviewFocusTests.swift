@@ -4,6 +4,40 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class FilePreviewFocusTests: XCTestCase {
+  func testNativeFileEditorUpdatesWorkspaceDraft() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try "original".write(to: root.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Edit.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 500, height: 350)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func preview(_ view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(preview).first
+    }
+    let text = try XCTUnwrap(preview(host))
+    XCTAssertTrue(text.isEditable)
+    text.insertText("updated", replacementRange: NSRange(location: 0, length: 8))
+    XCTAssertEqual(workspace.fileText, "updated")
+    XCTAssertTrue(workspace.selectedFileEditor?.hasUnsavedChanges == true)
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("Edit.swift")), "original")
+    XCTAssertTrue(text.undoManager?.canUndo == true)
+    text.undoManager?.undo()
+    XCTAssertEqual(workspace.fileText, "original")
+  }
+
   func testFocusRequestWaitsForFileLoadAndDoesNotAffectMainWorkspace() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

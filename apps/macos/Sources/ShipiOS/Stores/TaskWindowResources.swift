@@ -30,6 +30,7 @@ import Observation
     let project = store.library.tasks.first { $0.id == taskID }?.project ?? ""
     let oldRoot = panels.tasks[taskID]?.workspace.root
     let panel = panels.panels(for: taskID, project: project)
+    store.bindFileEditorRecovery(to: panel.workspace)
     store.bindGitReviewPolicy(to: panel.workspace, taskID: taskID)
     store.additionalTaskWindowPanels.add(panels)
     if let existing = tasks[taskID] {
@@ -70,6 +71,9 @@ import Observation
     }
   }
   func retainTasks(_ available: Set<String>, displaying: String?) {
+    for (id, panel) in panels.tasks where !available.contains(id) {
+      store?.captureFileEditorRecovery(from: panel.workspace)
+    }
     panels.retainTasks(available, displaying: displaying)
     for id in Array(tasks.keys) where !available.contains(id) {
       tasks[id]?.resetProjectTabs()
@@ -131,6 +135,7 @@ import Observation
     // Foundation's persistence/weak-registry bridging can autorelease references
     // to this window. Drain them before returning from explicit window teardown.
     autoreleasepool {
+      for panel in panels.tasks.values { store?.captureFileEditorRecovery(from: panel.workspace) }
       captureLayouts()
       capturePins()
       store?.taskWindowResources.remove(self)

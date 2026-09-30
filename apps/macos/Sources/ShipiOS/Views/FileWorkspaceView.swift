@@ -5,6 +5,7 @@ struct FileWorkspaceView: View {
   @Bindable var workspace: DeveloperWorkspace
   @State private var line = ""
   @State private var lineError = false
+  @State private var showingConflict = false
   @FocusState private var lineFocused: Bool
 
   var body: some View {
@@ -36,6 +37,14 @@ struct FileWorkspaceView: View {
         HStack {
           Text(file).appFont(.caption).lineLimit(1).help(file)
           Spacer()
+          if let editor = workspace.selectedFileEditor {
+            if editor.saving { ProgressView().controlSize(.small) }
+            Text(editor.saving ? "正在保存…" : editor.hasUnsavedChanges ? "未保存" : "已保存")
+              .foregroundStyle(editor.hasUnsavedChanges ? Color.orange : Color.secondary)
+            Button("保存") { Task { await workspace.saveSelectedFileEdits() } }
+              .disabled(!editor.hasUnsavedChanges || editor.saving || editor.changedOnDisk != nil)
+              .help("保存文件 ⌘S")
+          }
           Button("跳转到行…") { workspace.showingFileLine = true }
             .disabled(workspace.fileLoading || workspace.fileError != nil).help("跳转到行 \(store.shortcuts.label("browser-address"))")
           Button("在编辑器中打开") { Task { await store.openProjectFile(file, in: workspace) } }
@@ -44,6 +53,17 @@ struct FileWorkspaceView: View {
         if let error = workspace.fileOpenError {
           Text(error).foregroundStyle(.orange).textSelection(.enabled).appFont(.caption)
             .padding(.horizontal, 10).padding(.bottom, 8)
+        }
+        if let editor = workspace.selectedFileEditor, let error = editor.error {
+          HStack {
+            Text(error).foregroundStyle(.orange).textSelection(.enabled)
+            Spacer()
+            if editor.changedOnDisk != nil {
+              Button("比较并处理…") { showingConflict = true }
+            } else {
+              Button("重试保存") { Task { await workspace.saveSelectedFileEdits() } }
+            }
+          }.appFont(.caption).padding(.horizontal, 10).padding(.bottom, 8)
         }
         Divider()
         if workspace.showingFileLine { linePicker }
@@ -57,9 +77,67 @@ struct FileWorkspaceView: View {
         FileSourcePreview(store: store, workspace: workspace).frame(maxHeight: .infinity)
           .overlay { if workspace.fileLoading { ProgressView("正在读取文件…") } }
       }
-    }.overlay(alignment: .topTrailing) {
+    }.confirmationDialog("保存此文件的更改？", isPresented: Binding(
+      get: { workspace.fileCloseRequest != nil },
+      set: { if !$0 { workspace.fileCloseRequest = nil } }
+    )) {
+      Button("保存并关闭") {
+        guard let path = workspace.fileCloseRequest else { return }
+        Task {
+          if await workspace.saveFileEdits(key: workspace.editorKey(for: path)) {
+            workspace.fileCloseRequest = nil
+            closeFile(path)
+          }
+        }
+      }
+      Button("放弃更改并关闭", role: .destructive) {
+        if let path = workspace.fileCloseRequest { workspace.discardAndCloseFile(path) }
+      }.disabled(workspace.fileCloseRequest.flatMap {
+        workspace.fileEditorSessions[workspace.editorKey(for: $0)]?.saving
+      } == true)
+      Button("继续编辑", role: .cancel) { workspace.fileCloseRequest = nil }
+    } message: {
+      Text("当前内容尚未写入磁盘。")
+    }
+    .sheet(isPresented: $showingConflict) { conflictSheet }
+    .overlay(alignment: .topTrailing) {
       if workspace.loading { ProgressView().controlSize(.small).padding(12).allowsHitTesting(false) }
     }
+  }
+
+  private var conflictSheet: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("文件在应用外发生更改").appFont(.title2, weight: .semibold)
+      Text("比较两个版本后选择保留哪一份；再次保存前仍会检查磁盘是否又发生变化。")
+        .foregroundStyle(.secondary)
+      HStack(spacing: 12) {
+        conflictText("当前编辑", workspace.selectedFileEditor?.text ?? "")
+        conflictText("磁盘版本", workspace.selectedFileEditor?.changedOnDisk ?? "")
+      }
+      HStack {
+        Button("保留磁盘版本") {
+          workspace.discardSelectedFileEdits()
+          showingConflict = false
+        }
+        Spacer()
+        Button("取消") { showingConflict = false }
+        Button("用当前编辑覆盖") {
+          Task {
+            if await workspace.useLocalFileEditsAfterConflict() { showingConflict = false }
+          }
+        }.buttonStyle(.borderedProminent)
+      }
+    }.padding(20).frame(minWidth: 760, minHeight: 480)
+  }
+
+  private func conflictText(_ title: String, _ content: String) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(title).appFont(.headline)
+      ScrollView {
+        Text(content).appFont(.caption, design: .monospaced)
+          .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+      }.padding(8).background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }.frame(maxWidth: .infinity)
   }
 
   private func fileTree(_ group: WorkspaceFileGroup) -> some View {
@@ -88,6 +166,10 @@ struct FileWorkspaceView: View {
               }.buttonStyle(.plain).help(path)
                 .accessibilityLabel("文件标签：\(path)")
                 .accessibilityAddTraits(workspace.selectedFile == path ? .isSelected : [])
+              if workspace.fileEditorSessions[workspace.editorKey(for: path)]?.hasUnsavedChanges == true {
+                Circle().fill(Color.orange).frame(width: 6, height: 6)
+                  .accessibilityLabel("未保存")
+              }
               Button { closeFile(path) } label: { Image(systemName: "xmark").appFont(size: 9) }
                 .buttonStyle(.plain).help("关闭 \(path)").accessibilityLabel("关闭文件：\(path)")
             }.padding(8)
