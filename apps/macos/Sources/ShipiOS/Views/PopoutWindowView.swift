@@ -12,6 +12,7 @@ struct PopoutHomeView: View {
   @State private var previewFile: FileAttachment?
   @State private var previewImage: ImagePreviewItem?
   @State private var previewImages: [ImagePreviewItem] = []
+  @State private var imagePreviewReturnFocus: (() -> Void)?
   @State private var slashSelection = PopoutSlashSelection()
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
@@ -110,18 +111,24 @@ struct PopoutHomeView: View {
     .onChange(of: store.popoutWindowProjectlessDefault) { _, value in
       if store.popoutHomeDraft.isEmpty { projectless = value }
     }
-    .environment(\.presentImageGallery) { image, images, _ in
+    .environment(\.presentImageGallery) { image, images, returnFocus in
+      guard previewFile == nil, previewImage == nil else { return }
       previewImage = image
       previewImages = images
+      imagePreviewReturnFocus = returnFocus
     }
-    .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
-    .sheet(item: $previewImage) { image in
+    .sheet(item: $previewFile, onDismiss: restoreComposerFocus) {
+      FileAttachmentPreview(file: $0, root: store.dataRoot)
+    }
+    .sheet(item: $previewImage, onDismiss: restoreImagePreviewFocus) { image in
       ImageGalleryPreview(image: image, images: previewImages, root: store.dataRoot) {
         previewImage = nil
       }.frame(width: 720, height: 520)
     }
     .onExitCommand {
-      if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
+      if previewImage != nil { previewImage = nil }
+      else if previewFile != nil { previewFile = nil }
+      else if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
       else { onHide() }
     }
   }
@@ -133,6 +140,18 @@ struct PopoutHomeView: View {
   private func submit() {
     guard store.libraryLoaded, !store.importingImages, !store.importingFiles, hasContent else { return }
     _ = onSubmit(draft.wrappedValue, projectless)
+  }
+
+  private func restoreComposerFocus() {
+    focused = true
+    focusRequest = UUID()
+  }
+
+  private func restoreImagePreviewFocus() {
+    let returnFocus = imagePreviewReturnFocus
+    imagePreviewReturnFocus = nil
+    if let returnFocus { returnFocus() }
+    else { restoreComposerFocus() }
   }
 
   private func updateSlashSelection() {
@@ -169,12 +188,21 @@ struct PopoutThreadView: View {
   @State private var focused = false
   @State private var focusRequest = UUID()
   @State private var slashSelection = PopoutSlashSelection()
+  @State private var previewFile: FileAttachment?
+  @State private var previewImage: ImagePreviewItem?
+  @State private var previewImages: [ImagePreviewItem] = []
+  @State private var imagePreviewReturnFocus: (() -> Void)?
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
   private var runs: [AgentRun] { store.taskWindowRuns(taskID) }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
   private var queuedCount: Int {
     store.library.queuedMessages.filter { $0.taskID == taskID }.count
+  }
+  private var attachmentHeight: CGFloat {
+    let hasImages = !store.taskWindowImages(taskID).isEmpty
+    let hasFiles = !store.taskWindowFiles(taskID).isEmpty
+    return (hasImages ? 110 : 0) + (hasFiles ? 54 : 0) + (hasImages && hasFiles ? 6 : 0)
   }
   private var canSend: Bool {
     (store.canStartChat(taskID: taskID) || store.activeChatRun(taskID: taskID) != nil)
@@ -225,10 +253,15 @@ struct PopoutThreadView: View {
         }.padding(.horizontal, 16).padding(.top, 8)
       }
       if !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty {
-        VStack(alignment: .leading, spacing: 6) {
-          ImageAttachmentsView(store: store, images: store.taskWindowImages(taskID), removable: true)
-          FileAttachmentsView(store: store, files: store.taskWindowFiles(taskID), removable: true)
-        }.padding(.horizontal, 14).padding(.top, 10)
+        ScrollView(.vertical) {
+          VStack(alignment: .leading, spacing: 6) {
+            ImageAttachmentsView(store: store, images: store.taskWindowImages(taskID),
+              removable: true, onRemove: { store.removeDraftImage($0, draft: taskID) })
+            FileAttachmentsView(store: store, files: store.taskWindowFiles(taskID),
+              removable: true, onPreview: { previewFile = $0 },
+              onRemove: { store.removeDraftFile($0, draft: taskID) })
+          }
+        }.frame(height: attachmentHeight).padding(.horizontal, 14).padding(.top, 10)
       }
       if let error = store.error {
         HStack(alignment: .top) {
@@ -301,8 +334,24 @@ struct PopoutThreadView: View {
     .onChange(of: store.taskWindowImages(taskID).count + store.taskWindowFiles(taskID).count) {
       _, _ in updateSlashSelection()
     }
+    .environment(\.presentImageGallery) { image, images, returnFocus in
+      guard previewFile == nil, previewImage == nil else { return }
+      previewImage = image
+      previewImages = images
+      imagePreviewReturnFocus = returnFocus
+    }
+    .sheet(item: $previewFile, onDismiss: restoreComposerFocus) {
+      FileAttachmentPreview(file: $0, root: store.dataRoot)
+    }
+    .sheet(item: $previewImage, onDismiss: restoreImagePreviewFocus) { image in
+      ImageGalleryPreview(image: image, images: previewImages, root: store.dataRoot) {
+        previewImage = nil
+      }.frame(width: 720, height: 520)
+    }
     .onExitCommand {
-      if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
+      if previewImage != nil { previewImage = nil }
+      else if previewFile != nil { previewFile = nil }
+      else if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
       else { onHide() }
     }
   }
@@ -314,6 +363,18 @@ struct PopoutThreadView: View {
   private func submit() {
     guard canSend else { return }
     Task { await store.sendTaskWindowDraft(taskID, mode: .standard) }
+  }
+
+  private func restoreComposerFocus() {
+    focused = true
+    focusRequest = UUID()
+  }
+
+  private func restoreImagePreviewFocus() {
+    let returnFocus = imagePreviewReturnFocus
+    imagePreviewReturnFocus = nil
+    if let returnFocus { returnFocus() }
+    else { restoreComposerFocus() }
   }
 
   private func updateSlashSelection() {
