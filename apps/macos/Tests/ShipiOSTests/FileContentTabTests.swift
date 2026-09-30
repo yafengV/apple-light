@@ -123,6 +123,27 @@ import XCTest
     XCTAssertEqual(store.workspaceTabPlacement(tab.id), .right)
   }
 
+  func testReopenFileUsesCurrentTasksCloseHistory() throws {
+    let (store, _, _) = try fixture()
+    XCTAssertTrue(store.openFileTab("First.swift"))
+    let main = try XCTUnwrap(store.activeWorkspaceContentTab)
+    store.closeWorkspaceTab(main.id)
+
+    store.selection = "popup"
+    XCTAssertTrue(store.openFileTab("Second.swift"))
+    let popup = try XCTUnwrap(store.activeWorkspaceContentTab)
+    store.closeWorkspaceTab(popup.id)
+
+    store.selection = "main"
+    XCTAssertTrue(store.canReopenClosedWorkspaceTab)
+    store.reopenClosedWorkspaceTab()
+    XCTAssertEqual(store.activeWorkspaceContentTab, main)
+    store.selection = "popup"
+    XCTAssertTrue(store.canReopenClosedWorkspaceTab)
+    store.reopenClosedWorkspaceTab()
+    XCTAssertEqual(store.activeWorkspaceContentTab, popup)
+  }
+
   func testClosingDirtyFileTabSavesBeforeRemoval() async throws {
     let (store, _, project) = try fixture()
     XCTAssertTrue(store.openFileTab("First.swift"))

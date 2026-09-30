@@ -61,6 +61,33 @@ import XCTest
     XCTAssertEqual(store.workspace.browser.tabs.count, 1)
   }
 
+  func testBrowserReopenUsesCurrentTasksExactClosedTab() throws {
+    let store = storeWithTask()
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks.append(.init(id: "popup", project: "/project", title: "Popup", runIDs: []))
+    store.newBrowserTab()
+    let main = try XCTUnwrap(store.workspace.browser.selected)
+    main.address = "https://example.com/main"
+    store.closeWorkspaceTab(WorkspaceContentTab.browser(main.id, owner: "task").id)
+
+    store.selection = "popup"
+    store.newBrowserTab()
+    let popup = try XCTUnwrap(store.workspace.browser.selected)
+    popup.address = "https://example.com/popup"
+    store.closeWorkspaceTab(WorkspaceContentTab.browser(popup.id, owner: "popup").id)
+
+    store.selection = "run"
+    XCTAssertTrue(store.canReopenClosedWorkspaceTab)
+    store.reopenClosedWorkspaceTab()
+    XCTAssertEqual(store.workspace.browser.selected?.address, "https://example.com/main")
+    XCTAssertEqual(store.activeWorkspaceContentTab?.owner, "task")
+    store.selection = "popup"
+    XCTAssertTrue(store.canReopenClosedWorkspaceTab)
+    store.reopenClosedWorkspaceTab()
+    XCTAssertEqual(store.workspace.browser.selected?.address, "https://example.com/popup")
+    XCTAssertEqual(store.activeWorkspaceContentTab?.owner, "popup")
+  }
+
   func testContentTabsReorderCloseRightCloseOthersAndReopen() throws {
     let store = storeWithTask()
     defer { store.workspace.browser.shutdown() }

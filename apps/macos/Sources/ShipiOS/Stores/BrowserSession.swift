@@ -5,6 +5,7 @@ import WebKit
 @MainActor @Observable
 final class BrowserSession {
   private struct ClosedTabState {
+    let id: UUID
     let address: String
     let shouldNavigate: Bool
   }
@@ -108,6 +109,7 @@ final class BrowserSession {
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
     let tab = tabs.remove(at: index)
     closedTabs.append(ClosedTabState(
+      id: tab.id,
       address: tab.committedURL?.absoluteString ?? tab.address,
       shouldNavigate: tab.committedURL != nil))
     if closedTabs.count > 20 { closedTabs.removeFirst(closedTabs.count - 20) }
@@ -123,8 +125,13 @@ final class BrowserSession {
     if tabs.isEmpty { onEmpty?() }
   }
   var canReopenClosedTab: Bool { !closedTabs.isEmpty }
-  @discardableResult func reopenClosedTab() -> BrowserTab? {
-    guard let state = closedTabs.popLast() else { return nil }
+  func canReopenClosedTab(_ id: UUID) -> Bool { closedTabs.contains { $0.id == id } }
+  @discardableResult func reopenClosedTab(originalID: UUID? = nil) -> BrowserTab? {
+    let index: Int?
+    if let originalID { index = closedTabs.lastIndex { $0.id == originalID } }
+    else { index = closedTabs.indices.last }
+    guard let index else { return nil }
+    let state = closedTabs.remove(at: index)
     let tab = newTab()
     tab.address = state.address
     if state.shouldNavigate { tab.navigate() }

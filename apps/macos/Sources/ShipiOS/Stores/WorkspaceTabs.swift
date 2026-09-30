@@ -620,7 +620,11 @@ extension WorkspaceStore {
   }
 
   func reopenClosedWorkspaceTab() {
-    guard let tab = closedWorkspaceTabs.popLast() else { return }
+    let owner = currentWorkspaceTabOwner
+    guard let index = closedWorkspaceTabs.lastIndex(where: { tab in
+      tab.owner == owner && (tab.browserID.map { workspace.browser.canReopenClosedTab($0) } ?? true)
+    }) else { return }
+    let tab = closedWorkspaceTabs.remove(at: index)
     switch tab {
     case .file(let path, let owner):
       let placement = closedFilePlacements.removeValue(forKey: tab.id) ?? .left
@@ -637,9 +641,9 @@ extension WorkspaceStore {
       if owner == currentWorkspaceTabOwner, let request = pullRequestContent(tab) {
         _ = openPullRequestContent(request, in: placement == .detached ? .right : placement)
       }
-    case .browser(_, let owner):
+    case .browser(let originalID, let owner):
       reopeningWorkspaceTabOwner = owner
-      _ = workspace.browser.reopenClosedTab()
+      _ = workspace.browser.reopenClosedTab(originalID: originalID)
       reopeningWorkspaceTabOwner = nil
     case .terminal(_, let owner):
       guard owner == currentWorkspaceTabOwner else { return }
@@ -647,7 +651,12 @@ extension WorkspaceStore {
     }
   }
 
-  var canReopenClosedWorkspaceTab: Bool { !closedWorkspaceTabs.isEmpty }
+  var canReopenClosedWorkspaceTab: Bool {
+    closedWorkspaceTabs.contains { tab in
+      tab.owner == currentWorkspaceTabOwner &&
+        (tab.browserID.map { workspace.browser.canReopenClosedTab($0) } ?? true)
+    }
+  }
 
   func workspaceBrowserDidOpen(_ id: UUID) {
     let owner = reopeningWorkspaceTabOwner ?? currentWorkspaceTabOwner
