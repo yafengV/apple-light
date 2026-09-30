@@ -194,9 +194,18 @@ struct PopoutThreadView: View {
   @State private var imagePreviewReturnFocus: (() -> Void)?
   @State private var inspectedRun: AgentRun?
   @State private var inspectorTab = "overview"
+  @State private var scrolling = ConversationScrollState()
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
   private var runs: [AgentRun] { store.taskWindowRuns(taskID) }
+  private struct RunRevision: Equatable {
+    let id: String
+    let updatedAt: Double
+    let status: String
+  }
+  private var runRevisions: [RunRevision] {
+    runs.map { RunRevision(id: $0.id, updatedAt: $0.updatedAt, status: $0.status) }
+  }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
   private var queuedCount: Int {
     store.library.queuedMessages.filter { $0.taskID == taskID }.count
@@ -251,8 +260,41 @@ struct PopoutThreadView: View {
             }
             Color.clear.frame(height: 1).id("end")
           }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+              ConversationScrollObserver { event in
+                switch event {
+                case .geometry(let metrics):
+                  if scrolling.observe(metrics) { reader.scrollTo("end", anchor: .bottom) }
+                case .began: scrolling.beginUserScroll()
+                case .ended(let metrics): scrolling.endUserScroll(metrics)
+                }
+              }
+            }
         }
-        .onChange(of: runs.map(\.id)) { _, _ in reader.scrollTo("end", anchor: .bottom) }
+        .defaultScrollAnchor(.top)
+        .overlay(alignment: .bottom) {
+          if !scrolling.isAtBottom {
+            Button {
+              scrolling.requestLatest()
+              reader.scrollTo("end", anchor: .bottom)
+            } label: {
+              Image(systemName: "arrow.down").appFont(size: 13, weight: .semibold)
+                .frame(width: 32, height: 32)
+                .background(.regularMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(.primary.opacity(0.12)))
+                .overlay(alignment: .topTrailing) {
+                  if scrolling.hasNewContent {
+                    Circle().fill(.tint).frame(width: 7, height: 7)
+                  }
+                }
+            }.buttonStyle(.plain).padding(.bottom, 12)
+              .help(scrolling.hasNewContent ? "有新内容，返回底部" : "返回底部")
+              .accessibilityLabel(scrolling.hasNewContent ? "有新内容，返回底部" : "返回底部")
+          }
+        }
+        .onChange(of: runRevisions) { _, _ in
+          if scrolling.contentChanged() { reader.scrollTo("end", anchor: .bottom) }
+        }
       }
       Divider()
       if queuedCount > 0 {

@@ -253,7 +253,82 @@ final class PopoutWindowLayoutTests: XCTestCase {
     }
   }
 
+  @MainActor func testScrolledThreadShowsReturnToLatestWhileReplyChanges() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let task = try XCTUnwrap(store.createPopoutTask())
+    let original = (0..<8).map { index in
+      AgentRun(id: "history-\(index)", kind: "chat", project: task.project,
+        status: "succeeded", createdAt: Double(index + 1), updatedAt: Double(index + 1),
+        request: .object(["model": .string("Test Model")]),
+        result: .object(["response": .string(String(repeating: "Conversation line \(index). ",
+          count: 18))]))
+    }
+    store.library.tasks[store.library.tasks.firstIndex(where: { $0.id == task.id })!].runIDs =
+      original.map(\.id)
+    store.library.chatRuns = original
+    let size = NSSize(width: 470, height: 640)
+    let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: PopoutThreadView(store: store, taskID: task.id,
+      onHome: {}, onOpenThread: { _ in }, onHide: {}))
+    window.contentView = host
+    host.frame.size = size
+    try await Task.sleep(for: .milliseconds(350))
+    host.layoutSubtreeIfNeeded()
+    let conversation = try XCTUnwrap(scrollViews(in: host).max(by: {
+      ($0.documentView?.bounds.height ?? 0) < ($1.documentView?.bounds.height ?? 0)
+    }))
+    XCTAssertGreaterThan(conversation.documentView?.bounds.height ?? 0,
+      conversation.contentView.bounds.height + 100)
+    for _ in 0..<20 {
+      let height = conversation.documentView?.bounds.height ?? 0
+      let clip = conversation.contentView.bounds
+      let offset = conversation.documentView?.isFlipped == true
+        ? clip.minY : height - clip.maxY
+      if height - clip.height - offset < 80 { break }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    let height = conversation.documentView?.bounds.height ?? 0
+    let clip = conversation.contentView.bounds
+    let offset = conversation.documentView?.isFlipped == true
+      ? clip.minY : height - clip.maxY
+    XCTAssertLessThan(height - clip.height - offset, 80,
+      "An existing popout conversation should initially follow the newest reply")
+    conversation.contentView.scroll(to: .zero)
+    conversation.reflectScrolledClipView(conversation.contentView)
+    try await Task.sleep(for: .milliseconds(180))
+    let readingPosition = conversation.contentView.bounds.origin.y
+    store.library.chatRuns[7] = AgentRun(id: original[7].id, kind: "chat", project: task.project,
+      status: "succeeded", createdAt: original[7].createdAt, updatedAt: 100,
+      request: original[7].request,
+      result: .object(["response": .string(String(repeating: "New streamed text. ", count: 40))]))
+    try await Task.sleep(for: .milliseconds(220))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertLessThan(abs(conversation.contentView.bounds.origin.y - readingPosition), 10,
+      "New content must not pull a reader away from earlier messages")
+    XCTAssertFalse(window.isVisible)
+    let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: rep)
+    let data = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+    XCTAssertGreaterThan(data.count, 5_000)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_POPOUT_SNAPSHOTS"] {
+      let folder = URL(fileURLWithPath: path)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      try data.write(to: folder.appendingPathComponent("popout-thread-scrolled-new-content.png"))
+    }
+  }
+
   @MainActor private func textViews(in view: NSView) -> [NSTextView] {
     (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { textViews(in: $0) }
+  }
+
+  @MainActor private func scrollViews(in view: NSView) -> [NSScrollView] {
+    (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
   }
 }
