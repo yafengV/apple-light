@@ -8,6 +8,7 @@ final class DeveloperWorkspace {
   var fileRoots: [URL] { WorkspaceFileScope.roots(primary: root, additional: additionalFileRoots) }
   var files: [String] = []
   var fileQuery = ""
+  var fileTreeVisible = true
   var selectedFile: String?
   var openFiles: [String] = []
   var fileText = "" {

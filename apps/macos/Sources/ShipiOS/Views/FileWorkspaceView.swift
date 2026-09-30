@@ -7,9 +7,66 @@ struct FileWorkspaceView: View {
   @State private var line = ""
   @State private var lineError = false
   @State private var showingConflict = false
+  @State private var compactTreePresented = false
   @FocusState private var lineFocused: Bool
 
   var body: some View {
+    GeometryReader { geometry in
+      if geometry.size.width < 620 {
+        if workspace.selectedFile == nil {
+          fileBrowser
+        } else {
+          ZStack(alignment: .leading) {
+            fileDetail(compact: true)
+            if compactTreePresented {
+              Color.black.opacity(0.12).contentShape(Rectangle())
+                .onTapGesture { compactTreePresented = false }
+              fileBrowser.frame(width: min(280, geometry.size.width * 0.78))
+                .background(.regularMaterial).shadow(radius: 12)
+            }
+          }
+        }
+      } else {
+        HSplitView {
+          if workspace.fileTreeVisible || workspace.selectedFile == nil {
+            fileBrowser.frame(minWidth: 180, idealWidth: 230, maxWidth: 360)
+          }
+          fileDetail(compact: false)
+        }
+      }
+    }
+    .onChange(of: workspace.selectedFile) { _, path in
+      if path != nil { compactTreePresented = false }
+    }
+    .confirmationDialog("保存此文件的更改？", isPresented: Binding(
+      get: { workspace.fileCloseRequest != nil },
+      set: { if !$0 { workspace.fileCloseRequest = nil } }
+    )) {
+      Button("保存并关闭") {
+        guard let path = workspace.fileCloseRequest else { return }
+        Task {
+          if await workspace.saveFileEdits(key: workspace.editorKey(for: path)) {
+            workspace.fileCloseRequest = nil
+            closeFile(path)
+          }
+        }
+      }
+      Button("放弃更改并关闭", role: .destructive) {
+        if let path = workspace.fileCloseRequest { workspace.discardAndCloseFile(path) }
+      }.disabled(workspace.fileCloseRequest.flatMap {
+        workspace.fileEditorSessions[workspace.editorKey(for: $0)]?.saving
+      } == true)
+      Button("继续编辑", role: .cancel) { workspace.fileCloseRequest = nil }
+    } message: {
+      Text("当前内容尚未写入磁盘。")
+    }
+    .sheet(isPresented: $showingConflict) { conflictSheet }
+    .overlay(alignment: .topTrailing) {
+      if workspace.loading { ProgressView().controlSize(.small).padding(12).allowsHitTesting(false) }
+    }
+  }
+
+  private var fileBrowser: some View {
     VStack(spacing: 0) {
       HStack {
         TextField("筛选项目文件", text: $workspace.fileQuery).textFieldStyle(.roundedBorder)
@@ -19,7 +76,6 @@ struct FileWorkspaceView: View {
       if let error = workspace.filesError {
         Text(error).foregroundStyle(.orange).appFont(.caption).padding(10)
       }
-      if workspace.selectedFile != nil { fileTabs }
       List {
         ForEach(workspace.fileGroups) { group in
           if workspace.fileRoots.count > 1 {
@@ -33,9 +89,23 @@ struct FileWorkspaceView: View {
             fileTree(group)
           }
         }
-      }.frame(minHeight: 90, idealHeight: 180, maxHeight: workspace.selectedFile == nil ? .infinity : 180)
-      if let file = workspace.selectedFile {
+      }.listStyle(.sidebar)
+    }
+  }
+
+  @ViewBuilder private func fileDetail(compact: Bool) -> some View {
+    if let file = workspace.selectedFile {
+      VStack(spacing: 0) {
+        fileTabs
         HStack {
+          Button {
+            if compact { compactTreePresented.toggle() }
+            else { workspace.fileTreeVisible.toggle() }
+          } label: { Image(systemName: "sidebar.left") }
+            .help(compact ? (compactTreePresented ? "隐藏文件树" : "显示文件树")
+              : (workspace.fileTreeVisible ? "隐藏文件树" : "显示文件树"))
+            .accessibilityLabel(compact ? (compactTreePresented ? "隐藏文件树" : "显示文件树")
+              : (workspace.fileTreeVisible ? "隐藏文件树" : "显示文件树"))
           Text(file).appFont(.caption).lineLimit(1).help(file)
           Spacer()
           if let editor = workspace.selectedFileEditor {
@@ -97,31 +167,9 @@ struct FileWorkspaceView: View {
           }
         }.frame(maxHeight: .infinity)
       }
-    }.confirmationDialog("保存此文件的更改？", isPresented: Binding(
-      get: { workspace.fileCloseRequest != nil },
-      set: { if !$0 { workspace.fileCloseRequest = nil } }
-    )) {
-      Button("保存并关闭") {
-        guard let path = workspace.fileCloseRequest else { return }
-        Task {
-          if await workspace.saveFileEdits(key: workspace.editorKey(for: path)) {
-            workspace.fileCloseRequest = nil
-            closeFile(path)
-          }
-        }
-      }
-      Button("放弃更改并关闭", role: .destructive) {
-        if let path = workspace.fileCloseRequest { workspace.discardAndCloseFile(path) }
-      }.disabled(workspace.fileCloseRequest.flatMap {
-        workspace.fileEditorSessions[workspace.editorKey(for: $0)]?.saving
-      } == true)
-      Button("继续编辑", role: .cancel) { workspace.fileCloseRequest = nil }
-    } message: {
-      Text("当前内容尚未写入磁盘。")
-    }
-    .sheet(isPresented: $showingConflict) { conflictSheet }
-    .overlay(alignment: .topTrailing) {
-      if workspace.loading { ProgressView().controlSize(.small).padding(12).allowsHitTesting(false) }
+    } else {
+      ContentUnavailableView("选择文件", systemImage: "doc.text",
+        description: Text("从文件树中打开项目文件"))
     }
   }
 
@@ -175,7 +223,7 @@ struct FileWorkspaceView: View {
       if node.children != nil {
         Label(node.title, systemImage: "folder").appFont(.caption)
       } else {
-        Button { workspace.selectFile(node.path) } label: {
+        Button { workspace.selectFile(node.path); compactTreePresented = false } label: {
           Label(node.title, systemImage: "doc.text").appFont(.caption).lineLimit(1).help(node.path)
         }.buttonStyle(.plain)
       }
