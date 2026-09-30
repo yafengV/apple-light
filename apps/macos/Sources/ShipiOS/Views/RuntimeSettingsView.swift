@@ -97,9 +97,12 @@ struct RuntimeSettingsView: View {
           }
           Text("每个无项目任务会在这里获得独立目录。该目录进入模型上下文，并作为回答中相对文件链接的安全根目录。")
             .appFont(.caption).foregroundStyle(.secondary)
-          SettingsToggle(title: "弹出窗口默认从项目外开始",
-            description: "新建弹出任务窗口时使用无项目范围。关闭后，新窗口继承当前项目；当前没有项目时仍使用无项目范围。",
+        }
+        Section("弹出窗口") {
+          SettingsToggle(title: "默认使用独立聊天",
+            description: "在任何项目外开始新聊天",
             isOn: $store.popoutWindowProjectlessDefault)
+            .accessibilityLabel("默认将弹出窗口设为独立聊天")
             .settingsSearchTarget(.popoutScope)
         }
         Section("追加消息") {

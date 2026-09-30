@@ -306,7 +306,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .bottomPanel: "底部面板"
     case .webLinks: "打开网页链接"
     case .projectlessFolder: "无项目任务文件夹"
-    case .popoutScope: "弹出窗口默认从项目外开始"
+    case .popoutScope: "默认使用独立聊天"
     case .followUp: "模型运行时发送消息"
     case .menuBar: "在菜单栏中显示"
     case .reviewDelivery: "审查结果呈现方式"
