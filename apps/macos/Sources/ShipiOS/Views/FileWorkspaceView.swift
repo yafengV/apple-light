@@ -222,12 +222,40 @@ struct FileWorkspaceView: View {
     }, root: group.root == workspace.fileRoots.first ? nil : group.root), children: \.children) { node in
       if node.children != nil {
         Label(node.title, systemImage: "folder").appFont(.caption)
+          .contextMenu {
+            Button("复制路径") { copyFilePath(node.path) }
+          }
       } else {
         Button { workspace.selectFile(node.path); compactTreePresented = false } label: {
           Label(node.title, systemImage: "doc.text").appFont(.caption).lineLimit(1).help(node.path)
         }.buttonStyle(.plain)
+          .contextMenu {
+            Button("打开文件") { workspace.selectFile(node.path); compactTreePresented = false }
+            Button("添加到聊天") { Task { await addFileToChat(node.path) } }
+            Button("复制路径") { copyFilePath(node.path) }
+            Divider()
+            Button("在编辑器中打开") {
+              Task { await store.openProjectFile(node.path, in: workspace) }
+            }
+          }
       }
     }
+  }
+
+  private func copyFilePath(_ path: String) {
+    do {
+      let url = try workspace.fileLocation(path).url
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(url.path, forType: .string)
+    } catch { store.error = error.localizedDescription }
+  }
+
+  func addFileToChat(_ path: String) async {
+    do {
+      let url = try workspace.fileLocation(path).url
+      let draft = taskID ?? store.draftKey
+      await store.importDroppedFiles([url], draft: draft)
+    } catch { store.error = error.localizedDescription }
   }
 
   private var fileTabs: some View {

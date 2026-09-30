@@ -4,6 +4,39 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class FileWorkspaceLayoutTests: XCTestCase {
+  func testFileTreeContextActionAddsFileToOwningTaskDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let primary = root.appendingPathComponent("Primary")
+    let attached = root.appendingPathComponent("Attached")
+    try FileManager.default.createDirectory(at: primary, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: attached, withIntermediateDirectories: true)
+    try "source text".write(to: primary.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    try "attached text".write(to: attached.appendingPathComponent("Note.txt"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    await store.restore()
+    let workspace = DeveloperWorkspace()
+    workspace.root = primary
+    workspace.setAdditionalFileRoots([attached])
+    let view = FileWorkspaceView(store: store, workspace: workspace, taskID: "owner-task")
+
+    await view.addFileToChat("Edit.swift")
+    let attachment = try XCTUnwrap(store.library.draftFiles["owner-task"]?.first)
+    XCTAssertEqual(attachment.name, "Edit.swift")
+    XCTAssertTrue(store.draftFiles.isEmpty)
+    XCTAssertEqual(try FileAttachmentStorage.text(attachment, root: store.dataRoot), "source text")
+
+    await view.addFileToChat(attached.appendingPathComponent("Note.txt").path)
+    let attachedFile = try XCTUnwrap(store.library.draftFiles["owner-task"]?.last)
+    XCTAssertEqual(try FileAttachmentStorage.text(attachedFile, root: store.dataRoot), "attached text")
+
+    await view.addFileToChat("../outside.txt")
+    XCTAssertEqual(store.library.draftFiles["owner-task"]?.count, 2)
+    XCTAssertNotNil(store.error)
+    await store.shutdown()
+  }
+
   func testFileTreeCanHideWithoutLosingOpenEditor() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
