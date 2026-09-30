@@ -26,8 +26,8 @@ final class DeveloperWorkspace {
   @ObservationIgnored var onFileEditResolved: ((String) -> Void)?
   var fileCloseRequest: String?
   @ObservationIgnored var fileAutosaveTasks: [String: Task<Void, Never>] = [:]
-  @ObservationIgnored var fileMonitorTask: Task<Void, Never>?
-  @ObservationIgnored var fileMonitorToken = UUID()
+  @ObservationIgnored var fileMonitorTasks: [String: Task<Void, Never>] = [:]
+  @ObservationIgnored var fileMonitorTokens: [String: UUID] = [:]
   var filesError: String?
   var fileFocusRequest = UUID()
   var showingFileLine = false
@@ -277,7 +277,7 @@ final class DeveloperWorkspace {
     } ?? requestedPath
     let token = UUID()
     fileVersion = token
-    stopFileMonitoring()
+    stopFileMonitoring(path)
     selectedFile = path
     if !openFiles.contains(path) { openFiles.append(path) }
     fileText = ""
@@ -343,11 +343,11 @@ final class DeveloperWorkspace {
       onFileEditResolved?(key)
     }
     fileAutosaveTasks.removeValue(forKey: key)?.cancel()
+    stopFileMonitoring(path)
     openFiles.remove(at: index)
     filePreviewPositions[(root?.path ?? "") + "/" + path] = nil
     guard selectedFile == path else { return }
     fileVersion = UUID()
-    stopFileMonitoring()
     selectedFile = nil
     fileText = ""
     fileError = nil

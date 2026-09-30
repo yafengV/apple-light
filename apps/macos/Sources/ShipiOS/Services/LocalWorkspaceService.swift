@@ -148,11 +148,14 @@ enum LocalWorkspaceService {
       let diskText = String(data: current, encoding: .utf8) else {
       throw AgentFailure(message: "磁盘文件已变为不支持的格式，未覆盖。")
     }
-    guard current == Data(expected.utf8) else { return .changedOnDisk(diskText) }
     let replacementData = Data(replacement.utf8)
     guard replacementData.count <= 1_048_576, !replacementData.contains(0) else {
       throw AgentFailure(message: "编辑内容超过 1 MiB 或包含二进制数据。")
     }
+    // Another editor may have written the exact draft already. Treat that as
+    // saved without rewriting the file or showing a false conflict.
+    if current == replacementData { return .saved }
+    guard current == Data(expected.utf8) else { return .changedOnDisk(diskText) }
     let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
     try replacementData.write(to: file, options: .atomic)
     if let mode = attributes[.posixPermissions] {

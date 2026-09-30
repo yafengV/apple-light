@@ -8,18 +8,25 @@ private struct MonitoredFileSnapshot: Sendable {
 
 extension DeveloperWorkspace {
   func stopFileMonitoring() {
-    fileMonitorToken = UUID()
-    fileMonitorTask?.cancel()
-    fileMonitorTask = nil
+    for task in fileMonitorTasks.values { task.cancel() }
+    fileMonitorTasks.removeAll()
+    fileMonitorTokens.removeAll()
+  }
+
+  func stopFileMonitoring(_ path: String) {
+    let key = editorKey(for: path)
+    fileMonitorTasks.removeValue(forKey: key)?.cancel()
+    fileMonitorTokens.removeValue(forKey: key)
   }
 
   func startFileMonitoring(_ path: String) {
-    stopFileMonitoring()
+    stopFileMonitoring(path)
     guard let location = try? fileLocation(path),
       FileManager.default.fileExists(atPath: location.url.path) else { return }
-    let token = fileMonitorToken
     let key = editorKey(for: path)
-    fileMonitorTask = Task { [weak self] in
+    let token = UUID()
+    fileMonitorTokens[key] = token
+    fileMonitorTasks[key] = Task { [weak self] in
       var revision: WorkspaceFileRevision?
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(1))
@@ -33,14 +40,14 @@ extension DeveloperWorkspace {
               text: try LocalWorkspaceService.read(location.path, root: location.root), error: nil)
           } catch { return .init(revision: nil, text: nil, error: error.localizedDescription) }
         }.value
-        guard !Task.isCancelled, self.fileMonitorToken == token,
-          self.selectedFile == path else { return }
+        guard !Task.isCancelled, self.fileMonitorTokens[key] == token,
+          self.openFiles.contains(path) else { return }
         if self.fileEditorSessions[key]?.saving == true { continue }
         if let text = snapshot.text, let current = snapshot.revision {
           revision = current
-          self.applyMonitoredFileText(text, key: key)
+          self.applyMonitoredFileText(text, key: key, path: path)
         } else if let error = snapshot.error {
-          self.recordMonitoredFileError(error, key: key)
+          self.recordMonitoredFileError(error, key: key, path: path)
         } else {
           revision = snapshot.revision
         }
@@ -48,11 +55,21 @@ extension DeveloperWorkspace {
     }
   }
 
-  private func applyMonitoredFileText(_ text: String, key: String) {
+  private func applyMonitoredFileText(_ text: String, key: String, path: String) {
     let large = text.utf8.count > LocalWorkspaceService.maximumEditableTextBytes
     if var session = fileEditorSessions[key] {
       if session.hasUnsavedChanges {
-        if !text.utf8.elementsEqual(session.baseText.utf8) {
+        if text.utf8.elementsEqual(session.text.utf8) {
+          session.baseText = text
+          session.changedOnDisk = nil
+          session.error = nil
+          fileAutosaveTasks.removeValue(forKey: key)?.cancel()
+          fileEditorSessions[key] = large ? nil : session
+          recoveredFileDrafts[key] = nil
+          onFileEditResolved?(key)
+          if selectedFile == path { fileIsReadOnly = large; fileError = nil }
+          return
+        } else if !text.utf8.elementsEqual(session.baseText.utf8) {
           session.changedOnDisk = text
           session.error = "文件已在应用外更改，请比较两个版本后选择。"
           fileAutosaveTasks.removeValue(forKey: key)?.cancel()
@@ -72,16 +89,18 @@ extension DeveloperWorkspace {
     } else if !large {
       fileEditorSessions[key] = FileEditorSession(baseText: text, text: text)
     }
-    fileIsReadOnly = large
-    fileError = nil
-    if !fileText.utf8.elementsEqual(text.utf8) { fileText = text }
+    if selectedFile == path {
+      fileIsReadOnly = large
+      fileError = nil
+      if !fileText.utf8.elementsEqual(text.utf8) { fileText = text }
+    }
   }
 
-  private func recordMonitoredFileError(_ message: String, key: String) {
+  private func recordMonitoredFileError(_ message: String, key: String, path: String) {
     if var session = fileEditorSessions[key], session.hasUnsavedChanges {
       session.error = "磁盘文件暂不可读：\(message)"
       fileEditorSessions[key] = session
       fileAutosaveTasks.removeValue(forKey: key)?.cancel()
-    } else { fileError = message }
+    } else if selectedFile == path { fileError = message }
   }
 }

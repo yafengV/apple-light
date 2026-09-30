@@ -184,6 +184,12 @@ final class FileWorkspaceTests: XCTestCase {
     XCTAssertTrue(resolved)
     XCTAssertEqual(try String(contentsOf: file), "local\n")
     XCTAssertFalse(workspace.selectedFileEditor?.hasUnsavedChanges ?? true)
+    workspace.editSelectedFile("already written\n")
+    try "already written\n".write(to: file, atomically: true, encoding: .utf8)
+    let alreadySaved = await workspace.saveSelectedFileEdits()
+    XCTAssertTrue(alreadySaved)
+    XCTAssertNil(workspace.selectedFileEditor?.changedOnDisk)
+    XCTAssertFalse(workspace.selectedFileEditor?.hasUnsavedChanges ?? true)
   }
 
   func testLargeUTF8FileOpensReadOnlyInsteadOfFailingPreview() async throws {
@@ -233,6 +239,60 @@ final class FileWorkspaceTests: XCTestCase {
     XCTAssertEqual(workspace.fileText, "local")
     XCTAssertEqual(workspace.selectedFileEditor?.changedOnDisk, "external-two")
     XCTAssertEqual(try String(contentsOf: file), "external-two")
+  }
+
+  func testBackgroundFileMonitorUpdatesOpenTabsWithoutReplacingSelectedText() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = root.appendingPathComponent("first.txt")
+    let second = root.appendingPathComponent("second.txt")
+    try "first".write(to: first, atomically: true, encoding: .utf8)
+    try "second".write(to: second, atomically: true, encoding: .utf8)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("first.txt")
+    await workspace.openFile("second.txt")
+    let key = workspace.editorKey(for: "first.txt")
+    try "outside".write(to: first, atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.fileEditorSessions[key]?.text == "outside" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(workspace.fileEditorSessions[key]?.text, "outside")
+    XCTAssertEqual(workspace.selectedFile, "second.txt")
+    XCTAssertEqual(workspace.fileText, "second")
+  }
+
+  func testBackgroundDraftDetectsConflictAndMatchingExternalWriteResolvesIt() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = root.appendingPathComponent("first.txt")
+    try "first".write(to: first, atomically: true, encoding: .utf8)
+    try "second".write(to: root.appendingPathComponent("second.txt"), atomically: true, encoding: .utf8)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("first.txt")
+    workspace.editSelectedFile("local")
+    await workspace.openFile("second.txt")
+    let key = workspace.editorKey(for: "first.txt")
+    try "outside".write(to: first, atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.fileEditorSessions[key]?.changedOnDisk == "outside" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(workspace.fileEditorSessions[key]?.changedOnDisk, "outside")
+    XCTAssertEqual(workspace.fileText, "second")
+    try "local".write(to: first, atomically: true, encoding: .utf8)
+    for _ in 0..<50 {
+      if workspace.fileEditorSessions[key]?.hasUnsavedChanges == false { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertFalse(workspace.fileEditorSessions[key]?.hasUnsavedChanges ?? true)
+    XCTAssertNil(workspace.fileEditorSessions[key]?.changedOnDisk)
+    XCTAssertNil(workspace.fileEditorSessions[key]?.error)
+    XCTAssertEqual(workspace.fileText, "second")
   }
 
   func testEditorKeepsDraftAcrossTabsAndPromptsBeforeClosingDirtyFile() async throws {
