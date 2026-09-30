@@ -4,6 +4,20 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class NoticeKeyboardAndLifetimeTests: XCTestCase {
+  func testTabOrderKeepsInlineAndBottomActionsInRenderedSequence() {
+    let inline = WorkspaceNotice(id: "inline", title: "Inline", level: .info, taskID: "one", remaining: 5)
+    let bottom = WorkspaceNotice(id: "bottom", title: "Bottom", description: "Details", level: .info,
+      taskID: "two", remaining: 5)
+    let pending = WorkspaceNotice(id: "pending", title: "Pending", level: .pending, remaining: nil)
+    let order = NoticeTabOrder.tokens(for: [inline, bottom, pending], actionsEnabled: true)
+    XCTAssertEqual(order, [inline.generation.uuidString + "-row", inline.generation.uuidString + "-view",
+      inline.generation.uuidString + "-close", bottom.generation.uuidString + "-row",
+      bottom.generation.uuidString + "-close", bottom.generation.uuidString + "-view",
+      pending.generation.uuidString + "-row"])
+    XCTAssertEqual(NoticeTabOrder.tokens(for: [inline], actionsEnabled: false),
+      [inline.generation.uuidString + "-row", inline.generation.uuidString + "-close"])
+  }
+
   func testActualToasterKeyboardCallbacksAndFocusReturn() throws {
     let url = try XCTUnwrap(Bundle.module.url(forResource: "notice_keyboard_reference", withExtension: "json", subdirectory: "Fixtures"))
     let f = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
@@ -42,6 +56,7 @@ import XCTest
     var firstCount = 0
     coordinator.focusFirst = { firstCount += 1 }
     coordinator.focusedCard = { nil }
+    coordinator.firstCard = { "first-row" }
     let optionT = try key(17, window: window, flags: [.option], text: "†")
     let escape = try key(53, window: window, text: "\u{1B}")
     let tab = try key(48, window: window, text: "\t")
@@ -80,6 +95,7 @@ import XCTest
     let interaction = NoticeInteractionState(notices: WorkspaceNotices())
     let coordinator = NoticeKeyboardBridge.Coordinator(interaction: interaction)
     coordinator.attach(region); defer { coordinator.stop() }
+    coordinator.firstCard = { "first-row" }
     let hotkey = try key(17, window: window, flags: [.option], text: "†")
     XCTAssertTrue(coordinator.handle(hotkey)); XCTAssertTrue(window.firstResponder === region)
     coordinator.restoreIfNeeded()
@@ -145,8 +161,7 @@ import XCTest
     ]
     for token in expected {
       let next = try key(48, window: window, text: "\t")
-      XCTAssertFalse(coordinator.handle(next), "The window monitor lets card Tab continue")
-      window.sendEvent(next)
+      XCTAssertTrue(coordinator.handle(next), "The notification region follows DOM order during motion")
       try await Task.sleep(for: .milliseconds(40)); host.layoutSubtreeIfNeeded()
       XCTAssertEqual(coordinator.focusedCard?(), token)
       XCTAssertTrue(coordinator.hasPreviousFocus, "Original focus must survive internal Tab to \(token)")

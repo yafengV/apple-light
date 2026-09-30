@@ -36,8 +36,11 @@ import Observation
   func setDocumentHidden(_ value: Bool) { guard documentHidden != value else { return }; change { documentHidden = value } }
   func remove(_ generations: Set<UUID>) {
     let retained = hovered.intersection(generations)
-    guard retained != hovered else { return }
-    change { hovered = retained; if retained.isEmpty, !interacting { keyboardExpanded = false } }
+    guard retained != hovered || (generations.isEmpty && keyboardExpanded) else { return }
+    change {
+      hovered = retained
+      if generations.isEmpty || (retained.isEmpty && !interacting) { keyboardExpanded = false }
+    }
   }
   func stop() {
     hovered = []; keyboardExpanded = false; interacting = false; documentHidden = false

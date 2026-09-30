@@ -9,6 +9,8 @@ struct NoticeKeyboardBridge: NSViewRepresentable {
   let focusedCard: () -> String?
   let firstCard: () -> String?
   let lastCard: () -> String?
+  let focusOrder: () -> [String]
+  let focusCard: (String) -> Void
   let focusExitRevision: Int
 
   func makeCoordinator() -> Coordinator { Coordinator(interaction: interaction) }
@@ -24,6 +26,8 @@ struct NoticeKeyboardBridge: NSViewRepresentable {
     context.coordinator.focusedCard = focusedCard
     context.coordinator.firstCard = firstCard
     context.coordinator.lastCard = lastCard
+    context.coordinator.focusOrder = focusOrder
+    context.coordinator.focusCard = focusCard
     if context.coordinator.recordFocusExit(focusExitRevision) { context.coordinator.restoreAfterFocusExit() }
   }
   static func dismantleNSView(_ region: Region, coordinator: Coordinator) { coordinator.stop() }
@@ -56,6 +60,8 @@ struct NoticeKeyboardBridge: NSViewRepresentable {
     var focusedCard: (() -> String?)?
     var firstCard: (() -> String?)?
     var lastCard: (() -> String?)?
+    var focusOrder: (() -> [String])?
+    var focusCard: ((String) -> Void)?
     var hasPreviousFocus: Bool { previous != nil }
 
     init(interaction: NoticeInteractionState) { self.interaction = interaction }
@@ -78,6 +84,7 @@ struct NoticeKeyboardBridge: NSViewRepresentable {
       guard active, let region, let window = region.window,
         key.windowNumber == window.windowNumber else { return false }
       if key.code == 17, key.option {
+        guard firstCard?() != nil else { return false }
         guard window.attachedSheet == nil, WindowModalInteraction.allows(region) else { return false }
         if previous == nil, let old = window.firstResponder, old !== region {
           if let editor = old as? NSTextView, editor.isFieldEditor,
@@ -105,6 +112,14 @@ struct NoticeKeyboardBridge: NSViewRepresentable {
         return true
       }
       if key.code == 48, let current = focusedCard?() {
+        if let order = focusOrder?(), let index = order.firstIndex(of: current) {
+          let next = index + (key.shift ? -1 : 1)
+          if order.indices.contains(next) {
+            interaction.beginCardTabMovement()
+            focusCard?(order[next])
+          } else { restoreIfNeeded() }
+          return true
+        }
         if (key.shift && current == firstCard?()) || (!key.shift && current == lastCard?()) {
           restoreIfNeeded()
           return true
@@ -160,6 +175,20 @@ struct NoticeKeyboardBridge: NSViewRepresentable {
       clearPrevious(); region?.coordinator = nil; region = nil
     }
     deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+  }
+}
+
+enum NoticeTabOrder {
+  static func tokens(for notices: [WorkspaceNotice], actionsEnabled: Bool) -> [String] {
+    notices.flatMap { notice in
+      let base = notice.generation.uuidString
+      var order = [base + "-row"]
+      let hasAction = actionsEnabled && notice.taskID != nil
+      if notice.description == nil && hasAction { order.append(base + "-view") }
+      if notice.level != .pending { order.append(base + "-close") }
+      if notice.description != nil && hasAction { order.append(base + "-view") }
+      return order
+    }
   }
 }
 

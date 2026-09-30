@@ -8,6 +8,7 @@ struct WorkspaceNoticeCard: View {
   var interaction: NoticeInteractionState? = nil
   var isFirst = false
   var isLast = false
+  var onSwipeDismiss: (UUID) -> Void = { _ in }
   @Environment(\.appAppearance) private var appearance
   @Environment(\.colorScheme) private var scheme
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -70,7 +71,10 @@ struct WorkspaceNoticeCard: View {
     .focused($focused, equals: notice.generation.uuidString + "-row")
     .onKeyPress(keys: [.tab], phases: .down) { press in
       let row = notice.generation.uuidString + "-row"
-      let last = notice.generation.uuidString + (notice.level == .pending ? "-row" : "-close")
+      let actionEnabled = notice.taskID != nil && !((store.hasSettingsConfirmation && store.appearanceThemeImport == nil)
+        || store.presentedOverlay != nil)
+      let last = notice.generation.uuidString + (actionEnabled && notice.description != nil ? "-view"
+        : notice.level == .pending ? "-row" : "-close")
       if (isFirst && focused == row && press.modifiers == .shift)
         || (isLast && focused == last && press.modifiers.isEmpty) {
         focused = nil
@@ -113,6 +117,7 @@ struct WorkspaceNoticeCard: View {
         let swipeDirection: CGFloat = swipe.horizontalOffset < 0 ? -1 : 1
         swipe = NoticeSwipeGesture()
         if dismiss {
+          onSwipeDismiss(notice.generation)
           if reduceMotion {
             swipeOut = true
             store.notices.dismiss(notice.id, generation: notice.generation)

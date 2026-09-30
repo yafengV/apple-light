@@ -1,0 +1,26 @@
+{
+  "initialSHA256": "01c04b2e5a96e5dd4c97e02ffa183f571a55bef7a221abd99404246c430f2212",
+  "componentSHA256": "6ee362d34edc3538eeab9c0db276847fe30f7d6c7ad868e0e9051235fa7ac8f3",
+  "close": {
+    "afterClick": [
+      "removed",
+      "heights:0",
+      "timer:200",
+      "dismiss-callback"
+    ],
+    "afterDelay": [
+      "removed",
+      "heights:0",
+      "timer:200",
+      "dismiss-callback",
+      "unmount"
+    ],
+    "delayMilliseconds": 200
+  },
+  "css": {
+    "toast": "--y:translateY(100%);--lift-amount:calc(var(--lift) * var(--gap));z-index:var(--z-index);position:absolute;opacity:0;transform:var(--y);touch-action:none;transition:transform .4s,opacity .4s,height .4s,box-shadow .2s;box-sizing:border-box;outline:0;overflow-wrap:anywhere",
+    "frontExit": "--y:translateY(calc(var(--lift) * -100%));opacity:0",
+    "backCollapsedExit": "--y:translateY(40%);opacity:0;transition:transform .5s,opacity .2s",
+    "reducedMotion": true
+  }
+}

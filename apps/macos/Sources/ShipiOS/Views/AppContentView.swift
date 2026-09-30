@@ -76,7 +76,8 @@ struct AppContentView: View {
         }
       }
       .overlay(alignment: .top) {
-        if !store.notices.items.isEmpty { WorkspaceNoticesView(store: store) }
+        WorkspaceNoticesView(store: store)
+          .allowsHitTesting(!store.notices.items.isEmpty)
       }
       .overlay {
         if store.presentedOverlay == .imagePreview, let image = store.previewImage {

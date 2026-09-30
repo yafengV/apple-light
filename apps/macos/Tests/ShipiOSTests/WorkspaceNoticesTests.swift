@@ -120,6 +120,8 @@ final class WorkspaceNoticesTests: XCTestCase {
     interaction.setDocumentHidden(false)
     time = 2003; interaction.tick()
     XCTAssertTrue(notices.items.isEmpty)
+    interaction.expandFromKeyboard(); XCTAssertTrue(interaction.expanded)
+    interaction.remove([]); XCTAssertFalse(interaction.expanded)
     interaction.stop(); XCTAssertFalse(notices.paused)
   }
 
