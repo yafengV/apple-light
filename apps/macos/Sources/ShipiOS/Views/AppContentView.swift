@@ -5,9 +5,17 @@ import SwiftUI
 struct AppContentView: View {
   @Bindable var store: WorkspaceStore
   @State private var imagePreviewReturnFocus: (() -> Void)?
+  @State private var noticeHostTracker = NoticeHostBoundsTracker()
+  @Environment(\.noticeHostBoundsTracker) private var suppliedNoticeHostTracker
+
+  private var activeNoticeHostTracker: NoticeHostBoundsTracker {
+    suppliedNoticeHostTracker ?? noticeHostTracker
+  }
 
   var body: some View {
     WorkspaceView(store: store)
+      .coordinateSpace(name: NoticeHostBounds.coordinateSpace)
+      .environment(\.noticeHostBoundsTracker, activeNoticeHostTracker)
       .environment(\.presentImageGallery) { image, images, returnFocus in
         guard store.presentedOverlay == nil, !store.hasSettingsConfirmation else { return }
         imagePreviewReturnFocus = returnFocus
@@ -76,7 +84,12 @@ struct AppContentView: View {
         }
       }
       .overlay(alignment: .top) {
+        let host = activeNoticeHostTracker.bounds.rect(for: store.destination)
+        let root = activeNoticeHostTracker.bounds.root
         WorkspaceNoticesView(store: store)
+          .frame(width: host?.width, alignment: .top)
+          .offset(x: (host?.midX ?? root?.midX ?? 0) - (root?.midX ?? host?.midX ?? 0),
+            y: (host?.minY ?? 0) - (root?.minY ?? 0))
           .allowsHitTesting(!store.notices.items.isEmpty)
       }
       .overlay {

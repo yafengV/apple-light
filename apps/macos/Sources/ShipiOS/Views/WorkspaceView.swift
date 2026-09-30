@@ -90,6 +90,7 @@ struct WorkspaceView: View {
   private var workspaceRoot: some View {
     GeometryReader { geometry in
       workspaceNavigation(geometry)
+      .background(NoticeHostFrameReporter(.root))
       .toolbar { workspaceToolbar }
       .onChange(of: store.selection) { _, _ in
         store.endWorkspaceTabDrag()
@@ -419,6 +420,7 @@ struct WorkspaceView: View {
               }
             }
           }.frame(width: detail.size.width, height: detail.size.height)
+            .background(NoticeHostFrameReporter(.detail))
             .onAppear { taskSummary.resize(to: detail.size.width) }
             .onChange(of: detail.size.width) { _, width in taskSummary.resize(to: width) }
             .appSurface()
@@ -499,6 +501,7 @@ struct WorkspaceView: View {
       }
     }
     .frame(width: width, height: height)
+    .background(NoticeHostFrameReporter(.workspace))
     .overlay(alignment: store.workspaceContentPaneSide == .right ? .trailing : .leading) {
       if !store.showingInspector, store.canDropWorkspaceTab(to: .right) {
         hiddenPanelDropTarget(.right,

@@ -60,7 +60,7 @@ struct WorkspaceNoticesView: View {
       }
     }
     .animation(stackAnimation, value: interaction.expanded)
-    .frame(maxWidth: 768)
+    .frame(maxWidth: 790)
     .frame(height: layout.visibleExtent(3), alignment: .top)
     .padding(.horizontal, 8).padding(.top, 48)
     .allowsHitTesting(!stacking.isEmpty)
@@ -112,6 +112,12 @@ struct WorkspaceNoticesView: View {
       visual.beginExit(revision: revision)
       try? await Task.sleep(for: .milliseconds(184))
       visual.removeFinished(at: ProcessInfo.processInfo.systemUptime)
+      // The two sleeps can wake just before the 200 ms age threshold.
+      // Recheck instead of leaving the exit card retained indefinitely.
+      if !visual.exiting.isEmpty {
+        try? await Task.sleep(for: .milliseconds(10))
+        visual.removeFinished(at: ProcessInfo.processInfo.systemUptime)
+      }
     }
   }
 }

@@ -140,7 +140,9 @@ final class NoticeVisualTimelineTests: XCTestCase {
     XCTAssertEqual(timeline.active.map(\.generation), [back.generation])
     XCTAssertEqual(timeline.exiting.map(\.id), [front.generation])
     XCTAssertTrue(timeline.exiting[0].outward)
-    try await Task.sleep(for: .milliseconds(230)); host.layoutSubtreeIfNeeded()
+    for _ in 0..<10 where !timeline.exiting.isEmpty {
+      try await Task.sleep(for: .milliseconds(30)); host.layoutSubtreeIfNeeded()
+    }
     XCTAssertTrue(timeline.exiting.isEmpty)
     XCTAssertFalse(window.isVisible)
   }

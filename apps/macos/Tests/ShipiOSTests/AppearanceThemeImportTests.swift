@@ -348,9 +348,14 @@ import XCTest
     store.notices.show(id: "import-result", title: "保留通知", level: .error)
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
-    let host = NSHostingView(rootView: MainProbe(store: store)); window.contentView = host; try await settle(host)
+    let tracker = NoticeHostBoundsTracker()
+    let host = NSHostingView(rootView: MainProbe(store: store, tracker: tracker)); window.contentView = host; try await settle(host)
     let view = try XCTUnwrap(find(host, AppearanceThemeImportView.Surface.self).first)
-    let point = host.convert(.init(x: host.bounds.midX, y: host.isFlipped ? 64 : host.bounds.height - 64), to: nil)
+    let noticeBounds = try XCTUnwrap(tracker.bounds.rect(for: .settings))
+    XCTAssertGreaterThan(noticeBounds.midX, host.bounds.midX)
+    let noticeTop = noticeBounds.minY + 64
+    let point = host.convert(.init(x: noticeBounds.midX,
+      y: host.isFlipped ? noticeTop : host.bounds.height - noticeTop), to: nil)
     let hit = try XCTUnwrap(host.hitTest(host.superview?.convert(point, from: nil) ?? point))
     XCTAssertFalse(hit === view || hit.isDescendant(of: view))
     store.notices.dismiss("import-result"); try await settle(host)
@@ -372,7 +377,12 @@ import XCTest
   }
   private struct MainProbe: View {
     @Bindable var store: WorkspaceStore
-    var body: some View { AppContentView(store: store).environment(\.appAppearance, store.appearance) }
+    var tracker: NoticeHostBoundsTracker? = nil
+    var body: some View {
+      AppContentView(store: store)
+        .environment(\.appAppearance, store.appearance)
+        .environment(\.noticeHostBoundsTracker, tracker)
+    }
   }
   private func makeStore() -> (WorkspaceStore, URL) {
     _ = NSApplication.shared
