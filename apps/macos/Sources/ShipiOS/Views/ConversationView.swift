@@ -68,15 +68,28 @@ struct ConversationView: View {
   }
 }
 
+struct ExecutionMessageActions {
+  let previewFile: (FileAttachment) -> Void
+  let inspect: (AgentRun, String) -> Void
+  let canRerun: (AgentRun) -> Bool
+  let rerun: (AgentRun) -> Void
+  let canFork: (AgentRun) -> Bool
+  let fork: (AgentRun) -> Void
+  let canContinuePlan: (AgentRun) -> Bool
+  let continuePlan: (AgentRun) -> Void
+}
+
 struct ExecutionMessageView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
+  var actions: ExecutionMessageActions? = nil
   @State private var expanded = false
   @State private var copied = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 23) {
-      FileAttachmentsView(store: store, files: store.library.runFiles[run.id] ?? [])
+      FileAttachmentsView(store: store, files: store.library.runFiles[run.id] ?? [],
+        onPreview: actions?.previewFile)
       if let images = store.library.runImages[run.id], !images.isEmpty {
         ImageAttachmentsView(store: store, images: images)
       }
@@ -100,7 +113,8 @@ struct ExecutionMessageView: View {
           Spacer()
           if run.kind == "chat" {
             Button {
-              store.showDetails("overview", run: run)
+              if let actions { actions.inspect(run, "overview") }
+              else { store.showDetails("overview", run: run) }
             } label: {
               Image(systemName: "list.bullet.rectangle")
             }.buttonStyle(.plain).help("查看执行详情")
@@ -126,7 +140,10 @@ struct ExecutionMessageView: View {
                   .appFont(.caption).foregroundStyle(.secondary)
                 }
               }
-              Button("查看执行详情") { store.showDetails("artifacts", run: run) }.appFont(.caption)
+              Button("查看执行详情") {
+                if let actions { actions.inspect(run, "artifacts") }
+                else { store.showDetails("artifacts", run: run) }
+              }.appFont(.caption)
                 .buttonStyle(.plain)
             }.padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading)
           } label: {
@@ -169,9 +186,12 @@ struct ExecutionMessageView: View {
               Label("计划已生成", systemImage: ChatMode.plan.icon)
                 .appFont(.caption, weight: .medium)
               Spacer()
-              Button("按计划继续") { store.continueFromPlan(run) }
+              Button("按计划继续") {
+                if let actions { actions.continuePlan(run) }
+                else { store.continueFromPlan(run) }
+              }
                 .buttonStyle(.borderedProminent).controlSize(.small)
-                .disabled(!store.canStartChat)
+                .disabled(actions.map { !$0.canContinuePlan(run) } ?? !store.canStartChat)
             }.padding(12).background(
               .tint.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
               .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.tint.opacity(0.16)))
@@ -207,21 +227,35 @@ struct ExecutionMessageView: View {
               Image(systemName: copied ? "checkmark" : "doc.on.doc")
             }.help(copied ? "已复制" : "复制结果")
               .accessibilityLabel(copied ? "已复制回复" : "复制完整回复")
+            if actions == nil || run.kind == "chat" {
+              Button {
+                if let actions { actions.rerun(run) }
+                else {
+                  store.selection = run.id
+                  Task { await store.rerun() }
+                }
+              } label: {
+                Image(systemName: "arrow.clockwise")
+              }.disabled(actions.map { !$0.canRerun(run) }
+                ?? (run.kind == "chat" ? !store.canStartChat : !store.canStart)).help("重新执行")
+            }
             Button {
-              store.selection = run.id
-              Task { await store.rerun() }
-            } label: {
-              Image(systemName: "arrow.clockwise")
-            }.disabled(run.kind == "chat" ? !store.canStartChat : !store.canStart).help("重新执行")
-            Button {
-              store.forkConversation(through: run.id)
+              if let actions { actions.fork(run) }
+              else { store.forkConversation(through: run.id) }
             } label: {
               Image(systemName: "arrow.triangle.branch")
-            }.disabled(!store.canForkConversation).help("从此处分叉到新任务")
+            }.disabled(actions.map { !$0.canFork(run) } ?? !store.canForkConversation)
+              .help("从此处分叉到新任务")
               .accessibilityLabel("从此处分叉到新任务")
             if run.kind != "chat" {
-              Button("查看日志") { store.showDetails("logs", run: run) }
-              Button("诊断") { store.showDetails("diagnostics", run: run) }
+              Button("查看日志") {
+                if let actions { actions.inspect(run, "logs") }
+                else { store.showDetails("logs", run: run) }
+              }
+              Button("诊断") {
+                if let actions { actions.inspect(run, "diagnostics") }
+                else { store.showDetails("diagnostics", run: run) }
+              }
             }
           }.buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
         }

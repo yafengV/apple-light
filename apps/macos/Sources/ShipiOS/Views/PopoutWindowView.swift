@@ -192,6 +192,8 @@ struct PopoutThreadView: View {
   @State private var previewImage: ImagePreviewItem?
   @State private var previewImages: [ImagePreviewItem] = []
   @State private var imagePreviewReturnFocus: (() -> Void)?
+  @State private var inspectedRun: AgentRun?
+  @State private var inspectorTab = "overview"
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
   private var runs: [AgentRun] { store.taskWindowRuns(taskID) }
@@ -214,6 +216,21 @@ struct PopoutThreadView: View {
     Binding(get: { store.taskWindowDraft(taskID) },
       set: { store.setTaskWindowDraft($0, taskID: taskID) })
   }
+  private var messageActions: ExecutionMessageActions {
+    ExecutionMessageActions(
+      previewFile: { previewFile = $0 },
+      inspect: { run, tab in inspectedRun = run; inspectorTab = tab },
+      canRerun: { store.canRerunTaskWindowChat($0, taskID: taskID) },
+      rerun: { run in Task { await store.rerunTaskWindowChat(run, taskID: taskID) } },
+      canFork: { store.canForkTaskWindow(taskID, through: $0.id) },
+      fork: { run in forkConversation(through: run.id) },
+      canContinuePlan: { _ in store.canStartChat(taskID: taskID) },
+      continuePlan: { run in
+        store.continueFromPlan(run, taskID: taskID)
+        focused = true
+        focusRequest = UUID()
+      })
+  }
 
   var body: some View {
     VStack(spacing: 0) {
@@ -230,7 +247,7 @@ struct PopoutThreadView: View {
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 25) {
             ForEach(runs) { run in
-              ExecutionMessageView(store: store, run: run).id(run.id)
+              ExecutionMessageView(store: store, run: run, actions: messageActions).id(run.id)
             }
             Color.clear.frame(height: 1).id("end")
           }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
@@ -348,8 +365,21 @@ struct PopoutThreadView: View {
         previewImage = nil
       }.frame(width: 720, height: 520)
     }
+    .sheet(item: $inspectedRun) { selected in
+      Group {
+        if selected.kind == "chat" {
+          ChatRunInspectorView(store: store,
+            run: runs.first(where: { $0.id == selected.id }) ?? selected,
+            tab: $inspectorTab, close: { inspectedRun = nil })
+        } else {
+          PopoutLocalRunDetailsView(run: selected, tab: $inspectorTab,
+            close: { inspectedRun = nil })
+        }
+      }.frame(width: 600, height: 540)
+    }
     .onExitCommand {
-      if previewImage != nil { previewImage = nil }
+      if inspectedRun != nil { inspectedRun = nil }
+      else if previewImage != nil { previewImage = nil }
       else if previewFile != nil { previewFile = nil }
       else if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
       else { onHide() }
@@ -375,6 +405,13 @@ struct PopoutThreadView: View {
     imagePreviewReturnFocus = nil
     if let returnFocus { returnFocus() }
     else { restoreComposerFocus() }
+  }
+
+  private func forkConversation(through runID: String) {
+    do {
+      let fork = try store.forkTaskWindowConversation(taskID, through: runID)
+      onOpenThread(fork.id)
+    } catch { store.error = error.localizedDescription }
   }
 
   private func updateSlashSelection() {
@@ -406,6 +443,68 @@ struct PopoutThreadView: View {
       store.discardPopoutTaskIfEmpty(taskID)
       onOpenThread(id)
     case .resume, .empty: break
+    }
+  }
+}
+
+private struct PopoutLocalRunDetailsView: View {
+  let run: AgentRun
+  @Binding var tab: String
+  let close: () -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack {
+        Text("执行详情").appFont(.headline)
+        Spacer()
+        Button(action: close) { Image(systemName: "xmark") }
+          .buttonStyle(.plain).accessibilityLabel("关闭执行详情")
+      }.padding(16)
+      Picker("详情", selection: $tab) {
+        Text("诊断").tag("diagnostics")
+        Text("日志").tag("logs")
+        Text("产物").tag("artifacts")
+      }.pickerStyle(.segmented).padding(.horizontal, 14).padding(.bottom, 14)
+      Divider()
+      HStack {
+        StatusLabel(run: run)
+        Spacer()
+        Text(run.date, style: .time).foregroundStyle(.secondary)
+      }.appFont(.caption).padding(14)
+      ScrollView {
+        VStack(alignment: .leading, spacing: 12) {
+          switch tab {
+          case "logs":
+            Text(run.result?["command"]["stdout"].text ?? "标准输出为空。")
+              .appFont(size: 11, design: .monospaced).textSelection(.enabled)
+            if let stderr = run.result?["command"]["stderr"].text, !stderr.isEmpty {
+              Divider()
+              Text(stderr).appFont(size: 11, design: .monospaced).textSelection(.enabled)
+            }
+          case "artifacts":
+            LabeledContent("类型", value: run.kind == "doctor" ? "环境诊断" : "构建")
+            if let directory = run.result?["artifactDirectory"].text {
+              LabeledContent("产物目录", value: directory)
+            }
+            if let code = run.result?["command"]["exitCode"].int {
+              LabeledContent("退出码", value: String(code))
+            }
+          default:
+            let diagnostics = run.result?["command"]["diagnostics"].items ?? []
+            if diagnostics.isEmpty { Text("没有编译器诊断").foregroundStyle(.secondary) }
+            ForEach(Array(diagnostics.enumerated()), id: \.offset) { _, item in
+              VStack(alignment: .leading, spacing: 5) {
+                Text(item["message"].text ?? "").textSelection(.enabled)
+                if let file = item["file"].text {
+                  Text(file + (item["line"].int.map { ":\($0)" } ?? ""))
+                    .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
+              }
+              Divider()
+            }
+          }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+      }
     }
   }
 }

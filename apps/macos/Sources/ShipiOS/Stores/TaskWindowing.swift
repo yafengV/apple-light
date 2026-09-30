@@ -125,4 +125,34 @@ extension WorkspaceStore {
   func taskWindowOwnsActiveRun(_ taskID: String) -> Bool {
     activeRun(taskID: taskID) != nil
   }
+
+  func canRerunTaskWindowChat(_ run: AgentRun, taskID: String) -> Bool {
+    guard case .object = run.request else { return false }
+    return run.kind == "chat" && !run.isActive
+      && library.tasks.first(where: { $0.id == taskID })?.runIDs.contains(run.id) == true
+      && canStartChat(taskID: taskID)
+  }
+
+  func rerunTaskWindowChat(_ run: AgentRun, taskID: String) async {
+    guard canRerunTaskWindowChat(run, taskID: taskID), case .object(let request) = run.request else {
+      return
+    }
+    if request["conversation_kind"]?.text == "review" {
+      do {
+        let originalID = library.forkRunOrigins[run.id] ?? run.id
+        let snapshot = try ReviewSnapshotStorage.load(runID: originalID, root: dataRoot)
+        guard request["review_scope"]?.text == snapshot.scope.metadataValue,
+          request["review_selection"]?.text == snapshot.scope.selection,
+          let delivery = request["review_delivery"]?.text.flatMap(ReviewDelivery.init(rawValue:)) else {
+          throw AgentFailure(message: "原审查范围已失效，无法重新运行。")
+        }
+        await startChat(snapshot.requestTitle, taskID: taskID,
+          review: ModelCodeReviewContext(snapshot: snapshot, delivery: delivery))
+      } catch { self.error = error.localizedDescription }
+      return
+    }
+    await startChat(library.notes[run.id] ?? "", taskID: taskID,
+      images: library.runImages[run.id] ?? [], files: library.runFiles[run.id] ?? [],
+      mode: ChatMode(rawValue: request["mode"]?.text ?? "") ?? .standard)
+  }
 }

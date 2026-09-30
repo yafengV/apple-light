@@ -1217,18 +1217,24 @@ extension WorkspaceStore {
     return false
   }
 
-  func continueFromPlan(_ run: AgentRun) {
+  func continueFromPlan(_ run: AgentRun, taskID: String? = nil) {
+    guard let targetID = taskID ?? selectedTask?.id else { return }
     guard run.kind == "chat", run.request["mode"].text == ChatMode.plan.rawValue,
-      run.status == "succeeded", selectedTask?.runIDs.contains(run.id) == true
+      run.status == "succeeded",
+      library.tasks.first(where: { $0.id == targetID })?.runIDs.contains(run.id) == true
     else { return }
-    guard draft.isEmpty, draftImages.isEmpty, draftFiles.isEmpty, !importingImages, !importingFiles else {
+    guard taskWindowDraft(targetID).isEmpty, taskWindowImages(targetID).isEmpty,
+      taskWindowFiles(targetID).isEmpty, !importingImages, !importingFiles else {
       error = "请先发送或清空当前草稿，再按计划继续。"
       return
     }
-    action = .chat
-    chatMode = .standard
-    draft = "按照上面的计划开始实现。完成后运行相关验证并报告结果。"
-    focusComposer = UUID()
+    if taskID == nil {
+      action = .chat
+      chatMode = .standard
+    }
+    setTaskWindowDraft("按照上面的计划开始实现。完成后运行相关验证并报告结果。",
+      taskID: targetID)
+    if taskID == nil { focusComposer = UUID() }
   }
 
   private static let planModeInstructions = """

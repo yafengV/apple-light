@@ -722,6 +722,36 @@ final class ModelTransportTests: XCTestCase {
       server.waitUntilExit()
     }
   }
+  @MainActor func testPopoutRerunKeepsMainDraftAndUsesOriginalTask() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    let started = await store.startChat("popout rerun source")
+    let firstID = try XCTUnwrap(started)
+    await store.modelTask(runID: firstID)?.value
+    let first = try XCTUnwrap(store.library.chatRuns.first { $0.id == firstID })
+    XCTAssertEqual(first.status, "succeeded", store.error ?? "")
+    let owner = try XCTUnwrap(store.library.task(containing: firstID)?.id)
+
+    store.newTask()
+    store.draft = "keep main draft"
+    XCTAssertNotEqual(store.selectedTask?.id, owner)
+    await store.rerunTaskWindowChat(first, taskID: owner)
+    let rerun = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: rerun.id)?.value
+
+    XCTAssertNotEqual(rerun.id, firstID)
+    XCTAssertEqual(store.library.task(containing: rerun.id)?.id, owner)
+    XCTAssertEqual(store.library.notes[rerun.id], "popout rerun source")
+    XCTAssertEqual(store.draft, "keep main draft")
+    XCTAssertNotEqual(store.selectedTask?.id, owner)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == rerun.id }?.status, "succeeded",
+      store.error ?? "")
+    await store.shutdown()
+  }
   @MainActor func testInitCreatesGuideInOwningProjectAndPreservesExistingGuide() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

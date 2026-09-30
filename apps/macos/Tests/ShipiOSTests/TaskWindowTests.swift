@@ -217,4 +217,43 @@ final class TaskWindowTests: XCTestCase {
     XCTAssertEqual(store.taskWindowDraft("other"), "untouched main draft")
     XCTAssertNil(store.error)
   }
+
+  @MainActor func testPopoutPlanContinueTargetsItsTaskWithoutChangingMainDraft() {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    let plan = AgentRun(id: "plan", kind: "chat", project: "", status: "succeeded",
+      createdAt: 1, updatedAt: 2,
+      request: .object(["mode": .string(ChatMode.plan.rawValue)]), result: nil)
+    store.library.tasks = [
+      .init(id: "popout", project: "", title: "Popout", runIDs: [plan.id]),
+      .init(id: "other", project: "", title: "Other", runIDs: []),
+    ]
+    store.library.drafts["other"] = "main draft"
+    XCTAssertNotEqual(store.selectedTask?.id, "popout")
+
+    store.continueFromPlan(plan, taskID: "popout")
+
+    XCTAssertEqual(store.taskWindowDraft("popout"),
+      "按照上面的计划开始实现。完成后运行相关验证并报告结果。")
+    XCTAssertEqual(store.taskWindowDraft("other"), "main draft")
+    XCTAssertNil(store.error)
+  }
+
+  @MainActor func testPopoutRunActionsRejectRunOwnedByAnotherTask() {
+    let store = WorkspaceStore()
+    let run = AgentRun(id: "finished", kind: "chat", project: "", status: "succeeded",
+      createdAt: 1, updatedAt: 2, request: .object(["mode": .string(ChatMode.plan.rawValue)]),
+      result: .object(["response": .string("done")]))
+    store.library.tasks = [
+      .init(id: "popout", project: "", title: "Popout", runIDs: []),
+      .init(id: "other", project: "", title: "Other", runIDs: [run.id]),
+    ]
+    store.library.chatRuns = [run]
+
+    XCTAssertFalse(store.canRerunTaskWindowChat(run, taskID: "popout"))
+    XCTAssertTrue(store.canRerunTaskWindowChat(run, taskID: "other"))
+    store.continueFromPlan(run, taskID: "popout")
+    XCTAssertTrue(store.taskWindowDraft("popout").isEmpty)
+  }
 }
