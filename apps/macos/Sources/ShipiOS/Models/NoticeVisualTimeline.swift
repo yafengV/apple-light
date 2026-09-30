@@ -15,15 +15,24 @@ struct NoticeVisualExit: Identifiable {
   var exitOffset: CGFloat { leavesUpward ? -naturalHeight : naturalHeight * 0.4 }
 }
 
+struct NoticeSwipePlacement {
+  let index: Int
+  let offset: CGFloat
+  let scale: CGFloat
+  let frameHeight: CGFloat
+  let visible: Bool
+}
+
 /// Keeps a removed card on screen for Sonner's 200 ms removal window while
 /// surviving cards immediately move to their new stack positions.
 @Observable final class NoticeVisualTimeline {
   private(set) var active: [WorkspaceNotice] = []
   private(set) var entering: Set<UUID> = []
   private(set) var exiting: [NoticeVisualExit] = []
+  private(set) var swiping: [UUID: NoticeSwipePlacement] = [:]
   private(set) var heights: [UUID: CGFloat] = [:]
   private(set) var revision = 0
-  @ObservationIgnored private var swiped: Set<UUID> = []
+  var stacking: [WorkspaceNotice] { active.filter { swiping[$0.generation] == nil } }
 
   init(initial: [WorkspaceNotice] = []) { active = initial }
 
@@ -31,16 +40,24 @@ struct NoticeVisualExit: Identifiable {
     for (key, height) in values where height > 0 && heights[key] != height { heights[key] = height }
   }
 
-  func markSwiped(_ generation: UUID) { swiped.insert(generation) }
+  func markSwiped(_ generation: UUID, expanded: Bool) {
+    guard swiping[generation] == nil else { return }
+    let stack = stacking
+    guard let index = stack.firstIndex(where: { $0.generation == generation }) else { return }
+    let layout = NoticeStackLayout(heights: stack.map { heights[$0.generation] ?? 42 }, expanded: expanded)
+    swiping[generation] = NoticeSwipePlacement(index: index, offset: layout.offset(index),
+      scale: layout.scale(index), frameHeight: layout.containerHeight(index), visible: index < 3)
+  }
 
   @discardableResult func reconcile(_ live: [WorkspaceNotice], expanded: Bool,
     at uptime: TimeInterval) -> Bool {
     let before = active.map(\.generation), after = live.map(\.generation)
     guard before != after else { return false }
     let liveIDs = Set(after), oldIDs = Set(before)
-    let previous = NoticeStackLayout(heights: active.map { heights[$0.generation] ?? 42 }, expanded: expanded)
-    for (index, notice) in active.enumerated() where !liveIDs.contains(notice.generation) {
-      guard !swiped.contains(notice.generation) else { continue }
+    let previousStack = stacking
+    let previous = NoticeStackLayout(heights: previousStack.map { heights[$0.generation] ?? 42 },
+      expanded: expanded)
+    for (index, notice) in previousStack.enumerated() where !liveIDs.contains(notice.generation) {
       exiting.append(NoticeVisualExit(notice: notice, index: index,
         offset: previous.offset(index), scale: previous.scale(index),
         frameHeight: previous.containerHeight(index),
@@ -50,7 +67,7 @@ struct NoticeVisualExit: Identifiable {
     active = live
     entering.formIntersection(liveIDs)
     entering.formUnion(liveIDs.subtracting(oldIDs))
-    swiped.formIntersection(liveIDs)
+    swiping = swiping.filter { liveIDs.contains($0.key) }
     revision += 1
     return true
   }

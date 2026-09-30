@@ -16,7 +16,8 @@ struct WorkspaceNoticesView: View {
   var body: some View {
     let items = store.notices.items
     let displayed = visual.active
-    let layout = NoticeStackLayout(heights: displayed.map { visual.heights[$0.generation] ?? 42 },
+    let stacking = visual.stacking
+    let layout = NoticeStackLayout(heights: stacking.map { visual.heights[$0.generation] ?? 42 },
       expanded: interaction.expanded)
     let stackAnimation: Animation? = reduceMotion ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.4)
     let actionsEnabled = !((store.hasSettingsConfirmation && store.appearanceThemeImport == nil)
@@ -24,18 +25,23 @@ struct WorkspaceNoticesView: View {
     ZStack(alignment: .top) {
       ForEach(Array(displayed.enumerated()), id: \.element.generation) { index, notice in
         let entering = visual.entering.contains(notice.generation)
+        let swiping = visual.swiping[notice.generation]
+        let stackIndex = stacking.firstIndex(where: { $0.generation == notice.generation }) ?? 0
         WorkspaceNoticeCard(store: store, notice: notice, focused: $focused, interaction: interaction,
           isFirst: index == 0, isLast: index == displayed.count - 1,
-          onSwipeDismiss: { visual.markSwiped($0) })
+          onSwipeDismiss: { generation in
+            withAnimation(stackAnimation) { visual.markSwiped(generation, expanded: interaction.expanded) }
+          })
           .background(GeometryReader { proxy in
             Color.clear.preference(key: NoticeHeightKey.self, value: [notice.generation: proxy.size.height])
           })
-          .frame(height: layout.containerHeight(index), alignment: .top)
-          .scaleEffect(layout.scale(index), anchor: .center)
-          .offset(y: layout.offset(index) - (entering ? visual.heights[notice.generation] ?? 42 : 0))
-          .zIndex(Double(displayed.count - index))
-          .opacity(index < 3 && !entering ? 1 : 0)
-          .allowsHitTesting(index < 3)
+          .frame(height: swiping?.frameHeight ?? layout.containerHeight(stackIndex), alignment: .top)
+          .scaleEffect(swiping?.scale ?? layout.scale(stackIndex), anchor: .center)
+          .offset(y: (swiping?.offset ?? layout.offset(stackIndex))
+            - (entering ? visual.heights[notice.generation] ?? 42 : 0))
+          .zIndex(Double(displayed.count - index + (swiping == nil ? 0 : 1)))
+          .opacity((swiping?.visible ?? (stackIndex < 3)) && !entering ? 1 : 0)
+          .allowsHitTesting(stackIndex < 3 && swiping == nil)
           .transition(.identity)
       }
       ForEach(visual.exiting) { exit in
@@ -57,7 +63,7 @@ struct WorkspaceNoticesView: View {
     .frame(maxWidth: 768)
     .frame(height: layout.visibleExtent(3), alignment: .top)
     .padding(.horizontal, 8).padding(.top, 48)
-    .allowsHitTesting(!displayed.isEmpty)
+    .allowsHitTesting(!stacking.isEmpty)
     .onPreferenceChange(NoticeHeightKey.self) { visual.recordHeights($0) }
     .onChange(of: focused) { previous, current in
       if current != nil { interaction.finishCardTabMovement() }

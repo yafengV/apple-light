@@ -71,11 +71,35 @@ final class NoticeVisualTimelineTests: XCTestCase {
     XCTAssertEqual(exit.frameHeight, 80)
     XCTAssertEqual(exit.exitOffset, 20)
     timeline.removeFinished(at: 11.3)
-    timeline.markSwiped(front.generation)
+    timeline.markSwiped(front.generation, expanded: false)
+    XCTAssertTrue(timeline.stacking.isEmpty)
     notices.dismiss(front.id, generation: front.generation)
     timeline.reconcile(notices.items, expanded: false, at: 12)
     XCTAssertTrue(timeline.active.isEmpty)
     XCTAssertTrue(timeline.exiting.isEmpty)
+  }
+
+  func testSwipeStartsSurvivorReflowBeforeTheStoreRemovesTheCard() {
+    let notices = WorkspaceNotices()
+    notices.show(id: "back", title: "Back", level: .info, at: 10)
+    notices.show(id: "middle", title: "Middle", level: .info, at: 10)
+    notices.show(id: "front", title: "Front", level: .info, at: 10)
+    let front = notices.items[0], middle = notices.items[1], back = notices.items[2]
+    let timeline = NoticeVisualTimeline(initial: notices.items)
+    timeline.recordHeights([front.generation: 70, middle.generation: 50, back.generation: 40])
+    timeline.markSwiped(front.generation, expanded: true)
+    XCTAssertEqual(timeline.active.map(\.generation), [front.generation, middle.generation, back.generation])
+    XCTAssertEqual(timeline.stacking.map(\.generation), [middle.generation, back.generation])
+    XCTAssertEqual(timeline.swiping[front.generation]?.offset, 0)
+    XCTAssertEqual(timeline.swiping[front.generation]?.frameHeight, 70)
+    let reflow = NoticeStackLayout(heights: timeline.stacking.map { timeline.heights[$0.generation] ?? 42 },
+      expanded: true)
+    XCTAssertEqual(reflow.offset(0), 0)
+    XCTAssertEqual(reflow.offset(1), 58)
+    notices.dismiss(front.id, generation: front.generation)
+    timeline.reconcile(notices.items, expanded: true, at: 11)
+    XCTAssertNil(timeline.swiping[front.generation])
+    XCTAssertTrue(timeline.exiting.isEmpty, "The card already owns its swipe-out animation")
   }
 
   func testReplacementStagesNewEntryAndStaleSettleCannotStartItEarly() {
@@ -117,6 +141,32 @@ final class NoticeVisualTimelineTests: XCTestCase {
     XCTAssertEqual(timeline.exiting.map(\.id), [front.generation])
     XCTAssertTrue(timeline.exiting[0].outward)
     try await Task.sleep(for: .milliseconds(230)); host.layoutSubtreeIfNeeded()
+    XCTAssertTrue(timeline.exiting.isEmpty)
+    XCTAssertFalse(window.isVisible)
+  }
+
+  @MainActor func testHiddenNativeStackReflowsBeforeSwipedCardIsRemoved() async throws {
+    _ = NSApplication.shared
+    let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    store.notices.show(id: "back", title: "Back", level: .info)
+    store.notices.show(id: "front", title: "Front", level: .info)
+    let front = store.notices.items[0], back = store.notices.items[1]
+    let timeline = NoticeVisualTimeline(initial: store.notices.items)
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 816, height: 500),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: WorkspaceNoticesView(store: store, timeline: timeline))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(100)); host.layoutSubtreeIfNeeded()
+    let before = host.fittingSize.height
+    timeline.markSwiped(front.generation, expanded: false)
+    try await Task.sleep(for: .milliseconds(30)); host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(store.notices.items.count, 2, "The swipe has not yet removed the business toast")
+    XCTAssertEqual(timeline.stacking.map(\.generation), [back.generation])
+    XCTAssertLessThan(host.fittingSize.height, before, "The surviving card must reflow before dismissal")
+    store.notices.dismiss(front.id, generation: front.generation)
+    try await Task.sleep(for: .milliseconds(40)); host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(timeline.active.map(\.generation), [back.generation])
     XCTAssertTrue(timeline.exiting.isEmpty)
     XCTAssertFalse(window.isVisible)
   }
