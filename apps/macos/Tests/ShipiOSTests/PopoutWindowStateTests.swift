@@ -34,4 +34,13 @@ final class PopoutWindowStateTests: XCTestCase {
     state.toggle()
     XCTAssertEqual(state.visibleSurface, .thread("/thread/one"))
   }
+
+  func testDeletedThreadFallsBackToHomeBeforeHotkeyRestores() {
+    var state = PopoutWindowState()
+    state.openThread("removed")
+    state.hide()
+    state.retainThreads(["kept"])
+    state.toggle()
+    XCTAssertEqual(state.visibleSurface, .home)
+  }
 }

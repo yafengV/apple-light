@@ -17,7 +17,7 @@ enum ConnectionSettingsSection: String, CaseIterable, Identifiable {
 
 enum SettingsSearchField: String, CaseIterable, Identifiable {
   case editor, tips, sendShortcut, plainText, contextUsage, bottomPanel, webLinks,
-    projectlessFolder, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
+    projectlessFolder, popoutHotkey, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
     preventSleep, enablePlugins, openSourceLicenses
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
     pointer, diffMarkers, reduceMotion, importTheme, exportTheme
@@ -306,6 +306,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .bottomPanel: "底部面板"
     case .webLinks: "打开网页链接"
     case .projectlessFolder: "无项目任务文件夹"
+    case .popoutHotkey: "弹出窗口快捷键"
     case .popoutScope: "默认使用独立聊天"
     case .followUp: "模型运行时发送消息"
     case .menuBar: "在菜单栏中显示"

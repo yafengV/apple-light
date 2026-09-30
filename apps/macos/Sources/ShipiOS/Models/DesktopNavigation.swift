@@ -71,6 +71,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "branch", title: "切换或创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "settings", title: "设置", icon: "gearshape", shortcut: "⌘,"),
     .init(id: "pet", title: "显示或隐藏宠物", icon: "pawprint", shortcut: "⌥Space"),
+    .init(id: "popout", title: "显示或隐藏弹出窗口", icon: "macwindow.on.rectangle", shortcut: ""),
     .init(id: "new", title: "新任务", icon: "square.and.pencil", shortcut: "⌘N"),
     .init(id: "search", title: "搜索任务", icon: "magnifyingglass", shortcut: ""),
     .init(id: "projects", title: "项目", icon: "folder", shortcut: ""),

@@ -172,6 +172,9 @@ struct ShortcutSettingsView: View {
         if let error = editor.errors[item.id] {
           Text(error).foregroundStyle(.red).appFont(.caption).textSelection(.enabled)
         }
+        if item.id == "popout", let error = store.popoutHotkeyError {
+          Text(error).foregroundStyle(.red).appFont(.caption).textSelection(.enabled)
+        }
       }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
     let controls = VStack(alignment: .leading, spacing: 0) {
         ForEach(rows.indices, id: \.self) { index in

@@ -30,4 +30,13 @@ struct PopoutWindowState: Equatable {
   mutating func hide() {
     visibleSurface = nil
   }
+
+  mutating func retainThreads(_ available: Set<String>) {
+    if case .thread(let route) = lastVisibleSurface, !available.contains(route) {
+      lastVisibleSurface = .home
+    }
+    if case .thread(let route) = visibleSurface, !available.contains(route) {
+      visibleSurface = .home
+    }
+  }
 }

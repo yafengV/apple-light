@@ -25,12 +25,27 @@ final class ShortcutPreferencesTests: XCTestCase {
     XCTAssertEqual(preferences.binding("copy-location"), ShortcutBinding("⌘⇧C"))
     XCTAssertEqual(preferences.binding("dictation"), ShortcutBinding("⌃⇧D"))
     XCTAssertEqual(preferences.binding("open-side-chat"), ShortcutBinding("⌘⌥S"))
+    XCTAssertNil(preferences.binding("popout"))
     XCTAssertNil(preferences.binding("browser-copy"))
     XCTAssertNil(preferences.binding("workspace-tabs"))
     XCTAssertNil(preferences.binding("search"))
     for command in commands {
       for binding in command.defaultBindings { XCTAssertNil(binding.validationMessage(for: command.id), binding.display) }
     }
+  }
+
+  @MainActor func testPopoutGlobalShortcutPersistsAndConflictsAreRejected() throws {
+    let file = temporaryFile()
+    defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+    let preferences = ShortcutPreferences(file: file)
+    XCTAssertThrowsError(try preferences.set(ShortcutBinding("⌘K"), for: "popout"))
+    let binding = ShortcutBinding("⌃⌥P")
+    try preferences.set(binding, for: "popout")
+    XCTAssertThrowsError(try preferences.replace(nil, with: ShortcutBinding("⌃⌥O"), for: "popout"))
+    XCTAssertEqual(preferences.binding("popout"), binding)
+    XCTAssertEqual(ShortcutPreferences(file: file).binding("popout"), binding)
+    try preferences.set(nil, for: "popout")
+    XCTAssertNil(ShortcutPreferences(file: file).binding("popout"))
   }
 
   @MainActor func testSaveReloadUnbindAndReset() throws {

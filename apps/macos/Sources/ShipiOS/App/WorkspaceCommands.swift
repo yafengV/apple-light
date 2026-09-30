@@ -111,6 +111,9 @@ struct WorkspaceCommands: Commands {
         openWindow(id: "main")
       }.disabled(searchDialogActive == true || taskRenameActive == true || imagePreviewActive == true || !store.commandEnabled("settings"))
     }
+    CommandMenu("弹出窗口") {
+      Button("显示或隐藏弹出窗口") { store.popoutWindowToggleHandler?() }
+    }
     CommandMenu("浏览器") {
       ForEach(BrowserKeyboardBridge.contextualCommands.filter { $0 != "browser-address" }, id: \.self) { id in command(id) }
       command("browser-reopen")

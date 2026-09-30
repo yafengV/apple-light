@@ -99,6 +99,8 @@ struct RuntimeSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
         }
         Section("弹出窗口") {
+          PopoutHotkeySettingsRow(store: store)
+            .settingsSearchTarget(.popoutHotkey)
           SettingsToggle(title: "默认使用独立聊天",
             description: "在任何项目外开始新聊天",
             isOn: $store.popoutWindowProjectlessDefault)

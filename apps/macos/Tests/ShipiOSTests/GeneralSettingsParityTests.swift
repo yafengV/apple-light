@@ -258,11 +258,31 @@ final class GeneralSettingsParityTests: XCTestCase {
     let projectlessDraft = try XCTUnwrap(store.createPopoutTask())
     XCTAssertEqual(projectlessDraft.project, "")
     XCTAssertTrue(projectlessDraft.isPopoutDraft)
+    let scopedDraft = try XCTUnwrap(store.createPopoutTask(projectless: false))
+    XCTAssertEqual(scopedDraft.project, store.currentProjectKey)
+    XCTAssertTrue(store.popoutWindowProjectlessDefault,
+      "Choosing a scope in the popout must not rewrite the default")
 
     let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
     XCTAssertTrue(restored.popoutWindowProjectlessDefault)
     XCTAssertEqual(Set(restored.tasks.filter(\.isPopoutDraft).map(\.id)),
-      Set([projectDraft.id, projectlessDraft.id]))
+      Set([projectDraft.id, projectlessDraft.id, scopedDraft.id]))
+  }
+
+  @MainActor func testPopoutHomeSubmissionPreparesOneScopedDraftWithoutChangingMainDraft() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.project = root.appendingPathComponent("Project", isDirectory: true)
+    store.draft = "Main draft"
+    XCTAssertNil(store.preparePopoutTask(prompt: "  ", projectless: true))
+    XCTAssertTrue(store.library.tasks.isEmpty)
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: "Separate prompt", projectless: true))
+    XCTAssertEqual(task.project, "")
+    XCTAssertEqual(store.taskWindowDraft(task.id), "Separate prompt")
+    XCTAssertEqual(store.draft, "Main draft")
+    XCTAssertEqual(store.library.tasks.filter(\.isPopoutDraft).count, 1)
   }
 
   @MainActor func testPopoutDraftStaysHiddenPromotesOnFirstRunAndEmptyDraftCanBeDiscarded() throws {

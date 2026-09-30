@@ -20,6 +20,9 @@ final class WorkspaceStore {
   @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences
   @ObservationIgnored var shortcutCaptureCount = 0
+  @ObservationIgnored var popoutWindowHandler: (() -> Void)?
+  @ObservationIgnored var popoutWindowToggleHandler: (() -> Void)?
+  var popoutHotkeyError: String?
   @ObservationIgnored private let root: URL
   @ObservationIgnored private let agentExecutable: URL?
   @ObservationIgnored let browserDataStore: WKWebsiteDataStore?

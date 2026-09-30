@@ -131,6 +131,34 @@ final class SettingsLayoutTests: XCTestCase {
     XCTAssertFalse(window.isVisible)
   }
 
+  @MainActor func testPopoutHotkeyRowCanBeRevealedInsideGeneralSettings() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.openSettings(.general)
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 600),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: RuntimeSettingsView(store: store))
+    window.contentView = host
+    host.frame.size = NSSize(width: 960, height: 600)
+    try await Task.sleep(for: .milliseconds(180))
+    host.layoutSubtreeIfNeeded()
+    let generalScroll = try XCTUnwrap(scrollViews(in: host).first {
+      ($0.documentView?.frame.height ?? 0) > 1_000 && $0.contentSize.height == 600
+    })
+    XCTAssertEqual(generalScroll.contentView.bounds.origin.y, 0, accuracy: 1)
+    store.revealSetting(.init(page: .general, field: .popoutHotkey))
+    try await Task.sleep(for: .milliseconds(300))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(store.settingsSearchRequest?.result.field, .popoutHotkey)
+    XCTAssertGreaterThan(generalScroll.contentView.bounds.origin.y, 400)
+    XCTAssertGreaterThan(try snapshot(host, named: "general-popout-hotkey").count, 5_000)
+    XCTAssertFalse(window.isVisible)
+  }
+
   @MainActor func testSpecialPagesHaveOneScrollDocumentWithPopulatedLists() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

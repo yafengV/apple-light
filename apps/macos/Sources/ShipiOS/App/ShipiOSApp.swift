@@ -75,6 +75,7 @@ private struct ShipiOSMenuBarView: View {
       store.newTask()
       showMainWindow()
     }
+    Button("弹出窗口") { store.popoutWindowHandler?() }
     Divider()
     Button("退出 ShipiOS") { NSApp.terminate(nil) }
   }
@@ -89,7 +90,9 @@ private struct ShipiOSMenuBarView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
   var store: WorkspaceStore?
   private var petPanelController: PetPanelController?
-  private var petGlobalHotKey: PetGlobalHotKey?
+  private var petGlobalHotKey: AppGlobalHotKey?
+  private var popoutGlobalHotKey: AppGlobalHotKey?
+  private var popoutWindowController: PopoutWindowController?
   private let pointerCursorController = PointerCursorController()
   private var quitting = false
   private var ready = false
@@ -130,15 +133,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       petPanelController = controller
       store.petPanelHandler = { [weak controller] preferences in controller?.apply(preferences) }
       controller.apply(store.petPreferences)
-      let hotKey = PetGlobalHotKey { [weak store] in store?.togglePet() }
+      let hotKey = AppGlobalHotKey(id: 1, title: "宠物") { [weak store] in
+        guard let store, store.shortcutCaptureCount == 0 else { return }
+        store.togglePet()
+      }
       petGlobalHotKey = hotKey
+      let popoutController = PopoutWindowController(store: store)
+      popoutWindowController = popoutController
+      store.popoutWindowHandler = { [weak popoutController] in popoutController?.openHome() }
+      store.popoutWindowToggleHandler = { [weak popoutController] in popoutController?.toggle() }
+      let popoutHotKey = AppGlobalHotKey(id: 2, title: "弹出窗口") { [weak popoutController, weak store] in
+        guard store?.shortcutCaptureCount == 0 else { return }
+        popoutController?.toggle()
+      }
+      popoutGlobalHotKey = popoutHotKey
       let refreshHotKey = { [weak hotKey, weak store] in
         guard let hotKey, let store else { return }
         do { try hotKey.register(store.shortcuts.binding("pet")) }
         catch { store.petError = error.localizedDescription }
       }
-      store.shortcuts.didChange = { id in if id == "pet" || id == "*" { refreshHotKey() } }
+      let refreshPopoutHotKey = { [weak popoutHotKey, weak store] in
+        guard let popoutHotKey, let store else { return }
+        do {
+          try popoutHotKey.register(store.shortcuts.binding("popout"))
+          store.popoutHotkeyError = nil
+        } catch { store.popoutHotkeyError = error.localizedDescription }
+      }
+      store.shortcuts.didChange = { id in
+        if id == "pet" || id == "*" { refreshHotKey() }
+        if id == "popout" || id == "*" { refreshPopoutHotKey() }
+      }
       refreshHotKey()
+      refreshPopoutHotKey()
       store.appearanceHandler = { [weak pointerCursorController] appearance in
         pointerCursorController?.apply(appearance.usePointerCursors)
       }

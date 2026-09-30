@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 private struct SettingsSearchPresentationKey: EnvironmentKey {
@@ -42,8 +43,50 @@ private struct SettingsSearchTarget: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .background(SettingsSearchHighlightView(token: request?.result.field == field ? request?.token : nil))
+      .background {
+        SettingsSearchHighlightView(token: request?.result.field == field ? request?.token : nil)
+        SettingsSearchScrollAnchor(token: request?.result.field == field ? request?.token : nil)
+      }
       .id(field.id)
+  }
+}
+
+private struct SettingsSearchScrollAnchor: NSViewRepresentable {
+  let token: UUID?
+
+  func makeNSView(context: Context) -> Anchor { Anchor() }
+  func updateNSView(_ view: Anchor, context: Context) { view.request(token) }
+
+  final class Anchor: NSView {
+    private var token: UUID?
+    private var scrolledToken: UUID?
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); scheduleScroll() }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleScroll() }
+
+    func request(_ token: UUID?) {
+      self.token = token
+      scheduleScroll()
+    }
+
+    private func scheduleScroll() {
+      guard let token, scrolledToken != token else { return }
+      DispatchQueue.main.async { [weak self] in self?.scrollToTarget(token) }
+    }
+
+    private func scrollToTarget(_ request: UUID) {
+      guard token == request, scrolledToken != request,
+        let scroll = sequence(first: superview, next: { $0?.superview })
+          .compactMap({ $0 as? NSScrollView }).first,
+        let document = scroll.documentView else { return }
+      let target = convert(bounds, to: document)
+      guard target.height > 0 else { return }
+      let limit = max(0, document.bounds.height - scroll.contentSize.height)
+      let y = min(limit, max(0, target.midY - scroll.contentSize.height / 2))
+      scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: y))
+      scroll.reflectScrolledClipView(scroll.contentView)
+      scrolledToken = request
+    }
   }
 }
 

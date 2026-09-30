@@ -108,6 +108,9 @@ final class ShortcutPreferences {
   }
   private func setBindings(_ values: [ShortcutBinding], for id: String) throws {
     guard DesktopCommand.all.contains(where: { $0.id == id }) else { return }
+    if ["pet", "popout"].contains(id), values.count > 1 {
+      throw ShortcutError(message: "全局命令只能设置一个快捷键。")
+    }
     guard values.count <= 6 else { throw ShortcutError(message: "每个命令最多设置 6 个快捷键。") }
     guard Set(values).count == values.count else { throw ShortcutError(message: "此命令已经使用这个快捷键。") }
     for binding in values {

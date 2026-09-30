@@ -2,13 +2,16 @@ import Carbon.HIToolbox
 import Foundation
 
 @MainActor
-final class PetGlobalHotKey {
+final class AppGlobalHotKey {
   private var hotKey: EventHotKeyRef?
   private var handler: EventHandlerRef?
   private let action: () -> Void
-  private static let identifier = EventHotKeyID(signature: 0x5348_4950, id: 1) // SHIP
+  private let identifier: EventHotKeyID
+  private let title: String
 
-  init(action: @escaping () -> Void) {
+  init(id: UInt32, title: String, action: @escaping () -> Void) {
+    identifier = EventHotKeyID(signature: 0x5348_4950, id: id) // SHIP
+    self.title = title
     self.action = action
     var event = EventTypeSpec(
       eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -20,10 +23,10 @@ final class PetGlobalHotKey {
         let status = GetEventParameter(
           event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
           nil, MemoryLayout<EventHotKeyID>.size, nil, &identifier)
-        guard status == noErr, identifier.signature == PetGlobalHotKey.identifier.signature,
-          identifier.id == PetGlobalHotKey.identifier.id
-        else { return OSStatus(eventNotHandledErr) }
-        let owner = Unmanaged<PetGlobalHotKey>.fromOpaque(context).takeUnretainedValue()
+        guard status == noErr else { return OSStatus(eventNotHandledErr) }
+        let owner = Unmanaged<AppGlobalHotKey>.fromOpaque(context).takeUnretainedValue()
+        guard identifier.signature == owner.identifier.signature,
+          identifier.id == owner.identifier.id else { return OSStatus(eventNotHandledErr) }
         Task { @MainActor in owner.action() }
         return noErr
       },
@@ -35,7 +38,7 @@ final class PetGlobalHotKey {
     if let hotKey { UnregisterEventHotKey(hotKey); self.hotKey = nil }
     guard let binding else { return }
     guard let keyCode = Self.keyCode(binding.key) else {
-      throw AgentFailure(message: "宠物全局快捷键不支持这个按键。")
+      throw AgentFailure(message: "\(title)全局快捷键不支持这个按键。")
     }
     var modifiers: UInt32 = 0
     if binding.command { modifiers |= UInt32(cmdKey) }
@@ -43,10 +46,10 @@ final class PetGlobalHotKey {
     if binding.option { modifiers |= UInt32(optionKey) }
     if binding.shift { modifiers |= UInt32(shiftKey) }
     let status = RegisterEventHotKey(
-      keyCode, modifiers, Self.identifier, GetApplicationEventTarget(), 0, &hotKey)
+      keyCode, modifiers, identifier, GetApplicationEventTarget(), 0, &hotKey)
     guard status == noErr else {
       hotKey = nil
-      throw AgentFailure(message: "无法注册宠物全局快捷键，可能已被其他应用占用。")
+      throw AgentFailure(message: "无法注册\(title)全局快捷键，可能已被其他应用占用。")
     }
   }
 

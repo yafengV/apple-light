@@ -119,6 +119,7 @@ final class SettingsNavigationTests: XCTestCase {
   func testSearchReturnsSpecificControlsWithStablePageOwnership() {
     XCTAssertEqual(SettingsSearch.results(for: "菜单栏").map(\.field), [.menuBar])
     XCTAssertEqual(SettingsSearch.results(for: "默认使用独立聊天").map(\.field), [.popoutScope])
+    XCTAssertEqual(SettingsSearch.results(for: "弹出窗口快捷键").map(\.field), [.popoutHotkey])
     XCTAssertEqual(SettingsSearch.results(for: "外观 代码字体").map(\.field), [.lightCodeFont, .darkCodeFont])
     XCTAssertEqual(SettingsSearch.results(for: "外观 界面字体").map(\.field), [.lightUIFont, .darkUIFont])
     XCTAssertEqual(SettingsSearch.results(for: "api 密钥").map(\.field), [.apiKey])

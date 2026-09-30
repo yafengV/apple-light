@@ -95,12 +95,13 @@ extension WorkspaceStore {
     set { updateGeneralPreference(\.popoutWindowProjectlessDefault, value: newValue) }
   }
 
-  func createPopoutTask() -> WorkspaceTask? {
+  func createPopoutTask(projectless: Bool? = nil) -> WorkspaceTask? {
     guard libraryLoaded else {
       generalSettingsError = "工作区尚未完成加载，请稍后再新建窗口。"
       return nil
     }
-    let project = popoutWindowProjectlessDefault ? "" : library.primaryFolder(for: currentProjectKey)
+    let project = (projectless ?? popoutWindowProjectlessDefault)
+      ? "" : library.primaryFolder(for: currentProjectKey)
     let now = Date()
     let task = WorkspaceTask(
       id: UUID().uuidString, project: project, title: "新任务", runIDs: [], popoutDraft: true,
@@ -116,6 +117,13 @@ extension WorkspaceStore {
       generalSettingsError = "无法创建弹出任务：\(error.localizedDescription)"
       return nil
     }
+  }
+
+  func preparePopoutTask(prompt: String, projectless: Bool) -> WorkspaceTask? {
+    guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      let task = createPopoutTask(projectless: projectless) else { return nil }
+    setTaskWindowDraft(prompt, taskID: task.id)
+    return task
   }
 
   func discardPopoutTaskIfEmpty(_ taskID: String) {
