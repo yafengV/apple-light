@@ -128,6 +128,39 @@ final class PopoutWindowLayoutTests: XCTestCase {
     }
   }
 
+  @MainActor func testHomeShowsSelectedProjectAtFixedReferenceSize() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.library.projects = [project.path]
+    store.project = project
+    let size = NSSize(width: 470, height: 290)
+    let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: PopoutHomeView(store: store,
+      onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))
+    window.contentView = host
+    host.frame.size = size
+    try await Task.sleep(for: .milliseconds(180))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertFalse(window.isVisible)
+    let image = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: image)
+    let data = try XCTUnwrap(image.representation(using: .png, properties: [:]))
+    XCTAssertGreaterThan(data.count, 5_000)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_POPOUT_SNAPSHOTS"] {
+      let folder = URL(fileURLWithPath: path)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      try data.write(to: folder.appendingPathComponent("popout-home-selected-project.png"))
+    }
+  }
+
   @MainActor func testSlashMenusFitHomeAndThreadSurfaces() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

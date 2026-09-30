@@ -285,6 +285,45 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertEqual(store.library.tasks.filter(\.isPopoutDraft).count, 1)
   }
 
+  @MainActor func testPopoutHomeCanChooseAnotherProjectWithoutMovingMainWorkspace() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let current = root.appendingPathComponent("Current", isDirectory: true)
+    let selected = root.appendingPathComponent("Selected", isDirectory: true)
+    let primary = root.appendingPathComponent("Primary", isDirectory: true)
+    for folder in [current, selected, primary] {
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.library.projects = [current.path, selected.path]
+    store.library.projectPrimaryFolders[selected.path] = primary.path
+    store.project = current
+    store.draft = "Keep main draft"
+    store.popoutHomeDraft = "Popout prompt"
+
+    XCTAssertNil(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      project: root.appendingPathComponent("Removed").path))
+    XCTAssertEqual(store.popoutHomeDraft, "Popout prompt")
+    XCTAssertEqual(store.library.tasks.count, 0)
+    XCTAssertEqual(store.generalSettingsError, "所选项目已不可用，请重新选择项目。")
+
+    store.library.projectPrimaryFolders[selected.path] = root.appendingPathComponent("Missing").path
+    XCTAssertNil(store.preparePopoutTask(prompt: store.popoutHomeDraft, project: selected.path))
+    XCTAssertEqual(store.popoutHomeDraft, "Popout prompt")
+    XCTAssertEqual(store.library.tasks.count, 0)
+    XCTAssertNotNil(store.generalSettingsError)
+    store.library.projectPrimaryFolders[selected.path] = primary.path
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      project: selected.path))
+    XCTAssertEqual(task.project, primary.path)
+    XCTAssertEqual(store.currentProjectKey, current.path)
+    XCTAssertEqual(store.draft, "Keep main draft")
+    XCTAssertEqual(store.taskWindowDraft(task.id), "Popout prompt")
+    XCTAssertEqual(store.popoutHomeDraft, "")
+    XCTAssertNil(store.generalSettingsError)
+  }
+
   @MainActor func testPopoutHomeTransfersAttachmentsAndKeepsOtherDraftsSeparate() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

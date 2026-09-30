@@ -3,10 +3,11 @@ import SwiftUI
 
 struct PopoutHomeView: View {
   @Bindable var store: WorkspaceStore
-  let onSubmit: (String, Bool) -> Bool
+  let onSubmit: (String, String?) -> Bool
   let onOpenThread: (String) -> Void
   let onHide: () -> Void
-  @State private var projectless: Bool
+  @State private var selectedProject: String?
+  @State private var choseProject = false
   @State private var focused = false
   @State private var focusRequest = UUID()
   @State private var previewFile: FileAttachment?
@@ -23,14 +24,29 @@ struct PopoutHomeView: View {
     !store.popoutHomeDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       || !store.popoutHomeImages.isEmpty || !store.popoutHomeFiles.isEmpty
   }
+  private var currentProjectChoice: String? {
+    let current = store.library.projectOwner(for: store.currentProjectKey)
+    return current.isEmpty ? nil : current
+  }
+  private var defaultProject: String? {
+    store.popoutWindowProjectlessDefault ? nil : currentProjectChoice
+  }
+  private var projectChoices: [String] {
+    Array(Set(store.library.projects + (currentProjectChoice.map { [$0] } ?? []))).sorted {
+      store.library.projectTitle($0).localizedStandardCompare(
+        store.library.projectTitle($1)) == .orderedAscending
+    }
+  }
 
-  init(store: WorkspaceStore, onSubmit: @escaping (String, Bool) -> Bool,
+  init(store: WorkspaceStore, onSubmit: @escaping (String, String?) -> Bool,
     onOpenThread: @escaping (String) -> Void, onHide: @escaping () -> Void) {
     self.store = store
     self.onSubmit = onSubmit
     self.onOpenThread = onOpenThread
     self.onHide = onHide
-    _projectless = State(initialValue: store.popoutWindowProjectlessDefault)
+    let current = store.library.projectOwner(for: store.currentProjectKey)
+    _selectedProject = State(initialValue: store.popoutWindowProjectlessDefault
+      || current.isEmpty ? nil : current)
   }
 
   var body: some View {
@@ -54,7 +70,9 @@ struct PopoutHomeView: View {
       }
       ComposerTextEditor(text: draft,
         focused: $focused, plainTextMode: store.composerPlainTextMode,
-        placeholder: "发送消息，或输入 / 选择操作…",
+        placeholder: selectedProject.map {
+          "在 \(store.library.projectTitle($0)) 中提问，或输入 / 选择操作…"
+        } ?? "在任何项目外提问，或输入 / 选择操作…",
         accessibilityLabel: "弹出窗口消息", focusRequest: focusRequest,
         onKey: { key, modifiers, composing in
           if handleSlashKey(key, modifiers: modifiers, composing: composing) { return true }
@@ -76,13 +94,36 @@ struct PopoutHomeView: View {
           Button("添加文件…") { store.chooseFiles(draft: WorkspaceStore.popoutHomeDraftKey) }
         } label: { Image(systemName: "plus") }
           .menuStyle(.borderlessButton).accessibilityLabel("添加弹出窗口附件")
-        Toggle("独立聊天", isOn: $projectless)
-          .toggleStyle(.checkbox)
-          .help("在任何项目外开始新聊天")
-        if !projectless, !store.currentProjectKey.isEmpty {
-          Text(store.library.projectTitle(store.currentProjectKey))
-            .lineLimit(1).appFont(.caption).foregroundStyle(.secondary)
+        Menu {
+          Menu("项目") {
+            Button {
+              selectedProject = nil
+              choseProject = true
+            } label: {
+              if selectedProject == nil { Label("独立聊天", systemImage: "checkmark") }
+              else { Text("独立聊天") }
+            }
+            Divider()
+            ForEach(projectChoices, id: \.self) { project in
+              Button {
+                selectedProject = project
+                choseProject = true
+              } label: {
+                if selectedProject == project {
+                  Label(store.library.projectTitle(project), systemImage: "checkmark")
+                } else {
+                  Text(store.library.projectTitle(project))
+                }
+              }
+            }
+          }
+        } label: {
+          Label(selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天",
+            systemImage: "folder")
+            .lineLimit(1)
         }
+        .menuStyle(.borderlessButton).accessibilityLabel("聊天设置")
+          .help("项目：" + (selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天"))
         Spacer()
         Button("发送", action: submit)
           .buttonStyle(.borderedProminent)
@@ -108,8 +149,22 @@ struct PopoutHomeView: View {
     .onChange(of: store.popoutHomeImages.count + store.popoutHomeFiles.count) { _, _ in
       updateSlashSelection()
     }
-    .onChange(of: store.popoutWindowProjectlessDefault) { _, value in
-      if store.popoutHomeDraft.isEmpty { projectless = value }
+    .onChange(of: store.popoutWindowProjectlessDefault) { _, _ in
+      if !choseProject && store.popoutHomeDraft.isEmpty { selectedProject = defaultProject }
+    }
+    .onChange(of: store.currentProjectKey) { _, _ in
+      if let selectedProject, !projectChoices.contains(selectedProject) {
+        choseProject = false
+        self.selectedProject = defaultProject
+      } else if !choseProject && store.popoutHomeDraft.isEmpty {
+        selectedProject = defaultProject
+      }
+    }
+    .onChange(of: store.library.projects) { _, _ in
+      if let selectedProject, !projectChoices.contains(selectedProject) {
+        choseProject = false
+        self.selectedProject = defaultProject
+      }
     }
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewFile == nil, previewImage == nil else { return }
@@ -139,7 +194,7 @@ struct PopoutHomeView: View {
 
   private func submit() {
     guard store.libraryLoaded, !store.importingImages, !store.importingFiles, hasContent else { return }
-    _ = onSubmit(draft.wrappedValue, projectless)
+    _ = onSubmit(draft.wrappedValue, selectedProject)
   }
 
   private func restoreComposerFocus() {
