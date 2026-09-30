@@ -4,7 +4,7 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class FilePreviewFocusTests: XCTestCase {
-  func testSelectionReviewPopoverSignalsHeightChanges() async throws {
+  func testSelectionReviewPanelSignalsModeChanges() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let store = WorkspaceStore(dataRoot: root)
@@ -34,11 +34,65 @@ import XCTest
     for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
     try await Task.sleep(for: .milliseconds(100))
     host.layoutSubtreeIfNeeded()
-    XCTAssertTrue(reviewChanges.contains(true), "The review controls must expand their anchored surface")
+    XCTAssertTrue(reviewChanges.contains(true), "The prompt must transition to review")
     workspace.selectionEdit.revise()
     try await Task.sleep(for: .milliseconds(100))
     host.layoutSubtreeIfNeeded()
-    XCTAssertEqual(reviewChanges.last, false, "Returning to the prompt must compact the anchored surface")
+    XCTAssertEqual(reviewChanges.last, false, "Returning to the prompt must restore input mode")
+  }
+  func testSelectionReviewReservesInlineSpaceWithoutChangingSource() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = "one two\nlast line"
+    try source.write(to: root.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Edit.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 600, height: 550),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 600, height: 550)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func editor(in view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(editor).first
+    }
+    let text = try XCTUnwrap(editor(in: host))
+    let layout = try XCTUnwrap(text.layoutManager)
+    let container = try XCTUnwrap(text.textContainer)
+    let secondLineGlyph = layout.glyphIndexForCharacter(at: 8)
+    layout.ensureLayout(for: container)
+    let originalY = layout.lineFragmentRect(forGlyphAt: secondLineGlyph, effectiveRange: nil).minY
+    text.setSelectedRange(NSRange(location: 4, length: 3))
+    workspace.selectionEdit.selectionChanged(in: text)
+    workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
+    workspace.selectionEdit.instruction = "uppercase"
+    workspace.selectionEdit.generate { request in try request.proposal(from: "TWO") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    layout.ensureLayout(for: container)
+    let reviewY = layout.lineFragmentRect(forGlyphAt: secondLineGlyph, effectiveRange: nil).minY
+    XCTAssertGreaterThan(reviewY - originalY, 280, "Review should push following source lines below its controls")
+    XCTAssertEqual(text.string, source)
+    XCTAssertEqual(workspace.fileText, source)
+    let review = try XCTUnwrap(text.subviews.first(where: { $0 is NSHostingView<FileSelectionEditPanel> }))
+    XCTAssertGreaterThan(review.frame.minY, originalY - 20)
+    XCTAssertLessThan(review.frame.maxY, reviewY, "Review controls must occupy the reserved text gap")
+    workspace.selectionEdit.close()
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    layout.ensureLayout(for: container)
+    let restoredY = layout.lineFragmentRect(forGlyphAt: secondLineGlyph, effectiveRange: nil).minY
+    XCTAssertEqual(restoredY, originalY, accuracy: 1)
+    XCTAssertFalse(text.subviews.contains(where: { $0 is NSHostingView<FileSelectionEditPanel> }))
   }
   func testSelectionEditRequiresReviewAndKeepsNativeUndo() async throws {
     _ = NSApplication.shared

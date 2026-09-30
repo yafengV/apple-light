@@ -35,6 +35,7 @@ struct FileSourcePreview: NSViewRepresentable {
     text.setAccessibilityLabel("文件内容")
     scroll.documentView = text
     text.delegate = context.coordinator
+    text.layoutManager?.delegate = context.coordinator.inlineLayout
     workspace.fileFind.bind(editor: text)
     workspace.selectionEdit.bind(editor: text)
     context.coordinator.install(text, store: store, workspace: workspace, taskID: taskID)
@@ -84,6 +85,7 @@ struct FileSourcePreview: NSViewRepresentable {
       ready: !workspace.fileLoading && workspace.fileError == nil && !workspace.fileIsReadOnly,
       appearance: appearance)
     coordinator.syncSelectionEditor(in: text, store: store, workspace: workspace)
+    coordinator.positionInlineReview(in: text)
     if !workspace.fileLoading, coordinator.needsRestore {
       coordinator.needsRestore = false
       let position = workspace.filePreviewPositions[identity]
@@ -142,7 +144,9 @@ struct FileSourcePreview: NSViewRepresentable {
     private var selectionAction: NSPopover?
     private var selectionActionRange: NSRange?
     private var selectionEditor: NSPopover?
-    private var selectionEditorShowsReview = false
+    let inlineLayout = FileSelectionInlineLayout()
+    private var inlineReview: NSHostingView<FileSelectionEditPanel>?
+    private weak var inlineText: FilePreviewTextView?
     weak var store: WorkspaceStore?
     var taskID: String?
     private var monitor: Any?
@@ -226,6 +230,7 @@ struct FileSourcePreview: NSViewRepresentable {
     func stop() {
       dismissSelectionAction()
       dismissSelectionEditor()
+      dismissInlineReview()
       if let monitor { NSEvent.removeMonitor(monitor) }
       monitor = nil
     }
@@ -237,7 +242,59 @@ struct FileSourcePreview: NSViewRepresentable {
     func dismissSelectionEditor() {
       selectionEditor?.close()
       selectionEditor = nil
-      selectionEditorShowsReview = false
+    }
+    func dismissInlineReview() {
+      inlineReview?.removeFromSuperview()
+      inlineReview = nil
+      if let text = inlineText, inlineLayout.anchorGlyph != nil {
+        inlineLayout.anchorGlyph = nil
+        invalidateInlineLayout(in: text)
+      }
+      inlineText = nil
+    }
+    private func invalidateInlineLayout(in text: NSTextView) {
+      let length = (text.string as NSString).length
+      guard length > 0 else { return }
+      text.layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: length),
+        actualCharacterRange: nil)
+      if let container = text.textContainer { text.layoutManager?.ensureLayout(for: container) }
+    }
+    @MainActor func positionInlineReview(in text: FilePreviewTextView) {
+      guard let inlineReview, let glyph = inlineLayout.anchorGlyph,
+        let layout = text.layoutManager, let container = text.textContainer,
+        glyph < layout.numberOfGlyphs else { return }
+      layout.ensureLayout(for: container)
+      let line = layout.lineFragmentUsedRect(forGlyphAt: glyph, effectiveRange: nil)
+      let origin = text.textContainerOrigin
+      inlineReview.frame.origin = NSPoint(x: origin.x + 8, y: origin.y + line.maxY + 2)
+    }
+    @MainActor private func showInlineReview(in text: FilePreviewTextView, store: WorkspaceStore,
+      workspace: DeveloperWorkspace, request: FileSelectionEditRequest, width: CGFloat) {
+      let source = text.string as NSString
+      guard source.length > 0, NSMaxRange(request.range) <= source.length,
+        let layout = text.layoutManager else { return }
+      let lastCharacter = NSMaxRange(request.range) - 1
+      let line = source.lineRange(for: NSRange(location: lastCharacter, length: 0))
+      let anchor = layout.glyphIndexForCharacter(at: min(NSMaxRange(line) - 1, source.length - 1))
+      if inlineLayout.anchorGlyph != anchor {
+        inlineLayout.anchorGlyph = anchor
+        invalidateInlineLayout(in: text)
+      }
+      let reviewWidth = min(width, max(320, text.visibleRect.width - 40))
+      if inlineReview == nil {
+        let view = NSHostingView(rootView: FileSelectionEditPanel(store: store, workspace: workspace,
+          taskID: taskID, onReviewChange: { [weak self, weak text, weak store, weak workspace] _ in
+            DispatchQueue.main.async { [weak self, weak text, weak store, weak workspace] in
+              guard let self, let text, let store, let workspace else { return }
+              self.syncSelectionEditor(in: text, store: store, workspace: workspace)
+            }
+          }))
+        text.addSubview(view)
+        inlineReview = view
+        inlineText = text
+      }
+      inlineReview?.frame.size = NSSize(width: reviewWidth, height: FileSelectionInlineLayout.reviewHeight - 8)
+      positionInlineReview(in: text)
     }
     @MainActor func syncSelectionEditor(in text: FilePreviewTextView, store: WorkspaceStore,
       workspace: DeveloperWorkspace) {
@@ -246,33 +303,30 @@ struct FileSourcePreview: NSViewRepresentable {
         NSMaxRange(request.range) <= (text.string as NSString).length,
         let window = text.window else {
         dismissSelectionEditor()
+        dismissInlineReview()
         return
       }
       let width = max(320, min(520, window.frame.width - 32))
-      let showsReview = workspace.selectionEdit.proposal != nil
-      let height: CGFloat = showsReview ? 290 : 170
-      if let selectionEditor, selectionEditor.isShown {
-        if selectionEditorShowsReview != showsReview {
-          selectionEditorShowsReview = showsReview
-          selectionEditor.contentSize = NSSize(width: width, height: height)
-        }
+      if workspace.selectionEdit.proposal != nil {
+        dismissSelectionEditor()
+        showInlineReview(in: text, store: store, workspace: workspace, request: request, width: width)
         return
       }
+      dismissInlineReview()
+      if selectionEditor?.isShown == true { return }
       guard let anchor = selectionAnchor(in: text, range: request.range, window: window) else { return }
       let popover = NSPopover()
       popover.behavior = .applicationDefined
-      popover.contentSize = NSSize(width: width, height: height)
+      popover.contentSize = NSSize(width: width, height: 170)
       popover.contentViewController = NSHostingController(rootView:
         FileSelectionEditPanel(store: store, workspace: workspace, taskID: taskID,
-          onReviewChange: { [weak self] visible in
-            DispatchQueue.main.async { [weak self] in
-              guard let self, let editor = self.selectionEditor else { return }
-              self.selectionEditorShowsReview = visible
-              editor.contentSize = NSSize(width: width, height: visible ? 290 : 170)
+          onReviewChange: { [weak self, weak text, weak store, weak workspace] _ in
+            DispatchQueue.main.async { [weak self, weak text, weak store, weak workspace] in
+              guard let self, let text, let store, let workspace else { return }
+              self.syncSelectionEditor(in: text, store: store, workspace: workspace)
             }
           }).frame(width: width, alignment: .topLeading))
       selectionEditor = popover
-      selectionEditorShowsReview = showsReview
       popover.show(relativeTo: anchor, of: text, preferredEdge: .maxY)
     }
     func textDidChange(_ notification: Notification) {
@@ -324,6 +378,17 @@ struct FileSourcePreview: NSViewRepresentable {
       return text.convert(window.convertFromScreen(screenRect), from: nil)
     }
     deinit { stop() }
+  }
+}
+
+/// Reserves a line-height-independent review slot without changing the file's text storage.
+final class FileSelectionInlineLayout: NSObject, NSLayoutManagerDelegate {
+  static let reviewHeight: CGFloat = 276
+  var anchorGlyph: Int?
+
+  func layoutManager(_ layoutManager: NSLayoutManager, paragraphSpacingAfterGlyphAt glyphIndex: Int,
+    withProposedLineFragmentRect rect: NSRect) -> CGFloat {
+    glyphIndex == anchorGlyph ? Self.reviewHeight + 12 : 0
   }
 }
 
