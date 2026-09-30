@@ -3,8 +3,9 @@ import AppKit
 extension WorkspaceStore {
   var browserVisible: Bool {
     destination == .workspace
-      && (activeBrowserTabID != nil || activeRightWorkspaceContentTab?.browserID != nil
-        || (showingInspector && pane == "browser"))
+      && (activeBrowserTabID != nil
+        || (showingInspector && activeRightWorkspaceContentTab?.browserID != nil)
+        || (showingInspector && visibleWorkspaceContentTabs(in: .right).isEmpty && pane == "browser"))
   }
   var browserFocused: Bool { browserVisible && presentedOverlay == nil && !showingModelPicker
     && !showingBranchPicker && workspace.browser.hasNativeFocus }

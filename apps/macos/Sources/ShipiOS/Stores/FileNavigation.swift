@@ -1,11 +1,14 @@
 import AppKit
 
 extension WorkspaceStore {
-  var filesVisible: Bool { destination == .workspace && showingInspector && pane == "files" }
+  var filesVisible: Bool {
+    destination == .workspace && showingInspector && pane == "files"
+      && visibleWorkspaceContentTabs(in: .right).isEmpty
+  }
   var commandFileWorkspace: DeveloperWorkspace? {
     guard destination == .workspace else { return nil }
     if filesVisible, filePreviewFocused || workspace.fileFind.isPresented { return workspace }
-    guard let tab = focusedWorkspaceContentTab, case .file = tab,
+    guard let tab = focusedWorkspaceContentTab ?? activeWorkspaceContentTab, case .file = tab,
       workspaceTabPlacement(tab.id) != .detached else { return nil }
     return fileTabWorkspaces[tab.id]
   }

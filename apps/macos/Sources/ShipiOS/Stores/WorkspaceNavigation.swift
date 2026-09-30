@@ -237,7 +237,8 @@ extension WorkspaceStore {
       if let task = selectedTask { return canHandOffToLocal(task) }
       return libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil
         && project != nil && !library.managedWorktrees.contains(where: { $0.path == project?.path })
-    case "tab-close": return destination == .workspace && focusedWorkspaceContentTab != nil
+    case "tab-close": return destination == .workspace
+      && (focusedWorkspaceContentTab ?? activeWorkspaceContentTab) != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty
     case "workspace-tabs", "workspace-view": return destination == .workspace

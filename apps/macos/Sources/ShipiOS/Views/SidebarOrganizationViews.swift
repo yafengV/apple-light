@@ -217,7 +217,7 @@ private struct SidebarPinnedContentTabRow: View {
       }
       .padding(.horizontal, 10).padding(.vertical, 9)
       .background(
-        pin.sourceWindowID == nil && store.destination == .workspace && store.focusedWorkspaceTabID == pin.sourceTabID
+        pin.sourceWindowID == nil && store.focusedWorkspaceContentTab?.id == pin.sourceTabID
           ? Color.primary.opacity(0.09) : .clear,
         in: RoundedRectangle(cornerRadius: 7))
       .contentShape(Rectangle())
@@ -226,7 +226,7 @@ private struct SidebarPinnedContentTabRow: View {
     .help(store.pinnedWorkspaceTabTitle(pin))
     .accessibilityLabel("固定标签：\(store.pinnedWorkspaceTabTitle(pin))")
     .accessibilityAddTraits(
-      pin.sourceWindowID == nil && store.destination == .workspace && store.focusedWorkspaceTabID == pin.sourceTabID
+      pin.sourceWindowID == nil && store.focusedWorkspaceContentTab?.id == pin.sourceTabID
         ? .isSelected : [])
     .contextMenu {
       Button("打开") { Task { await store.openPinnedWorkspaceTab(pin.id) } }

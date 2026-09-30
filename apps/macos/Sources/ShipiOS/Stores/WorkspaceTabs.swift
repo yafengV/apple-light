@@ -32,8 +32,14 @@ extension WorkspaceStore {
   }
 
   var focusedWorkspaceContentTab: WorkspaceContentTab? {
-    guard let focusedWorkspaceTabID else { return nil }
-    return visibleWorkspaceContentTabs.first { $0.id == focusedWorkspaceTabID }
+    guard destination == .workspace, let focusedWorkspaceTabID,
+      let tab = visibleWorkspaceContentTabs.first(where: { $0.id == focusedWorkspaceTabID }) else { return nil }
+    switch workspaceTabPlacement(tab.id) {
+    case .left: return activeWorkspaceTabID == tab.id ? tab : nil
+    case .right: return showingInspector && activeRightWorkspaceTabID == tab.id ? tab : nil
+    case .bottom: return showingTerminal && activeBottomWorkspaceTabID == tab.id ? tab : nil
+    case .detached: return nil
+    }
   }
 
   var activeBrowserTabID: UUID? { activeWorkspaceContentTab?.browserID }

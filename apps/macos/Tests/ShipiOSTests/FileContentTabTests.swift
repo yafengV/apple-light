@@ -144,6 +144,33 @@ import XCTest
     XCTAssertEqual(store.activeWorkspaceContentTab, popup)
   }
 
+  func testHiddenRightTabDoesNotOwnCommandsOrHideChatApproval() throws {
+    let (store, _, _) = try fixture()
+    defer { store.workspace.browser.shutdown() }
+    XCTAssertTrue(store.openFileTab("First.swift"))
+    let file = try XCTUnwrap(store.activeWorkspaceContentTab)
+    let editor = store.fileTabWorkspace(file)
+    store.pane = "files"
+    store.showingInspector = true
+    XCTAssertTrue(store.filesVisible)
+
+    store.newBrowserTab(in: .right)
+    let browser = try XCTUnwrap(store.activeRightWorkspaceContentTab)
+    XCTAssertEqual(store.focusedWorkspaceContentTab, browser)
+    XCTAssertFalse(store.filesVisible)
+    XCTAssertTrue(store.browserVisible)
+
+    store.showingInspector = false
+    XCTAssertNil(store.focusedWorkspaceContentTab)
+    XCTAssertFalse(store.browserVisible)
+    XCTAssertTrue(store.commandFileWorkspace === editor)
+    XCTAssertTrue(store.commandEnabled("tab-close"))
+    store.executeCommand("tab-close")
+    XCTAssertFalse(store.workspaceTabs.contains(file))
+    XCTAssertTrue(store.workspaceTabs.contains(browser))
+    XCTAssertTrue(store.mainMCPApprovalVisible)
+  }
+
   func testClosingDirtyFileTabSavesBeforeRemoval() async throws {
     let (store, _, project) = try fixture()
     XCTAssertTrue(store.openFileTab("First.swift"))
