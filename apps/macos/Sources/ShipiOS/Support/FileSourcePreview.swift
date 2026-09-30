@@ -162,10 +162,25 @@ struct FileSourcePreview: NSViewRepresentable {
             workspace.fileFind.move(-1)
             return true
           }
-          if binding == ShortcutBinding("Escape"), workspace.fileFind.isPresented {
+          if binding == ShortcutBinding("⎋"), workspace.fileFind.isPresented {
             workspace.fileFind.close()
             return true
           }
+          let sourceCommand: FileTextCommand?
+          switch binding {
+          case ShortcutBinding("⇥"): sourceCommand = .insertIndent
+          case ShortcutBinding("⇧⇥"), ShortcutBinding("⌘["): sourceCommand = .outdentLines
+          case ShortcutBinding("⌘]"): sourceCommand = .indentLines
+          case ShortcutBinding("⌘/"): sourceCommand = .toggleLineComment
+          case ShortcutBinding("⇧⌥a"): sourceCommand = .toggleBlockComment
+          case ShortcutBinding("⌥↑"), ShortcutBinding("⌃⌥p"): sourceCommand = .moveUp
+          case ShortcutBinding("⌥↓"), ShortcutBinding("⌃⌥n"): sourceCommand = .moveDown
+          case ShortcutBinding("⇧⌥↑"): sourceCommand = .copyUp
+          case ShortcutBinding("⇧⌥↓"): sourceCommand = .copyDown
+          case ShortcutBinding("⌘↵"): sourceCommand = .insertBlankLine
+          default: sourceCommand = nil
+          }
+          if let sourceCommand, text.performSourceCommand(sourceCommand) { return true }
           if binding == ShortcutBinding("⌘S"), workspace.selectedFileEditor != nil {
             Task { await workspace.saveSelectedFileEdits() }
             return true
@@ -205,5 +220,18 @@ final class FilePreviewTextView: NSTextView {
     let accepted = super.becomeFirstResponder()
     if accepted { onFocus?() }
     return accepted
+  }
+
+  @discardableResult func performSourceCommand(_ command: FileTextCommand) -> Bool {
+    guard isEditable, let path = workspace?.selectedFile,
+      let edit = FileTextCommands.edit(command, in: string, selection: selectedRange(), path: path) else {
+      return false
+    }
+    insertText(edit.replacement, replacementRange: edit.range)
+    let length = (string as NSString).length
+    guard NSMaxRange(edit.selection) <= length else { return true }
+    setSelectedRange(edit.selection)
+    scrollRangeToVisible(edit.selection)
+    return true
   }
 }

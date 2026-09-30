@@ -98,6 +98,45 @@ import XCTest
     XCTAssertEqual(workspace.fileText, "one two one")
   }
 
+  func testNativeSourceCommandsUpdateDraftAndPreserveUndo() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try "one\ntwo".write(to: root.appendingPathComponent("Commands.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Commands.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 500, height: 350)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func preview(_ view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(preview).first
+    }
+    let text = try XCTUnwrap(preview(host))
+    text.setSelectedRange(NSRange(location: 0, length: 0))
+    XCTAssertTrue(text.performSourceCommand(.toggleLineComment))
+    XCTAssertEqual(workspace.fileText, "// one\ntwo")
+    XCTAssertTrue(workspace.selectedFileEditor?.hasUnsavedChanges == true)
+    XCTAssertTrue(text.undoManager?.canUndo == true)
+    text.undoManager?.undo()
+    XCTAssertEqual(text.string, "one\ntwo")
+    XCTAssertEqual(workspace.fileText, "one\ntwo")
+    text.setSelectedRange(NSRange(location: 1, length: 0))
+    XCTAssertTrue(text.performSourceCommand(.moveDown))
+    XCTAssertEqual(workspace.fileText, "two\none")
+    text.undoManager?.undo()
+    XCTAssertEqual(workspace.fileText, "one\ntwo")
+  }
+
   func testFocusRequestWaitsForFileLoadAndDoesNotAffectMainWorkspace() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
