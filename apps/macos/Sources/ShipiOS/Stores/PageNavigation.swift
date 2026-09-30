@@ -53,6 +53,7 @@ extension WorkspaceStore {
   }
   func openSettings(_ page: SettingsPage? = nil) {
     guard !hasSettingsConfirmation else { return }
+    showingOpenSourceLicenses = false
     mcpServerEditor = nil
     pluginDetailForwardRoute = nil
     settingsSearchRequest = nil
@@ -70,6 +71,10 @@ extension WorkspaceStore {
 
   func closeSettings() {
     guard destination == .settings, !hasSettingsConfirmation else { return }
+    if showingOpenSourceLicenses {
+      showingOpenSourceLicenses = false
+      return
+    }
     if mcpServerEditor != nil {
       mcpServerEditor = nil
       mcpServersError = nil

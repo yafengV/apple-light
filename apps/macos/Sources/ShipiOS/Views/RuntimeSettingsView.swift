@@ -52,6 +52,9 @@ struct RuntimeSettingsView: View {
       environment: store.environmentSettingsSession)
     case .usage: UsageSettingsView(store: store)
     case .general:
+      if store.showingOpenSourceLicenses {
+        OpenSourceLicensesView()
+      } else {
       Form {
         EditorSettingsSection(store: store)
         Section("输入") {
@@ -161,7 +164,16 @@ struct RuntimeSettingsView: View {
             isOn: $store.pluginsEnabled)
             .settingsSearchTarget(.enablePlugins)
         }
+        Section("关于") {
+          HStack(alignment: .center, spacing: 16) {
+            SettingsControlLabel(title: "开源许可", description: "所捆绑依赖的第三方声明")
+              .frame(maxWidth: .infinity, alignment: .leading)
+            Button("查看") { store.showingOpenSourceLicenses = true }
+              .accessibilityLabel("查看开源许可")
+          }.settingsSearchTarget(.openSourceLicenses)
+        }
       }.settingsFormStyle().appSurface()
+      }
     case .appearance:
       AppearanceSettingsView(store: store)
     case .pets:

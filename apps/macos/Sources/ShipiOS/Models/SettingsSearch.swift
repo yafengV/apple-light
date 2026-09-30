@@ -18,7 +18,7 @@ enum ConnectionSettingsSection: String, CaseIterable, Identifiable {
 enum SettingsSearchField: String, CaseIterable, Identifiable {
   case editor, tips, sendShortcut, plainText, contextUsage, bottomPanel, webLinks,
     projectlessFolder, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
-    preventSleep, enablePlugins
+    preventSleep, enablePlugins, openSourceLicenses
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
     pointer, diffMarkers, reduceMotion, importTheme, exportTheme
   case lightUIFont, darkUIFont, lightContentFont, darkContentFont, lightCodeFont, darkCodeFont, lightThemeShare, darkThemeShare
@@ -313,6 +313,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .terminalLocation: "默认终端位置"
     case .preventSleep: "运行时防止休眠"
     case .enablePlugins: "插件"
+    case .openSourceLicenses: "开源许可"
     case .theme: "基础主题"
     case .lightPalette: "浅色主题颜色、侧栏透明度与对比度"
     case .lightCodeTheme: "浅色代码主题"
@@ -426,6 +427,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .sendShortcut: "Enter Return 发送快捷键"
     case .plainText: "Markdown 富文本 plain text"
     case .projectlessFolder: "项目外任务目录 folder"
+    case .openSourceLicenses: "第三方声明 license notices bundled dependencies"
     case .followUp: "追加消息 引导当前运行 等待下一轮"
     case .menuBar: "menu bar"
     case .reviewDelivery: "review 内联 单独"
@@ -510,6 +512,7 @@ extension WorkspaceStore {
     guard result.field == nil || result.field?.page == result.page else { return }
     guard result.field?.requiresProject != true || project != nil else { return }
     if destination != .settings { openSettings(result.page) }
+    if result.page == .general { showingOpenSourceLicenses = false }
     settingsPage = result.page
     if let section = result.field?.browserSection { browserSettingsSection = section }
     if let section = result.field?.connectionSection { connectionSettingsSection = section }

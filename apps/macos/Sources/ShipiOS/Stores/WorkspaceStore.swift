@@ -80,6 +80,7 @@ final class WorkspaceStore {
   var sidebarGroupToDelete: SidebarGroup?
   var settingsPage: SettingsPage = .general {
     didSet {
+      if settingsPage != .general { showingOpenSourceLicenses = false }
       if settingsPage != .appearance, let session = appearanceThemeImport {
         dismissAppearanceImport(session)
       }
@@ -92,6 +93,7 @@ final class WorkspaceStore {
       mcpServerEditor = nil
     }
   }
+  var showingOpenSourceLicenses = false
   var settingsSearchRequest: SettingsSearchRequest?
   var settingsSearchFocusRequest = UUID()
   var pluginDetailRoute: PluginDetailRoute?

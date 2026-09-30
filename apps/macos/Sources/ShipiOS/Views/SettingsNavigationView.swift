@@ -31,7 +31,7 @@ struct SettingsNavigationView: View {
         Button { store.closeSettings() } label: {
           HStack(spacing: 8) {
             Image(systemName: "arrow.left").frame(width: 16)
-            Text("返回应用")
+            Text(store.showingOpenSourceLicenses ? "返回通用" : "返回应用")
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.vertical, 8).contentShape(Rectangle())
@@ -48,7 +48,8 @@ struct SettingsNavigationView: View {
           store.settingsSearchFocusRequest = UUID()
           return .handled
         }
-        .help("返回之前的页面（Esc）").accessibilityLabel("返回应用")
+        .help("返回之前的页面（Esc）")
+        .accessibilityLabel(store.showingOpenSourceLicenses ? "返回通用" : "返回应用")
 
         SettingsSearchInput(query: $query, focusRequest: store.settingsSearchFocusRequest,
           visible: store.destination == .settings, onMove: moveSearchHighlight,
@@ -187,6 +188,7 @@ struct SettingsNavigationView: View {
 
   private func select(_ page: SettingsPage) {
     exitingSidebar = false
+    store.showingOpenSourceLicenses = false
     store.settingsSearchRequest = nil
     // End native popup focus before the old page becomes disabled. Otherwise
     // its responder teardown can cancel the sidebar's SwiftUI focus request.
