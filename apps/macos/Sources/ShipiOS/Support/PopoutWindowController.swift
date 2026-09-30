@@ -22,7 +22,8 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
     homeWindow.contentView = NSHostingView(rootView: PopoutHomeView(store: store,
       onSubmit: { [weak self] prompt, projectless in
         self?.submit(prompt, projectless: projectless) ?? false
-      }, onHide: { [weak self] in self?.hide() }))
+      }, onOpenThread: { [weak self] in self?.openThread($0) },
+      onHide: { [weak self] in self?.hide() }))
   }
 
   func toggle() {
@@ -39,6 +40,10 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
   }
 
   func openThread(_ taskID: String) {
+    guard store?.library.tasks.contains(where: { $0.id == taskID }) == true else {
+      openHome()
+      return
+    }
     let previous = state.visibleSurface ?? state.lastVisibleSurface
     state.openThread(taskID)
     applyState(previous: previous)
@@ -87,6 +92,7 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
       if renderedThreadID != taskID {
         threadWindow?.contentView = NSHostingView(rootView: PopoutThreadView(store: store,
           taskID: taskID, onHome: { [weak self] in self?.openHome() },
+          onOpenThread: { [weak self] in self?.openThread($0) },
           onHide: { [weak self] in self?.hide() }))
         renderedThreadID = taskID
       }

@@ -21,9 +21,9 @@ final class PopoutWindowLayoutTests: XCTestCase {
 
     let cases: [(String, NSSize, AnyView)] = [
       ("home", NSSize(width: 470, height: 290), AnyView(PopoutHomeView(store: store,
-        onSubmit: { _, _ in false }, onHide: {}))),
+        onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
       ("thread", NSSize(width: 470, height: 640), AnyView(PopoutThreadView(store: store,
-        taskID: task.id, onHome: {}, onHide: {})))
+        taskID: task.id, onHome: {}, onOpenThread: { _ in }, onHide: {})))
     ]
     for (name, size, view) in cases {
       let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
@@ -65,7 +65,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutHomeView(store: store,
-      onSubmit: { _, _ in false }, onHide: {}))
+      onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = NSSize(width: 470, height: 290)
     try await Task.sleep(for: .milliseconds(180))
@@ -79,6 +79,44 @@ final class PopoutWindowLayoutTests: XCTestCase {
       let folder = URL(fileURLWithPath: path)
       try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
       try data.write(to: folder.appendingPathComponent("popout-home-attachment.png"))
+    }
+  }
+
+  @MainActor func testSlashMenusFitHomeAndThreadSurfaces() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.popoutHomeDraft = "/"
+    let task = try XCTUnwrap(store.createPopoutTask())
+    store.setTaskWindowDraft("/", taskID: task.id)
+    let cases: [(String, NSSize, AnyView)] = [
+      ("home-slash", NSSize(width: 470, height: 290), AnyView(PopoutHomeView(store: store,
+        onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
+      ("thread-slash", NSSize(width: 470, height: 640), AnyView(PopoutThreadView(store: store,
+        taskID: task.id, onHome: {}, onOpenThread: { _ in }, onHide: {})))
+    ]
+    for (name, size, view) in cases {
+      let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+        styleMask: [.borderless], backing: .buffered, defer: false)
+      window.isReleasedWhenClosed = false
+      let host = NSHostingView(rootView: view)
+      window.contentView = host
+      host.frame.size = size
+      try await Task.sleep(for: .milliseconds(200))
+      host.layoutSubtreeIfNeeded()
+      let image = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+      host.cacheDisplay(in: host.bounds, to: image)
+      let data = try XCTUnwrap(image.representation(using: .png, properties: [:]))
+      XCTAssertGreaterThan(data.count, 5_000, name)
+      if let path = ProcessInfo.processInfo.environment["SHIPIOS_POPOUT_SNAPSHOTS"] {
+        let folder = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try data.write(to: folder.appendingPathComponent("popout-\(name).png"))
+      }
+      XCTAssertFalse(window.isVisible)
+      window.close()
     }
   }
 

@@ -4,6 +4,7 @@ import SwiftUI
 struct PopoutHomeView: View {
   @Bindable var store: WorkspaceStore
   let onSubmit: (String, Bool) -> Bool
+  let onOpenThread: (String) -> Void
   let onHide: () -> Void
   @State private var projectless: Bool
   @State private var focused = false
@@ -11,6 +12,7 @@ struct PopoutHomeView: View {
   @State private var previewFile: FileAttachment?
   @State private var previewImage: ImagePreviewItem?
   @State private var previewImages: [ImagePreviewItem] = []
+  @State private var slashSelection = PopoutSlashSelection()
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
   private var draft: Binding<String> {
@@ -22,9 +24,10 @@ struct PopoutHomeView: View {
   }
 
   init(store: WorkspaceStore, onSubmit: @escaping (String, Bool) -> Bool,
-    onHide: @escaping () -> Void) {
+    onOpenThread: @escaping (String) -> Void, onHide: @escaping () -> Void) {
     self.store = store
     self.onSubmit = onSubmit
+    self.onOpenThread = onOpenThread
     self.onHide = onHide
     _projectless = State(initialValue: store.popoutWindowProjectlessDefault)
   }
@@ -53,6 +56,7 @@ struct PopoutHomeView: View {
         placeholder: "发送消息，或输入 / 选择操作…",
         accessibilityLabel: "弹出窗口消息", focusRequest: focusRequest,
         onKey: { key, modifiers, composing in
+          if handleSlashKey(key, modifiers: modifiers, composing: composing) { return true }
           guard shouldSubmit(key, modifiers: modifiers, composing: composing,
             text: draft.wrappedValue, shortcut: sendShortcut, store: store) else { return false }
           submit()
@@ -86,11 +90,23 @@ struct PopoutHomeView: View {
     }
     .padding(20)
     .frame(minWidth: 400, minHeight: 250)
+    .overlay(alignment: .bottomLeading) {
+      if slashSelection.isVisible {
+        PopoutSlashMenuView(store: store, selection: $slashSelection, maximumHeight: 172,
+          accept: selectSlashItem)
+          .padding(.horizontal, 20).padding(.bottom, 61)
+      }
+    }
     .background(store.appearance.backgroundColor)
     .foregroundStyle(store.appearance.foregroundColor)
     .tint(store.appearance.accentColor)
     .preferredColorScheme(store.appearance.colorScheme)
-    .onAppear { focused = true; focusRequest = UUID() }
+    .onAppear { focused = true; focusRequest = UUID(); updateSlashSelection() }
+    .onChange(of: store.popoutHomeDraft) { _, _ in updateSlashSelection() }
+    .onChange(of: store.library.tasks) { _, _ in updateSlashSelection() }
+    .onChange(of: store.popoutHomeImages.count + store.popoutHomeFiles.count) { _, _ in
+      updateSlashSelection()
+    }
     .onChange(of: store.popoutWindowProjectlessDefault) { _, value in
       if store.popoutHomeDraft.isEmpty { projectless = value }
     }
@@ -104,7 +120,10 @@ struct PopoutHomeView: View {
         previewImage = nil
       }.frame(width: 720, height: 520)
     }
-    .onExitCommand(perform: onHide)
+    .onExitCommand {
+      if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
+      else { onHide() }
+    }
   }
 
   private var sendShortcut: ComposerSendShortcut {
@@ -115,15 +134,41 @@ struct PopoutHomeView: View {
     guard store.libraryLoaded, !store.importingImages, !store.importingFiles, hasContent else { return }
     _ = onSubmit(draft.wrappedValue, projectless)
   }
+
+  private func updateSlashSelection() {
+    slashSelection.update(draft: store.popoutHomeDraft, canNew: false,
+      tasks: store.library.tasks, currentTaskID: nil,
+      hasAttachments: !store.popoutHomeImages.isEmpty || !store.popoutHomeFiles.isEmpty)
+  }
+
+  private func handleSlashKey(_ key: ComposerEditorKey,
+    modifiers: NSEvent.ModifierFlags, composing: Bool) -> Bool {
+    guard modifiers.isEmpty else { return false }
+    updateSlashSelection()
+    switch slashSelection.handle(popoutSlashKey(key), isComposing: composing) {
+    case .ignored: return false
+    case .handled: return true
+    case .accept(let item): selectSlashItem(item); return true
+    }
+  }
+
+  private func selectSlashItem(_ item: PopoutSlashItem) {
+    if case .task(let id) = item {
+      store.popoutHomeDraft = ""
+      onOpenThread(id)
+    }
+  }
 }
 
 struct PopoutThreadView: View {
   @Bindable var store: WorkspaceStore
   let taskID: String
   let onHome: () -> Void
+  let onOpenThread: (String) -> Void
   let onHide: () -> Void
   @State private var focused = false
   @State private var focusRequest = UUID()
+  @State private var slashSelection = PopoutSlashSelection()
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
   private var runs: [AgentRun] { store.taskWindowRuns(taskID) }
@@ -174,6 +219,7 @@ struct PopoutThreadView: View {
           placeholder: "继续这个任务…", accessibilityLabel: "弹出会话消息",
           focusRequest: focusRequest,
           onKey: { key, modifiers, composing in
+            if handleSlashKey(key, modifiers: modifiers, composing: composing) { return true }
             guard shouldSubmit(key, modifiers: modifiers, composing: composing,
               text: draft.wrappedValue, shortcut: sendShortcut, store: store) else { return false }
             submit()
@@ -190,12 +236,27 @@ struct PopoutThreadView: View {
       }.padding(14)
     }
     .frame(minWidth: 400, minHeight: 400)
+    .overlay(alignment: .bottomLeading) {
+      if slashSelection.isVisible {
+        PopoutSlashMenuView(store: store, selection: $slashSelection, maximumHeight: 264,
+          accept: selectSlashItem)
+          .padding(.horizontal, 14).padding(.bottom, 84)
+      }
+    }
     .background(store.appearance.backgroundColor)
     .foregroundStyle(store.appearance.foregroundColor)
     .tint(store.appearance.accentColor)
     .preferredColorScheme(store.appearance.colorScheme)
-    .onAppear { focused = true; focusRequest = UUID() }
-    .onExitCommand(perform: onHide)
+    .onAppear { focused = true; focusRequest = UUID(); updateSlashSelection() }
+    .onChange(of: draft.wrappedValue) { _, _ in updateSlashSelection() }
+    .onChange(of: store.library.tasks) { _, _ in updateSlashSelection() }
+    .onChange(of: store.taskWindowImages(taskID).count + store.taskWindowFiles(taskID).count) {
+      _, _ in updateSlashSelection()
+    }
+    .onExitCommand {
+      if slashSelection.isVisible { _ = slashSelection.handle(.dismiss) }
+      else { onHide() }
+    }
   }
 
   private var sendShortcut: ComposerSendShortcut {
@@ -204,6 +265,47 @@ struct PopoutThreadView: View {
 
   private func submit() {
     Task { await store.sendTaskWindowDraft(taskID, mode: .standard) }
+  }
+
+  private func updateSlashSelection() {
+    slashSelection.update(draft: draft.wrappedValue, canNew: true,
+      tasks: store.library.tasks, currentTaskID: taskID,
+      hasAttachments: !store.taskWindowImages(taskID).isEmpty
+        || !store.taskWindowFiles(taskID).isEmpty)
+  }
+
+  private func handleSlashKey(_ key: ComposerEditorKey,
+    modifiers: NSEvent.ModifierFlags, composing: Bool) -> Bool {
+    guard modifiers.isEmpty else { return false }
+    updateSlashSelection()
+    switch slashSelection.handle(popoutSlashKey(key), isComposing: composing) {
+    case .ignored: return false
+    case .handled: return true
+    case .accept(let item): selectSlashItem(item); return true
+    }
+  }
+
+  private func selectSlashItem(_ item: PopoutSlashItem) {
+    switch item {
+    case .new:
+      store.setTaskWindowDraft("", taskID: taskID)
+      store.discardPopoutTaskIfEmpty(taskID)
+      onHome()
+    case .task(let id):
+      store.setTaskWindowDraft("", taskID: taskID)
+      store.discardPopoutTaskIfEmpty(taskID)
+      onOpenThread(id)
+    case .resume, .empty: break
+    }
+  }
+}
+
+private func popoutSlashKey(_ key: ComposerEditorKey) -> PopoutSlashSelection.Key {
+  switch key {
+  case .up: .previous
+  case .down: .next
+  case .escape: .dismiss
+  case .enter, .tab: .accept
   }
 }
 
