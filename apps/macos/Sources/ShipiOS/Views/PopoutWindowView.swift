@@ -149,6 +149,11 @@ struct PopoutHomeView: View {
       worktreeEligible = eligible
       if !eligible { execution = .local }
     }
+    .task(id: "\(selectedProject ?? "")|\(execution.rawValue)") {
+      if selectedProject != nil, execution == .worktree {
+        await store.refreshEnvironmentCatalog()
+      }
+    }
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewFile == nil, previewImage == nil else { return }
       previewImage = image
@@ -194,6 +199,7 @@ struct PopoutHomeView: View {
     Menu {
       projectMenu
       executionMenu
+      environmentMenu
     } label: {
       Label((selectedProject.map { store.library.projectTitle($0) } ?? "独立聊天")
         + (execution == .worktree ? " · 工作树" : ""),
@@ -243,6 +249,50 @@ struct PopoutHomeView: View {
         .help(choice == .worktree && !worktreeEligible
           ? "初始化 Git 代码仓库以在工作树中运行任务" : "")
       }
+    }
+  }
+
+  private var environmentMenu: some View {
+    Menu("环境") {
+      if let selectedProject {
+        let selection = store.popoutEnvironmentSelection(project: selectedProject)
+        environmentOption("项目默认", id: AutomationEnvironmentChoice.projectDefault,
+          selected: selection, project: selectedProject)
+        environmentOption("无环境", id: WorktreeEnvironmentChoice.none,
+          selected: selection, project: selectedProject)
+        environmentOption("ShipiOS 本地配置", id: WorktreeEnvironmentChoice.legacy,
+          selected: selection, project: selectedProject)
+        Divider()
+        ForEach(store.environmentCatalog[selectedProject]?.filter { $0.error == nil } ?? []) { entry in
+          environmentOption(entry.title, id: entry.id, selected: selection,
+            project: selectedProject)
+        }
+        if store.environmentCatalogLoading {
+          Text("正在读取项目环境…")
+        } else if let error = store.environmentCatalogErrors[selectedProject] {
+          Text("环境列表读取失败：\(error)")
+        } else if store.environmentCatalog[selectedProject]?.isEmpty == true {
+          Text("没有环境文件")
+        }
+        Divider()
+        Button("刷新环境列表") { Task { await store.refreshEnvironmentCatalog() } }
+          .disabled(store.environmentCatalogLoading)
+      }
+    }
+    .disabled(selectedProject == nil || execution != .worktree || submitting
+      || selectedProject.map {
+        store.library.pendingPopoutWorktreeTaskIDs[store.library.primaryFolder(for: $0)] != nil
+      } == true)
+    .help(execution == .worktree ? "选择此工作树任务的环境" : "选择工作树模式后设置环境")
+  }
+
+  private func environmentOption(_ title: String, id: String, selected: String,
+    project: String) -> some View {
+    Button {
+      _ = store.setPopoutEnvironmentSelection(id, project: project)
+    } label: {
+      if selected == id { Label(title, systemImage: "checkmark") }
+      else { Text(title) }
     }
   }
 

@@ -1,6 +1,48 @@
 import Foundation
 
 extension WorkspaceStore {
+  func popoutEnvironmentSelection(project: String) -> String {
+    let sourcePath = library.primaryFolder(for: project)
+    if let taskID = library.pendingPopoutWorktreeTaskIDs[sourcePath],
+      let record = library.managedWorktrees.first(where: { $0.taskID == taskID }),
+      let environment = record.environment {
+      return environment.disabled ? WorktreeEnvironmentChoice.none
+        : (environment.fileName ?? WorktreeEnvironmentChoice.legacy)
+    }
+    return library.newTaskEnvironmentSelections[sourcePath]
+      ?? AutomationEnvironmentChoice.projectDefault
+  }
+
+  @discardableResult func setPopoutEnvironmentSelection(_ selection: String,
+    project: String) -> Bool {
+    guard libraryLoaded, library.isKnownProjectScope(project)
+      || library.projects.contains(project) else { return false }
+    let sourcePath = library.primaryFolder(for: project)
+    guard library.pendingPopoutWorktreeTaskIDs[sourcePath] == nil else {
+      generalSettingsError = "已有待恢复的弹出窗口工作树，环境不能再更改。"
+      return false
+    }
+    let builtIn = [AutomationEnvironmentChoice.projectDefault,
+      WorktreeEnvironmentChoice.none, WorktreeEnvironmentChoice.legacy]
+    guard builtIn.contains(selection) || environmentCatalog[project]?.contains(where: {
+      $0.id == selection && $0.error == nil
+    }) == true else {
+      generalSettingsError = "所选项目环境已不可用，请刷新环境列表。"
+      return false
+    }
+    do {
+      var candidate = library
+      candidate.newTaskEnvironmentSelections[sourcePath] =
+        selection == AutomationEnvironmentChoice.projectDefault ? nil : selection
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return true
+    } catch {
+      generalSettingsError = error.localizedDescription
+      return false
+    }
+  }
+
   /// Keep the home composer intact until a detached checkout and its setup both succeed.
   func preparePopoutWorktreeTask(prompt: String, project selectedProject: String) async -> WorkspaceTask? {
     guard libraryLoaded, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

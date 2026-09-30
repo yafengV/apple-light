@@ -3,6 +3,49 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testPopoutEnvironmentChoiceRunsSelectedCheckoutSetup() async throws {
+    let (base, source) = try await fixture()
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
+    let file = source.appendingPathComponent(".codex/environments/environment.toml")
+    try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
+      withIntermediateDirectories: true)
+    try "version = 1\nname = 'Popout'\n[setup]\nscript = 'printf ready > popout-env-marker'\n"
+      .write(to: file, atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"), agentExecutable: binary)
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+    store.popoutHomeDraft = "Use selected environment"
+    var config = ModelConfiguration()
+    config.baseURL = "http://127.0.0.1:1/v1"
+    config.model = "fixture-model"
+    config.apiProtocol = .codexResponses
+    store.modelConfiguration = config
+    await store.refreshEnvironmentCatalog()
+    let choice = try XCTUnwrap(store.environmentCatalog[source.path]?.first?.id)
+    XCTAssertTrue(store.setPopoutEnvironmentSelection(choice, project: source.path))
+    XCTAssertEqual(store.popoutEnvironmentSelection(project: source.path), choice)
+
+    let prepared = await store.preparePopoutWorktreeTask(
+      prompt: store.popoutHomeDraft, project: source.path)
+    let task = try XCTUnwrap(prepared, store.generalSettingsError ?? "")
+    let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == task.id })
+    XCTAssertEqual(record.environment?.name, "Popout")
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path)
+      .appendingPathComponent("popout-env-marker")), "ready")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: source
+      .appendingPathComponent("popout-env-marker").path))
+    XCTAssertEqual(store.popoutEnvironmentSelection(project: source.path), choice)
+    XCTAssertTrue(store.setPopoutEnvironmentSelection(
+      AutomationEnvironmentChoice.projectDefault, project: source.path))
+    XCTAssertNil(store.library.newTaskEnvironmentSelections[source.path])
+    await store.shutdown()
+  }
+
   @MainActor func testPopoutWorktreePreparationKeepsHomeDraftUntilCheckoutIsReady() async throws {
     let (base, source) = try await fixture()
     let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
