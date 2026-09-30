@@ -752,6 +752,43 @@ final class ModelTransportTests: XCTestCase {
       store.error ?? "")
     await store.shutdown()
   }
+  @MainActor func testPopoutPermissionOverrideReachesCodexCore() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: binary)
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "")
+    XCTAssertEqual(store.library.agentRuntimePreferences.approvalPolicy, .onRequest)
+    XCTAssertTrue(store.savePopoutHomeRuntimePreferences(AgentRuntimePreferences(
+      approvalPolicy: .never, sandboxMode: .workspaceWrite, networkAccess: false)))
+    store.popoutHomeDraft = "codex-approval"
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      project: project.path))
+    XCTAssertEqual(store.runtimePermissions(for: task.id).approvalPolicy, .never)
+
+    await store.sendTaskWindowDraft(task.id, mode: .standard)
+    let run = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: run.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run.id })
+    XCTAssertNotEqual(finished.status, "running")
+    XCTAssertTrue(finished.toolExecutions.contains {
+      $0.arguments.contains("approval-proof.txt")
+    }, finished.result?["message"].text ?? "Codex command did not run")
+    XCTAssertFalse(store.mcpPendingApprovals.values.contains { $0.runID == run.id })
+    XCTAssertFalse(FileManager.default.fileExists(atPath:
+      project.appendingPathComponent("approval-proof.txt").path))
+    await store.shutdown()
+  }
   @MainActor func testInitCreatesGuideInOwningProjectAndPreservesExistingGuide() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

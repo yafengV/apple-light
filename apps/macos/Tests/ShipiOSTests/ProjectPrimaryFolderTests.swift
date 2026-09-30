@@ -104,6 +104,11 @@ final class ProjectPrimaryFolderTests: XCTestCase {
     XCTAssertThrowsError(try store.saveProjectEdit(edit, title: edit.title, folders: [original.path], primary: primary.path))
     XCTAssertEqual(store.library.pendingManagedDraftTaskIDs[original.path], "pending")
     store.library.pendingManagedDraftTaskIDs = [:]
+    store.library.pendingPopoutWorktreeTaskIDs[original.path] = "popout-pending"
+    XCTAssertThrowsError(try store.saveProjectEdit(edit, title: edit.title,
+      folders: [original.path], primary: primary.path))
+    XCTAssertEqual(store.library.pendingPopoutWorktreeTaskIDs[original.path], "popout-pending")
+    store.library.pendingPopoutWorktreeTaskIDs = [:]
     store.library.projectPrimaryFolders[original.path] = primary.path
     XCTAssertThrowsError(try store.saveProjectEdit(edit, title: edit.title, folders: [original.path], primary: original.path))
     XCTAssertEqual(store.library.primaryFolder(for: original.path), primary.path)

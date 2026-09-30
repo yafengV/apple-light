@@ -28,9 +28,11 @@ extension WorkspaceStore {
     let validated = try ProjectFolders.canonical([primary ?? request.primaryPath] + folders)
     let selectedPrimary = validated[0]
     if selectedPrimary != request.primaryPath,
-      library.pendingManagedDraftTaskIDs.keys.contains(where: {
+      (library.pendingManagedDraftTaskIDs.keys.contains(where: {
         library.projectOwner(for: $0) == request.project
-      }) {
+      }) || library.pendingPopoutWorktreeTaskIDs.keys.contains(where: {
+        library.projectOwner(for: $0) == request.project
+      })) {
       throw AgentFailure(message: "此项目还有待恢复的工作树任务，请先恢复任务再更改主目录。")
     }
     guard !library.isKnownProjectScope(selectedPrimary)
