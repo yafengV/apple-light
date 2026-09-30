@@ -95,6 +95,41 @@ import XCTest
     XCTAssertEqual(store.library.pinnedContentTabs.count, 1)
   }
 
+  func testPinnedFileRestoresExactPathAfterTaskWindowCloses() async throws {
+    let (store, resources, tabs) = try fixture()
+    let root = try XCTUnwrap(store.project)
+    try "source".write(to: root.appendingPathComponent("Source.swift"), atomically: true, encoding: .utf8)
+    XCTAssertTrue(tabs.openFile("Source.swift"))
+    let source = try XCTUnwrap(tabs.focused)
+    resources.pin(source.id, taskID: "popup")
+    let pin = try XCTUnwrap(store.library.pinnedContentTabs.first)
+    XCTAssertEqual(pin.restoreURL, "Source.swift")
+    resources.shutdown()
+    XCTAssertFalse(store.pinnedWorkspaceTabIsLive(pin))
+
+    await store.openPinnedWorkspaceTab(pin.id)
+    let restored = try XCTUnwrap(store.library.pinnedContentTabs.first)
+    XCTAssertEqual(store.activeWorkspaceContentTab, .file("Source.swift", owner: "popup"))
+    XCTAssertEqual(restored.restoreURL, "Source.swift")
+    XCTAssertNil(restored.sourceWindowID)
+    XCTAssertTrue(store.pinnedWorkspaceTabIsLive(restored))
+  }
+
+  func testOlderPinnedFileWithoutRestoreURLUsesItsSourceIdentity() async throws {
+    let (store, resources, tabs) = try fixture()
+    let root = try XCTUnwrap(store.project)
+    try "source".write(to: root.appendingPathComponent("Legacy.swift"), atomically: true, encoding: .utf8)
+    XCTAssertTrue(tabs.openFile("Legacy.swift"))
+    resources.pin(try XCTUnwrap(tabs.focusedID), taskID: "popup")
+    resources.shutdown()
+    store.library.pinnedContentTabs[0].restoreURL = nil
+    let pinID = store.library.pinnedContentTabs[0].id
+
+    await store.openPinnedWorkspaceTab(pinID)
+    XCTAssertEqual(store.activeWorkspaceContentTab, .file("Legacy.swift", owner: "popup"))
+    XCTAssertEqual(store.library.pinnedContentTabs[0].restoreURL, "Legacy.swift")
+  }
+
   func testTerminalPinFollowsRestartAndClosingWindowStopsAllLiveResources() throws {
     let (store, resources, tabs) = try fixture()
     tabs.newTerminal()

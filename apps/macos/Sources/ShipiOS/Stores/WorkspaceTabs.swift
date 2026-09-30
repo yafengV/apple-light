@@ -182,7 +182,10 @@ extension WorkspaceStore {
       }
       activateWorkspaceTab(sourceID)
     case .file:
-      guard openFileTab(pin.restoreURL ?? "") else {
+      let prefix = "file:\(pin.owner):"
+      let path = pin.restoreURL ?? (pin.sourceTabID.hasPrefix(prefix)
+        ? String(pin.sourceTabID.dropFirst(prefix.count)) : nil)
+      guard let path, openFileTab(path) else {
         error = "此文件标签不可用。可以保留固定项或取消固定。"
         return
       }
@@ -191,6 +194,7 @@ extension WorkspaceStore {
         library.pinnedContentTabs[index].sourceTabID = tab.id
         library.pinnedContentTabs[index].sourceWindowID = nil
         library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
+        library.pinnedContentTabs[index].restoreURL = path
         saveLibrary()
       }
     case .review:

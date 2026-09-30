@@ -108,9 +108,10 @@ import Observation
   }
   private func reference(_ tab: WorkspaceContentTab, tabs: TaskWindowTabs) -> PinnedWorkspaceTab {
     let browser = tab.browserID.flatMap { id in tabs.browser.session.tabs.first { $0.id == id } }
+    let filePath: String? = { if case .file(let path, _) = tab { return path }; return nil }()
     return PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: tab.owner,
-      kind: tab.kind,
-      title: tabs.title(tab), restoreURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString ?? browser?.address,
+      kind: tab.kind, title: tabs.title(tab),
+      restoreURL: filePath ?? tab.pullRequestURL ?? browser?.committedURL?.absoluteString ?? browser?.address,
       sourceWindowID: id)
   }
   func capturePins() {
