@@ -319,9 +319,13 @@ struct FileSourcePreview: NSViewRepresentable {
         return
       }
       let width = max(320, min(520, window.frame.width - 32))
-      if workspace.selectionEdit.proposal != nil {
+      if let proposal = workspace.selectionEdit.proposal {
         dismissSelectionEditor()
-        showInlineReview(in: text, store: store, workspace: workspace, request: request, width: width)
+        if let selected = request.selectedText, proposal.prefersInlineReview(selectedText: selected) {
+          showInlineReview(in: text, store: store, workspace: workspace, request: request, width: width)
+        } else {
+          dismissInlineReview()
+        }
         return
       }
       dismissInlineReview()

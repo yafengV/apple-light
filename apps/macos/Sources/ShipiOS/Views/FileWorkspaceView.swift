@@ -79,14 +79,23 @@ struct FileWorkspaceView: View {
             Button("重试") { workspace.selectFile(file) }
           }.appFont(.caption).padding(10)
         }
-        FileSourcePreview(store: store, workspace: workspace, taskID: taskID)
-          .frame(maxHeight: .infinity)
-          .overlay(alignment: .topTrailing) {
-            if workspace.fileFind.isPresented {
-              FileFindBar(workspace: workspace).padding(12)
+        ZStack {
+          FileSourcePreview(store: store, workspace: workspace, taskID: taskID)
+            .overlay(alignment: .topTrailing) {
+              if workspace.fileFind.isPresented {
+                FileFindBar(workspace: workspace).padding(12)
+              }
             }
+            .overlay { if workspace.fileLoading { ProgressView("正在读取文件…") } }
+          if workspace.selectionEdit.isPresented,
+            let request = workspace.selectionEdit.request,
+            let proposal = workspace.selectionEdit.proposal,
+            workspace.selectedFile == request.path,
+            let selected = request.selectedText,
+            !proposal.prefersInlineReview(selectedText: selected) {
+            FileSelectionFullReviewView(workspace: workspace, request: request, proposal: proposal)
           }
-          .overlay { if workspace.fileLoading { ProgressView("正在读取文件…") } }
+        }.frame(maxHeight: .infinity)
       }
     }.confirmationDialog("保存此文件的更改？", isPresented: Binding(
       get: { workspace.fileCloseRequest != nil },

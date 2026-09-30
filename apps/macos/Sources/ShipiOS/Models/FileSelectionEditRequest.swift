@@ -69,4 +69,12 @@ struct FileSelectionEditRequest: Sendable {
 struct FileSelectionEditProposal: Equatable {
   let replacement: String
   let content: String
+
+  func prefersInlineReview(selectedText: String) -> Bool {
+    let original = selectedText as NSString
+    let replacement = replacement as NSString
+    return original.length + replacement.length <= 4_000
+      && selectedText.components(separatedBy: "\n").count <= 40
+      && self.replacement.components(separatedBy: "\n").count <= 40
+  }
 }

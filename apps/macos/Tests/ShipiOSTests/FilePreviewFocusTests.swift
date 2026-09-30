@@ -145,6 +145,52 @@ import XCTest
     host.layoutSubtreeIfNeeded()
     XCTAssertEqual(text.frame.height, initialHeight, accuracy: 1)
   }
+  func testLargeSelectionUsesFullFileReviewWithoutInlineWidget() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = "before\n" + String(repeating: "a", count: 4_000) + "\nafter"
+    try source.write(to: root.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Edit.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 850, height: 620),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileWorkspaceView(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 850, height: 620)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func editor(in view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(editor).first
+    }
+    let text = try XCTUnwrap(editor(in: host))
+    text.setSelectedRange(NSRange(location: 7, length: 4_000))
+    workspace.selectionEdit.selectionChanged(in: text)
+    workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
+    workspace.selectionEdit.instruction = "replace"
+    workspace.selectionEdit.generate { request in try request.proposal(from: "B") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertNotNil(workspace.selectionEdit.proposal)
+    XCTAssertFalse(text.subviews.contains(where: { $0 is NSHostingView<FileSelectionEditPanel> }))
+    XCTAssertEqual(text.string, source)
+    workspace.selectionEdit.revise()
+    XCTAssertNil(workspace.selectionEdit.proposal)
+    XCTAssertTrue(workspace.selectionEdit.isPresented)
+    workspace.selectionEdit.generate { request in try request.proposal(from: "B") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    XCTAssertTrue(workspace.selectionEdit.accept(path: workspace.selectedFile, source: workspace.fileText))
+    XCTAssertEqual(workspace.fileText, "before\nB\nafter")
+    text.undoManager?.undo()
+    XCTAssertEqual(workspace.fileText, source)
+  }
   func testSelectionEditRequiresReviewAndKeepsNativeUndo() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
