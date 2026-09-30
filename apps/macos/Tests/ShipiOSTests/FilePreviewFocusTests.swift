@@ -94,6 +94,57 @@ import XCTest
     XCTAssertEqual(restoredY, originalY, accuracy: 1)
     XCTAssertFalse(text.subviews.contains(where: { $0 is NSHostingView<FileSelectionEditPanel> }))
   }
+  func testSelectionReviewAtEndOfFileHasScrollableSpace() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = (0..<30).map { "line \($0)" }.joined(separator: "\n")
+    try source.write(to: root.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Edit.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 540, height: 330),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 540, height: 330)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func editor(in view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(editor).first
+    }
+    let text = try XCTUnwrap(editor(in: host))
+    let layout = try XCTUnwrap(text.layoutManager)
+    let container = try XCTUnwrap(text.textContainer)
+    layout.ensureLayout(for: container)
+    let initialHeight = text.frame.height
+    let finalLine = (source as NSString).range(of: "line 29")
+    text.setSelectedRange(finalLine)
+    workspace.selectionEdit.selectionChanged(in: text)
+    workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
+    workspace.selectionEdit.instruction = "uppercase"
+    workspace.selectionEdit.generate { request in try request.proposal(from: "LINE 29") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    layout.ensureLayout(for: container)
+    XCTAssertGreaterThan(text.frame.height - initialHeight, 260,
+      "Review after the final line must extend the scrollable document")
+    let review = try XCTUnwrap(text.subviews.first(where: { $0 is NSHostingView<FileSelectionEditPanel> }))
+    XCTAssertLessThan(review.frame.maxY, text.frame.height)
+    XCTAssertTrue(text.visibleRect.contains(review.frame),
+      "Opening a review at the end of a file should reveal the complete controls")
+    XCTAssertEqual(text.string, source)
+    workspace.selectionEdit.close()
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(text.frame.height, initialHeight, accuracy: 1)
+  }
   func testSelectionEditRequiresReviewAndKeepsNativeUndo() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

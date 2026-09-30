@@ -248,7 +248,10 @@ struct FileSourcePreview: NSViewRepresentable {
       inlineReview = nil
       if let text = inlineText, inlineLayout.anchorGlyph != nil {
         inlineLayout.anchorGlyph = nil
+        inlineLayout.anchorIsEOF = false
         invalidateInlineLayout(in: text)
+        text.minSize.height = 0
+        text.sizeToFit()
       }
       inlineText = nil
     }
@@ -267,6 +270,10 @@ struct FileSourcePreview: NSViewRepresentable {
       let line = layout.lineFragmentUsedRect(forGlyphAt: glyph, effectiveRange: nil)
       let origin = text.textContainerOrigin
       inlineReview.frame.origin = NSPoint(x: origin.x + 8, y: origin.y + line.maxY + 2)
+      if inlineLayout.anchorIsEOF {
+        text.minSize.height = inlineReview.frame.maxY + text.textContainerInset.height + 8
+        text.sizeToFit()
+      }
     }
     @MainActor private func showInlineReview(in text: FilePreviewTextView, store: WorkspaceStore,
       workspace: DeveloperWorkspace, request: FileSelectionEditRequest, width: CGFloat) {
@@ -276,11 +283,15 @@ struct FileSourcePreview: NSViewRepresentable {
       let lastCharacter = NSMaxRange(request.range) - 1
       let line = source.lineRange(for: NSRange(location: lastCharacter, length: 0))
       let anchor = layout.glyphIndexForCharacter(at: min(NSMaxRange(line) - 1, source.length - 1))
-      if inlineLayout.anchorGlyph != anchor {
+      let ending = source.character(at: source.length - 1)
+      let anchorIsEOF = NSMaxRange(line) == source.length && ending != 10 && ending != 13
+      if inlineLayout.anchorGlyph != anchor || inlineLayout.anchorIsEOF != anchorIsEOF {
         inlineLayout.anchorGlyph = anchor
+        inlineLayout.anchorIsEOF = anchorIsEOF
         invalidateInlineLayout(in: text)
       }
       let reviewWidth = min(width, max(320, text.visibleRect.width - 40))
+      let created = inlineReview == nil
       if inlineReview == nil {
         let view = NSHostingView(rootView: FileSelectionEditPanel(store: store, workspace: workspace,
           taskID: taskID, onReviewChange: { [weak self, weak text, weak store, weak workspace] _ in
@@ -295,6 +306,7 @@ struct FileSourcePreview: NSViewRepresentable {
       }
       inlineReview?.frame.size = NSSize(width: reviewWidth, height: FileSelectionInlineLayout.reviewHeight - 8)
       positionInlineReview(in: text)
+      if created, let inlineReview { text.scrollToVisible(inlineReview.frame) }
     }
     @MainActor func syncSelectionEditor(in text: FilePreviewTextView, store: WorkspaceStore,
       workspace: DeveloperWorkspace) {
@@ -385,10 +397,19 @@ struct FileSourcePreview: NSViewRepresentable {
 final class FileSelectionInlineLayout: NSObject, NSLayoutManagerDelegate {
   static let reviewHeight: CGFloat = 276
   var anchorGlyph: Int?
+  var anchorIsEOF = false
 
   func layoutManager(_ layoutManager: NSLayoutManager, paragraphSpacingAfterGlyphAt glyphIndex: Int,
     withProposedLineFragmentRect rect: NSRect) -> CGFloat {
     glyphIndex == anchorGlyph ? Self.reviewHeight + 12 : 0
+  }
+
+  func layoutManager(_ layoutManager: NSLayoutManager, shouldSetLineFragmentRect lineFragmentRect: UnsafeMutablePointer<NSRect>,
+    lineFragmentUsedRect: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>,
+    in textContainer: NSTextContainer, forGlyphRange glyphRange: NSRange) -> Bool {
+    guard anchorIsEOF, let anchorGlyph, NSLocationInRange(anchorGlyph, glyphRange) else { return false }
+    lineFragmentRect.pointee.size.height += Self.reviewHeight + 12
+    return true
   }
 }
 
