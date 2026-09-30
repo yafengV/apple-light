@@ -4,6 +4,103 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class FilePreviewFocusTests: XCTestCase {
+  func testSelectionEditHighlightKeepsFindColorsOutsideMarkedRange() throws {
+    let text = FilePreviewTextView(frame: .init(x: 0, y: 0, width: 400, height: 200))
+    text.string = "before selected after"
+    let layout = try XCTUnwrap(text.layoutManager)
+    let highlight = FileSelectionInlineLayout()
+    let range = NSRange(location: 7, length: 8)
+    let purple = NSColor.systemPurple.withAlphaComponent(0.32)
+    highlight.updateHighlight(in: text, range: range, color: purple)
+    let findColor = NSColor.systemYellow
+    let attrs: [NSAttributedString.Key: Any] = [.backgroundColor: findColor]
+    var before = NSRange(location: 0, length: 21)
+    let preceding = highlight.layoutManager(layout, shouldUseTemporaryAttributes: attrs,
+      forDrawingToScreen: true, atCharacterIndex: 2, effectiveRange: &before)
+    XCTAssertEqual(before, NSRange(location: 0, length: 7))
+    XCTAssertTrue((preceding?[.backgroundColor] as? NSColor)?.isEqual(findColor) == true)
+    var selected = NSRange(location: 0, length: 21)
+    let marked = highlight.layoutManager(layout, shouldUseTemporaryAttributes: attrs,
+      forDrawingToScreen: true, atCharacterIndex: 9, effectiveRange: &selected)
+    XCTAssertEqual(selected, range)
+    XCTAssertTrue((marked?[.backgroundColor] as? NSColor)?.isEqual(purple) == true)
+    var after = NSRange(location: 0, length: 21)
+    let following = highlight.layoutManager(layout, shouldUseTemporaryAttributes: attrs,
+      forDrawingToScreen: true, atCharacterIndex: 18, effectiveRange: &after)
+    XCTAssertEqual(after, NSRange(location: 15, length: 6))
+    XCTAssertTrue((following?[.backgroundColor] as? NSColor)?.isEqual(findColor) == true)
+    XCTAssertNil(highlight.layoutManager(layout, shouldUseTemporaryAttributes: attrs,
+      forDrawingToScreen: false, atCharacterIndex: 9, effectiveRange: nil))
+    XCTAssertEqual(text.string, "before selected after")
+  }
+
+  func testSelectionEditHighlightsGeneratingAndInlineReviewWithoutChangingSource() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = "before selected after"
+    try source.write(to: root.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Edit.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 560, height: 330),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 560, height: 330)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func editor(in view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(editor).first
+    }
+    let text = try XCTUnwrap(editor(in: host))
+    let highlight = try XCTUnwrap(text.layoutManager?.delegate as? FileSelectionInlineLayout)
+    let originalSelectionColor = text.selectedTextAttributes[.backgroundColor] as? NSColor
+    func selectionColor() -> NSColor? { text.selectedTextAttributes[.backgroundColor] as? NSColor }
+    func sameColor(_ left: NSColor?, _ right: NSColor?) -> Bool {
+      left == nil && right == nil || left?.isEqual(right) == true
+    }
+    let range = NSRange(location: 7, length: 8)
+    text.setSelectedRange(range)
+    workspace.selectionEdit.selectionChanged(in: text)
+    workspace.selectionEdit.open(path: "Edit.swift", source: source)
+    workspace.selectionEdit.instruction = "uppercase"
+    workspace.selectionEdit.generate { request in
+      try await Task.sleep(for: .seconds(5))
+      return try request.proposal(from: "SELECTED")
+    }
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(highlight.highlightRange, range, "Generating should mark the original selection")
+    let pendingColor = try XCTUnwrap(selectionColor())
+    XCTAssertFalse(sameColor(pendingColor, originalSelectionColor))
+    text.setSelectedRange(NSRange(location: 0, length: 6))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertNil(highlight.highlightRange, "Moving the selection should remove the old mark")
+    XCTAssertTrue(sameColor(selectionColor(), originalSelectionColor))
+    text.setSelectedRange(range)
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(highlight.highlightRange, range)
+    workspace.selectionEdit.cancel()
+    workspace.selectionEdit.generate { request in try request.proposal(from: "SELECTED") }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertEqual(highlight.highlightRange, range, "Inline review should retain its source mark")
+    XCTAssertFalse(sameColor(selectionColor(), pendingColor))
+    workspace.selectionEdit.close()
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertNil(highlight.highlightRange)
+    XCTAssertTrue(sameColor(selectionColor(), originalSelectionColor))
+    XCTAssertEqual(text.string, source)
+  }
+
   func testSelectionReviewPanelSignalsModeChanges() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -49,6 +49,7 @@ struct FileSourcePreview: NSViewRepresentable {
     scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
     let coordinator = context.coordinator
     coordinator.taskID = taskID
+    coordinator.appearance = appearance
     // Swift strings compare canonically; the byte revision also observes source
     // changes that look equal but have different UTF-16 positions.
     _ = workspace.fileContentVersion
@@ -145,6 +146,7 @@ struct FileSourcePreview: NSViewRepresentable {
     private var selectionActionRange: NSRange?
     private var selectionEditor: NSPopover?
     let inlineLayout = FileSelectionInlineLayout()
+    var appearance = AppearancePreferences()
     private var inlineReview: NSHostingView<FileSelectionEditPanel>?
     private weak var inlineText: FilePreviewTextView?
     weak var store: WorkspaceStore?
@@ -310,6 +312,7 @@ struct FileSourcePreview: NSViewRepresentable {
     }
     @MainActor func syncSelectionEditor(in text: FilePreviewTextView, store: WorkspaceStore,
       workspace: DeveloperWorkspace) {
+      syncSelectionHighlight(in: text, workspace: workspace)
       guard workspace.selectionEdit.isPresented, let request = workspace.selectionEdit.request,
         workspace.selectedFile == request.path, !workspace.fileLoading,
         NSMaxRange(request.range) <= (text.string as NSString).length,
@@ -345,15 +348,39 @@ struct FileSourcePreview: NSViewRepresentable {
       selectionEditor = popover
       popover.show(relativeTo: anchor, of: text, preferredEdge: .maxY)
     }
+    @MainActor private func syncSelectionHighlight(in text: FilePreviewTextView,
+      workspace: DeveloperWorkspace) {
+      let session = workspace.selectionEdit
+      guard session.isPresented, let request = session.request,
+        workspace.selectedFile == request.path, !workspace.fileLoading,
+        text.string.utf8.elementsEqual(request.source.utf8),
+        text.selectedRange() == request.range,
+        NSMaxRange(request.range) <= (text.string as NSString).length else {
+        inlineLayout.updateHighlight(in: text, range: nil, color: nil)
+        return
+      }
+      if session.generating {
+        inlineLayout.updateHighlight(in: text, range: request.range,
+          color: NSColor.systemPurple.withAlphaComponent(0.32))
+      } else if let proposal = session.proposal, let selected = request.selectedText,
+        proposal.prefersInlineReview(selectedText: selected) {
+        inlineLayout.updateHighlight(in: text, range: request.range,
+          color: NSColor(appearance.diffRemovedColor).withAlphaComponent(0.28))
+      } else {
+        inlineLayout.updateHighlight(in: text, range: nil, color: nil)
+      }
+    }
     func textDidChange(_ notification: Notification) {
-      guard !applyingProgrammaticText, let text = notification.object as? NSTextView,
+      guard !applyingProgrammaticText, let text = notification.object as? FilePreviewTextView,
         let workspace, workspace.selectedFileEditor != nil,
         !text.string.utf8.elementsEqual(workspace.fileText.utf8) else { return }
       workspace.editSelectedFile(text.string)
+      syncSelectionHighlight(in: text, workspace: workspace)
     }
     func textViewDidChangeSelection(_ notification: Notification) {
       guard let text = notification.object as? FilePreviewTextView, let workspace else { return }
       workspace.selectionEdit.selectionChanged(in: text)
+      syncSelectionHighlight(in: text, workspace: workspace)
       updateSelectionAction(in: text, workspace: workspace)
     }
     @MainActor private func updateSelectionAction(in text: FilePreviewTextView, workspace: DeveloperWorkspace) {
@@ -402,6 +429,53 @@ final class FileSelectionInlineLayout: NSObject, NSLayoutManagerDelegate {
   static let reviewHeight: CGFloat = 276
   var anchorGlyph: Int?
   var anchorIsEOF = false
+  private(set) var highlightRange: NSRange?
+  private var highlightColor: NSColor?
+  private var originalSelectionAttributes: [NSAttributedString.Key: Any]?
+
+  func updateHighlight(in text: NSTextView, range: NSRange?, color: NSColor?) {
+    let previous = highlightRange
+    if previous == range,
+      (highlightColor == nil && color == nil || highlightColor?.isEqual(color) == true) { return }
+    if let color, range == text.selectedRange() {
+      if originalSelectionAttributes == nil { originalSelectionAttributes = text.selectedTextAttributes }
+      var attributes = originalSelectionAttributes ?? text.selectedTextAttributes
+      attributes[.backgroundColor] = color
+      attributes[.foregroundColor] = NSColor.labelColor
+      text.selectedTextAttributes = attributes
+    } else if let originalSelectionAttributes {
+      text.selectedTextAttributes = originalSelectionAttributes
+      self.originalSelectionAttributes = nil
+    }
+    highlightRange = range
+    highlightColor = color
+    if let previous { text.layoutManager?.invalidateDisplay(forCharacterRange: previous) }
+    if let range { text.layoutManager?.invalidateDisplay(forCharacterRange: range) }
+  }
+
+  func layoutManager(_ layoutManager: NSLayoutManager,
+    shouldUseTemporaryAttributes attrs: [NSAttributedString.Key: Any], forDrawingToScreen toScreen: Bool,
+    atCharacterIndex charIndex: Int, effectiveRange effectiveCharRange: NSRangePointer?)
+    -> [NSAttributedString.Key: Any]? {
+    guard toScreen else { return nil }
+    guard let highlightRange, let highlightColor else { return attrs }
+    if let effectiveCharRange {
+      let current = effectiveCharRange.pointee
+      if charIndex < highlightRange.location {
+        effectiveCharRange.pointee = NSRange(location: current.location,
+          length: min(NSMaxRange(current), highlightRange.location) - current.location)
+      } else if charIndex >= NSMaxRange(highlightRange) {
+        let location = max(current.location, NSMaxRange(highlightRange))
+        effectiveCharRange.pointee = NSRange(location: location, length: NSMaxRange(current) - location)
+      } else {
+        effectiveCharRange.pointee = NSIntersectionRange(current, highlightRange)
+      }
+    }
+    guard NSLocationInRange(charIndex, highlightRange) else { return attrs }
+    var colored = attrs
+    colored[.backgroundColor] = highlightColor
+    return colored
+  }
 
   func layoutManager(_ layoutManager: NSLayoutManager, paragraphSpacingAfterGlyphAt glyphIndex: Int,
     withProposedLineFragmentRect rect: NSRect) -> CGFloat {

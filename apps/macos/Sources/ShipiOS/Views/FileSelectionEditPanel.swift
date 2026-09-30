@@ -60,6 +60,7 @@ struct FileSelectionEditPanel: View {
     }.appFont(.caption).padding(10).background(Color.secondary.opacity(0.06))
       .task { instructionFocused = true }
       .onChange(of: session.proposal != nil) { _, visible in onReviewChange?(visible) }
+      .onChange(of: session.generating) { _, _ in onReviewChange?(session.proposal != nil) }
       .onExitCommand { session.close(); workspace.fileFocusRequest = UUID() }
   }
 
