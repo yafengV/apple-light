@@ -3,6 +3,24 @@ import CryptoKit
 import Foundation
 
 extension WorkspaceStore {
+  static let popoutHomeDraftKey = "popout-home"
+
+  var popoutHomeDraft: String {
+    get { library.drafts[Self.popoutHomeDraftKey] ?? "" }
+    set {
+      library.drafts[Self.popoutHomeDraftKey] = newValue
+      saveLibrary()
+    }
+  }
+
+  var popoutHomeImages: [ImageAttachment] {
+    library.draftImages[Self.popoutHomeDraftKey] ?? []
+  }
+
+  var popoutHomeFiles: [FileAttachment] {
+    library.draftFiles[Self.popoutHomeDraftKey] ?? []
+  }
+
   var pluginsEnabled: Bool {
     get { library.pluginsEnabled }
     set {
@@ -120,10 +138,33 @@ extension WorkspaceStore {
   }
 
   func preparePopoutTask(prompt: String, projectless: Bool) -> WorkspaceTask? {
-    guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-      let task = createPopoutTask(projectless: projectless) else { return nil }
-    setTaskWindowDraft(prompt, taskID: task.id)
-    return task
+    guard libraryLoaded else {
+      generalSettingsError = "工作区尚未完成加载，请稍后再新建窗口。"
+      return nil
+    }
+    guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      || !popoutHomeImages.isEmpty || !popoutHomeFiles.isEmpty else { return nil }
+    let project = projectless ? "" : library.primaryFolder(for: currentProjectKey)
+    let now = Date()
+    let task = WorkspaceTask(
+      id: UUID().uuidString, project: project, title: "新任务", runIDs: [], popoutDraft: true,
+      createdAt: now, updatedAt: now)
+    do {
+      var candidate = library
+      candidate.tasks.insert(task, at: 0)
+      candidate.drafts[task.id] = prompt
+      candidate.draftImages[task.id] = candidate.draftImages[Self.popoutHomeDraftKey]
+      candidate.draftFiles[task.id] = candidate.draftFiles[Self.popoutHomeDraftKey]
+      candidate.drafts[Self.popoutHomeDraftKey] = nil
+      candidate.draftImages[Self.popoutHomeDraftKey] = nil
+      candidate.draftFiles[Self.popoutHomeDraftKey] = nil
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return task
+    } catch {
+      generalSettingsError = "无法创建弹出任务：\(error.localizedDescription)"
+      return nil
+    }
   }
 
   func discardPopoutTaskIfEmpty(_ taskID: String) {

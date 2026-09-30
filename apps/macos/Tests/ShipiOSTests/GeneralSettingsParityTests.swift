@@ -285,6 +285,54 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertEqual(store.library.tasks.filter(\.isPopoutDraft).count, 1)
   }
 
+  @MainActor func testPopoutHomeTransfersAttachmentsAndKeepsOtherDraftsSeparate() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.draft = "Main window draft"
+    store.popoutHomeDraft = "Popout prompt"
+    let unsent = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(unsent.drafts[WorkspaceStore.popoutHomeDraftKey], "Popout prompt")
+    let image = ImageAttachment(id: UUID(), name: "screen.png", mimeType: "image/png",
+      byteCount: 4, sha256: "image")
+    let file = FileAttachment(id: UUID(), name: "notes.txt", byteCount: 5,
+      sha256: "file", isPDF: false)
+    store.library.draftImages[WorkspaceStore.popoutHomeDraftKey] = [image]
+    store.library.draftFiles[WorkspaceStore.popoutHomeDraftKey] = [file]
+
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      projectless: true))
+    XCTAssertEqual(store.taskWindowDraft(task.id), "Popout prompt")
+    XCTAssertEqual(store.taskWindowImages(task.id).map(\.id), [image.id])
+    XCTAssertEqual(store.taskWindowFiles(task.id).map(\.id), [file.id])
+    XCTAssertEqual(store.popoutHomeDraft, "")
+    XCTAssertTrue(store.popoutHomeImages.isEmpty)
+    XCTAssertTrue(store.popoutHomeFiles.isEmpty)
+    XCTAssertEqual(store.draft, "Main window draft")
+
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(restored.drafts[task.id], "Popout prompt")
+    XCTAssertEqual(restored.draftImages[task.id]?.map(\.id), [image.id])
+    XCTAssertEqual(restored.draftFiles[task.id]?.map(\.id), [file.id])
+    XCTAssertNil(restored.draftImages[WorkspaceStore.popoutHomeDraftKey])
+  }
+
+  @MainActor func testPopoutHomeAllowsAttachmentOnlyFirstMessage() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    XCTAssertNil(store.preparePopoutTask(prompt: "  ", projectless: true))
+    let file = FileAttachment(id: UUID(), name: "notes.txt", byteCount: 5,
+      sha256: "file", isPDF: false)
+    store.library.draftFiles[WorkspaceStore.popoutHomeDraftKey] = [file]
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: "", projectless: true))
+    XCTAssertEqual(store.taskWindowDraft(task.id), "")
+    XCTAssertEqual(store.taskWindowFiles(task.id).map(\.id), [file.id])
+    XCTAssertTrue(store.popoutHomeFiles.isEmpty)
+  }
+
   @MainActor func testPopoutDraftStaysHiddenPromotesOnFirstRunAndEmptyDraftCanBeDiscarded() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

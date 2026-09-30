@@ -5,12 +5,21 @@ struct PopoutHomeView: View {
   @Bindable var store: WorkspaceStore
   let onSubmit: (String, Bool) -> Bool
   let onHide: () -> Void
-  @State private var draft = ""
   @State private var projectless: Bool
   @State private var focused = false
   @State private var focusRequest = UUID()
+  @State private var previewFile: FileAttachment?
+  @State private var previewImage: ImagePreviewItem?
+  @State private var previewImages: [ImagePreviewItem] = []
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
+  private var draft: Binding<String> {
+    Binding(get: { store.popoutHomeDraft }, set: { store.popoutHomeDraft = $0 })
+  }
+  private var hasContent: Bool {
+    !store.popoutHomeDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      || !store.popoutHomeImages.isEmpty || !store.popoutHomeFiles.isEmpty
+  }
 
   init(store: WorkspaceStore, onSubmit: @escaping (String, Bool) -> Bool,
     onHide: @escaping () -> Void) {
@@ -28,21 +37,40 @@ struct PopoutHomeView: View {
         Button { onHide() } label: { Image(systemName: "xmark") }
           .buttonStyle(.plain).accessibilityLabel("隐藏弹出窗口")
       }
-      ComposerTextEditor(text: $draft,
+      if !store.popoutHomeImages.isEmpty || !store.popoutHomeFiles.isEmpty {
+        ScrollView(.vertical) {
+          VStack(alignment: .leading, spacing: 6) {
+            ImageAttachmentsView(store: store, images: store.popoutHomeImages, removable: true,
+              onRemove: { store.removeDraftImage($0, draft: WorkspaceStore.popoutHomeDraftKey) })
+            FileAttachmentsView(store: store, files: store.popoutHomeFiles, removable: true,
+              onPreview: { previewFile = $0 },
+              onRemove: { store.removeDraftFile($0, draft: WorkspaceStore.popoutHomeDraftKey) })
+          }
+        }.frame(maxHeight: 100)
+      }
+      ComposerTextEditor(text: draft,
         focused: $focused, plainTextMode: store.composerPlainTextMode,
         placeholder: "发送消息，或输入 / 选择操作…",
         accessibilityLabel: "弹出窗口消息", focusRequest: focusRequest,
         onKey: { key, modifiers, composing in
           guard shouldSubmit(key, modifiers: modifiers, composing: composing,
-            text: draft, shortcut: sendShortcut, store: store) else { return false }
+            text: draft.wrappedValue, shortcut: sendShortcut, store: store) else { return false }
           submit()
           return true
-        }, onPasteAttachments: { _ in })
+        }, onPasteAttachments: { store.pasteAttachments($0, draft: WorkspaceStore.popoutHomeDraftKey) })
         .frame(maxWidth: .infinity, maxHeight: .infinity)
       if let error = store.generalSettingsError {
         Text(error).appFont(.caption).foregroundStyle(.red)
       }
+      if let error = store.error {
+        Text(error).appFont(.caption).foregroundStyle(.red)
+      }
       HStack(spacing: 12) {
+        Menu {
+          Button("添加图片…") { store.chooseImages(draft: WorkspaceStore.popoutHomeDraftKey) }
+          Button("添加文件…") { store.chooseFiles(draft: WorkspaceStore.popoutHomeDraftKey) }
+        } label: { Image(systemName: "plus") }
+          .menuStyle(.borderlessButton).accessibilityLabel("添加弹出窗口附件")
         Toggle("独立聊天", isOn: $projectless)
           .toggleStyle(.checkbox)
           .help("在任何项目外开始新聊天")
@@ -53,7 +81,7 @@ struct PopoutHomeView: View {
         Spacer()
         Button("发送", action: submit)
           .buttonStyle(.borderedProminent)
-          .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.libraryLoaded)
+          .disabled(!hasContent || !store.libraryLoaded || store.importingImages || store.importingFiles)
       }
     }
     .padding(20)
@@ -64,7 +92,17 @@ struct PopoutHomeView: View {
     .preferredColorScheme(store.appearance.colorScheme)
     .onAppear { focused = true; focusRequest = UUID() }
     .onChange(of: store.popoutWindowProjectlessDefault) { _, value in
-      if draft.isEmpty { projectless = value }
+      if store.popoutHomeDraft.isEmpty { projectless = value }
+    }
+    .environment(\.presentImageGallery) { image, images, _ in
+      previewImage = image
+      previewImages = images
+    }
+    .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: store.dataRoot) }
+    .sheet(item: $previewImage) { image in
+      ImageGalleryPreview(image: image, images: previewImages, root: store.dataRoot) {
+        previewImage = nil
+      }.frame(width: 720, height: 520)
     }
     .onExitCommand(perform: onHide)
   }
@@ -74,7 +112,8 @@ struct PopoutHomeView: View {
   }
 
   private func submit() {
-    if onSubmit(draft, projectless) { draft = "" }
+    guard store.libraryLoaded, !store.importingImages, !store.importingFiles, hasContent else { return }
+    _ = onSubmit(draft.wrappedValue, projectless)
   }
 }
 

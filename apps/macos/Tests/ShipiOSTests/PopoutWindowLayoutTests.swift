@@ -49,6 +49,39 @@ final class PopoutWindowLayoutTests: XCTestCase {
     }
   }
 
+  @MainActor func testHomeWithAttachmentRendersAtFixedReferenceSize() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.popoutHomeDraft = "Describe this file"
+    store.library.draftFiles[WorkspaceStore.popoutHomeDraftKey] = [
+      FileAttachment(id: UUID(), name: "notes.txt", byteCount: 12,
+        sha256: "fixture", isPDF: false)
+    ]
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 470, height: 290),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: PopoutHomeView(store: store,
+      onSubmit: { _, _ in false }, onHide: {}))
+    window.contentView = host
+    host.frame.size = NSSize(width: 470, height: 290)
+    try await Task.sleep(for: .milliseconds(180))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertFalse(window.isVisible)
+    let image = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: image)
+    let data = try XCTUnwrap(image.representation(using: .png, properties: [:]))
+    XCTAssertGreaterThan(data.count, 5_000)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_POPOUT_SNAPSHOTS"] {
+      let folder = URL(fileURLWithPath: path)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      try data.write(to: folder.appendingPathComponent("popout-home-attachment.png"))
+    }
+  }
+
   @MainActor private func textViews(in view: NSView) -> [NSTextView] {
     (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { textViews(in: $0) }
   }
