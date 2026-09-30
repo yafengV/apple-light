@@ -4,6 +4,9 @@ struct FileWorkspaceView: View {
   @Bindable var store: WorkspaceStore
   @Bindable var workspace: DeveloperWorkspace
   var taskID: String? = nil
+  var draftOwner: String? = nil
+  var openInContentTab: ((String) -> Void)? = nil
+  var closeContentTab: (() -> Void)? = nil
   @State private var line = ""
   @State private var lineError = false
   @State private var showingConflict = false
@@ -96,7 +99,7 @@ struct FileWorkspaceView: View {
   @ViewBuilder private func fileDetail(compact: Bool) -> some View {
     if let file = workspace.selectedFile {
       VStack(spacing: 0) {
-        fileTabs
+        if openInContentTab == nil { fileTabs }
         HStack {
           Button {
             if compact { compactTreePresented.toggle() }
@@ -150,7 +153,8 @@ struct FileWorkspaceView: View {
           }.appFont(.caption).padding(10)
         }
         ZStack {
-          FileSourcePreview(store: store, workspace: workspace, taskID: taskID)
+          FileSourcePreview(store: store, workspace: workspace, taskID: taskID,
+            closeContentTab: closeContentTab)
             .overlay(alignment: .topTrailing) {
               if workspace.fileFind.isPresented {
                 FileFindBar(workspace: workspace).padding(12)
@@ -226,11 +230,11 @@ struct FileWorkspaceView: View {
             Button("复制路径") { copyFilePath(node.path) }
           }
       } else {
-        Button { workspace.selectFile(node.path); compactTreePresented = false } label: {
+        Button { openFile(node.path) } label: {
           Label(node.title, systemImage: "doc.text").appFont(.caption).lineLimit(1).help(node.path)
         }.buttonStyle(.plain)
           .contextMenu {
-            Button("打开文件") { workspace.selectFile(node.path); compactTreePresented = false }
+            Button("打开文件") { openFile(node.path) }
             Button("添加到聊天") { Task { await addFileToChat(node.path) } }
             Button("复制路径") { copyFilePath(node.path) }
             Divider()
@@ -240,6 +244,12 @@ struct FileWorkspaceView: View {
           }
       }
     }
+  }
+
+  private func openFile(_ path: String) {
+    if let openInContentTab { openInContentTab(path) }
+    else { workspace.selectFile(path) }
+    compactTreePresented = false
   }
 
   private func copyFilePath(_ path: String) {
@@ -253,7 +263,7 @@ struct FileWorkspaceView: View {
   func addFileToChat(_ path: String) async {
     do {
       let url = try workspace.fileLocation(path).url
-      let draft = taskID ?? store.draftKey
+      let draft = draftOwner ?? taskID ?? store.draftKey
       await store.importDroppedFiles([url], draft: draft)
     } catch { store.error = error.localizedDescription }
   }

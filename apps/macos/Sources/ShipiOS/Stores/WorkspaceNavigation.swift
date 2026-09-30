@@ -59,11 +59,11 @@ extension WorkspaceStore {
     case "sidebar": NotificationCenter.default.post(name: .toggleShipiOSSidebar, object: nil)
     case "send": Task { await sendDraft() }
     case "find-next":
-      if filesVisible, workspace.fileFind.isPresented { workspace.fileFind.move(1) }
+      if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(1) }
       else if let tab = pageFindTab, tab.showingPageFind { tab.findInPage() }
       else { moveFindMatch(1) }
     case "find-previous":
-      if filesVisible, workspace.fileFind.isPresented { workspace.fileFind.move(-1) }
+      if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(-1) }
       else if let tab = pageFindTab, tab.showingPageFind { tab.findInPage(backwards: true) }
       else { moveFindMatch(-1) }
     case "previous-task": adjacentTaskOrTab(-1)
@@ -101,7 +101,8 @@ extension WorkspaceStore {
       } else { newBrowserTab() }
     case "browser-new": newBrowserTab()
     case "browser-address":
-      if filesVisible { workspace.showingFileLine = true }
+      if let file = commandFileWorkspace { file.showingFileLine = true }
+      else if filesVisible { workspace.showingFileLine = true }
       else { performBrowserCommand(id) }
     case "browser-back", "browser-forward", "browser-reload", "browser-reload-origin", "browser-copy",
       "browser-comment-mode", "browser-close",
@@ -130,8 +131,8 @@ extension WorkspaceStore {
     case "find":
       if destination == .settings {
         settingsSearchFocusRequest = UUID()
-      } else if filesVisible, filePreviewFocused || workspace.fileFind.isPresented {
-        workspace.fileFind.open(editor: workspace.fileFind.editor, source: workspace.fileText)
+      } else if let file = commandFileWorkspace, file.selectedFile != nil {
+        file.fileFind.open(editor: file.fileFind.editor, source: file.fileText)
       } else if let tab = pageFindTab {
         tab.openPageFind()
       } else {
@@ -196,7 +197,10 @@ extension WorkspaceStore {
     case "send": return canSend
     case "dictation": return destination == .workspace && action == .chat && !shuttingDown
     case "branch": return canChangeBranch && workspace.gitAvailable
-    case "browser-address": return (filesVisible && workspace.selectedFile != nil && !workspace.fileLoading && workspace.fileError == nil)
+    case "browser-address": return (commandFileWorkspace.map {
+      $0.selectedFile != nil && !$0.fileLoading && $0.fileError == nil
+    } == true) || (filesVisible && workspace.selectedFile != nil
+      && !workspace.fileLoading && workspace.fileError == nil)
       || (browserVisible && workspace.browser.selected != nil)
     case "browser-close": return activeBrowserTabID != nil
       || (showingInspector && pane == "browser" && workspace.browser.selected != nil)
@@ -254,11 +258,11 @@ extension WorkspaceStore {
     case "plan": return destination == .workspace && canStartChat
     case "compact": return destination == .workspace && canCompactConversation
     case "find-next", "find-previous":
-      if filesVisible, workspace.fileFind.isPresented { return !workspace.fileFind.matches.isEmpty }
+      if let file = commandFileWorkspace, file.fileFind.isPresented { return !file.fileFind.matches.isEmpty }
       if let tab = pageFindTab, tab.showingPageFind { return !tab.pageFindQuery.isEmpty }
       return destination == .workspace && indexedFindText == findText
         && indexedFindTask == selectedTask?.id && !findMatches.isEmpty
-    case "previous-task", "next-task": return filePreviewFocused || browserFocused
+    case "previous-task", "next-task": return commandFileWorkspace != nil || browserFocused
       || (!visibleTasks.isEmpty && activeLocalRun == nil && !busy)
     case "back":
       return destination != .workspace || (!navigationBack.isEmpty && activeLocalRun == nil && !busy)

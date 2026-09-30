@@ -67,6 +67,14 @@ struct TaskWindowView: View {
   private var panels: TaskWindowPanels { tabs.panels }
   private var browsers: TaskWindowBrowsers { resources.browsers }
   private var taskWorkspace: DeveloperWorkspace { panels.workspace }
+  private var commandFileWorkspace: DeveloperWorkspace? {
+    if panels.showingFiles, taskWorkspace.fileFind.isPresented ||
+      (resources.window?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace {
+      return taskWorkspace
+    }
+    guard let tab = tabs.focused, case .file = tab else { return nil }
+    return store.fileTabWorkspaces[tab.id]
+  }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
   private var inspectedRun: AgentRun? {
     taskRuns.first { $0.id == executionRunID && $0.kind == "chat" }
@@ -604,9 +612,7 @@ struct TaskWindowView: View {
     case .tasks: TaskSearchView(store: store, context: searchContext)
     case .files:
       WorkspaceFileSearchView(workspace: taskWorkspace, executable: store.executable, open: { path in
-        panels.showingFiles = true
-        taskWorkspace.selectFile(path)
-        fileFocusAfterSearch = path
+        _ = tabs.openFile(path)
         searchMode = nil
       }, cancel: { searchMode = nil })
     case nil: EmptyView()
@@ -791,7 +797,7 @@ struct TaskWindowView: View {
       if store.canHandOffToWorktree(task) { enabled.insert("worktree") }
       if store.canHandOffToLocal(task) { enabled.insert("local") }
       if showingFind, !finding, !findMatches.isEmpty { enabled.formUnion(["find-next", "find-previous"]) }
-      if taskWorkspace.fileFind.isPresented, !taskWorkspace.fileFind.matches.isEmpty {
+      if let file = commandFileWorkspace, file.fileFind.isPresented, !file.fileFind.matches.isEmpty {
         enabled.formUnion(["find-next", "find-previous"])
       }
       if let id = tabs.focused?.browserID,
@@ -811,7 +817,9 @@ struct TaskWindowView: View {
         for index in 1...9 where index <= tabs.tabs.count + 1 { enabled.insert("focus-tab-\(index)") }
       }
       for index in recentWindowTasks.indices { enabled.insert("recent-chat-\(index + 1)") }
-      if panels.showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
+      if let file = commandFileWorkspace, file.selectedFile != nil, !file.fileLoading,
+        file.fileError == nil { enabled.insert("browser-address") }
+      else if panels.showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
         taskWorkspace.fileError == nil { enabled.insert("browser-address") }
     }
     return enabled
@@ -827,7 +835,8 @@ struct TaskWindowView: View {
         if ["browser-back", "browser-forward", "back", "forward"].contains(id),
           browser.session.hasEditableFocus { return false }
         if BrowserKeyboardBridge.contextualCommands.contains(id) {
-          return (id == "browser-address" && panels.showingFiles) || browser.session.hasNativeFocus
+          return (id == "browser-address" && (commandFileWorkspace != nil || panels.showingFiles))
+            || browser.session.hasNativeFocus
         }
         return true
       })
@@ -842,6 +851,7 @@ struct TaskWindowView: View {
       else { dismiss() }
       return
     }
+    if id == "browser-address", let file = commandFileWorkspace { file.showingFileLine = true; return }
     if id == "browser-address", panels.showingFiles { taskWorkspace.showingFileLine = true; return }
     if tabs.perform(id) { return }
     if id.hasPrefix("focus-tab-"), let slot = DesktopCommand.numberSlot(id) {
@@ -866,9 +876,8 @@ struct TaskWindowView: View {
     case "dictation": Task { await store.toggleDictation(target: taskID) }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find":
-      if taskWorkspace.fileFind.isPresented ||
-        (resources.window?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace {
-        taskWorkspace.fileFind.open(editor: taskWorkspace.fileFind.editor, source: taskWorkspace.fileText)
+      if let file = commandFileWorkspace, file.selectedFile != nil {
+        file.fileFind.open(editor: file.fileFind.editor, source: file.fileText)
       } else if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
       else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
@@ -908,12 +917,12 @@ struct TaskWindowView: View {
     case "files": openTaskFileSearch()
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next":
-      if taskWorkspace.fileFind.isPresented { taskWorkspace.fileFind.move(1) }
+      if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(1) }
       else if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind { page.findInPage() }
       else { moveFindMatch(1) }
     case "find-previous":
-      if taskWorkspace.fileFind.isPresented { taskWorkspace.fileFind.move(-1) }
+      if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(-1) }
       else if let id = tabs.focused?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind {
         page.findInPage(backwards: true)
@@ -937,7 +946,7 @@ struct TaskWindowView: View {
     case "review-open": tabs.openReview(defaultScope: store.library.gitPreferences.defaultReviewScope)
     case "terminal": toggleTerminal(task)
     case "bottom-panel": tabs.toggleBottom()
-    case "browser-address": taskWorkspace.showingFileLine = true
+    case "browser-address": commandFileWorkspace?.showingFileLine = true
     default: break
     }
   }
@@ -977,8 +986,7 @@ struct TaskWindowView: View {
       return true
     }
     if let root = taskWorkspace.root, let path = file.panePath(in: root) {
-      panels.showingFiles = true
-      taskWorkspace.selectFile(path)
+      _ = tabs.openFile(path)
       taskSummary.dismissPopover()
       return true
     }
@@ -1006,7 +1014,7 @@ struct TaskWindowView: View {
 
   private func tabStrip(_ task: WorkspaceTask, placement: WorkspaceTabPlacement) -> some View {
     TaskWindowTabStrip(store: store, resources: resources, tabs: tabs, title: task.title, placement: placement,
-      openFiles: openTaskFileSearch, showMainWindow: { openWindow(id: "main") })
+      showMainWindow: { openWindow(id: "main") })
   }
 
   private func conversation(_ task: WorkspaceTask) -> some View {
@@ -1105,6 +1113,10 @@ struct TaskWindowView: View {
       switch tab {
       case .browser(let id, _):
         BrowserPanel(store: store, session: browser.session, context: browserPanelContext(tab), showsTabStrip: false, tabID: id)
+      case .file:
+        FileWorkspaceTabView(store: store, tab: tab,
+          openFile: { _ = tabs.openFile($0, in: tabs.placement(tab.id)) },
+          close: { tabs.close(tab.id) })
       case .review:
         GitReviewView(store: store, workspace: taskWorkspace, taskID: taskID, focusComposer: { tabs.revealChat() })
       case .plan(let runID, _):

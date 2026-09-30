@@ -72,9 +72,7 @@ import XCTest
     defer { store.workspace.setProject(nil) }
 
     XCTAssertTrue(store.revealTaskSummaryFile(file))
-    XCTAssertTrue(store.showingInspector)
-    XCTAssertEqual(store.pane, "files")
-    XCTAssertEqual(store.workspace.selectedFile, "result.md")
+    XCTAssertEqual(store.activeWorkspaceContentTab, .file("result.md", owner: "task"))
 
     let foreign = TaskSummaryLinkedFile(runID: "other", root: root, path: "result.md", url: url)
     XCTAssertFalse(store.revealTaskSummaryFile(foreign))

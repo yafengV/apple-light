@@ -106,7 +106,7 @@ import XCTest
     store.selection = run.id
     defer { store.workspace.setProject(nil) }
     XCTAssertTrue(store.revealTaskSummaryFile(internalFile))
-    XCTAssertEqual(store.workspace.selectedFile, "inside.swift")
+    XCTAssertEqual(store.activeWorkspaceContentTab, .file("inside.swift", owner: "task"))
     XCTAssertFalse(store.revealTaskSummaryFile(repositoryFile))
     try FileManager.default.removeItem(at: inside)
     try FileManager.default.createSymbolicLink(at: inside, withDestinationURL: outside)

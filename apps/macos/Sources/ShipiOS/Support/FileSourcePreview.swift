@@ -5,6 +5,7 @@ struct FileSourcePreview: NSViewRepresentable {
   let store: WorkspaceStore
   let workspace: DeveloperWorkspace
   var taskID: String? = nil
+  var closeContentTab: (() -> Void)? = nil
   @Environment(\.appAppearance) private var appearance
 
   func makeCoordinator() -> Coordinator { Coordinator() }
@@ -38,7 +39,8 @@ struct FileSourcePreview: NSViewRepresentable {
     text.layoutManager?.delegate = context.coordinator.inlineLayout
     workspace.fileFind.bind(editor: text)
     workspace.selectionEdit.bind(editor: text)
-    context.coordinator.install(text, store: store, workspace: workspace, taskID: taskID)
+    context.coordinator.install(text, store: store, workspace: workspace, taskID: taskID,
+      closeContentTab: closeContentTab)
     return scroll
   }
 
@@ -49,6 +51,7 @@ struct FileSourcePreview: NSViewRepresentable {
     scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
     let coordinator = context.coordinator
     coordinator.taskID = taskID
+    coordinator.closeContentTab = closeContentTab
     coordinator.appearance = appearance
     // Swift strings compare canonically; the byte revision also observes source
     // changes that look equal but have different UTF-16 positions.
@@ -151,6 +154,7 @@ struct FileSourcePreview: NSViewRepresentable {
     private weak var inlineText: FilePreviewTextView?
     weak var store: WorkspaceStore?
     var taskID: String?
+    var closeContentTab: (() -> Void)?
     private var monitor: Any?
 
     @MainActor func savePosition(_ text: NSTextView) {
@@ -161,12 +165,13 @@ struct FileSourcePreview: NSViewRepresentable {
         selection: text.selectedRange(), origin: text.enclosingScrollView?.contentView.bounds.origin ?? .zero)
     }
     func install(_ text: FilePreviewTextView, store: WorkspaceStore, workspace: DeveloperWorkspace,
-      taskID: String?) {
+      taskID: String?, closeContentTab: (() -> Void)? = nil) {
       self.workspace = workspace
       self.store = store
       self.taskID = taskID
+      self.closeContentTab = closeContentTab
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
-        [weak text, weak store, weak workspace] event in
+        [weak self, weak text, weak store, weak workspace] event in
         guard let binding = ShortcutBinding(event: event) else { return event }
         let windowNumber = event.windowNumber
         let handled = MainActor.assumeIsolated {
@@ -215,13 +220,17 @@ struct FileSourcePreview: NSViewRepresentable {
           }
           if workspace === store.workspace {
             guard store.handleFileShortcut(binding) else { return false }
+          } else if binding == ShortcutBinding("⌘W"), let closeContentTab = self?.closeContentTab {
+            closeContentTab()
           } else if binding == ShortcutBinding("⌘W"), let path = workspace.selectedFile {
             workspace.closeFile(path)
           } else if store.shortcuts.matches("browser-address", binding) {
             if !workspace.fileLoading, workspace.fileError == nil { workspace.showingFileLine = true }
           } else if store.shortcuts.matches("next-task", binding) {
+            if self?.closeContentTab != nil { return false }
             workspace.moveFile(1)
           } else if store.shortcuts.matches("previous-task", binding) {
+            if self?.closeContentTab != nil { return false }
             workspace.moveFile(-1)
           } else { return false }
           return true

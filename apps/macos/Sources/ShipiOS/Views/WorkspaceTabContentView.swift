@@ -10,6 +10,10 @@ struct WorkspaceTabContentView: View {
     case .browser(let id, _):
       BrowserPanel(
         store: store, session: store.workspace.browser, showsTabStrip: false, tabID: id)
+    case .file:
+      FileWorkspaceTabView(store: store, tab: tab,
+        openFile: { _ = store.openFileTab($0, in: store.workspaceTabPlacement(tab.id)) },
+        close: { store.closeWorkspaceTab(tab.id) })
     case .review:
       GitReviewView(store: store, workspace: store.workspace)
     case .plan(let runID, let owner):
@@ -126,6 +130,14 @@ struct WorkspaceTabWindowView: View {
           } else if let browserID = tab.browserID {
             BrowserPanel(store: store, session: store.workspace.browser,
               context: browserContext(tab), showsTabStrip: false, tabID: browserID)
+          } else if case .file = tab {
+            FileWorkspaceTabView(store: store, tab: tab, openFile: { path in
+              Task {
+                guard await store.focusDetachedWorkspaceChat(tab.id) else { return }
+                guard store.openFileTab(path) else { return }
+                showMainWindow()
+              }
+            }, close: { store.closeWorkspaceTab(tab.id) })
           } else {
             WorkspaceTabContentView(store: store, tab: tab)
           }

@@ -42,6 +42,7 @@ extension WorkspaceStore {
     switch tab {
     case .browser(let id, _):
       return workspace.browser.tabs.first(where: { $0.id == id })?.title ?? "浏览器"
+    case .file(let path, _): return path.isEmpty ? "打开文件" : URL(fileURLWithPath: path).lastPathComponent
     case .review: return "审查"
     case .plan(let runID, let owner):
       return taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument?.title ?? "计划"
@@ -70,6 +71,9 @@ extension WorkspaceStore {
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .browser,
         title: browser?.title ?? "浏览器",
         restoreURL: browser?.committedURL?.absoluteString ?? browser?.address)
+    case .file(let path, let owner):
+      reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id,
+        owner: owner, kind: .file, title: workspaceTabTitle(tab), restoreURL: path)
     case .review(let owner):
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .review,
@@ -177,6 +181,18 @@ extension WorkspaceStore {
         saveLibrary()
       }
       activateWorkspaceTab(sourceID)
+    case .file:
+      guard openFileTab(pin.restoreURL ?? "") else {
+        error = "此文件标签不可用。可以保留固定项或取消固定。"
+        return
+      }
+      if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }),
+        let tab = activeWorkspaceContentTab {
+        library.pinnedContentTabs[index].sourceTabID = tab.id
+        library.pinnedContentTabs[index].sourceWindowID = nil
+        library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
+        saveLibrary()
+      }
     case .review:
       guard project != nil else {
         error = "此审查标签的项目不可用。可以保留固定项或取消固定。"
@@ -269,6 +285,7 @@ extension WorkspaceStore {
     switch tab {
     case .browser(let browserID, _):
       if workspace.browser.selection != browserID { workspace.browser.select(browserID) }
+    case .file: break
     case .review:
       Task { await workspace.refreshGit() }
     case .plan, .sources, .pullRequest: break
@@ -292,6 +309,24 @@ extension WorkspaceStore {
 
   func openReviewTab() {
     openReviewTab(in: .left)
+  }
+
+  @discardableResult func openFileTab(_ path: String = "", in placement: WorkspaceTabPlacement = .left) -> Bool {
+    guard placement != .bottom, let root = workspaceTabProject(owner: currentWorkspaceTabOwner) else { return false }
+    var normalizedPath = path
+    if !path.isEmpty {
+      do {
+        let location = try WorkspaceFileScope.location(path,
+          roots: [root] + additionalWorkspaceFolders(for: root))
+        normalizedPath = WorkspaceFileScope.key(location, primary: root)
+      }
+      catch { self.error = error.localizedDescription; return false }
+    }
+    let tab = WorkspaceContentTab.file(normalizedPath, owner: currentWorkspaceTabOwner)
+    if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
+    moveWorkspaceTab(tab.id, to: placement)
+    activateWorkspaceTab(tab.id)
+    return true
   }
 
   func openReviewTab(in placement: WorkspaceTabPlacement) {
@@ -331,10 +366,15 @@ extension WorkspaceStore {
 
   func closeWorkspaceTab(_ id: String) {
     guard let tab = workspaceTabs.first(where: { $0.id == id }) else { return }
+    if case .file = tab, let session = fileTabWorkspaces[id],
+      session.selectedFileEditor?.hasUnsavedChanges == true {
+      Task { if await session.saveSelectedFileEdits() { closeWorkspaceTab(id) } }
+      return
+    }
     if tab.kind == .pullRequest { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
-    case .review, .plan, .sources, .pullRequest:
+    case .file, .review, .plan, .sources, .pullRequest:
       pullRequestTabPresentations.clear(tab.id)
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
@@ -426,6 +466,16 @@ extension WorkspaceStore {
     let migrated: WorkspaceContentTab
     switch source {
     case .browser(let browserID, _): migrated = .browser(browserID, owner: newOwner)
+    case .file(let path, _):
+      guard fileTabWorkspaces[source.id]?.selectedFileEditor?.hasUnsavedChanges != true else {
+        error = "请先保存文件更改，再移动标签。"; return nil
+      }
+      guard let root = workspaceTabProject(owner: newOwner),
+        path.isEmpty || (try? WorkspaceFileScope.location(path,
+          roots: [root] + additionalWorkspaceFolders(for: root))) != nil else {
+        error = "文件不在目标任务的项目中。"; return nil
+      }
+      migrated = .file(path, owner: newOwner)
     case .review: migrated = .review(owner: newOwner)
     case .plan:
       error = "计划文档属于原任务，不能移到其他任务。"
@@ -482,6 +532,9 @@ extension WorkspaceStore {
   }
 
   private func migrateWorkspaceTabState(from oldID: String, to newID: String, owner: String) {
+    if oldID != newID, let session = fileTabWorkspaces.removeValue(forKey: oldID) {
+      fileTabWorkspaces[newID] = session
+    }
     if oldID != newID, let placement = workspaceTabPlacements.removeValue(forKey: oldID) {
       workspaceTabPlacements[newID] = placement
     }
@@ -564,6 +617,8 @@ extension WorkspaceStore {
   func reopenClosedWorkspaceTab() {
     guard let tab = closedWorkspaceTabs.popLast() else { return }
     switch tab {
+    case .file(let path, let owner):
+      if owner == currentWorkspaceTabOwner { _ = openFileTab(path) }
     case .review:
       if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
       if tab.owner == currentWorkspaceTabOwner { activateWorkspaceTab(tab.id) }
@@ -652,6 +707,7 @@ extension WorkspaceStore {
       let migrated: WorkspaceContentTab
       switch tab {
       case .browser(let id, _): migrated = .browser(id, owner: newOwner)
+      case .file(let path, _): migrated = .file(path, owner: newOwner)
       case .review: migrated = .review(owner: newOwner)
       case .plan(let runID, _): migrated = .plan(runID, owner: newOwner)
       case .sources: migrated = .sources(owner: newOwner)

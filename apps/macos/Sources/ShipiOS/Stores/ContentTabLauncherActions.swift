@@ -7,8 +7,7 @@ enum ContentTabLauncherAction {
 extension WorkspaceStore {
   /// Returns true only when an independent window should reveal a page in the main window.
   @discardableResult func performContentTabLauncherAction(_ action: ContentTabLauncherAction,
-    in placement: WorkspaceTabPlacement, taskTabs: TaskWindowTabs? = nil,
-    openFiles: () -> Void) -> Bool {
+    in placement: WorkspaceTabPlacement, taskTabs: TaskWindowTabs? = nil) -> Bool {
     let hasProject = taskTabs.map { $0.panels.workspace.root != nil } ?? (project != nil)
     switch action {
     case .browser:
@@ -27,8 +26,9 @@ extension WorkspaceStore {
       if let taskTabs { taskTabs.reopen() }
       else { reopenClosedWorkspaceTab() }
     case .files:
-      guard hasProject else { return false }
-      openFiles()
+      guard hasProject, placement != .bottom else { return false }
+      if let taskTabs { _ = taskTabs.openFile("", in: placement) }
+      else { _ = openFileTab("", in: placement) }
     case .plugin(let id):
       // The menu can remain open while a plugin is disabled or removed elsewhere.
       guard pluginPreferences.installed.contains(where: { $0.id == id && $0.enabled }) else { return false }

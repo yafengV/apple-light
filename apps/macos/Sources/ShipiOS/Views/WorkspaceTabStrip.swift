@@ -32,8 +32,7 @@ struct WorkspaceTabStrip: View {
           ContentTabLauncher(placement: placement, hasProject: store.project != nil,
             canReopen: store.canReopenClosedWorkspaceTab, plugins: store.pluginPreferences.installed,
             dismiss: { showingNewTabLauncher = false }) { action in
-              store.performContentTabLauncherAction(action, in: placement,
-                openFiles: { store.executeCommand("files") })
+              store.performContentTabLauncherAction(action, in: placement)
             }
         }
     }

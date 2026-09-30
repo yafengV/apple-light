@@ -9,6 +9,7 @@ import Observation
   let pullRequestPresentations = PullRequestTabPresentations()
   @ObservationIgnored var pullRequest: ((String) -> GitHubPullRequest?)?
   @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
+  @ObservationIgnored var canCloseFileTab: ((WorkspaceContentTab) -> Bool)?
   @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
   @ObservationIgnored var planDocument: ((String) -> CodexPlanDocument?)?
   private(set) var tabs: [WorkspaceContentTab] = []
@@ -100,6 +101,7 @@ import Observation
   func title(_ tab: WorkspaceContentTab) -> String {
     switch tab {
     case .browser(let id, _): return browser.session.tabs.first { $0.id == id }?.title ?? "浏览器"
+    case .file(let path, _): return path.isEmpty ? "打开文件" : URL(fileURLWithPath: path).lastPathComponent
     case .review: return "审查"
     case .plan(let runID, _): return planDocument?(runID)?.title ?? "计划"
     case .sources: return "来源"
@@ -164,6 +166,21 @@ import Observation
     if !tabs.contains(tab) { tabs.append(tab); panels.workspace.reviewScope = defaultScope }
     move(tab.id, to: place)
     Task { await panels.workspace.refreshGit() }
+  }
+  @discardableResult func openFile(_ path: String = "", in place: WorkspaceTabPlacement = .left) -> Bool {
+    guard place != .bottom, let root = panels.workspace.root else { return false }
+    var normalizedPath = path
+    if !path.isEmpty {
+      do {
+        let location = try panels.workspace.fileLocation(path)
+        normalizedPath = WorkspaceFileScope.key(location, primary: root)
+      }
+      catch { panels.workspace.fileOpenError = error.localizedDescription; return false }
+    }
+    let tab = WorkspaceContentTab.file(normalizedPath, owner: taskID)
+    if !tabs.contains(tab) { tabs.append(tab) }
+    move(tab.id, to: place)
+    return true
   }
   func openPlan(runID: String) {
     guard planDocument?(runID) != nil else { return }
@@ -241,6 +258,7 @@ import Observation
   }
   func close(_ id: String) {
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
+    if case .file = tab, canCloseFileTab?(tab) == false { return }
     pullRequestPresentations.clear(tab.id)
     onTabWillClose?(tab)
     if let browserID = tab.browserID { browser.session.close(browserID) }
@@ -299,6 +317,7 @@ import Observation
       openingPlacement = state.placement
       browser.reopen()
       openingPlacement = .left
+    case .file(let path, _): _ = openFile(path, in: state.placement)
     case .review: openReview(in: state.placement, defaultScope: panels.workspace.reviewScope)
     case .plan(let runID, _): openPlan(runID: runID)
     case .sources: openSources(in: state.placement)
@@ -331,12 +350,12 @@ import Observation
   }
   func resetProjectTabs() {
     endDrag()
-    for tab in tabs where tab.kind == .review || tab.kind == .terminal || tab.kind == .pullRequest {
+    for tab in tabs where tab.kind == .file || tab.kind == .review || tab.kind == .terminal || tab.kind == .pullRequest {
       pullRequestPresentations.clear(tab.id)
       clearSelection(tab.id); placements[tab.id] = nil
     }
-    tabs.removeAll { $0.kind == .review || $0.kind == .terminal || $0.kind == .pullRequest }
-    closed.removeAll { $0.tab.kind == .review || $0.tab.kind == .terminal || $0.tab.kind == .pullRequest }
+    tabs.removeAll { $0.kind == .file || $0.kind == .review || $0.kind == .terminal || $0.kind == .pullRequest }
+    closed.removeAll { $0.tab.kind == .file || $0.tab.kind == .review || $0.tab.kind == .terminal || $0.tab.kind == .pullRequest }
     repairSelection(.right); repairSelection(.bottom)
   }
 
@@ -349,7 +368,9 @@ import Observation
       return SavedWorkspaceTab(id: tab.id,
         kind: tab.kind,
         placement: placement(tab.id), address: page?.address,
-        committedURL: tab.pullRequestURL ?? page?.committedURL?.absoluteString, terminalSplitFraction: splitFraction)
+        committedURL: tab.pullRequestURL ?? page?.committedURL?.absoluteString,
+        filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
+        terminalSplitFraction: splitFraction)
     }
     return TaskWindowTabLayout(project: panels.workspace.root?.path,
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
@@ -379,6 +400,12 @@ import Observation
         page.address = entry.address ?? entry.committedURL ?? ""
         page.editingAddress = entry.address != nil && entry.address != entry.committedURL
         tab = .browser(id, owner: taskID)
+      case .file:
+        guard sameProject, let path = entry.filePath,
+          path.isEmpty || (try? panels.workspace.fileLocation(path)) != nil else { continue }
+        let candidate = WorkspaceContentTab.file(path, owner: taskID)
+        guard entry.id == candidate.id else { continue }
+        tab = candidate; tabs.append(tab)
       case .review:
         guard sameProject, panels.workspace.root != nil,
           entry.id == WorkspaceContentTab.review(owner: taskID).id else { continue }

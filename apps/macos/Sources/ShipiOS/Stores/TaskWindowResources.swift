@@ -34,7 +34,12 @@ import Observation
     store.bindGitReviewPolicy(to: panel.workspace, taskID: taskID)
     store.additionalTaskWindowPanels.add(panels)
     if let existing = tasks[taskID] {
-      if oldRoot != panel.workspace.root { existing.resetProjectTabs() }
+      if oldRoot != panel.workspace.root {
+        for tab in existing.tabs where tab.kind == .file {
+          if let session = store.fileTabWorkspaces[tab.id] { store.captureFileEditorRecovery(from: session) }
+        }
+        existing.resetProjectTabs()
+      }
     } else {
       tasks[taskID] = TaskWindowTabs(taskID: taskID,
         browser: browsers.browser(for: taskID, store: store), panels: panel)
@@ -62,6 +67,14 @@ import Observation
       if store.libraryLoaded, let layout = store.library.taskWindowTabLayouts[id]?[taskID] {
         tasks[taskID]?.restoreLayout(layout)
       }
+    }
+    tasks[taskID]?.canCloseFileTab = { [weak self, weak store] tab in
+      guard let store, let session = store.fileTabWorkspaces[tab.id],
+        session.selectedFileEditor?.hasUnsavedChanges == true else { return true }
+      Task {
+        if await session.saveSelectedFileEdits() { self?.tasks[taskID]?.close(tab.id) }
+      }
+      return false
     }
   }
   func captureLayouts() {

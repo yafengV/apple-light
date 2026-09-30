@@ -5,9 +5,7 @@ struct FileSearchView: View {
 
   var body: some View {
     WorkspaceFileSearchView(workspace: store.workspace, executable: store.executable, open: { path in
-      store.showPane("files")
-      store.workspace.selectFile(path)
-      if let root = store.workspace.root { store.fileFocusAfterOverlay = (root, path) }
+      _ = store.openFileTab(path)
       store.setOverlay(.fileSearch, presented: false)
     }, cancel: { store.setOverlay(.fileSearch, presented: false) })
   }

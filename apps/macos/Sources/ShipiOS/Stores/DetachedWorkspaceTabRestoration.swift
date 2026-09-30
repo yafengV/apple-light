@@ -36,6 +36,11 @@ extension WorkspaceStore {
     guard let saved = library.workspaceTabLayouts[owner]?.tabs.first(where: { $0.id == route.tabID }),
       saved.placement == .detached else { return .close }
     switch saved.kind {
+    case .file:
+      guard let root = workspaceTabProject(owner: owner), let path = saved.filePath,
+        saved.id == WorkspaceContentTab.file(path, owner: owner).id,
+        path.isEmpty || (try? WorkspaceFileScope.location(path,
+          roots: [root] + additionalWorkspaceFolders(for: root))) != nil else { return .close }
     case .review:
       guard saved.id == WorkspaceContentTab.review(owner: owner).id,
         workspaceTabProject(owner: owner) != nil else { return .close }

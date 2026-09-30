@@ -29,14 +29,14 @@ import XCTest
     let (store, resources, tabs) = try fixture()
     defer { resources.shutdown() }
     let mainFocus = store.focusComposer
-    XCTAssertFalse(store.performContentTabLauncherAction(.browser, in: .right, taskTabs: tabs, openFiles: {}))
+    XCTAssertFalse(store.performContentTabLauncherAction(.browser, in: .right, taskTabs: tabs))
     XCTAssertNotNil(tabs.selected(.right)?.browserID)
     XCTAssertTrue(store.workspace.browser.tabs.isEmpty)
     store.library.gitPreferences.defaultReviewScope = .staged
-    store.performContentTabLauncherAction(.review, in: .left, taskTabs: tabs, openFiles: {})
+    store.performContentTabLauncherAction(.review, in: .left, taskTabs: tabs)
     XCTAssertEqual(tabs.selected(.left), .review(owner: "popup"))
     XCTAssertEqual(tabs.panels.workspace.reviewScope, .staged)
-    store.performContentTabLauncherAction(.terminal, in: .right, taskTabs: tabs, openFiles: {})
+    store.performContentTabLauncherAction(.terminal, in: .right, taskTabs: tabs)
     let session = try XCTUnwrap(tabs.panels.terminal)
     XCTAssertEqual(tabs.selected(.bottom)?.terminalID, session.id)
     XCTAssertTrue(session.view.process.running)
@@ -53,13 +53,11 @@ import XCTest
     tabs.newBrowser(in: .right)
     tabs.close(try XCTUnwrap(tabs.focusedID))
     XCTAssertTrue(tabs.canReopen)
-    store.performContentTabLauncherAction(.reopen, in: .left, taskTabs: tabs, openFiles: {})
+    store.performContentTabLauncherAction(.reopen, in: .left, taskTabs: tabs)
     XCTAssertNotNil(tabs.selected(.right)?.browserID)
     XCTAssertFalse(tabs.canReopen)
-    var openedFiles = 0
-    XCTAssertFalse(store.performContentTabLauncherAction(.files, in: .right, taskTabs: tabs,
-      openFiles: { openedFiles += 1 }))
-    XCTAssertEqual(openedFiles, 1)
+    XCTAssertFalse(store.performContentTabLauncherAction(.files, in: .right, taskTabs: tabs))
+    XCTAssertEqual(tabs.selected(.right), .file("", owner: "popup"))
     XCTAssertTrue(store.workspaceTabs.isEmpty)
     XCTAssertEqual(store.selection, "main")
   }
@@ -70,7 +68,7 @@ import XCTest
     tabs.newBrowser()
     let browser = tabs.browser.session.selected
     XCTAssertTrue(store.performContentTabLauncherAction(.terminalOptions, in: .bottom,
-      taskTabs: tabs, openFiles: {}))
+      taskTabs: tabs))
     XCTAssertEqual(store.destination, .settings)
     XCTAssertEqual(store.settingsPage, .runtime)
     XCTAssertTrue(tabs.browser.session.selected === browser)
@@ -86,7 +84,7 @@ import XCTest
     defer { resources.shutdown() }
     store.pluginPreferences.installed = [plugin("first"), plugin("second")]
     XCTAssertTrue(store.performContentTabLauncherAction(.plugin("second"), in: .right,
-      taskTabs: tabs, openFiles: {}))
+      taskTabs: tabs))
     XCTAssertEqual(store.destination, .pluginDetail)
     XCTAssertEqual(store.currentPluginDetail?.id, "second")
     XCTAssertEqual(store.selection, "main")
@@ -94,10 +92,10 @@ import XCTest
     store.closePluginDetail()
     XCTAssertEqual(store.destination, .plugins)
     XCTAssertTrue(store.performContentTabLauncherAction(.automations, in: .left,
-      taskTabs: tabs, openFiles: {}))
+      taskTabs: tabs))
     XCTAssertEqual(store.destination, .automations)
     XCTAssertTrue(store.performContentTabLauncherAction(.plugins, in: .left,
-      taskTabs: tabs, openFiles: {}))
+      taskTabs: tabs))
     XCTAssertEqual(store.destination, .plugins)
   }
 
@@ -107,7 +105,7 @@ import XCTest
     store.pluginPreferences.installed = [plugin("disabled", enabled: false)]
     for id in ["disabled", "removed"] {
       XCTAssertFalse(store.performContentTabLauncherAction(.plugin(id), in: .left,
-        taskTabs: tabs, openFiles: {}))
+        taskTabs: tabs))
       XCTAssertEqual(store.destination, .workspace)
       XCTAssertNil(store.pluginDetailRoute)
     }
@@ -120,28 +118,25 @@ import XCTest
     resources.prepare("projectless", store: store)
     let tabs = try XCTUnwrap(resources.tasks["projectless"])
     XCTAssertNil(tabs.panels.workspace.root)
-    var files = 0
     for action: ContentTabLauncherAction in [.terminal, .review, .files] {
-      XCTAssertFalse(store.performContentTabLauncherAction(action, in: .left,
-        taskTabs: tabs, openFiles: { files += 1 }))
+      XCTAssertFalse(store.performContentTabLauncherAction(action, in: .left, taskTabs: tabs))
     }
-    store.performContentTabLauncherAction(.browser, in: .bottom, taskTabs: tabs, openFiles: {})
+    store.performContentTabLauncherAction(.browser, in: .bottom, taskTabs: tabs)
     XCTAssertTrue(tabs.tabs.isEmpty)
-    XCTAssertEqual(files, 0)
-    store.performContentTabLauncherAction(.browser, in: .left, taskTabs: tabs, openFiles: {})
+    store.performContentTabLauncherAction(.browser, in: .left, taskTabs: tabs)
     XCTAssertEqual(tabs.tabs.count, 1)
   }
 
   func testMainLauncherStillUsesMainContentAndDoesNotRaiseAnotherWindow() throws {
     let (store, resources, tabs) = try fixture()
     defer { resources.shutdown(); store.workspace.browser.shutdown(); store.workspace.terminals.shutdown() }
-    XCTAssertFalse(store.performContentTabLauncherAction(.browser, in: .right, openFiles: {}))
+    XCTAssertFalse(store.performContentTabLauncherAction(.browser, in: .right))
     XCTAssertNotNil(store.activeRightWorkspaceContentTab?.browserID)
     XCTAssertTrue(tabs.tabs.isEmpty)
-    XCTAssertFalse(store.performContentTabLauncherAction(.terminal, in: .left, openFiles: {}))
+    XCTAssertFalse(store.performContentTabLauncherAction(.terminal, in: .left))
     XCTAssertNotNil(store.activeBottomWorkspaceContentTab?.terminalID)
     store.pluginPreferences.installed = [plugin("main-plugin")]
-    XCTAssertFalse(store.performContentTabLauncherAction(.plugin("main-plugin"), in: .left, openFiles: {}))
+    XCTAssertFalse(store.performContentTabLauncherAction(.plugin("main-plugin"), in: .left))
     XCTAssertEqual(store.currentPluginDetail?.id, "main-plugin")
   }
 }

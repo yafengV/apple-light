@@ -149,6 +149,7 @@ final class WorkspaceStore {
   var closedPullRequestPlacements: [String: WorkspaceTabPlacement] = [:]
   @ObservationIgnored var reopeningWorkspaceTabOwner: String?
   var workspace = DeveloperWorkspace()
+  @ObservationIgnored var fileTabWorkspaces: [String: DeveloperWorkspace] = [:]
   @ObservationIgnored var legacyReviewFileRoots: [String: URL] = [:]
   var navigationBack: [TaskLocation] = []
   var navigationForward: [TaskLocation] = []
@@ -1294,6 +1295,7 @@ final class WorkspaceStore {
     await managedDeletionCleanupTask?.value
     captureWorkspaceTabLayout()
     captureFileEditorRecovery(from: workspace)
+    for session in fileTabWorkspaces.values { captureFileEditorRecovery(from: session) }
     dictation.stop()
     shuttingDown = true
     await shutdownMCPConnections()

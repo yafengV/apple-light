@@ -2,6 +2,13 @@ import AppKit
 
 extension WorkspaceStore {
   var filesVisible: Bool { destination == .workspace && showingInspector && pane == "files" }
+  var commandFileWorkspace: DeveloperWorkspace? {
+    guard destination == .workspace else { return nil }
+    if filesVisible, filePreviewFocused || workspace.fileFind.isPresented { return workspace }
+    guard let tab = focusedWorkspaceContentTab, case .file = tab,
+      workspaceTabPlacement(tab.id) != .detached else { return nil }
+    return fileTabWorkspaces[tab.id]
+  }
   var filePreviewFocused: Bool {
     fileCommandsAvailable && (NSApp?.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === workspace
   }

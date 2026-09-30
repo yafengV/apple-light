@@ -6,7 +6,6 @@ struct TaskWindowTabStrip: View {
   @Bindable var tabs: TaskWindowTabs
   let title: String
   var placement: WorkspaceTabPlacement = .left
-  let openFiles: () -> Void
   let showMainWindow: () -> Void
   @State private var showingLauncher = false
 
@@ -48,8 +47,7 @@ struct TaskWindowTabStrip: View {
           ContentTabLauncher(placement: placement, hasProject: tabs.panels.workspace.root != nil,
             canReopen: tabs.canReopen, plugins: store.pluginPreferences.installed,
             dismiss: { showingLauncher = false }) { action in
-              if store.performContentTabLauncherAction(action, in: placement, taskTabs: tabs,
-                openFiles: openFiles) { showMainWindow() }
+              if store.performContentTabLauncherAction(action, in: placement, taskTabs: tabs) { showMainWindow() }
             }
         }
       if placement != .left {

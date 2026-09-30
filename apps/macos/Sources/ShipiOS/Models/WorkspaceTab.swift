@@ -47,6 +47,7 @@ enum WorkspaceTabDragToken {
 
 enum WorkspaceContentTab: Hashable, Identifiable {
   case browser(UUID, owner: String)
+  case file(String, owner: String)
   case review(owner: String)
   case plan(String, owner: String)
   case sources(owner: String)
@@ -56,6 +57,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   var id: String {
     switch self {
     case .browser(let id, _): "browser:\(id.uuidString)"
+    case .file(let path, let owner): "file:\(owner):\(path)"
     case .review(let owner): "review:\(owner)"
     case .plan(let runID, _): "plan:\(runID)"
     case .sources(let owner): "sources:\(owner)"
@@ -66,7 +68,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .terminal(_, let owner): owner
+    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .terminal(_, let owner): owner
     }
   }
 
@@ -87,6 +89,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   var icon: String {
     switch self {
     case .browser: "globe"
+    case .file: "doc.text"
     case .review: "square.stack.3d.up"
     case .plan: "text.document"
     case .sources: "square.stack"
@@ -98,6 +101,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   var kind: PinnedWorkspaceTabKind {
     switch self {
     case .browser: .browser
+    case .file: .file
     case .review: .review
     case .plan: .plan
     case .sources: .sources
@@ -109,6 +113,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
 
 enum PinnedWorkspaceTabKind: String, Codable {
   case browser
+  case file
   case review
   case plan
   case sources
