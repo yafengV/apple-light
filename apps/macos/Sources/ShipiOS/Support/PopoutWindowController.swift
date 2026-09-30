@@ -15,7 +15,7 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
 
   init(store: WorkspaceStore) {
     self.store = store
-    homeWindow = Self.makeWindow(size: NSSize(width: 470, height: 290),
+    homeWindow = Self.makeWindow(size: PopoutWindowPlacement.homeSize,
       title: "弹出窗口", resizable: false)
     super.init()
     homeWindow.delegate = self
@@ -26,19 +26,22 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
   }
 
   func toggle() {
+    let previous = state.visibleSurface ?? state.lastVisibleSurface
     if let store { state.retainThreads(Set(store.library.tasks.map(\.id))) }
     state.toggle()
-    applyState()
+    applyState(previous: previous)
   }
 
   func openHome() {
+    let previous = state.visibleSurface ?? state.lastVisibleSurface
     state.openHome()
-    applyState()
+    applyState(previous: previous)
   }
 
   func openThread(_ taskID: String) {
+    let previous = state.visibleSurface ?? state.lastVisibleSurface
     state.openThread(taskID)
-    applyState()
+    applyState(previous: previous)
   }
 
   func hide() {
@@ -59,19 +62,24 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
     return true
   }
 
-  private func applyState() {
+  private func applyState(previous: PopoutWindowState.Surface? = nil) {
     switch state.visibleSurface {
     case nil:
       homeWindow.orderOut(nil)
       threadWindow?.orderOut(nil)
     case .home:
       threadWindow?.orderOut(nil)
+      positionIfNeeded(homeWindow, home: true)
+      if case .thread = previous, let threadWindow,
+        positionedWindows.contains(ObjectIdentifier(threadWindow)) {
+        alignHome(to: threadWindow)
+      }
       present(homeWindow)
     case .thread(let taskID):
       homeWindow.orderOut(nil)
       guard let store else { return }
       if threadWindow == nil {
-        let window = Self.makeWindow(size: NSSize(width: 470, height: 640),
+        let window = Self.makeWindow(size: PopoutWindowPlacement.threadSize,
           title: "弹出会话", resizable: true)
         window.delegate = self
         threadWindow = window
@@ -82,25 +90,48 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
           onHide: { [weak self] in self?.hide() }))
         renderedThreadID = taskID
       }
-      if let threadWindow { present(threadWindow) }
+      if let threadWindow {
+        positionIfNeeded(threadWindow, home: false)
+        if previous == .home,
+          positionedWindows.contains(ObjectIdentifier(homeWindow)) {
+          alignThread(to: homeWindow)
+        }
+        present(threadWindow)
+      }
     }
   }
 
   private func present(_ window: PopoutPanel) {
-    if positionedWindows.insert(ObjectIdentifier(window)).inserted {
-      let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
-        ?? NSScreen.main
-      if let frame = screen?.visibleFrame {
-        let width = min(window.frame.width, frame.width)
-        let height = min(window.frame.height, frame.height)
-        window.setContentSize(NSSize(width: width, height: height))
-        let x = frame.midX - width / 2
-        let y = frame.maxY - height - 52
-        window.setFrameOrigin(NSPoint(x: x, y: max(frame.minY, y)))
-      }
-    }
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
+  }
+
+  private func positionIfNeeded(_ window: PopoutPanel, home: Bool) {
+    guard positionedWindows.insert(ObjectIdentifier(window)).inserted else { return }
+    let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
+      ?? NSScreen.main
+    guard let visible = screen?.visibleFrame else { return }
+    let frame = home
+      ? PopoutWindowPlacement.initialHome(in: visible, size: window.frame.size,
+        threadSize: threadWindow?.frame.size ?? PopoutWindowPlacement.threadSize)
+      : PopoutWindowPlacement.initialThread(in: visible, size: window.frame.size)
+    window.setFrame(frame, display: false)
+  }
+
+  private func alignThread(to home: PopoutPanel) {
+    guard let threadWindow, let visible = screen(containing: home)?.visibleFrame else { return }
+    threadWindow.setFrame(PopoutWindowPlacement.thread(alignedTo: home.frame,
+      in: visible, size: threadWindow.frame.size), display: false)
+  }
+
+  private func alignHome(to thread: PopoutPanel) {
+    guard let visible = screen(containing: thread)?.visibleFrame else { return }
+    homeWindow.setFrame(PopoutWindowPlacement.home(alignedTo: thread.frame,
+      in: visible, height: homeWindow.frame.height), display: false)
+  }
+
+  private func screen(containing window: NSWindow) -> NSScreen? {
+    window.screen ?? NSScreen.screens.first { $0.frame.intersects(window.frame) } ?? NSScreen.main
   }
 
   private static func makeWindow(size: NSSize, title: String, resizable: Bool) -> PopoutPanel {
@@ -116,7 +147,7 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
     window.hasShadow = true
     window.level = .floating
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-    if resizable { window.minSize = NSSize(width: 400, height: 400) }
+    if resizable { window.minSize = PopoutWindowPlacement.threadMinimumSize }
     return window
   }
 }
