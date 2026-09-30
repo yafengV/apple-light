@@ -22,6 +22,7 @@ final class WorkspaceStore {
   @ObservationIgnored var shortcutCaptureCount = 0
   @ObservationIgnored var popoutWindowHandler: (() -> Void)?
   @ObservationIgnored var popoutWindowToggleHandler: (() -> Void)?
+  @ObservationIgnored var showMainWindowHandler: (() -> Void)?
   var popoutHotkeyError: String?
   @ObservationIgnored private let root: URL
   @ObservationIgnored private let agentExecutable: URL?

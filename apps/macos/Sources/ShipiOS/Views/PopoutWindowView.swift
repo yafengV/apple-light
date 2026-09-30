@@ -184,6 +184,7 @@ struct PopoutThreadView: View {
   let taskID: String
   let onHome: () -> Void
   let onOpenThread: (String) -> Void
+  let onOpenInMain: (String) -> Void
   let onHide: () -> Void
   @State private var focused = false
   @State private var focusRequest = UUID()
@@ -245,9 +246,15 @@ struct PopoutThreadView: View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
         Button { onHome() } label: { Image(systemName: "chevron.left") }
-          .buttonStyle(.plain).accessibilityLabel("返回弹出窗口首页")
+          .buttonStyle(.plain).accessibilityLabel("返回")
         Text(task?.title ?? "会话").lineLimit(1).appFont(size: 14, weight: .semibold)
         Spacer()
+        Button { onHome() } label: { Image(systemName: "square.and.pencil") }
+          .buttonStyle(.plain).help("开始新对话").accessibilityLabel("开始新对话")
+        Button { onOpenInMain(taskID) } label: { Image(systemName: "arrow.up.right.square") }
+          .buttonStyle(.plain).help("在主窗口中打开")
+          .accessibilityLabel("在主窗口中打开")
+          .disabled(task?.isTransient != false)
         Button { onHide() } label: { Image(systemName: "xmark") }
           .buttonStyle(.plain).accessibilityLabel("隐藏弹出窗口")
       }.padding(.horizontal, 18).padding(.vertical, 14)

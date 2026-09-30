@@ -4,6 +4,51 @@ import XCTest
 @testable import ShipiOS
 
 final class PopoutWindowLayoutTests: XCTestCase {
+  @MainActor func testOpenThreadInMainSelectsItsTaskAndPreservesDraft() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let other = try XCTUnwrap(store.createPopoutTask(projectless: true))
+    store.library.tasks[store.library.tasks.firstIndex(where: { $0.id == other.id })!].popoutDraft = nil
+    store.selectTask(other)
+    let target = try XCTUnwrap(store.createPopoutTask(projectless: true))
+    store.setTaskWindowDraft("Keep this unsent reply", taskID: target.id)
+    store.popoutHomeDraft = "Keep the new chat draft"
+    var openedMain = 0
+    store.showMainWindowHandler = { openedMain += 1 }
+    let controller = PopoutWindowController(store: store)
+    defer { controller.hide() }
+    controller.openThread(target.id)
+    XCTAssertTrue(controller.hasVisibleWindow)
+    controller.openThreadInMainWindow(target.id)
+    try await Task.sleep(for: .milliseconds(80))
+    XCTAssertEqual(openedMain, 0, "An unsent popout draft cannot become a main-window task")
+    XCTAssertEqual(store.selectedTask?.id, other.id)
+    XCTAssertTrue(controller.hasVisibleWindow)
+
+    store.library.tasks[store.library.tasks.firstIndex(where: { $0.id == target.id })!].popoutDraft = nil
+    store.busy = true
+    controller.openThreadInMainWindow(target.id)
+    try await Task.sleep(for: .milliseconds(80))
+    XCTAssertEqual(openedMain, 0)
+    XCTAssertEqual(store.selectedTask?.id, other.id)
+    XCTAssertTrue(controller.hasVisibleWindow)
+    XCTAssertEqual(store.error, "无法在主窗口打开此任务，请稍后重试。")
+    store.busy = false
+    store.error = nil
+    controller.openThreadInMainWindow(target.id)
+    for _ in 0..<20 where openedMain == 0 {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertEqual(openedMain, 1)
+    XCTAssertEqual(store.selectedTask?.id, target.id)
+    XCTAssertEqual(store.taskWindowDraft(target.id), "Keep this unsent reply")
+    XCTAssertEqual(store.popoutHomeDraft, "Keep the new chat draft")
+    XCTAssertFalse(controller.hasVisibleWindow)
+  }
+
   @MainActor func testHomeAndThreadSurfacesRenderAtReferenceInitialSizes() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -23,7 +68,8 @@ final class PopoutWindowLayoutTests: XCTestCase {
       ("home", NSSize(width: 470, height: 290), AnyView(PopoutHomeView(store: store,
         onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
       ("thread", NSSize(width: 470, height: 640), AnyView(PopoutThreadView(store: store,
-        taskID: task.id, onHome: {}, onOpenThread: { _ in }, onHide: {})))
+        taskID: task.id, onHome: {}, onOpenThread: { _ in },
+        onOpenInMain: { _ in }, onHide: {})))
     ]
     for (name, size, view) in cases {
       let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
@@ -95,7 +141,8 @@ final class PopoutWindowLayoutTests: XCTestCase {
       ("home-slash", NSSize(width: 470, height: 290), AnyView(PopoutHomeView(store: store,
         onSubmit: { _, _ in false }, onOpenThread: { _ in }, onHide: {}))),
       ("thread-slash", NSSize(width: 470, height: 640), AnyView(PopoutThreadView(store: store,
-        taskID: task.id, onHome: {}, onOpenThread: { _ in }, onHide: {})))
+        taskID: task.id, onHome: {}, onOpenThread: { _ in },
+        onOpenInMain: { _ in }, onHide: {})))
     ]
     for (name, size, view) in cases {
       let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
@@ -146,7 +193,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutThreadView(store: store, taskID: task.id,
-      onHome: {}, onOpenThread: { _ in }, onHide: {}))
+      onHome: {}, onOpenThread: { _ in }, onOpenInMain: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = size
     try await Task.sleep(for: .milliseconds(200))
@@ -189,7 +236,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutThreadView(store: store, taskID: task.id,
-      onHome: {}, onOpenThread: { _ in }, onHide: {}))
+      onHome: {}, onOpenThread: { _ in }, onOpenInMain: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = size
     try await Task.sleep(for: .milliseconds(250))
@@ -236,7 +283,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutThreadView(store: store, taskID: task.id,
-      onHome: {}, onOpenThread: { _ in }, onHide: {}))
+      onHome: {}, onOpenThread: { _ in }, onOpenInMain: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = size
     try await Task.sleep(for: .milliseconds(200))
@@ -276,7 +323,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let host = NSHostingView(rootView: PopoutThreadView(store: store, taskID: task.id,
-      onHome: {}, onOpenThread: { _ in }, onHide: {}))
+      onHome: {}, onOpenThread: { _ in }, onOpenInMain: { _ in }, onHide: {}))
     window.contentView = host
     host.frame.size = size
     try await Task.sleep(for: .milliseconds(350))

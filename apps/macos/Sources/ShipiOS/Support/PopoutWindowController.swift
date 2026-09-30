@@ -49,6 +49,22 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
     applyState(previous: previous)
   }
 
+  func openThreadInMainWindow(_ taskID: String) {
+    guard let store,
+      let showMainWindow = store.showMainWindowHandler,
+      let task = store.library.tasks.first(where: { $0.id == taskID }),
+      !task.isTransient else { return }
+    Task { @MainActor [weak self, weak store] in
+      guard let store else { return }
+      guard await store.selectTaskAwaitingScope(task), store.selectedTask?.id == taskID else {
+        store.error = store.error ?? "无法在主窗口打开此任务，请稍后重试。"
+        return
+      }
+      self?.hide()
+      showMainWindow()
+    }
+  }
+
   func hide() {
     state.hide()
     applyState()
@@ -93,6 +109,7 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
         threadWindow?.contentView = NSHostingView(rootView: PopoutThreadView(store: store,
           taskID: taskID, onHome: { [weak self] in self?.openHome() },
           onOpenThread: { [weak self] in self?.openThread($0) },
+          onOpenInMain: { [weak self] in self?.openThreadInMainWindow($0) },
           onHide: { [weak self] in self?.hide() }))
         renderedThreadID = taskID
       }

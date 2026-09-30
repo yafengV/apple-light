@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// All product pages live inside the main window. Keep the workspace mounted so
@@ -7,6 +8,7 @@ struct AppContentView: View {
   @State private var imagePreviewReturnFocus: (() -> Void)?
   @State private var noticeHostTracker = NoticeHostBoundsTracker()
   @Environment(\.noticeHostBoundsTracker) private var suppliedNoticeHostTracker
+  @Environment(\.openWindow) private var openWindow
 
   private var activeNoticeHostTracker: NoticeHostBoundsTracker {
     suppliedNoticeHostTracker ?? noticeHostTracker
@@ -22,6 +24,18 @@ struct AppContentView: View {
         store.preview(image, images: images)
       }
       .environment(\.mcpApprovalSurfaceVisible, store.mainMCPApprovalVisible)
+      .onAppear {
+        store.showMainWindowHandler = {
+          openWindow(id: "main")
+          DispatchQueue.main.async {
+            if let main = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
+              if main.isMiniaturized { main.deminiaturize(nil) }
+              main.makeKeyAndOrderFront(nil)
+            }
+            NSApp.activate(ignoringOtherApps: true)
+          }
+        }
+      }
       .background(ModifiedEscapeBridge(store: store).frame(width: 0, height: 0))
       .background(MCPApprovalKeyboardBridge(store: store, taskID: store.selectedTask?.id,
         visible: store.mainMCPApprovalVisible).frame(width: 0, height: 0))
