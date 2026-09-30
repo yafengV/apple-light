@@ -5,7 +5,8 @@ import SwiftUI
 /// polite accessibility announcements for additions and text changes.
 struct NoticeAnnouncementSource: NSViewRepresentable {
   let packets: [NoticeAnnouncement]
-  func makeCoordinator() -> Coordinator { Coordinator() }
+  var interaction: NoticeInteractionState? = nil
+  func makeCoordinator() -> Coordinator { Coordinator(interaction: interaction) }
   func makeNSView(context: Context) -> Source {
     let source = Source()
     source.setAccessibilityElement(false)
@@ -33,11 +34,12 @@ struct NoticeAnnouncementSource: NSViewRepresentable {
     private var active = true
     private var queued = false
     private let announce: Announce
-    init(announce: @escaping Announce = { text, priority in
+    private weak var interaction: NoticeInteractionState?
+    init(interaction: NoticeInteractionState? = nil, announce: @escaping Announce = { text, priority in
       guard let application = NSApp else { return }
       NSAccessibility.post(element: application, notification: .announcementRequested,
         userInfo: [.announcement: text, .priority: priority.rawValue])
-    }) { self.announce = announce }
+    }) { self.interaction = interaction; self.announce = announce }
 
     func attach(_ source: Source) {
       self.source = source; source.coordinator = self; watchWindow()
@@ -45,17 +47,25 @@ struct NoticeAnnouncementSource: NSViewRepresentable {
     func stage(_ packets: [NoticeAnnouncement]) { pending = packets; schedule() }
     func watchWindow() {
       removeObservers()
+      refreshVisibility()
       guard active, let window = source?.window else { return }
-      for name in [NSWindow.didBecomeKeyNotification, NSWindow.didExposeNotification, NSWindow.didDeminiaturizeNotification] {
+      for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
+        NSWindow.didExposeNotification, NSWindow.didMiniaturizeNotification,
+        NSWindow.didDeminiaturizeNotification, NSWindow.willCloseNotification] {
         observe(name, object: window)
       }
+      observe(NSApplication.didHideNotification, object: NSApp)
       observe(NSApplication.didUnhideNotification, object: NSApp)
       schedule()
     }
     private func observe(_ name: Notification.Name, object: Any?) {
       observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
-        MainActor.assumeIsolated { self?.schedule() }
+        MainActor.assumeIsolated { self?.refreshVisibility(); self?.schedule() }
       })
+    }
+    func refreshVisibility() {
+      let hidden = source?.window.map { !$0.isVisible || $0.isMiniaturized } ?? true
+      interaction?.setDocumentHidden(hidden || NSApp?.isHidden == true)
     }
     private func schedule() {
       guard active, !queued else { return }
@@ -65,6 +75,7 @@ struct NoticeAnnouncementSource: NSViewRepresentable {
       }
     }
     func flush() {
+      refreshVisibility()
       guard active, let source, let window = source.window, window.isVisible,
         !window.isMiniaturized, !source.isHiddenOrHasHiddenAncestor, !NSApp.isHidden else { return }
       for text in changes.receive(pending) { announce(text, .low) }

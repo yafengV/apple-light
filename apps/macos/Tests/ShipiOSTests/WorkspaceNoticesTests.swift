@@ -69,6 +69,60 @@ final class WorkspaceNoticesTests: XCTestCase {
     XCTAssertEqual(notices.items.first?.remaining, 5)
   }
 
+  func testEachToastHasItsOwnMonotonicLifetimeAndHiddenTimeDoesNotExpireIt() {
+    let notices = WorkspaceNotices()
+    notices.show(id: "first", title: "First", level: .info, at: 100)
+    notices.advance(to: 102)
+    XCTAssertEqual(notices.items.first?.remaining, 3)
+    notices.show(id: "second", title: "Second", level: .info, at: 102)
+    notices.setPaused(true, at: 104)
+    XCTAssertEqual(notices.items.map(\.remaining), [3, 1])
+    notices.advance(to: 1000)
+    XCTAssertEqual(notices.items.map(\.remaining), [3, 1])
+    notices.setPaused(false, at: 1000)
+    notices.advance(to: 1001)
+    XCTAssertEqual(notices.items.map(\.id), ["second"])
+    XCTAssertEqual(notices.items.first?.remaining, 2)
+    notices.show(id: "third", title: "Third", level: .info, at: 1001)
+    notices.advance(to: 1000)
+    XCTAssertEqual(notices.items.first?.remaining, 5)
+    notices.advance(to: 1003)
+    XCTAssertEqual(notices.items.map(\.id), ["third"])
+    XCTAssertEqual(notices.items.first?.remaining, 3)
+    notices.show(id: "pending", title: "Pending", level: .pending, at: 1003)
+    notices.advance(to: 100000)
+    XCTAssertEqual(notices.items.map(\.id), ["pending"])
+  }
+
+  func testHoverEscapeDragAndVisibilityPauseReasonsFollowReferenceOrder() throws {
+    var time: TimeInterval = 200
+    let notices = WorkspaceNotices()
+    notices.show(id: "first", title: "First", level: .info, at: time)
+    let generation = try XCTUnwrap(notices.items.first?.generation)
+    let interaction = NoticeInteractionState(notices: notices, uptime: { time })
+    time = 202; interaction.pointerMoved(over: generation)
+    XCTAssertTrue(interaction.expanded); XCTAssertTrue(notices.paused)
+    XCTAssertEqual(notices.items.first?.remaining, 3)
+    time = 300; interaction.collapse()
+    XCTAssertFalse(interaction.expanded); XCTAssertTrue(interaction.hovered.contains(generation))
+    XCTAssertFalse(notices.paused)
+    time = 301; interaction.pointerMoved(over: generation)
+    XCTAssertTrue(interaction.expanded); XCTAssertEqual(notices.items.first?.remaining, 2)
+    interaction.setInteracting(true)
+    interaction.pointerLeft(generation)
+    XCTAssertTrue(interaction.expanded); XCTAssertTrue(notices.paused)
+    interaction.setInteracting(false)
+    XCTAssertFalse(interaction.expanded); XCTAssertFalse(notices.paused)
+    time = 302; interaction.setDocumentHidden(true)
+    XCTAssertEqual(notices.items.first?.remaining, 1)
+    time = 2002; interaction.tick()
+    XCTAssertEqual(notices.items.first?.remaining, 1)
+    interaction.setDocumentHidden(false)
+    time = 2003; interaction.tick()
+    XCTAssertTrue(notices.items.isEmpty)
+    interaction.stop(); XCTAssertFalse(notices.paused)
+  }
+
   @MainActor func testRestoreViewUsesLatestTaskWithoutLosingDraft() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

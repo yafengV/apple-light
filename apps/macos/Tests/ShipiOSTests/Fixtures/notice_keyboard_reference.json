@@ -1,0 +1,47 @@
+{
+  "region": {
+    "ariaLabel": "Notifications alt+T",
+    "tabIndex": -1,
+    "ariaLive": "polite",
+    "ariaRelevant": "additions text",
+    "ariaAtomic": "false"
+  },
+  "toaster": {
+    "tabIndex": -1,
+    "position": "top-center",
+    "gap": "8px"
+  },
+  "hotkey": {
+    "expanded": [
+      false,
+      true
+    ],
+    "focused": "toaster",
+    "previous": "composer",
+    "focusOptions": {
+      "preventScroll": true
+    }
+  },
+  "extraModifiers": {
+    "expanded": true,
+    "focused": "toaster"
+  },
+  "escapeInside": false,
+  "escapedOutsideCount": 4,
+  "pendingDidNotCapture": true,
+  "pointer": {
+    "expanded": [
+      true,
+      true,
+      false,
+      false
+    ],
+    "interacting": [
+      true,
+      false
+    ]
+  },
+  "unmountRestoresPrior": true,
+  "sourceSHA256": "1e9a3a8f4ec5539cb42fa61d799ce1e5b04bd642874368d402902a400171d180",
+  "initialSHA256": "01c04b2e5a96e5dd4c97e02ffa183f571a55bef7a221abd99404246c430f2212"
+}

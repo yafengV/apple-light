@@ -5,6 +5,9 @@ struct WorkspaceNoticeCard: View {
   let store: WorkspaceStore
   let notice: WorkspaceNotice
   @FocusState.Binding var focused: String?
+  var interaction: NoticeInteractionState? = nil
+  var isFirst = false
+  var isLast = false
   @Environment(\.appAppearance) private var appearance
   @Environment(\.colorScheme) private var scheme
   @State private var closeHovered = false
@@ -40,6 +43,7 @@ struct WorkspaceNoticeCard: View {
                 .background(closeHovered ? closeHoverColor : .clear, in: Circle())
                 .contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("关闭")
+              .focusable().focusEffectDisabled()
               .focused($focused, equals: notice.generation.uuidString + "-close")
               .onHover { closeHovered = $0 }
           }
@@ -56,8 +60,35 @@ struct WorkspaceNoticeCard: View {
       .shadow(color: .black.opacity(0.1), radius: 12, y: 4)
     }
     .accessibilityIdentifier("workspace-notice:" + notice.id)
-    .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { value in
-      if value.translation.width > 60 && abs(value.translation.height) < value.translation.width {
+    .focusable().focusEffectDisabled()
+    .focused($focused, equals: notice.generation.uuidString + "-row")
+    .onKeyPress(keys: [.tab], phases: .down) { press in
+      let row = notice.generation.uuidString + "-row"
+      let last = notice.generation.uuidString + (notice.level == .pending ? "-row" : "-close")
+      if (isFirst && focused == row && press.modifiers == .shift)
+        || (isLast && focused == last && press.modifiers.isEmpty) {
+        focused = nil
+        interaction?.returnToPreviousFocus()
+        return .handled
+      }
+      if press.modifiers.isEmpty || press.modifiers == .shift { interaction?.beginCardTabMovement() }
+      return .ignored
+    }
+    .overlay(RoundedRectangle(cornerRadius: 15)
+      .strokeBorder(focused == notice.generation.uuidString + "-row" ? resolved.resolvedColors["borderFocus"].color : .clear,
+        lineWidth: 2).padding(-2).allowsHitTesting(false))
+    .onContinuousHover { phase in
+      switch phase {
+      case .active: interaction?.pointerMoved(over: notice.generation)
+      case .ended: interaction?.pointerLeft(notice.generation)
+      }
+    }
+    .simultaneousGesture(DragGesture(minimumDistance: 0)
+      .onChanged { _ in interaction?.setInteracting(true) }
+      .onEnded { value in
+      interaction?.setInteracting(false)
+      if notice.level != .pending, value.translation.width > 60,
+        abs(value.translation.height) < value.translation.width {
         store.notices.dismiss(notice.id, generation: notice.generation)
       }
     })
@@ -81,6 +112,7 @@ struct WorkspaceNoticeCard: View {
     Button("查看") { Task { await store.openNoticeTask(notice) } }
       .buttonStyle(NoticeActionStyle(appearance: resolved, hovered: actionHovered,
         focused: focused == notice.generation.uuidString + "-view"))
+      .focusable().focusEffectDisabled()
       .focused($focused, equals: notice.generation.uuidString + "-view")
       .onHover { actionHovered = $0 }
       .disabled((store.hasSettingsConfirmation && store.appearanceThemeImport == nil) || store.presentedOverlay != nil)
