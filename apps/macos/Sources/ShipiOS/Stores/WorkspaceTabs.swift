@@ -375,6 +375,7 @@ extension WorkspaceStore {
       Task { if await session.saveSelectedFileEdits() { closeWorkspaceTab(id) } }
       return
     }
+    if tab.kind == .file { closedFilePlacements[tab.id] = workspaceTabPlacement(tab.id) }
     if tab.kind == .pullRequest { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
@@ -622,7 +623,8 @@ extension WorkspaceStore {
     guard let tab = closedWorkspaceTabs.popLast() else { return }
     switch tab {
     case .file(let path, let owner):
-      if owner == currentWorkspaceTabOwner { _ = openFileTab(path) }
+      let placement = closedFilePlacements.removeValue(forKey: tab.id) ?? .left
+      if owner == currentWorkspaceTabOwner { _ = openFileTab(path, in: placement) }
     case .review:
       if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
       if tab.owner == currentWorkspaceTabOwner { activateWorkspaceTab(tab.id) }
@@ -700,6 +702,7 @@ extension WorkspaceStore {
       closedWorkspaceTabs.removeFirst(closedWorkspaceTabs.count - 20)
     }
     let ids = Set(closedWorkspaceTabs.map(\.id))
+    closedFilePlacements = closedFilePlacements.filter { ids.contains($0.key) }
     closedPullRequestPlacements = closedPullRequestPlacements.filter { ids.contains($0.key) }
   }
 

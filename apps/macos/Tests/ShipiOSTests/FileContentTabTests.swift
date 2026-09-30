@@ -110,6 +110,19 @@ import XCTest
     XCTAssertEqual(store.library.pinnedContentTabs.first?.sourceTabID, tab.id)
   }
 
+  func testReopenFileRestoresItsRightPanelPlacement() throws {
+    let (store, _, _) = try fixture()
+    XCTAssertTrue(store.openFileTab("First.swift", in: .right))
+    let tab = try XCTUnwrap(store.activeRightWorkspaceContentTab)
+    XCTAssertEqual(store.workspaceTabPlacement(tab.id), .right)
+    store.closeWorkspaceTab(tab.id)
+    XCTAssertFalse(store.workspaceTabs.contains(tab))
+
+    store.reopenClosedWorkspaceTab()
+    XCTAssertEqual(store.activeRightWorkspaceContentTab, tab)
+    XCTAssertEqual(store.workspaceTabPlacement(tab.id), .right)
+  }
+
   func testClosingDirtyFileTabSavesBeforeRemoval() async throws {
     let (store, _, project) = try fixture()
     XCTAssertTrue(store.openFileTab("First.swift"))

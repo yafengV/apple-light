@@ -146,6 +146,7 @@ final class WorkspaceStore {
   var workspaceContentPaneSide: WorkspacePaneSide = .right
   var lastWorkspaceContentTabID: String?
   var closedWorkspaceTabs: [WorkspaceContentTab] = []
+  var closedFilePlacements: [String: WorkspaceTabPlacement] = [:]
   var closedPullRequestPlacements: [String: WorkspaceTabPlacement] = [:]
   @ObservationIgnored var reopeningWorkspaceTabOwner: String?
   var workspace = DeveloperWorkspace()
