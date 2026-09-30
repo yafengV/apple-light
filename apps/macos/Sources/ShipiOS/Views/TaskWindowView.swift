@@ -1087,7 +1087,8 @@ struct TaskWindowView: View {
         close: { executionRunID = nil })
         .frame(width: panels.panelSizes.inspector(available: geometry.size.width))
     } else if panels.showingFiles {
-      TaskWindowFilesPanel(store: store, workspace: taskWorkspace, close: { panels.showingFiles = false })
+      TaskWindowFilesPanel(store: store, workspace: taskWorkspace, taskID: taskID,
+        close: { panels.showingFiles = false })
         .frame(width: panels.panelSizes.inspector(available: geometry.size.width))
         .taskWindowDropDestination(tabs: tabs, placement: .right)
     } else if tabs.showingRight, let task, let tab = tabs.selected(.right) {
@@ -1739,6 +1740,7 @@ private struct TaskWindowFindBar: View {
 private struct TaskWindowFilesPanel: View {
   @Bindable var store: WorkspaceStore
   @Bindable var workspace: DeveloperWorkspace
+  let taskID: String
   let close: () -> Void
 
   var body: some View {
@@ -1750,7 +1752,7 @@ private struct TaskWindowFilesPanel: View {
           .buttonStyle(.plain).help("隐藏任务文件").accessibilityLabel("隐藏任务文件")
       }.padding(10)
       Divider()
-      FileWorkspaceView(store: store, workspace: workspace)
+      FileWorkspaceView(store: store, workspace: workspace, taskID: taskID)
     }
   }
 }

@@ -4,6 +4,63 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class FilePreviewFocusTests: XCTestCase {
+  func testSelectionEditRequiresReviewAndKeepsNativeUndo() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try "one two".write(to: root.appendingPathComponent("Edit.swift"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    await workspace.openFile("Edit.swift")
+    let window = FilePreviewTestWindow(contentRect: .init(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: FileSourcePreview(store: store, workspace: workspace))
+    window.contentView = host
+    host.frame.size = .init(width: 500, height: 350)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    func preview(_ view: NSView) -> FilePreviewTextView? {
+      if let text = view as? FilePreviewTextView { return text }
+      return view.subviews.compactMap(preview).first
+    }
+    let text = try XCTUnwrap(preview(host))
+    text.setSelectedRange(NSRange(location: 4, length: 3))
+    workspace.selectionEdit.selectionChanged(in: text)
+    workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
+    workspace.selectionEdit.instruction = "uppercase"
+    workspace.selectionEdit.generate { request in
+      try request.proposal(from: #"{"replacement":"TWO"}"#)
+    }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil {
+      await Task.yield()
+    }
+    XCTAssertNotNil(workspace.selectionEdit.proposal)
+    XCTAssertEqual(text.string, "one two", "Generating must not modify the editor")
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("Edit.swift")), "one two")
+    XCTAssertTrue(workspace.selectionEdit.accept(path: workspace.selectedFile, source: workspace.fileText))
+    XCTAssertEqual(workspace.fileText, "one TWO")
+    XCTAssertTrue(text.undoManager?.canUndo == true)
+    text.undoManager?.undo()
+    XCTAssertEqual(workspace.fileText, "one two")
+
+    text.setSelectedRange(NSRange(location: 4, length: 3))
+    workspace.selectionEdit.selectionChanged(in: text)
+    workspace.selectionEdit.open(path: "Edit.swift", source: workspace.fileText)
+    workspace.selectionEdit.instruction = "uppercase"
+    workspace.selectionEdit.generate { request in
+      try request.proposal(from: #"{"replacement":"TWO"}"#)
+    }
+    for _ in 0..<20 where workspace.selectionEdit.proposal == nil { await Task.yield() }
+    text.setSelectedRange(NSRange(location: 0, length: 3))
+    workspace.selectionEdit.selectionChanged(in: text)
+    XCTAssertFalse(workspace.selectionEdit.accept(path: workspace.selectedFile, source: workspace.fileText),
+      "A stale selection must not apply an old proposal")
+    XCTAssertEqual(workspace.fileText, "one two")
+  }
   func testNativeFileEditorUpdatesWorkspaceDraft() async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

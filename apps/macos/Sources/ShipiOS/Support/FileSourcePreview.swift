@@ -35,6 +35,7 @@ struct FileSourcePreview: NSViewRepresentable {
     scroll.documentView = text
     text.delegate = context.coordinator
     workspace.fileFind.bind(editor: text)
+    workspace.selectionEdit.bind(editor: text)
     context.coordinator.install(text, store: store, workspace: workspace)
     return scroll
   }
@@ -42,6 +43,7 @@ struct FileSourcePreview: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let text = scroll.documentView as? FilePreviewTextView else { return }
     workspace.fileFind.bind(editor: text)
+    workspace.selectionEdit.bind(editor: text)
     scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
     let coordinator = context.coordinator
     // Swift strings compare canonically; the byte revision also observes source
@@ -113,6 +115,10 @@ struct FileSourcePreview: NSViewRepresentable {
     if let text = view.documentView as? FilePreviewTextView,
       coordinator.workspace?.fileFind.editor === text {
       coordinator.workspace?.fileFind.bind(editor: nil)
+    }
+    if let text = view.documentView as? FilePreviewTextView,
+      coordinator.workspace?.selectionEdit.editor === text {
+      coordinator.workspace?.selectionEdit.bind(editor: nil)
     }
     (view.documentView as? FilePreviewTextView)?.syntax.stop()
     coordinator.stop()
@@ -207,6 +213,10 @@ struct FileSourcePreview: NSViewRepresentable {
         let workspace, workspace.selectedFileEditor != nil,
         !text.string.utf8.elementsEqual(workspace.fileText.utf8) else { return }
       workspace.editSelectedFile(text.string)
+    }
+    func textViewDidChangeSelection(_ notification: Notification) {
+      guard let text = notification.object as? FilePreviewTextView, let workspace else { return }
+      workspace.selectionEdit.selectionChanged(in: text)
     }
     deinit { stop() }
   }

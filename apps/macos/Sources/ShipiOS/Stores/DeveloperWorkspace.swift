@@ -20,6 +20,7 @@ final class DeveloperWorkspace {
   }
   private(set) var fileContentVersion = UUID()
   let fileFind = FileFindSession()
+  let selectionEdit = FileSelectionEditSession()
   var fileLoading = false
   var fileIsReadOnly = false
   var fileError: String?
@@ -145,6 +146,7 @@ final class DeveloperWorkspace {
     fileAutosaveTasks.removeAll()
     stopFileMonitoring()
     fileFind.close()
+    selectionEdit.reset()
     self.root = root
     additionalFileRoots = Array(WorkspaceFileScope.roots(primary: root, additional: additionalFolders).dropFirst())
     loading = false
@@ -283,6 +285,7 @@ final class DeveloperWorkspace {
     let token = UUID()
     fileVersion = token
     stopFileMonitoring(path)
+    selectionEdit.reset()
     if selectedFile != path { fileFind.close() }
     selectedFile = path
     if !openFiles.contains(path) { openFiles.append(path) }
@@ -355,6 +358,7 @@ final class DeveloperWorkspace {
     guard selectedFile == path else { return }
     fileVersion = UUID()
     fileFind.close()
+    selectionEdit.reset()
     selectedFile = nil
     fileText = ""
     fileError = nil

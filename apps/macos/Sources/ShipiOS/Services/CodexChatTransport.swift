@@ -284,6 +284,12 @@ final class CodexChatTransport {
     streams.removeValue(forKey: taskID)?.finish()
   }
 
+  /// Releases an ephemeral thread's local identity after the Core thread stops.
+  func discard(taskID: String) async {
+    await stop(taskID: taskID)
+    taskProjects.removeValue(forKey: taskID)
+  }
+
   func approve(taskID: String, id: String, turnID: String?, patch: Bool,
     decision: MCPApprovalDecision) async throws {
     guard activeThreads.contains(taskID), !id.isEmpty else {

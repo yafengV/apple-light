@@ -20,7 +20,8 @@ struct DeveloperPanel: View {
       Divider()
       Group {
         switch store.pane {
-        case "files": FileWorkspaceView(store: store, workspace: store.workspace)
+        case "files": FileWorkspaceView(store: store, workspace: store.workspace,
+          taskID: store.selectedTask?.id)
         case "review", "browser": ProgressView().controlSize(.small)
         default: RunInspectorView(store: store)
         }
