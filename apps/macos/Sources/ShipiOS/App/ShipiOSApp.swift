@@ -334,7 +334,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         await store.dictation.start(target: token,
           languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
           microphoneDeviceID: store.voicePreferences.microphoneDeviceID,
-          dictionary: store.voicePreferences.dictationDictionary) { [weak self, weak store] _, transcript in
+          dictionary: store.voicePreferences.dictationDictionary,
+          recordingHistory: store.voiceRecordingHistory) { [weak self, weak store] _, transcript in
           do {
             try textTarget.insert(transcript)
           } catch {

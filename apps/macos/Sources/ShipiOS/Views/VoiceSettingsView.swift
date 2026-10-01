@@ -1,4 +1,5 @@
 import AVFoundation
+import AppKit
 import Speech
 import SwiftUI
 
@@ -145,6 +146,24 @@ struct VoiceSettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .settingsSearchTarget(.voiceDictionary)
+        VStack(spacing: 0) {
+          SettingsControlLabel(title: "最近录音", description: "最近 20 条录音保存在此设备。")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+          ForEach(store.voiceRecordingHistory.recordings) { recording in
+            Divider().padding(.horizontal, 16)
+            recordingRow(recording)
+          }
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .settingsSearchTarget(.voiceRecordings)
+        if let error = store.voiceRecordingHistory.error {
+          HStack(alignment: .top) {
+            Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
+            Spacer()
+            Button("关闭") { store.voiceRecordingHistory.clearError() }
+          }
+        }
         Text("在输入区使用 \(store.shortcuts.label("dictation")) 开始或结束听写。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
@@ -191,6 +210,79 @@ struct VoiceSettingsView: View {
   private func refreshMicrophones() {
     microphones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone],
       mediaType: .audio, position: .unspecified).devices
+  }
+
+  private func recordingRow(_ recording: VoiceRecording) -> some View {
+    HStack(spacing: 10) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(recording.text.isEmpty ? recordingStatus(recording.status) : recording.text)
+          .appFont(size: 13)
+          .lineLimit(1)
+          .frame(maxWidth: .infinity, alignment: .leading)
+        Text(recording.createdAt.formatted(date: .abbreviated, time: .shortened))
+          .appFont(.caption).foregroundStyle(.secondary)
+      }
+      if !recording.text.isEmpty {
+        Button {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(recording.text, forType: .string)
+        } label: { Image(systemName: "doc.on.doc") }
+          .buttonStyle(.plain)
+          .disabled(store.voiceRecordingHistory.retryingID != nil)
+          .accessibilityLabel("复制听写文本")
+      } else if recording.sizeBytes > 0 && recording.status != .recording {
+        if store.voiceRecordingHistory.retryingID == recording.id {
+          ProgressView().controlSize(.small).accessibilityLabel("正在重试转写")
+        } else {
+          Button("重试") {
+            Task {
+              await store.voiceRecordingHistory.retry(recording.id,
+                languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
+                dictionary: store.voicePreferences.dictationDictionary)
+            }
+          }
+          .disabled(store.voiceRecordingHistory.retryingID != nil)
+          .accessibilityLabel("重试转写")
+        }
+      }
+      Menu {
+        if recording.sizeBytes > 0 {
+          Button("下载录音") { download(recording.id) }
+        }
+        Button("删除录音", role: .destructive) {
+          do { try store.voiceRecordingHistory.delete(recording.id) }
+          catch { store.voiceRecordingHistory.report(error) }
+        }
+          .disabled(recording.status == .recording)
+      } label: { Image(systemName: "ellipsis") }
+        .menuStyle(.borderlessButton)
+        .frame(width: 24)
+        .disabled(store.voiceRecordingHistory.retryingID != nil)
+        .accessibilityLabel("录音操作")
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 10)
+  }
+
+  private func recordingStatus(_ status: VoiceRecording.Status) -> String {
+    switch status {
+    case .recording: "正在录音"
+    case .saved: "录音已保存"
+    case .cancelled: "录音已取消"
+    case .interrupted: "录音已中断"
+    }
+  }
+
+  private func download(_ id: UUID) {
+    guard let source = store.voiceRecordingHistory.recordingURL(for: id),
+      let window = NSApp.keyWindow else { return }
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "听写录音-\(id.uuidString.prefix(8)).caf"
+    panel.beginSheetModal(for: window) { response in
+      guard response == .OK, let destination = panel.url else { return }
+      do { try Data(contentsOf: source).write(to: destination, options: .atomic) }
+      catch { store.voiceRecordingHistory.report(error) }
+    }
   }
 
   private func globalHotkeyRow(_ mode: GlobalHotkeyMode) -> some View {

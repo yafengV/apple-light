@@ -17,6 +17,7 @@ final class WorkspaceStore {
     }
   }
   var dictation = SpeechDictation()
+  let voiceRecordingHistory: VoiceRecordingHistory
   @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?
   var globalDictationHotkeyError: String?
   @ObservationIgnored let appshotCapture = AppshotCapture()
@@ -506,6 +507,7 @@ final class WorkspaceStore {
   init(dataRoot: URL? = nil, agentExecutable: URL? = nil,
     browserDataStore: WKWebsiteDataStore? = nil) {
     root = dataRoot ?? Self.defaultDataRoot
+    voiceRecordingHistory = VoiceRecordingHistory(dataRoot: root)
     self.agentExecutable = agentExecutable
     self.browserDataStore = browserDataStore
     shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))

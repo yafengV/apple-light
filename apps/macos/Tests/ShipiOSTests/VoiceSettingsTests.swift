@@ -138,6 +138,39 @@ final class VoiceSettingsTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testRecentRecordingsRenderWithTranscriptAndRetry() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let (transcriptID, _) = try XCTUnwrap(store.voiceRecordingHistory.begin())
+    store.voiceRecordingHistory.finish(id: transcriptID, text: "已恢复的听写文本",
+      cancelled: false, sizeBytes: 0, recordingError: nil)
+    let (audioID, _) = try XCTUnwrap(store.voiceRecordingHistory.begin())
+    let audio = root.appendingPathComponent("VoiceRecordings/\(audioID.uuidString).caf")
+    try Data([1, 2, 3]).write(to: audio)
+    store.voiceRecordingHistory.finish(id: audioID, text: "", cancelled: false,
+      sizeBytes: 3, recordingError: nil)
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 1250),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: VoiceSettingsView(store: store)
+      .environment(\.appAppearance, store.appearance))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(250))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_VOICE_HISTORY_RENDER_PATH"] {
+      try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        .write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+    XCTAssertEqual(store.voiceRecordingHistory.recordings.count, 2)
+    window.close()
+    await store.shutdown()
+  }
+
   @MainActor private func findMenu(in view: NSView, label: String) -> SettingsMenuControl? {
     if let menu = view as? SettingsMenuControl, menu.accessibilityLabel() == label { return menu }
     return view.subviews.lazy.compactMap { self.findMenu(in: $0, label: label) }.first

@@ -25,6 +25,9 @@ import Speech
   @ObservationIgnored private var inputStopped = false
   @ObservationIgnored private var completion = SpeechRecognitionCompletion()
   @ObservationIgnored private var meter: SpeechAudioLevelMeter?
+  @ObservationIgnored private var recordingHistory: VoiceRecordingHistory?
+  @ObservationIgnored private var recordingID: UUID?
+  @ObservationIgnored private var recorder: VoiceRecordingCapture?
 
   static func recognitionRequest(dictionary: [String]) -> SFSpeechAudioBufferRecognitionRequest {
     let request = SFSpeechAudioBufferRecognitionRequest()
@@ -36,7 +39,8 @@ import Speech
   }
 
   func start(target: String, languageIdentifier: String? = nil, microphoneDeviceID: String? = nil,
-    dictionary: [String] = [], commit: @escaping (String, String) -> Void) async {
+    dictionary: [String] = [], recordingHistory: VoiceRecordingHistory? = nil,
+    commit: @escaping (String, String) -> Void) async {
     if self.target != nil { stop() }
     let token = UUID()
     generation = token
@@ -83,8 +87,10 @@ import Speech
         fail("所选麦克风已断开。请在语音设置中选择其他设备。", token: token)
         return
       }
+      beginRecording(in: recordingHistory)
       do {
-        let capture = try SpeechCaptureInput(device: device, request: request, meter: meter)
+        let capture = try SpeechCaptureInput(device: device, request: request, meter: meter,
+          recorder: recorder)
         self.capture = capture
         guard await capture.start() else {
           fail("无法从所选麦克风开始录音。", token: token)
@@ -106,10 +112,13 @@ import Speech
         fail("没有可用的麦克风输入。", token: token)
         return
       }
+      beginRecording(in: recordingHistory)
       self.engine = engine
+      let recorder = self.recorder
       input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
         request.append(buffer)
         meter.append(buffer)
+        recorder?.append(buffer)
       }
       do {
         engine.prepare()
@@ -130,7 +139,18 @@ import Speech
     guard let target, expected == nil || expected == target else { return }
     let spoken = completion.stop()
     let save = commit
+    let history = recordingHistory
+    let recordingID = recordingID
+    let recorder = recorder
     cleanup()
+    if let history, let recordingID, let recorder {
+      recorder.finish { size, error in
+        Task { @MainActor in
+          history.finish(id: recordingID, text: spoken, cancelled: !commitResult,
+            sizeBytes: size, recordingError: error)
+        }
+      }
+    }
     if commitResult && !spoken.isEmpty { save?(target, spoken) }
     completedTarget = target
     completionID = UUID()
@@ -194,7 +214,11 @@ import Speech
     inputStopped = true
     engine?.stop()
     engine?.inputNode.removeTap(onBus: 0)
-    if let capture { capture.stop() } else { request?.endAudio() }
+    if let capture { capture.stop() }
+    else {
+      request?.endAudio()
+      recorder?.markInputEnded()
+    }
     engine = nil
     capture = nil
   }
@@ -210,6 +234,9 @@ import Speech
     request = nil
     recognitionTask = nil
     meter = nil
+    recordingHistory = nil
+    recordingID = nil
+    recorder = nil
     commit = nil
     target = nil
     partial = ""
@@ -217,5 +244,12 @@ import Speech
     audioLevels = Array(repeating: 0.0, count: Self.waveformSampleCount)
     inputStopped = false
     completion = SpeechRecognitionCompletion()
+  }
+
+  private func beginRecording(in history: VoiceRecordingHistory?) {
+    guard let history, let (id, capture) = history.begin() else { return }
+    recordingHistory = history
+    recordingID = id
+    recorder = capture
   }
 }

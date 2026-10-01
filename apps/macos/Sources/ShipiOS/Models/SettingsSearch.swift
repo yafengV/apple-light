@@ -45,6 +45,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case voiceHoldHotkey
   case voiceToggleHotkey
   case voiceDictionary
+  case voiceRecordings
   case petChoice
   case petVisibility
   case petSize
@@ -201,7 +202,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .allowedApplications: .computerUse
     case .appshotHotkey, .appshotDestination, .appshotSound: .appshots
     case .voiceChat, .voiceLanguage, .voiceMicrophone, .voiceHoldHotkey,
-      .voiceToggleHotkey, .voiceDictionary: .voice
+      .voiceToggleHotkey, .voiceDictionary, .voiceRecordings: .voice
     case .browserHistory: .browser
     case .browserClear: .browser
     case .browserDownloadFolder: .browser
@@ -257,6 +258,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .voiceHoldHotkey: "按住听写快捷键"
     case .voiceToggleHotkey: "切换听写快捷键"
     case .voiceDictionary: "听写词典"
+    case .voiceRecordings: "最近录音"
     case .petChoice: "选择宠物"
     case .petVisibility: "显示或隐藏宠物"
     case .petSize: "宠物大小"
@@ -397,6 +399,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .voiceHoldHotkey: "全局 听写 快捷键 按住 松开"
     case .voiceToggleHotkey: "全局 听写 快捷键 按一次 开始 结束"
     case .voiceDictionary: "词语 短语 词条 contextual strings"
+    case .voiceRecordings: "保存 恢复 重试转写 下载 删除 录音"
     case .petChoice: "Codey Mini"
     case .petVisibility: "浮动宠物"
     case .petSize: "缩放"
