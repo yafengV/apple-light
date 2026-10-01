@@ -67,6 +67,62 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testNewComposerPermissionChoiceIsCapturedForCreatedTask() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await prepare(protocol: .chatCompletions, root: root)
+    let draftKey = store.draftKey
+    let chosen = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(chosen,
+      taskID: nil, draftKey: draftKey))
+    store.draft = "Check the new task permission snapshot"
+    await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask, store.error ?? "Task was not created")
+    XCTAssertEqual(store.runtimePermissions(for: task.id), chosen)
+    XCTAssertNil(store.library.newTaskRuntimePreferences[draftKey])
+    XCTAssertEqual(try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+      .taskRuntimePreferences[task.id], chosen)
+    await store.modelTask(runID: task.runIDs[0])?.value
+    await store.shutdown()
+  }
+
+  @MainActor func testChangingTaskPermissionAppliesToNextCoreTurn() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await prepare(protocol: .codexResponses, root: root)
+    let project = try XCTUnwrap(store.project)
+    let initial = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .readOnly, networkAccess: false)
+    store.draft = "codex-permission-denied-probe"
+    XCTAssertTrue(store.saveComposerRuntimePreferences(initial,
+      taskID: nil, draftKey: store.draftKey))
+    await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask, store.error ?? "Task was not created")
+    let firstRunID = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: firstRunID)?.value
+    let firstRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == firstRunID })
+    XCTAssertEqual(firstRun.status, "succeeded", firstRun.result?.pretty ?? "")
+    XCTAssertNotNil(firstRun.result?["codex_turn_id"].text)
+    XCTAssertFalse(firstRun.toolExecutions.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project
+      .appendingPathComponent("permission-denied.txt").path))
+
+    let next = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .workspaceWrite, networkAccess: false)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(next,
+      taskID: task.id, draftKey: task.id))
+    let nextStarted = await store.startChat("codex-permission-allowed-probe", taskID: task.id)
+    let nextRunID = try XCTUnwrap(nextStarted, store.error ?? "Follow-up did not start")
+    await store.modelTask(runID: nextRunID)?.value
+    let nextRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == nextRunID })
+    XCTAssertEqual(nextRun.status, "succeeded", nextRun.result?.pretty ?? "")
+    XCTAssertNotNil(nextRun.result?["codex_turn_id"].text)
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("permission-allowed.txt")),
+      "allowed")
+    await store.shutdown()
+  }
+
   @MainActor func testCoreDiscoversRepositorySkillAndReadsActualFileThroughNativeTool() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

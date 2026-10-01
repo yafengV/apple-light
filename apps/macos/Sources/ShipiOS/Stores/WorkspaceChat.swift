@@ -67,6 +67,8 @@ extension WorkspaceStore {
   )
     async -> String?
   {
+    let newTaskPermissionDraftKey = explicitTaskID == nil && selectedTask == nil && consumeDraft
+      ? draftKey : nil
     if explicitTaskID == nil, selectedTask == nil,
       !(await applyPrimaryToNewTask()) { return nil }
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
@@ -262,6 +264,12 @@ extension WorkspaceStore {
       candidate.runImages[run.id] = images
       candidate.runFiles[run.id] = files
       candidate.attach(run, to: taskID, note: prompt)
+      if taskID == nil, let created = candidate.task(containing: run.id) {
+        let selectedPermissions = newTaskPermissionDraftKey
+          .flatMap { candidate.newTaskRuntimePreferences.removeValue(forKey: $0) }
+          ?? candidate.agentRuntimePreferences
+        candidate.taskRuntimePreferences[created.id] = selectedPermissions
+      }
       if let owner = candidate.tasks.firstIndex(where: { $0.runIDs.contains(run.id) }),
         candidate.tasks[owner].modelSelection == initialModelSelection {
         candidate.tasks[owner].modelSelection = TaskModelSelection(model: config.model, reasoning: config.reasoning,

@@ -109,6 +109,8 @@ pub struct CodexSubmit {
     pub goal_instructions: Option<String>,
     pub model: Option<String>,
     pub reasoning_effort: Option<String>,
+    #[serde(default)]
+    pub permissions: Option<SessionPermissions>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -226,6 +228,7 @@ enum Command {
         mode: CodexTurnMode,
         model: Option<String>,
         reasoning_effort: Option<String>,
+        permissions: Option<SessionPermissions>,
         reply: oneshot::Sender<Result<String>>,
     },
     Compact(oneshot::Sender<Result<()>>),
@@ -635,6 +638,7 @@ impl CodexBridge {
             goal_instructions: None,
             model: None,
             reasoning_effort: None,
+            permissions: None,
         })
         .await
     }
@@ -649,6 +653,7 @@ impl CodexBridge {
             goal_instructions,
             model,
             reasoning_effort,
+            permissions,
         } = request;
         ensure!(
             !plan_mode || goal_instructions.is_none(),
@@ -669,6 +674,7 @@ impl CodexBridge {
                 },
                 model,
                 reasoning_effort,
+                permissions,
                 reply,
             })
             .await
@@ -871,8 +877,9 @@ async fn run_thread(
         tokio::select! {
             biased;
             command = receiver.recv() => match command {
-                Some(Command::Submit { inputs, mode, model, reasoning_effort, reply }) => {
-                    let _ = reply.send(live.submit_inputs_in_mode(inputs, mode, model, reasoning_effort).await);
+                Some(Command::Submit { inputs, mode, model, reasoning_effort, permissions, reply }) => {
+                    let _ = reply.send(live.submit_inputs_in_mode_with_permissions(
+                        inputs, mode, model, reasoning_effort, permissions).await);
                 }
                 Some(Command::Compact(reply)) => {
                     let _ = reply.send(live.compact().await);
@@ -966,6 +973,27 @@ mod tests {
     use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[test]
+    fn turn_submit_accepts_current_permission_choice_and_legacy_requests() -> Result<()> {
+        let base = json!({"taskId":"task", "text":"inspect", "images":[],
+            "planMode":false});
+        let legacy: CodexSubmit = serde_json::from_value(base.clone())?;
+        assert_eq!(legacy.permissions, None);
+        let mut current = base;
+        current["permissions"] = json!({"approvalPolicy":"never",
+            "sandboxMode":"read-only", "networkAccess":false});
+        let parsed: CodexSubmit = serde_json::from_value(current)?;
+        assert_eq!(
+            parsed.permissions,
+            Some(SessionPermissions {
+                approval_policy: SessionApprovalPolicy::Never,
+                sandbox_mode: SessionSandboxMode::ReadOnly,
+                network_access: false,
+            })
+        );
+        Ok(())
+    }
 
     #[test]
     fn fork_source_validates_project_thread_and_private_reference() -> Result<()> {
@@ -1606,6 +1634,7 @@ mod tests {
                 goal_instructions: None,
                 model: None,
                 reasoning_effort: None,
+                permissions: None,
             })
             .await?;
         loop {

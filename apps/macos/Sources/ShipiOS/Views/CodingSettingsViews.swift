@@ -39,7 +39,7 @@ struct AgentSettingsView: View {
       }
       Section("权限模式") {
         SettingsToggle(title: "在输入区显示完全访问",
-          description: "完全访问会取消文件沙箱限制，可能读取和编辑其他目录、运行联网命令。当前用于弹出任务输入区；显示选项不会启用它。",
+          description: "完全访问会取消文件沙箱限制，可能读取和编辑其他目录、运行联网命令。显示选项不会启用它。",
           isOn: Binding(
             get: { store.library.showFullAccessInComposer },
             set: { visible in
@@ -119,11 +119,11 @@ struct AgentSettingsView: View {
       Button("取消", role: .cancel) {}
       Button("确认") {
         status = store.saveShowFullAccessInComposer(true)
-          ? "完全访问已加入弹出任务权限菜单，尚未启用。"
+          ? "完全访问已加入输入区权限菜单，尚未启用。"
           : "保存失败，请重试。"
       }
     } message: {
-      Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，包括执行可能造成破坏的命令；是否请求批准仍由审批策略决定。确认仅将完全访问加入弹出任务权限菜单，不会自动启用。")
+      Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，包括执行可能造成破坏的命令；是否请求批准仍由审批策略决定。确认仅将完全访问加入输入区权限菜单，不会自动启用。")
     }
   }
 

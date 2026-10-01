@@ -60,6 +60,40 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertFalse(store.saveAgentRuntimePreferences(full))
   }
 
+  @MainActor func testComposerPermissionsBelongToDraftOrTaskAndSurviveRestoration() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("composer-permissions-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let firstDraft = "new:first"
+    let secondDraft = "new:second"
+    let readOnly = AgentRuntimePreferences(sandboxMode: .readOnly)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(readOnly,
+      taskID: nil, draftKey: firstDraft))
+    XCTAssertEqual(store.composerRuntimePreferences(taskID: nil, draftKey: firstDraft), readOnly)
+    XCTAssertEqual(store.composerRuntimePreferences(taskID: nil, draftKey: secondDraft),
+      AgentRuntimePreferences())
+
+    let task = WorkspaceTask(id: UUID().uuidString, project: "", title: "Existing", runIDs: [])
+    store.library.tasks = [task]
+    XCTAssertTrue(store.saveLibrary())
+    XCTAssertTrue(store.saveShowFullAccessInComposer(true))
+    let full = AgentRuntimePreferences(approvalPolicy: .never, sandboxMode: .fullAccess)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(full,
+      taskID: task.id, draftKey: firstDraft))
+    XCTAssertEqual(store.composerRuntimePreferences(taskID: task.id, draftKey: secondDraft), full)
+    XCTAssertTrue(store.saveShowFullAccessInComposer(false))
+    XCTAssertEqual(store.composerRuntimePreferences(taskID: task.id, draftKey: firstDraft), full,
+      "Existing task permission snapshots remain visible after hiding the option")
+    XCTAssertFalse(store.saveComposerRuntimePreferences(full,
+      taskID: nil, draftKey: secondDraft))
+    XCTAssertFalse(store.saveComposerRuntimePreferences(readOnly,
+      taskID: "missing", draftKey: firstDraft))
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(restored.newTaskRuntimePreferences[firstDraft], readOnly)
+    XCTAssertEqual(restored.taskRuntimePreferences[task.id], full)
+  }
+
   func testLegacyFullAccessDefaultsRemainVisibleOnMigration() throws {
     var legacy = WorkspaceLibrary()
     legacy.agentRuntimePreferences.sandboxMode = .fullAccess

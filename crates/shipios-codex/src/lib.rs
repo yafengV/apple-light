@@ -628,6 +628,18 @@ impl CodexSession {
         model: Option<String>,
         reasoning_effort: Option<String>,
     ) -> Result<String> {
+        self.submit_inputs_in_mode_with_permissions(inputs, mode, model, reasoning_effort, None)
+            .await
+    }
+
+    pub async fn submit_inputs_in_mode_with_permissions(
+        &self,
+        inputs: Vec<UserInput>,
+        mode: CodexTurnMode,
+        model: Option<String>,
+        reasoning_effort: Option<String>,
+        permissions: Option<SessionPermissions>,
+    ) -> Result<String> {
         ensure!(
             inputs.iter().any(|input| match input {
                 UserInput::Text { text, .. } => !text.trim().is_empty(),
@@ -682,9 +694,14 @@ impl CodexSession {
             base.push_str("\n\n");
             base.push_str(instructions);
         }
+        let permissions = permissions.unwrap_or(self.permissions);
         let settings = ThreadSettingsOverrides {
             collaboration_mode: Some(collaboration_mode),
-            permission_profile: Some(turn_profile(self.read_only, &mode, self.permissions)),
+            approval_policy: Some(match permissions.approval_policy {
+                SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
+                SessionApprovalPolicy::Never => AskForApproval::Never,
+            }),
+            permission_profile: Some(turn_profile(self.read_only, &mode, permissions)),
             ..Default::default()
         };
         let result = self

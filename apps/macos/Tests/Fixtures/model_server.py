@@ -226,6 +226,18 @@ class Handler(BaseHTTPRequestHandler):
                         'yield_time_ms': 10000,
                     }),
                 }
+            elif 'codex-permission-allowed-probe' in request_text and 'swift-permission-allowed-call' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-permission-allowed-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({'cmd': 'printf allowed > permission-allowed.txt'}),
+                }
+            elif 'codex-permission-denied-probe' in request_text and 'swift-permission-denied-call' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-permission-denied-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({'cmd': 'printf denied > permission-denied.txt'}),
+                }
             elif 'codex-approval' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-approval-call',

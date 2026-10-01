@@ -5,6 +5,32 @@ extension WorkspaceStore {
     library.taskRuntimePreferences[taskID] ?? library.agentRuntimePreferences
   }
 
+  func composerRuntimePreferences(taskID: String?, draftKey: String) -> AgentRuntimePreferences {
+    if let taskID { return runtimePermissions(for: taskID) }
+    return library.newTaskRuntimePreferences[draftKey] ?? library.agentRuntimePreferences
+  }
+
+  @discardableResult func saveComposerRuntimePreferences(
+    _ preferences: AgentRuntimePreferences?, taskID: String?, draftKey: String
+  ) -> Bool {
+    guard libraryLoaded else { return false }
+    if let taskID, !library.tasks.contains(where: { $0.id == taskID }) { return false }
+    let current = composerRuntimePreferences(taskID: taskID, draftKey: draftKey)
+    guard preferences?.sandboxMode != .fullAccess || library.showFullAccessInComposer
+      || current.sandboxMode == .fullAccess else { return false }
+    do {
+      var candidate = library
+      if let taskID { candidate.taskRuntimePreferences[taskID] = preferences }
+      else { candidate.newTaskRuntimePreferences[draftKey] = preferences }
+      try commitLibrary(candidate)
+      error = nil
+      return true
+    } catch {
+      self.error = "无法保存输入区权限：\(error.localizedDescription)"
+      return false
+    }
+  }
+
   @discardableResult func savePopoutHomeRuntimePreferences(
     _ preferences: AgentRuntimePreferences?) -> Bool {
     guard libraryLoaded else { return false }
@@ -49,6 +75,12 @@ extension WorkspaceStore {
         if candidate.popoutHomeRuntimePreferences?.sandboxMode == .fullAccess {
           candidate.popoutHomeRuntimePreferences?.sandboxMode = .workspaceWrite
           candidate.popoutHomeRuntimePreferences?.networkAccess = false
+        }
+        for key in Array(candidate.newTaskRuntimePreferences.keys) {
+          if candidate.newTaskRuntimePreferences[key]?.sandboxMode == .fullAccess {
+            candidate.newTaskRuntimePreferences[key]?.sandboxMode = .workspaceWrite
+            candidate.newTaskRuntimePreferences[key]?.networkAccess = false
+          }
         }
       }
       try commitLibrary(candidate)

@@ -1413,6 +1413,9 @@ struct TaskWindowView: View {
       .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.12)))
       DictationStatusView(store: store, target: taskID)
       HStack {
+        if store.modelConfiguration(for: taskID).apiProtocol == .codexResponses {
+          ComposerPermissionsMenu(store: store, taskID: taskID, draftKey: taskID)
+        }
         Button(store.modelConfiguration(for: taskID).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: taskID).model) {
           openTaskModelPicker()
         }.buttonStyle(.plain).help("选择模型与推理强度 " + store.shortcuts.label("model"))

@@ -1162,6 +1162,11 @@ final class ModelTransportTests: XCTestCase {
     let snapshot = try await GitBranchService.snapshot(at: source)
     store.newTaskStartingBranch = try XCTUnwrap(snapshot.branches.first { $0.name == "feature" })
     store.draft = "managed-worktree-probe"
+    let sourceDraftKey = store.draftKey
+    let selectedPermissions = AgentRuntimePreferences(approvalPolicy: .onRequest,
+      sandboxMode: .workspaceWrite, networkAccess: true)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(selectedPermissions,
+      taskID: nil, draftKey: sourceDraftKey))
     await store.sendDraft()
     let managed = try XCTUnwrap(store.library.managedWorktrees.first, store.error ?? "")
     let task = try XCTUnwrap(store.library.tasks.first { $0.id == managed.taskID })
@@ -1169,6 +1174,8 @@ final class ModelTransportTests: XCTestCase {
     await store.modelTask(runID: run.id)?.value
     XCTAssertTrue(managed.ready)
     XCTAssertEqual(task.project, managed.path)
+    XCTAssertEqual(store.runtimePermissions(for: task.id), selectedPermissions)
+    XCTAssertNil(store.library.newTaskRuntimePreferences[sourceDraftKey])
     XCTAssertEqual(run.project, managed.path)
     XCTAssertEqual(store.project?.path, managed.path)
     XCTAssertEqual(store.library.sidebarProject(for: task), source.path)

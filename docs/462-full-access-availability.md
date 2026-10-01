@@ -8,4 +8,4 @@ ShipiOS 现将显示状态保存在独立工作区数据中，新配置默认关
 
 `WorkspaceLibraryTests`、`GeneralSettingsParityTests` 和 `SettingsNavigationTests` 共 53 项通过，覆盖选项过滤、旧数据迁移、未确认状态不可选、关闭后的未来默认值、已有任务快照、失败回滚与设置搜索。`script/build_and_run.sh --verify` 使用隔离数据目录构建并启动签名应用，`codesign --verify --strict --deep dist/ShipiOS.app` 通过。
 
-桌面控制报告 Mac 锁屏，设置开关、确认弹窗和弹出菜单的前台操作尚未验收。主工作区和独立任务窗口仍没有对应的输入区权限菜单；Codex 参考页的完整布局、文案、焦点与交互也未完成双端配对。此阶段不构成 Agent 页面或全产品完全对齐，完整验收保持 **0/45**。
+桌面控制报告 Mac 锁屏，设置开关、确认弹窗和弹出菜单的前台操作尚未验收。在本阶段，主工作区和独立任务窗口仍没有对应的输入区权限菜单；[第 463 篇](463-composer-permissions-and-turn-overrides.md)随后补上入口及逐轮权限传递。Codex 参考页的完整布局、文案、焦点与交互也未完成双端配对。此阶段不构成 Agent 页面或全产品完全对齐，完整验收保持 **0/45**。

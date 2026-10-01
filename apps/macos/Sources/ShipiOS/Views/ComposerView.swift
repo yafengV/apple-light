@@ -375,6 +375,10 @@ struct ComposerView: View {
           .accessibilityLabel(store.chatMode == .goal ? "暂停目标模式" : "退出计划模式")
       }
       if store.action == .chat {
+        if store.modelConfiguration(for: store.selectedTask?.id).apiProtocol == .codexResponses {
+          ComposerPermissionsMenu(store: store, taskID: store.selectedTask?.id,
+            draftKey: store.draftKey)
+        }
         Button(store.modelConfiguration(for: store.selectedTask?.id).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: store.selectedTask?.id).model) {
           store.openModelPicker()
         }.buttonStyle(.plain).appFont(.caption).lineLimit(1).help(

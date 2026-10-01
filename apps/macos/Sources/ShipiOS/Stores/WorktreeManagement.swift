@@ -382,6 +382,11 @@ extension WorkspaceStore {
       candidate.drafts[taskID] = candidate.drafts[sourceDraftKey]
       candidate.draftImages[taskID] = candidate.draftImages[sourceDraftKey]
       candidate.draftFiles[taskID] = candidate.draftFiles[sourceDraftKey]
+      let draftPermissions = candidate.newTaskRuntimePreferences.removeValue(forKey: sourceDraftKey)
+      if candidate.taskRuntimePreferences[taskID] == nil {
+        candidate.taskRuntimePreferences[taskID] = draftPermissions
+          ?? candidate.agentRuntimePreferences
+      }
       candidate.drafts[sourceDraftKey] = nil
       candidate.draftImages[sourceDraftKey] = nil
       candidate.draftFiles[sourceDraftKey] = nil

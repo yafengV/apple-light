@@ -215,6 +215,11 @@ final class CodexChatTransport {
         "planMode": .bool(planMode),
         "model": .string(config.model),
         "reasoningEffort": .string(config.reasoning),
+        "permissions": .object([
+          "approvalPolicy": .string(permissions.approvalPolicy.rawValue),
+          "sandboxMode": .string(permissions.sandboxMode.rawValue),
+          "networkAccess": .bool(permissions.networkAccess),
+        ]),
       ]
       if let goalInstructions { request["goalInstructions"] = .string(goalInstructions) }
       if let staged {
