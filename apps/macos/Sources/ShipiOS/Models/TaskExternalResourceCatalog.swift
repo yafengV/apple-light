@@ -8,6 +8,7 @@ struct TaskExternalResourceCatalog {
     var activitiesByRun: [String: Set<TaskExternalSourceActivity>]
     var hasMCPResource: Bool
     var titlePriority: Int
+    var providerPriority: Int
 
     var isSource: Bool {
       activitiesByRun.values.contains { activities in
@@ -50,7 +51,8 @@ struct TaskExternalResourceCatalog {
           let providerKey = resource.usesProviderID == false ? nil
             : "provider:\(execution.serverID.uuidString):\(resource.id)"
           catalog.add(resource.source, activities: resource.activities, runID: run.id,
-            providerKey: providerKey, titlePriority: catalog.isDescriptive(resource.source) ? 2 : 0)
+            providerKey: providerKey, titlePriority: catalog.isDescriptive(resource.source) ? 2 : 0,
+            providerName: execution.serverName, mimeType: resource.mimeType, fromMCP: true)
         }
       }
     }
@@ -63,8 +65,14 @@ struct TaskExternalResourceCatalog {
 
   private mutating func add(_ resource: CodexWebSource,
     activities: [TaskExternalSourceActivity], runID: String,
-    providerKey: String? = nil, titlePriority: Int = 0) {
+    providerKey: String? = nil, titlePriority: Int = 0,
+    providerName: String? = nil, mimeType: String? = nil, fromMCP: Bool = false) {
     guard let urlKey = CodexWebSource.sourceKey(resource.url), !activities.isEmpty else { return }
+    let knownProvider = TaskExternalResourceProvider.identify(resource.url)
+    let namedProvider = providerName?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let explicitProvider = namedProvider.flatMap { $0.isEmpty ? nil : $0 }
+    let resolvedProvider = explicitProvider ?? knownProvider?.name
+    let providerPriority = explicitProvider != nil ? 2 : knownProvider == nil ? 0 : 1
     var aliases: Set<String> = ["url:\(urlKey)"]
     let canonicalKey = TaskExternalResourceIdentity.canonicalKey(resource.url)
     if let canonicalKey { aliases.insert(canonicalKey) }
@@ -73,9 +81,11 @@ struct TaskExternalResourceCatalog {
     if matches.isEmpty {
       entries.append(Entry(source: TaskExternalSource(resource: resource,
         activities: activities.sorted { $0.order < $1.order },
-        stableKey: canonicalKey ?? providerKey),
+        stableKey: canonicalKey ?? providerKey, providerName: resolvedProvider,
+        providerID: knownProvider?.id, mimeType: mimeType),
         aliases: aliases, activitiesByRun: [runID: Set(activities)],
-        hasMCPResource: providerKey != nil, titlePriority: titlePriority))
+        hasMCPResource: fromMCP, titlePriority: titlePriority,
+        providerPriority: providerPriority))
       return
     }
     let first = matches[0]
@@ -93,13 +103,21 @@ struct TaskExternalResourceCatalog {
         entries[first].source.resource = other.source.resource
         entries[first].titlePriority = other.titlePriority
       }
+      if other.providerPriority >= entries[first].providerPriority {
+        entries[first].source.providerName = other.source.providerName
+        entries[first].source.providerID = other.source.providerID
+        entries[first].providerPriority = other.providerPriority
+      }
+      if entries[first].source.mimeType == nil {
+        entries[first].source.mimeType = other.source.mimeType
+      }
       if entries[first].source.stableKey == nil {
         entries[first].source.stableKey = other.source.stableKey
       }
     }
     entries[first].aliases.formUnion(aliases)
     entries[first].activitiesByRun[runID, default: []].formUnion(activities)
-    entries[first].hasMCPResource = entries[first].hasMCPResource || providerKey != nil
+    entries[first].hasMCPResource = entries[first].hasMCPResource || fromMCP
     for activity in activities where !entries[first].source.activities.contains(activity) {
       entries[first].source.activities.append(activity)
     }
@@ -108,6 +126,12 @@ struct TaskExternalResourceCatalog {
       ? resource.title : entries[first].source.title
     entries[first].source.resource = CodexWebSource(title: title, url: resource.url)
     entries[first].titlePriority = max(entries[first].titlePriority, titlePriority)
+    if providerPriority >= entries[first].providerPriority {
+      entries[first].source.providerName = resolvedProvider
+      entries[first].source.providerID = knownProvider?.id
+      entries[first].providerPriority = providerPriority
+    }
+    if entries[first].source.mimeType == nil { entries[first].source.mimeType = mimeType }
     if let canonicalKey { entries[first].source.stableKey = canonicalKey }
     else if let providerKey, !entries[first].source.id.hasPrefix("google:")
       && !entries[first].source.id.hasPrefix("notion:")

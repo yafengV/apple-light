@@ -26,7 +26,8 @@ final class TaskSummaryArtifactTests: XCTestCase {
       in: WorkspaceLibrary()), [
       TaskExternalSource(resource: CodexWebSource(title: "Document",
         url: "https://example.test/document"), activities: [.read, .created, .updated],
-        stableKey: "provider:\(serverID.uuidString):document-1"),
+        stableKey: "provider:\(serverID.uuidString):document-1",
+        providerName: "Documents", mimeType: "text/html"),
     ])
   }
 

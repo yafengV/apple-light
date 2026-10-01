@@ -27,10 +27,37 @@ struct TaskExternalSource: Identifiable, Equatable {
   var resource: CodexWebSource
   var activities: [TaskExternalSourceActivity]
   var stableKey: String? = nil
+  var providerName: String? = nil
+  var providerID: String? = nil
+  var mimeType: String? = nil
 
   var id: String { stableKey ?? CodexWebSource.sourceKey(resource.url) ?? resource.url }
   var title: String { resource.title }
   var url: String { resource.url }
+  var detail: String? {
+    guard !activities.contains(.provided) else { return nil }
+    return providerName.map { "\($0) · \(url)" } ?? url
+  }
+  var iconName: String {
+    if activities.contains(.provided) { return "link" }
+    switch providerID {
+    case "google-drive":
+      let path = URL(string: url)?.path ?? ""
+      if path.contains("/spreadsheets/") || mimeType?.contains("spreadsheet") == true {
+        return "tablecells"
+      }
+      if path.contains("/presentation/") || mimeType?.contains("presentation") == true {
+        return "rectangle.on.rectangle"
+      }
+      return path.contains("/document/") || mimeType?.contains("document") == true
+        ? "doc.text" : "externaldrive"
+    case "notion": return "doc.text"
+    case "linear": return "list.bullet.rectangle"
+    case "figma": return "paintbrush"
+    case "github": return "chevron.left.forwardslash.chevron.right"
+    default: return "link"
+    }
+  }
 
 }
 

@@ -31,7 +31,9 @@ enum TaskSummarySource: Identifiable, Equatable {
   }
 
   var searchableText: String {
-    if case .external(let source) = self { return source.title + " " + source.url }
+    if case .external(let source) = self {
+      return [source.title, source.url, source.providerName ?? ""].joined(separator: " ")
+    }
     if case .siteTool(let execution) = self {
       guard let activity = execution.browserSiteTool else { return execution.toolName }
       return activity.name + " " + activity.title + " " + activity.url
@@ -147,7 +149,7 @@ extension Collection where Element == AgentRun {
         let source = entry.source
         let urlKey = CodexWebSource.sourceKey(source.url)
         return source.activities == [.read] && urlKey.map(viewedURLs.contains) == true
-          && !entry.hasMCPResource
+          && !entry.hasMCPResource && source.providerName == nil
       }
       let externalURLs = Set(external.compactMap { CodexWebSource.sourceKey($0.source.url) })
       webSearch.viewedLinks.removeAll { link in

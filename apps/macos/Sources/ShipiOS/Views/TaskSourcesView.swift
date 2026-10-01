@@ -26,7 +26,7 @@ struct TaskSourcesListView: View {
       case .external(let source):
         if let url = try? BrowserAddress.url(source.url) {
           Button { openExternal(url) } label: {
-            Label(source.title, systemImage: "link")
+            Label(source.title, systemImage: source.iconName)
               .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
           }
           .buttonStyle(.plain).help(source.url)
@@ -218,11 +218,13 @@ private struct TaskExternalSourceSection: View {
     VStack(alignment: .leading, spacing: 6) {
       if let url = try? BrowserAddress.url(source.url) {
         Button { openExternal(url) } label: {
-          Label(source.title, systemImage: "link").lineLimit(1)
+          Label(source.title, systemImage: source.iconName).lineLimit(1)
         }.buttonStyle(.plain).help(source.url)
       }
-      Text(source.url).appFont(.caption).foregroundStyle(.secondary)
-        .lineLimit(2).textSelection(.enabled)
+      if let detail = source.detail {
+        Text(detail).appFont(.caption).foregroundStyle(.secondary)
+          .lineLimit(2).textSelection(.enabled)
+      }
       ForEach(source.activities, id: \.self) { activity in
         Text(activity.label).appFont(.caption).foregroundStyle(.secondary)
       }

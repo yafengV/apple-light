@@ -30,7 +30,8 @@ struct TaskSummaryOutputsView: View {
   private var matchingExternalArtifacts: [TaskExternalSource] {
     guard !term.isEmpty else { return externalArtifacts }
     return externalArtifacts.filter {
-      ($0.title + " " + $0.url).localizedStandardContains(term)
+      ($0.title + " " + $0.url + " " + ($0.providerName ?? ""))
+        .localizedStandardContains(term)
     }
   }
 
@@ -102,8 +103,8 @@ struct TaskSummaryOutputsView: View {
               if let url = try? BrowserAddress.url(resource.url) {
                 Button { openExternal(url) } label: {
                   VStack(alignment: .leading, spacing: 2) {
-                    Label(resource.title, systemImage: "link").lineLimit(2)
-                    Text(resource.url).appFont(.caption).foregroundStyle(.secondary)
+                    Label(resource.title, systemImage: resource.iconName).lineLimit(2)
+                    Text(resource.detail ?? resource.url).appFont(.caption).foregroundStyle(.secondary)
                       .lineLimit(1)
                   }.frame(maxWidth: .infinity, alignment: .leading)
                 }

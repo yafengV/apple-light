@@ -27,7 +27,8 @@ final class TaskSummarySourceTests: XCTestCase {
     })
     let sources = [created, read].summarySources(in: WorkspaceLibrary())
     XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: source,
-      activities: [.read, .created], stableKey: "provider:\(serverID.uuidString):document-1")))
+      activities: [.read, .created], stableKey: "provider:\(serverID.uuidString):document-1",
+      providerName: "Documents", mimeType: "text/html")))
   }
 
   func testSourcesUseOnlyTaskRunAttachmentsAndObservedTools() throws {
@@ -247,12 +248,35 @@ final class TaskSummarySourceTests: XCTestCase {
     let sources = [run].summarySources(in: WorkspaceLibrary())
     XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: .init(
       title: "Report", url: url), activities: [.read],
-      stableKey: "provider:\(tool.serverID.uuidString):report")))
+      stableKey: "provider:\(tool.serverID.uuidString):report", providerName: "Reports")))
     guard let last = sources.last, case .webSearch(let search) = last else {
       return XCTFail("Search query should remain")
     }
     XCTAssertEqual(search.queries, ["report"])
     XCTAssertTrue(search.viewedLinks.isEmpty)
+  }
+
+  func testKnownProviderOpenedPageRemainsAsIndependentSource() throws {
+    let source = CodexWebSource(title: "Project plan",
+      url: "https://docs.google.com/document/d/plan-1/view")
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexWebSearchTimeline.apply(.object([
+      "type": .string("web_search_end"), "call_id": .string("open-doc"),
+      "action": .object(["type": .string("open_page"), "url": .string(source.url)]),
+    ]), executions: &executions, items: &items))
+    let run = AgentRun(id: "provider-page", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object([
+        "tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(executions)),
+        "codex_web_sources": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode([source])),
+      ]))
+    let sources = [run].summarySources(in: WorkspaceLibrary())
+    XCTAssertEqual(sources, [.external(TaskExternalSource(resource: source,
+      activities: [.read], stableKey: "google:document:plan-1",
+      providerName: "Google Drive", providerID: "google-drive"))])
   }
 
   func testSteeredUserMessageLinkAppearsAsProvidedSource() throws {

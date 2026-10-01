@@ -294,7 +294,7 @@ struct TaskSummaryView: View {
     ForEach(artifacts.prefix(3)) { resource in
       if let url = try? BrowserAddress.url(resource.url) {
         Button { openExternal(url) } label: {
-          Label(resource.title, systemImage: "link")
+          Label(resource.title, systemImage: resource.iconName)
             .appFont(.callout).lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
