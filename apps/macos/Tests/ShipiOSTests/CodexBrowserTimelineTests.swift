@@ -84,18 +84,22 @@ final class CodexBrowserTimelineTests: XCTestCase {
     XCTAssertEqual(executions.first?.toolName, "调用站点工具")
     XCTAssertEqual(executions.first?.arguments, "read_title")
     XCTAssertFalse(executions.first?.arguments.contains("private draft") ?? true)
+    XCTAssertTrue(executions.first?.siteToolInputJSON?.contains("private draft") == true,
+      "Sources keeps the approved call input without putting it in the timeline title")
     let result: JSONValue = .object([
       "type": .string("browser_result"), "requestId": .string(id),
       "result": .object(["status": .string("ok"), "url": .string("https://example.com/docs"),
         "origin_url": .string("https://example.com/original"),
         "title": .string("New page"), "origin_title": .string("Docs"),
         "site_tool": .string("read_title"),
-        "output": .string("done")]),
+        "output": .string("{\"result\":\"done\"}"), "truncated": .bool(true)]),
     ])
     XCTAssertTrue(CodexBrowserTimeline.apply(result, executions: &executions, items: &items))
     XCTAssertEqual(executions.first?.arguments, "read_title · https://example.com/docs")
     XCTAssertEqual(executions.first?.browserSiteTool,
       BrowserSiteToolActivity(name: "read_title", title: "Docs", url: "https://example.com/original"))
+    XCTAssertEqual(executions.first?.siteToolOutputJSON, "{\"result\":\"done\"}")
+    XCTAssertEqual(executions.first?.siteToolOutputTruncated, true)
     XCTAssertEqual(CodexBrowserTimeline.source(result)?.url, "https://example.com/docs")
     let catalog: JSONValue = .object([
       "type": .string("browser_result"), "requestId": .string(UUID().uuidString),
@@ -104,5 +108,36 @@ final class CodexBrowserTimelineTests: XCTestCase {
     ])
     XCTAssertNil(CodexBrowserTimeline.source(catalog),
       "Listing available tools is not a recently used site-tool source")
+  }
+
+  func testDeniedSiteToolCallDoesNotRetainInputInSourcesMetadata() {
+    let id = UUID().uuidString
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexBrowserTimeline.apply(.object([
+      "type": .string("browser_request"), "requestId": .string(id),
+      "action": .string("site_tool_call"), "siteTool": .string("send_message"),
+      "arguments": .object(["message": .string("private draft")]),
+    ]), executions: &executions, items: &items))
+    XCTAssertTrue(CodexBrowserTimeline.apply(.object([
+      "type": .string("browser_result"), "requestId": .string(id),
+      "result": .object(["status": .string("denied")]),
+    ]), executions: &executions, items: &items))
+    XCTAssertNil(executions.first?.browserSiteTool)
+    XCTAssertNil(executions.first?.siteToolInputJSON)
+    XCTAssertNil(executions.first?.siteToolOutputJSON)
+  }
+
+  func testInterruptedSiteToolCallDoesNotRetainInputInSourcesMetadata() {
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexBrowserTimeline.apply(.object([
+      "type": .string("browser_request"), "requestId": .string(UUID().uuidString),
+      "action": .string("site_tool_call"), "siteTool": .string("send_message"),
+      "arguments": .object(["message": .string("private draft")]),
+    ]), executions: &executions, items: &items))
+    XCTAssertTrue(CodexBrowserTimeline.expirePending(&executions, status: .cancelled))
+    XCTAssertNil(executions.first?.siteToolInputJSON)
+    XCTAssertNil(executions.first?.siteToolInputTruncated)
   }
 }

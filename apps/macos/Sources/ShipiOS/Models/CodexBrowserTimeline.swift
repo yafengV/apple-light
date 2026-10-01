@@ -30,6 +30,11 @@ enum CodexBrowserTimeline {
       callID: requestID, serverID: serverID, serverName: "浏览器", toolName: name,
       arguments: event["siteTool"].text ?? event["url"].text ?? event["tabId"].text ?? "当前任务",
       status: .running)
+    if type == "browser_request", action == "site_tool_call" {
+      let input = event["arguments"] == .null ? "{}" : event["arguments"].pretty
+      execution.siteToolInputJSON = String(input.prefix(16_000))
+      execution.siteToolInputTruncated = input.count > 16_000
+    }
     if type == "browser_result" {
       let result = event["result"]
       execution.status = switch result["status"].text {
@@ -49,7 +54,15 @@ enum CodexBrowserTimeline {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
           execution.browserSiteTool = BrowserSiteToolActivity(
             name: String(tool.prefix(128)), title: String(title.prefix(160)), url: url.absoluteString)
-        } else { execution.browserSiteTool = nil }
+          execution.siteToolOutputJSON = result["output"].text
+          execution.siteToolOutputTruncated = result["truncated"].boolean == true
+        } else {
+          execution.browserSiteTool = nil
+          execution.siteToolInputJSON = nil
+          execution.siteToolInputTruncated = nil
+          execution.siteToolOutputJSON = nil
+          execution.siteToolOutputTruncated = nil
+        }
       }
       if let url = result["url"].text {
         let label = result["site_tool"].text
@@ -82,6 +95,8 @@ enum CodexBrowserTimeline {
     for index in executions.indices where executions[index].serverID == serverID
       && executions[index].status == .running {
       executions[index].status = status
+      executions[index].siteToolInputJSON = nil
+      executions[index].siteToolInputTruncated = nil
       changed = true
     }
     return changed

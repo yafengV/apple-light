@@ -48,6 +48,8 @@ final class TaskSummarySourceTests: XCTestCase {
       status: .succeeded)
     completed.browserSiteTool = BrowserSiteToolActivity(name: "read_title", title: "Docs",
       url: "https://example.test/docs")
+    completed.siteToolInputJSON = "{\"section\":\"intro\"}"
+    completed.siteToolOutputJSON = "{\"title\":\"Docs\"}"
     var denied = MCPToolExecution(callID: "site-2", serverID: CodexBrowserTimeline.serverID,
       serverName: "浏览器", toolName: "调用站点工具", arguments: "delete_item", status: .denied)
     denied.browserSiteTool = BrowserSiteToolActivity(name: "delete_item", title: "Docs",

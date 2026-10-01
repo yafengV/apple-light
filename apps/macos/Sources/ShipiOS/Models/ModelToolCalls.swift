@@ -71,6 +71,10 @@ struct MCPToolExecution: Codable, Equatable, Identifiable {
   var status: Status = .awaitingApproval
   var output: String?
   var browserSiteTool: BrowserSiteToolActivity? = nil
+  var siteToolInputJSON: String? = nil
+  var siteToolInputTruncated: Bool? = nil
+  var siteToolOutputJSON: String? = nil
+  var siteToolOutputTruncated: Bool? = nil
   var label: String {
     switch status {
     case .awaitingApproval: "等待批准"

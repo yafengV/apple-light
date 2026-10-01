@@ -65,7 +65,6 @@ struct TaskSourcesView: View {
   @State private var query = ""
   @State private var previewFile: FileAttachment?
   @State private var previewImage: ImagePreviewItem?
-  @State private var selectedSiteTool: MCPToolExecution?
 
   private var sourceImages: [ImageAttachment] {
     sources.compactMap { source in
@@ -84,13 +83,13 @@ struct TaskSourcesView: View {
     filtered.filter { if case .siteTool = $0 { return false }; return true }
   }
 
-  private var siteToolWebsites: [(host: String, sources: [TaskSummarySource])] {
-    var groups: [(host: String, sources: [TaskSummarySource])] = []
+  private var siteToolWebsites: [SiteToolWebsiteGroup] {
+    var groups: [SiteToolWebsiteGroup] = []
     for source in filtered {
       guard case .siteTool(let execution) = source, let host = execution.browserSiteTool?.website else { continue }
       if let index = groups.firstIndex(where: { $0.host == host }) {
-        groups[index].sources.append(source)
-      } else { groups.append((host, [source])) }
+        groups[index].calls.append(execution)
+      } else { groups.append(SiteToolWebsiteGroup(host: host, calls: [execution])) }
     }
     return groups
   }
@@ -128,15 +127,9 @@ struct TaskSourcesView: View {
             TaskSourcesListView(sources: otherSources, images: sourceImages,
               openFile: { previewFile = $0 },
               openImage: { image, _ in previewImage = ImagePreviewItem(image) },
-              openExternal: openExternal, openSiteTool: { selectedSiteTool = $0 })
-            ForEach(siteToolWebsites, id: \.host) { group in
-              VStack(alignment: .leading, spacing: 9) {
-                Text(group.host).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
-                TaskSourcesListView(sources: group.sources, images: sourceImages,
-                  openFile: { previewFile = $0 },
-                  openImage: { image, _ in previewImage = ImagePreviewItem(image) },
-                  openExternal: openExternal, openSiteTool: { selectedSiteTool = $0 })
-              }
+              openExternal: openExternal, openSiteTool: { _ in })
+            ForEach(siteToolWebsites) { group in
+              BrowserSiteToolWebsiteSection(group: group, openExternal: openExternal)
             }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -145,9 +138,6 @@ struct TaskSourcesView: View {
       }
     }
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: dataRoot) }
-    .sheet(item: $selectedSiteTool) {
-      BrowserSiteToolSourceDetail(execution: $0, openExternal: openExternal)
-    }
     .overlay {
       if let previewImage {
         ImageGalleryPreview(image: previewImage, images: sourceImages.map(ImagePreviewItem.init),
@@ -157,43 +147,104 @@ struct TaskSourcesView: View {
   }
 }
 
-private struct BrowserSiteToolSourceDetail: View {
-  let execution: MCPToolExecution
-  let openExternal: (URL) -> Void
-  @Environment(\.dismiss) private var dismiss
+private struct SiteToolWebsiteGroup: Identifiable {
+  let host: String
+  var calls: [MCPToolExecution]
+  var id: String { host }
 
-  private var activity: BrowserSiteToolActivity? { execution.browserSiteTool }
-  private var output: String {
+  var tools: [SiteToolNameGroup] {
+    var groups: [SiteToolNameGroup] = []
+    for call in calls {
+      guard let name = call.browserSiteTool?.name else { continue }
+      if let index = groups.firstIndex(where: { $0.name == name }) {
+        groups[index].calls.append(call)
+      } else { groups.append(SiteToolNameGroup(name: name, calls: [call])) }
+    }
+    return groups
+  }
+}
+
+private struct SiteToolNameGroup: Identifiable {
+  let name: String
+  var calls: [MCPToolExecution]
+  var id: String { name }
+}
+
+private struct BrowserSiteToolWebsiteSection: View {
+  let group: SiteToolWebsiteGroup
+  let openExternal: (URL) -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 9) {
+      if let raw = group.calls.first?.browserSiteTool?.url,
+        let url = try? BrowserAddress.url(raw) {
+        Button { openExternal(url) } label: {
+          Label(group.host, systemImage: "globe")
+            .appFont(.body, weight: .medium)
+        }.buttonStyle(.plain).help(raw)
+      } else {
+        Label(group.host, systemImage: "globe").appFont(.body, weight: .medium)
+      }
+      ForEach(group.tools) { tool in
+        DisclosureGroup {
+          VStack(alignment: .leading, spacing: 12) {
+            ForEach(tool.calls) { call in
+              BrowserSiteToolCallDetails(execution: call)
+            }
+          }.padding(.top, 6)
+        } label: {
+          HStack {
+            Text(tool.name).lineLimit(1)
+            Spacer()
+            Text("\(tool.calls.count) 次")
+              .appFont(.caption).foregroundStyle(.secondary)
+          }
+        }
+        .accessibilityLabel("\(group.host) 的 \(tool.name)，使用 \(tool.calls.count) 次")
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+  }
+}
+
+private struct BrowserSiteToolCallDetails: View {
+  let execution: MCPToolExecution
+
+  private var legacyOutput: String? {
     guard let raw = execution.output,
       let result = try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)) else {
-      return execution.output ?? ""
+      return execution.output
     }
-    return result["output"].text ?? ""
+    return result["output"].text
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      HStack {
-        Text(activity?.name ?? "站点工具").appFont(.headline)
-        Spacer()
-        Button("关闭") { dismiss() }
+    VStack(alignment: .leading, spacing: 8) {
+      if let input = execution.siteToolInputJSON {
+        codeBlock(title: execution.siteToolInputTruncated == true ? "输入（已截断）" : "输入", content: input)
       }
-      if let activity {
-        Text(activity.website).appFont(.caption).foregroundStyle(.secondary)
-        if !activity.title.isEmpty { Text(activity.title) }
-        Text(activity.url).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-        if let url = try? BrowserAddress.url(activity.url) {
-          Button("打开网站") { openExternal(url) }
-        }
-      }
-      Divider()
-      Text("调用结果").appFont(.caption, weight: .medium)
-      ScrollView {
-        Text(output.isEmpty ? "此调用没有文本结果。" : output)
-          .appFont(.body).textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading)
+      if let output = execution.siteToolOutputJSON ?? legacyOutput {
+        codeBlock(title: execution.siteToolOutputTruncated == true ? "结果（已截断）" : "结果", content: output)
       }
     }
-    .padding(20).frame(width: 520, height: 380)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.leading, 12)
+  }
+
+  private func codeBlock(title: String, content: String) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(title).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
+      ScrollView {
+        Text(content)
+          .font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .frame(maxHeight: 192)
+    }
+    .padding(8)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
   }
 }
