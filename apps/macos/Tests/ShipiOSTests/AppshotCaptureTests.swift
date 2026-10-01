@@ -9,6 +9,10 @@ final class AppshotCaptureTests: XCTestCase {
     XCTAssertEqual(AppshotMenuButton.title(for: "  "), "截取应用窗口…")
     XCTAssertEqual(AppshotMenuButton.title(for: nil), "截取应用窗口…")
     XCTAssertLessThanOrEqual(AppshotMenuButton.title(for: String(repeating: "A", count: 200)).count, 83)
+    XCTAssertFalse(AppshotMenuButton.isEnabled(hasTarget: false, imageCount: 0))
+    XCTAssertTrue(AppshotMenuButton.isEnabled(hasTarget: true, imageCount: 0))
+    XCTAssertFalse(AppshotMenuButton.isEnabled(hasTarget: true,
+      imageCount: ImageAttachmentStorage.maxCount))
   }
 
   func testScreenshotDimensionsStayWithinAttachmentBounds() {

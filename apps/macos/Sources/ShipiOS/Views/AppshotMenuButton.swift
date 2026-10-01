@@ -13,6 +13,10 @@ struct AppshotMenuButton: View {
     return "附加 \(String(name.prefix(80)))"
   }
 
+  static func isEnabled(hasTarget: Bool, imageCount: Int) -> Bool {
+    hasTarget && imageCount < ImageAttachmentStorage.maxCount
+  }
+
   var body: some View {
     Button {
       let selected = target
@@ -32,7 +36,7 @@ struct AppshotMenuButton: View {
         }
       }
     }
-    .disabled(imageCount >= ImageAttachmentStorage.maxCount)
+    .disabled(!Self.isEnabled(hasTarget: target != nil, imageCount: imageCount))
     .onAppear { target = store.appshotCapture.availableTarget() }
   }
 }
