@@ -98,11 +98,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var globalDictationToggleHotKey: AppGlobalHotKey?
   private var globalDictationHoldHotKey: AppGlobalHotKey?
+  private var globalVoiceChatHotKey: AppGlobalHotKey?
   private var globalDictationIndicator: GlobalDictationIndicatorController?
   private var voiceBareModifierMonitor: VoiceBareModifierMonitor?
   private var registeredGlobalToggleHotkey: ShortcutBinding?
   private var registeredGlobalHoldHotkey: ShortcutBinding?
+  private var registeredGlobalVoiceChatHotkey: ShortcutBinding?
   private var globalDictationCarbonError: String?
+  private var globalVoiceChatCarbonError: String?
   private var globalDictationModifierError: String?
   private var globalDictationState = GlobalDictationToggleState()
   private var globalDictationHoldState = GlobalDictationHoldState()
@@ -186,18 +189,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         self?.pressHoldGlobalDictation()
       }
       globalDictationHoldHotKey = holdDictationHotKey
+      globalVoiceChatHotKey = AppGlobalHotKey(id: 5, title: "语音聊天") { [weak self] in
+        self?.toggleGlobalVoiceChat()
+      }
       globalDictationIndicator = GlobalDictationIndicatorController(store: store)
       voiceBareModifierMonitor = VoiceBareModifierMonitor(bindings: { [weak store] in
-        (store?.voicePreferences.globalHoldHotkey, store?.voicePreferences.globalToggleHotkey)
+        (store?.voicePreferences.globalHoldHotkey, store?.voicePreferences.globalToggleHotkey,
+          store?.voicePreferences.globalVoiceChatHotkey)
       }, onAction: { [weak self] action in
         switch action {
         case .pressHold: self?.pressHoldGlobalDictation()
         case .releaseHold: self?.releaseHoldGlobalDictation()
         case .toggle: self?.toggleGlobalDictation()
+        case .voiceChat: self?.toggleGlobalVoiceChat()
         }
       }, onRegistrationError: { [weak self] error in
         self?.globalDictationModifierError = error
         self?.updateGlobalDictationHotkeyError()
+        self?.updateGlobalVoiceChatHotkeyError()
       })
       store.globalDictationHotkeyChangeHandler = { [weak self] in
         self?.refreshGlobalDictationHotkey()
@@ -258,7 +267,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   private func refreshGlobalDictationHotkey() {
-    guard let store, let globalDictationToggleHotKey, let globalDictationHoldHotKey else { return }
+    guard let store, let globalDictationToggleHotKey, let globalDictationHoldHotKey,
+      let globalVoiceChatHotKey else { return }
     var errors: [String] = []
     let toggle = store.voicePreferences.globalToggleHotkey
     if toggle != registeredGlobalToggleHotkey {
@@ -282,13 +292,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       }
     }
     globalDictationCarbonError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+    let voiceChat = store.voicePreferences.globalVoiceChatHotkey
+    if voiceChat != registeredGlobalVoiceChatHotkey {
+      do {
+        try globalVoiceChatHotKey.register(voiceChat?.isBareModifier == true ? nil : voiceChat)
+        registeredGlobalVoiceChatHotkey = voiceChat
+        globalVoiceChatCarbonError = nil
+      } catch {
+        registeredGlobalVoiceChatHotkey = nil
+        globalVoiceChatCarbonError = error.localizedDescription
+      }
+    }
     voiceBareModifierMonitor?.refresh()
     updateGlobalDictationHotkeyError()
+    updateGlobalVoiceChatHotkeyError()
   }
 
   private func updateGlobalDictationHotkeyError() {
-    let messages = [globalDictationCarbonError, globalDictationModifierError].compactMap { $0 }
+    let bare = store?.voicePreferences.globalHoldHotkey?.isBareModifier == true
+      || store?.voicePreferences.globalToggleHotkey?.isBareModifier == true
+    let messages = [globalDictationCarbonError, bare ? globalDictationModifierError : nil]
+      .compactMap { $0 }
     store?.globalDictationHotkeyError = messages.isEmpty ? nil : messages.joined(separator: "\n")
+  }
+
+  private func updateGlobalVoiceChatHotkeyError() {
+    let bare = store?.voicePreferences.globalVoiceChatHotkey?.isBareModifier == true
+    let messages = [globalVoiceChatCarbonError, bare ? globalDictationModifierError : nil]
+      .compactMap { $0 }
+    store?.globalVoiceChatHotkeyError = messages.isEmpty ? nil : messages.joined(separator: "\n")
+  }
+
+  private func toggleGlobalVoiceChat() {
+    guard let store, !quitting, store.shortcutCaptureCount == 0 else { return }
+    if store.voiceChatPresented { store.dismissVoiceChat() }
+    else { store.presentVoiceChat() }
   }
 
   private func toggleGlobalDictation() {

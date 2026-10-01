@@ -5,18 +5,21 @@ struct VoicePreferences: Codable, Equatable {
   var microphoneDeviceID: String?
   var globalHoldHotkey: ShortcutBinding?
   var globalToggleHotkey: ShortcutBinding?
+  var globalVoiceChatHotkey: ShortcutBinding?
   var dictationDictionary: [String] = []
   var realtimeModelID = ""
   var realtimeVoiceID = "marin"
 
   init(dictationLocaleIdentifier: String? = nil, microphoneDeviceID: String? = nil,
     globalHoldHotkey: ShortcutBinding? = nil, globalToggleHotkey: ShortcutBinding? = nil,
+    globalVoiceChatHotkey: ShortcutBinding? = nil,
     dictationDictionary: [String] = [], realtimeModelID: String = "",
     realtimeVoiceID: String = "marin") {
     self.dictationLocaleIdentifier = dictationLocaleIdentifier
     self.microphoneDeviceID = microphoneDeviceID
     self.globalHoldHotkey = globalHoldHotkey
     self.globalToggleHotkey = globalToggleHotkey
+    self.globalVoiceChatHotkey = globalVoiceChatHotkey
     self.dictationDictionary = dictationDictionary
     self.realtimeModelID = realtimeModelID
     self.realtimeVoiceID = realtimeVoiceID
@@ -25,6 +28,7 @@ struct VoicePreferences: Codable, Equatable {
 
   private enum CodingKeys: CodingKey {
     case dictationLocaleIdentifier, microphoneDeviceID, globalHoldHotkey, globalToggleHotkey,
+      globalVoiceChatHotkey,
       dictationDictionary, realtimeModelID, realtimeVoiceID
   }
 
@@ -34,6 +38,7 @@ struct VoicePreferences: Codable, Equatable {
     microphoneDeviceID = try values.decodeIfPresent(String.self, forKey: .microphoneDeviceID)
     globalHoldHotkey = try values.decodeIfPresent(ShortcutBinding.self, forKey: .globalHoldHotkey)
     globalToggleHotkey = try values.decodeIfPresent(ShortcutBinding.self, forKey: .globalToggleHotkey)
+    globalVoiceChatHotkey = try values.decodeIfPresent(ShortcutBinding.self, forKey: .globalVoiceChatHotkey)
     dictationDictionary = try values.decodeIfPresent([String].self, forKey: .dictationDictionary) ?? []
     realtimeModelID = try values.decodeIfPresent(String.self, forKey: .realtimeModelID) ?? ""
     realtimeVoiceID = try values.decodeIfPresent(String.self, forKey: .realtimeVoiceID) ?? "marin"

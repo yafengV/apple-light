@@ -51,6 +51,24 @@ final class VoiceBareModifierTests: XCTestCase {
     XCTAssertEqual(state.flagsChanged([.control, .option], hold: nil, toggle: toggle), [.toggle])
   }
 
+  func testVoiceChatToggleRunsOnceAndTypingCancelsTheChord() {
+    var state = VoiceBareModifierState()
+    let voice = ShortcutBinding("⌃⌥")
+    XCTAssertEqual(state.flagsChanged(.control, hold: nil, toggle: nil,
+      voiceChat: voice), [])
+    XCTAssertEqual(state.flagsChanged([.control, .option], hold: nil, toggle: nil,
+      voiceChat: voice), [.voiceChat])
+    XCTAssertEqual(state.flagsChanged([.control, .option], hold: nil, toggle: nil,
+      voiceChat: voice), [])
+    XCTAssertEqual(state.keyDown(currentFlags: [.control, .option]), [])
+    XCTAssertEqual(state.flagsChanged([.control, .option], hold: nil, toggle: nil,
+      voiceChat: voice), [])
+    XCTAssertEqual(state.flagsChanged([], hold: nil, toggle: nil,
+      voiceChat: voice), [])
+    XCTAssertEqual(state.flagsChanged([.control, .option], hold: nil, toggle: nil,
+      voiceChat: voice), [.voiceChat])
+  }
+
   func testReconfigurationReleasesHoldAndWaitsForNeutralKeys() {
     var state = VoiceBareModifierState()
     let hold = ShortcutBinding("⇧")
@@ -59,5 +77,18 @@ final class VoiceBareModifierTests: XCTestCase {
     XCTAssertEqual(state.flagsChanged(.shift, hold: hold, toggle: nil), [])
     XCTAssertEqual(state.flagsChanged([], hold: hold, toggle: nil), [])
     XCTAssertEqual(state.flagsChanged(.shift, hold: hold, toggle: nil), [.pressHold])
+  }
+
+  func testChangingVoiceChatBindingKeepsActiveHoldUntilItsRelease() {
+    var state = VoiceBareModifierState()
+    let hold = ShortcutBinding("⌃")
+    XCTAssertEqual(state.flagsChanged(.control, hold: hold, toggle: nil), [.pressHold])
+    state.reconfigureSecondary(currentFlags: .control)
+    XCTAssertEqual(state.flagsChanged(.control, hold: hold, toggle: nil,
+      voiceChat: ShortcutBinding("⌥⇧")), [])
+    XCTAssertEqual(state.flagsChanged([], hold: hold, toggle: nil,
+      voiceChat: ShortcutBinding("⌥⇧")), [.releaseHold])
+    XCTAssertEqual(state.flagsChanged([.option, .shift], hold: hold, toggle: nil,
+      voiceChat: ShortcutBinding("⌥⇧")), [.voiceChat])
   }
 }

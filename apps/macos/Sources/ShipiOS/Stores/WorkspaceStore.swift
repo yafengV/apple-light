@@ -22,6 +22,7 @@ final class WorkspaceStore {
   let voiceRecordingHistory: VoiceRecordingHistory
   @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?
   var globalDictationHotkeyError: String?
+  var globalVoiceChatHotkeyError: String?
   @ObservationIgnored let appshotCapture = AppshotCapture()
   @ObservationIgnored var appshotHotkeyChangeHandler: (() -> Void)?
   var appshotHotkeyError: String?

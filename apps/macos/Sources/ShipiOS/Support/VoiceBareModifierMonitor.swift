@@ -9,11 +9,13 @@ import ApplicationServices
   private var state = VoiceBareModifierState()
   private var lastHold: ShortcutBinding?
   private var lastToggle: ShortcutBinding?
-  private let bindings: () -> (hold: ShortcutBinding?, toggle: ShortcutBinding?)
+  private var lastVoiceChat: ShortcutBinding?
+  private let bindings: () -> (hold: ShortcutBinding?, toggle: ShortcutBinding?, voiceChat: ShortcutBinding?)
   private let onAction: (VoiceBareModifierState.Action) -> Void
   private let onRegistrationError: (String?) -> Void
 
-  init(bindings: @escaping () -> (hold: ShortcutBinding?, toggle: ShortcutBinding?),
+  init(bindings: @escaping () -> (hold: ShortcutBinding?, toggle: ShortcutBinding?,
+    voiceChat: ShortcutBinding?),
     onAction: @escaping (VoiceBareModifierState.Action) -> Void,
     onRegistrationError: @escaping (String?) -> Void) {
     self.bindings = bindings
@@ -35,12 +37,18 @@ import ApplicationServices
     let selected = bindings()
     let bareHold = selected.hold?.isBareModifier == true ? selected.hold : nil
     let bareToggle = selected.toggle?.isBareModifier == true ? selected.toggle : nil
-    if bareHold != lastHold || bareToggle != lastToggle {
-      state.reset(currentFlags: NSEvent.modifierFlags).forEach(onAction)
+    let bareVoiceChat = selected.voiceChat?.isBareModifier == true ? selected.voiceChat : nil
+    if bareHold != lastHold || bareToggle != lastToggle || bareVoiceChat != lastVoiceChat {
+      if bareHold != lastHold {
+        state.reset(currentFlags: NSEvent.modifierFlags).forEach(onAction)
+      } else {
+        state.reconfigureSecondary(currentFlags: NSEvent.modifierFlags)
+      }
       lastHold = bareHold
       lastToggle = bareToggle
+      lastVoiceChat = bareVoiceChat
     }
-    let enabled = bareHold != nil || bareToggle != nil
+    let enabled = bareHold != nil || bareToggle != nil || bareVoiceChat != nil
     let trusted = AXIsProcessTrusted()
     if !enabled || !trusted {
       if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
@@ -54,14 +62,15 @@ import ApplicationServices
       }
     }
     let error = enabled && (!trusted || globalMonitor == nil)
-      ? "全局修饰键听写需要在系统设置中允许 ShipiOS 使用辅助功能。" : nil
+      ? "全局语音修饰键需要在系统设置中允许 ShipiOS 使用辅助功能。" : nil
     onRegistrationError(error)
   }
 
   private func consume(type: NSEvent.EventType, flags: NSEvent.ModifierFlags) {
     let selected = bindings()
     let actions = type == .keyDown ? state.keyDown(currentFlags: flags)
-      : state.flagsChanged(flags, hold: selected.hold, toggle: selected.toggle)
+      : state.flagsChanged(flags, hold: selected.hold, toggle: selected.toggle,
+        voiceChat: selected.voiceChat)
     actions.forEach(onAction)
   }
 

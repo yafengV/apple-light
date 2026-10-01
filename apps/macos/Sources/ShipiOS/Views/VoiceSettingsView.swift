@@ -13,7 +13,7 @@ struct VoiceSettingsView: View {
   @State private var editingCustomVoice = false
   @FocusState private var focusedDictionaryRow: UUID?
 
-  private enum GlobalHotkeyMode: Hashable { case hold, toggle }
+  private enum GlobalHotkeyMode: Hashable { case hold, toggle, voiceChat }
 
   private struct DictionaryRow: Identifiable {
     let id = UUID()
@@ -127,9 +127,17 @@ struct VoiceSettingsView: View {
               .disabled(store.modelConfiguration.baseURL.isEmpty
                 || store.voicePreferences.realtimeModelID.isEmpty)
           }.padding(16)
+          Divider().padding(.horizontal, 16)
+          globalHotkeyRow(.voiceChat)
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .settingsSearchTarget(.voiceChat)
+        if recordingGlobalHotkey == .voiceChat, let warning = globalHotkeyWarning {
+          Text(warning).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
+        }
+        if let error = store.globalVoiceChatHotkeyError {
+          Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
+        }
 
         Text("通用").appFont(size: 15, weight: .semibold)
         VStack(spacing: 0) {
@@ -173,7 +181,8 @@ struct VoiceSettingsView: View {
           .padding(12)
           .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
-        if let error = globalHotkeyWarning ?? store.globalDictationHotkeyError {
+        if let error = (recordingGlobalHotkey == .voiceChat ? nil : globalHotkeyWarning)
+          ?? store.globalDictationHotkeyError {
           Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
         }
         VStack(spacing: 0) {
@@ -353,12 +362,27 @@ struct VoiceSettingsView: View {
   }
 
   private func globalHotkeyRow(_ mode: GlobalHotkeyMode) -> some View {
-    let title = mode == .hold ? "按住听写快捷键" : "切换听写快捷键"
-    let description = mode == .hold
-      ? "按住时在桌面当前输入框听写，松开后结束。"
-      : "在桌面当前输入框按一次开始听写，再按一次结束。"
-    let binding = mode == .hold
-      ? store.voicePreferences.globalHoldHotkey : store.voicePreferences.globalToggleHotkey
+    let title: String
+    let description: String
+    let binding: ShortcutBinding?
+    let searchField: SettingsSearchField
+    switch mode {
+    case .hold:
+      title = "按住听写快捷键"
+      description = "按住时在桌面当前输入框听写，松开后结束。"
+      binding = store.voicePreferences.globalHoldHotkey
+      searchField = .voiceHoldHotkey
+    case .toggle:
+      title = "切换听写快捷键"
+      description = "在桌面当前输入框按一次开始听写，再按一次结束。"
+      binding = store.voicePreferences.globalToggleHotkey
+      searchField = .voiceToggleHotkey
+    case .voiceChat:
+      title = "语音聊天快捷键"
+      description = "在任意应用中按一次开始语音聊天，再按一次结束。"
+      binding = store.voicePreferences.globalVoiceChatHotkey
+      searchField = .voiceChatHotkey
+    }
     return LabeledContent {
       HStack(spacing: 8) {
         if recordingGlobalHotkey == mode {
@@ -385,8 +409,11 @@ struct VoiceSettingsView: View {
         if binding != nil {
           Button {
             var preferences = store.voicePreferences
-            if mode == .hold { preferences.globalHoldHotkey = nil }
-            else { preferences.globalToggleHotkey = nil }
+            switch mode {
+            case .hold: preferences.globalHoldHotkey = nil
+            case .toggle: preferences.globalToggleHotkey = nil
+            case .voiceChat: preferences.globalVoiceChatHotkey = nil
+            }
             store.voicePreferences = preferences
             recordingGlobalHotkey = nil
           } label: { Image(systemName: "xmark") }
@@ -398,7 +425,7 @@ struct VoiceSettingsView: View {
       SettingsControlLabel(title: title, description: description)
     }
     .padding(16)
-    .settingsSearchTarget(mode == .hold ? .voiceHoldHotkey : .voiceToggleHotkey)
+    .settingsSearchTarget(searchField)
   }
 
   private func receiveGlobalHotkey(_ event: NSEvent, mode: GlobalHotkeyMode) {
@@ -422,13 +449,29 @@ struct VoiceSettingsView: View {
       return
     }
     var preferences = store.voicePreferences
-    let other = mode == .hold ? preferences.globalToggleHotkey : preferences.globalHoldHotkey
-    if other == binding {
-      globalHotkeyWarning = "按住听写和切换听写不能使用同一个快捷键。"
+    let others: [(title: String, binding: ShortcutBinding?)] = [
+      ("按住听写", mode == .hold ? nil : preferences.globalHoldHotkey),
+      ("切换听写", mode == .toggle ? nil : preferences.globalToggleHotkey),
+      ("语音聊天", mode == .voiceChat ? nil : preferences.globalVoiceChatHotkey),
+    ]
+    if let conflict = others.first(where: { $0.binding == binding }) {
+      globalHotkeyWarning = "已用于“\(conflict.title)”，请先移除该绑定。"
       return
     }
-    if mode == .hold { preferences.globalHoldHotkey = binding }
-    else { preferences.globalToggleHotkey = binding }
+    if binding.isBareModifier,
+      let conflict = others.first(where: { other in
+        guard let existing = other.binding, existing.isBareModifier else { return false }
+        return binding.modifierFlags.isSubset(of: existing.modifierFlags)
+          || existing.modifierFlags.isSubset(of: binding.modifierFlags)
+      }) {
+      globalHotkeyWarning = "与“\(conflict.title)”的修饰键组合重叠，请选择不同组合。"
+      return
+    }
+    switch mode {
+    case .hold: preferences.globalHoldHotkey = binding
+    case .toggle: preferences.globalToggleHotkey = binding
+    case .voiceChat: preferences.globalVoiceChatHotkey = binding
+    }
     store.voicePreferences = preferences
     recordingGlobalHotkey = nil
     globalHotkeyWarning = nil

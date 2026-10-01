@@ -8,9 +8,11 @@ extension WorkspaceStore {
     set {
       let previousHoldHotkey = library.voicePreferences.globalHoldHotkey
       let previousToggleHotkey = library.voicePreferences.globalToggleHotkey
+      let previousVoiceChatHotkey = library.voicePreferences.globalVoiceChatHotkey
       updateGeneralPreference(\.voicePreferences, value: newValue)
       if library.voicePreferences.globalHoldHotkey != previousHoldHotkey
-        || library.voicePreferences.globalToggleHotkey != previousToggleHotkey {
+        || library.voicePreferences.globalToggleHotkey != previousToggleHotkey
+        || library.voicePreferences.globalVoiceChatHotkey != previousVoiceChatHotkey {
         globalDictationHotkeyChangeHandler?()
       }
     }

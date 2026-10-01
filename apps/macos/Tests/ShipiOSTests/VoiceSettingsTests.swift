@@ -12,6 +12,7 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertNil(legacy.voicePreferences.microphoneDeviceID)
     XCTAssertNil(legacy.voicePreferences.globalHoldHotkey)
     XCTAssertNil(legacy.voicePreferences.globalToggleHotkey)
+    XCTAssertNil(legacy.voicePreferences.globalVoiceChatHotkey)
     XCTAssertTrue(legacy.voicePreferences.dictationDictionary.isEmpty)
     XCTAssertEqual(legacy.voicePreferences.realtimeModelID, "")
     XCTAssertEqual(legacy.voicePreferences.realtimeVoiceID, "marin")
@@ -22,12 +23,14 @@ final class VoiceSettingsTests: XCTestCase {
       microphoneDeviceID: " selected-microphone ",
       globalHoldHotkey: ShortcutBinding("⌃⌥H"),
       globalToggleHotkey: ShortcutBinding("⌃⌥D"),
+      globalVoiceChatHotkey: ShortcutBinding("⌃⌥V"),
       dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase],
       realtimeModelID: " custom-voice-model ", realtimeVoiceID: " cedar ")
     XCTAssertEqual(library.voicePreferences.dictationLocaleIdentifier, "zh-CN")
     XCTAssertEqual(library.voicePreferences.microphoneDeviceID, "selected-microphone")
     XCTAssertEqual(library.voicePreferences.globalHoldHotkey, ShortcutBinding("⌃⌥H"))
     XCTAssertEqual(library.voicePreferences.globalToggleHotkey, ShortcutBinding("⌃⌥D"))
+    XCTAssertEqual(library.voicePreferences.globalVoiceChatHotkey, ShortcutBinding("⌃⌥V"))
     XCTAssertEqual(library.voicePreferences.dictationDictionary,
       ["ShipiOS", "shipios", "Xcode", longPhrase])
     XCTAssertEqual(library.voicePreferences.realtimeModelID, "custom-voice-model")
@@ -40,11 +43,13 @@ final class VoiceSettingsTests: XCTestCase {
   func testBareModifierVoiceBindingsPersistIndependently() throws {
     var library = WorkspaceLibrary()
     library.voicePreferences = VoicePreferences(globalHoldHotkey: ShortcutBinding("⌃"),
-      globalToggleHotkey: ShortcutBinding("⌥⇧"))
+      globalToggleHotkey: ShortcutBinding("⌥⇧"),
+      globalVoiceChatHotkey: ShortcutBinding("⌘⌥V"))
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
       from: JSONEncoder().encode(library))
     XCTAssertEqual(restored.voicePreferences.globalHoldHotkey, ShortcutBinding("⌃"))
     XCTAssertEqual(restored.voicePreferences.globalToggleHotkey, ShortcutBinding("⌥⇧"))
+    XCTAssertEqual(restored.voicePreferences.globalVoiceChatHotkey, ShortcutBinding("⌘⌥V"))
   }
 
   @MainActor func testDictionaryEntersOnDeviceRecognitionRequest() {
@@ -76,6 +81,9 @@ final class VoiceSettingsTests: XCTestCase {
     preferences.globalHoldHotkey = ShortcutBinding("⌃⌥H")
     store.voicePreferences = preferences
     XCTAssertEqual(refreshes, 3)
+    preferences.globalVoiceChatHotkey = ShortcutBinding("⌘⌥V")
+    store.voicePreferences = preferences
+    XCTAssertEqual(refreshes, 4)
     await store.shutdown()
   }
 
@@ -87,6 +95,7 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "按住听写快捷键").map(\.field), [.voiceHoldHotkey])
     XCTAssertEqual(SettingsSearch.results(for: "实时语音模型").map(\.field), [.voiceModel])
     XCTAssertEqual(SettingsSearch.results(for: "音色").map(\.field), [.voiceVoice])
+    XCTAssertEqual(SettingsSearch.results(for: "语音聊天快捷键").map(\.field), [.voiceChatHotkey])
   }
 
   @MainActor func testVoiceSettingsPageRenders() async throws {
