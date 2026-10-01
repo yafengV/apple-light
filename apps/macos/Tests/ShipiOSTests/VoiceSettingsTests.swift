@@ -217,6 +217,25 @@ final class VoiceSettingsTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testVoicePickerDialogRenders() async throws {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 390, height: 550),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: VoicePickerSheet(selectedVoiceID: "cedar") { _ in })
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_VOICE_PICKER_RENDER_PATH"] {
+      try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        .write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+    XCTAssertEqual(host.bounds.width, 390, accuracy: 1)
+    window.close()
+  }
+
   @MainActor private func findMenu(in view: NSView, label: String) -> SettingsMenuControl? {
     if let menu = view as? SettingsMenuControl, menu.accessibilityLabel() == label { return menu }
     return view.subviews.lazy.compactMap { self.findMenu(in: $0, label: label) }.first

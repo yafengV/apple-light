@@ -10,7 +10,8 @@ struct VoiceSettingsView: View {
   @State private var recordingGlobalHotkey: GlobalHotkeyMode?
   @State private var modifierCapture = VoiceModifierCaptureState()
   @State private var globalHotkeyWarning: String?
-  @State private var editingCustomVoice = false
+  @State private var showingVoicePicker = false
+  @State private var voicePickerPresentationID = UUID()
   @FocusState private var focusedDictionaryRow: UUID?
 
   private enum GlobalHotkeyMode: Hashable { case hold, toggle, voiceChat }
@@ -33,21 +34,6 @@ struct VoiceSettingsView: View {
         title: Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.identifier)
     }
   }()
-
-  private static let realtimeVoices = [
-    "marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"
-  ]
-
-  private var voiceOptions: [SettingsMenuOption<String>] {
-    var options = Self.realtimeVoices.map {
-      SettingsMenuOption(value: $0, title: $0.capitalized)
-    }
-    let selected = store.voicePreferences.realtimeVoiceID
-    if !Self.realtimeVoices.contains(selected) {
-      options.append(SettingsMenuOption(value: selected, title: selected))
-    }
-    return options
-  }
 
   private var microphoneOptions: [SettingsMenuOption<String?>] {
     var options = [SettingsMenuOption(value: Optional<String>.none, title: "系统默认")]
@@ -92,36 +78,24 @@ struct VoiceSettingsView: View {
           .padding(16)
           .settingsSearchTarget(.voiceModel)
           Divider().padding(.horizontal, 16)
-          SettingsMenuPicker("音色", description: "用于新语音会话。", selection: Binding(
-            get: { store.voicePreferences.realtimeVoiceID },
-            set: { value in
-              var preferences = store.voicePreferences
-              preferences.realtimeVoiceID = value
-              store.voicePreferences = preferences
-            }), options: voiceOptions)
-            .padding(16)
-            .settingsSearchTarget(.voiceVoice)
-          if editingCustomVoice {
-            Divider().padding(.horizontal, 16)
-            HStack {
-              SettingsControlLabel(title: "自定义音色 ID",
-                description: "仅在独立服务支持该音色时使用。")
-              Spacer()
-              TextField("音色 ID", text: Binding(
-                get: { store.voicePreferences.realtimeVoiceID },
-                set: { value in
-                  var preferences = store.voicePreferences
-                  preferences.realtimeVoiceID = value
-                  store.voicePreferences = preferences
-                }))
-                .textFieldStyle(.roundedBorder).frame(width: 200)
-            }.padding(16)
+          HStack(spacing: 12) {
+            SettingsControlLabel(title: "音色", description: "选择新语音聊天使用的音色。")
+            Spacer()
+            Button {
+              voicePickerPresentationID = UUID()
+              showingVoicePicker = true
+            } label: {
+              HStack(spacing: 8) {
+                Circle().fill(.blue).frame(width: 11, height: 11)
+                Text(store.voicePreferences.realtimeVoiceID.capitalized)
+              }
+            }
+            .accessibilityLabel("选择音色：\(store.voicePreferences.realtimeVoiceID)")
           }
+          .padding(16)
+          .settingsSearchTarget(.voiceVoice)
           Divider().padding(.horizontal, 16)
           HStack {
-            Button(editingCustomVoice ? "收起自定义音色" : "自定义音色…") {
-              editingCustomVoice.toggle()
-            }.buttonStyle(.plain)
             Spacer()
             Button("开始语音聊天") { store.presentVoiceChat() }
               .disabled(store.modelConfiguration.baseURL.isEmpty
@@ -245,6 +219,15 @@ struct VoiceSettingsView: View {
       }
     }
     .onAppear { loadDictionaryRows(); refreshMicrophones() }
+    .sheet(isPresented: $showingVoicePicker) {
+      VoicePickerSheet(selectedVoiceID: store.voicePreferences.realtimeVoiceID) { voiceID in
+        var preferences = store.voicePreferences
+        preferences.realtimeVoiceID = voiceID
+        store.voicePreferences = preferences
+      }
+      .environment(\.appAppearance, store.appearance)
+      .id(voicePickerPresentationID)
+    }
     .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasConnectedNotification)) { _ in
       refreshMicrophones()
     }
