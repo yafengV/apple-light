@@ -7,15 +7,50 @@ enum ImageImport: Sendable {
   case appshot(Data, name: String, context: AppshotContext, id: UUID?)
 }
 
+struct AppshotIntroRequest: Identifiable {
+  let id = UUID()
+  let draftKey: String
+  let target: AppshotTarget?
+  let ownerWindow: NSWindow?
+  let onScreenshot: (() -> Void)?
+}
+
 extension WorkspaceStore {
   var draftImages: [ImageAttachment] { library.draftImages[draftKey] ?? [] }
 
   func captureAppshot(draft key: String, target: AppshotTarget? = nil,
-    ownerWindow: NSWindow? = nil, onScreenshot: (() -> Void)? = nil) async {
+    onScreenshot: (() -> Void)? = nil, ownerWindow: NSWindow? = nil) async {
+    guard libraryLoaded, !shuttingDown, !importingImages, !importingFiles else { return }
+    guard (library.draftImages[key]?.count ?? 0) < ImageAttachmentStorage.maxCount else {
+      error = "每条消息最多添加 8 张图片。"
+      return
+    }
+    if !library.hasAcceptedAppshotIntro {
+      guard appshotIntroRequest == nil else { return }
+      appshotIntroRequest = AppshotIntroRequest(draftKey: key, target: target,
+        ownerWindow: ownerWindow ?? NSApp?.keyWindow, onScreenshot: onScreenshot)
+      showMainWindowHandler?()
+      return
+    }
     await captureAppshotWithProgress(draft: key, ownerWindow: ownerWindow,
       onScreenshot: onScreenshot) { progress in
       try await appshotCapture.capture(target: target, onScreenshot: progress)
     }
+  }
+
+  func acceptAppshotIntro() {
+    guard let request = appshotIntroRequest else { return }
+    appshotIntroRequest = nil
+    library.hasAcceptedAppshotIntro = true
+    saveLibrary()
+    Task { @MainActor [weak self] in
+      await self?.captureAppshot(draft: request.draftKey, target: request.target,
+        onScreenshot: request.onScreenshot, ownerWindow: request.ownerWindow)
+    }
+  }
+
+  func cancelAppshotIntro() {
+    appshotIntroRequest = nil
   }
 
   func captureAppshot(draft key: String,

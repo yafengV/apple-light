@@ -5,6 +5,7 @@ struct AppshotMenuButton: View {
   let store: WorkspaceStore
   let draftKey: String
   let imageCount: Int
+  @Environment(\.scenePhase) private var scenePhase
   @State private var target: AppshotTarget?
 
   static func title(for applicationName: String?) -> String {
@@ -36,5 +37,8 @@ struct AppshotMenuButton: View {
     }
     .disabled(!Self.isEnabled(hasTarget: target != nil, imageCount: imageCount))
     .onAppear { target = store.appshotCapture.availableTarget() }
+    .onChange(of: scenePhase) { _, phase in
+      if phase == .active { target = store.appshotCapture.availableTarget() }
+    }
   }
 }

@@ -203,19 +203,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let currentChat = store.selectedTask != nil
     let recentlyFocused = lastMainWindowFocus.map { Date().timeIntervalSince($0) < 60 } ?? false
     let startNew = store.appshotDestination.shouldStartNewChat(
-      hasCurrentChat: currentChat, focusedRecently: recentlyFocused)
+      hasCurrentChat: currentChat, focusedRecently: recentlyFocused,
+      canAcceptShortcut: store.destination == .workspace && store.action == .chat)
     if startNew && store.busy { return }
     Task { @MainActor [weak store] in
       guard let store else { return }
       if startNew { await store.newChat() }
       let owner = NSApp.windows.first { $0.identifier?.rawValue == "main" }
       await store.captureAppshot(draft: store.draftKey, target: target,
-        ownerWindow: owner) { [weak store] in
+        onScreenshot: { [weak store] in
           guard let store else { return }
           if store.destination != .workspace { store.returnToWorkspace() }
           store.showMainWindowHandler?()
           if store.appshotSoundEnabled { NSSound.beep() }
-        }
+        }, ownerWindow: owner)
     }
   }
 

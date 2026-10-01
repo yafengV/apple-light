@@ -224,11 +224,11 @@ final class AppshotCaptureTests: XCTestCase {
     XCTAssertEqual(AppshotContext(appName: "Sample", bundleIdentifier: nil,
       windowTitle: " ", axTree: "").displayTitle, "Sample")
     let result = AppshotCaptureResult(data: encoded.data, name: encoded.name, context: metadata)
-    await store.captureAppshot(draft: "second") { result }
+    await store.captureAppshot(draft: "second", capture: { result })
     XCTAssertEqual(store.library.draftImages["second"]?.count, 1)
     XCTAssertEqual(store.library.draftImages["second"]?.first?.appshot, metadata)
     XCTAssertNil(store.library.draftImages["first"])
-    await store.captureAppshot(draft: "first") { nil }
+    await store.captureAppshot(draft: "first", capture: { nil })
     XCTAssertNil(store.library.draftImages["first"])
     XCTAssertFalse(store.importingImages)
     await store.shutdown()

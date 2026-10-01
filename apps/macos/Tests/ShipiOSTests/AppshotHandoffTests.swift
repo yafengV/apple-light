@@ -58,7 +58,7 @@ final class AppshotHandoffTests: XCTestCase {
     let captured = AppshotCaptureResult(data: try AttachmentFixture.png(),
       name: "Example Appshot.png", context: metadata,
       sourceFrame: CGRect(x: 100, y: 100, width: 500, height: 300))
-    await store.captureAppshot(draft: "task", ownerWindow: owner) { captured }
+    await store.captureAppshot(draft: "task", ownerWindow: owner, capture: { captured })
     let handoff = try XCTUnwrap(store.appshotHandoff)
     XCTAssertTrue(handoff.ownerWindow === owner)
     XCTAssertEqual(handoff.imageID, store.library.draftImages["task"]?.last?.id)
@@ -70,7 +70,7 @@ final class AppshotHandoffTests: XCTestCase {
     store.appshotHandoff = nil
     appearance.reduceMotion = .on
     store.appearance = appearance
-    await store.captureAppshot(draft: "task", ownerWindow: owner) { captured }
+    await store.captureAppshot(draft: "task", ownerWindow: owner, capture: { captured })
     XCTAssertNil(store.appshotHandoff)
     await store.shutdown()
   }

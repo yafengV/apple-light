@@ -21,8 +21,10 @@ enum AppshotDestination: String, Codable, CaseIterable, Identifiable {
     }
   }
 
-  func shouldStartNewChat(hasCurrentChat: Bool, focusedRecently: Bool) -> Bool {
-    switch self {
+  func shouldStartNewChat(hasCurrentChat: Bool, focusedRecently: Bool,
+    canAcceptShortcut: Bool = true) -> Bool {
+    guard canAcceptShortcut else { return true }
+    return switch self {
     case .automatic: hasCurrentChat && !focusedRecently
     case .lastChat: false
     case .newChat: hasCurrentChat

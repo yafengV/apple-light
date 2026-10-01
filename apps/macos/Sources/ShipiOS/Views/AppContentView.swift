@@ -47,7 +47,9 @@ struct AppContentView: View {
       .accessibilityElement(children: .contain)
       .accessibilityHidden(store.destination == .settings)
       .onExitCommand {
-        if store.destination == .pluginDetail {
+        if store.appshotIntroRequest != nil {
+          store.cancelAppshotIntro()
+        } else if store.destination == .pluginDetail {
           store.closePluginDetail()
         } else if store.destination == .settings {
           store.closeSettingsFromKeyboard()
@@ -71,10 +73,13 @@ struct AppContentView: View {
             .accessibilityHidden(store.destination != .settings)
         }
       }
-      .disabled((store.hasSettingsConfirmation && store.appearanceThemeImport == nil)
+      .disabled(((store.hasSettingsConfirmation || store.appshotIntroRequest != nil)
+        && store.appearanceThemeImport == nil)
         || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
-      .allowsHitTesting(!store.hasSettingsConfirmation && store.presentedOverlay != .imagePreview && store.presentedOverlay?.isSearchDialog != true)
-      .accessibilityHidden(store.hasSettingsConfirmation || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
+      .allowsHitTesting(!store.hasSettingsConfirmation && store.appshotIntroRequest == nil
+        && store.presentedOverlay != .imagePreview && store.presentedOverlay?.isSearchDialog != true)
+      .accessibilityHidden(store.hasSettingsConfirmation || store.appshotIntroRequest != nil
+        || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
       .overlay {
         if let session = store.appearanceThemeImport {
           AppearanceThemeImportView(store: store, session: session).id(session.id)
@@ -120,6 +125,14 @@ struct AppContentView: View {
         case .fileSearch: FileSearchView(store: store)
         case .projectPicker: ProjectPickerView(store: store)
         default: EmptyView()
+        }
+      }
+      .overlay {
+        if let request = store.appshotIntroRequest {
+          AppshotIntroDialog(
+            cancel: { store.cancelAppshotIntro() },
+            enable: { store.acceptAppshotIntro() })
+            .id(request.id)
         }
       }
       .focusedSceneValue(\.searchDialogActive, store.presentedOverlay?.isSearchDialog == true)

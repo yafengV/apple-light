@@ -19,6 +19,7 @@ final class WorkspaceStore {
   var dictation = SpeechDictation()
   @ObservationIgnored let appshotCapture = AppshotCapture()
   var pendingAppshot: PendingAppshot?
+  var appshotIntroRequest: AppshotIntroRequest?
   var appshotHandoff: AppshotHandoff?
   @ObservationIgnored let appshotHandoffAnimator = AppshotHandoffAnimator()
   @ObservationIgnored var appshotHandoffStarted = false
@@ -1306,6 +1307,7 @@ final class WorkspaceStore {
     for session in fileTabWorkspaces.values { captureFileEditorRecovery(from: session) }
     dictation.stop()
     shuttingDown = true
+    appshotIntroRequest = nil
     pendingAppshot = nil
     appshotHandoffAnimator.cancel()
     appshotHandoff = nil
