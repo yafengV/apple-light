@@ -5,26 +5,29 @@ struct CodexWebSource: Codable, Equatable, Identifiable, Sendable {
   let url: String
   var id: String { url }
 
+  static func sourceKey(_ raw: String) -> String? {
+    guard let url = try? BrowserAddress.url(raw),
+      var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+    components.fragment = nil
+    if components.path.count > 1, components.path.hasSuffix("/") {
+      components.path.removeLast()
+    }
+    return components.url?.absoluteString
+  }
+
   static func completed(_ event: JSONValue) -> [Self] {
-    guard event["type"].text == "web_search_end" else { return [] }
-    var sources: [Self] = []
-    var seen = Set<String>()
-    func append(_ raw: String?, title: String?) {
-      guard let raw, raw.utf8.count <= 4096,
-        raw.hasPrefix("https://") || raw.hasPrefix("http://"),
-        let url = try? BrowserAddress.url(raw),
-        seen.insert(url.absoluteString).inserted else { return }
-      let heading = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-      sources.append(Self(title: heading.isEmpty ? (url.host ?? url.absoluteString) : String(heading.prefix(160)),
-        url: url.absoluteString))
-    }
-    for result in event["results"].items.prefix(100) {
-      append(result["url"].text, title: result["title"].text)
-    }
-    if event["action"]["type"].text == "open_page" {
-      append(event["action"]["url"].text, title: nil)
-    }
-    return sources
+    guard event["type"].text == "web_search_end",
+      ["open_page", "find_in_page"].contains(event["action"]["type"].text ?? ""),
+      let raw = event["action"]["url"].text, raw.utf8.count <= 4_096,
+      raw.hasPrefix("https://") || raw.hasPrefix("http://"),
+      let url = try? BrowserAddress.url(raw) else { return [] }
+    let title = event["results"].items.prefix(100).first { result in
+      guard let raw = result["url"].text,
+        let candidate = try? BrowserAddress.url(raw) else { return false }
+      return sourceKey(candidate.absoluteString) == sourceKey(url.absoluteString)
+    }?["title"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return [Self(title: title.isEmpty ? (url.host ?? url.absoluteString) : String(title.prefix(160)),
+      url: url.absoluteString)]
   }
 }
 

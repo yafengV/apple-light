@@ -12,7 +12,7 @@ enum TaskSummarySource: Identifiable, Equatable {
     switch self {
     case .file(let file): "file:\(file.id.uuidString)"
     case .image(let image): "image:\(image.id.uuidString)"
-    case .external(let source): "external:\(source.url)"
+    case .external(let source): "external:\(CodexWebSource.sourceKey(source.url) ?? source.url)"
     case .siteTool(let execution): "site-tool:\(execution.id.uuidString)"
     case .tool(let source): "tool:\(source.id.uuidString)"
     case .webSearch: "web-search"
@@ -80,7 +80,10 @@ struct CodexWebSearchSummary: Equatable {
     seenLinks: inout Set<String>) {
     queryCount += activity.queryCount
     for query in activity.queries where seenQueries.insert(query).inserted { queries.append(query) }
-    for link in activity.viewedLinks where seenLinks.insert(link.url).inserted { viewedLinks.append(link) }
+    for link in activity.viewedLinks
+      where seenLinks.insert(CodexWebSource.sourceKey(link.url) ?? link.url).inserted {
+      viewedLinks.append(link)
+    }
   }
 }
 
@@ -130,6 +133,14 @@ extension Collection where Element == AgentRun {
               name: execution.serverName, calls: [execution]))
           }
         }
+      }
+    }
+    if let webSearch {
+      let viewedURLs = Set(webSearch.viewedLinks.compactMap { CodexWebSource.sourceKey($0.url) })
+      external.removeAll { source in
+        if case .external(let link) = source,
+          let key = CodexWebSource.sourceKey(link.url) { return viewedURLs.contains(key) }
+        return false
       }
     }
     return files + external + siteTools + toolSources.map(TaskSummarySource.tool)

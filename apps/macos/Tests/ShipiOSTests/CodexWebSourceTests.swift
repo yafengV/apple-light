@@ -22,9 +22,23 @@ final class CodexWebSourceTests: XCTestCase {
       "action": .object(["type": .string("open_page"),
         "url": .string("https://example.test/other")]),
     ])), [CodexWebSource(title: "example.test", url: "https://example.test/other")])
+    XCTAssertTrue(CodexWebSource.completed(.object([
+      "type": .string("web_search_end"),
+      "action": .object(["type": .string("search"), "query": .string("docs")]),
+      "results": .array([.object([
+        "title": .string("Not opened"), "url": .string("https://example.test/search-result"),
+      ])]),
+    ])).isEmpty, "Search result links are not pages actually opened by the tool")
+    XCTAssertEqual(CodexWebSource.completed(.object([
+      "type": .string("web_search_end"),
+      "action": .object(["type": .string("find_in_page"),
+        "url": .string("https://example.test/docs")]),
+    ])), [CodexWebSource(title: "example.test", url: "https://example.test/docs")])
     XCTAssertTrue(CodexWebSource.completed(.object(["type": .string("web_search_begin")])).isEmpty)
     XCTAssertEqual(CodexWebSearchActivity.completed(event)?.viewedLinks,
       [CodexWebSource(title: "Reference docs", url: "https://example.test/docs")])
+    XCTAssertEqual(CodexWebSource.sourceKey("https://example.test/docs/#section"),
+      CodexWebSource.sourceKey("https://example.test/docs"))
     XCTAssertEqual(CodexWebSearchActivity.completed(.object([
       "type": .string("web_search_end"),
       "action": .object(["type": .string("open_page"),

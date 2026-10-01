@@ -136,4 +136,33 @@ final class TaskSummarySourceTests: XCTestCase {
     XCTAssertTrue(source.searchableText.contains("swift ui"))
     XCTAssertTrue(source.searchableText.contains("example.test/guide"))
   }
+
+  func testOpenedWebSearchPageIsNotDuplicatedAsExternalSource() throws {
+    let opened = CodexWebSource(title: "Reference docs", url: "https://example.test/docs")
+    let browserVersion = CodexWebSource(title: "Reference docs",
+      url: "https://example.test/docs/#section")
+    let other = CodexWebSource(title: "Browser article", url: "https://elsewhere.test/article")
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexWebSearchTimeline.apply(.object([
+      "type": .string("web_search_end"), "call_id": .string("opened"),
+      "action": .object(["type": .string("open_page"), "url": .string(opened.url)]),
+      "results": .array([.object(["title": .string(opened.title), "url": .string(opened.url)])]),
+    ]), executions: &executions, items: &items))
+    let run = AgentRun(id: "run", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object([
+        "tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(executions)),
+        "codex_web_sources": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode([browserVersion, other])),
+      ]))
+    let sources = [run].summarySources(in: WorkspaceLibrary())
+    XCTAssertEqual(sources.first, .external(other))
+    XCTAssertFalse(sources.contains(.external(browserVersion)))
+    guard let last = sources.last, case .webSearch(let summary) = last else {
+      return XCTFail("Missing web search source")
+    }
+    XCTAssertEqual(summary.viewedLinks, [opened])
+  }
 }
