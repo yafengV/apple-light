@@ -11,6 +11,7 @@ struct AppshotIntroRequest: Identifiable {
   let id = UUID()
   let draftKey: String
   let target: AppshotTarget?
+  let mode: AppshotCaptureMode
   let ownerWindow: NSWindow?
   let onScreenshot: (() -> Void)?
 }
@@ -19,6 +20,7 @@ extension WorkspaceStore {
   var draftImages: [ImageAttachment] { library.draftImages[draftKey] ?? [] }
 
   func captureAppshot(draft key: String, target: AppshotTarget? = nil,
+    mode: AppshotCaptureMode = .manual,
     onScreenshot: (() -> Void)? = nil, ownerWindow: NSWindow? = nil) async {
     guard libraryLoaded, !shuttingDown, !importingImages, !importingFiles else { return }
     guard (library.draftImages[key]?.count ?? 0) < ImageAttachmentStorage.maxCount else {
@@ -27,14 +29,14 @@ extension WorkspaceStore {
     }
     if !library.hasAcceptedAppshotIntro {
       guard appshotIntroRequest == nil else { return }
-      appshotIntroRequest = AppshotIntroRequest(draftKey: key, target: target,
+      appshotIntroRequest = AppshotIntroRequest(draftKey: key, target: target, mode: mode,
         ownerWindow: ownerWindow ?? NSApp?.keyWindow, onScreenshot: onScreenshot)
       showMainWindowHandler?()
       return
     }
     await captureAppshotWithProgress(draft: key, ownerWindow: ownerWindow,
       onScreenshot: onScreenshot) { progress in
-      try await appshotCapture.capture(target: target, onScreenshot: progress)
+      try await appshotCapture.capture(target: target, mode: mode, onScreenshot: progress)
     }
   }
 
@@ -45,6 +47,7 @@ extension WorkspaceStore {
     saveLibrary()
     Task { @MainActor [weak self] in
       await self?.captureAppshot(draft: request.draftKey, target: request.target,
+        mode: request.mode,
         onScreenshot: request.onScreenshot, ownerWindow: request.ownerWindow)
     }
   }

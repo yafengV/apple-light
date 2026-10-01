@@ -5,6 +5,11 @@ import XCTest
 @testable import ShipiOS
 
 final class AppshotCaptureTests: XCTestCase {
+  func testShortcutWithoutTargetDoesNotOpenWindowPicker() {
+    XCTAssertFalse(AppshotCaptureMode.shortcut.allowsPickerFallback)
+    XCTAssertTrue(AppshotCaptureMode.manual.allowsPickerFallback)
+  }
+
   func testAppshotMenuNamesKnownTargetAndKeepsPickerFallback() {
     XCTAssertEqual(AppshotMenuButton.title(for: "Xcode"), "附加 Xcode")
     XCTAssertEqual(AppshotMenuButton.title(for: "  "), "截取应用窗口…")

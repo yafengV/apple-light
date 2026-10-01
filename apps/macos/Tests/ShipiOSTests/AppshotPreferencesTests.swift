@@ -81,8 +81,9 @@ final class AppshotPreferencesTests: XCTestCase {
     await store.restore()
     var openedMainWindow = 0
     store.showMainWindowHandler = { openedMainWindow += 1 }
-    await store.captureAppshot(draft: "first-use")
+    await store.captureAppshot(draft: "first-use", mode: .shortcut)
     XCTAssertEqual(store.appshotIntroRequest?.draftKey, "first-use")
+    XCTAssertEqual(store.appshotIntroRequest?.mode, .shortcut)
     XCTAssertEqual(openedMainWindow, 1)
     XCTAssertFalse(store.importingImages)
     store.cancelAppshotIntro()
@@ -91,6 +92,7 @@ final class AppshotPreferencesTests: XCTestCase {
     XCTAssertNil(store.library.draftImages["first-use"])
     await store.captureAppshot(draft: "first-use")
     XCTAssertNotNil(store.appshotIntroRequest)
+    XCTAssertEqual(store.appshotIntroRequest?.mode, .manual)
     store.cancelAppshotIntro()
     await store.shutdown()
   }

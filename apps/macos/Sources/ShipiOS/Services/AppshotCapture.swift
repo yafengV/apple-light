@@ -20,6 +20,13 @@ struct AppshotTarget {
   var icon: NSImage? { application.icon }
 }
 
+enum AppshotCaptureMode {
+  case manual
+  case shortcut
+
+  var allowsPickerFallback: Bool { self == .manual }
+}
+
 enum AppshotTargetOrder {
   static func pids(frontmost: pid_t?, cached: pid_t?, cachedAt: Date?,
     now: Date, ownPID: pid_t) -> [pid_t] {
@@ -176,6 +183,7 @@ enum AppshotImage {
   }
 
   func capture(target selectedTarget: AppshotTarget? = nil,
+    mode: AppshotCaptureMode = .manual,
     onScreenshot: ((AppshotCaptureResult) -> Void)? = nil) async throws -> AppshotCaptureResult? {
     guard !busy else { throw AgentFailure(message: "正在截取应用窗口。") }
     busy = true
@@ -184,6 +192,7 @@ enum AppshotImage {
     if let target = selectedTarget ?? availableTarget(),
       let automatic = try? await captureLastExternalWindow(target) { return automatic }
     try Task.checkCancellation()
+    guard mode.allowsPickerFallback else { return nil }
     return try await captureFromPicker()
   }
 

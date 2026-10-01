@@ -230,7 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       if startNew { await store.newChat() }
       let route: AppshotShortcutChat = startNew ? .main(mainWindow) : current
       let draftKey = startNew ? store.draftKey : existingDraftKey
-      await store.captureAppshot(draft: draftKey, target: target,
+      await store.captureAppshot(draft: draftKey, target: target, mode: .shortcut,
         onScreenshot: { [weak self, weak store] in
           guard let store else { return }
           self?.revealAppshotChat(route, store: store)
