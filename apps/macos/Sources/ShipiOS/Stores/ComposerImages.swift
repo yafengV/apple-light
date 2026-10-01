@@ -19,6 +19,11 @@ struct AppshotIntroRequest: Identifiable {
 extension WorkspaceStore {
   var draftImages: [ImageAttachment] { library.draftImages[draftKey] ?? [] }
 
+  var canBeginAppshotShortcutCapture: Bool {
+    libraryLoaded && !shuttingDown && !importingImages && !importingFiles
+      && appshotIntroRequest == nil
+  }
+
   func captureAppshot(draft key: String, target: AppshotTarget? = nil,
     mode: AppshotCaptureMode = .manual,
     onScreenshot: (() -> Void)? = nil, ownerWindow: NSWindow? = nil) async {

@@ -93,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var appshotModifierMonitor: AppshotModifierMonitor?
+  private var appshotShortcutPending = false
   private var appshotWindowFocusObserver: NSObjectProtocol?
   private weak var lastAppshotWindow: NSWindow?
   private var lastAppshotWindowFocus: Date?
@@ -213,7 +214,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func captureAppshotFromShortcut() {
     guard let store, store.appshotHotkey != .none, store.shortcutCaptureCount == 0,
-      !store.shuttingDown, !store.hasSettingsConfirmation else { return }
+      !appshotShortcutPending, store.canBeginAppshotShortcutCapture,
+      !store.hasSettingsConfirmation else { return }
     guard let target = store.appshotCapture.availableTarget() else { return }
     let mainWindow = NSApp.windows.first { $0.identifier?.rawValue == "main" }
     let current = AppshotShortcutChat.resolve(lastWindow: lastAppshotWindow,
@@ -225,8 +227,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       focusedRecently: recentlyFocused, store: store)
     if startNew && store.busy { return }
     let existingDraftKey = current.draftKey(in: store)
+    appshotShortcutPending = true
     Task { @MainActor [weak self, weak store] in
-      guard let store else { return }
+      defer { self?.appshotShortcutPending = false }
+      guard let store, store.canBeginAppshotShortcutCapture,
+        !store.hasSettingsConfirmation else { return }
+      if startNew && store.busy { return }
       if startNew { await store.newChat() }
       let route: AppshotShortcutChat = startNew ? .main(mainWindow) : current
       let draftKey = startNew ? store.draftKey : existingDraftKey

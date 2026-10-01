@@ -97,6 +97,26 @@ final class AppshotPreferencesTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testShortcutDoesNotStartWhileAnotherCaptureOrIntroIsPending() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    XCTAssertTrue(store.canBeginAppshotShortcutCapture)
+    store.importingImages = true
+    XCTAssertFalse(store.canBeginAppshotShortcutCapture)
+    store.importingImages = false
+    store.importingFiles = true
+    XCTAssertFalse(store.canBeginAppshotShortcutCapture)
+    store.importingFiles = false
+    store.appshotIntroRequest = AppshotIntroRequest(draftKey: "pending", target: nil,
+      mode: .shortcut, ownerWindow: nil, onScreenshot: nil)
+    XCTAssertFalse(store.canBeginAppshotShortcutCapture)
+    store.cancelAppshotIntro()
+    XCTAssertTrue(store.canBeginAppshotShortcutCapture)
+    await store.shutdown()
+  }
+
   @MainActor func testGlobalShortcutUsesLastFocusedTaskWindowDraft() async {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
