@@ -7,8 +7,20 @@ struct ShortcutCapture: NSViewRepresentable {
   let text: String
   let accessibilityLabel: String
   let receive: (NSEvent) -> Void
+  let receiveModifier: ((NSEvent) -> Void)?
   let activityChanged: (Bool) -> Void
   let onBlur: () -> Void
+
+  init(text: String, accessibilityLabel: String, receive: @escaping (NSEvent) -> Void,
+    activityChanged: @escaping (Bool) -> Void, onBlur: @escaping () -> Void,
+    receiveModifier: ((NSEvent) -> Void)? = nil) {
+    self.text = text
+    self.accessibilityLabel = accessibilityLabel
+    self.receive = receive
+    self.receiveModifier = receiveModifier
+    self.activityChanged = activityChanged
+    self.onBlur = onBlur
+  }
 
   func makeNSView(context: Context) -> Field {
     let view = Field()
@@ -22,6 +34,7 @@ struct ShortcutCapture: NSViewRepresentable {
     view.setAccessibilityLabel(accessibilityLabel)
     view.setAccessibilityValue(text)
     view.receive = receive
+    view.receiveModifier = receiveModifier
     view.activityChanged = activityChanged
     view.onBlur = onBlur
   }
@@ -30,6 +43,7 @@ struct ShortcutCapture: NSViewRepresentable {
   final class Field: NSView {
     let label = NSTextField(labelWithString: "")
     var receive: ((NSEvent) -> Void)?
+    var receiveModifier: ((NSEvent) -> Void)?
     var activityChanged: ((Bool) -> Void)?
     var onBlur: (() -> Void)?
     private var monitor: Any?
@@ -87,15 +101,24 @@ struct ShortcutCapture: NSViewRepresentable {
       return true
     }
     func install() {
-      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+      monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
         guard let self, !self.stopped, let window = self.window, window.isKeyWindow,
           event.window === window, window.firstResponder === self,
           window.attachedSheet == nil, NSApp.modalWindow == nil else { return event }
-        self.receive?(event)
+        if event.type == .flagsChanged {
+          guard let receiveModifier = self.receiveModifier else { return event }
+          receiveModifier(event)
+        } else {
+          self.receive?(event)
+        }
         return nil
       }
     }
     override func keyDown(with event: NSEvent) { receive?(event) }
+    override func flagsChanged(with event: NSEvent) {
+      if let receiveModifier { receiveModifier(event) }
+      else { super.flagsChanged(with: event) }
+    }
     func stop() {
       stopped = true
       if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil
@@ -103,7 +126,7 @@ struct ShortcutCapture: NSViewRepresentable {
       onBlur = nil
       if window?.firstResponder === self { window?.makeFirstResponder(nil) }
       if active { active = false; activityChanged?(false) }
-      receive = nil; activityChanged = nil; onBlur = nil
+      receive = nil; receiveModifier = nil; activityChanged = nil; onBlur = nil
     }
     private func updateStyle() {
       effectiveAppearance.performAsCurrentDrawingAppearance {

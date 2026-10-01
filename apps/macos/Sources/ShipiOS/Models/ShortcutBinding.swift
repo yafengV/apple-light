@@ -16,6 +16,24 @@ struct ShortcutBinding: Codable, Equatable, Hashable {
     key = display.filter { !"⌘⌃⌥⇧".contains($0) }.lowercased()
   }
 
+  init(modifiers: NSEvent.ModifierFlags) {
+    key = ""
+    command = modifiers.contains(.command)
+    control = modifiers.contains(.control)
+    option = modifiers.contains(.option)
+    shift = modifiers.contains(.shift)
+  }
+
+  var isBareModifier: Bool { key.isEmpty && (command || control || option || shift) }
+  var modifierFlags: NSEvent.ModifierFlags {
+    var flags: NSEvent.ModifierFlags = []
+    if command { flags.insert(.command) }
+    if control { flags.insert(.control) }
+    if option { flags.insert(.option) }
+    if shift { flags.insert(.shift) }
+    return flags
+  }
+
   init?(event: NSEvent) {
     let flags = event.modifierFlags
     command = flags.contains(.command)

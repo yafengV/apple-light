@@ -98,8 +98,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var globalDictationToggleHotKey: AppGlobalHotKey?
   private var globalDictationHoldHotKey: AppGlobalHotKey?
+  private var voiceBareModifierMonitor: VoiceBareModifierMonitor?
   private var registeredGlobalToggleHotkey: ShortcutBinding?
   private var registeredGlobalHoldHotkey: ShortcutBinding?
+  private var globalDictationCarbonError: String?
+  private var globalDictationModifierError: String?
   private var globalDictationState = GlobalDictationToggleState()
   private var globalDictationHoldState = GlobalDictationHoldState()
   private enum GlobalDictationMode { case hold, toggle }
@@ -137,6 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     stopAutomationPolling()
     stopSkillMonitoring()
     appshotModifierMonitor = nil
+    voiceBareModifierMonitor = nil
     store?.appshotHotkeyChangeHandler = nil
     store?.globalDictationHotkeyChangeHandler = nil
     if let appshotWindowFocusObserver {
@@ -179,6 +183,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         self?.pressHoldGlobalDictation()
       }
       globalDictationHoldHotKey = holdDictationHotKey
+      voiceBareModifierMonitor = VoiceBareModifierMonitor(bindings: { [weak store] in
+        (store?.voicePreferences.globalHoldHotkey, store?.voicePreferences.globalToggleHotkey)
+      }, onAction: { [weak self] action in
+        switch action {
+        case .pressHold: self?.pressHoldGlobalDictation()
+        case .releaseHold: self?.releaseHoldGlobalDictation()
+        case .toggle: self?.toggleGlobalDictation()
+        }
+      }, onRegistrationError: { [weak self] error in
+        self?.globalDictationModifierError = error
+        self?.updateGlobalDictationHotkeyError()
+      })
       store.globalDictationHotkeyChangeHandler = { [weak self] in
         self?.refreshGlobalDictationHotkey()
       }
@@ -243,7 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let toggle = store.voicePreferences.globalToggleHotkey
     if toggle != registeredGlobalToggleHotkey {
       do {
-        try globalDictationToggleHotKey.register(toggle)
+        try globalDictationToggleHotKey.register(toggle?.isBareModifier == true ? nil : toggle)
         registeredGlobalToggleHotkey = toggle
       } catch {
         registeredGlobalToggleHotkey = nil
@@ -252,15 +268,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
     let hold = store.voicePreferences.globalHoldHotkey
     if hold != registeredGlobalHoldHotkey {
+      releaseHoldGlobalDictation()
       do {
-        try globalDictationHoldHotKey.register(hold)
+        try globalDictationHoldHotKey.register(hold?.isBareModifier == true ? nil : hold)
         registeredGlobalHoldHotkey = hold
       } catch {
         registeredGlobalHoldHotkey = nil
         errors.append(error.localizedDescription)
       }
     }
-    store.globalDictationHotkeyError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+    globalDictationCarbonError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+    voiceBareModifierMonitor?.refresh()
+    updateGlobalDictationHotkeyError()
+  }
+
+  private func updateGlobalDictationHotkeyError() {
+    let messages = [globalDictationCarbonError, globalDictationModifierError].compactMap { $0 }
+    store?.globalDictationHotkeyError = messages.isEmpty ? nil : messages.joined(separator: "\n")
   }
 
   private func toggleGlobalDictation() {

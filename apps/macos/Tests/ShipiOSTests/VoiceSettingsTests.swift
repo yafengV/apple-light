@@ -32,6 +32,16 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertEqual(restored.voicePreferences, library.voicePreferences)
   }
 
+  func testBareModifierVoiceBindingsPersistIndependently() throws {
+    var library = WorkspaceLibrary()
+    library.voicePreferences = VoicePreferences(globalHoldHotkey: ShortcutBinding("⌃"),
+      globalToggleHotkey: ShortcutBinding("⌥⇧"))
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
+      from: JSONEncoder().encode(library))
+    XCTAssertEqual(restored.voicePreferences.globalHoldHotkey, ShortcutBinding("⌃"))
+    XCTAssertEqual(restored.voicePreferences.globalToggleHotkey, ShortcutBinding("⌥⇧"))
+  }
+
   @MainActor func testDictionaryEntersOnDeviceRecognitionRequest() {
     let request = SpeechDictation.recognitionRequest(dictionary: ["ShipiOS", "Xcode"])
     XCTAssertTrue(request.requiresOnDeviceRecognition)
@@ -78,6 +88,10 @@ final class VoiceSettingsTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
+    var preferences = store.voicePreferences
+    preferences.globalHoldHotkey = ShortcutBinding("⌃")
+    preferences.globalToggleHotkey = ShortcutBinding("⌥⇧")
+    store.voicePreferences = preferences
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 650),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false

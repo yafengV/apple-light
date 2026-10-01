@@ -7,6 +7,7 @@ struct VoiceSettingsView: View {
   @State private var dictionaryRows: [DictionaryRow] = []
   @State private var microphones: [AVCaptureDevice] = []
   @State private var recordingGlobalHotkey: GlobalHotkeyMode?
+  @State private var modifierCapture = VoiceModifierCaptureState()
   @State private var globalHotkeyWarning: String?
   @FocusState private var focusedDictionaryRow: UUID?
 
@@ -207,11 +208,18 @@ struct VoiceSettingsView: View {
             activityChanged: { active in
               store.shortcutCaptureCount = max(0,
                 store.shortcutCaptureCount + (active ? 1 : -1))
-            }, onBlur: { recordingGlobalHotkey = nil })
+            }, onBlur: {
+              recordingGlobalHotkey = nil
+              modifierCapture.reset()
+            }, receiveModifier: { event in
+              guard let binding = modifierCapture.flagsChanged(event.modifierFlags) else { return }
+              saveGlobalHotkey(binding, mode: mode)
+            })
             .frame(width: 144, height: 28)
         } else {
           Button(binding?.display ?? "关闭") {
             globalHotkeyWarning = nil
+            modifierCapture.reset()
             recordingGlobalHotkey = mode
           }
         }
@@ -235,12 +243,18 @@ struct VoiceSettingsView: View {
   }
 
   private func receiveGlobalHotkey(_ event: NSEvent, mode: GlobalHotkeyMode) {
+    modifierCapture.reset()
     if event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
       recordingGlobalHotkey = nil
       return
     }
     guard let binding = ShortcutBinding(event: event) else { return }
-    if let message = binding.validationMessage(for: "global-dictation") {
+    saveGlobalHotkey(binding, mode: mode)
+  }
+
+  private func saveGlobalHotkey(_ binding: ShortcutBinding, mode: GlobalHotkeyMode) {
+    if !binding.isBareModifier,
+      let message = binding.validationMessage(for: "global-dictation") {
       globalHotkeyWarning = message
       return
     }
