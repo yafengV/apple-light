@@ -5,18 +5,28 @@ import XCTest
 final class AppshotPreferencesTests: XCTestCase {
   func testTwoCommandKeysTriggerOnlyDuringShortOverlap() {
     var chord = AppshotCommandChord()
-    XCTAssertFalse(chord.flagsChanged(keyCode: 55, commandDown: true, at: 1))
-    XCTAssertTrue(chord.flagsChanged(keyCode: 54, commandDown: true, at: 1.2))
-    XCTAssertFalse(chord.flagsChanged(keyCode: 54, commandDown: true, at: 1.3))
-    XCTAssertFalse(chord.flagsChanged(keyCode: 55, commandDown: false, at: 1.4))
-    XCTAssertFalse(chord.flagsChanged(keyCode: 54, commandDown: true, at: 2))
-    XCTAssertTrue(chord.flagsChanged(keyCode: 55, commandDown: true, at: 2.1))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 55, modifierDown: true, hotkey: .doubleCommand, at: 1))
+    XCTAssertTrue(chord.flagsChanged(keyCode: 54, modifierDown: true, hotkey: .doubleCommand, at: 1.2))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 54, modifierDown: true, hotkey: .doubleCommand, at: 1.3))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 55, modifierDown: false, hotkey: .doubleCommand, at: 1.4))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 54, modifierDown: true, hotkey: .doubleCommand, at: 2))
+    XCTAssertTrue(chord.flagsChanged(keyCode: 55, modifierDown: true, hotkey: .doubleCommand, at: 2.1))
   }
 
   func testSlowOverlapDoesNotTrigger() {
     var chord = AppshotCommandChord()
-    XCTAssertFalse(chord.flagsChanged(keyCode: 55, commandDown: true, at: 1))
-    XCTAssertFalse(chord.flagsChanged(keyCode: 54, commandDown: true, at: 2))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 55, modifierDown: true, hotkey: .doubleCommand, at: 1))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 54, modifierDown: true, hotkey: .doubleCommand, at: 2))
+  }
+
+  func testOptionAndShiftPairsUseTheirOwnPhysicalKeys() {
+    var chord = AppshotCommandChord()
+    XCTAssertFalse(chord.flagsChanged(keyCode: 58, modifierDown: true, hotkey: .doubleOption, at: 1))
+    XCTAssertTrue(chord.flagsChanged(keyCode: 61, modifierDown: true, hotkey: .doubleOption, at: 1.1))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 58, modifierDown: false, hotkey: .doubleOption, at: 1.2))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 56, modifierDown: true, hotkey: .doubleShift, at: 2))
+    XCTAssertTrue(chord.flagsChanged(keyCode: 60, modifierDown: true, hotkey: .doubleShift, at: 2.1))
+    XCTAssertFalse(chord.flagsChanged(keyCode: 55, modifierDown: true, hotkey: .none, at: 3))
   }
 
   func testDestinationRoutingKeepsUnusedNewComposer() {
@@ -36,20 +46,23 @@ final class AppshotPreferencesTests: XCTestCase {
 
   func testPreferencesSurviveRoundTripAndLegacyLibraryGetsDefaults() throws {
     var library = WorkspaceLibrary()
-    library.appshotHotkeyEnabled = false
+    library.appshotHotkey = .doubleOption
     library.appshotDestination = .newChat
     library.appshotSoundEnabled = false
     library.hasAcceptedAppshotIntro = true
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: JSONEncoder().encode(library))
-    XCTAssertFalse(restored.appshotHotkeyEnabled)
+    XCTAssertEqual(restored.appshotHotkey, .doubleOption)
     XCTAssertEqual(restored.appshotDestination, .newChat)
     XCTAssertFalse(restored.appshotSoundEnabled)
     XCTAssertTrue(restored.hasAcceptedAppshotIntro)
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
-    XCTAssertTrue(legacy.appshotHotkeyEnabled)
+    XCTAssertEqual(legacy.appshotHotkey, .doubleCommand)
     XCTAssertEqual(legacy.appshotDestination, .automatic)
     XCTAssertTrue(legacy.appshotSoundEnabled)
     XCTAssertFalse(legacy.hasAcceptedAppshotIntro)
+    let disabledLegacy = try JSONDecoder().decode(WorkspaceLibrary.self,
+      from: Data("{\"appshotHotkeyEnabled\":false}".utf8))
+    XCTAssertEqual(disabledLegacy.appshotHotkey, .none)
   }
 
   func testAppshotSettingsAreInsideSettingsNavigation() {

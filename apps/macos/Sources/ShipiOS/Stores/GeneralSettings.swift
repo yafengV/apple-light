@@ -3,9 +3,9 @@ import CryptoKit
 import Foundation
 
 extension WorkspaceStore {
-  var appshotHotkeyEnabled: Bool {
-    get { library.appshotHotkeyEnabled }
-    set { updateGeneralPreference(\.appshotHotkeyEnabled, value: newValue) }
+  var appshotHotkey: AppshotHotkey {
+    get { library.appshotHotkey }
+    set { updateGeneralPreference(\.appshotHotkey, value: newValue) }
   }
 
   var appshotDestination: AppshotDestination {

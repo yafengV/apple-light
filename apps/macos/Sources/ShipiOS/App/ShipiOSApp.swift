@@ -163,9 +163,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         Task { @MainActor [weak self] in self?.lastMainWindowFocus = Date() }
       }
       if NSApp.keyWindow?.identifier?.rawValue == "main" { lastMainWindowFocus = Date() }
-      appshotModifierMonitor = AppshotModifierMonitor { [weak self] in
-        self?.captureAppshotFromShortcut()
-      }
+      appshotModifierMonitor = AppshotModifierMonitor(
+        hotkey: { [weak store] in store?.appshotHotkey ?? .none },
+        onTrigger: { [weak self] in self?.captureAppshotFromShortcut() })
       let refreshHotKey = { [weak hotKey, weak store] in
         guard let hotKey, let store else { return }
         do { try hotKey.register(store.shortcuts.binding("pet")) }
@@ -197,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   private func captureAppshotFromShortcut() {
-    guard let store, store.appshotHotkeyEnabled, store.shortcutCaptureCount == 0,
+    guard let store, store.appshotHotkey != .none, store.shortcutCaptureCount == 0,
       !store.shuttingDown, !store.hasSettingsConfirmation else { return }
     let target = store.appshotCapture.availableTarget()
     let currentChat = store.selectedTask != nil

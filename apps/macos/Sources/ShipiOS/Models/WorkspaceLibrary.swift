@@ -292,7 +292,7 @@ enum WebLinkTarget: String, Codable, CaseIterable, Identifiable {
 
 /// Desktop organization is separate from immutable execution records in the Agent database.
 struct WorkspaceLibrary: Codable {
-  var appshotHotkeyEnabled = true
+  var appshotHotkey = AppshotHotkey.doubleCommand
   var appshotDestination = AppshotDestination.automatic
   var appshotSoundEnabled = true
   var hasAcceptedAppshotIntro = false
@@ -416,7 +416,7 @@ struct WorkspaceLibrary: Codable {
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
-      appshotHotkeyEnabled, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro,
+      appshotHotkey, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro,
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
@@ -430,6 +430,7 @@ struct WorkspaceLibrary: Codable {
       newTaskExecutions, newTaskEnvironmentSelections,
       pendingManagedDraftTaskIDs, pendingPopoutWorktreeTaskIDs, goalSessions
   }
+  private enum LegacyAppshotCodingKey: String, CodingKey { case appshotHotkeyEnabled }
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     activityPreferences = try c.decodeIfPresent(ActivityPreferences.self, forKey: .activityPreferences) ?? .init()
@@ -501,7 +502,13 @@ struct WorkspaceLibrary: Codable {
     browserDownloads =
       try c.decodeIfPresent([BrowserDownloadRecord].self, forKey: .browserDownloads) ?? []
     pluginsEnabled = try c.decodeIfPresent(Bool.self, forKey: .pluginsEnabled) ?? true
-    appshotHotkeyEnabled = try c.decodeIfPresent(Bool.self, forKey: .appshotHotkeyEnabled) ?? true
+    if let hotkey = try c.decodeIfPresent(AppshotHotkey.self, forKey: .appshotHotkey) {
+      appshotHotkey = hotkey
+    } else {
+      let legacy = try decoder.container(keyedBy: LegacyAppshotCodingKey.self)
+      appshotHotkey = try legacy.decodeIfPresent(Bool.self, forKey: .appshotHotkeyEnabled) == false
+        ? .none : .doubleCommand
+    }
     appshotDestination = try c.decodeIfPresent(AppshotDestination.self, forKey: .appshotDestination) ?? .automatic
     appshotSoundEnabled = try c.decodeIfPresent(Bool.self, forKey: .appshotSoundEnabled) ?? true
     hasAcceptedAppshotIntro = try c.decodeIfPresent(Bool.self, forKey: .hasAcceptedAppshotIntro) ?? false

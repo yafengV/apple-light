@@ -14,16 +14,15 @@ struct AppshotSettingsView: View {
         }.frame(maxWidth: .infinity, alignment: .leading)
       }
       Section("快捷键") {
-        SettingsSegmentedPicker(title: "快捷键", description: "同时按下两个 ⌘ 键截取应用快照。",
+        SettingsMenuPicker("快捷键", description: store.appshotHotkey.explanation,
           selection: Binding(
-            get: { store.appshotHotkeyEnabled },
-            set: { store.appshotHotkeyEnabled = $0 }),
-          options: [
-            .init(value: true, title: "两个 ⌘ 键"),
-            .init(value: false, title: "无")
-          ])
+            get: { store.appshotHotkey },
+            set: { store.appshotHotkey = $0 }),
+          options: AppshotHotkey.allCases.map {
+            SettingsMenuOption(value: $0, title: $0.title)
+          })
           .settingsSearchTarget(.appshotHotkey)
-        if store.appshotHotkeyEnabled && !store.accessibilityGranted {
+        if store.appshotHotkey != .none && !store.accessibilityGranted {
           HStack {
             Text("在其他应用中使用快捷键需要辅助功能权限。")
               .foregroundStyle(.secondary)
@@ -33,14 +32,7 @@ struct AppshotSettingsView: View {
         }
       }
       Section("发送") {
-        SettingsSegmentedPicker(title: "Appshot 发送目标",
-          description: store.appshotDestination.explanation,
-          selection: Binding(
-            get: { store.appshotDestination },
-            set: { store.appshotDestination = $0 }),
-          options: AppshotDestination.allCases.map {
-            SettingsSegmentOption(value: $0, title: $0.title)
-          })
+        AppshotDestinationMenu(store: store)
           .settingsSearchTarget(.appshotDestination)
         SettingsToggle(title: "播放音效", description: "截取成功时播放系统提示音。",
           isOn: Binding(
@@ -50,5 +42,64 @@ struct AppshotSettingsView: View {
       }
     }.settingsFormStyle().appSurface()
       .onAppear { store.refreshComputerUsePermissions() }
+  }
+}
+
+private struct AppshotDestinationMenu: View {
+  @Bindable var store: WorkspaceStore
+  @State private var showing = false
+  @FocusState private var triggerFocused: Bool
+
+  var body: some View {
+    LabeledContent {
+      Button {
+        showing = true
+      } label: {
+        HStack(spacing: 10) {
+          Text(store.appshotDestination.title)
+          Image(systemName: "chevron.up.chevron.down")
+            .appFont(.caption).foregroundStyle(.secondary)
+        }
+      }
+      .accessibilityLabel("Appshot 发送目标")
+      .focusable().focused($triggerFocused)
+      .popover(isPresented: $showing, arrowEdge: .bottom) {
+        VStack(alignment: .leading, spacing: 2) {
+          ForEach(AppshotDestination.allCases) { destination in
+            Button {
+              store.appshotDestination = destination
+              showing = false
+            } label: {
+              HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(destination.title).foregroundStyle(.primary)
+                  Text(destination.explanation)
+                    .appFont(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if store.appshotDestination == destination {
+                  Image(systemName: "checkmark")
+                    .accessibilityHidden(true)
+                }
+              }
+              .padding(.horizontal, 10).padding(.vertical, 8)
+              .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(store.appshotDestination == destination ? .isSelected : [])
+          }
+        }
+        .frame(width: 320)
+        .padding(6)
+        .onExitCommand { showing = false }
+      }
+      .onChange(of: showing) { _, open in
+        if !open { triggerFocused = true }
+      }
+    } label: {
+      SettingsControlLabel(title: "Appshot 发送目标",
+        description: "选择使用快捷键时将 Appshots 发送到哪里。")
+    }
   }
 }

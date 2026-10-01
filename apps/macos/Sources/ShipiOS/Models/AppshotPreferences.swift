@@ -1,5 +1,38 @@
 import Foundation
 
+enum AppshotHotkey: String, Codable, CaseIterable, Identifiable {
+  case doubleCommand
+  case doubleOption
+  case doubleShift
+  case none
+
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .doubleCommand: "⌘ + ⌘"
+    case .doubleOption: "⌥ + ⌥"
+    case .doubleShift: "⇧ + ⇧"
+    case .none: "无"
+    }
+  }
+  var explanation: String? {
+    switch self {
+    case .doubleCommand: "同时按下两个 ⌘ 键"
+    case .doubleOption: "同时按下两个 ⌥ 键"
+    case .doubleShift: "同时按下两个 ⇧ 键"
+    case .none: nil
+    }
+  }
+  var keyCodes: (UInt16, UInt16)? {
+    switch self {
+    case .doubleCommand: (55, 54)
+    case .doubleOption: (58, 61)
+    case .doubleShift: (56, 60)
+    case .none: nil
+    }
+  }
+}
+
 enum AppshotDestination: String, Codable, CaseIterable, Identifiable {
   case automatic
   case lastChat
@@ -39,16 +72,18 @@ struct AppshotCommandChord {
   private var rightDown = false
   private var firstPress: TimeInterval?
   private var fired = false
+  private var selectedHotkey: AppshotHotkey?
 
-  mutating func flagsChanged(keyCode: UInt16, commandDown: Bool,
-    at time: TimeInterval) -> Bool {
-    guard commandDown else {
+  mutating func flagsChanged(keyCode: UInt16, modifierDown: Bool,
+    hotkey: AppshotHotkey, at time: TimeInterval) -> Bool {
+    if selectedHotkey != hotkey { reset(); selectedHotkey = hotkey }
+    guard modifierDown, let (leftCode, rightCode) = hotkey.keyCodes else {
       reset()
       return false
     }
     switch keyCode {
-    case 55: leftDown.toggle()
-    case 54: rightDown.toggle()
+    case leftCode: leftDown.toggle()
+    case rightCode: rightDown.toggle()
     default: return false
     }
     if leftDown != rightDown && firstPress == nil { firstPress = time }
