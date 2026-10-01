@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 enum ImageImport: Sendable {
   case file(URL)
   case bytes(Data, name: String)
+  case appshot(Data, name: String, context: AppshotContext)
 }
 
 extension WorkspaceStore {
@@ -25,7 +26,10 @@ extension WorkspaceStore {
       let result = try await capture()
       importingImages = false
       guard let result else { return }
-      _ = await importImages([.bytes(result.data, name: result.name)], draft: key)
+      let item: ImageImport = result.context.map {
+        .appshot(result.data, name: result.name, context: $0)
+      } ?? .bytes(result.data, name: result.name)
+      _ = await importImages([item], draft: key)
     } catch {
       importingImages = false
       self.error = error.localizedDescription
@@ -122,6 +126,9 @@ extension WorkspaceStore {
               result.append(try ImageAttachmentStorage.importFile(url, root: root))
             case .bytes(let data, let name):
               result.append(try ImageAttachmentStorage.importData(data, name: name, root: root))
+            case .appshot(let data, let name, let context):
+              result.append(try ImageAttachmentStorage.importData(data, name: name, root: root,
+                appshot: context))
             }
           }
           return result

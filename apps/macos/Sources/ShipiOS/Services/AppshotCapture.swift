@@ -1,9 +1,14 @@
 import AppKit
 import ScreenCaptureKit
 
-struct AppshotCaptureResult {
+struct AppshotCaptureResult: Sendable {
   let data: Data
   let name: String
+  let context: AppshotContext?
+
+  init(data: Data, name: String, context: AppshotContext? = nil) {
+    self.data = data; self.name = name; self.context = context
+  }
 }
 
 enum AppshotImage {
@@ -99,7 +104,8 @@ enum AppshotImage {
     let content = try await SCShareableContent.current
     guard let window = content.windows.first(where: { $0.windowID == windowID }) else { return nil }
     return try await screenshot(SCContentFilter(desktopIndependentWindow: window),
-      applicationName: app.localizedName)
+      applicationName: app.localizedName, bundleIdentifier: app.bundleIdentifier,
+      windowTitle: window.title, pid: app.processIdentifier)
   }
 
   private func captureFromPicker() async throws -> AppshotCaptureResult? {
@@ -135,19 +141,23 @@ enum AppshotImage {
   private func capture(_ filter: SCContentFilter) {
     guard continuation != nil, !capturing else { return }
     capturing = true
-    var name: String?
+    var window: SCWindow?
     if #available(macOS 15.2, *) {
-      name = filter.includedWindows.first?.owningApplication?.applicationName
+      window = filter.includedWindows.first
     }
     Task {
       do {
-        finish(.success(try await screenshot(filter, applicationName: name)))
+        finish(.success(try await screenshot(filter,
+          applicationName: window?.owningApplication?.applicationName,
+          bundleIdentifier: window?.owningApplication?.bundleIdentifier,
+          windowTitle: window?.title, pid: window?.owningApplication?.processID)))
       } catch { finish(.failure(error)) }
     }
   }
 
   private func screenshot(_ filter: SCContentFilter,
-    applicationName: String?) async throws -> AppshotCaptureResult {
+    applicationName: String?, bundleIdentifier: String?,
+    windowTitle: String?, pid: pid_t?) async throws -> AppshotCaptureResult {
     let size = AppshotImage.size(rect: filter.contentRect, pixelScale: filter.pointPixelScale)
     let configuration = SCStreamConfiguration()
     configuration.width = size.width
@@ -155,7 +165,11 @@ enum AppshotImage {
     configuration.showsCursor = false
     let image = try await SCScreenshotManager.captureImage(
       contentFilter: filter, configuration: configuration)
-    return try AppshotImage.encode(image, applicationName: applicationName)
+    let encoded = try AppshotImage.encode(image, applicationName: applicationName)
+    let axTree = await AppshotAccessibility.snapshot(pid: pid, windowTitle: windowTitle)
+    let context = AppshotContext(appName: applicationName ?? "应用窗口",
+      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: axTree)
+    return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context)
   }
 
   private func finish(_ result: Result<AppshotCaptureResult?, Error>) {

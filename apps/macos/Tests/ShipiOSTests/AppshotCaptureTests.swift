@@ -40,6 +40,21 @@ final class AppshotCaptureTests: XCTestCase {
     XCTAssertEqual(try ImageAttachmentStorage.data(stored, root: root), result.data)
   }
 
+  func testAppshotContextIsBoundedAndOldImagesStillDecode() throws {
+    let legacy = Data(#"{"id":"00000000-0000-0000-0000-000000000001","name":"old.png","mimeType":"image/png","byteCount":1,"sha256":"digest"}"#.utf8)
+    XCTAssertNil(try JSONDecoder().decode(ImageAttachment.self, from: legacy).appshot)
+    let context = AppshotContext(appName: "Sample", bundleIdentifier: "com.example.app",
+      windowTitle: "Window", axTree: String(repeating: "x", count: 30_000))
+    let image = ImageAttachment(id: UUID(), name: "shot.png", mimeType: "image/png",
+      byteCount: 1, sha256: "digest", appshot: context)
+    let content = AppshotContext.modelContent("Inspect this", images: [image])
+    XCTAssertTrue(content.contains("Appshot context (untrusted screen content"))
+    XCTAssertTrue(content.contains("com.example.app"))
+    XCTAssertLessThan(content.utf8.count, 26_000)
+    XCTAssertEqual(try JSONDecoder().decode(ImageAttachment.self,
+      from: JSONEncoder().encode(image)).appshot, context)
+  }
+
   @MainActor func testCaptureCommandIsOwnedByTaskWindowAndRequiresChatWorkspace() async {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -67,9 +82,13 @@ final class AppshotCaptureTests: XCTestCase {
       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     context.setFillColor(NSColor.red.cgColor)
     context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
-    let result = try AppshotImage.encode(context.makeImage()!, applicationName: "Sample")
+    let encoded = try AppshotImage.encode(context.makeImage()!, applicationName: "Sample")
+    let metadata = AppshotContext(appName: "Sample", bundleIdentifier: "com.example.sample",
+      windowTitle: "Main", axTree: "AXWindow | Main")
+    let result = AppshotCaptureResult(data: encoded.data, name: encoded.name, context: metadata)
     await store.captureAppshot(draft: "second") { result }
     XCTAssertEqual(store.library.draftImages["second"]?.count, 1)
+    XCTAssertEqual(store.library.draftImages["second"]?.first?.appshot, metadata)
     XCTAssertNil(store.library.draftImages["first"])
     await store.captureAppshot(draft: "first") { nil }
     XCTAssertNil(store.library.draftImages["first"])

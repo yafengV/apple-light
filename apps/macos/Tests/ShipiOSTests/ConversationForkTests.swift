@@ -165,6 +165,22 @@ final class ConversationForkTests: XCTestCase {
     XCTAssertEqual(reconciled.tasks.count, 3)
   }
 
+  func testAppshotContextSurvivesLibraryReloadAndFork() throws {
+    let source = run("shot")
+    var library = library([source])
+    let context = AppshotContext(appName: "Example", bundleIdentifier: "com.example.app",
+      windowTitle: "Editor", axTree: "AXButton | Save")
+    let image = ImageAttachment(id: UUID(), name: "shot.png", mimeType: "image/png",
+      byteCount: 1, sha256: "digest", appshot: context)
+    library.runImages[source.id] = [image]
+    let fork = try library.forkConversation(taskID: "shot", availableRuns: [source])
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: JSONEncoder().encode(library))
+    let message = try XCTUnwrap(restored.chatContext(taskID: fork.id).first)
+    XCTAssertEqual(message.images.first?.appshot, context)
+    XCTAssertTrue(message.content.contains("\"window_title\":\"Editor\""))
+    XCTAssertTrue(message.content.contains("AXButton | Save"))
+  }
+
   func testLegacyLibraryDecodesWithoutForkMetadata() throws {
     let data = Data(#"{"tasks":[{"id":"old","project":"/fixture","title":"Old","runIDs":["old"],"pinned":false,"archived":false}]}"#.utf8)
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: data)

@@ -19,7 +19,8 @@ enum ImageAttachmentStorage {
     return try importData(readBounded(source), name: source.lastPathComponent, root: root)
   }
 
-  static func importData(_ data: Data, name: String, root: URL) throws -> ImageAttachment {
+  static func importData(_ data: Data, name: String, root: URL,
+    appshot: AppshotContext? = nil) throws -> ImageAttachment {
     guard !data.isEmpty, data.count <= maxBytes,
       let source = CGImageSourceCreateWithData(data as CFData, nil),
       CGImageSourceGetCount(source) == 1,
@@ -66,7 +67,7 @@ enum ImageAttachmentStorage {
     }
     let attachment = ImageAttachment(
       id: UUID(), name: String(name.prefix(200)), mimeType: mime,
-      byteCount: stored.count, sha256: digest(stored))
+      byteCount: stored.count, sha256: digest(stored), appshot: appshot)
     let directory = root.appendingPathComponent("Attachments", isDirectory: true)
     try FileManager.default.createDirectory(
       at: directory, withIntermediateDirectories: true,

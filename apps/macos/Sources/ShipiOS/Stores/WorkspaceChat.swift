@@ -185,9 +185,9 @@ extension WorkspaceStore {
       messages.append(contentsOf: library.chatContext(taskID: taskID))
       messages.append(
         ChatMessage(
-          role: "user", content: review.map {
+          role: "user", content: AppshotContext.modelContent(review.map {
             usesCodex ? "\($0.snapshot.requestTitle)。审查此消息附带的只读 Git 差异。" : $0.snapshot.modelPrompt
-          } ?? prompt,
+          } ?? prompt, images: images),
           images: images, files: files))
       let now = Date().timeIntervalSince1970 * 1000
       var request: [String: JSONValue] = [
@@ -1010,7 +1010,8 @@ extension WorkspaceStore {
         var prepared = message
         prepared.text = try promptWithPullRequestChecks(message.text, checks: message.pullRequestChecks, taskID: message.taskID)
         let steered = try await codexTransport.steer(taskID: message.taskID,
-          text: prepared.text, images: message.images, fileAppendix: fileAppendix)
+          text: AppshotContext.modelContent(prepared.text, images: message.images),
+          images: message.images, fileAppendix: fileAppendix)
         codexSteeringMessages.remove(message.id)
         if steered { try recordCodexSteeredMessage(prepared, runID: active.id) }
         if activeChatRun(taskID: message.taskID) == nil,

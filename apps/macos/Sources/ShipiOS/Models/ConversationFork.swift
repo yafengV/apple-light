@@ -123,7 +123,10 @@ extension WorkspaceLibrary {
     return ids.flatMap { id -> [ChatMessage] in
       guard let run = stored[id], run.kind == "chat",
         run.request["conversation_kind"].text != "compact" else { return [] }
-      var messages = [ChatMessage(role: "user", content: notes[id] ?? "", images: runImages[id] ?? [], files: runFiles[id] ?? [])]
+      let images = runImages[id] ?? []
+      var messages = [ChatMessage(role: "user",
+        content: AppshotContext.modelContent(notes[id] ?? "", images: images),
+        images: images, files: runFiles[id] ?? [])]
       if !run.codexSteeredMessages.isEmpty, let items = run.responseItems {
         for item in items {
           switch item {
@@ -131,7 +134,8 @@ extension WorkspaceLibrary {
             messages.append(ChatMessage(role: "assistant", content: text))
           case .user(let messageID):
             if let message = run.codexSteeredMessages.first(where: { $0.id == messageID }) {
-              messages.append(ChatMessage(role: "user", content: message.text,
+              messages.append(ChatMessage(role: "user",
+                content: AppshotContext.modelContent(message.text, images: message.images),
                 images: message.images, files: message.files))
             }
           default: break

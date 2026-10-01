@@ -122,6 +122,26 @@ final class ImageAttachmentTests: XCTestCase {
         ], root: nil))
   }
 
+  func testAppshotWindowContextTravelsWithImageInModelRequest() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let context = AppshotContext(appName: "Example", bundleIdentifier: "com.example.app",
+      windowTitle: "Editor", axTree: "AXButton | Save")
+    let image = try ImageAttachmentStorage.importData(
+      AttachmentFixture.png(), name: "appshot.png", root: root, appshot: context)
+    let content = AppshotContext.modelContent("What is on screen?", images: [image])
+    let body = try ImageAttachmentStorage.requestData(config: .init(),
+      messages: [.init(role: "user", content: content, images: [image])], root: root)
+    let value = try JSONDecoder().decode(JSONValue.self, from: body)
+    let parts = value["messages"].items[0]["content"].items
+    let text = try XCTUnwrap(parts[0]["text"].text)
+    XCTAssertTrue(text.contains("What is on screen?"))
+    XCTAssertTrue(text.contains("\"window_title\":\"Editor\""))
+    XCTAssertTrue(text.contains("AXButton | Save"))
+    XCTAssertEqual(parts[1]["type"].text, "image_url")
+    XCTAssertFalse(String(decoding: body, as: UTF8.self).contains(root.path))
+  }
+
   func testInvalidOversizedAndLinkedAttachmentFilesAreRejected() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
