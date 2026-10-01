@@ -96,7 +96,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var globalDictationToggleHotKey: AppGlobalHotKey?
+  private var globalDictationHoldHotKey: AppGlobalHotKey?
+  private var registeredGlobalToggleHotkey: ShortcutBinding?
+  private var registeredGlobalHoldHotkey: ShortcutBinding?
   private var globalDictationState = GlobalDictationToggleState()
+  private var globalDictationHoldState = GlobalDictationHoldState()
+  private enum GlobalDictationMode { case hold, toggle }
   private var appshotModifierMonitor: AppshotModifierMonitor?
   private var appshotShortcutPending = false
   private var appshotWindowFocusObserver: NSObjectProtocol?
@@ -168,6 +173,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         self?.toggleGlobalDictation()
       }
       globalDictationToggleHotKey = dictationHotKey
+      let holdDictationHotKey = AppGlobalHotKey(id: 4, title: "按住听写",
+        onRelease: { [weak self] in self?.releaseHoldGlobalDictation() }) { [weak self] in
+        self?.pressHoldGlobalDictation()
+      }
+      globalDictationHoldHotKey = holdDictationHotKey
       store.globalDictationHotkeyChangeHandler = { [weak self] in
         self?.refreshGlobalDictationHotkey()
       }
@@ -227,17 +237,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   private func refreshGlobalDictationHotkey() {
-    guard let store, let globalDictationToggleHotKey else { return }
-    do {
-      try globalDictationToggleHotKey.register(store.voicePreferences.globalToggleHotkey)
-      store.globalDictationHotkeyError = nil
-    } catch {
-      store.globalDictationHotkeyError = error.localizedDescription
+    guard let store, let globalDictationToggleHotKey, let globalDictationHoldHotKey else { return }
+    var errors: [String] = []
+    let toggle = store.voicePreferences.globalToggleHotkey
+    if toggle != registeredGlobalToggleHotkey {
+      do {
+        try globalDictationToggleHotKey.register(toggle)
+        registeredGlobalToggleHotkey = toggle
+      } catch {
+        registeredGlobalToggleHotkey = nil
+        errors.append(error.localizedDescription)
+      }
     }
+    let hold = store.voicePreferences.globalHoldHotkey
+    if hold != registeredGlobalHoldHotkey {
+      do {
+        try globalDictationHoldHotKey.register(hold)
+        registeredGlobalHoldHotkey = hold
+      } catch {
+        registeredGlobalHoldHotkey = nil
+        errors.append(error.localizedDescription)
+      }
+    }
+    store.globalDictationHotkeyError = errors.isEmpty ? nil : errors.joined(separator: "\n")
   }
 
   private func toggleGlobalDictation() {
     guard let store, !quitting, store.shortcutCaptureCount == 0 else { return }
+    guard globalDictationHoldState.token == nil else { return }
     let decision = globalDictationState.press(activeTarget: store.dictation.target,
       newToken: "global-dictation:" + UUID().uuidString)
     switch decision {
@@ -247,16 +274,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     case .cancelPending:
       return
     case .start(let token):
-      beginGlobalDictation(token: token, store: store)
+      beginGlobalDictation(token: token, mode: .toggle, store: store)
     }
   }
 
-  private func beginGlobalDictation(token: String, store: WorkspaceStore) {
+  private func pressHoldGlobalDictation() {
+    guard let store, !quitting, store.shortcutCaptureCount == 0 else { return }
+    if let toggleToken = globalDictationState.token,
+      globalDictationState.starting || store.dictation.target == toggleToken { return }
+    guard let token = globalDictationHoldState.press(
+      newToken: "global-dictation:" + UUID().uuidString) else { return }
+    beginGlobalDictation(token: token, mode: .hold, store: store)
+  }
+
+  private func releaseHoldGlobalDictation() {
+    guard let token = globalDictationHoldState.release() else { return }
+    store?.dictation.stop(target: token)
+  }
+
+  private func beginGlobalDictation(token: String, mode: GlobalDictationMode,
+    store: WorkspaceStore) {
     do {
       let textTarget = try GlobalDictationTextTarget.capture()
       store.globalDictationHotkeyError = nil
       Task { @MainActor [weak self, weak store] in
-        guard let self, let store, self.globalDictationState.token == token else { return }
+        guard let self, let store, self.isCurrentGlobalDictation(token: token, mode: mode) else {
+          return
+        }
         await store.dictation.start(target: token,
           languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
           microphoneDeviceID: store.voicePreferences.microphoneDeviceID,
@@ -269,8 +313,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
               level: .error)
           }
         }
-        self.globalDictationState.didResolveStart(token: token,
-          active: store.dictation.target == token)
+        switch mode {
+        case .toggle:
+          self.globalDictationState.didResolveStart(token: token,
+            active: store.dictation.target == token)
+        case .hold:
+          if store.dictation.target != token, self.globalDictationHoldState.token == token {
+            _ = self.globalDictationHoldState.release()
+          }
+        }
         if store.dictation.target != token {
           if store.dictation.errorTarget == token, let error = store.dictation.error {
             store.globalDictationHotkeyError = error
@@ -279,9 +330,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
       }
     } catch {
-      globalDictationState.cancel(token: token)
+      switch mode {
+      case .toggle: globalDictationState.cancel(token: token)
+      case .hold:
+        if globalDictationHoldState.token == token { _ = globalDictationHoldState.release() }
+      }
       store.globalDictationHotkeyError = error.localizedDescription
       store.notices.show(id: "global-dictation", title: error.localizedDescription, level: .error)
+    }
+  }
+
+  private func isCurrentGlobalDictation(token: String, mode: GlobalDictationMode) -> Bool {
+    switch mode {
+    case .toggle: globalDictationState.token == token
+    case .hold: globalDictationHoldState.token == token
     }
   }
 

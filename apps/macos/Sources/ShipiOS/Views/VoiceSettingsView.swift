@@ -6,9 +6,11 @@ struct VoiceSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var dictionaryRows: [DictionaryRow] = []
   @State private var microphones: [AVCaptureDevice] = []
-  @State private var recordingGlobalToggle = false
+  @State private var recordingGlobalHotkey: GlobalHotkeyMode?
   @State private var globalHotkeyWarning: String?
   @FocusState private var focusedDictionaryRow: UUID?
+
+  private enum GlobalHotkeyMode: Hashable { case hold, toggle }
 
   private struct DictionaryRow: Identifiable {
     let id = UUID()
@@ -85,41 +87,12 @@ struct VoiceSettingsView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
 
         Text("听写").appFont(size: 15, weight: .semibold)
-        LabeledContent {
-          HStack(spacing: 8) {
-            if recordingGlobalToggle {
-              ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制切换听写快捷键",
-                receive: receiveGlobalToggleHotkey,
-                activityChanged: { active in
-                  store.shortcutCaptureCount = max(0,
-                    store.shortcutCaptureCount + (active ? 1 : -1))
-                }, onBlur: { recordingGlobalToggle = false })
-                .frame(width: 144, height: 28)
-            } else {
-              Button(store.voicePreferences.globalToggleHotkey?.display ?? "关闭") {
-                globalHotkeyWarning = nil
-                recordingGlobalToggle = true
-              }
-            }
-            if store.voicePreferences.globalToggleHotkey != nil {
-              Button {
-                var preferences = store.voicePreferences
-                preferences.globalToggleHotkey = nil
-                store.voicePreferences = preferences
-                recordingGlobalToggle = false
-              } label: { Image(systemName: "xmark") }
-                .buttonStyle(.plain)
-                .accessibilityLabel("关闭全局切换听写快捷键")
-            }
-          }
-        } label: {
-          SettingsControlLabel(title: "切换听写快捷键",
-            description: "在桌面任意可编辑输入框按一次开始听写，再按一次结束。")
+        VStack(spacing: 0) {
+          globalHotkeyRow(.hold)
+          Divider().padding(.horizontal, 16)
+          globalHotkeyRow(.toggle)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .settingsSearchTarget(.voiceToggleHotkey)
         if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
           HStack {
             Label("正在全局听写", systemImage: "mic.fill")
@@ -181,7 +154,7 @@ struct VoiceSettingsView: View {
       refreshMicrophones()
     }
     .onDisappear { persistDictionaryRows() }
-    .onDisappear { recordingGlobalToggle = false }
+    .onDisappear { recordingGlobalHotkey = nil }
     .onChange(of: focusedDictionaryRow) { oldValue, newValue in
       if oldValue != nil && oldValue != newValue {
         persistDictionaryRows()
@@ -217,24 +190,72 @@ struct VoiceSettingsView: View {
       mediaType: .audio, position: .unspecified).devices
   }
 
-  private func receiveGlobalToggleHotkey(_ event: NSEvent) {
+  private func globalHotkeyRow(_ mode: GlobalHotkeyMode) -> some View {
+    let title = mode == .hold ? "按住听写快捷键" : "切换听写快捷键"
+    let description = mode == .hold
+      ? "按住时在桌面当前输入框听写，松开后结束。"
+      : "在桌面当前输入框按一次开始听写，再按一次结束。"
+    let binding = mode == .hold
+      ? store.voicePreferences.globalHoldHotkey : store.voicePreferences.globalToggleHotkey
+    return LabeledContent {
+      HStack(spacing: 8) {
+        if recordingGlobalHotkey == mode {
+          ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)",
+            receive: { receiveGlobalHotkey($0, mode: mode) },
+            activityChanged: { active in
+              store.shortcutCaptureCount = max(0,
+                store.shortcutCaptureCount + (active ? 1 : -1))
+            }, onBlur: { recordingGlobalHotkey = nil })
+            .frame(width: 144, height: 28)
+        } else {
+          Button(binding?.display ?? "关闭") {
+            globalHotkeyWarning = nil
+            recordingGlobalHotkey = mode
+          }
+        }
+        if binding != nil {
+          Button {
+            var preferences = store.voicePreferences
+            if mode == .hold { preferences.globalHoldHotkey = nil }
+            else { preferences.globalToggleHotkey = nil }
+            store.voicePreferences = preferences
+            recordingGlobalHotkey = nil
+          } label: { Image(systemName: "xmark") }
+            .buttonStyle(.plain)
+            .accessibilityLabel("关闭\(title)")
+        }
+      }
+    } label: {
+      SettingsControlLabel(title: title, description: description)
+    }
+    .padding(16)
+    .settingsSearchTarget(mode == .hold ? .voiceHoldHotkey : .voiceToggleHotkey)
+  }
+
+  private func receiveGlobalHotkey(_ event: NSEvent, mode: GlobalHotkeyMode) {
     if event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
-      recordingGlobalToggle = false
+      recordingGlobalHotkey = nil
       return
     }
     guard let binding = ShortcutBinding(event: event) else { return }
-    if let message = binding.validationMessage(for: "global-dictation-toggle") {
+    if let message = binding.validationMessage(for: "global-dictation") {
       globalHotkeyWarning = message
       return
     }
-    if let conflict = store.shortcuts.conflict(for: binding, excluding: "global-dictation-toggle") {
+    if let conflict = store.shortcuts.conflict(for: binding, excluding: "global-dictation") {
       globalHotkeyWarning = "已用于“\(conflict.title)”，请先移除该绑定。"
       return
     }
     var preferences = store.voicePreferences
-    preferences.globalToggleHotkey = binding
+    let other = mode == .hold ? preferences.globalToggleHotkey : preferences.globalHoldHotkey
+    if other == binding {
+      globalHotkeyWarning = "按住听写和切换听写不能使用同一个快捷键。"
+      return
+    }
+    if mode == .hold { preferences.globalHoldHotkey = binding }
+    else { preferences.globalToggleHotkey = binding }
     store.voicePreferences = preferences
-    recordingGlobalToggle = false
+    recordingGlobalHotkey = nil
     globalHotkeyWarning = nil
   }
 }

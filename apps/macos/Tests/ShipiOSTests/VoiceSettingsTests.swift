@@ -10,6 +10,7 @@ final class VoiceSettingsTests: XCTestCase {
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertNil(legacy.voicePreferences.dictationLocaleIdentifier)
     XCTAssertNil(legacy.voicePreferences.microphoneDeviceID)
+    XCTAssertNil(legacy.voicePreferences.globalHoldHotkey)
     XCTAssertNil(legacy.voicePreferences.globalToggleHotkey)
     XCTAssertTrue(legacy.voicePreferences.dictationDictionary.isEmpty)
 
@@ -17,10 +18,12 @@ final class VoiceSettingsTests: XCTestCase {
     var library = WorkspaceLibrary()
     library.voicePreferences = VoicePreferences(dictationLocaleIdentifier: " zh-CN ",
       microphoneDeviceID: " selected-microphone ",
+      globalHoldHotkey: ShortcutBinding("⌃⌥H"),
       globalToggleHotkey: ShortcutBinding("⌃⌥D"),
       dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase])
     XCTAssertEqual(library.voicePreferences.dictationLocaleIdentifier, "zh-CN")
     XCTAssertEqual(library.voicePreferences.microphoneDeviceID, "selected-microphone")
+    XCTAssertEqual(library.voicePreferences.globalHoldHotkey, ShortcutBinding("⌃⌥H"))
     XCTAssertEqual(library.voicePreferences.globalToggleHotkey, ShortcutBinding("⌃⌥D"))
     XCTAssertEqual(library.voicePreferences.dictationDictionary,
       ["ShipiOS", "shipios", "Xcode", longPhrase])
@@ -55,6 +58,9 @@ final class VoiceSettingsTests: XCTestCase {
     preferences.globalToggleHotkey = nil
     store.voicePreferences = preferences
     XCTAssertEqual(refreshes, 2)
+    preferences.globalHoldHotkey = ShortcutBinding("⌃⌥H")
+    store.voicePreferences = preferences
+    XCTAssertEqual(refreshes, 3)
     await store.shutdown()
   }
 
@@ -63,6 +69,7 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "听写词典").map(\.field), [.voiceDictionary])
     XCTAssertEqual(SettingsSearch.results(for: "麦克风").map(\.field), [.voiceMicrophone])
     XCTAssertEqual(SettingsSearch.results(for: "切换听写快捷键").map(\.field), [.voiceToggleHotkey])
+    XCTAssertEqual(SettingsSearch.results(for: "按住听写快捷键").map(\.field), [.voiceHoldHotkey])
   }
 
   @MainActor func testVoiceSettingsPageRenders() async throws {

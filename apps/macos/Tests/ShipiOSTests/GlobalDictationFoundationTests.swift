@@ -4,6 +4,17 @@ import XCTest
 @testable import ShipiOS
 
 final class GlobalDictationFoundationTests: XCTestCase {
+  func testHoldReleaseCancelsPendingStartAndIgnoresRepeatedPress() {
+    var state = GlobalDictationHoldState()
+    XCTAssertEqual(state.press(newToken: "first"), "first")
+    XCTAssertNil(state.press(newToken: "ignored"))
+    XCTAssertEqual(state.release(), "first")
+    XCTAssertNil(state.token)
+    XCTAssertNil(state.release())
+    XCTAssertEqual(state.press(newToken: "second"), "second")
+    XCTAssertEqual(state.token, "second")
+  }
+
   func testToggleCancelsPendingStartAndRestartsAfterAutomaticCompletion() {
     var state = GlobalDictationToggleState()
     XCTAssertEqual(state.press(activeTarget: nil, newToken: "first"), .start("first"))
