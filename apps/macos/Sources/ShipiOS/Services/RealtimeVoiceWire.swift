@@ -83,6 +83,14 @@ struct RealtimeVoiceWire {
 
   static func responseCreate() throws -> Data { try json(["type": "response.create"]) }
 
+  static func previewPrompt() throws -> Data {
+    try json(["type": "conversation.item.create", "item": [
+      "type": "message", "role": "user", "content": [[
+        "type": "input_text", "text": "Say exactly: Hello, I'm your voice assistant.",
+      ]],
+    ]])
+  }
+
   private static func json(_ object: [String: Any]) throws -> Data {
     try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
   }

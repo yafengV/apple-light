@@ -226,7 +226,10 @@ final class VoiceSettingsTests: XCTestCase {
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 390, height: 550),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
-    let host = NSHostingView(rootView: VoicePickerSheet(selectedVoiceID: "cedar") { _ in })
+    var config = ModelConfiguration()
+    config.baseURL = "https://voice.example.com/v1"
+    let host = NSHostingView(rootView: VoicePickerSheet(selectedVoiceID: "cedar",
+      config: config, realtimeModelID: "custom-realtime") { _ in })
     window.contentView = host
     try await Task.sleep(for: .milliseconds(150))
     host.layoutSubtreeIfNeeded()

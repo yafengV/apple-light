@@ -83,6 +83,51 @@ final class RealtimeVoiceWireTests: XCTestCase {
     XCTAssertEqual(try RealtimeVoiceEvent.parse(echoedImage), .ignored)
   }
 
+  func testVoicePreviewUsesTextConversationItem() throws {
+    let prompt = try XCTUnwrap(JSONSerialization.jsonObject(with:
+      RealtimeVoiceWire.previewPrompt()) as? [String: Any])
+    XCTAssertEqual(prompt["type"] as? String, "conversation.item.create")
+    let item = try XCTUnwrap(prompt["item"] as? [String: Any])
+    XCTAssertEqual(item["role"] as? String, "user")
+    let content = try XCTUnwrap(item["content"] as? [[String: String]])
+    XCTAssertEqual(content.first?["type"], "input_text")
+    XCTAssertTrue(content.first?["text"]?.contains("Hello") == true)
+  }
+
+  @MainActor func testVoicePreviewWithLocalWebSocketFixture() async throws {
+    guard let baseURL = ProcessInfo.processInfo.environment["SHIPIOS_VOICE_PREVIEW_FIXTURE_URL"]
+    else { throw XCTSkip("Set SHIPIOS_VOICE_PREVIEW_FIXTURE_URL to run the local audio fixture") }
+    var config = ModelConfiguration()
+    config.baseURL = baseURL
+    let preview = RealtimeVoicePreview(credentialReader: { _ in nil })
+    preview.toggle(config: config, model: "fixture-realtime", voice: "marin")
+    var heardPlayback = false
+    for _ in 0..<500 {
+      heardPlayback = heardPlayback || preview.playing
+      if preview.activeVoiceID == nil { break }
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertTrue(heardPlayback)
+    XCTAssertNil(preview.error)
+    XCTAssertNil(preview.activeVoiceID)
+    preview.stop()
+  }
+
+  @MainActor func testVoicePreviewCanCancelLocalWebSocketFixture() async throws {
+    guard let baseURL = ProcessInfo.processInfo.environment["SHIPIOS_VOICE_PREVIEW_FIXTURE_URL"]
+    else { throw XCTSkip("Set SHIPIOS_VOICE_PREVIEW_FIXTURE_URL to run the local audio fixture") }
+    var config = ModelConfiguration()
+    config.baseURL = baseURL
+    let preview = RealtimeVoicePreview(credentialReader: { _ in nil })
+    preview.toggle(config: config, model: "fixture-realtime", voice: "marin")
+    try await Task.sleep(for: .milliseconds(50))
+    preview.stop()
+    try await Task.sleep(for: .milliseconds(200))
+    XCTAssertNil(preview.activeVoiceID)
+    XCTAssertNil(preview.error)
+    XCTAssertFalse(preview.playing)
+  }
+
   func testPCMEncoderResamplesAcrossBuffersAndUsesLittleEndian() throws {
     let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
     let first = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480))

@@ -234,7 +234,9 @@ struct VoiceSettingsView: View {
     }
     .onAppear { loadDictionaryRows(); refreshMicrophones() }
     .sheet(isPresented: $showingVoicePicker) {
-      VoicePickerSheet(selectedVoiceID: store.voicePreferences.realtimeVoiceID) { voiceID in
+      VoicePickerSheet(selectedVoiceID: store.voicePreferences.realtimeVoiceID,
+        config: store.modelConfiguration,
+        realtimeModelID: store.voicePreferences.realtimeModelID) { voiceID in
         var preferences = store.voicePreferences
         preferences.realtimeVoiceID = voiceID
         store.voicePreferences = preferences
