@@ -37,6 +37,7 @@ final class WorkspaceLibraryTests: XCTestCase {
   @MainActor func testAgentRuntimePermissionsPersistAndRollBackOnSaveFailure() throws {
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertEqual(legacy.agentRuntimePreferences, AgentRuntimePreferences())
+    XCTAssertFalse(legacy.showAutoReviewInComposer)
     XCTAssertFalse(legacy.showFullAccessInComposer)
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-permissions-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -100,6 +101,9 @@ final class WorkspaceLibraryTests: XCTestCase {
     let secondDraft = "new:second"
     let reviewDraft = "new:review"
     let readOnly = AgentRuntimePreferences(sandboxMode: .readOnly)
+    XCTAssertFalse(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: nil, draftKey: reviewDraft))
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(true))
     XCTAssertTrue(store.saveComposerRuntimePreferences(readOnly,
       taskID: nil, draftKey: firstDraft))
     XCTAssertEqual(store.composerRuntimePreferences(taskID: nil, draftKey: firstDraft), readOnly)
@@ -146,6 +150,68 @@ final class WorkspaceLibraryTests: XCTestCase {
     let inconsistent = try JSONDecoder().decode(WorkspaceLibrary.self,
       from: JSONSerialization.data(withJSONObject: object))
     XCTAssertTrue(inconsistent.showFullAccessInComposer)
+  }
+
+  @MainActor func testAutoReviewAvailabilityKeepsExistingTasksAndResetsFutureDefaults() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("auto-review-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    XCTAssertFalse(store.saveAgentRuntimePreferences(.approveForMe))
+    XCTAssertFalse(store.savePopoutHomeRuntimePreferences(.approveForMe))
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(true))
+    XCTAssertTrue(store.saveAgentRuntimePreferences(.approveForMe))
+    XCTAssertTrue(store.savePopoutHomeRuntimePreferences(.approveForMe))
+    let draftKey = "new:review"
+    XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: nil, draftKey: draftKey))
+    let task = WorkspaceTask(id: UUID().uuidString, project: "", title: "Existing", runIDs: [])
+    let inherited = WorkspaceTask(id: UUID().uuidString, project: "", title: "Inherited", runIDs: [])
+    store.library.tasks = [task, inherited]
+    XCTAssertTrue(store.saveLibrary())
+    XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: task.id, draftKey: draftKey))
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(false))
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertFalse(restored.showAutoReviewInComposer)
+    XCTAssertEqual(restored.agentRuntimePreferences, .askForApproval)
+    XCTAssertEqual(restored.popoutHomeRuntimePreferences, .askForApproval)
+    XCTAssertEqual(restored.newTaskRuntimePreferences[draftKey], .askForApproval)
+    XCTAssertEqual(restored.taskRuntimePreferences[task.id], .approveForMe)
+    XCTAssertEqual(restored.taskRuntimePreferences[inherited.id], .approveForMe)
+    XCTAssertFalse(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: nil, draftKey: "new:next"))
+  }
+
+  @MainActor func testChangingDefaultPermissionsPinsLegacyTasksBeforeSwitch() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("legacy-permissions-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let task = WorkspaceTask(id: UUID().uuidString, project: "", title: "Legacy", runIDs: [])
+    store.library.tasks = [task]
+    XCTAssertTrue(store.saveLibrary())
+    XCTAssertNil(store.library.taskRuntimePreferences[task.id])
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(true))
+    XCTAssertTrue(store.saveAgentRuntimePreferences(.approveForMe))
+    XCTAssertEqual(store.runtimePermissions(for: task.id), .askForApproval)
+    XCTAssertEqual(store.library.agentRuntimePreferences, .approveForMe)
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(false))
+    XCTAssertEqual(store.runtimePermissions(for: task.id), .askForApproval)
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(restored.taskRuntimePreferences[task.id], .askForApproval)
+    XCTAssertEqual(restored.agentRuntimePreferences, .askForApproval)
+  }
+
+  func testLegacyAutoReviewDefaultsRemainAvailableOnMigration() throws {
+    var legacy = WorkspaceLibrary()
+    legacy.agentRuntimePreferences = .approveForMe
+    var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy))
+      as? [String: Any])
+    object.removeValue(forKey: "showAutoReviewInComposer")
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
+      from: JSONSerialization.data(withJSONObject: object))
+    XCTAssertTrue(restored.showAutoReviewInComposer)
   }
 
   @MainActor func testAgentResponsePreferencesPersistAndMigrate() throws {

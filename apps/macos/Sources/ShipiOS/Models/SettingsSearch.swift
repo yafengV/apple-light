@@ -17,6 +17,7 @@ enum ConnectionSettingsSection: String, CaseIterable, Identifiable {
 
 enum SettingsSearchField: String, CaseIterable, Identifiable {
   case editor, tips, sendShortcut, plainText, contextUsage, bottomPanel, webLinks,
+    generalDefaultPermissions, generalAutoReview,
     projectlessFolder, popoutHotkey, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
     preventSleep, enablePlugins, openSourceLicenses
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
@@ -163,7 +164,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentApprovalReviewer: .agent
     case .agentApproval: .agent
     case .agentSandbox: .agent
-    case .agentFullAccess: .agent
+    case .agentFullAccess: .general
     case .agentNetwork: .agent
     case .agentVerbosity: .agent
     case .agentReasoningSummary: .agent
@@ -243,12 +244,14 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .petSize: "宠物大小"
     case .petImport: "导入宠物"
     case .agentModel: "默认模型"
+    case .generalDefaultPermissions: "默认权限"
+    case .generalAutoReview: "自动审查"
     case .agentReasoning: "推理强度"
     case .agentSuggestions: "显示建议提示"
     case .agentApprovalReviewer: "审批者"
     case .agentApproval: "审批策略"
     case .agentSandbox: "文件访问"
-    case .agentFullAccess: "在输入区显示完全访问"
+    case .agentFullAccess: "完全访问"
     case .agentNetwork: "允许网络访问"
     case .agentVerbosity: "回复详细度"
     case .agentReasoningSummary: "推理摘要"
@@ -371,12 +374,14 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .petSize: "缩放"
     case .petImport: "自定义 PNG WebP"
     case .agentModel: "配置"
+    case .generalDefaultPermissions: "权限 默认权限 模式 ask for approval"
+    case .generalAutoReview: "权限 approve for me 自动审查批准 输入区 显示"
     case .agentReasoning: "配置"
     case .agentSuggestions: "建议"
     case .agentApprovalReviewer: "权限 自动审查批准 approve for me reviewer"
     case .agentApproval: "权限 批准 请求 永不"
     case .agentSandbox: "权限 沙箱 只读 工作区 完全访问"
-    case .agentFullAccess: "full access 完全访问 权限模式 输入区 显示"
+    case .agentFullAccess: "full access 完全访问 权限模式 输入区 显示 在输入区显示完全访问"
     case .agentNetwork: "权限 命令 网络 工作区写入"
     case .agentVerbosity: "verbosity 简洁 适中 详细 模型默认"
     case .agentReasoningSummary: "reasoning summary 自动 简要 详细 关闭"

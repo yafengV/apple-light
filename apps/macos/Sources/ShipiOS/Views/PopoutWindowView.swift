@@ -303,6 +303,7 @@ struct PopoutHomeView: View {
         ?? store.library.agentRuntimePreferences
       AgentPermissionOptions(effective: effective,
         hasOverride: store.library.popoutHomeRuntimePreferences != nil,
+        showAutoReview: store.library.showAutoReviewInComposer,
         showFullAccess: store.library.showFullAccessInComposer) { choice in
           _ = store.savePopoutHomeRuntimePreferences(choice)
       }

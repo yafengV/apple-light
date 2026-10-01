@@ -378,6 +378,7 @@ struct WorkspaceLibrary: Codable {
   var defaultTerminalLocation = WorkspaceTabPlacement.bottom
   var gitPreferences = GitPreferences()
   var agentRuntimePreferences = AgentRuntimePreferences()
+  var showAutoReviewInComposer = false
   var showFullAccessInComposer = false
   /// Permission choice for an unsent main-window draft, keyed like `drafts`.
   var newTaskRuntimePreferences: [String: AgentRuntimePreferences] = [:]
@@ -413,7 +414,7 @@ struct WorkspaceLibrary: Codable {
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
-      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, showFullAccessInComposer,
+      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, showAutoReviewInComposer, showFullAccessInComposer,
       newTaskRuntimePreferences,
       popoutHomeRuntimePreferences, taskRuntimePreferences, agentResponsePreferences,
       agentWebSearchMode, enabledAdvancedReasoningEfforts,
@@ -525,6 +526,12 @@ struct WorkspaceLibrary: Codable {
       forKey: .popoutHomeRuntimePreferences)
     newTaskRuntimePreferences = try c.decodeIfPresent([String: AgentRuntimePreferences].self,
       forKey: .newTaskRuntimePreferences) ?? [:]
+    let recordedAutoReviewAvailability = try c.decodeIfPresent(Bool.self,
+      forKey: .showAutoReviewInComposer) ?? false
+    showAutoReviewInComposer = recordedAutoReviewAvailability
+      || agentRuntimePreferences.approvalReviewer == .autoReview
+      || popoutHomeRuntimePreferences?.approvalReviewer == .autoReview
+      || newTaskRuntimePreferences.values.contains { $0.approvalReviewer == .autoReview }
     let recordedFullAccessAvailability = try c.decodeIfPresent(Bool.self,
       forKey: .showFullAccessInComposer) ?? false
     showFullAccessInComposer = recordedFullAccessAvailability

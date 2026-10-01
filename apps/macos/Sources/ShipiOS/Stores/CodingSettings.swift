@@ -1,6 +1,12 @@
 import Foundation
 
 extension WorkspaceStore {
+  private func snapshotInheritedTaskPermissions(_ candidate: inout WorkspaceLibrary) {
+    for task in candidate.tasks where candidate.taskRuntimePreferences[task.id] == nil {
+      candidate.taskRuntimePreferences[task.id] = candidate.agentRuntimePreferences
+    }
+  }
+
   func runtimePermissions(for taskID: String) -> AgentRuntimePreferences {
     library.taskRuntimePreferences[taskID] ?? library.agentRuntimePreferences
   }
@@ -18,6 +24,8 @@ extension WorkspaceStore {
     let current = composerRuntimePreferences(taskID: taskID, draftKey: draftKey)
     guard preferences?.sandboxMode != .fullAccess || library.showFullAccessInComposer
       || current.sandboxMode == .fullAccess else { return false }
+    guard preferences?.approvalReviewer != .autoReview || library.showAutoReviewInComposer
+      || current.approvalReviewer == .autoReview else { return false }
     do {
       var candidate = library
       if let taskID { candidate.taskRuntimePreferences[taskID] = preferences }
@@ -37,6 +45,9 @@ extension WorkspaceStore {
     guard preferences?.sandboxMode != .fullAccess || library.showFullAccessInComposer else {
       return false
     }
+    guard preferences?.approvalReviewer != .autoReview || library.showAutoReviewInComposer else {
+      return false
+    }
     do {
       var candidate = library
       candidate.popoutHomeRuntimePreferences = preferences
@@ -53,11 +64,51 @@ extension WorkspaceStore {
     guard preferences.sandboxMode != .fullAccess || library.showFullAccessInComposer else {
       return false
     }
-    let previous = library.agentRuntimePreferences
-    library.agentRuntimePreferences = preferences
-    if saveLibrary() { return true }
-    library.agentRuntimePreferences = previous
-    return false
+    guard preferences.approvalReviewer != .autoReview || library.showAutoReviewInComposer else {
+      return false
+    }
+    guard libraryLoaded else { return false }
+    do {
+      var candidate = library
+      snapshotInheritedTaskPermissions(&candidate)
+      candidate.agentRuntimePreferences = preferences
+      try commitLibrary(candidate)
+      error = nil
+      return true
+    } catch {
+      self.error = "无法保存默认权限：\(error.localizedDescription)"
+      return false
+    }
+  }
+
+  /// Availability changes affect future defaults and drafts. Existing task
+  /// snapshots keep their selected reviewer, as with Full Access.
+  @discardableResult func saveShowAutoReviewInComposer(_ visible: Bool) -> Bool {
+    guard libraryLoaded else { return false }
+    do {
+      var candidate = library
+      candidate.showAutoReviewInComposer = visible
+      if !visible {
+        if candidate.agentRuntimePreferences.approvalReviewer == .autoReview {
+          snapshotInheritedTaskPermissions(&candidate)
+          candidate.agentRuntimePreferences = .askForApproval
+        }
+        if candidate.popoutHomeRuntimePreferences?.approvalReviewer == .autoReview {
+          candidate.popoutHomeRuntimePreferences = .askForApproval
+        }
+        for key in Array(candidate.newTaskRuntimePreferences.keys) {
+          if candidate.newTaskRuntimePreferences[key]?.approvalReviewer == .autoReview {
+            candidate.newTaskRuntimePreferences[key] = .askForApproval
+          }
+        }
+      }
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return true
+    } catch {
+      generalSettingsError = "无法保存自动审查设置：\(error.localizedDescription)"
+      return false
+    }
   }
 
   /// Showing the option does not select it. Hiding it removes Full Access only from
@@ -69,6 +120,7 @@ extension WorkspaceStore {
       candidate.showFullAccessInComposer = visible
       if !visible {
         if candidate.agentRuntimePreferences.sandboxMode == .fullAccess {
+          snapshotInheritedTaskPermissions(&candidate)
           candidate.agentRuntimePreferences = .askForApproval
         }
         if candidate.popoutHomeRuntimePreferences?.sandboxMode == .fullAccess {

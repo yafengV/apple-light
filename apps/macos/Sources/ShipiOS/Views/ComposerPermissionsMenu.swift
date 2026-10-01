@@ -23,6 +23,7 @@ struct ComposerPermissionsMenu: View {
   var body: some View {
     Menu {
       AgentPermissionOptions(effective: effective, hasOverride: hasOverride,
+        showAutoReview: store.library.showAutoReviewInComposer,
         showFullAccess: store.library.showFullAccessInComposer) { choice in
           _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
         }
@@ -42,6 +43,7 @@ struct ComposerPermissionsMenu: View {
 struct AgentPermissionOptions: View {
   let effective: AgentRuntimePreferences
   let hasOverride: Bool
+  let showAutoReview: Bool
   let showFullAccess: Bool
   let onSelect: (AgentRuntimePreferences?) -> Void
 
@@ -60,12 +62,14 @@ struct AgentPermissionOptions: View {
         Label("按需请求批准", systemImage: "checkmark")
       } else { Text("按需请求批准") }
     }
-    Button {
-      onSelect(.approveForMe)
-    } label: {
-      if hasOverride && effective == .approveForMe {
-        Label("自动审查批准", systemImage: "checkmark")
-      } else { Text("自动审查批准") }
+    if showAutoReview || effective.approvalReviewer == .autoReview {
+      Button {
+        onSelect(.approveForMe)
+      } label: {
+        if hasOverride && effective == .approveForMe {
+          Label("自动审查批准", systemImage: "checkmark")
+        } else { Text("自动审查批准") }
+      }
     }
     if showFullAccess || effective.sandboxMode == .fullAccess {
       Button {
@@ -78,7 +82,9 @@ struct AgentPermissionOptions: View {
     }
     Menu("自定义权限") {
       Menu("审批者") {
-        ForEach(AgentApprovalReviewer.allCases, id: \.self) { reviewer in
+        ForEach(AgentApprovalReviewer.allCases.filter {
+          $0 != .autoReview || showAutoReview || effective.approvalReviewer == .autoReview
+        }, id: \.self) { reviewer in
           Button {
             var choice = effective
             choice.approvalReviewer = reviewer

@@ -7,7 +7,6 @@ struct AgentSettingsView: View {
   @State private var responseStatus = ""
   @State private var searchStatus = ""
   @State private var featureStatus = ""
-  @State private var confirmingFullAccess = false
 
   var body: some View {
     Form {
@@ -37,29 +36,14 @@ struct AgentSettingsView: View {
           set: { _ = store.saveSuggestedPrompts($0) }))
           .disabled(!store.personalizationLoaded).settingsSearchTarget(.agentSuggestions)
       }
-      Section("权限模式") {
-        SettingsToggle(title: "在输入区显示完全访问",
-          description: "完全访问会取消文件沙箱限制，可能读取和编辑其他目录、运行联网命令。显示选项不会启用它。",
-          isOn: Binding(
-            get: { store.library.showFullAccessInComposer },
-            set: { visible in
-              if visible { confirmingFullAccess = true }
-              else {
-                status = store.saveShowFullAccessInComposer(false)
-                  ? "已隐藏完全访问；新任务的完全访问默认值已恢复为按需请求批准。"
-                  : "保存失败，请重试。"
-              }
-            }))
-          .disabled(!store.libraryLoaded)
-          .settingsSearchTarget(.agentFullAccess)
-        Text("关闭显示时，已有任务的权限快照保持不变。")
-          .appFont(.caption).foregroundStyle(.secondary)
-      }
       Section("Codex Core 权限") {
         SettingsMenuPicker("审批者", description: "由你处理越界请求，或让 Codex 自动审查可批准的请求。", selection: Binding(
           get: { store.library.agentRuntimePreferences.approvalReviewer },
           set: { value in updatePermissions { $0.approvalReviewer = value } }),
-          options: AgentApprovalReviewer.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          options: AgentApprovalReviewer.allCases.filter {
+            $0 != .autoReview || store.library.showAutoReviewInComposer
+              || store.library.agentRuntimePreferences.approvalReviewer == .autoReview
+          }.map { SettingsMenuOption(value: $0, title: $0.title) })
           .disabled(store.library.agentRuntimePreferences.approvalPolicy == .never)
           .settingsSearchTarget(.agentApprovalReviewer)
         SettingsMenuPicker("审批策略", description: "按需请求批准，或不再请求批准；受沙箱限制的操作会失败。", selection: Binding(
@@ -125,16 +109,6 @@ struct AgentSettingsView: View {
       }
     }
     .settingsFormStyle().appSurface()
-    .alert("允许显示完全访问？", isPresented: $confirmingFullAccess) {
-      Button("取消", role: .cancel) {}
-      Button("确认") {
-        status = store.saveShowFullAccessInComposer(true)
-          ? "完全访问已加入输入区权限菜单，尚未启用。"
-          : "保存失败，请重试。"
-      }
-    } message: {
-      Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，且不再请求批准，包括执行可能造成破坏的命令。确认仅将完全访问加入输入区权限菜单，不会自动启用。")
-    }
   }
 
   private var reasoningTitle: String {

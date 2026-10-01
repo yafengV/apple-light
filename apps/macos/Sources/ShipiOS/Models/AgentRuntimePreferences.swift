@@ -42,7 +42,7 @@ enum AgentSandboxMode: String, Codable, CaseIterable {
   }
 }
 
-struct AgentRuntimePreferences: Codable, Equatable {
+struct AgentRuntimePreferences: Codable, Equatable, Hashable {
   var approvalPolicy = AgentApprovalPolicy.onRequest
   var approvalReviewer = AgentApprovalReviewer.user
   var sandboxMode = AgentSandboxMode.workspaceWrite

@@ -103,13 +103,15 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "审批策略").compactMap(\.field), [.agentApproval])
     let permissionFields = Set(SettingsSearch.results(for: "权限").compactMap(\.field))
     XCTAssertTrue(permissionFields.isSuperset(of: [
-      .agentApprovalReviewer, .agentApproval, .agentSandbox, .agentFullAccess, .agentNetwork,
+      .generalDefaultPermissions, .generalAutoReview, .agentApprovalReviewer,
+      .agentApproval, .agentSandbox, .agentFullAccess, .agentNetwork,
     ]))
-    XCTAssertEqual(SettingsSearch.results(for: "自动审查批准").compactMap(\.field),
-      [.agentApprovalReviewer])
+    XCTAssertEqual(Set(SettingsSearch.results(for: "自动审查批准").compactMap(\.field)),
+      [.generalAutoReview, .agentApprovalReviewer])
     XCTAssertEqual(SettingsSearch.results(for: "文件访问").compactMap(\.field), [.agentSandbox])
     XCTAssertEqual(SettingsSearch.results(for: "在输入区显示完全访问").compactMap(\.field),
       [.agentFullAccess])
+    XCTAssertEqual(SettingsSearchField.agentFullAccess.page, .general)
     XCTAssertEqual(SettingsSearch.results(for: "允许网络访问").compactMap(\.field), [.agentNetwork])
     XCTAssertFalse(SettingsSearch.results(for: "允许网络访问", agentSandboxMode: .readOnly)
       .contains { $0.field == .agentNetwork })

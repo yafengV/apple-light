@@ -109,6 +109,7 @@ final class SkillDiscoveryTransportTests: XCTestCase {
       .appendingPathComponent("permission-denied.txt").path))
 
     let next = AgentRuntimePreferences.approveForMe
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(true))
     XCTAssertTrue(store.saveComposerRuntimePreferences(next,
       taskID: task.id, draftKey: task.id))
     let nextStarted = await store.startChat("codex-permission-allowed-probe", taskID: task.id)
@@ -127,6 +128,7 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = try await prepare(protocol: .codexResponses, root: root)
     let project = try XCTUnwrap(store.project)
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(true))
     XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
       taskID: nil, draftKey: store.draftKey))
     store.draft = "codex-auto-review-deny"
@@ -161,6 +163,7 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = try await prepare(protocol: .codexResponses, root: root)
     let project = try XCTUnwrap(store.project)
+    XCTAssertTrue(store.saveShowAutoReviewInComposer(true))
     XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
       taskID: nil, draftKey: store.draftKey))
     store.draft = "codex-auto-review-allow"

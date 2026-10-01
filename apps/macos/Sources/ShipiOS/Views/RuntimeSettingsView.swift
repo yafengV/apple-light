@@ -57,6 +57,7 @@ struct RuntimeSettingsView: View {
       } else {
       Form {
         EditorSettingsSection(store: store)
+        GeneralPermissionSettingsSection(store: store)
         Section("输入") {
           SettingsToggle(title: "显示教育提示", description: "在输入框上方显示可关闭的功能提示。",
             isOn: $store.showEducationalTips)
