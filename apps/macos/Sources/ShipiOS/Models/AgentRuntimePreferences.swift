@@ -24,6 +24,10 @@ enum AgentSandboxMode: String, Codable, CaseIterable {
     case .fullAccess: "完全访问"
     }
   }
+
+  static func visibleOptions(showFullAccess: Bool) -> [AgentSandboxMode] {
+    allCases.filter { $0 != .fullAccess || showFullAccess }
+  }
 }
 
 struct AgentRuntimePreferences: Codable, Equatable {

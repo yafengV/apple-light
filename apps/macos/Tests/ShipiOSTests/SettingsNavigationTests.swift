@@ -102,6 +102,8 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "分支前缀").compactMap(\.field), [.branchPrefix])
     XCTAssertEqual(SettingsSearch.results(for: "审批策略").compactMap(\.field), [.agentApproval])
     XCTAssertEqual(SettingsSearch.results(for: "文件访问").compactMap(\.field), [.agentSandbox])
+    XCTAssertEqual(SettingsSearch.results(for: "在输入区显示完全访问").compactMap(\.field),
+      [.agentFullAccess])
     XCTAssertEqual(SettingsSearch.results(for: "允许网络访问").compactMap(\.field), [.agentNetwork])
     XCTAssertFalse(SettingsSearch.results(for: "允许网络访问", agentSandboxMode: .readOnly)
       .contains { $0.field == .agentNetwork })

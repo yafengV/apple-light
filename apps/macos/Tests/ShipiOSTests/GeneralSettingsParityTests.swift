@@ -389,6 +389,7 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
       .taskRuntimePreferences[task.id], selected)
 
+    XCTAssertTrue(store.saveShowFullAccessInComposer(true))
     XCTAssertTrue(store.saveAgentRuntimePreferences(AgentRuntimePreferences(
       approvalPolicy: .onRequest, sandboxMode: .fullAccess, networkAccess: false)))
     XCTAssertEqual(store.runtimePermissions(for: task.id), selected)

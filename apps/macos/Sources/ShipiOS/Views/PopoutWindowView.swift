@@ -323,7 +323,8 @@ struct PopoutHomeView: View {
         }
       }
       Menu("文件访问") {
-        ForEach(AgentSandboxMode.allCases, id: \.self) { mode in
+        ForEach(AgentSandboxMode.visibleOptions(
+          showFullAccess: store.library.showFullAccessInComposer), id: \.self) { mode in
           Button {
             var choice = effective
             choice.sandboxMode = mode

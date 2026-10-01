@@ -8,6 +8,9 @@ extension WorkspaceStore {
   @discardableResult func savePopoutHomeRuntimePreferences(
     _ preferences: AgentRuntimePreferences?) -> Bool {
     guard libraryLoaded else { return false }
+    guard preferences?.sandboxMode != .fullAccess || library.showFullAccessInComposer else {
+      return false
+    }
     do {
       var candidate = library
       candidate.popoutHomeRuntimePreferences = preferences
@@ -21,11 +24,40 @@ extension WorkspaceStore {
   }
 
   @discardableResult func saveAgentRuntimePreferences(_ preferences: AgentRuntimePreferences) -> Bool {
+    guard preferences.sandboxMode != .fullAccess || library.showFullAccessInComposer else {
+      return false
+    }
     let previous = library.agentRuntimePreferences
     library.agentRuntimePreferences = preferences
     if saveLibrary() { return true }
     library.agentRuntimePreferences = previous
     return false
+  }
+
+  /// Showing the option does not select it. Hiding it removes Full Access only from
+  /// future task defaults; already-created task snapshots remain unchanged.
+  @discardableResult func saveShowFullAccessInComposer(_ visible: Bool) -> Bool {
+    guard libraryLoaded else { return false }
+    do {
+      var candidate = library
+      candidate.showFullAccessInComposer = visible
+      if !visible {
+        if candidate.agentRuntimePreferences.sandboxMode == .fullAccess {
+          candidate.agentRuntimePreferences.sandboxMode = .workspaceWrite
+          candidate.agentRuntimePreferences.networkAccess = false
+        }
+        if candidate.popoutHomeRuntimePreferences?.sandboxMode == .fullAccess {
+          candidate.popoutHomeRuntimePreferences?.sandboxMode = .workspaceWrite
+          candidate.popoutHomeRuntimePreferences?.networkAccess = false
+        }
+      }
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return true
+    } catch {
+      generalSettingsError = error.localizedDescription
+      return false
+    }
   }
 
   @discardableResult func saveAgentResponsePreferences(_ preferences: AgentResponsePreferences) -> Bool {

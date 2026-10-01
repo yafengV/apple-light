@@ -378,6 +378,7 @@ struct WorkspaceLibrary: Codable {
   var defaultTerminalLocation = WorkspaceTabPlacement.bottom
   var gitPreferences = GitPreferences()
   var agentRuntimePreferences = AgentRuntimePreferences()
+  var showFullAccessInComposer = false
   /// The popout composer may override the global permission defaults for its next task.
   var popoutHomeRuntimePreferences: AgentRuntimePreferences?
   /// Popout tasks keep the permission snapshot used to start their Codex thread.
@@ -410,7 +411,7 @@ struct WorkspaceLibrary: Codable {
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
-      defaultTerminalLocation, gitPreferences, agentRuntimePreferences,
+      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, showFullAccessInComposer,
       popoutHomeRuntimePreferences, taskRuntimePreferences, agentResponsePreferences,
       agentWebSearchMode, enabledAdvancedReasoningEfforts,
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
@@ -519,6 +520,11 @@ struct WorkspaceLibrary: Codable {
       forKey: .agentRuntimePreferences) ?? AgentRuntimePreferences()
     popoutHomeRuntimePreferences = try c.decodeIfPresent(AgentRuntimePreferences.self,
       forKey: .popoutHomeRuntimePreferences)
+    let recordedFullAccessAvailability = try c.decodeIfPresent(Bool.self,
+      forKey: .showFullAccessInComposer) ?? false
+    showFullAccessInComposer = recordedFullAccessAvailability
+      || agentRuntimePreferences.sandboxMode == .fullAccess
+      || popoutHomeRuntimePreferences?.sandboxMode == .fullAccess
     taskRuntimePreferences = try c.decodeIfPresent([String: AgentRuntimePreferences].self,
       forKey: .taskRuntimePreferences) ?? [:]
     agentResponsePreferences = try c.decodeIfPresent(AgentResponsePreferences.self,

@@ -6,12 +6,16 @@ final class WorkspaceLibraryTests: XCTestCase {
   @MainActor func testAgentRuntimePermissionsPersistAndRollBackOnSaveFailure() throws {
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertEqual(legacy.agentRuntimePreferences, AgentRuntimePreferences())
+    XCTAssertFalse(legacy.showFullAccessInComposer)
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-permissions-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     store.libraryLoaded = true
     let selected = AgentRuntimePreferences(approvalPolicy: .never,
       sandboxMode: .fullAccess, networkAccess: true)
+    XCTAssertFalse(store.saveAgentRuntimePreferences(selected))
+    XCTAssertTrue(store.saveShowFullAccessInComposer(true))
+    XCTAssertEqual(store.library.agentRuntimePreferences, AgentRuntimePreferences())
     XCTAssertTrue(store.saveAgentRuntimePreferences(selected))
     XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
       .agentRuntimePreferences, selected)
@@ -21,8 +25,54 @@ final class WorkspaceLibraryTests: XCTestCase {
     blocked.libraryLoaded = true
     try FileManager.default.createDirectory(at: blockedRoot.appendingPathComponent("workspace.json"),
       withIntermediateDirectories: true)
-    XCTAssertFalse(blocked.saveAgentRuntimePreferences(selected))
+    XCTAssertFalse(blocked.saveShowFullAccessInComposer(true))
+    XCTAssertFalse(blocked.library.showFullAccessInComposer)
+    XCTAssertFalse(blocked.saveAgentRuntimePreferences(AgentRuntimePreferences(
+      sandboxMode: .readOnly)))
     XCTAssertEqual(blocked.library.agentRuntimePreferences, AgentRuntimePreferences())
+  }
+
+  @MainActor func testFullAccessAvailabilityGatesMenusAndKeepsExistingTaskSnapshots() throws {
+    XCTAssertEqual(AgentSandboxMode.visibleOptions(showFullAccess: false),
+      [.readOnly, .workspaceWrite])
+    XCTAssertEqual(AgentSandboxMode.visibleOptions(showFullAccess: true),
+      AgentSandboxMode.allCases)
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("full-access-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let full = AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .fullAccess, networkAccess: false)
+    XCTAssertFalse(store.savePopoutHomeRuntimePreferences(full))
+    XCTAssertTrue(store.saveShowFullAccessInComposer(true))
+    XCTAssertTrue(store.saveAgentRuntimePreferences(full))
+    XCTAssertTrue(store.savePopoutHomeRuntimePreferences(full))
+    store.popoutHomeDraft = "Use current permissions"
+    let task = try XCTUnwrap(store.preparePopoutTask(prompt: store.popoutHomeDraft,
+      projectless: true))
+    XCTAssertEqual(store.runtimePermissions(for: task.id), full)
+    XCTAssertTrue(store.saveShowFullAccessInComposer(false))
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertFalse(restored.showFullAccessInComposer)
+    XCTAssertEqual(restored.agentRuntimePreferences.sandboxMode, .workspaceWrite)
+    XCTAssertEqual(restored.popoutHomeRuntimePreferences?.sandboxMode, .workspaceWrite)
+    XCTAssertEqual(restored.taskRuntimePreferences[task.id], full)
+    XCTAssertFalse(store.saveAgentRuntimePreferences(full))
+  }
+
+  func testLegacyFullAccessDefaultsRemainVisibleOnMigration() throws {
+    var legacy = WorkspaceLibrary()
+    legacy.agentRuntimePreferences.sandboxMode = .fullAccess
+    var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy))
+      as? [String: Any])
+    object.removeValue(forKey: "showFullAccessInComposer")
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
+      from: JSONSerialization.data(withJSONObject: object))
+    XCTAssertTrue(restored.showFullAccessInComposer)
+    object["showFullAccessInComposer"] = false
+    let inconsistent = try JSONDecoder().decode(WorkspaceLibrary.self,
+      from: JSONSerialization.data(withJSONObject: object))
+    XCTAssertTrue(inconsistent.showFullAccessInComposer)
   }
 
   @MainActor func testAgentResponsePreferencesPersistAndMigrate() throws {

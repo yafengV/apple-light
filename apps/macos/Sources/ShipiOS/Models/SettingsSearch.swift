@@ -47,6 +47,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case agentSuggestions
   case agentApproval
   case agentSandbox
+  case agentFullAccess
   case agentNetwork
   case agentVerbosity
   case agentReasoningSummary
@@ -160,6 +161,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentSuggestions: .agent
     case .agentApproval: .agent
     case .agentSandbox: .agent
+    case .agentFullAccess: .agent
     case .agentNetwork: .agent
     case .agentVerbosity: .agent
     case .agentReasoningSummary: .agent
@@ -243,6 +245,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentSuggestions: "显示建议提示"
     case .agentApproval: "审批策略"
     case .agentSandbox: "文件访问"
+    case .agentFullAccess: "在输入区显示完全访问"
     case .agentNetwork: "允许网络访问"
     case .agentVerbosity: "回复详细度"
     case .agentReasoningSummary: "推理摘要"
@@ -369,6 +372,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentSuggestions: "建议"
     case .agentApproval: "批准 请求 永不"
     case .agentSandbox: "沙箱 只读 工作区 完全访问"
+    case .agentFullAccess: "full access 完全访问 权限模式 输入区 显示"
     case .agentNetwork: "命令 网络 工作区写入"
     case .agentVerbosity: "verbosity 简洁 适中 详细 模型默认"
     case .agentReasoningSummary: "reasoning summary 自动 简要 详细 关闭"
