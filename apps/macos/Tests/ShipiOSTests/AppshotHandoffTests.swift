@@ -4,6 +4,20 @@ import XCTest
 @testable import ShipiOS
 
 final class AppshotHandoffTests: XCTestCase {
+  func testHandoffSpringUsesReferenceResponseAndDamping() {
+    let spring = AppshotHandoffMotion.spring(keyPath: "position",
+      from: NSValue(point: CGPoint(x: 0, y: 0)),
+      to: NSValue(point: CGPoint(x: 100, y: 50)))
+    let frequency = 2 * Double.pi / 0.35
+    XCTAssertEqual(AppshotHandoffMotion.delay, 0.15)
+    XCTAssertEqual(spring.mass, 1)
+    XCTAssertEqual(spring.stiffness, frequency * frequency, accuracy: 0.001)
+    XCTAssertEqual(spring.damping, 2 * 0.73 * frequency, accuracy: 0.001)
+    XCTAssertGreaterThanOrEqual(spring.duration, 0.3)
+    XCTAssertLessThanOrEqual(spring.duration, 1.2)
+    XCTAssertEqual(spring.fillMode, .backwards)
+  }
+
   func testCaptureCoordinatesMapToAppKitAcrossDisplays() {
     let primary = AppshotHandoffGeometry.Display(
       captureFrame: CGRect(x: 0, y: 0, width: 1500, height: 1000),

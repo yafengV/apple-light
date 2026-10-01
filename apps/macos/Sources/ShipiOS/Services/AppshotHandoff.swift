@@ -53,6 +53,26 @@ enum AppshotHandoffGeometry {
   }
 }
 
+enum AppshotHandoffMotion {
+  static let response: Double = 0.35
+  static let dampingFraction: Double = 0.73
+  static let delay: Double = 0.15
+
+  static func spring(keyPath: String, from: Any, to: Any) -> CASpringAnimation {
+    let animation = CASpringAnimation(keyPath: keyPath)
+    let frequency = 2 * Double.pi / response
+    animation.mass = 1
+    animation.stiffness = frequency * frequency
+    animation.damping = 2 * dampingFraction * frequency
+    animation.initialVelocity = 0
+    animation.fromValue = from
+    animation.toValue = to
+    animation.duration = min(1.2, max(0.3, animation.settlingDuration))
+    animation.fillMode = .backwards
+    return animation
+  }
+}
+
 @MainActor final class AppshotHandoffAnimator {
   private var panel: NSPanel?
   private var activeID: UUID?
@@ -90,18 +110,39 @@ enum AppshotHandoffGeometry {
     image.layer?.masksToBounds = true
     content.addSubview(image)
     panel.contentView = content
+    guard let layer = image.layer else { panel.close(); return false }
     self.panel = panel
     self.activeID = handoff.imageID
     self.completion = completion
     panel.orderFrontRegardless()
-    NSAnimationContext.runAnimationGroup { context in
-      context.duration = 0.55
-      context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.72, 0.2, 1)
-      image.animator().frame = local(destinationFrame, within: surface)
-      image.animator().alphaValue = 0
-    } completionHandler: { [weak self] in
+    let from = local(sourceFrame, within: surface)
+    let to = local(destinationFrame, within: surface)
+    let start = CACurrentMediaTime() + AppshotHandoffMotion.delay
+    let position = AppshotHandoffMotion.spring(keyPath: "position",
+      from: NSValue(point: CGPoint(x: from.midX, y: from.midY)),
+      to: NSValue(point: CGPoint(x: to.midX, y: to.midY)))
+    let bounds = AppshotHandoffMotion.spring(keyPath: "bounds",
+      from: NSValue(rect: CGRect(origin: .zero, size: from.size)),
+      to: NSValue(rect: CGRect(origin: .zero, size: to.size)))
+    position.beginTime = start
+    bounds.beginTime = start
+    let fade = CABasicAnimation(keyPath: "opacity")
+    fade.fromValue = 1
+    fade.toValue = 0
+    fade.duration = 0.16
+    fade.beginTime = start + max(0.1, position.duration - fade.duration)
+    fade.fillMode = .backwards
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    CATransaction.setCompletionBlock { [weak self] in
       Task { @MainActor in self?.finish(id: handoff.imageID) }
     }
+    image.frame = to
+    layer.opacity = 0
+    layer.add(position, forKey: "appshot-position")
+    layer.add(bounds, forKey: "appshot-bounds")
+    layer.add(fade, forKey: "appshot-fade")
+    CATransaction.commit()
     return true
   }
 
