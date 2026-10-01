@@ -15,6 +15,7 @@ import Speech
 
   @ObservationIgnored private var generation = UUID()
   @ObservationIgnored private var engine: AVAudioEngine?
+  @ObservationIgnored private var capture: SpeechCaptureInput?
   @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
   @ObservationIgnored private var recognitionTask: SFSpeechRecognitionTask?
   @ObservationIgnored private var commit: ((String, String) -> Void)?
@@ -28,7 +29,7 @@ import Speech
     return request
   }
 
-  func start(target: String, languageIdentifier: String? = nil,
+  func start(target: String, languageIdentifier: String? = nil, microphoneDeviceID: String? = nil,
     dictionary: [String] = [], commit: @escaping (String, String) -> Void) async {
     if self.target != nil { stop() }
     let token = UUID()
@@ -60,24 +61,43 @@ import Speech
     }
 
     let request = Self.recognitionRequest(dictionary: dictionary)
-    let engine = AVAudioEngine()
-    let input = engine.inputNode
-    let format = input.outputFormat(forBus: 0)
-    guard format.sampleRate > 0, format.channelCount > 0 else {
-      fail("没有可用的麦克风输入。", token: token)
-      return
-    }
     self.request = request
-    self.engine = engine
-    input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-      request.append(buffer)
-    }
-    do {
-      engine.prepare()
-      try engine.start()
-    } catch {
-      fail("无法开始录音：\(error.localizedDescription)", token: token)
-      return
+    if let microphoneDeviceID {
+      guard let device = AVCaptureDevice(uniqueID: microphoneDeviceID),
+        device.isConnected, device.hasMediaType(.audio) else {
+        fail("所选麦克风已断开。请在语音设置中选择其他设备。", token: token)
+        return
+      }
+      do {
+        let capture = try SpeechCaptureInput(device: device, request: request)
+        self.capture = capture
+        guard await capture.start() else {
+          fail("无法从所选麦克风开始录音。", token: token)
+          return
+        }
+      } catch {
+        fail("无法使用所选麦克风：\(error.localizedDescription)", token: token)
+        return
+      }
+    } else {
+      let engine = AVAudioEngine()
+      let input = engine.inputNode
+      let format = input.outputFormat(forBus: 0)
+      guard format.sampleRate > 0, format.channelCount > 0 else {
+        fail("没有可用的麦克风输入。", token: token)
+        return
+      }
+      self.engine = engine
+      input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+        request.append(buffer)
+      }
+      do {
+        engine.prepare()
+        try engine.start()
+      } catch {
+        fail("无法开始录音：\(error.localizedDescription)", token: token)
+        return
+      }
     }
     guard generation == token else { return }
     phase = .listening
@@ -127,9 +147,10 @@ import Speech
     generation = UUID()
     engine?.stop()
     engine?.inputNode.removeTap(onBus: 0)
-    request?.endAudio()
+    if let capture { capture.stop() } else { request?.endAudio() }
     recognitionTask?.cancel()
     engine = nil
+    capture = nil
     request = nil
     recognitionTask = nil
     commit = nil

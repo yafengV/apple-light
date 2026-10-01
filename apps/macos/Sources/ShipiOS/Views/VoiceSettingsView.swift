@@ -1,9 +1,11 @@
+import AVFoundation
 import Speech
 import SwiftUI
 
 struct VoiceSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var dictionaryRows: [DictionaryRow] = []
+  @State private var microphones: [AVCaptureDevice] = []
   @FocusState private var focusedDictionaryRow: UUID?
 
   private struct DictionaryRow: Identifiable {
@@ -24,6 +26,18 @@ struct VoiceSettingsView: View {
         title: Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.identifier)
     }
   }()
+
+  private var microphoneOptions: [SettingsMenuOption<String?>] {
+    var options = [SettingsMenuOption(value: Optional<String>.none, title: "系统默认")]
+    options += microphones.sorted {
+      $0.localizedName.localizedStandardCompare($1.localizedName) == .orderedAscending
+    }.map { SettingsMenuOption(value: Optional($0.uniqueID), title: $0.localizedName) }
+    if let selected = store.voicePreferences.microphoneDeviceID,
+      !microphones.contains(where: { $0.uniqueID == selected }) {
+      options.append(SettingsMenuOption(value: Optional(selected), title: "所选麦克风已断开", enabled: false))
+    }
+    return options
+  }
 
   var body: some View {
     SettingsScrollPage(title: "语音", actions: {}, controls: {}) {
@@ -56,14 +70,15 @@ struct VoiceSettingsView: View {
             .settingsSearchTarget(.voiceLanguage)
             .padding(16)
           Divider().padding(.horizontal, 16)
-          LabeledContent {
-            Text("系统默认").foregroundStyle(.secondary)
-          } label: {
-            SettingsControlLabel(title: "麦克风",
-              description: "听写使用 macOS 当前默认的输入设备。")
-          }
-          .settingsSearchTarget(.voiceMicrophone)
-          .padding(16)
+          SettingsMenuPicker("麦克风", description: "用于设备端听写。", selection: Binding(
+            get: { store.voicePreferences.microphoneDeviceID },
+            set: { value in
+              var preferences = store.voicePreferences
+              preferences.microphoneDeviceID = value
+              store.voicePreferences = preferences
+            }), options: microphoneOptions)
+            .settingsSearchTarget(.voiceMicrophone)
+            .padding(16)
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
 
@@ -109,7 +124,13 @@ struct VoiceSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
     }
-    .onAppear { loadDictionaryRows() }
+    .onAppear { loadDictionaryRows(); refreshMicrophones() }
+    .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasConnectedNotification)) { _ in
+      refreshMicrophones()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)) { _ in
+      refreshMicrophones()
+    }
     .onDisappear { persistDictionaryRows() }
     .onChange(of: focusedDictionaryRow) { oldValue, newValue in
       if oldValue != nil && oldValue != newValue {
@@ -139,5 +160,10 @@ struct VoiceSettingsView: View {
     preferences.dictationDictionary = dictionaryRows.map(\.text)
     preferences.normalize()
     if preferences != store.voicePreferences { store.voicePreferences = preferences }
+  }
+
+  private func refreshMicrophones() {
+    microphones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone],
+      mediaType: .audio, position: .unspecified).devices
   }
 }
