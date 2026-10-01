@@ -5,7 +5,11 @@ import Foundation
 extension WorkspaceStore {
   var appshotHotkey: AppshotHotkey {
     get { library.appshotHotkey }
-    set { updateGeneralPreference(\.appshotHotkey, value: newValue) }
+    set {
+      let previous = library.appshotHotkey
+      updateGeneralPreference(\.appshotHotkey, value: newValue)
+      if library.appshotHotkey != previous { appshotHotkeyChangeHandler?() }
+    }
   }
 
   var appshotDestination: AppshotDestination {

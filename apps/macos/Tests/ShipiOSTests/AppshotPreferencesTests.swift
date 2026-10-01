@@ -132,4 +132,49 @@ final class AppshotPreferencesTests: XCTestCase {
     taskWindow.close()
     await store.shutdown()
   }
+
+  @MainActor func testGlobalMonitorRegistersAfterPermissionAndUnregistersWhenDisabled() {
+    let token = NSObject()
+    var attempts = 0
+    var removals = 0
+    var registrationAvailable = false
+    let registration = AppshotGlobalMonitorRegistration(register: {
+      attempts += 1
+      return registrationAvailable ? token : nil
+    }, remove: { removed in
+      XCTAssertTrue((removed as AnyObject) === token)
+      removals += 1
+    })
+    XCTAssertFalse(registration.refresh(trusted: false))
+    XCTAssertEqual(attempts, 0)
+    XCTAssertFalse(registration.refresh(trusted: true))
+    XCTAssertEqual(attempts, 1, "A failed registration may be retried after app activation")
+    registrationAvailable = true
+    XCTAssertTrue(registration.refresh(trusted: true))
+    XCTAssertTrue(registration.isRegistered)
+    XCTAssertEqual(attempts, 2)
+    XCTAssertFalse(registration.refresh(trusted: true))
+    XCTAssertEqual(attempts, 2, "Do not install duplicate global monitors")
+    XCTAssertTrue(registration.refresh(trusted: false))
+    XCTAssertEqual(removals, 1)
+    XCTAssertTrue(registration.refresh(trusted: true))
+    XCTAssertEqual(attempts, 3)
+    registration.stop()
+    XCTAssertEqual(removals, 2)
+  }
+
+  @MainActor func testChangingAppshotHotkeyRefreshesGlobalMonitorOnlyAfterSave() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    var changes = 0
+    store.appshotHotkeyChangeHandler = { changes += 1 }
+    store.appshotHotkey = .doubleOption
+    store.appshotHotkey = .doubleOption
+    store.appshotHotkey = .none
+    XCTAssertEqual(changes, 2)
+    XCTAssertEqual(store.appshotHotkey, .none)
+    await store.shutdown()
+  }
 }

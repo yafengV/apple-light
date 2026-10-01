@@ -27,6 +27,10 @@ final class AppshotDemoViewTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
+    let errorRenderPath = ProcessInfo.processInfo.environment["SHIPIOS_APPSHOT_SETTINGS_ERROR_RENDER_PATH"]
+    if errorRenderPath != nil {
+      store.appshotHotkeyError = "无法注册应用快照全局快捷键。切换应用后将自动重试。"
+    }
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 768, height: 700),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
@@ -49,7 +53,8 @@ final class AppshotDemoViewTests: XCTestCase {
       }.count
     }
     XCTAssertGreaterThan(filledSamples, 100, "Settings page should render visible content")
-    if let path = ProcessInfo.processInfo.environment["SHIPIOS_APPSHOT_SETTINGS_RENDER_PATH"] {
+    if let path = errorRenderPath
+      ?? ProcessInfo.processInfo.environment["SHIPIOS_APPSHOT_SETTINGS_RENDER_PATH"] {
       let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
       try png.write(to: URL(fileURLWithPath: path), options: .atomic)
     }

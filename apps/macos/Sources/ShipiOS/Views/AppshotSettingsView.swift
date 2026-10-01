@@ -46,6 +46,12 @@ struct AppshotSettingsView: View {
         })
         .settingsSearchTarget(.appshotHotkey)
         .padding(16)
+      if let error = store.appshotHotkeyError {
+        Text(error)
+          .appFont(.caption).foregroundStyle(.red)
+          .padding(.horizontal, 16).padding(.bottom, 12)
+          .accessibilityIdentifier("appshot-hotkey-error")
+      }
       if store.appshotHotkey != .none && !store.accessibilityGranted {
         HStack(spacing: 8) {
           Text("在其他应用中使用快捷键需要辅助功能权限。")

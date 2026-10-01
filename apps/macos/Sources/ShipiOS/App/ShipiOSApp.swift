@@ -125,6 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     stopAutomationPolling()
     stopSkillMonitoring()
     appshotModifierMonitor = nil
+    store?.appshotHotkeyChangeHandler = nil
     if let appshotWindowFocusObserver {
       NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
       self.appshotWindowFocusObserver = nil
@@ -172,7 +173,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       }
       appshotModifierMonitor = AppshotModifierMonitor(
         hotkey: { [weak store] in store?.appshotHotkey ?? .none },
-        onTrigger: { [weak self] in self?.captureAppshotFromShortcut() })
+        onTrigger: { [weak self] in self?.captureAppshotFromShortcut() },
+        onRegistrationState: { [weak store] requested, registered in
+          let error = requested && !registered ? "无法注册应用快照全局快捷键。切换应用后将自动重试。" : nil
+          if store?.appshotHotkeyError != error { store?.appshotHotkeyError = error }
+        })
+      store.appshotHotkeyChangeHandler = { [weak self] in
+        self?.appshotModifierMonitor?.refreshGlobalMonitor()
+      }
       let refreshHotKey = { [weak hotKey, weak store] in
         guard let hotKey, let store else { return }
         do { try hotKey.register(store.shortcuts.binding("pet")) }

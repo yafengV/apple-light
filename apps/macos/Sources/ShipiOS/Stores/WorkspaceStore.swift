@@ -18,6 +18,8 @@ final class WorkspaceStore {
   }
   var dictation = SpeechDictation()
   @ObservationIgnored let appshotCapture = AppshotCapture()
+  @ObservationIgnored var appshotHotkeyChangeHandler: (() -> Void)?
+  var appshotHotkeyError: String?
   var pendingAppshot: PendingAppshot?
   var appshotIntroRequest: AppshotIntroRequest?
   var appshotHandoff: AppshotHandoff?
