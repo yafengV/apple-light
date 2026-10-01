@@ -5,16 +5,17 @@ pub use browser_tool::BrowserToolBridge;
 use browser_tool::BrowserToolContributor;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
-use codex_config::{McpServerConfig, RawMcpServerConfig};
+use codex_config::{LoaderOverrides, McpServerConfig, RawMcpServerConfig};
+use codex_core::config::{ConfigBuilder, ConfigOverrides};
 use codex_core_api::{
     AbsolutePathBuf, ApprovalsReviewer, AskForApproval, AuthCredentialsStoreMode,
     AuthKeyringBackendKind, AuthManager, CodexAppsToolsCache, CodexHomeUserInstructionsProvider,
     CodexThread, Config, Constrained, EnvironmentManager, EventMsg, ExecServerRuntimePaths,
     ExtensionRegistryBuilder, Feature, InitialHistory, NewThread, Op, PermissionProfile,
-    Permissions, SessionSource, StartIfIdleSubmission, StartThreadOptions, SteerSubmission,
-    ThreadId, ThreadManager, TurnInputRequest, UserInput, build_models_manager, init_state_db,
-    local_agent_graph_store_from_state_db, passthrough_image_store, resolve_installation_id,
-    thread_store_from_config,
+    PermissionProfileSnapshot, Permissions, SessionSource, StartIfIdleSubmission,
+    StartThreadOptions, SteerSubmission, ThreadId, ThreadManager, TurnInputRequest, UserInput,
+    build_models_manager, init_state_db, local_agent_graph_store_from_state_db,
+    passthrough_image_store, resolve_installation_id, thread_store_from_config,
 };
 use codex_login::{login_with_api_key, logout};
 use codex_protocol::approvals::ElicitationAction;
@@ -48,6 +49,8 @@ pub struct SessionOptions {
     pub api_key: Option<String>,
     pub read_only: bool,
     pub permissions: SessionPermissions,
+    /// A profile defined in this session's private config.toml, never the user's Codex home.
+    pub permission_profile_id: Option<String>,
     pub responses: SessionResponsePreferences,
     pub web_search: SessionWebSearch,
     pub mcp_servers: Vec<ShipMcpServer>,
@@ -158,15 +161,65 @@ fn configured_profile(read_only: bool, settings: SessionPermissions) -> Permissi
 }
 
 fn configured_permissions(read_only: bool, settings: SessionPermissions) -> Result<Permissions> {
-    let approval = match settings.approval_policy {
-        SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
-        SessionApprovalPolicy::Never => AskForApproval::Never,
-    };
+    let approval = configured_approval(settings);
     let profile = configured_profile(read_only, settings);
     Ok(Permissions::from_approval_and_profile(
         Constrained::allow_any(approval),
         Constrained::allow_any(profile),
     )?)
+}
+
+fn configured_approval(settings: SessionPermissions) -> AskForApproval {
+    match settings.approval_policy {
+        SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
+        SessionApprovalPolicy::Never => AskForApproval::Never,
+    }
+}
+
+/// Explicit profile selection reads only the task-owned Codex home. Without a
+/// selection, preserve the config-free legacy path used by existing tasks.
+async fn load_session_config(
+    home: PathBuf,
+    project: PathBuf,
+    profile_id: Option<&str>,
+) -> Result<Config> {
+    let Some(profile_id) = profile_id else {
+        return Ok(Config::load_default_with_cli_overrides_for_codex_home(home, Vec::new()).await?);
+    };
+    ensure!(
+        !profile_id.trim().is_empty(),
+        "permission profile ID is empty"
+    );
+    let path = home.join("config.toml");
+    ensure!(
+        std::fs::symlink_metadata(&path)
+            .map(|metadata| metadata.file_type().is_file())
+            .unwrap_or(false),
+        "private permission config is missing or is not a regular file"
+    );
+    let config = ConfigBuilder::default()
+        .codex_home(home)
+        .harness_overrides(ConfigOverrides {
+            cwd: Some(project),
+            default_permissions: Some(profile_id.to_owned()),
+            ..Default::default()
+        })
+        .loader_overrides(LoaderOverrides {
+            ignore_project_config: true,
+            ..Default::default()
+        })
+        .strict_config(true)
+        .build()
+        .await?;
+    ensure!(
+        config
+            .permissions
+            .active_permission_profile()
+            .as_ref()
+            .is_some_and(|active| active.id == profile_id),
+        "permission profile was not selected"
+    );
+    Ok(config)
 }
 
 fn turn_profile(
@@ -175,6 +228,31 @@ fn turn_profile(
     settings: SessionPermissions,
 ) -> PermissionProfile {
     configured_profile(read_only || *mode == CodexTurnMode::Plan, settings)
+}
+
+fn permission_settings_for_turn(
+    read_only: bool,
+    mode: &CodexTurnMode,
+    permissions: SessionPermissions,
+    named: Option<&PermissionProfileSnapshot>,
+) -> ThreadSettingsOverrides {
+    let selected = if read_only || *mode == CodexTurnMode::Plan {
+        None
+    } else {
+        named
+    };
+    ThreadSettingsOverrides {
+        approval_policy: Some(configured_approval(permissions)),
+        approvals_reviewer: Some(permissions.approval_reviewer.into()),
+        permission_profile: Some(selected.map_or_else(
+            || turn_profile(read_only, mode, permissions),
+            |profile| profile.permission_profile().clone(),
+        )),
+        active_permission_profile: selected
+            .and_then(PermissionProfileSnapshot::active_permission_profile),
+        profile_workspace_roots: selected.map(|profile| profile.profile_workspace_roots().to_vec()),
+        ..Default::default()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -337,6 +415,7 @@ pub struct CodexSession {
     model: String,
     read_only: bool,
     permissions: SessionPermissions,
+    named_permissions: Option<PermissionProfileSnapshot>,
     _home_guard: SessionHomeGuard,
 }
 
@@ -415,6 +494,7 @@ impl CodexSession {
     /// Utility generations have no environment, tool catalog, project instructions or history.
     pub async fn start_text_generation(mut options: SessionOptions) -> Result<Self> {
         options.read_only = true;
+        options.permission_profile_id = None;
         options.permissions = SessionPermissions {
             approval_policy: SessionApprovalPolicy::Never,
             approval_reviewer: SessionApprovalReviewer::User,
@@ -474,12 +554,29 @@ impl CodexSession {
             .context("resolve project root")?;
         ensure!(project.is_dir(), "project root is not a directory");
         let workspace_roots = session_workspace_roots(&project, &options.additional_folders)?;
+        ensure!(
+            !options.read_only || options.permission_profile_id.is_none(),
+            "read-only sessions cannot select a writable permission profile"
+        );
         std::fs::create_dir_all(&options.codex_home).context("create ShipiOS Codex home")?;
         let home = options.codex_home.canonicalize()?;
         let mut home_guard = SessionHomeGuard::acquire(home.clone())?;
-        let mut config =
-            Config::load_default_with_cli_overrides_for_codex_home(home.clone(), Vec::new())
-                .await?;
+        let mut config = load_session_config(
+            home.clone(),
+            project.clone(),
+            options.permission_profile_id.as_deref(),
+        )
+        .await?;
+        let named_permissions = options.permission_profile_id.as_ref().map(|_| {
+            PermissionProfileSnapshot::active_with_profile_workspace_roots(
+                config.permissions.permission_profile().clone(),
+                config
+                    .permissions
+                    .active_permission_profile()
+                    .expect("validated profile"),
+                config.permissions.profile_workspace_roots().to_vec(),
+            )
+        });
         config.cwd = AbsolutePathBuf::from_absolute_path_checked(project.clone())?;
         config.workspace_roots = workspace_roots;
         config.workspace_roots_explicit = true;
@@ -490,7 +587,14 @@ impl CodexSession {
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
-        config.permissions = configured_permissions(options.read_only, options.permissions)?;
+        if named_permissions.is_some() {
+            config
+                .permissions
+                .approval_policy
+                .set(configured_approval(options.permissions))?;
+        } else {
+            config.permissions = configured_permissions(options.read_only, options.permissions)?;
+        }
         config.approvals_reviewer = options.permissions.approval_reviewer.into();
         config.model_verbosity = options.responses.verbosity;
         config.model_reasoning_summary = options.responses.reasoning_summary;
@@ -620,6 +724,7 @@ impl CodexSession {
             model: options.model,
             read_only: options.read_only,
             permissions: options.permissions,
+            named_permissions,
             _home_guard: home_guard,
         })
     }
@@ -719,16 +824,13 @@ impl CodexSession {
             base.push_str(instructions);
         }
         let permissions = permissions.unwrap_or(self.permissions);
-        let settings = ThreadSettingsOverrides {
-            collaboration_mode: Some(collaboration_mode),
-            approval_policy: Some(match permissions.approval_policy {
-                SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
-                SessionApprovalPolicy::Never => AskForApproval::Never,
-            }),
-            approvals_reviewer: Some(permissions.approval_reviewer.into()),
-            permission_profile: Some(turn_profile(self.read_only, &mode, permissions)),
-            ..Default::default()
-        };
+        let mut settings = permission_settings_for_turn(
+            self.read_only,
+            &mode,
+            permissions,
+            self.named_permissions.as_ref(),
+        );
+        settings.collaboration_mode = Some(collaboration_mode);
         let result = self
             .thread
             .start_turn_if_idle(TurnInputRequest::user_input(inputs).with_thread_settings(settings))
@@ -1029,6 +1131,167 @@ mod tests {
             }))
             .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn selected_permission_profile_uses_private_config_not_project_config() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("TaskCodexHome");
+        let project = root.path().join("Project");
+        std::fs::create_dir_all(&home).unwrap();
+        std::fs::create_dir_all(project.join(".codex")).unwrap();
+        std::fs::write(home.join("config.toml"),
+            "default_permissions = \"edit\"\n[permissions.edit]\nextends = \":workspace\"\n[permissions.inspect]\nextends = \":read-only\"\n")
+            .unwrap();
+        std::fs::write(
+            project.join(".codex/config.toml"),
+            "approval_policy = \"never\"\nmodel = \"project-leak\"\n",
+        )
+        .unwrap();
+
+        let config = load_session_config(home.clone(), project.clone(), Some("inspect"))
+            .await
+            .unwrap();
+        assert_eq!(
+            config.permissions.active_permission_profile().unwrap().id,
+            "inspect"
+        );
+        assert_eq!(
+            *config.permissions.permission_profile(),
+            PermissionProfile::read_only()
+        );
+        assert_eq!(
+            config.permissions.approval_policy.value(),
+            AskForApproval::OnRequest
+        );
+        assert_ne!(config.model.as_deref(), Some("project-leak"));
+        let edit = load_session_config(home.clone(), project.clone(), Some("edit"))
+            .await
+            .unwrap();
+        let snapshot = PermissionProfileSnapshot::active_with_profile_workspace_roots(
+            edit.permissions.permission_profile().clone(),
+            edit.permissions.active_permission_profile().unwrap(),
+            edit.permissions.profile_workspace_roots().to_vec(),
+        );
+        let normal = permission_settings_for_turn(
+            false,
+            &CodexTurnMode::Default,
+            SessionPermissions::default(),
+            Some(&snapshot),
+        );
+        assert_eq!(normal.active_permission_profile.unwrap().id, "edit");
+        assert_ne!(
+            normal.permission_profile.unwrap(),
+            PermissionProfile::read_only()
+        );
+        let plan = permission_settings_for_turn(
+            false,
+            &CodexTurnMode::Plan,
+            SessionPermissions::default(),
+            Some(&snapshot),
+        );
+        assert_eq!(
+            plan.permission_profile.unwrap(),
+            PermissionProfile::read_only()
+        );
+        assert!(plan.active_permission_profile.is_none());
+        assert!(
+            load_session_config(home.clone(), project.clone(), Some("missing"))
+                .await
+                .is_err()
+        );
+
+        std::fs::write(home.join("config.toml"), "invalid = [\n").unwrap();
+        assert!(
+            load_session_config(home.clone(), project.clone(), Some("inspect"))
+                .await
+                .is_err()
+        );
+        std::fs::remove_file(home.join("config.toml")).unwrap();
+        std::os::unix::fs::symlink(project.join(".codex/config.toml"), home.join("config.toml"))
+            .unwrap();
+        assert!(
+            load_session_config(home.clone(), project.clone(), Some("inspect"))
+                .await
+                .is_err()
+        );
+        assert!(load_session_config(home, project, None).await.is_ok());
+    }
+
+    #[test]
+    fn core_session_reports_the_private_named_profile() -> Result<()> {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_stack_size(16 * 1024 * 1024)
+            .build()?;
+        runtime.block_on(async {
+            tokio::spawn(
+                async move { core_session_reports_the_private_named_profile_inner().await },
+            )
+            .await
+            .context("named profile Core worker failed")?
+        })
+    }
+
+    async fn core_session_reports_the_private_named_profile_inner() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let home = root.path().join("TaskCodexHome");
+        let project = root.path().join("Project");
+        std::fs::create_dir_all(&home)?;
+        std::fs::create_dir_all(&project)?;
+        std::fs::write(
+            home.join("config.toml"),
+            "default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n",
+        )?;
+        let session = CodexSession::start(SessionOptions {
+            codex_home: home,
+            project_root: project,
+            additional_folders: Vec::new(),
+            base_url: "http://127.0.0.1:1/v1".to_owned(),
+            model: "gpt-5.4".to_owned(),
+            api_key: None,
+            read_only: false,
+            permissions: SessionPermissions::default(),
+            permission_profile_id: Some("inspect".to_owned()),
+            responses: SessionResponsePreferences::default(),
+            web_search: SessionWebSearch::default(),
+            mcp_servers: Vec::new(),
+            browser_bridge: None,
+            runtime_paths: ExecServerRuntimePaths::from_optional_paths(
+                Some(std::env::current_exe()?),
+                None,
+            )?,
+        })
+        .await?;
+        session
+            .submit_text("Inspect this project".to_owned())
+            .await?;
+        let mut configured = None;
+        for _ in 0..20 {
+            let event =
+                tokio::time::timeout(std::time::Duration::from_secs(10), session.next_event())
+                    .await??;
+            match event {
+                EventMsg::SessionConfigured(value) => {
+                    configured = Some((value.active_permission_profile, value.permission_profile));
+                    break;
+                }
+                EventMsg::ThreadSettingsApplied(value) => {
+                    configured = Some((
+                        value.thread_settings.active_permission_profile,
+                        value.thread_settings.permission_profile,
+                    ));
+                    break;
+                }
+                _ => {}
+            }
+        }
+        let (active, profile) =
+            configured.context("Core permission settings event was not emitted")?;
+        assert_eq!(active.unwrap().id, "inspect");
+        assert_eq!(profile, PermissionProfile::read_only());
+        session.shutdown().await?;
+        Ok(())
     }
 
     #[test]

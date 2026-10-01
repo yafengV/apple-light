@@ -10,7 +10,7 @@ use shipios_codex::{
     ShipMcpServer,
 };
 use shipios_core::config::private_dir;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, io::Write, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use uuid::Uuid;
 
@@ -32,6 +32,8 @@ pub struct StartThread {
     pub additional_folders: Vec<PathBuf>,
     #[serde(default)]
     pub permissions: SessionPermissions,
+    #[serde(default)]
+    pub permission_profile_id: Option<String>,
     #[serde(default)]
     pub responses: SessionResponsePreferences,
     #[serde(default)]
@@ -75,6 +77,8 @@ struct PersistedThread {
     rollout_path: PathBuf,
     #[serde(default)]
     permissions: SessionPermissions,
+    #[serde(default)]
+    permission_profile_id: Option<String>,
     #[serde(default)]
     responses: SessionResponsePreferences,
     #[serde(default)]
@@ -202,6 +206,7 @@ fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
         thread_id: thread.thread_id,
         rollout_path: rollout,
         permissions: thread.permissions,
+        permission_profile_id: thread.permission_profile_id,
         responses: thread.responses,
         web_search: thread.web_search,
     }))
@@ -218,6 +223,43 @@ fn persist_thread(home: &std::path::Path, thread: &PersistedThread) -> Result<()
     if let Err(error) = std::fs::rename(&temporary, home.join("thread.json")) {
         let _ = std::fs::remove_file(&temporary);
         return Err(error).context("publish Codex thread reference");
+    }
+    Ok(())
+}
+
+fn copy_permission_config_for_fork(
+    source_home: &std::path::Path,
+    home: &std::path::Path,
+) -> Result<()> {
+    let source_path = source_home.join("config.toml");
+    ensure!(
+        source_path.canonicalize()?.starts_with(source_home),
+        "source permission config escaped its private home"
+    );
+    let source_config =
+        std::fs::read(&source_path).context("read source private permission config")?;
+    let target_config = home.join("config.toml");
+    match std::fs::read(&target_config) {
+        Ok(existing) => {
+            ensure!(
+                target_config.canonicalize()?.starts_with(home),
+                "fork permission config escaped its private home"
+            );
+            ensure!(
+                existing == source_config,
+                "fork permission config differs from source"
+            );
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&target_config)
+                .context("create private permission config for fork")?
+                .write_all(&source_config)
+                .context("copy private permission config for fork")?;
+        }
+        Err(error) => return Err(error).context("read fork private permission config"),
     }
     Ok(())
 }
@@ -440,6 +482,18 @@ impl CodexBridge {
             .or(fork_source.as_ref())
             .map(|thread| thread.web_search)
             .unwrap_or(request.web_search);
+        let permission_profile_id = request.permission_profile_id.clone().or_else(|| {
+            previous
+                .as_ref()
+                .or(fork_source.as_ref())
+                .and_then(|thread| thread.permission_profile_id.clone())
+        });
+        if fork_source.is_some() && permission_profile_id.is_some() {
+            let origin = request.fork_origin.as_ref().expect("validated fork origin");
+            let (source_home, _) =
+                self.history_source(&origin.task_id, &origin.workspace, &origin.thread_id)?;
+            copy_permission_config_for_fork(&source_home, &home)?;
+        }
         let options = SessionOptions {
             codex_home: home.clone(),
             project_root: self.project.clone(),
@@ -449,6 +503,7 @@ impl CodexBridge {
             api_key: request.api_key,
             read_only: request.read_only,
             permissions,
+            permission_profile_id: permission_profile_id.clone(),
             responses,
             web_search,
             mcp_servers: request.mcp_servers,
@@ -488,6 +543,7 @@ impl CodexBridge {
             thread_id: thread_id.clone(),
             rollout_path,
             permissions,
+            permission_profile_id,
             responses,
             web_search,
         });
@@ -975,6 +1031,98 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[test]
+    fn fork_copies_only_its_private_permission_config() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let source = root.path().join("source");
+        let child = root.path().join("child");
+        std::fs::create_dir_all(&source)?;
+        std::fs::create_dir_all(&child)?;
+        let source = source.canonicalize()?;
+        let child = child.canonicalize()?;
+        let contents = b"default_permissions = \"inspect\"\n";
+        std::fs::write(source.join("config.toml"), contents)?;
+        copy_permission_config_for_fork(&source, &child)?;
+        assert_eq!(std::fs::read(child.join("config.toml"))?, contents);
+        copy_permission_config_for_fork(&source, &child)?;
+        std::fs::write(child.join("config.toml"), b"changed")?;
+        assert!(copy_permission_config_for_fork(&source, &child).is_err());
+        std::fs::remove_file(child.join("config.toml"))?;
+        let outside = root.path().join("outside.toml");
+        std::fs::write(&outside, contents)?;
+        std::os::unix::fs::symlink(&outside, child.join("config.toml"))?;
+        assert!(copy_permission_config_for_fork(&source, &child).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn named_permission_profile_survives_agent_thread_start() -> Result<()> {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_stack_size(16 * 1024 * 1024)
+            .build()?;
+        runtime.block_on(async {
+            tokio::spawn(async move {
+                let root = tempfile::tempdir()?;
+                let project = root.path().join("Project");
+                let data_dir = root.path().join("Data/Projects/fixture");
+                let task_id = Uuid::new_v4().to_string();
+                let home = data_dir.join("Codex/Tasks").join(&task_id);
+                std::fs::create_dir_all(&project)?;
+                std::fs::create_dir_all(&home)?;
+                std::fs::write(home.join("config.toml"),
+                    "default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n")?;
+                let bridge = CodexBridge::new(data_dir, project);
+                let info = bridge.start(StartThread {
+                    task_id: task_id.clone(),
+                    base_url: "http://127.0.0.1:1/v1".to_owned(),
+                    model: "gpt-5.4".to_owned(),
+                    api_key: None,
+                    initial_context_bytes: Some(0),
+                    resume_only: false,
+                    read_only: false,
+                    text_only: false,
+                    additional_folders: Vec::new(),
+                    permissions: SessionPermissions::default(),
+                    permission_profile_id: Some("inspect".to_owned()),
+                    responses: SessionResponsePreferences::default(),
+                    web_search: SessionWebSearch::default(),
+                    mcp_servers: Vec::new(),
+                    fork_origin: None,
+                    resume_origin: None,
+                }).await?;
+                assert_eq!(info.task_id, task_id);
+                bridge.submit(&task_id, "Inspect this project".to_owned()).await?;
+                bridge.shutdown().await;
+                assert_eq!(saved_thread(&home)?.unwrap().permission_profile_id.as_deref(),
+                    Some("inspect"));
+                let resumed = bridge.start(StartThread {
+                    task_id: task_id.clone(),
+                    base_url: "http://127.0.0.1:1/v1".to_owned(),
+                    model: "gpt-5.4".to_owned(),
+                    api_key: None,
+                    initial_context_bytes: Some(0),
+                    resume_only: true,
+                    read_only: false,
+                    text_only: false,
+                    additional_folders: Vec::new(),
+                    permissions: SessionPermissions::default(),
+                    permission_profile_id: None,
+                    responses: SessionResponsePreferences::default(),
+                    web_search: SessionWebSearch::default(),
+                    mcp_servers: Vec::new(),
+                    fork_origin: None,
+                    resume_origin: None,
+                }).await?;
+                assert!(resumed.resumed);
+                assert_eq!(saved_thread(&home)?.unwrap().permission_profile_id.as_deref(),
+                    Some("inspect"));
+                bridge.shutdown().await;
+                Ok::<_, anyhow::Error>(())
+            }).await.context("named profile Agent worker failed")?
+        })
+    }
+
+    #[test]
     fn turn_submit_accepts_current_permission_choice_and_legacy_requests() -> Result<()> {
         let base = json!({"taskId":"task", "text":"inspect", "images":[],
             "planMode":false});
@@ -1020,6 +1168,7 @@ mod tests {
             thread_id: Uuid::new_v4().to_string(),
             rollout_path: rollout,
             permissions: SessionPermissions::default(),
+            permission_profile_id: None,
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
         };
@@ -1068,6 +1217,7 @@ mod tests {
                 thread_id: saved.thread_id.clone(),
                 rollout_path: alias_rollout,
                 permissions: saved.permissions,
+                permission_profile_id: saved.permission_profile_id.clone(),
                 responses: saved.responses,
                 web_search: saved.web_search,
             },
@@ -1221,6 +1371,7 @@ mod tests {
                         text_only: false,
                         additional_folders: Vec::new(),
                         permissions: SessionPermissions::default(),
+                        permission_profile_id: None,
                         responses: SessionResponsePreferences::default(),
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
@@ -1370,6 +1521,7 @@ mod tests {
                     text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
+                    permission_profile_id: None,
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
@@ -1399,6 +1551,7 @@ mod tests {
                     text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
+                    permission_profile_id: None,
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
@@ -1420,6 +1573,7 @@ mod tests {
                 text_only: false,
                 additional_folders: Vec::new(),
                 permissions: custom_permissions,
+                permission_profile_id: None,
                 responses: custom_responses,
                 web_search: custom_web_search,
                 mcp_servers: Vec::new(),
@@ -1485,6 +1639,7 @@ mod tests {
             text_only: false,
             additional_folders: Vec::new(),
             permissions: SessionPermissions::default(),
+            permission_profile_id: None,
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
@@ -1538,6 +1693,7 @@ mod tests {
                 text_only: false,
                 additional_folders: Vec::new(),
                 permissions: SessionPermissions::default(),
+                permission_profile_id: None,
                 responses: SessionResponsePreferences::default(),
                 web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),

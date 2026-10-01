@@ -12,6 +12,7 @@ codex-core-api = { git = "https://github.com/openai/codex.git", rev = "50d77959b
 codex-history = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-rollout = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-config = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-core = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-extension-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-guardian-v2 = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-login = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }

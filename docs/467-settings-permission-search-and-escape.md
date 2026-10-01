@@ -4,4 +4,4 @@
 
 同一原生操作还复现：搜索框有内容时第一次 Esc 清空查询，空查询下第二次 Esc 被 `NSSearchField` 吞掉，窗口仍停留在设置页。这与“返回应用（Esc）”入口不符。现在空查询的 Esc 调用设置页现有返回动作；非空时仍先清空，输入法组合期间仍不处理。定向测试覆盖两次 Esc、输入法及既有搜索导航保护。
 
-验证：`SettingsNavigationTests` 连同相关插件导航共 15 项通过；最终修改后的 `SettingsInteractionTests` 8 项通过。`script/build_and_run.sh --verify --data-root /private/tmp/shipios-settings-search-20261001` 成功构建、签名并启动，重启后的“新任务”工作区可原生读取。第二次 Esc 的最终原生复测被重新锁屏中断，因此该交互尚未完成实机验收。Codex 参考应用的原生界面仍被计算机使用接口拒绝访问，不能据此记录双端逐项配对通过；总体仍为 0/45。
+验证：`SettingsNavigationTests` 连同相关插件导航共 15 项通过；最终修改后的 `SettingsInteractionTests` 8 项通过。`script/build_and_run.sh --verify --data-root /private/tmp/shipios-settings-search-20261001` 成功构建、签名并启动，重启后的“新任务”工作区可原生读取。2026-10-01 使用后续正式构建的隔离实例再次原生复测：搜索“权限”出现五项 Agent 结果；第一次 Esc 清空查询，第二次 Esc 返回可编辑的“新任务”工作区。Codex 参考应用的原生界面仍被计算机使用接口拒绝访问，不能据此记录双端逐项配对通过；总体仍为 0/45。
