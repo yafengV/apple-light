@@ -192,6 +192,8 @@ struct RuntimeSettingsView: View {
       ShortcutSettingsView(store: store)
     case .notifications:
       NotificationSettingsView(store: store)
+    case .voice:
+      VoiceSettingsView(store: store)
     case .browser:
       BrowserSettingsView(store: store)
     case .computerUse:

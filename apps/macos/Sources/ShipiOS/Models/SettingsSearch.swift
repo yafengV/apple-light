@@ -39,6 +39,10 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case notificationPrompt
   case notificationPermission
   case notificationTest
+  case voiceChat
+  case voiceLanguage
+  case voiceMicrophone
+  case voiceDictionary
   case petChoice
   case petVisibility
   case petSize
@@ -194,6 +198,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .accessibility: .computerUse
     case .allowedApplications: .computerUse
     case .appshotHotkey, .appshotDestination, .appshotSound: .appshots
+    case .voiceChat, .voiceLanguage, .voiceMicrophone, .voiceDictionary: .voice
     case .browserHistory: .browser
     case .browserClear: .browser
     case .browserDownloadFolder: .browser
@@ -243,6 +248,10 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .notificationPrompt: "需要通知时询问系统权限"
     case .notificationPermission: "通知权限"
     case .notificationTest: "发送测试通知"
+    case .voiceChat: "语音聊天"
+    case .voiceLanguage: "识别语言"
+    case .voiceMicrophone: "麦克风"
+    case .voiceDictionary: "听写词典"
     case .petChoice: "选择宠物"
     case .petVisibility: "显示或隐藏宠物"
     case .petSize: "宠物大小"
@@ -377,6 +386,10 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .notificationPrompt: "权限"
     case .notificationPermission: "允许通知"
     case .notificationTest: "测试"
+    case .voiceChat: "实时语音 会话"
+    case .voiceLanguage: "听写 语言 locale"
+    case .voiceMicrophone: "系统默认 输入设备"
+    case .voiceDictionary: "词语 短语 词条 contextual strings"
     case .petChoice: "Codey Mini"
     case .petVisibility: "浮动宠物"
     case .petSize: "缩放"

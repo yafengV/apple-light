@@ -19,7 +19,17 @@ import Speech
   @ObservationIgnored private var recognitionTask: SFSpeechRecognitionTask?
   @ObservationIgnored private var commit: ((String, String) -> Void)?
 
-  func start(target: String, commit: @escaping (String, String) -> Void) async {
+  static func recognitionRequest(dictionary: [String]) -> SFSpeechAudioBufferRecognitionRequest {
+    let request = SFSpeechAudioBufferRecognitionRequest()
+    request.requiresOnDeviceRecognition = true
+    request.shouldReportPartialResults = true
+    request.taskHint = .dictation
+    request.contextualStrings = dictionary
+    return request
+  }
+
+  func start(target: String, languageIdentifier: String? = nil,
+    dictionary: [String] = [], commit: @escaping (String, String) -> Void) async {
     if self.target != nil { stop() }
     let token = UUID()
     generation = token
@@ -42,16 +52,14 @@ import Speech
       if generation == token { fail("请在系统设置中允许 ShipiOS 使用麦克风。", token: token) }
       return
     }
-    guard let recognizer = SFSpeechRecognizer(locale: .current), recognizer.isAvailable,
+    let locale = languageIdentifier.map(Locale.init(identifier:)) ?? .current
+    guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable,
       recognizer.supportsOnDeviceRecognition else {
       fail("当前语言的设备端语音识别不可用，请检查系统语言或语音识别支持。", token: token)
       return
     }
 
-    let request = SFSpeechAudioBufferRecognitionRequest()
-    request.requiresOnDeviceRecognition = true
-    request.shouldReportPartialResults = true
-    request.taskHint = .dictation
+    let request = Self.recognitionRequest(dictionary: dictionary)
     let engine = AVAudioEngine()
     let input = engine.inputNode
     let format = input.outputFormat(forBus: 0)

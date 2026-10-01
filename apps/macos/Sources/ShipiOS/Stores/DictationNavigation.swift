@@ -9,7 +9,9 @@ extension WorkspaceStore {
     }
     let initial = library.drafts[target] ?? ""
     let selection = dictationCarets[target].flatMap { $0.text == initial ? $0.range : nil }
-    await dictation.start(target: target) { [weak self] key, transcript in
+    await dictation.start(target: target,
+      languageIdentifier: voicePreferences.dictationLocaleIdentifier,
+      dictionary: voicePreferences.dictationDictionary) { [weak self] key, transcript in
       guard let self, !self.shuttingDown,
         key.hasPrefix("new:") || self.library.tasks.contains(where: { $0.id == key }) else { return }
       let current = self.library.drafts[key] ?? ""

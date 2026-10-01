@@ -3,6 +3,11 @@ import CryptoKit
 import Foundation
 
 extension WorkspaceStore {
+  var voicePreferences: VoicePreferences {
+    get { library.voicePreferences }
+    set { updateGeneralPreference(\.voicePreferences, value: newValue) }
+  }
+
   var appshotHotkey: AppshotHotkey {
     get { library.appshotHotkey }
     set {

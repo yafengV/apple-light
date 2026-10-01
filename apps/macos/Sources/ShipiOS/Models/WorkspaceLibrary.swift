@@ -296,6 +296,7 @@ struct WorkspaceLibrary: Codable {
   var appshotDestination = AppshotDestination.automatic
   var appshotSoundEnabled = true
   var hasAcceptedAppshotIntro = false
+  var voicePreferences = VoicePreferences()
   var activityPreferences = ActivityPreferences()
   var tasks: [WorkspaceTask] = []
   var projects: [String] = []
@@ -416,7 +417,7 @@ struct WorkspaceLibrary: Codable {
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
-      appshotHotkey, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro,
+      appshotHotkey, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro, voicePreferences,
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
@@ -512,6 +513,7 @@ struct WorkspaceLibrary: Codable {
     appshotDestination = try c.decodeIfPresent(AppshotDestination.self, forKey: .appshotDestination) ?? .automatic
     appshotSoundEnabled = try c.decodeIfPresent(Bool.self, forKey: .appshotSoundEnabled) ?? true
     hasAcceptedAppshotIntro = try c.decodeIfPresent(Bool.self, forKey: .hasAcceptedAppshotIntro) ?? false
+    voicePreferences = try c.decodeIfPresent(VoicePreferences.self, forKey: .voicePreferences) ?? VoicePreferences()
     showInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
     showEducationalTips =
       try c.decodeIfPresent(Bool.self, forKey: .showEducationalTips) ?? true

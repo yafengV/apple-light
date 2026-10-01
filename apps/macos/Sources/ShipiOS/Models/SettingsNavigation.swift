@@ -16,7 +16,7 @@ enum SettingsNavigation {
 
   static let groups: [SettingsNavigationGroup] = [
     .init(id: "personal", title: "个人", pages: [
-      .general, .notifications, .profile, .appearance, .agent, .personalization,
+      .general, .notifications, .voice, .profile, .appearance, .agent, .personalization,
       .memories, .pets, .shortcuts, .usage, .model,
     ]),
     .init(id: "integrations", title: "集成", pages: [
@@ -59,6 +59,7 @@ enum SettingsNavigation {
     case .pets: ["Codey", "Mini", "宠物", "全局快捷键"]
     case .shortcuts: ["键盘", "快捷键", "keyboard", "改键"]
     case .notifications: ["通知", "提醒", "权限"]
+    case .voice: ["语音", "听写", "识别语言", "麦克风", "词典"]
     case .usage: ["token", "用量", "输入", "输出"]
     case .agent: ["配置", "模型默认值", "推理强度"]
     case .git: ["分支前缀", "工作树根目录", "Git 状态"]
