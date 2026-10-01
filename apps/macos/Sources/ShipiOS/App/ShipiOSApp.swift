@@ -98,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var globalDictationToggleHotKey: AppGlobalHotKey?
   private var globalDictationHoldHotKey: AppGlobalHotKey?
+  private var globalDictationIndicator: GlobalDictationIndicatorController?
   private var voiceBareModifierMonitor: VoiceBareModifierMonitor?
   private var registeredGlobalToggleHotkey: ShortcutBinding?
   private var registeredGlobalHoldHotkey: ShortcutBinding?
@@ -141,6 +142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     stopSkillMonitoring()
     appshotModifierMonitor = nil
     voiceBareModifierMonitor = nil
+    globalDictationIndicator?.hide()
+    globalDictationIndicator = nil
     store?.appshotHotkeyChangeHandler = nil
     store?.globalDictationHotkeyChangeHandler = nil
     if let appshotWindowFocusObserver {
@@ -183,6 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         self?.pressHoldGlobalDictation()
       }
       globalDictationHoldHotKey = holdDictationHotKey
+      globalDictationIndicator = GlobalDictationIndicatorController(store: store)
       voiceBareModifierMonitor = VoiceBareModifierMonitor(bindings: { [weak store] in
         (store?.voicePreferences.globalHoldHotkey, store?.voicePreferences.globalToggleHotkey)
       }, onAction: { [weak self] action in
@@ -319,6 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func beginGlobalDictation(token: String, mode: GlobalDictationMode,
     store: WorkspaceStore) {
+    globalDictationIndicator?.clearError()
     do {
       let textTarget = try GlobalDictationTextTarget.capture()
       store.globalDictationHotkeyError = nil
@@ -329,13 +334,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         await store.dictation.start(target: token,
           languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
           microphoneDeviceID: store.voicePreferences.microphoneDeviceID,
-          dictionary: store.voicePreferences.dictationDictionary) { [weak store] _, transcript in
+          dictionary: store.voicePreferences.dictationDictionary) { [weak self, weak store] _, transcript in
           do {
             try textTarget.insert(transcript)
           } catch {
             store?.globalDictationHotkeyError = error.localizedDescription
             store?.notices.show(id: "global-dictation", title: error.localizedDescription,
               level: .error)
+            self?.globalDictationIndicator?.showError(error.localizedDescription,
+              transcript: transcript)
           }
         }
         switch mode {
@@ -351,6 +358,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
           if store.dictation.errorTarget == token, let error = store.dictation.error {
             store.globalDictationHotkeyError = error
             store.notices.show(id: "global-dictation", title: error, level: .error)
+            self.globalDictationIndicator?.showError(error)
           }
         }
       }
@@ -362,6 +370,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       }
       store.globalDictationHotkeyError = error.localizedDescription
       store.notices.show(id: "global-dictation", title: error.localizedDescription, level: .error)
+      globalDictationIndicator?.showError(error.localizedDescription)
     }
   }
 
