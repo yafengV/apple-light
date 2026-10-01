@@ -81,10 +81,18 @@ struct TaskSourcesView: View {
 
   private var otherSources: [TaskSummarySource] {
     filtered.filter {
+      if case .external = $0 { return false }
       if case .siteTool = $0 { return false }
       if case .tool = $0 { return false }
       if case .webSearch = $0 { return false }
       return true
+    }
+  }
+
+  private var externalSources: [TaskExternalSource] {
+    filtered.compactMap { source in
+      if case .external(let link) = source { return link }
+      return nil
     }
   }
 
@@ -147,6 +155,9 @@ struct TaskSourcesView: View {
               openFile: { previewFile = $0 },
               openImage: { image, _ in previewImage = ImagePreviewItem(image) },
               openExternal: openExternal, openSiteTool: { _ in })
+            ForEach(externalSources) { source in
+              TaskExternalSourceSection(source: source, openExternal: openExternal)
+            }
             ForEach(siteToolWebsites) { group in
               BrowserSiteToolWebsiteSection(group: group, openExternal: openExternal)
             }
@@ -169,6 +180,29 @@ struct TaskSourcesView: View {
           root: dataRoot) { self.previewImage = nil }
       }
     }
+  }
+}
+
+private struct TaskExternalSourceSection: View {
+  let source: TaskExternalSource
+  let openExternal: (URL) -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      if let url = try? BrowserAddress.url(source.url) {
+        Button { openExternal(url) } label: {
+          Label(source.title, systemImage: "link").lineLimit(1)
+        }.buttonStyle(.plain).help(source.url)
+      }
+      Text(source.url).appFont(.caption).foregroundStyle(.secondary)
+        .lineLimit(2).textSelection(.enabled)
+      ForEach(source.activities, id: \.self) { activity in
+        Text(activity.label).appFont(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
   }
 }
 

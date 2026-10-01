@@ -36,7 +36,8 @@ final class TaskSummarySourceTests: XCTestCase {
     library.runImages = ["first": [image], "second": [image]]
 
     XCTAssertEqual([first, second].summarySources(in: library), [
-      .file(file), .image(image), .external(external),
+      .file(file), .image(image),
+      .external(TaskExternalSource(resource: external, activities: [.read])),
       .tool(MCPToolSource(id: serverID, name: "Files", calls: Array(executions.prefix(2)))),
       .webSearch(CodexWebSearchSummary(queryCount: 0, queries: [], viewedLinks: [])),
     ])
@@ -158,11 +159,54 @@ final class TaskSummarySourceTests: XCTestCase {
           from: JSONEncoder().encode([browserVersion, other])),
       ]))
     let sources = [run].summarySources(in: WorkspaceLibrary())
-    XCTAssertEqual(sources.first, .external(other))
-    XCTAssertFalse(sources.contains(.external(browserVersion)))
+    XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: other, activities: [.read])))
+    XCTAssertFalse(sources.contains(.external(TaskExternalSource(resource: browserVersion,
+      activities: [.read]))))
     guard let last = sources.last, case .webSearch(let summary) = last else {
       return XCTFail("Missing web search source")
     }
     XCTAssertEqual(summary.viewedLinks, [opened])
+  }
+
+  func testProvidedLinksMergeWithReadActivityAndSurviveWebSearchDeduplication() throws {
+    let read = CodexWebSource(title: "Docs", url: "https://example.test/docs#read")
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexWebSearchTimeline.apply(.object([
+      "type": .string("web_search_end"), "call_id": .string("opened"),
+      "action": .object(["type": .string("open_page"),
+        "url": .string("https://example.test/docs")]),
+    ]), executions: &executions, items: &items))
+    let run = AgentRun(id: "provided", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object([
+        "tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(executions)),
+        "codex_web_sources": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode([read])),
+      ]))
+    var library = WorkspaceLibrary()
+    library.notes[run.id] = "请查看 [项目文档](https://example.test/docs)。"
+    let sources = [run].summarySources(in: library)
+    guard let first = sources.first, case .external(let source) = first else {
+      return XCTFail("Missing user-provided web source")
+    }
+    XCTAssertEqual(source.title, "项目文档")
+    XCTAssertEqual(source.activities, [.provided, .read])
+    XCTAssertEqual(source.id, CodexWebSource.sourceKey(read.url))
+    XCTAssertTrue(sources.contains { if case .webSearch = $0 { return true }; return false })
+  }
+
+  func testSteeredUserMessageLinkAppearsAsProvidedSource() throws {
+    let message = QueuedMessage(taskID: "task", text: "补充 <https://example.test/guide>")
+    let run = AgentRun(id: "steered", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object(["codex_steered_messages": try JSONDecoder().decode(JSONValue.self,
+        from: JSONEncoder().encode([message]))]))
+    XCTAssertEqual([run].summarySources(in: WorkspaceLibrary()), [
+      .external(TaskExternalSource(
+        resource: CodexWebSource(title: "example.test", url: "https://example.test/guide"),
+        activities: [.provided])),
+    ])
   }
 }

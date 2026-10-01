@@ -3,7 +3,7 @@ import Foundation
 enum TaskSummarySource: Identifiable, Equatable {
   case file(FileAttachment)
   case image(ImageAttachment)
-  case external(CodexWebSource)
+  case external(TaskExternalSource)
   case siteTool(MCPToolExecution)
   case tool(MCPToolSource)
   case webSearch(CodexWebSearchSummary)
@@ -12,7 +12,7 @@ enum TaskSummarySource: Identifiable, Equatable {
     switch self {
     case .file(let file): "file:\(file.id.uuidString)"
     case .image(let image): "image:\(image.id.uuidString)"
-    case .external(let source): "external:\(CodexWebSource.sourceKey(source.url) ?? source.url)"
+    case .external(let source): "external:\(source.id)"
     case .siteTool(let execution): "site-tool:\(execution.id.uuidString)"
     case .tool(let source): "tool:\(source.id.uuidString)"
     case .webSearch: "web-search"
@@ -90,7 +90,7 @@ struct CodexWebSearchSummary: Equatable {
 extension Collection where Element == AgentRun {
   func summarySources(in library: WorkspaceLibrary) -> [TaskSummarySource] {
     var files: [TaskSummarySource] = []
-    var external: [TaskSummarySource] = []
+    var external: [TaskExternalSource] = []
     var toolSources: [MCPToolSource] = []
     var siteTools: [TaskSummarySource] = []
     var seen = Set<String>()
@@ -106,12 +106,26 @@ extension Collection where Element == AgentRun {
         let source = TaskSummarySource.image(image)
         if seen.insert(source.id).inserted { files.append(source) }
       }
-      for webSource in run.codexWebSources {
-        guard (webSource.url.hasPrefix("https://") || webSource.url.hasPrefix("http://")),
-          (try? BrowserAddress.url(webSource.url)) != nil else { continue }
-        let source = TaskSummarySource.external(webSource)
-        if seen.insert(source.id).inserted { external.append(source) }
+      func addExternal(_ source: CodexWebSource, activity: TaskExternalSourceActivity) {
+        guard (source.url.hasPrefix("https://") || source.url.hasPrefix("http://")),
+          let key = CodexWebSource.sourceKey(source.url) else { return }
+        if let index = external.firstIndex(where: { $0.id == key }) {
+          external[index].merge(source, activity: activity)
+        } else {
+          external.append(TaskExternalSource(resource: source, activities: [activity]))
+        }
       }
+      if run.kind == "chat" {
+        for source in TaskProvidedWebLinks.collect(library.notes[run.id] ?? "") {
+          addExternal(source, activity: .provided)
+        }
+        for message in run.codexSteeredMessages {
+          for source in TaskProvidedWebLinks.collect(message.text) {
+            addExternal(source, activity: .provided)
+          }
+        }
+      }
+      for source in run.codexWebSources { addExternal(source, activity: .read) }
       for execution in run.toolExecutions {
         if execution.serverID == CodexBrowserTimeline.serverID,
           execution.status == .succeeded, execution.browserSiteTool != nil {
@@ -138,12 +152,11 @@ extension Collection where Element == AgentRun {
     if let webSearch {
       let viewedURLs = Set(webSearch.viewedLinks.compactMap { CodexWebSource.sourceKey($0.url) })
       external.removeAll { source in
-        if case .external(let link) = source,
-          let key = CodexWebSource.sourceKey(link.url) { return viewedURLs.contains(key) }
-        return false
+        source.activities == [.read] && viewedURLs.contains(source.id)
       }
     }
-    return files + external + siteTools + toolSources.map(TaskSummarySource.tool)
+    return files + external.map(TaskSummarySource.external) + siteTools
+      + toolSources.map(TaskSummarySource.tool)
       + (webSearch.map { [.webSearch($0)] } ?? [])
   }
 }
