@@ -98,7 +98,7 @@ struct BrowserSettingsView: View {
         }
       }
       Section("当前能力") {
-        Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论、元素样式调整的临时预览，以及真实文件下载。Agent 可在授权后打开、读取、检查和操作网页控件；截图交给模型、站点工具与完整 CDP 访问仍需继续开发。")
+        Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论、元素样式调整的临时预览，以及真实文件下载。Agent 可在授权后打开、读取、检查和操作网页控件；站点工具调用与完整 CDP 访问仍需继续开发。")
           .foregroundStyle(.secondary)
       }
   }
@@ -141,6 +141,12 @@ struct BrowserSettingsView: View {
   }
 
   @ViewBuilder private var permissions: some View {
+    Section("站点工具") {
+      SettingsToggle(title: "显示站点工具清单",
+        description: "在地址栏显示网站声明的工具。此开关仅控制清单显示；Agent 调用仍需单独实现。",
+        isOn: Binding(get: { store.browserPermissionPreferences.siteToolsEnabled },
+          set: { store.setBrowserSiteToolsEnabled($0) }))
+    }
     Section("默认网站访问") {
       SettingsMenuPicker(
         "浏览器 Agent 首次访问网站时",

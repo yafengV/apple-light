@@ -47,6 +47,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   private(set) var committedURL: URL?
   private(set) var error: String?
   private(set) var closed = false
+  var siteTools: [BrowserSiteTool] = []
+  @ObservationIgnored var siteToolsRevision = UUID()
   private(set) var selectingElement = false
   var selectedElement: BrowserElementReference?
   var elementSelectionError: String?
@@ -95,6 +97,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     view.browserTab = self
     BrowserEditableFocusHandler.install(on: view.configuration)
     BrowserAgentFrameHandler.install(on: view.configuration)
+    BrowserSiteToolHandler.install(on: view.configuration)
     if #available(macOS 13.3, *) { view.isInspectable = true }
     view.navigationDelegate = self
     view.uiDelegate = self
@@ -119,18 +122,37 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       editingAddress = false
       error = nil
       loading = true
+      if !Self.sameDocument(view.url, url) { invalidateSiteTools() }
       activeNavigation = view.load(URLRequest(url: url))
     } catch { self.error = error.localizedDescription }
   }
-  func back() { guard canGoBack, !closed else { return }; error = nil; activeNavigation = view.goBack() }
-  func forward() { guard canGoForward, !closed else { return }; error = nil; activeNavigation = view.goForward() }
+  func back() {
+    guard canGoBack, !closed else { return }
+    error = nil
+    if !Self.sameDocument(view.url, view.backForwardList.backItem?.url) { invalidateSiteTools() }
+    activeNavigation = view.goBack()
+  }
+  func forward() {
+    guard canGoForward, !closed else { return }
+    error = nil
+    if !Self.sameDocument(view.url, view.backForwardList.forwardItem?.url) { invalidateSiteTools() }
+    activeNavigation = view.goForward()
+  }
   func reload(bypassCache: Bool = false) {
     guard !closed else { return }
     error = nil
     if view.url == nil { navigate() }
-    else { activeNavigation = bypassCache ? view.reloadFromOrigin() : view.reload() }
+    else { invalidateSiteTools(); activeNavigation = bypassCache ? view.reloadFromOrigin() : view.reload() }
   }
   func stop() { view.stopLoading(); loading = false }
+  private func invalidateSiteTools() { siteTools = []; siteToolsRevision = UUID() }
+  private static func sameDocument(_ left: URL?, _ right: URL?) -> Bool {
+    guard let left, let right,
+      var a = URLComponents(url: left, resolvingAgainstBaseURL: false),
+      var b = URLComponents(url: right, resolvingAgainstBaseURL: false) else { return false }
+    a.fragment = nil; b.fragment = nil
+    return a == b
+  }
   func openPageFind() {
     guard !closed else { return }
     showingPageFind = true
@@ -160,6 +182,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     guard !closed else { return }
     cancelElementSelection()
     closed = true
+    invalidateSiteTools()
     closePageFind()
     resetPageEditableFocus()
     view.stopLoading()
@@ -491,6 +514,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
   func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
     guard !closed else { return }
+    invalidateSiteTools()
     resetPageEditableFocus()
     agentFrames.removeAll(); agentScanID = nil
     cancelElementSelection()
@@ -514,6 +538,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     guard navigation === activeNavigation else { return }
     sync()
     recordVisit()
+    Task { await refreshSiteTools() }
   }
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failed(navigation, error) }
   func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failed(navigation, error) }

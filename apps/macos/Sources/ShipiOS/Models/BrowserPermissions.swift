@@ -15,6 +15,18 @@ enum BrowserAccessDecision: String, Codable, CaseIterable, Identifiable {
 struct BrowserPermissionPreferences: Codable, Equatable {
   var defaultDecision = BrowserAccessDecision.ask
   var sites: [String: BrowserAccessDecision] = [:]
+  var siteToolsEnabled = true
+
+  private enum CodingKeys: String, CodingKey { case defaultDecision, sites, siteToolsEnabled }
+
+  init() {}
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    defaultDecision = try values.decodeIfPresent(BrowserAccessDecision.self, forKey: .defaultDecision) ?? .ask
+    sites = try values.decodeIfPresent([String: BrowserAccessDecision].self, forKey: .sites) ?? [:]
+    siteToolsEnabled = try values.decodeIfPresent(Bool.self, forKey: .siteToolsEnabled) ?? true
+  }
 
   func decision(for url: URL) -> BrowserAccessDecision {
     guard let host = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")),

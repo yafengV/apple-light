@@ -54,6 +54,34 @@ final class BrowserTests: XCTestCase {
     XCTAssertFalse(first.showingPageFind)
     XCTAssertNil(first.pageFindMatch)
   }
+  @MainActor func testSiteToolDiscoveryFollowsMainFrameAndNavigation() async throws {
+    let session = BrowserSession()
+    defer { session.shutdown() }
+    let tab = session.newTab()
+    try await load(tab, "/site-tools", title: "Site tools")
+    try await eventually("Main-frame site tool was not discovered") {
+      tab.siteTools.map(\.name) == ["read_title"]
+    }
+    XCTAssertEqual(tab.siteTools.first?.title, "Read title")
+    XCTAssertEqual(tab.siteTools.first?.summary, "Read page title")
+    XCTAssertEqual(tab.siteTools.first?.readOnly, true)
+    _ = try await tab.view.evaluateJavaScript("""
+      document.modelContext.registerTool({name:'new_tool', description:'Dynamic',
+        inputSchema:{type:'object',properties:{}}, execute:async()=>({})});
+      """)
+    try await eventually("Dynamic site tool did not appear") { tab.siteTools.count == 2 }
+    _ = try await tab.view.evaluateJavaScript("document.modelContext.unregisterTool('new_tool')")
+    try await eventually("Removed site tool still appears") { tab.siteTools.map(\.name) == ["read_title"] }
+    tab.address = base + "/site-tools#section"; tab.navigate()
+    try await eventually("Fragment navigation did not finish") {
+      !tab.loading && tab.view.url?.fragment == "section"
+    }
+    XCTAssertEqual(tab.siteTools.map(\.name), ["read_title"])
+    tab.address = base + "/two"; tab.navigate()
+    XCTAssertTrue(tab.siteTools.isEmpty)
+    try await eventually("Navigation did not finish") { !tab.loading && tab.title == "Two" }
+    XCTAssertTrue(tab.siteTools.isEmpty)
+  }
   @MainActor func testFindCommandTargetsActiveBrowserWithoutOpeningConversationFind() throws {
     let store = WorkspaceStore()
     defer { store.workspace.browser.shutdown() }
@@ -858,6 +886,10 @@ final class BrowserTests: XCTestCase {
 
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertEqual(legacy.browserPermissions, BrowserPermissionPreferences())
+    let oldPreferences = try JSONDecoder().decode(BrowserPermissionPreferences.self,
+      from: Data(#"{"defaultDecision":"block","sites":{"example.com":"allow"}}"#.utf8))
+    XCTAssertTrue(oldPreferences.siteToolsEnabled)
+    XCTAssertEqual(oldPreferences.decision(for: URL(string: "https://example.com")!), .allow)
     XCTAssertEqual(legacy.browserDownloadPreferences, BrowserDownloadPreferences())
     XCTAssertTrue(legacy.browserDownloads.isEmpty)
   }
@@ -1147,6 +1179,8 @@ final class BrowserTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
+    store.setBrowserSiteToolsEnabled(false)
+    XCTAssertFalse(store.browserPermissionPreferences.siteToolsEnabled)
     XCTAssertTrue(store.setBrowserSiteAccess("https://Allowed.Example/path", decision: .allow))
     store.setBrowserDefaultAccess(.block)
     XCTAssertEqual(store.browserPermissionPreferences.sites, ["allowed.example": .allow])

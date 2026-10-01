@@ -59,6 +59,31 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == '/slow':
             time.sleep(0.6)
+        if path == '/site-tools':
+            body = (b'<!doctype html><html><head><title>Site tools</title></head><body>'
+                    b'<script>document.modelContext.registerTool({'
+                    b'name:"read_title",title:"Read title",description:"Read page title",'
+                    b'inputSchema:{type:"object",properties:{}},'
+                    b'annotations:{readOnlyHint:true},execute:async()=>({title:document.title})'
+                    b'});</script><iframe src="/site-tools-frame"></iframe></body></html>')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == '/site-tools-frame':
+            body = (b'<!doctype html><html><head><title>Frame tools</title></head><body>'
+                    b'<script>document.modelContext.registerTool({'
+                    b'name:"frame_only",description:"Must stay in the iframe",'
+                    b'inputSchema:{type:"object",properties:{}},execute:async()=>({})'
+                    b'});</script></body></html>')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path in ('/frame', '/frame-cross', '/frame-form'):
             if path == '/frame-form':
                 body = (b'<!doctype html><html><head><title>Frame form</title></head>'

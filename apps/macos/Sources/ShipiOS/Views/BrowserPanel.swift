@@ -30,6 +30,7 @@ struct BrowserPanel: View {
   var showsTabStrip = true
   var tabID: UUID? = nil
   @State private var showingDownloads = false
+  @State private var showingSiteTools = false
   @State private var addressSuggestionsVisible = false
   @State private var addressSuggestionTabID: UUID?
   @State private var selectedAddressSuggestion = -1
@@ -112,6 +113,16 @@ struct BrowserPanel: View {
             onSubmit: { navigateAddress($0, tab: tab) },
             onCancel: { addressSuggestionsVisible = false })
             .frame(minWidth: 90, minHeight: 24).id(tab.id)
+          if store.browserPermissionPreferences.siteToolsEnabled && !tab.siteTools.isEmpty {
+            Button { showingSiteTools.toggle() } label: {
+              Image(systemName: "chevron.up.square")
+            }
+            .help("查看站点工具")
+            .accessibilityLabel("查看站点工具")
+            .popover(isPresented: $showingSiteTools, arrowEdge: .bottom) {
+              BrowserSiteToolsPopover(tab: tab)
+            }
+          }
           Button {
             Task { await store.captureBrowserSnapshot(tab, taskID: context?.taskID) }
           } label: {
@@ -237,6 +248,10 @@ struct BrowserPanel: View {
         // owner selects and focuses tabs in response to user actions.
         if tabID == nil { session.ensureTab() }
       }
+      .onChange(of: displayedTab?.id) { _, _ in showingSiteTools = false }
+      .onChange(of: store.browserPermissionPreferences.siteToolsEnabled) { _, enabled in
+        if !enabled { showingSiteTools = false }
+      }
   }
 
   @ViewBuilder private func addressSuggestionOverlay(_ tab: BrowserTab) -> some View {
@@ -280,6 +295,36 @@ struct BrowserPanel: View {
     ([tab.committedURL?.absoluteString ?? ""] + comments.map {
       "\($0.id.uuidString):\($0.body):\($0.reference.url)"
     }).joined(separator: "|")
+  }
+}
+
+private struct BrowserSiteToolsPopover: View {
+  @Bindable var tab: BrowserTab
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Text("站点工具").appFont(.headline)
+      Text("此网站声明了以下工具。调用能力仍在开发中。")
+        .appFont(.caption).foregroundStyle(.secondary)
+      ScrollView {
+        VStack(alignment: .leading, spacing: 8) {
+          ForEach(tab.siteTools) { tool in
+            VStack(alignment: .leading, spacing: 3) {
+              HStack {
+                Text(tool.title).appFont(.body, weight: .medium)
+                Spacer()
+                Text(tool.readOnly ? "声明只读" : "可能修改")
+                  .appFont(.caption).foregroundStyle(.secondary)
+              }
+              if !tool.summary.isEmpty {
+                Text(tool.summary).appFont(.caption).foregroundStyle(.secondary)
+              }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+          }
+        }
+      }.frame(maxHeight: 300)
+    }.padding(14).frame(width: 330)
   }
 }
 

@@ -14,6 +14,15 @@ extension WorkspaceStore {
     } catch { browserSettingsError = error.localizedDescription }
   }
 
+  func setBrowserSiteToolsEnabled(_ enabled: Bool) {
+    do {
+      var candidate = library
+      candidate.browserPermissions.siteToolsEnabled = enabled
+      try commitLibrary(candidate)
+      browserSettingsError = nil
+    } catch { browserSettingsError = error.localizedDescription }
+  }
+
   func setBrowserSiteAccess(_ input: String, decision: BrowserAccessDecision) -> Bool {
     do {
       let host = try BrowserPermissionPreferences.normalizedHost(input)
