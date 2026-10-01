@@ -8,6 +8,11 @@ struct WorkspaceView: View {
   @State private var columns: NavigationSplitViewVisibility = .all
   @State private var taskSummary = TaskSummaryPresentation()
 
+  private var reasoningCatalogTaskID: String {
+    let config = store.modelConfiguration(for: store.selectedTask?.id)
+    return "\(config.credentialAccount)|\(config.apiProtocol.rawValue)|\(config.model)"
+  }
+
   var body: some View {
     workspaceRoot
     .sheet(item: $store.editingProject) { request in
@@ -27,6 +32,11 @@ struct WorkspaceView: View {
       }
     }
     .task(id: store.currentWorkspaceTabOwner) { store.restoreWorkspaceTabLayout() }
+    .task(id: reasoningCatalogTaskID) {
+      let config = store.modelConfiguration(for: store.selectedTask?.id)
+      guard !config.model.isEmpty, (try? config.endpoint("models")) != nil else { return }
+      _ = await store.loadContextWindow(for: store.selectedTask?.id)
+    }
     .task(id: store.workspaceTabLayoutSnapshot) {
       do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
       store.saveLibrary()

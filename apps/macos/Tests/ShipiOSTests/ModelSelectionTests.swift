@@ -99,6 +99,58 @@ final class ModelSelectionTests: XCTestCase {
     XCTAssertFalse(catalog.isCurrentReasoningUnsupported(for: "unknown", reasoning: "high"))
   }
 
+  func testReasoningCommandsRequireKnownCapabilitiesAndRespectBounds() {
+    let entry = ModelCatalogEntry(id: "known", supportedReasoningEfforts: ["low", "high", "max"],
+      defaultReasoningEffort: "low")
+    XCTAssertEqual(ReasoningCommand("reasoning-increase")?.target(current: "", entry: entry,
+      advanced: []), "high")
+    XCTAssertEqual(ReasoningCommand("reasoning-decrease")?.target(current: "high", entry: entry,
+      advanced: []), "low")
+    XCTAssertNil(ReasoningCommand("reasoning-decrease")?.target(current: "low", entry: entry,
+      advanced: []))
+    XCTAssertNil(ReasoningCommand("reasoning-increase")?.target(current: "high", entry: entry,
+      advanced: []))
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "high", entry: entry,
+      advanced: []), "low")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "high", entry: entry,
+      advanced: [.max]), "max")
+    XCTAssertNil(ReasoningCommand("reasoning-cycle")?.target(current: "low",
+      entry: ModelCatalogEntry(id: "unknown"), advanced: []))
+    XCTAssertNil(ReasoningCommand("reasoning-cycle")?.target(current: "low",
+      entry: ModelCatalogEntry(id: "single", supportedReasoningEfforts: ["low"]), advanced: []))
+    XCTAssertNil(ReasoningCommand("reasoning-increase")?.target(current: "",
+      entry: ModelCatalogEntry(id: "no-default", supportedReasoningEfforts: ["low", "high"]),
+      advanced: []))
+  }
+
+  @MainActor func testReasoningCommandUsesTargetTaskModelAndPersistsSelection() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    var config = ModelConfiguration()
+    config.baseURL = "https://example.com/v1"
+    config.model = "default"
+    config.reasoning = "low"
+    try store.saveModelConfiguration(config)
+    store.library.tasks = [.init(id: "one", project: "", title: "One", runIDs: []),
+      .init(id: "two", project: "", title: "Two", runIDs: [])]
+    try store.selectModel("other", reasoning: "medium", taskID: "two")
+    store.skillModelCatalogs[ModelCatalogSource(config)] = [
+      "default": ModelCatalogEntry(id: "default", supportedReasoningEfforts: ["low", "high"]),
+      "other": ModelCatalogEntry(id: "other", supportedReasoningEfforts: ["medium", "high"]),
+    ]
+    XCTAssertEqual(store.reasoningCommandTarget("reasoning-increase", taskID: "one"), "high")
+    XCTAssertEqual(store.reasoningCommandTarget("reasoning-increase", taskID: "two"), "high")
+    XCTAssertTrue(TaskWindowCommandContext.owns("reasoning-increase"))
+    XCTAssertTrue(store.commandEnabled("reasoning-increase"))
+    store.executeReasoningCommand("reasoning-increase", taskID: "two")
+    XCTAssertEqual(store.modelConfiguration(for: "two").reasoning, "high")
+    XCTAssertEqual(store.modelConfiguration(for: "one").reasoning, "low")
+    XCTAssertNil(store.reasoningCommandTarget("reasoning-increase", taskID: "two"))
+    await store.shutdown()
+  }
+
   @MainActor func testOldProviderResponseCannotReplaceNewProviderList() async {
     let catalog = ModelCatalog()
     let started = expectation(description: "first request started")

@@ -59,6 +59,9 @@ struct DesktopCommand: Identifiable {
       id: "bottom-panel", title: "切换底部面板", icon: "rectangle.bottomthird.inset.filled",
       shortcut: "⌘J"),
     .init(id: "model", title: "选择模型与推理强度", icon: "cpu", shortcut: "⌃⇧M"),
+    .init(id: "reasoning-increase", title: "提高推理强度", icon: "arrow.up", shortcut: ""),
+    .init(id: "reasoning-decrease", title: "降低推理强度", icon: "arrow.down", shortcut: ""),
+    .init(id: "reasoning-cycle", title: "循环切换推理强度", icon: "arrow.triangle.2.circlepath", shortcut: ""),
     .init(id: "plan", title: "切换计划模式", icon: "list.bullet.clipboard", shortcut: ""),
     .init(id: "clear-prompt", title: "清除提示", icon: "eraser", shortcut: ""),
     .init(id: "add-photos", title: "添加照片…", icon: "photo", shortcut: ""),
@@ -188,7 +191,7 @@ extension DesktopCommand {
     if id.hasPrefix("focus-chat-") || Self.recentChatSlot(id) != nil { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
-    case "new", "new-alternate", "new-standalone", "send", "steer-prompt", "queue-prompt", "model", "plan", "clear-prompt", "add-photos", "add-files", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "toggle-worktree-mode", "find", "find-next", "find-previous",
+    case "new", "new-alternate", "new-standalone", "send", "steer-prompt", "queue-prompt", "model", "reasoning-increase", "reasoning-decrease", "reasoning-cycle", "plan", "clear-prompt", "add-photos", "add-files", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "toggle-worktree-mode", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "activity", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation

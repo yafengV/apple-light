@@ -27,6 +27,34 @@ struct ModelCatalogEntry: Equatable {
   }
 }
 
+enum ReasoningCommand {
+  case increase, decrease, cycle
+
+  init?(_ id: String) {
+    switch id {
+    case "reasoning-increase": self = .increase
+    case "reasoning-decrease": self = .decrease
+    case "reasoning-cycle": self = .cycle
+    default: return nil
+    }
+  }
+
+  func target(current: String, entry: ModelCatalogEntry,
+    advanced: Set<AgentAdvancedReasoningEffort>) -> String? {
+    guard let supported = entry.supportedReasoningEfforts else { return nil }
+    let choices = AgentReasoningEfforts.available(advanced: advanced)
+      .filter { !$0.isEmpty && supported.contains($0) }
+    guard choices.count >= 2,
+      let index = choices.firstIndex(of: current.isEmpty ? entry.defaultReasoningEffort ?? "" : current)
+    else { return nil }
+    switch self {
+    case .increase: return index < choices.count - 1 ? choices[index + 1] : nil
+    case .decrease: return index > 0 ? choices[index - 1] : nil
+    case .cycle: return choices[(index + 1) % choices.count]
+    }
+  }
+}
+
 @MainActor @Observable
 final class ModelCatalog {
   private(set) var models: [String] = []

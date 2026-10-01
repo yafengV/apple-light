@@ -12,6 +12,8 @@ extension WorkspaceStore {
     case "palette", "palette-alternate": showingCommands = true
     case "shortcuts": openSettings(.shortcuts)
     case "model": openModelPicker()
+    case "reasoning-increase", "reasoning-decrease", "reasoning-cycle":
+      executeReasoningCommand(id, taskID: selectedTask?.id)
     case "dictation":
       let target = draftKey
       Task { await toggleDictation(target: target) }
@@ -210,6 +212,9 @@ extension WorkspaceStore {
     case "activity": return libraryLoaded
     case "clear-unread": return libraryLoaded && !library.unreadTasks.isEmpty
     case "send": return canSend
+    case "reasoning-increase", "reasoning-decrease", "reasoning-cycle":
+      return destination == .workspace && action == .chat && libraryLoaded
+        && reasoningCommandTarget(id, taskID: selectedTask?.id) != nil
     case "steer-prompt", "queue-prompt":
       guard let active = selectedActiveRun, active.kind == "chat",
         destination == .workspace && action == .chat && canSend else { return false }

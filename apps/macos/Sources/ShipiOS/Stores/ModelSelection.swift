@@ -45,4 +45,20 @@ extension WorkspaceStore {
     return config
   }
 
+  func reasoningCommandTarget(_ id: String, taskID: String?) -> String? {
+    _ = modelCatalogRevision
+    guard let command = ReasoningCommand(id) else { return nil }
+    let config = modelConfiguration(for: taskID)
+    guard !config.model.isEmpty,
+      let entry = skillModelCatalogs[ModelCatalogSource(config)]?[config.model] else { return nil }
+    return command.target(current: config.reasoning, entry: entry,
+      advanced: library.enabledAdvancedReasoningEfforts)
+  }
+
+  func executeReasoningCommand(_ id: String, taskID: String?) {
+    guard let target = reasoningCommandTarget(id, taskID: taskID) else { return }
+    do { try selectModel(modelConfiguration(for: taskID).model, reasoning: target, taskID: taskID) }
+    catch { self.error = error.localizedDescription }
+  }
+
 }

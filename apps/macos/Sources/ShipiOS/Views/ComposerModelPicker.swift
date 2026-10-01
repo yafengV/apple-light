@@ -169,8 +169,8 @@ struct ComposerModelPicker: View {
       }
     }
     .padding(16).frame(width: 340).appFont(.callout)
-    .task(id: "\(store.modelConfiguration.credentialAccount)|\(store.modelConfiguration.apiProtocol.rawValue)|\(refresh)") {
-      let config = store.modelConfiguration
+    .task(id: "\(configuration.credentialAccount)|\(configuration.apiProtocol.rawValue)|\(refresh)") {
+      let config = configuration
       await catalog.load(config: config)
       store.captureSkillModelMetadata(catalog, config: config)
     }

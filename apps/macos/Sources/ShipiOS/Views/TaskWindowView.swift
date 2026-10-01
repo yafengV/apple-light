@@ -77,6 +77,10 @@ struct TaskWindowView: View {
     return store.fileTabWorkspaces[tab.id]
   }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
+  private var reasoningCatalogTaskID: String {
+    let config = store.modelConfiguration(for: taskID)
+    return "\(taskID)|\(config.credentialAccount)|\(config.apiProtocol.rawValue)|\(config.model)"
+  }
   private var inspectedRun: AgentRun? {
     taskRuns.first { $0.id == executionRunID && $0.kind == "chat" }
   }
@@ -577,6 +581,11 @@ struct TaskWindowView: View {
       else if let tab = tabs.focused { tabs.activate(tab.id) }
       else { composerFocused = true; taskComposerFocusRequest = UUID() }
     }
+    .task(id: reasoningCatalogTaskID) {
+      let config = store.modelConfiguration(for: taskID)
+      guard !config.model.isEmpty, (try? config.endpoint("models")) != nil else { return }
+      _ = await store.loadContextWindow(for: taskID)
+    }
     .onDisappear {
       store.dictation.stop(target: taskID)
       store.dictationCarets[taskID] = nil
@@ -787,6 +796,8 @@ struct TaskWindowView: View {
     }
     if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model", "clear-prompt", "dictation", "open-task-window", "task-summary", "status"])
+      for id in ["reasoning-increase", "reasoning-decrease", "reasoning-cycle"]
+      where store.reasoningCommandTarget(id, taskID: taskID) != nil { enabled.insert(id) }
       if !store.importingImages && !store.importingFiles {
         enabled.formUnion(["add-photos", "add-files"])
       }
@@ -910,6 +921,8 @@ struct TaskWindowView: View {
         let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
       else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
     case "model": openTaskModelPicker()
+    case "reasoning-increase", "reasoning-decrease", "reasoning-cycle":
+      store.executeReasoningCommand(id, taskID: taskID)
     case let value where DesktopCommand.environmentActionSlot(value) != nil:
       let actions = (store.library.profiles[task.project]?.actions ?? []).filter(\.isRunnableOnMac)
       if let slot = DesktopCommand.environmentActionSlot(value), actions.indices.contains(slot) {

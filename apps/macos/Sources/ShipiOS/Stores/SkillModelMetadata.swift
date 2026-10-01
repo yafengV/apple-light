@@ -24,6 +24,7 @@ extension WorkspaceStore {
       if skillModelCatalogGenerations[source] == generation, skillModelCatalogs[source] == nil {
         skillModelCatalogs[source] = Dictionary(entries.map { ($0.id, $0) },
           uniquingKeysWith: { _, latest in latest })
+        modelCatalogRevision = UUID()
       }
       return skillModelCatalogs[source]?[config.model]?.contextWindow
     } catch {
@@ -36,6 +37,7 @@ extension WorkspaceStore {
     guard !Task.isCancelled, catalog.source == source, !catalog.loading, catalog.error == nil else { return }
     skillModelCatalogGenerations[source] = UUID()
     skillModelCatalogs[source] = catalog.details
+    modelCatalogRevision = UUID()
   }
 
   func invalidateSkillModelMetadata(account: String) {
@@ -43,6 +45,7 @@ extension WorkspaceStore {
     for source in sources where source.account == account {
       skillModelCatalogs[source] = nil
       skillModelCatalogGenerations[source] = UUID()
+      modelCatalogRevision = UUID()
     }
   }
 
@@ -71,6 +74,7 @@ extension WorkspaceStore {
     try Task.checkCancellation()
     if skillModelCatalogGenerations[source] == generation, skillModelCatalogs[source] == nil {
       skillModelCatalogs[source] = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+      modelCatalogRevision = UUID()
     }
     return .forModel(contextWindow: skillModelCatalogs[source]?[config.model]?.contextWindow)
   }
