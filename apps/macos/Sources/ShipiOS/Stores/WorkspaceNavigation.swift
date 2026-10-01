@@ -53,8 +53,10 @@ extension WorkspaceStore {
         focusComposer = UUID()
       }
     case "plan":
+      let enteringPlan = chatMode != .plan
+      if chatMode == .goal { leaveGoalMode() }
       action = .chat
-      chatMode = .plan
+      chatMode = enteringPlan ? .plan : .standard
       focusComposer = UUID()
     case "sidebar": NotificationCenter.default.post(name: .toggleShipiOSSidebar, object: nil)
     case "send": Task { await sendDraft() }

@@ -946,8 +946,9 @@ struct TaskWindowView: View {
       }
     case "plan":
       tabs.revealChat()
+      let enteringPlan = mode != .plan
       if mode == .goal { store.pauseGoal(taskID) }
-      mode = .plan
+      mode = enteringPlan ? .plan : .standard
       composerFocused = true
     case "tree": panels.showingFiles.toggle()
     case "review": toggleReview()

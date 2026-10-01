@@ -79,6 +79,7 @@ final class CommandMenuSearchTests: XCTestCase {
   func testCommandGroupsFollowCurrentCodexMenuCategories() {
     let groups = Dictionary(uniqueKeysWithValues: DesktopCommand.all.map { ($0.id, $0.group) })
     XCTAssertEqual(groups["archive"], .chat)
+    XCTAssertEqual(groups["plan"], .chat)
     XCTAssertEqual(groups["open-task-window"], .chat)
     XCTAssertEqual(groups["next-task"], .navigation)
     XCTAssertEqual(groups["focus-chat-1"], .navigation)
@@ -91,6 +92,31 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(groups["open-skills"], .skills)
     XCTAssertEqual(groups["reload-skills"], .skills)
     XCTAssertEqual(groups["pet"], .app)
+  }
+
+  @MainActor func testPlanCommandMenuTogglesModeWithoutChangingDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.draft = "Keep this draft"
+    XCTAssertTrue(DesktopCommand.search(query: "计划模式").contains { $0.id == "plan" })
+    XCTAssertTrue(TaskWindowCommandContext.owns("plan"))
+
+    store.showingCommands = true
+    XCTAssertTrue(store.paletteCommandEnabled("plan"))
+    store.executePaletteCommand("plan")
+    XCTAssertEqual(store.chatMode, .plan)
+    XCTAssertEqual(store.draft, "Keep this draft")
+
+    store.showingCommands = true
+    store.executePaletteCommand("plan")
+    XCTAssertEqual(store.chatMode, .standard)
+    XCTAssertEqual(store.draft, "Keep this draft")
+
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("plan"))
+    await store.shutdown()
   }
 
   @MainActor func testOpenTaskWindowCommandUsesSelectedTaskAndWorkspaceRoot() async throws {
