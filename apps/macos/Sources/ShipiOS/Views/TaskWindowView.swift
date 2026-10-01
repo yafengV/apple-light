@@ -800,6 +800,9 @@ struct TaskWindowView: View {
       where store.reasoningCommandTarget(id, taskID: taskID) != nil { enabled.insert(id) }
       if !store.importingImages && !store.importingFiles {
         enabled.formUnion(["add-photos", "add-files"])
+        if store.taskWindowImages(taskID).count < ImageAttachmentStorage.maxCount {
+          enabled.insert("capture-appshot")
+        }
       }
       if !task.isSideChat, !task.project.isEmpty,
         store.modelConfiguration(for: taskID).apiProtocol == .codexResponses {
@@ -911,6 +914,7 @@ struct TaskWindowView: View {
       composerFocused = true
       taskComposerFocusRequest = UUID()
     case "add-photos": store.chooseImages(draft: taskID)
+    case "capture-appshot": Task { await store.captureAppshot(draft: taskID) }
     case "add-files": store.chooseFiles(draft: taskID)
     case "dictation": Task { await store.toggleDictation(target: taskID) }
     case "stop": Task { await store.cancel(taskID: taskID) }
@@ -1394,6 +1398,9 @@ struct TaskWindowView: View {
           }.disabled(store.taskWindowFiles(taskID).count >= FileAttachmentStorage.maxCount)
           Button("添加图片…", systemImage: "photo") {
             store.chooseImages(draft: taskID)
+          }.disabled(store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
+          Button("截取应用窗口…", systemImage: "camera.viewfinder") {
+            Task { await store.captureAppshot(draft: taskID) }
           }.disabled(store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
         } label: {
           Image(systemName: "plus")

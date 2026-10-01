@@ -12,6 +12,9 @@ extension WorkspaceStore {
     case "palette", "palette-alternate": showingCommands = true
     case "shortcuts": openSettings(.shortcuts)
     case "model": openModelPicker()
+    case "capture-appshot":
+      let key = draftKey
+      Task { await captureAppshot(draft: key) }
     case "reasoning-increase", "reasoning-decrease", "reasoning-cycle":
       executeReasoningCommand(id, taskID: selectedTask?.id)
     case "dictation":
@@ -224,9 +227,10 @@ extension WorkspaceStore {
         || !draftImages.isEmpty || !draftFiles.isEmpty || !reviewComments.isEmpty
         || !browserComments.isEmpty || pullRequestCheckDraft != nil
     case "clear-prompt": return destination == .workspace && action == .chat && libraryLoaded
-    case "add-photos", "add-files":
+    case "add-photos", "add-files", "capture-appshot":
       return destination == .workspace && action == .chat && libraryLoaded && !shuttingDown
         && !importingImages && !importingFiles
+        && (id != "capture-appshot" || draftImages.count < ImageAttachmentStorage.maxCount)
     case "toggle-worktree-mode":
       return destination == .workspace && action == .chat && selectedTask == nil
         && libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil

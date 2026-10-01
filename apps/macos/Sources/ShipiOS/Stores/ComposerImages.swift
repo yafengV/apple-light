@@ -9,6 +9,29 @@ enum ImageImport: Sendable {
 extension WorkspaceStore {
   var draftImages: [ImageAttachment] { library.draftImages[draftKey] ?? [] }
 
+  func captureAppshot(draft key: String) async {
+    await captureAppshot(draft: key) { try await appshotCapture.capture() }
+  }
+
+  func captureAppshot(draft key: String,
+    capture: () async throws -> AppshotCaptureResult?) async {
+    guard libraryLoaded, !shuttingDown, !importingImages, !importingFiles else { return }
+    guard (library.draftImages[key]?.count ?? 0) < ImageAttachmentStorage.maxCount else {
+      error = "每条消息最多添加 8 张图片。"
+      return
+    }
+    importingImages = true
+    do {
+      let result = try await capture()
+      importingImages = false
+      guard let result else { return }
+      _ = await importImages([.bytes(result.data, name: result.name)], draft: key)
+    } catch {
+      importingImages = false
+      self.error = error.localizedDescription
+    }
+  }
+
   func chooseImages() {
     guard destination == .workspace, !importingImages, !importingFiles, let window = NSApp.keyWindow else { return }
     chooseImages(draft: draftKey, window: window)

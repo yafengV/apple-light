@@ -345,6 +345,10 @@ struct ComposerView: View {
           .disabled(store.draftFiles.count >= FileAttachmentStorage.maxCount)
         Button("添加图片…", systemImage: "photo") { store.chooseImages() }
           .disabled(store.draftImages.count >= ImageAttachmentStorage.maxCount)
+        Button("截取应用窗口…", systemImage: "camera.viewfinder") {
+          let key = store.draftKey
+          Task { await store.captureAppshot(draft: key) }
+        }.disabled(store.draftImages.count >= ImageAttachmentStorage.maxCount)
       } label: { Image(systemName: "plus") }
         .menuStyle(.borderlessButton).fixedSize().help("添加文件或图片，也可拖入输入区")
         .accessibilityLabel("添加附件")

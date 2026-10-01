@@ -180,10 +180,13 @@ struct PopoutHomeView: View {
     HStack(spacing: 12) {
       Menu {
         Button("添加图片…") { store.chooseImages(draft: WorkspaceStore.popoutHomeDraftKey) }
+        Button("截取应用窗口…") {
+          Task { await store.captureAppshot(draft: WorkspaceStore.popoutHomeDraftKey) }
+        }.disabled(store.popoutHomeImages.count >= ImageAttachmentStorage.maxCount)
         Button("添加文件…") { store.chooseFiles(draft: WorkspaceStore.popoutHomeDraftKey) }
       } label: { Image(systemName: "plus") }
         .menuStyle(.borderlessButton).accessibilityLabel("添加弹出窗口附件")
-        .disabled(submitting)
+        .disabled(submitting || store.importingImages || store.importingFiles)
       chatSettingsMenu
       Spacer()
       if submitting { ProgressView().controlSize(.small) }
@@ -535,6 +538,9 @@ struct PopoutThreadView: View {
       HStack(alignment: .bottom, spacing: 8) {
         Menu {
           Button("添加图片…") { store.chooseImages(draft: taskID) }
+          Button("截取应用窗口…") {
+            Task { await store.captureAppshot(draft: taskID) }
+          }.disabled(store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
           Button("添加文件…") { store.chooseFiles(draft: taskID) }
         } label: { Image(systemName: "plus") }
           .menuStyle(.borderlessButton)

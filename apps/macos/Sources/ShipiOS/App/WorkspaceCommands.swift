@@ -32,6 +32,7 @@ struct WorkspaceCommands: Commands {
       command("queue-prompt")
       command("clear-prompt")
       command("add-photos")
+      command("capture-appshot")
       command("add-files")
       command("plan")
       command("reasoning-increase")

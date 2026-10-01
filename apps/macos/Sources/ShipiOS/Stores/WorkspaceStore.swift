@@ -17,6 +17,7 @@ final class WorkspaceStore {
     }
   }
   var dictation = SpeechDictation()
+  @ObservationIgnored let appshotCapture = AppshotCapture()
   @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences
   @ObservationIgnored var shortcutCaptureCount = 0
