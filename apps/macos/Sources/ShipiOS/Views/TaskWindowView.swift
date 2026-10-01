@@ -67,12 +67,13 @@ struct TaskWindowView: View {
   private var panels: TaskWindowPanels { tabs.panels }
   private var browsers: TaskWindowBrowsers { resources.browsers }
   private var taskWorkspace: DeveloperWorkspace { panels.workspace }
+  private var filePanelVisible: Bool { inspectedRun == nil && panels.showingFiles }
   private var commandFileWorkspace: DeveloperWorkspace? {
-    if panels.showingFiles, taskWorkspace.fileFind.isPresented ||
+    if filePanelVisible, taskWorkspace.fileFind.isPresented ||
       (resources.window?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace {
       return taskWorkspace
     }
-    guard let tab = tabs.focused, case .file = tab else { return nil }
+    guard let tab = tabs.commandContentTab, case .file = tab else { return nil }
     return store.fileTabWorkspaces[tab.id]
   }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
@@ -80,7 +81,7 @@ struct TaskWindowView: View {
     taskRuns.first { $0.id == executionRunID && $0.kind == "chat" }
   }
   private var copyLocationTarget: CopyLocationTarget? {
-    let id = tabs.focused?.browserID
+    let id = tabs.commandContentTab?.browserID
     let page = id.flatMap { id in browser.session.tabs.first { $0.id == id } }
     return CopyLocationTarget.resolve(browserFocused: page != nil && browser.session.hasNativeFocus(tabID: id),
       browserURL: page?.committedURL, workingDirectory: task?.project)
@@ -800,7 +801,7 @@ struct TaskWindowView: View {
       if let file = commandFileWorkspace, file.fileFind.isPresented, !file.fileFind.matches.isEmpty {
         enabled.formUnion(["find-next", "find-previous"])
       }
-      if let id = tabs.focused?.browserID,
+      if let id = tabs.commandContentTab?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }),
         page.showingPageFind, !page.pageFindQuery.isEmpty {
         enabled.formUnion(["find-next", "find-previous"])
@@ -819,7 +820,7 @@ struct TaskWindowView: View {
       for index in recentWindowTasks.indices { enabled.insert("recent-chat-\(index + 1)") }
       if let file = commandFileWorkspace, file.selectedFile != nil, !file.fileLoading,
         file.fileError == nil { enabled.insert("browser-address") }
-      else if panels.showingFiles, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
+      else if filePanelVisible, taskWorkspace.selectedFile != nil, !taskWorkspace.fileLoading,
         taskWorkspace.fileError == nil { enabled.insert("browser-address") }
     }
     return enabled
@@ -829,13 +830,13 @@ struct TaskWindowView: View {
     TaskWindowCommandContext(enabled: windowCommandsBlocked ? [] : availableWindowCommands,
       perform: performWindowCommand, copyLocationTitle: copyLocationTarget?.menuTitle,
       keyboardAllowed: { id in
-        if id == "stop", browser.session.hasNativeFocus(tabID: tabs.focused?.browserID) {
+        if id == "stop", browser.session.hasNativeFocus(tabID: tabs.commandContentTab?.browserID) {
           return false
         }
         if ["browser-back", "browser-forward", "back", "forward"].contains(id),
           browser.session.hasEditableFocus { return false }
         if BrowserKeyboardBridge.contextualCommands.contains(id) {
-          return (id == "browser-address" && (commandFileWorkspace != nil || panels.showingFiles))
+          return (id == "browser-address" && (commandFileWorkspace != nil || filePanelVisible))
             || browser.session.hasNativeFocus
         }
         return true
@@ -847,12 +848,12 @@ struct TaskWindowView: View {
     if id == "tab-close" {
       if (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace,
         let path = taskWorkspace.selectedFile { taskWorkspace.closeFile(path) }
-      else if let tab = tabs.focused { tabs.close(tab.id) }
+      else if let tab = tabs.commandContentTab { tabs.close(tab.id) }
       else { dismiss() }
       return
     }
     if id == "browser-address", let file = commandFileWorkspace { file.showingFileLine = true; return }
-    if id == "browser-address", panels.showingFiles { taskWorkspace.showingFileLine = true; return }
+    if id == "browser-address", filePanelVisible { taskWorkspace.showingFileLine = true; return }
     if tabs.perform(id) { return }
     if id.hasPrefix("focus-tab-"), let slot = DesktopCommand.numberSlot(id) {
       tabs.focusSlot(slot.index); return
@@ -878,7 +879,7 @@ struct TaskWindowView: View {
     case "find":
       if let file = commandFileWorkspace, file.selectedFile != nil {
         file.fileFind.open(editor: file.fileFind.editor, source: file.fileText)
-      } else if let id = tabs.focused?.browserID,
+      } else if let id = tabs.commandContentTab?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
       else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
     case "model": openTaskModelPicker()
@@ -918,12 +919,12 @@ struct TaskWindowView: View {
     case "rename": composerFocused = false; renameTitle = task.title
     case "find-next":
       if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(1) }
-      else if let id = tabs.focused?.browserID,
+      else if let id = tabs.commandContentTab?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind { page.findInPage() }
       else { moveFindMatch(1) }
     case "find-previous":
       if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(-1) }
-      else if let id = tabs.focused?.browserID,
+      else if let id = tabs.commandContentTab?.browserID,
         let page = browser.session.tabs.first(where: { $0.id == id }), page.showingPageFind {
         page.findInPage(backwards: true)
       } else { moveFindMatch(-1) }
@@ -1174,6 +1175,7 @@ struct TaskWindowView: View {
               store: store, run: run,
               onPreviewFile: { previewFile = $0 },
               onInspect: { selected in
+                tabs.activate(nil, focus: false)
                 executionRunID = selected.id
                 executionInspectorTab = "overview"
               },

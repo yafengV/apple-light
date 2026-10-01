@@ -90,7 +90,11 @@ import Observation
   func selected(_ placement: WorkspaceTabPlacement) -> WorkspaceContentTab? {
     visibleTabs(placement).first { $0.id == selections[placement] }
   }
-  var focused: WorkspaceContentTab? { tabs.first { $0.id == focusedID } }
+  var focused: WorkspaceContentTab? {
+    guard let tab = tabs.first(where: { $0.id == focusedID }), isVisible(tab.id) else { return nil }
+    return tab
+  }
+  var commandContentTab: WorkspaceContentTab? { focused ?? selected(.left) }
   var chatVisible: Bool { selected(.left) == nil }
   var canReopen: Bool { !closed.isEmpty }
   func isVisible(_ id: String) -> Bool {
@@ -253,7 +257,8 @@ import Observation
     activate(id)
   }
   func toggleFullWidth() {
-    guard let id = focusedID ?? lastContentID, tabs.contains(where: { $0.id == id }) else { return }
+    guard let id = commandContentTab?.id ?? lastContentID,
+      tabs.contains(where: { $0.id == id }) else { return }
     move(id, to: placement(id) == .left ? .right : .left)
   }
   func close(_ id: String) {
@@ -341,7 +346,7 @@ import Observation
   func cycle(_ offset: Int) {
     let ids: [String?] = [nil] + tabs.map { Optional($0.id) }
     guard ids.count > 1 else { return }
-    let index = ids.firstIndex(of: focusedID) ?? 0
+    let index = ids.firstIndex(of: commandContentTab?.id) ?? 0
     activate(ids[(index + offset + ids.count) % ids.count])
   }
   func revealChat() {

@@ -132,6 +132,30 @@ import XCTest
     XCTAssertTrue(store.workspaceTabs.isEmpty)
   }
 
+  func testFileInspectorDoesNotRouteCommandsToCoveredRightTab() throws {
+    let (_, resources, tabs) = try fixture()
+    defer { resources.shutdown() }
+    tabs.newBrowser(in: .left)
+    let left = try XCTUnwrap(tabs.selected(.left))
+    tabs.newBrowser(in: .right)
+    let right = try XCTUnwrap(tabs.selected(.right))
+    XCTAssertEqual(tabs.focused, right)
+
+    tabs.panels.showingFiles = true
+    XCTAssertNil(tabs.focused)
+    XCTAssertEqual(tabs.commandContentTab, left)
+    XCTAssertFalse(tabs.isVisible(right.id))
+    XCTAssertTrue(tabs.commandEnabled("browser-address"))
+    XCTAssertTrue(tabs.perform("browser-address"))
+    XCTAssertEqual(tabs.browser.session.addressFocusTarget, left.browserID)
+    XCTAssertTrue(tabs.perform("browser-close"))
+    XCTAssertFalse(tabs.tabs.contains(left))
+    XCTAssertTrue(tabs.tabs.contains(right))
+
+    tabs.panels.showingFiles = false
+    XCTAssertEqual(tabs.focused, right)
+  }
+
   func testPaneMovesNeverDuplicateWebViewsAndCloseOnlyOwnPane() throws {
     let (_, resources, tabs) = try fixture()
     defer { resources.shutdown() }
