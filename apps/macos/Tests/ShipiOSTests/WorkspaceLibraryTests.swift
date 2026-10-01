@@ -10,7 +10,12 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertEqual(AgentRuntimePreferences.fullAccess,
       AgentRuntimePreferences(approvalPolicy: .never,
         sandboxMode: .fullAccess, networkAccess: false))
+    XCTAssertEqual(AgentRuntimePreferences.approveForMe,
+      AgentRuntimePreferences(approvalPolicy: .onRequest,
+        approvalReviewer: .autoReview, sandboxMode: .workspaceWrite,
+        networkAccess: false))
     XCTAssertEqual(AgentRuntimePreferences.askForApproval.menuTitle, "按需请求批准")
+    XCTAssertEqual(AgentRuntimePreferences.approveForMe.menuTitle, "自动审查批准")
     XCTAssertEqual(AgentRuntimePreferences.fullAccess.menuTitle, "完全访问")
     XCTAssertEqual(AgentRuntimePreferences(approvalPolicy: .onRequest,
       sandboxMode: .fullAccess).menuTitle, "自定义权限")
@@ -18,6 +23,15 @@ final class WorkspaceLibraryTests: XCTestCase {
       sandboxMode: .workspaceWrite).menuTitle, "自定义权限")
     XCTAssertEqual(AgentRuntimePreferences(approvalPolicy: .onRequest,
       sandboxMode: .workspaceWrite, networkAccess: true).menuTitle, "自定义权限")
+  }
+
+  func testLegacyPermissionsWithoutReviewerDecodeAsUserAndNewSelectionPersists() throws {
+    let legacy = Data(#"{"approvalPolicy":"on-request","sandboxMode":"workspace-write","networkAccess":false}"#.utf8)
+    XCTAssertEqual(try JSONDecoder().decode(AgentRuntimePreferences.self, from: legacy),
+      .askForApproval)
+    let encoded = try JSONEncoder().encode(AgentRuntimePreferences.approveForMe)
+    XCTAssertEqual(try JSONDecoder().decode(AgentRuntimePreferences.self, from: encoded),
+      .approveForMe)
   }
 
   @MainActor func testAgentRuntimePermissionsPersistAndRollBackOnSaveFailure() throws {
@@ -84,12 +98,15 @@ final class WorkspaceLibraryTests: XCTestCase {
     store.libraryLoaded = true
     let firstDraft = "new:first"
     let secondDraft = "new:second"
+    let reviewDraft = "new:review"
     let readOnly = AgentRuntimePreferences(sandboxMode: .readOnly)
     XCTAssertTrue(store.saveComposerRuntimePreferences(readOnly,
       taskID: nil, draftKey: firstDraft))
     XCTAssertEqual(store.composerRuntimePreferences(taskID: nil, draftKey: firstDraft), readOnly)
     XCTAssertEqual(store.composerRuntimePreferences(taskID: nil, draftKey: secondDraft),
       AgentRuntimePreferences())
+    XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: nil, draftKey: reviewDraft))
 
     let task = WorkspaceTask(id: UUID().uuidString, project: "", title: "Existing", runIDs: [])
     store.library.tasks = [task]
@@ -112,6 +129,7 @@ final class WorkspaceLibraryTests: XCTestCase {
       taskID: "missing", draftKey: firstDraft))
     let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
     XCTAssertEqual(restored.newTaskRuntimePreferences[firstDraft], readOnly)
+    XCTAssertEqual(restored.newTaskRuntimePreferences[reviewDraft], .approveForMe)
     XCTAssertEqual(restored.taskRuntimePreferences[task.id], full)
   }
 

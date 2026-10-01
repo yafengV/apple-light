@@ -56,6 +56,12 @@ struct AgentSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
       Section("Codex Core 权限") {
+        SettingsMenuPicker("审批者", description: "由你处理越界请求，或让 Codex 自动审查可批准的请求。", selection: Binding(
+          get: { store.library.agentRuntimePreferences.approvalReviewer },
+          set: { value in updatePermissions { $0.approvalReviewer = value } }),
+          options: AgentApprovalReviewer.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .disabled(store.library.agentRuntimePreferences.approvalPolicy == .never)
+          .settingsSearchTarget(.agentApprovalReviewer)
         SettingsMenuPicker("审批策略", description: "按需请求批准，或不再请求批准；受沙箱限制的操作会失败。", selection: Binding(
           get: { store.library.agentRuntimePreferences.approvalPolicy },
           set: { value in updatePermissions { $0.approvalPolicy = value } }),

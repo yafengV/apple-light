@@ -7,12 +7,12 @@ use browser_tool::BrowserToolContributor;
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_config::{McpServerConfig, RawMcpServerConfig};
 use codex_core_api::{
-    AbsolutePathBuf, AskForApproval, AuthCredentialsStoreMode, AuthKeyringBackendKind, AuthManager,
-    CodexAppsToolsCache, CodexHomeUserInstructionsProvider, CodexThread, Config, Constrained,
-    EnvironmentManager, EventMsg, ExecServerRuntimePaths, ExtensionRegistryBuilder, Feature,
-    InitialHistory, NewThread, Op, PermissionProfile, Permissions, SessionSource,
-    StartIfIdleSubmission, StartThreadOptions, SteerSubmission, ThreadId, ThreadManager,
-    TurnInputRequest, UserInput, build_models_manager, init_state_db,
+    AbsolutePathBuf, ApprovalsReviewer, AskForApproval, AuthCredentialsStoreMode,
+    AuthKeyringBackendKind, AuthManager, CodexAppsToolsCache, CodexHomeUserInstructionsProvider,
+    CodexThread, Config, Constrained, EnvironmentManager, EventMsg, ExecServerRuntimePaths,
+    ExtensionRegistryBuilder, Feature, InitialHistory, NewThread, Op, PermissionProfile,
+    Permissions, SessionSource, StartIfIdleSubmission, StartThreadOptions, SteerSubmission,
+    ThreadId, ThreadManager, TurnInputRequest, UserInput, build_models_manager, init_state_db,
     local_agent_graph_store_from_state_db, passthrough_image_store, resolve_installation_id,
     thread_store_from_config,
 };
@@ -61,6 +61,8 @@ pub struct SessionPermissions {
     #[serde(default)]
     pub approval_policy: SessionApprovalPolicy,
     #[serde(default)]
+    pub approval_reviewer: SessionApprovalReviewer,
+    #[serde(default)]
     pub sandbox_mode: SessionSandboxMode,
     #[serde(default)]
     pub network_access: bool,
@@ -105,6 +107,23 @@ pub enum SessionApprovalPolicy {
     #[default]
     OnRequest,
     Never,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionApprovalReviewer {
+    #[default]
+    User,
+    AutoReview,
+}
+
+impl From<SessionApprovalReviewer> for ApprovalsReviewer {
+    fn from(reviewer: SessionApprovalReviewer) -> Self {
+        match reviewer {
+            SessionApprovalReviewer::User => Self::User,
+            SessionApprovalReviewer::AutoReview => Self::AutoReview,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -398,6 +417,7 @@ impl CodexSession {
         options.read_only = true;
         options.permissions = SessionPermissions {
             approval_policy: SessionApprovalPolicy::Never,
+            approval_reviewer: SessionApprovalReviewer::User,
             sandbox_mode: SessionSandboxMode::ReadOnly,
             network_access: false,
         };
@@ -471,6 +491,7 @@ impl CodexSession {
             .enable(Feature::DefaultModeRequestUserInput)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         config.permissions = configured_permissions(options.read_only, options.permissions)?;
+        config.approvals_reviewer = options.permissions.approval_reviewer.into();
         config.model_verbosity = options.responses.verbosity;
         config.model_reasoning_summary = options.responses.reasoning_summary;
         config
@@ -701,6 +722,7 @@ impl CodexSession {
                 SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
                 SessionApprovalPolicy::Never => AskForApproval::Never,
             }),
+            approvals_reviewer: Some(permissions.approval_reviewer.into()),
             permission_profile: Some(turn_profile(self.read_only, &mode, permissions)),
             ..Default::default()
         };
@@ -902,6 +924,7 @@ mod tests {
     fn session_permissions_apply_approval_sandbox_and_network_without_weakening_read_only() {
         let custom = SessionPermissions {
             approval_policy: SessionApprovalPolicy::Never,
+            approval_reviewer: SessionApprovalReviewer::User,
             sandbox_mode: SessionSandboxMode::WorkspaceWrite,
             network_access: true,
         };
@@ -969,13 +992,34 @@ mod tests {
     #[test]
     fn session_permission_wire_values_match_agent_settings() {
         let value = serde_json::json!({
-            "approvalPolicy": "never", "sandboxMode": "danger-full-access",
-            "networkAccess": true
+            "approvalPolicy": "on-request", "sandboxMode": "workspace-write",
+            "approvalReviewer": "auto_review", "networkAccess": false
         });
         let parsed: SessionPermissions = serde_json::from_value(value.clone()).unwrap();
-        assert_eq!(parsed.approval_policy, SessionApprovalPolicy::Never);
-        assert_eq!(parsed.sandbox_mode, SessionSandboxMode::FullAccess);
+        assert_eq!(parsed.approval_policy, SessionApprovalPolicy::OnRequest);
+        assert_eq!(
+            parsed.approval_reviewer,
+            SessionApprovalReviewer::AutoReview
+        );
+        assert_eq!(parsed.sandbox_mode, SessionSandboxMode::WorkspaceWrite);
+        assert_eq!(
+            ApprovalsReviewer::from(parsed.approval_reviewer),
+            ApprovalsReviewer::AutoReview
+        );
         assert_eq!(serde_json::to_value(parsed).unwrap(), value);
+        assert_eq!(
+            SessionPermissions::default().approval_reviewer,
+            SessionApprovalReviewer::User
+        );
+        assert_eq!(
+            serde_json::from_value::<SessionPermissions>(serde_json::json!({
+                "approvalPolicy": "on-request", "sandboxMode": "workspace-write",
+                "networkAccess": false
+            }))
+            .unwrap()
+            .approval_reviewer,
+            SessionApprovalReviewer::User
+        );
         assert!(
             serde_json::from_value::<SessionPermissions>(serde_json::json!({
                 "sandboxMode": "unknown"

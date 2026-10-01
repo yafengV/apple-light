@@ -970,7 +970,7 @@ mod tests {
     use super::*;
     use codex_protocol::config_types::{ReasoningSummary, Verbosity, WebSearchMode};
     use serde_json::json;
-    use shipios_codex::{SessionApprovalPolicy, SessionSandboxMode};
+    use shipios_codex::{SessionApprovalPolicy, SessionApprovalReviewer, SessionSandboxMode};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -981,13 +981,15 @@ mod tests {
         let legacy: CodexSubmit = serde_json::from_value(base.clone())?;
         assert_eq!(legacy.permissions, None);
         let mut current = base;
-        current["permissions"] = json!({"approvalPolicy":"never",
+        current["permissions"] = json!({"approvalPolicy":"on-request",
+            "approvalReviewer":"auto_review",
             "sandboxMode":"read-only", "networkAccess":false});
         let parsed: CodexSubmit = serde_json::from_value(current)?;
         assert_eq!(
             parsed.permissions,
             Some(SessionPermissions {
-                approval_policy: SessionApprovalPolicy::Never,
+                approval_policy: SessionApprovalPolicy::OnRequest,
+                approval_reviewer: SessionApprovalReviewer::AutoReview,
                 sandbox_mode: SessionSandboxMode::ReadOnly,
                 network_access: false,
             })
@@ -1341,6 +1343,7 @@ mod tests {
         let task_id = Uuid::new_v4().to_string().to_uppercase();
         let custom_permissions = SessionPermissions {
             approval_policy: SessionApprovalPolicy::Never,
+            approval_reviewer: SessionApprovalReviewer::User,
             sandbox_mode: SessionSandboxMode::WorkspaceWrite,
             network_access: true,
         };

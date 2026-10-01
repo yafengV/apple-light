@@ -108,8 +108,7 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     XCTAssertFalse(FileManager.default.fileExists(atPath: project
       .appendingPathComponent("permission-denied.txt").path))
 
-    let next = AgentRuntimePreferences(approvalPolicy: .never,
-      sandboxMode: .workspaceWrite, networkAccess: false)
+    let next = AgentRuntimePreferences.approveForMe
     XCTAssertTrue(store.saveComposerRuntimePreferences(next,
       taskID: task.id, draftKey: task.id))
     let nextStarted = await store.startChat("codex-permission-allowed-probe", taskID: task.id)

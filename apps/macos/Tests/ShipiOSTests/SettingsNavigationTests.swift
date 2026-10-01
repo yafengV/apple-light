@@ -101,6 +101,8 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(Set(SettingsSearchField.allCases.map(\.page)), Set(SettingsNavigation.pages))
     XCTAssertEqual(SettingsSearch.results(for: "分支前缀").compactMap(\.field), [.branchPrefix])
     XCTAssertEqual(SettingsSearch.results(for: "审批策略").compactMap(\.field), [.agentApproval])
+    XCTAssertEqual(SettingsSearch.results(for: "自动审查批准").compactMap(\.field),
+      [.agentApprovalReviewer])
     XCTAssertEqual(SettingsSearch.results(for: "文件访问").compactMap(\.field), [.agentSandbox])
     XCTAssertEqual(SettingsSearch.results(for: "在输入区显示完全访问").compactMap(\.field),
       [.agentFullAccess])

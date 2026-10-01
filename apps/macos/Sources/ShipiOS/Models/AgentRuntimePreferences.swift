@@ -12,6 +12,18 @@ enum AgentApprovalPolicy: String, Codable, CaseIterable {
   }
 }
 
+enum AgentApprovalReviewer: String, Codable, CaseIterable {
+  case user
+  case autoReview = "auto_review"
+
+  var title: String {
+    switch self {
+    case .user: "由我审批"
+    case .autoReview: "自动审查批准"
+    }
+  }
+}
+
 enum AgentSandboxMode: String, Codable, CaseIterable {
   case readOnly = "read-only"
   case workspaceWrite = "workspace-write"
@@ -32,12 +44,37 @@ enum AgentSandboxMode: String, Codable, CaseIterable {
 
 struct AgentRuntimePreferences: Codable, Equatable {
   var approvalPolicy = AgentApprovalPolicy.onRequest
+  var approvalReviewer = AgentApprovalReviewer.user
   var sandboxMode = AgentSandboxMode.workspaceWrite
   var networkAccess = false
 
   static let askForApproval = AgentRuntimePreferences()
+  static let approveForMe = AgentRuntimePreferences(approvalReviewer: .autoReview)
   static let fullAccess = AgentRuntimePreferences(approvalPolicy: .never,
     sandboxMode: .fullAccess)
+
+  init(approvalPolicy: AgentApprovalPolicy = .onRequest,
+    approvalReviewer: AgentApprovalReviewer = .user,
+    sandboxMode: AgentSandboxMode = .workspaceWrite,
+    networkAccess: Bool = false) {
+    self.approvalPolicy = approvalPolicy
+    self.approvalReviewer = approvalReviewer
+    self.sandboxMode = sandboxMode
+    self.networkAccess = networkAccess
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case approvalPolicy, approvalReviewer, sandboxMode, networkAccess
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    approvalPolicy = try values.decode(AgentApprovalPolicy.self, forKey: .approvalPolicy)
+    approvalReviewer = try values.decodeIfPresent(AgentApprovalReviewer.self,
+      forKey: .approvalReviewer) ?? .user
+    sandboxMode = try values.decode(AgentSandboxMode.self, forKey: .sandboxMode)
+    networkAccess = try values.decode(Bool.self, forKey: .networkAccess)
+  }
 
   var isFullAccessPreset: Bool {
     sandboxMode == .fullAccess && approvalPolicy == .never
@@ -45,6 +82,7 @@ struct AgentRuntimePreferences: Codable, Equatable {
 
   var menuTitle: String {
     if self == .askForApproval { return "按需请求批准" }
+    if self == .approveForMe { return "自动审查批准" }
     if isFullAccessPreset { return "完全访问" }
     if sandboxMode == .readOnly && approvalPolicy == .onRequest { return "只读" }
     return "自定义权限"

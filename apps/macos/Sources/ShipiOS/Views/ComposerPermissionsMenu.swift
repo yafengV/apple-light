@@ -60,6 +60,13 @@ struct AgentPermissionOptions: View {
         Label("按需请求批准", systemImage: "checkmark")
       } else { Text("按需请求批准") }
     }
+    Button {
+      onSelect(.approveForMe)
+    } label: {
+      if hasOverride && effective == .approveForMe {
+        Label("自动审查批准", systemImage: "checkmark")
+      } else { Text("自动审查批准") }
+    }
     if showFullAccess || effective.sandboxMode == .fullAccess {
       Button {
         onSelect(.fullAccess)
@@ -70,6 +77,19 @@ struct AgentPermissionOptions: View {
       }
     }
     Menu("自定义权限") {
+      Menu("审批者") {
+        ForEach(AgentApprovalReviewer.allCases, id: \.self) { reviewer in
+          Button {
+            var choice = effective
+            choice.approvalReviewer = reviewer
+            onSelect(choice)
+          } label: {
+            if effective.approvalReviewer == reviewer {
+              Label(reviewer.title, systemImage: "checkmark")
+            } else { Text(reviewer.title) }
+          }
+        }
+      }
       Menu("审批策略") {
         ForEach(AgentApprovalPolicy.allCases, id: \.self) { policy in
           Button {

@@ -170,6 +170,7 @@ final class CodexChatTransport {
           "additionalFolders": .array(folders.dropFirst().map(JSONValue.string)),
           "permissions": .object([
             "approvalPolicy": .string(permissions.approvalPolicy.rawValue),
+            "approvalReviewer": .string(permissions.approvalReviewer.rawValue),
             "sandboxMode": .string(permissions.sandboxMode.rawValue),
             "networkAccess": .bool(permissions.networkAccess),
           ]),
@@ -217,6 +218,7 @@ final class CodexChatTransport {
         "reasoningEffort": .string(config.reasoning),
         "permissions": .object([
           "approvalPolicy": .string(permissions.approvalPolicy.rawValue),
+          "approvalReviewer": .string(permissions.approvalReviewer.rawValue),
           "sandboxMode": .string(permissions.sandboxMode.rawValue),
           "networkAccess": .bool(permissions.networkAccess),
         ]),
