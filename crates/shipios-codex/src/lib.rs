@@ -184,7 +184,19 @@ async fn load_session_config(
     profile_id: Option<&str>,
 ) -> Result<Config> {
     let Some(profile_id) = profile_id else {
-        return Ok(Config::load_default_with_cli_overrides_for_codex_home(home, Vec::new()).await?);
+        return Ok(ConfigBuilder::default()
+            .codex_home(home)
+            .harness_overrides(ConfigOverrides {
+                cwd: Some(project),
+                ..Default::default()
+            })
+            .loader_overrides(LoaderOverrides {
+                ignore_user_config: true,
+                ignore_project_config: true,
+                ..Default::default()
+            })
+            .build()
+            .await?);
     };
     ensure!(
         !profile_id.trim().is_empty(),
@@ -220,6 +232,80 @@ async fn load_session_config(
         "permission profile was not selected"
     );
     Ok(config)
+}
+
+/// Validate an app-owned permissions document with the same Core loader used
+/// by a real task. Reject unrelated configuration so it cannot change model,
+/// authentication, MCP or other ShipiOS-owned runtime settings.
+pub async fn validate_named_permission_config(
+    source: &str,
+    profile_id: &str,
+    project_root: &std::path::Path,
+) -> Result<()> {
+    ensure!(
+        source.len() <= 64 * 1024,
+        "permission config exceeds 64 KiB"
+    );
+    ensure!(
+        !profile_id.is_empty()
+            && profile_id.len() <= 64
+            && profile_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')),
+        "permission profile ID must use 1-64 letters, digits, '-', '_' or '.'"
+    );
+    let document: toml::Value = toml::from_str(source).context("parse permission config")?;
+    let root = document
+        .as_table()
+        .context("permission config must be a TOML table")?;
+    ensure!(
+        root.keys().all(|key| matches!(
+            key.as_str(),
+            "default_permissions" | "permissions" | "features"
+        )),
+        "permission config may only define permissions, default_permissions and features.network_proxy"
+    );
+    let profiles = root
+        .get("permissions")
+        .and_then(toml::Value::as_table)
+        .context("permission config has no permissions table")?;
+    ensure!(
+        profiles
+            .get(profile_id)
+            .and_then(toml::Value::as_table)
+            .is_some(),
+        "selected permission profile is not defined"
+    );
+    if let Some(features) = root.get("features") {
+        let table = features
+            .as_table()
+            .context("features must be a TOML table")?;
+        ensure!(
+            table.keys().all(|key| key == "network_proxy")
+                && table.values().all(|value| value.is_bool()),
+            "only the boolean features.network_proxy setting is allowed"
+        );
+    }
+    let project = project_root
+        .canonicalize()
+        .context("resolve permission profile workspace")?;
+    ensure!(
+        project.is_dir(),
+        "permission profile workspace is not a directory"
+    );
+    let temporary_home = tempfile::Builder::new()
+        .prefix("shipios-permission-profile-")
+        .tempdir()
+        .context("create isolated permission validation home")?;
+    std::fs::write(temporary_home.path().join("config.toml"), source)
+        .context("stage permission config for validation")?;
+    load_session_config(
+        temporary_home.path().to_path_buf(),
+        project,
+        Some(profile_id),
+    )
+    .await?;
+    Ok(())
 }
 
 fn turn_profile(
@@ -1200,6 +1286,17 @@ mod tests {
                 .await
                 .is_err()
         );
+        let builtin = load_session_config(home.clone(), project.clone(), None)
+            .await
+            .unwrap();
+        assert_ne!(
+            builtin
+                .permissions
+                .active_permission_profile()
+                .as_ref()
+                .map(|active| active.id.as_str()),
+            Some("inspect")
+        );
 
         std::fs::write(home.join("config.toml"), "invalid = [\n").unwrap();
         assert!(
@@ -1216,6 +1313,44 @@ mod tests {
                 .is_err()
         );
         assert!(load_session_config(home, project, None).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn app_permission_document_accepts_profiles_and_rejects_other_runtime_settings() {
+        let project = tempfile::tempdir().unwrap();
+        let valid =
+            "default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n";
+        validate_named_permission_config(valid, "inspect", project.path())
+            .await
+            .unwrap();
+        assert!(
+            validate_named_permission_config(valid, "missing", project.path())
+                .await
+                .is_err()
+        );
+        assert!(
+            validate_named_permission_config(
+                "model = \"unexpected\"\n[permissions.inspect]\nextends = \":read-only\"\n",
+                "inspect",
+                project.path(),
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            validate_named_permission_config(
+                "[features]\nnetwork_proxy = \"yes\"\n[permissions.inspect]\nextends = \":read-only\"\n",
+                "inspect",
+                project.path(),
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            validate_named_permission_config(valid, "inspect]", project.path())
+                .await
+                .is_err()
+        );
     }
 
     #[test]

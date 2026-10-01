@@ -19,11 +19,12 @@ codex-login = { git = "https://github.com/openai/codex.git", rev = "50d77959bf92
 codex-protocol = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 tokio.workspace = true
+toml.workspace = true
 uuid.workspace = true
 url = "2"
 
 [dev-dependencies]
 serde_json.workspace = true
-tempfile.workspace = true
 wiremock = "0.6"

@@ -35,6 +35,10 @@ pub struct StartThread {
     #[serde(default)]
     pub permission_profile_id: Option<String>,
     #[serde(default)]
+    pub permission_profile_config: Option<String>,
+    #[serde(default)]
+    pub permission_profile_selection_explicit: bool,
+    #[serde(default)]
     pub responses: SessionResponsePreferences,
     #[serde(default)]
     pub web_search: SessionWebSearch,
@@ -264,6 +268,44 @@ fn copy_permission_config_for_fork(
     Ok(())
 }
 
+fn write_private_permission_config(home: &std::path::Path, source: &str) -> Result<()> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let path = home.join("config.toml");
+    match std::fs::symlink_metadata(&path) {
+        Ok(metadata) => {
+            ensure!(
+                metadata.file_type().is_file(),
+                "private permission config is not a regular file"
+            );
+            if std::fs::read_to_string(&path)? == source {
+                return Ok(());
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect private permission config"),
+    }
+    let staged = home.join(format!("config-{}.tmp", Uuid::new_v4()));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&staged)
+        .context("stage private permission config")?;
+    if let Err(error) = file
+        .write_all(source.as_bytes())
+        .and_then(|()| file.sync_all())
+    {
+        let _ = std::fs::remove_file(&staged);
+        return Err(error).context("write private permission config");
+    }
+    if let Err(error) = std::fs::rename(&staged, &path) {
+        let _ = std::fs::remove_file(&staged);
+        return Err(error).context("install private permission config");
+    }
+    Ok(())
+}
+
 enum Command {
     Submit {
         inputs: Vec<UserInput>,
@@ -482,17 +524,35 @@ impl CodexBridge {
             .or(fork_source.as_ref())
             .map(|thread| thread.web_search)
             .unwrap_or(request.web_search);
-        let permission_profile_id = request.permission_profile_id.clone().or_else(|| {
-            previous
-                .as_ref()
-                .or(fork_source.as_ref())
-                .and_then(|thread| thread.permission_profile_id.clone())
-        });
-        if fork_source.is_some() && permission_profile_id.is_some() {
+        let permission_profile_id = if request.permission_profile_selection_explicit {
+            request.permission_profile_id.clone()
+        } else {
+            request.permission_profile_id.clone().or_else(|| {
+                previous
+                    .as_ref()
+                    .or(fork_source.as_ref())
+                    .and_then(|thread| thread.permission_profile_id.clone())
+            })
+        };
+        ensure!(
+            permission_profile_id.is_some() || request.permission_profile_config.is_none(),
+            "permission config requires a selected profile"
+        );
+        if fork_source.is_some()
+            && permission_profile_id.is_some()
+            && request.permission_profile_config.is_none()
+        {
             let origin = request.fork_origin.as_ref().expect("validated fork origin");
             let (source_home, _) =
                 self.history_source(&origin.task_id, &origin.workspace, &origin.thread_id)?;
             copy_permission_config_for_fork(&source_home, &home)?;
+        }
+        if let (Some(id), Some(source)) = (
+            permission_profile_id.as_deref(),
+            request.permission_profile_config.as_deref(),
+        ) {
+            shipios_codex::validate_named_permission_config(source, id, &self.project).await?;
+            write_private_permission_config(&home, source)?;
         }
         let options = SessionOptions {
             codex_home: home.clone(),
@@ -1055,6 +1115,23 @@ mod tests {
     }
 
     #[test]
+    fn private_permission_config_replaces_only_regular_task_file() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let home = root.path().join("task");
+        std::fs::create_dir_all(&home)?;
+        write_private_permission_config(&home, "first")?;
+        write_private_permission_config(&home, "second")?;
+        assert_eq!(std::fs::read_to_string(home.join("config.toml"))?, "second");
+        std::fs::remove_file(home.join("config.toml"))?;
+        let outside = root.path().join("outside.toml");
+        std::fs::write(&outside, "untouched")?;
+        std::os::unix::fs::symlink(&outside, home.join("config.toml"))?;
+        assert!(write_private_permission_config(&home, "third").is_err());
+        assert_eq!(std::fs::read_to_string(outside)?, "untouched");
+        Ok(())
+    }
+
+    #[test]
     fn named_permission_profile_survives_agent_thread_start() -> Result<()> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -1068,9 +1145,6 @@ mod tests {
                 let task_id = Uuid::new_v4().to_string();
                 let home = data_dir.join("Codex/Tasks").join(&task_id);
                 std::fs::create_dir_all(&project)?;
-                std::fs::create_dir_all(&home)?;
-                std::fs::write(home.join("config.toml"),
-                    "default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n")?;
                 let bridge = CodexBridge::new(data_dir, project);
                 let info = bridge.start(StartThread {
                     task_id: task_id.clone(),
@@ -1084,6 +1158,8 @@ mod tests {
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     permission_profile_id: Some("inspect".to_owned()),
+                    permission_profile_config: Some("default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n".to_owned()),
+                    permission_profile_selection_explicit: true,
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
@@ -1107,6 +1183,8 @@ mod tests {
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     permission_profile_id: None,
+                    permission_profile_config: None,
+                    permission_profile_selection_explicit: false,
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
@@ -1116,6 +1194,29 @@ mod tests {
                 assert!(resumed.resumed);
                 assert_eq!(saved_thread(&home)?.unwrap().permission_profile_id.as_deref(),
                     Some("inspect"));
+                bridge.shutdown().await;
+                let switched = bridge.start(StartThread {
+                    task_id: task_id.clone(),
+                    base_url: "http://127.0.0.1:1/v1".to_owned(),
+                    model: "gpt-5.4".to_owned(),
+                    api_key: None,
+                    initial_context_bytes: Some(0),
+                    resume_only: true,
+                    read_only: false,
+                    text_only: false,
+                    additional_folders: Vec::new(),
+                    permissions: SessionPermissions::default(),
+                    permission_profile_id: None,
+                    permission_profile_config: None,
+                    permission_profile_selection_explicit: true,
+                    responses: SessionResponsePreferences::default(),
+                    web_search: SessionWebSearch::default(),
+                    mcp_servers: Vec::new(),
+                    fork_origin: None,
+                    resume_origin: None,
+                }).await?;
+                assert!(switched.resumed);
+                assert_eq!(saved_thread(&home)?.unwrap().permission_profile_id, None);
                 bridge.shutdown().await;
                 Ok::<_, anyhow::Error>(())
             }).await.context("named profile Agent worker failed")?
@@ -1372,6 +1473,8 @@ mod tests {
                         additional_folders: Vec::new(),
                         permissions: SessionPermissions::default(),
                         permission_profile_id: None,
+                        permission_profile_config: None,
+                        permission_profile_selection_explicit: false,
                         responses: SessionResponsePreferences::default(),
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
@@ -1522,6 +1625,8 @@ mod tests {
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     permission_profile_id: None,
+                    permission_profile_config: None,
+                    permission_profile_selection_explicit: false,
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
@@ -1552,6 +1657,8 @@ mod tests {
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
                     permission_profile_id: None,
+                    permission_profile_config: None,
+                    permission_profile_selection_explicit: false,
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
@@ -1574,6 +1681,8 @@ mod tests {
                 additional_folders: Vec::new(),
                 permissions: custom_permissions,
                 permission_profile_id: None,
+                permission_profile_config: None,
+                permission_profile_selection_explicit: false,
                 responses: custom_responses,
                 web_search: custom_web_search,
                 mcp_servers: Vec::new(),
@@ -1640,6 +1749,8 @@ mod tests {
             additional_folders: Vec::new(),
             permissions: SessionPermissions::default(),
             permission_profile_id: None,
+            permission_profile_config: None,
+            permission_profile_selection_explicit: false,
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
@@ -1694,6 +1805,8 @@ mod tests {
                 additional_folders: Vec::new(),
                 permissions: SessionPermissions::default(),
                 permission_profile_id: None,
+                permission_profile_config: None,
+                permission_profile_selection_explicit: false,
                 responses: SessionResponsePreferences::default(),
                 web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),

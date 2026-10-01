@@ -62,6 +62,13 @@ enum Action {
         #[arg(long = "additional-root")]
         additional_roots: Vec<PathBuf>,
     },
+    /// Validate an app-private named permission document without starting a thread.
+    ValidatePermissionProfile {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        config_path: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -97,6 +104,13 @@ async fn run() -> Result<()> {
             "{}",
             serde_json::to_string(&shipios_tools::file_search::search(&args.project, query)?)?
         );
+        return Ok(());
+    }
+    if let Action::ValidatePermissionProfile { id, config_path } = &args.command {
+        let source =
+            std::fs::read_to_string(config_path).context("read permission profile config")?;
+        shipios_codex::validate_named_permission_config(&source, id, &args.project).await?;
+        println!("valid");
         return Ok(());
     }
     let data_dir = match args
