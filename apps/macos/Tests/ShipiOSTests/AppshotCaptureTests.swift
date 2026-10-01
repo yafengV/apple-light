@@ -36,6 +36,38 @@ final class AppshotCaptureTests: XCTestCase {
       contentRect: CGRect(x: 0, y: 0, width: 30_000, height: 500)))
   }
 
+  func testAccessibilitySelectsUntitledWindowByUniqueFrame() {
+    let target = CGRect(x: -480, y: 120, width: 700, height: 510)
+    let candidates = [
+      AppshotAccessibility.WindowCandidate(title: "Other",
+        frame: CGRect(x: 400, y: 80, width: 700, height: 510)),
+      AppshotAccessibility.WindowCandidate(title: nil,
+        frame: CGRect(x: -475, y: 124, width: 700, height: 510)),
+    ]
+    XCTAssertEqual(AppshotAccessibility.selectedIndex(candidates, title: nil, frame: target), 1)
+    XCTAssertEqual(AppshotAccessibility.selectedIndex(candidates, title: "", frame: target), 1)
+    XCTAssertNil(AppshotAccessibility.selectedIndex(candidates, title: nil, frame: nil))
+  }
+
+  func testAccessibilityRequiresUniqueWindowAndRejectsStaleTitle() {
+    let target = CGRect(x: 100, y: 100, width: 600, height: 400)
+    let candidates = [
+      AppshotAccessibility.WindowCandidate(title: "Document", frame: target),
+      AppshotAccessibility.WindowCandidate(title: "Document",
+        frame: CGRect(x: 900, y: 100, width: 600, height: 400)),
+    ]
+    XCTAssertEqual(AppshotAccessibility.selectedIndex(candidates,
+      title: "Document", frame: target), 0)
+    XCTAssertNil(AppshotAccessibility.selectedIndex(candidates,
+      title: "Document", frame: nil), "Duplicate titles cannot identify a window")
+    XCTAssertNil(AppshotAccessibility.selectedIndex([
+      .init(title: "Document", frame: target), .init(title: "Other", frame: target)],
+      title: nil, frame: target), "Overlapping AX windows are ambiguous")
+    XCTAssertEqual(AppshotAccessibility.selectedIndex([
+      .init(title: "Stale", frame: CGRect(x: 900, y: 100, width: 600, height: 400)),
+      .init(title: "Actual", frame: target)], title: "Stale", frame: target), 1)
+  }
+
   func testAppshotCardUsesReferenceFitHeightForWideAndTallWindows() {
     XCTAssertEqual(AppshotCardLayout.screenshotHeight(pixelWidth: 800, pixelHeight: 200), 58,
       accuracy: 0.001)

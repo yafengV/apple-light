@@ -113,6 +113,7 @@ enum AppshotImage {
 @MainActor final class AppshotCapture: NSObject, SCContentSharingPickerObserver {
   private var continuation: CheckedContinuation<AppshotCaptureResult?, Error>?
   private var onScreenshot: ((AppshotCaptureResult) -> Void)?
+  private var pickerCaptureTask: Task<Void, Never>?
   private var capturing = false
   private var busy = false
   private var lastExternalApp: NSRunningApplication?
@@ -164,6 +165,7 @@ enum AppshotImage {
     defer { busy = false; self.onScreenshot = nil }
     if let target = selectedTarget ?? availableTarget(),
       let automatic = try? await captureLastExternalWindow(target) { return automatic }
+    try Task.checkCancellation()
     return try await captureFromPicker()
   }
 
@@ -190,9 +192,13 @@ enum AppshotImage {
     picker.maximumStreamCount = 1
     picker.add(self)
     picker.isActive = true
-    return try await withCheckedThrowingContinuation { continuation in
-      self.continuation = continuation
-      picker.present(using: .window)
+    return try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        self.continuation = continuation
+        picker.present(using: .window)
+      }
+    } onCancel: {
+      Task { @MainActor [weak self] in self?.finish(.success(nil)) }
     }
   }
 
@@ -217,15 +223,20 @@ enum AppshotImage {
     if #available(macOS 15.2, *) {
       window = filter.includedWindows.first
     }
-    Task {
+    pickerCaptureTask = Task {
       do {
-        finish(.success(try await screenshot(filter,
+        let result = try await screenshot(filter,
           applicationName: window?.owningApplication?.applicationName,
           bundleIdentifier: window?.owningApplication?.bundleIdentifier,
           windowTitle: window?.title, pid: window?.owningApplication?.processID,
           applicationIcon: icon(for: window?.owningApplication?.bundleIdentifier),
-          windowFrame: window?.frame)))
-      } catch { finish(.failure(error)) }
+          windowFrame: window?.frame)
+        guard !Task.isCancelled else { return }
+        finish(.success(result))
+      } catch {
+        guard !Task.isCancelled else { return }
+        finish(.failure(error))
+      }
     }
   }
 
@@ -235,7 +246,10 @@ enum AppshotImage {
     windowFrame: CGRect?) async throws -> AppshotCaptureResult {
     // AX collection can take up to its 1.5-second deadline. Start it while
     // ScreenCaptureKit is producing the image so the two waits overlap.
-    async let axTree = AppshotAccessibility.snapshot(pid: pid, windowTitle: windowTitle)
+    let sourceFrame = AppshotImage.sourceFrame(windowFrame: windowFrame,
+      contentRect: filter.contentRect)
+    async let axSnapshot = AppshotAccessibility.snapshot(pid: pid,
+      windowTitle: windowTitle, windowFrame: sourceFrame)
     let size = AppshotImage.size(rect: filter.contentRect, pixelScale: filter.pointPixelScale)
     let configuration = SCStreamConfiguration()
     configuration.width = size.width
@@ -243,18 +257,18 @@ enum AppshotImage {
     configuration.showsCursor = false
     let image = try await SCScreenshotManager.captureImage(
       contentFilter: filter, configuration: configuration)
+    try Task.checkCancellation()
     let encoded = try AppshotImage.encode(image, applicationName: applicationName)
-    let sourceFrame = AppshotImage.sourceFrame(windowFrame: windowFrame,
-      contentRect: filter.contentRect)
     let iconPNG = AppshotIcon.pngData(applicationIcon)
     let previewContext = AppshotContext(appName: applicationName ?? "应用窗口",
       bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: "",
       iconPNG: iconPNG)
     onScreenshot?(AppshotCaptureResult(data: encoded.data, name: encoded.name,
       context: previewContext, sourceFrame: sourceFrame))
-    let collectedAXTree = await axTree
+    let collectedAX = await axSnapshot
     let context = AppshotContext(appName: applicationName ?? "应用窗口",
-      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: collectedAXTree,
+      bundleIdentifier: bundleIdentifier,
+      windowTitle: collectedAX.windowTitle ?? windowTitle, axTree: collectedAX.text,
       iconPNG: iconPNG)
     return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context,
       sourceFrame: sourceFrame)
@@ -270,6 +284,8 @@ enum AppshotImage {
     guard let continuation else { return }
     self.continuation = nil
     onScreenshot = nil
+    pickerCaptureTask?.cancel()
+    pickerCaptureTask = nil
     capturing = false
     let picker = SCContentSharingPicker.shared
     picker.remove(self)

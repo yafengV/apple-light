@@ -185,4 +185,31 @@ final class AppshotHandoffTests: XCTestCase {
     XCTAssertEqual(store.error, "capture failed")
     await store.shutdown()
   }
+
+  @MainActor func testCancelledCaptureRemovesPreviewWithoutShowingAnError() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let screenshot = AppshotCaptureResult(data: try AttachmentFixture.png(),
+      name: "Cancelled Appshot.png", sourceFrame: CGRect(x: 0, y: 0, width: 200, height: 100))
+    let ready = expectation(description: "early screenshot arrived")
+    let capture = Task {
+      await store.captureAppshotWithProgress(draft: "task") { progress in
+        progress(screenshot)
+        ready.fulfill()
+        try await Task.sleep(for: .seconds(10))
+        return nil
+      }
+    }
+    await fulfillment(of: [ready], timeout: 2)
+    XCTAssertNotNil(store.pendingAppshot)
+    capture.cancel()
+    await capture.value
+    XCTAssertNil(store.pendingAppshot)
+    XCTAssertNil(store.library.draftImages["task"])
+    XCTAssertNil(store.error)
+    await store.shutdown()
+  }
 }

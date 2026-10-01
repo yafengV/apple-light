@@ -63,7 +63,7 @@ extension WorkspaceStore {
     } catch {
       importingImages = false
       clearPendingAppshot(draft: key, cancelHandoff: true)
-      self.error = error.localizedDescription
+      if !Task.isCancelled { self.error = error.localizedDescription }
     }
   }
 
