@@ -230,6 +230,9 @@ enum AppshotImage {
     applicationName: String?, bundleIdentifier: String?,
     windowTitle: String?, pid: pid_t?, applicationIcon: NSImage?,
     windowFrame: CGRect?) async throws -> AppshotCaptureResult {
+    // AX collection can take up to its 1.5-second deadline. Start it while
+    // ScreenCaptureKit is producing the image so the two waits overlap.
+    async let axTree = AppshotAccessibility.snapshot(pid: pid, windowTitle: windowTitle)
     let size = AppshotImage.size(rect: filter.contentRect, pixelScale: filter.pointPixelScale)
     let configuration = SCStreamConfiguration()
     configuration.width = size.width
@@ -238,9 +241,9 @@ enum AppshotImage {
     let image = try await SCScreenshotManager.captureImage(
       contentFilter: filter, configuration: configuration)
     let encoded = try AppshotImage.encode(image, applicationName: applicationName)
-    let axTree = await AppshotAccessibility.snapshot(pid: pid, windowTitle: windowTitle)
+    let collectedAXTree = await axTree
     let context = AppshotContext(appName: applicationName ?? "应用窗口",
-      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: axTree,
+      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: collectedAXTree,
       iconPNG: AppshotIcon.pngData(applicationIcon))
     return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context,
       sourceFrame: AppshotImage.sourceFrame(windowFrame: windowFrame,
