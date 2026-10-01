@@ -18,6 +18,9 @@ final class WorkspaceStore {
   }
   var dictation = SpeechDictation()
   @ObservationIgnored let appshotCapture = AppshotCapture()
+  var appshotHandoff: AppshotHandoff?
+  @ObservationIgnored let appshotHandoffAnimator = AppshotHandoffAnimator()
+  @ObservationIgnored var appshotHandoffStarted = false
   @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences
   @ObservationIgnored var shortcutCaptureCount = 0
@@ -1302,6 +1305,8 @@ final class WorkspaceStore {
     for session in fileTabWorkspaces.values { captureFileEditorRecovery(from: session) }
     dictation.stop()
     shuttingDown = true
+    appshotHandoffAnimator.cancel()
+    appshotHandoff = nil
     await shutdownMCPConnections()
     for id in Array(codexPendingQuestions.keys) { cancelCodexQuestion(id) }
     for id in Array(codexPendingElicitations.keys) { cancelCodexElicitation(id) }

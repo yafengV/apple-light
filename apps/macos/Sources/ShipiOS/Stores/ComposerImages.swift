@@ -15,12 +15,14 @@ extension WorkspaceStore {
   }
 
   func captureAppshot(draft key: String,
+    ownerWindow: NSWindow? = nil,
     capture: () async throws -> AppshotCaptureResult?) async {
     guard libraryLoaded, !shuttingDown, !importingImages, !importingFiles else { return }
     guard (library.draftImages[key]?.count ?? 0) < ImageAttachmentStorage.maxCount else {
       error = "每条消息最多添加 8 张图片。"
       return
     }
+    let captureOwner = ownerWindow ?? NSApp?.keyWindow
     importingImages = true
     do {
       let result = try await capture()
@@ -29,10 +31,45 @@ extension WorkspaceStore {
       let item: ImageImport = result.context.map {
         .appshot(result.data, name: result.name, context: $0)
       } ?? .bytes(result.data, name: result.name)
-      _ = await importImages([item], draft: key)
+      let imported = await importImages([item], draft: key)
+      guard imported, let sourceFrame = result.sourceFrame,
+        let captureOwner, !appearance.shouldReduceMotion,
+        let attachment = library.draftImages[key]?.last,
+        attachment.name == result.name else { return }
+      appshotHandoffAnimator.cancel()
+      appshotHandoffStarted = false
+      appshotHandoff = AppshotHandoff(imageID: attachment.id,
+        ownerWindow: captureOwner, sourceFrame: sourceFrame,
+        screenshot: result.data)
+      Task { @MainActor [weak self] in
+        try? await Task.sleep(for: .seconds(2))
+        guard let self, self.appshotHandoff?.imageID == attachment.id else { return }
+        self.appshotHandoffAnimator.cancel()
+        self.appshotHandoff = nil
+        self.appshotHandoffStarted = false
+      }
     } catch {
       importingImages = false
       self.error = error.localizedDescription
+    }
+  }
+
+  func startAppshotHandoff(imageID: UUID, destinationFrame: CGRect, window: NSWindow) {
+    guard let handoff = appshotHandoff, handoff.imageID == imageID,
+      handoff.ownerWindow === window, window.isVisible,
+      !window.isMiniaturized, !appshotHandoffStarted else { return }
+    let visible = destinationFrame.intersection(window.frame)
+    guard !visible.isNull, visible.width >= destinationFrame.width * 0.5,
+      visible.height >= destinationFrame.height * 0.5 else { return }
+    appshotHandoffStarted = true
+    let started = appshotHandoffAnimator.start(handoff, destinationFrame: destinationFrame) { [weak self] in
+      guard let self, self.appshotHandoff?.imageID == imageID else { return }
+      self.appshotHandoff = nil
+      self.appshotHandoffStarted = false
+    }
+    if !started {
+      appshotHandoff = nil
+      appshotHandoffStarted = false
     }
   }
 

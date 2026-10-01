@@ -19,8 +19,13 @@ struct ImageAttachmentsView: View {
                 ZStack(alignment: .topTrailing) {
                   Button { open(image) } label: {
                     AppshotCardVisual(image: image, context: context, root: store.dataRoot)
+                      .background {
+                        if removable { AppshotHandoffAnchor(imageID: image.id, store: store) }
+                      }
+                      .opacity(removable && store.appshotHandoff?.imageID == image.id ? 0 : 1)
                   }
                   .buttonStyle(.plain).focusable().focused($focusedImage, equals: image.id)
+                  .disabled(removable && store.appshotHandoff?.imageID == image.id)
                   .accessibilityLabel("预览应用窗口：\(context.displayTitle)")
                   .padding(.top, removable ? 0 : 10)
                   .onKeyPress(keys: [.space, .return], phases: .down) { press in

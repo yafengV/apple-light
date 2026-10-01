@@ -5,9 +5,10 @@ struct AppshotCaptureResult: Sendable {
   let data: Data
   let name: String
   let context: AppshotContext?
+  let sourceFrame: CGRect?
 
-  init(data: Data, name: String, context: AppshotContext? = nil) {
-    self.data = data; self.name = name; self.context = context
+  init(data: Data, name: String, context: AppshotContext? = nil, sourceFrame: CGRect? = nil) {
+    self.data = data; self.name = name; self.context = context; self.sourceFrame = sourceFrame
   }
 }
 
@@ -46,6 +47,17 @@ enum AppshotIcon {
 }
 
 enum AppshotImage {
+  static func sourceFrame(windowFrame: CGRect?, contentRect: CGRect) -> CGRect? {
+    for frame in [windowFrame, contentRect].compactMap({ $0 }) {
+      guard frame.minX.isFinite, frame.minY.isFinite,
+        frame.width.isFinite, frame.height.isFinite,
+        frame.width > 0, frame.height > 0,
+        frame.width <= 20_000, frame.height <= 20_000 else { continue }
+      return frame
+    }
+    return nil
+  }
+
   static func filename(applicationName: String?, at date: Date = Date()) -> String {
     let rawName = applicationName ?? ""
     let sanitized = rawName.replacingOccurrences(of: "[/:]", with: "-", options: .regularExpression)
@@ -161,7 +173,8 @@ enum AppshotImage {
       window.owningApplication?.processID == app.processIdentifier else { return nil }
     return try await screenshot(SCContentFilter(desktopIndependentWindow: window),
       applicationName: app.localizedName, bundleIdentifier: app.bundleIdentifier,
-      windowTitle: window.title, pid: app.processIdentifier, applicationIcon: app.icon)
+      windowTitle: window.title, pid: app.processIdentifier, applicationIcon: app.icon,
+      windowFrame: window.frame)
   }
 
   private func captureFromPicker() async throws -> AppshotCaptureResult? {
@@ -207,14 +220,16 @@ enum AppshotImage {
           applicationName: window?.owningApplication?.applicationName,
           bundleIdentifier: window?.owningApplication?.bundleIdentifier,
           windowTitle: window?.title, pid: window?.owningApplication?.processID,
-          applicationIcon: icon(for: window?.owningApplication?.bundleIdentifier))))
+          applicationIcon: icon(for: window?.owningApplication?.bundleIdentifier),
+          windowFrame: window?.frame)))
       } catch { finish(.failure(error)) }
     }
   }
 
   private func screenshot(_ filter: SCContentFilter,
     applicationName: String?, bundleIdentifier: String?,
-    windowTitle: String?, pid: pid_t?, applicationIcon: NSImage?) async throws -> AppshotCaptureResult {
+    windowTitle: String?, pid: pid_t?, applicationIcon: NSImage?,
+    windowFrame: CGRect?) async throws -> AppshotCaptureResult {
     let size = AppshotImage.size(rect: filter.contentRect, pixelScale: filter.pointPixelScale)
     let configuration = SCStreamConfiguration()
     configuration.width = size.width
@@ -227,7 +242,9 @@ enum AppshotImage {
     let context = AppshotContext(appName: applicationName ?? "应用窗口",
       bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: axTree,
       iconPNG: AppshotIcon.pngData(applicationIcon))
-    return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context)
+    return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context,
+      sourceFrame: AppshotImage.sourceFrame(windowFrame: windowFrame,
+        contentRect: filter.contentRect))
   }
 
   private func icon(for bundleIdentifier: String?) -> NSImage? {

@@ -25,6 +25,17 @@ final class AppshotCaptureTests: XCTestCase {
     XCTAssertEqual(large.height, 1_600)
   }
 
+  func testCaptureRetainsUsableSourceWindowFrameForHandoff() {
+    let window = CGRect(x: -420, y: 30, width: 860, height: 540)
+    let content = CGRect(x: 0, y: 0, width: 800, height: 500)
+    XCTAssertEqual(AppshotImage.sourceFrame(windowFrame: window, contentRect: content), window)
+    XCTAssertEqual(AppshotImage.sourceFrame(windowFrame: .zero, contentRect: content), content)
+    XCTAssertNil(AppshotImage.sourceFrame(windowFrame: CGRect(x: CGFloat.nan, y: 0, width: 800, height: 500),
+      contentRect: .zero))
+    XCTAssertNil(AppshotImage.sourceFrame(windowFrame: nil,
+      contentRect: CGRect(x: 0, y: 0, width: 30_000, height: 500)))
+  }
+
   func testAppshotCardUsesReferenceFitHeightForWideAndTallWindows() {
     XCTAssertEqual(AppshotCardLayout.screenshotHeight(pixelWidth: 800, pixelHeight: 200), 58,
       accuracy: 0.001)
