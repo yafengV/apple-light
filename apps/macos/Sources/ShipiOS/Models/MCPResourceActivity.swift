@@ -6,6 +6,7 @@ struct MCPResourceActivity: Codable, Equatable {
   let source: CodexWebSource
   let mimeType: String?
   let activities: [TaskExternalSourceActivity]
+  var usesProviderID: Bool? = nil
 
   static func parse(_ result: JSONValue) -> [Self]? {
     guard result["isError"].boolean != true,

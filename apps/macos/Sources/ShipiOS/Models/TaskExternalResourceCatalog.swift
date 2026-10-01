@@ -45,8 +45,10 @@ struct TaskExternalResourceCatalog {
       }
       for execution in run.toolExecutions where execution.status == .succeeded {
         for resource in execution.mcpResourceActivities
-          ?? MCPResourceActivity.restored(from: execution.output) ?? [] {
-          let providerKey = "provider:\(execution.serverID.uuidString):\(resource.id)"
+          ?? MCPResourceActivity.extract(from: execution.output,
+            serverName: execution.serverName, toolName: execution.toolName) {
+          let providerKey = resource.usesProviderID == false ? nil
+            : "provider:\(execution.serverID.uuidString):\(resource.id)"
           catalog.add(resource.source, activities: resource.activities, runID: run.id,
             providerKey: providerKey, titlePriority: catalog.isDescriptive(resource.source) ? 2 : 0)
         }

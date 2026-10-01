@@ -131,7 +131,8 @@ extension WorkspaceStore {
       }
       execution.status = result["isError"].boolean == true ? .failed : .succeeded
       execution.mcpResourceActivities = execution.status == .succeeded
-        ? MCPResourceActivity.parse(result) : nil
+        ? MCPResourceActivity.extract(result, serverName: execution.serverName,
+          toolName: execution.toolName) : nil
       execution.output = result.pretty
       try saveToolExecution(execution, runID: runID)
       return result.pretty

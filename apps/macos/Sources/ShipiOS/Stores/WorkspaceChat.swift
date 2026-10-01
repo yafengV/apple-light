@@ -659,7 +659,8 @@ extension WorkspaceStore {
         let output = result["Ok"]
         execution.status = output["isError"].boolean == true ? .failed : .succeeded
         execution.mcpResourceActivities = execution.status == .succeeded
-          ? MCPResourceActivity.parse(output) : nil
+          ? MCPResourceActivity.extract(output, serverName: execution.serverName,
+            toolName: execution.toolName) : nil
         execution.output = String(output.pretty.prefix(65_536))
       } else {
         execution.status = .failed
