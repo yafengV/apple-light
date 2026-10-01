@@ -70,6 +70,7 @@ struct AppshotIntroDialog: View {
 /// A native ShipiOS illustration that keeps the reference dialog's compact
 /// window-and-corners silhouette without bundling the reference artwork.
 struct AppshotIntroArtwork: View {
+  var width: CGFloat = 88
   private let blue = Color(red: 0.02, green: 0.47, blue: 0.98)
 
   var body: some View {
@@ -97,6 +98,8 @@ struct AppshotIntroArtwork: View {
       .frame(width: 45, alignment: .leading)
     }
     .frame(width: 88, height: 77)
+    .scaleEffect(width / 88, anchor: .topLeading)
+    .frame(width: width, height: 77 * width / 88, alignment: .topLeading)
   }
 
   private var corners: Path {

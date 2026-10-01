@@ -7,8 +7,7 @@ struct AppshotSettingsView: View {
     SettingsScrollPage(title: SettingsPage.appshots.title, actions: {}, controls: {}) {
       VStack(alignment: .leading, spacing: 20) {
         HStack(alignment: .top, spacing: 16) {
-          Image(systemName: "macwindow.on.rectangle")
-            .font(.system(size: 30, weight: .light))
+          AppshotIntroArtwork(width: 32)
             .frame(width: 40).accessibilityHidden(true)
           VStack(alignment: .leading, spacing: 6) {
             Text("截取应用快照，向 ShipiOS 展示你最前端的窗口")
