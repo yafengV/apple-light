@@ -53,16 +53,16 @@ extension WorkspaceStore {
   func chooseFiles(draft key: String, window: NSWindow) {
     guard !importingFiles, !importingImages else { return }
     let panel = NSOpenPanel()
-    panel.title = "添加文件"
-    panel.message = "文本、代码、CSV、JSON 或 PDF；每个文件最多 5 MiB。PDF 仅提取文字。"
+    panel.title = "添加文件与文件夹"
+    panel.message = "可选图片、文本、代码、PDF 或文件夹；文件夹会保存有界内容快照。"
     panel.allowsMultipleSelection = true
     panel.canChooseFiles = true
-    panel.canChooseDirectories = false
-    panel.allowedContentTypes = [.data]
+    panel.canChooseDirectories = true
+    panel.allowedContentTypes = []
     panel.beginSheetModal(for: window) { [weak self] response in
       guard response == .OK else { return }
       let urls = panel.urls
-      Task { @MainActor in _ = await self?.importFiles(urls, draft: key) }
+      Task { @MainActor in await self?.importDroppedFiles(urls, draft: key) }
     }
   }
 
@@ -104,7 +104,12 @@ extension WorkspaceStore {
 
   func importDroppedFiles(_ urls: [URL], draft key: String) async {
     // Import by type so ordinary files no longer enter the image decoder.
-    let images = urls.filter { UTType(filenameExtension: $0.pathExtension)?.conforms(to: .image) == true }
+    let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "tif", "tiff"]
+    let images = urls.filter {
+      guard (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true else { return false }
+      return imageExtensions.contains($0.pathExtension.lowercased())
+        || UTType(filenameExtension: $0.pathExtension)?.conforms(to: .image) == true
+    }
     let files = urls.filter { !images.contains($0) }
     if !files.isEmpty, !(await importFiles(files, draft: key)) { return }
     if !images.isEmpty { _ = await importImages(images.map(ImageImport.file), draft: key) }

@@ -18,10 +18,11 @@ struct FileAttachmentsView: View {
                 Label {
                   VStack(alignment: .leading, spacing: 3) {
                     Text(file.name).lineLimit(1).truncationMode(.middle)
-                    Text(file.isPDF ? "PDF · 文字内容" : ByteCountFormatter.string(fromByteCount: Int64(file.byteCount), countStyle: .file))
+                    Text(file.representsDirectory ? "文件夹 · 内容快照" : file.isPDF ? "PDF · 文字内容"
+                      : ByteCountFormatter.string(fromByteCount: Int64(file.byteCount), countStyle: .file))
                       .foregroundStyle(.secondary).appFont(size: 10)
                   }.frame(maxWidth: 170, alignment: .leading)
-                } icon: { Image(systemName: file.isPDF ? "doc.richtext" : "doc.text") }
+                } icon: { Image(systemName: file.representsDirectory ? "folder" : file.isPDF ? "doc.richtext" : "doc.text") }
               }.buttonStyle(.plain).accessibilityLabel("预览文件：\(file.name)")
               if removable {
                 Button {
@@ -55,7 +56,8 @@ struct FileAttachmentPreview: View {
         ScrollView { Text(content.isEmpty ? "空文件" : content).textSelection(.enabled)
           .font(.system(size: 12, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading) }
       } else { ProgressView("正在读取文件…").frame(maxWidth: .infinity, maxHeight: .infinity) }
-      Text(file.isPDF ? "发送时包含以上提取的文字，不包含 PDF 页面图像。" : "发送时包含以上文件内容。")
+      Text(file.representsDirectory ? "发送时包含以上文件夹快照。" : file.isPDF
+        ? "发送时包含以上提取的文字，不包含 PDF 页面图像。" : "发送时包含以上文件内容。")
         .appFont(.caption).foregroundStyle(.secondary)
     }.padding(20).frame(width: 680, height: 480)
       .task(id: file.id) {

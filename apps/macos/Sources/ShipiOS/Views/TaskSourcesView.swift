@@ -13,7 +13,7 @@ struct TaskSourcesListView: View {
       switch source {
       case .file(let file):
         Button { openFile(file) } label: {
-          Label(file.name, systemImage: file.isPDF ? "doc.richtext" : "doc.text")
+          Label(file.name, systemImage: file.representsDirectory ? "folder" : file.isPDF ? "doc.richtext" : "doc.text")
             .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
         }
         .buttonStyle(.plain).help("预览文件：\(file.name)")
@@ -210,7 +210,7 @@ private struct TaskAttachmentSourceSection: View {
       switch source {
       case .file(let file):
         Button { openFile(file) } label: {
-          Label(file.name, systemImage: file.isPDF ? "doc.richtext" : "doc.text")
+          Label(file.name, systemImage: file.representsDirectory ? "folder" : file.isPDF ? "doc.richtext" : "doc.text")
             .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
         }.buttonStyle(.plain).help("预览文件：\(file.name)")
       case .image(let image):

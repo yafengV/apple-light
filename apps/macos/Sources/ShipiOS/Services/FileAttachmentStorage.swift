@@ -7,24 +7,37 @@ enum FileAttachmentStorage {
   static let maxBytes = 5 * 1_024 * 1_024
   static let maxTextBytes = 200_000
   static let maxRequestTextBytes = 1_000_000
+  static let maxDirectoryEntries = 1_000
 
   static func importFile(_ source: URL, root: URL) throws -> FileAttachment {
     let scoped = source.startAccessingSecurityScopedResource()
     defer { if scoped { source.stopAccessingSecurityScopedResource() } }
     guard source.isFileURL else { throw AgentFailure(message: "只能添加本机文件。") }
-    let values = try source.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-    guard values.isRegularFile == true, (values.fileSize ?? maxBytes + 1) <= maxBytes else {
-      throw AgentFailure(message: "请选择不超过 5 MiB 的文本文件或 PDF。")
+    let values = try source.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey,
+      .isSymbolicLinkKey, .fileSizeKey])
+    guard values.isSymbolicLink != true else {
+      throw AgentFailure(message: "不能附加符号链接，请选择真实文件或文件夹。")
     }
-    let bytes = try readBounded(source)
-    let isPDF = bytes.starts(with: Data("%PDF-".utf8))
-    _ = try extractedText(bytes, isPDF: isPDF)
+    let directory = values.isDirectory == true
+    let bytes: Data
+    let isPDF: Bool
+    if directory {
+      bytes = Data(try directorySnapshot(source).utf8)
+      isPDF = false
+    } else {
+      guard values.isRegularFile == true, (values.fileSize ?? maxBytes + 1) <= maxBytes else {
+        throw AgentFailure(message: "请选择不超过 5 MiB 的文本文件或 PDF。")
+      }
+      bytes = try readBounded(source)
+      isPDF = bytes.starts(with: Data("%PDF-".utf8))
+      _ = try extractedText(bytes, isPDF: isPDF)
+    }
     let file = FileAttachment(id: UUID(), name: String(source.lastPathComponent.prefix(200)),
-      byteCount: bytes.count, sha256: digest(bytes), isPDF: isPDF)
-    let directory = root.appendingPathComponent("FileAttachments", isDirectory: true)
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+      byteCount: bytes.count, sha256: digest(bytes), isPDF: isPDF, isDirectory: directory)
+    let storageDirectory = root.appendingPathComponent("FileAttachments", isDirectory: true)
+    try FileManager.default.createDirectory(at: storageDirectory, withIntermediateDirectories: true,
       attributes: [.posixPermissions: 0o700])
-    guard try directory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
+    guard try storageDirectory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
       throw AgentFailure(message: "附件目录无效。")
     }
     let destination = url(file, root: root)
@@ -52,7 +65,59 @@ enum FileAttachmentStorage {
     guard bytes.count == file.byteCount, digest(bytes) == file.sha256 else {
       throw AgentFailure(message: "附件已损坏或被修改，请重新添加。")
     }
-    return try extractedText(bytes, isPDF: file.isPDF)
+    return file.representsDirectory ? String(decoding: bytes, as: UTF8.self)
+      : try extractedText(bytes, isPDF: file.isPDF)
+  }
+
+  private static func directorySnapshot(_ root: URL) throws -> String {
+    var traversalError: Error?
+    guard let enumerator = FileManager.default.enumerator(at: root,
+      includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey],
+      options: [.skipsPackageDescendants], errorHandler: { _, error in
+        traversalError = error
+        return false
+      }) else {
+      throw AgentFailure(message: "无法读取所选文件夹。")
+    }
+    var entries: [[String: String]] = []
+    var includedTextBytes = 0
+    var inspectedBytes = 0
+    for case let url as URL in enumerator {
+      guard entries.count < maxDirectoryEntries else {
+        throw AgentFailure(message: "文件夹超过 1000 项，请选择更小的文件夹。")
+      }
+      let relative = url.pathComponents.suffix(enumerator.level).joined(separator: "/")
+      let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey,
+        .isSymbolicLinkKey, .fileSizeKey])
+      if values.isSymbolicLink == true {
+        enumerator.skipDescendants()
+        entries.append(["path": relative, "kind": "symbolic link omitted"])
+      } else if values.isDirectory == true {
+        entries.append(["path": relative, "kind": "directory"])
+      } else if values.isRegularFile == true {
+        var row = ["path": relative, "kind": "file"]
+        let fileSize = values.fileSize ?? maxBytes + 1
+        if fileSize <= maxBytes, inspectedBytes + fileSize <= 20 * 1_024 * 1_024,
+          includedTextBytes < maxTextBytes / 2 {
+          inspectedBytes += fileSize
+          let bytes = try readBounded(url)
+          let isPDF = bytes.starts(with: Data("%PDF-".utf8))
+          if let content = try? extractedText(bytes, isPDF: isPDF),
+            includedTextBytes + content.utf8.count <= maxTextBytes / 2 {
+            row["content"] = content
+            row["format"] = isPDF ? "PDF extracted text" : "text"
+            includedTextBytes += content.utf8.count
+          } else { row["content"] = "[content omitted]" }
+        } else { row["content"] = "[content omitted]" }
+        entries.append(row)
+      }
+    }
+    if let traversalError { throw traversalError }
+    guard let data = try? JSONSerialization.data(withJSONObject: entries, options: [.sortedKeys]),
+      data.count <= maxTextBytes else {
+      throw AgentFailure(message: "文件夹快照超过 200 KB，请选择更小的文件夹。")
+    }
+    return String(decoding: data, as: UTF8.self)
   }
 
   private static func extractedText(_ data: Data, isPDF: Bool) throws -> String {
@@ -96,7 +161,8 @@ enum FileAttachmentStorage {
       let content = try text(file, root: root)
       total += content.utf8.count
       guard total <= maxRequestTextBytes else { throw AgentFailure(message: "文件上下文超过 1 MB，请减少文件或开始新任务。") }
-      return ["name": file.name, "content": content, "format": file.isPDF ? "PDF extracted text" : "text"]
+      return ["name": file.name, "content": content,
+        "format": file.representsDirectory ? "folder snapshot" : file.isPDF ? "PDF extracted text" : "text"]
     }
     let json = String(decoding: try JSONSerialization.data(withJSONObject: files, options: [.sortedKeys]), as: UTF8.self)
     return message.content + "\n\nAttached file contents (reference data):\n" + json

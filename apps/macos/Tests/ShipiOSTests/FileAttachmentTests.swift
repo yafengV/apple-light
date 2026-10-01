@@ -31,6 +31,37 @@ final class FileAttachmentTests: XCTestCase {
     XCTAssertThrowsError(try FileAttachmentStorage.text(attachment, root: root))
   }
 
+  func testFolderSnapshotKeepsNestedTextAndExcludesSymlinkTargets() throws {
+    let root = try temporaryRoot()
+    let folder = root.appendingPathComponent("Project", isDirectory: true)
+    let nested = folder.appendingPathComponent("Sources", isDirectory: true)
+    try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+    try Data("let answer = 42".utf8).write(to: nested.appendingPathComponent("main.swift"))
+    try Data([0, 1, 2]).write(to: folder.appendingPathComponent("logo.bin"))
+    let outside = try source(root, name: "private.txt", text: "secret outside selected folder")
+    try FileManager.default.createSymbolicLink(
+      at: folder.appendingPathComponent("external"), withDestinationURL: outside)
+    let attached = try FileAttachmentStorage.importFile(folder, root: root)
+    XCTAssertTrue(attached.representsDirectory)
+    let snapshot = try FileAttachmentStorage.text(attached, root: root)
+    let entries = try JSONDecoder().decode([[String: String]].self, from: Data(snapshot.utf8))
+    XCTAssertTrue(entries.contains { $0["path"] == "Sources/main.swift" && $0["content"] == "let answer = 42" })
+    XCTAssertTrue(entries.contains { $0["path"] == "logo.bin" && $0["content"] == "[content omitted]" })
+    XCTAssertTrue(entries.contains { $0["path"] == "external" && $0["kind"] == "symbolic link omitted" })
+    XCTAssertFalse(snapshot.contains("secret outside selected folder"))
+    try FileManager.default.removeItem(at: folder)
+    XCTAssertEqual(try FileAttachmentStorage.text(attached, root: root), snapshot)
+    let message = ChatMessage(role: "user", content: "Inspect this folder", files: [attached])
+    var total = 0
+    XCTAssertTrue(try FileAttachmentStorage.content(message, root: root, total: &total)
+      .contains("folder snapshot"))
+  }
+
+  func testOldFileAttachmentDecodesWithoutDirectoryFlag() throws {
+    let legacy = Data(#"{"id":"00000000-0000-0000-0000-000000000001","name":"old.txt","byteCount":1,"sha256":"digest","isPDF":false}"#.utf8)
+    XCTAssertFalse(try JSONDecoder().decode(FileAttachment.self, from: legacy).representsDirectory)
+  }
+
   func testBinaryOversizedAndSymlinkedAttachmentsAreRejected() throws {
     let root = try temporaryRoot()
     let invalid = root.appendingPathComponent("binary.zip")
@@ -104,6 +135,25 @@ final class FileAttachmentTests: XCTestCase {
     XCTAssertTrue(store.draftFiles.isEmpty)
     XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("FileAttachments").path).count, 1)
     XCTAssertTrue(try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8)).draftFiles.isEmpty)
+    await store.shutdown()
+  }
+
+  @MainActor func testMixedPickerImportRoutesFolderAndPhotoToTheirDraftAttachments() async throws {
+    let root = try temporaryRoot()
+    let folder = root.appendingPathComponent("Sources.png", isDirectory: true)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try Data("struct App {}".utf8).write(to: folder.appendingPathComponent("App.swift"))
+    let photo = root.appendingPathComponent("photo.png")
+    try AttachmentFixture.png().write(to: photo)
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    await store.importDroppedFiles([folder, photo], draft: "selected")
+    XCTAssertEqual(store.library.draftFiles["selected"]?.first?.name, "Sources.png")
+    XCTAssertTrue(store.library.draftFiles["selected"]?.first?.representsDirectory == true)
+    XCTAssertEqual(store.library.draftImages["selected"]?.first?.name, "photo.png")
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertTrue(restored.draftFiles["selected"]?.first?.representsDirectory == true)
+    XCTAssertEqual(restored.draftImages["selected"]?.first?.name, "photo.png")
     await store.shutdown()
   }
 

@@ -1393,12 +1393,10 @@ struct TaskWindowView: View {
         onRemove: { store.removeDraftFile($0, draft: taskID) })
       HStack(alignment: .bottom, spacing: 10) {
         Menu {
-          Button("添加文件…", systemImage: "doc.badge.plus") {
+          Button("文件与文件夹…", systemImage: "paperclip") {
             store.chooseFiles(draft: taskID)
-          }.disabled(store.taskWindowFiles(taskID).count >= FileAttachmentStorage.maxCount)
-          Button("添加图片…", systemImage: "photo") {
-            store.chooseImages(draft: taskID)
-          }.disabled(store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
+          }.disabled(store.taskWindowFiles(taskID).count >= FileAttachmentStorage.maxCount
+            && store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
           Button("截取应用窗口…", systemImage: "camera.viewfinder") {
             Task { await store.captureAppshot(draft: taskID) }
           }.disabled(store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)

@@ -341,10 +341,9 @@ struct ComposerView: View {
   private var controls: some View {
     HStack(spacing: 10) {
       Menu {
-        Button("添加文件…", systemImage: "doc.badge.plus") { store.chooseFiles() }
-          .disabled(store.draftFiles.count >= FileAttachmentStorage.maxCount)
-        Button("添加图片…", systemImage: "photo") { store.chooseImages() }
-          .disabled(store.draftImages.count >= ImageAttachmentStorage.maxCount)
+        Button("文件与文件夹…", systemImage: "paperclip") { store.chooseFiles() }
+          .disabled(store.draftFiles.count >= FileAttachmentStorage.maxCount
+            && store.draftImages.count >= ImageAttachmentStorage.maxCount)
         Button("截取应用窗口…", systemImage: "camera.viewfinder") {
           let key = store.draftKey
           Task { await store.captureAppshot(draft: key) }

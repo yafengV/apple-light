@@ -66,7 +66,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "clear-prompt", title: "清除提示", icon: "eraser", shortcut: ""),
     .init(id: "add-photos", title: "添加照片…", icon: "photo", shortcut: ""),
     .init(id: "capture-appshot", title: "截取应用窗口…", icon: "camera.viewfinder", shortcut: ""),
-    .init(id: "add-files", title: "附加文件…", icon: "paperclip", shortcut: ""),
+    .init(id: "add-files", title: "附加文件与文件夹…", icon: "paperclip", shortcut: ""),
     .init(id: "dictation", title: "开始或结束听写", icon: "mic", shortcut: "⌃⇧D"),
     .init(id: "fork", title: "分叉到新任务", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "open-side-chat", title: "打开临时侧聊", icon: "bubble.left.and.bubble.right", shortcut: "⌘⌥S"),
