@@ -11,10 +11,11 @@ struct ImageGalleryPreview: View {
   @State private var raster: CGImage?
   @State private var error: String?
   @State private var saveError: String?
+  @State private var showAccessibilityText = false
   @State private var retry = UUID()
   @State private var zoom = ImagePreviewZoom(naturalSize: .zero, viewport: .zero)
   @FocusState private var focused: Control?
-  private enum Control: Hashable { case close, previous, next, smaller, larger, save, retry }
+  private enum Control: Hashable { case close, previous, next, smaller, larger, save, retry, textToggle }
 
   init(image: ImagePreviewItem, images: [ImagePreviewItem], root: URL, close: @escaping () -> Void) {
     self.images = images.contains(where: { $0.id == image.id }) ? images : [image]
@@ -24,11 +25,13 @@ struct ImageGalleryPreview: View {
   }
   private var index: Int { images.firstIndex { $0.id == selectedID } ?? 0 }
   private var image: ImagePreviewItem { images[index] }
+  private var showingText: Bool { showAccessibilityText && image.accessibilityText != nil }
   private var controls: [Control] {
-    [.close] + (raster == nil ? [] : [.save]) + (index > 0 ? [.previous] : [])
+    (image.accessibilityText == nil ? [] : [.textToggle])
+      + (raster == nil ? [] : [.save]) + [.close] + (index > 0 ? [.previous] : [])
       + (index + 1 < images.count ? [.next] : []) + (error == nil ? [] : [.retry])
-      + (raster != nil && zoom.percent > zoom.minimum + 0.001 ? [.smaller] : [])
-      + (raster != nil && zoom.percent < 500 ? [.larger] : [])
+      + (raster != nil && !showingText && zoom.percent > zoom.minimum + 0.001 ? [.smaller] : [])
+      + (raster != nil && !showingText && zoom.percent < 500 ? [.larger] : [])
   }
 
   var body: some View {
@@ -37,6 +40,19 @@ struct ImageGalleryPreview: View {
         Color.black.opacity(0.9).onTapGesture(perform: close).accessibilityHidden(true)
         VStack(spacing: 16) {
           HStack(spacing: 12) {
+            if image.accessibilityText != nil {
+              Button { showAccessibilityText.toggle() } label: {
+                Label("查看文字", systemImage: "text.alignleft")
+                  .appFont(size: 13).padding(.horizontal, 12).frame(height: 36)
+              }
+              .buttonStyle(.plain)
+              .background(showingText ? .white.opacity(0.23) : .white.opacity(0.1),
+                in: Capsule())
+              .focusable().focused($focused, equals: .textToggle)
+              .accessibilityLabel(showingText ? "显示截图" : "显示辅助功能文字")
+              .accessibilityValue(showingText ? "已选中" : "未选中")
+              .help(showingText ? "显示截图" : "显示辅助功能文字")
+            }
             Spacer()
             button(.save, title: "保存图片", symbol: "arrow.down.to.line") { save() }
               .disabled(raster == nil)
@@ -53,16 +69,18 @@ struct ImageGalleryPreview: View {
               .padding(.horizontal, 16).padding(.vertical, 8)
               .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
             if let saveError { Text(saveError).appFont(.caption).foregroundStyle(.red) }
-            HStack(spacing: 4) {
-              button(.smaller, title: "缩小图片", symbol: "minus.magnifyingglass") { step(-1) }
-                .disabled(raster == nil || zoom.percent <= zoom.minimum + 0.001)
-              Text(raster == nil ? "—" : "\(Int(zoom.percent.rounded()))%")
-                .monospacedDigit().frame(minWidth: 56).accessibilityLabel("图片缩放比例")
-                .accessibilityValue(raster == nil ? "—" : "\(Int(zoom.percent.rounded()))%")
-              button(.larger, title: "放大图片", symbol: "plus.magnifyingglass") { step(1) }
-                .disabled(raster == nil || zoom.percent >= 500)
-            }.padding(4).background(.white.opacity(0.12), in: Capsule())
-              .help("⌘+ 放大，⌘− 缩小，⌘0 适应窗口；拖动或滚动查看放大后的图片")
+            if !showingText {
+              HStack(spacing: 4) {
+                button(.smaller, title: "缩小图片", symbol: "minus.magnifyingglass") { step(-1) }
+                  .disabled(raster == nil || zoom.percent <= zoom.minimum + 0.001)
+                Text(raster == nil ? "—" : "\(Int(zoom.percent.rounded()))%")
+                  .monospacedDigit().frame(minWidth: 56).accessibilityLabel("图片缩放比例")
+                  .accessibilityValue(raster == nil ? "—" : "\(Int(zoom.percent.rounded()))%")
+                button(.larger, title: "放大图片", symbol: "plus.magnifyingglass") { step(1) }
+                  .disabled(raster == nil || zoom.percent >= 500)
+              }.padding(4).background(.white.opacity(0.12), in: Capsule())
+                .help("⌘+ 放大，⌘− 缩小，⌘0 适应窗口；拖动或滚动查看放大后的图片")
+            }
           }.padding(.bottom, 12)
         }.padding(20).frame(width: geometry.size.width, height: geometry.size.height)
       }.foregroundStyle(.white).preferredColorScheme(.dark)
@@ -91,7 +109,25 @@ struct ImageGalleryPreview: View {
   }
 
   @ViewBuilder private var viewport: some View {
-    if let raster {
+    if showingText, let text = image.accessibilityText {
+      VStack(alignment: .leading, spacing: 0) {
+        Text("纯文本").appFont(size: 13)
+          .foregroundStyle(.white.opacity(0.7))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 20).padding(.vertical, 12)
+        Divider().overlay(.white.opacity(0.16))
+        ScrollView {
+          Text(text).appFont(size: 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled).padding(20)
+        }.background(.black.opacity(0.22))
+      }
+      .frame(maxWidth: 900, maxHeight: 700)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+      .clipShape(RoundedRectangle(cornerRadius: 24))
+      .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.16)))
+      .accessibilityLabel("辅助功能文字")
+    } else if let raster {
       let selection = selectedID
       ImagePreviewCanvas(image: raster, requestedPercent: zoom.requestedPercent,
         onChange: { value in
@@ -116,7 +152,7 @@ struct ImageGalleryPreview: View {
       .accessibilityLabel(title).help(title)
   }
   private func step(_ direction: Int) {
-    guard raster != nil else { return }
+    guard raster != nil, !showingText else { return }
     zoom.requestedPercent = zoom.step(direction)
   }
   private func move(_ direction: Int) {
@@ -125,6 +161,7 @@ struct ImageGalleryPreview: View {
     raster = nil
     error = nil
     saveError = nil
+    showAccessibilityText = false
     zoom.requestedPercent = nil
     focused = .close
   }
@@ -135,7 +172,7 @@ struct ImageGalleryPreview: View {
     case .next: guard index + 1 < images.count else { return false }; move(1)
     case .zoomIn: step(1)
     case .zoomOut: step(-1)
-    case .fit: zoom.requestedPercent = nil
+    case .fit: if !showingText { zoom.requestedPercent = nil }
     case .tab(let backwards):
       let available = controls
       let current = focused.flatMap { available.firstIndex(of: $0) }
@@ -150,6 +187,7 @@ struct ImageGalleryPreview: View {
       case .larger: step(1)
       case .save: if raster != nil { save() }
       case .retry: retry = UUID()
+      case .textToggle: if image.accessibilityText != nil { showAccessibilityText.toggle() }
       case nil: return false
       }
     }

@@ -5,6 +5,28 @@ import XCTest
 @testable import ShipiOS
 
 final class ImagePreviewSourceTests: XCTestCase {
+  func testOnlyAppshotsWithVisibleAccessibilityTextOfferTextPreview() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let screenshot = try ImageAttachmentStorage.importData(AttachmentFixture.png(),
+      name: "Appshot.png", root: root,
+      appshot: AppshotContext(appName: "Xcode", bundleIdentifier: nil,
+        windowTitle: nil, axTree: "  AXWindow | Editor\nAXButton | Run  "))
+    XCTAssertEqual(ImagePreviewItem(screenshot).accessibilityText,
+      "AXWindow | Editor\nAXButton | Run")
+    let empty = try ImageAttachmentStorage.importData(AttachmentFixture.png(),
+      name: "empty.png", root: root,
+      appshot: AppshotContext(appName: "Xcode", bundleIdentifier: nil,
+        windowTitle: nil, axTree: " \n "))
+    XCTAssertNil(ImagePreviewItem(empty).accessibilityText)
+    let ordinary = try ImageAttachmentStorage.importData(AttachmentFixture.png(),
+      name: "ordinary.png", root: root)
+    XCTAssertNil(ImagePreviewItem(ordinary).accessibilityText)
+    let tool = ImagePreviewItem(blockID: 0,
+      base64: try AttachmentFixture.png().base64EncodedString(), mime: "image/png")
+    XCTAssertNil(tool.accessibilityText)
+  }
+
   func testToolGalleryPreservesBlockOrderIncludingDuplicateImagesAndExcludesOtherContent() throws {
     let bytes = try AttachmentFixture.png().base64EncodedString()
     let document = MCPResultDocument.parse(JSONValue.object(["content": .array([

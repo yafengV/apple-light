@@ -28,6 +28,13 @@ struct ImagePreviewItem: Identifiable, Equatable, Sendable {
     source = .tool(base64: base64, mime: mime)
   }
 
+  var accessibilityText: String? {
+    guard case .attachment(let attachment) = source,
+      let text = attachment.appshot?.axTree.trimmingCharacters(in: .whitespacesAndNewlines),
+      !text.isEmpty else { return nil }
+    return text
+  }
+
   func data(root: URL) throws -> Data {
     switch source {
     case .attachment(let image): return try ImageAttachmentStorage.data(image, root: root)
