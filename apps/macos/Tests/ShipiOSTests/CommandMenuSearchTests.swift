@@ -81,6 +81,8 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(groups["archive"], .chat)
     XCTAssertEqual(groups["plan"], .chat)
     XCTAssertEqual(groups["clear-prompt"], .chat)
+    XCTAssertEqual(groups["add-photos"], .chat)
+    XCTAssertEqual(groups["add-files"], .chat)
     XCTAssertEqual(groups["toggle-worktree-mode"], .chat)
     XCTAssertEqual(groups["open-task-window"], .chat)
     XCTAssertEqual(groups["next-task"], .navigation)
@@ -147,6 +149,31 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(store.taskWindowDraft(task.id), "Other window prompt")
     store.openSettings(.general)
     XCTAssertFalse(store.commandEnabled("clear-prompt"))
+    await store.shutdown()
+  }
+
+  @MainActor func testAttachmentPickerCommandsUseComposerAvailabilityAndWindowOwnership() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    for id in ["add-photos", "add-files"] {
+      XCTAssertTrue(DesktopCommand.search(query: DesktopCommand.all.first { $0.id == id }!.title)
+        .contains { $0.id == id })
+      XCTAssertTrue(TaskWindowCommandContext.owns(id))
+      XCTAssertTrue(store.commandEnabled(id))
+    }
+    store.importingImages = true
+    XCTAssertFalse(store.commandEnabled("add-photos"))
+    XCTAssertFalse(store.commandEnabled("add-files"))
+    store.importingImages = false
+    store.importingFiles = true
+    XCTAssertFalse(store.commandEnabled("add-photos"))
+    XCTAssertFalse(store.commandEnabled("add-files"))
+    store.importingFiles = false
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("add-photos"))
+    XCTAssertFalse(store.commandEnabled("add-files"))
     await store.shutdown()
   }
 

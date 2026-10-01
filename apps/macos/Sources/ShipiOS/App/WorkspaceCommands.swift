@@ -29,6 +29,8 @@ struct WorkspaceCommands: Commands {
     CommandMenu("任务") {
       command("send")
       command("clear-prompt")
+      command("add-photos")
+      command("add-files")
       command("plan")
       command("dictation")
       command("stop")

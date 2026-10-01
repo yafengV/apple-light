@@ -52,6 +52,8 @@ struct DesktopCommand: Identifiable {
     .init(id: "model", title: "选择模型与推理强度", icon: "cpu", shortcut: "⌃⇧M"),
     .init(id: "plan", title: "切换计划模式", icon: "list.bullet.clipboard", shortcut: ""),
     .init(id: "clear-prompt", title: "清除提示", icon: "eraser", shortcut: ""),
+    .init(id: "add-photos", title: "添加照片…", icon: "photo", shortcut: ""),
+    .init(id: "add-files", title: "附加文件…", icon: "paperclip", shortcut: ""),
     .init(id: "dictation", title: "开始或结束听写", icon: "mic", shortcut: "⌃⇧D"),
     .init(id: "fork", title: "分叉到新任务", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "open-side-chat", title: "打开临时侧聊", icon: "bubble.left.and.bubble.right", shortcut: "⌘⌥S"),
@@ -168,7 +170,7 @@ extension DesktopCommand {
     if id.hasPrefix("focus-chat-") || Self.recentChatSlot(id) != nil { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
-    case "new", "new-alternate", "new-standalone", "send", "model", "plan", "clear-prompt", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "toggle-worktree-mode", "find", "find-next", "find-previous",
+    case "new", "new-alternate", "new-standalone", "send", "model", "plan", "clear-prompt", "add-photos", "add-files", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "toggle-worktree-mode", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "activity", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation

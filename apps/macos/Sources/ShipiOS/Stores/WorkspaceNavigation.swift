@@ -61,6 +61,8 @@ extension WorkspaceStore {
     case "clear-prompt":
       draft = ""
       focusComposer = UUID()
+    case "add-photos": chooseImages()
+    case "add-files": chooseFiles()
     case "toggle-worktree-mode":
       newTaskExecution = newTaskExecution == .worktree ? .local : .worktree
       focusComposer = UUID()
@@ -204,6 +206,9 @@ extension WorkspaceStore {
     case "clear-unread": return libraryLoaded && !library.unreadTasks.isEmpty
     case "send": return canSend
     case "clear-prompt": return destination == .workspace && action == .chat && libraryLoaded
+    case "add-photos", "add-files":
+      return destination == .workspace && action == .chat && libraryLoaded && !shuttingDown
+        && !importingImages && !importingFiles
     case "toggle-worktree-mode":
       return destination == .workspace && action == .chat && selectedTask == nil
         && libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil

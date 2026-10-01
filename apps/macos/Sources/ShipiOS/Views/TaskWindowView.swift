@@ -746,7 +746,7 @@ struct TaskWindowView: View {
       default:
         searchMode = nil
         if TaskWindowCommandContext.owns(id) {
-          if ["find", "find-next", "find-previous", "model", "clear-prompt", "rename", "fork", "open-task-window", "task-summary", "status", "init", "local", "worktree", "back", "forward",
+          if ["find", "find-next", "find-previous", "model", "clear-prompt", "add-photos", "add-files", "rename", "fork", "open-task-window", "task-summary", "status", "init", "local", "worktree", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
             || id.hasPrefix("focus-tab-") {
@@ -787,6 +787,9 @@ struct TaskWindowView: View {
     }
     if !otherWindowModalActive, let task {
       enabled.formUnion(["find", "plan", "model", "clear-prompt", "dictation", "open-task-window", "task-summary", "status"])
+      if !store.importingImages && !store.importingFiles {
+        enabled.formUnion(["add-photos", "add-files"])
+      }
       if !task.isSideChat, !task.project.isEmpty,
         store.modelConfiguration(for: taskID).apiProtocol == .codexResponses {
         enabled.insert("init")
@@ -885,6 +888,8 @@ struct TaskWindowView: View {
       store.setTaskWindowDraft("", taskID: taskID)
       composerFocused = true
       taskComposerFocusRequest = UUID()
+    case "add-photos": store.chooseImages(draft: taskID)
+    case "add-files": store.chooseFiles(draft: taskID)
     case "dictation": Task { await store.toggleDictation(target: taskID) }
     case "stop": Task { await store.cancel(taskID: taskID) }
     case "find":
