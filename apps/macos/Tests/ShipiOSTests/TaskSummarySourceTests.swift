@@ -2,6 +2,34 @@ import XCTest
 @testable import ShipiOS
 
 final class TaskSummarySourceTests: XCTestCase {
+  func testMCPResourceQualificationAcrossTurns() throws {
+    let serverID = UUID()
+    let source = CodexWebSource(title: "Document", url: "https://example.test/document")
+    func run(_ id: String, _ activities: [TaskExternalSourceActivity]) throws -> AgentRun {
+      var execution = MCPToolExecution(callID: id, serverID: serverID, serverName: "Documents",
+        toolName: "write", arguments: "{}", status: .succeeded)
+      execution.output = "truncated output"
+      execution.mcpResourceActivities = [MCPResourceActivity(id: "document-1", source: source,
+        mimeType: "text/html", activities: activities)]
+      return AgentRun(id: id, kind: "chat", project: "", status: "succeeded",
+        createdAt: 0, updatedAt: 0, request: .null,
+        result: .object(["tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode([execution]))]))
+    }
+    let created = try run("created", [.created])
+    let readAndCreated = try run("read-and-created", [.read, .created])
+    let read = try run("read", [.read])
+    XCTAssertFalse([created].summarySources(in: WorkspaceLibrary()).contains {
+      if case .external = $0 { return true }; return false
+    })
+    XCTAssertFalse([readAndCreated].summarySources(in: WorkspaceLibrary()).contains {
+      if case .external = $0 { return true }; return false
+    })
+    let sources = [created, read].summarySources(in: WorkspaceLibrary())
+    XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: source,
+      activities: [.read, .created])))
+  }
+
   func testSourcesUseOnlyTaskRunAttachmentsAndObservedTools() throws {
     let file = FileAttachment(id: UUID(), name: "notes.md", byteCount: 4,
       sha256: "hash", isPDF: false)

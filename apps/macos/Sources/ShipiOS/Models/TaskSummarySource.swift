@@ -97,7 +97,10 @@ extension Collection where Element == AgentRun {
     var webSearch: CodexWebSearchSummary?
     var seenQueries = Set<String>()
     var seenLinks = Set<String>()
+    var qualifyingSourceKeys = Set<String>()
+    var mcpResourceKeys = Set<String>()
     for run in self {
+      var runActivities: [String: Set<TaskExternalSourceActivity>] = [:]
       for file in library.runFiles[run.id] ?? [] {
         let source = TaskSummarySource.file(file)
         if seen.insert(source.id).inserted { files.append(source) }
@@ -106,11 +109,13 @@ extension Collection where Element == AgentRun {
         let source = TaskSummarySource.image(image)
         if seen.insert(source.id).inserted { files.append(source) }
       }
-      func addExternal(_ source: CodexWebSource, activity: TaskExternalSourceActivity) {
+      func addExternal(_ source: CodexWebSource, activity: TaskExternalSourceActivity,
+        preferTitle: Bool = false) {
         guard (source.url.hasPrefix("https://") || source.url.hasPrefix("http://")),
           let key = CodexWebSource.sourceKey(source.url) else { return }
+        runActivities[key, default: []].insert(activity)
         if let index = external.firstIndex(where: { $0.id == key }) {
-          external[index].merge(source, activity: activity)
+          external[index].merge(source, activity: activity, preferTitle: preferTitle)
         } else {
           external.append(TaskExternalSource(resource: source, activities: [activity]))
         }
@@ -148,6 +153,17 @@ extension Collection where Element == AgentRun {
         } else if execution.serverID != CodexCommandTimeline.serverID
           && execution.serverID != CodexBrowserTimeline.serverID,
           !execution.serverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          if execution.status == .succeeded {
+            for resource in execution.mcpResourceActivities
+              ?? MCPResourceActivity.restored(from: execution.output) ?? [] {
+              if let key = CodexWebSource.sourceKey(resource.source.url) {
+                mcpResourceKeys.insert(key)
+              }
+              for activity in resource.activities {
+                addExternal(resource.source, activity: activity, preferTitle: true)
+              }
+            }
+          }
           if let index = toolSources.firstIndex(where: { $0.id == execution.serverID }) {
             toolSources[index].calls.append(execution)
           } else {
@@ -156,11 +172,17 @@ extension Collection where Element == AgentRun {
           }
         }
       }
+      for (key, activities) in runActivities where activities.contains(.provided)
+        || activities.contains(.read) && !activities.contains(.created) {
+        qualifyingSourceKeys.insert(key)
+      }
     }
+    external.removeAll { !qualifyingSourceKeys.contains($0.id) }
     if let webSearch {
       let viewedURLs = Set(webSearch.viewedLinks.compactMap { CodexWebSource.sourceKey($0.url) })
       external.removeAll { source in
         source.activities == [.read] && viewedURLs.contains(source.id)
+          && !mcpResourceKeys.contains(source.id)
       }
     }
     return files + external.map(TaskSummarySource.external) + siteTools

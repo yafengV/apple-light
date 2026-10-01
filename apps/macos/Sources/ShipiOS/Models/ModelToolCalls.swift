@@ -76,6 +76,7 @@ struct MCPToolExecution: Codable, Equatable, Identifiable {
   var siteToolOutputJSON: String? = nil
   var siteToolOutputTruncated: Bool? = nil
   var webSearchActivity: CodexWebSearchActivity? = nil
+  var mcpResourceActivities: [MCPResourceActivity]? = nil
   var label: String {
     switch status {
     case .awaitingApproval: "等待批准"

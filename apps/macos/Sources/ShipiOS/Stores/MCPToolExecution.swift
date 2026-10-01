@@ -130,6 +130,8 @@ extension WorkspaceStore {
         throw AgentFailure(message: "MCP 工具未返回有效内容。")
       }
       execution.status = result["isError"].boolean == true ? .failed : .succeeded
+      execution.mcpResourceActivities = execution.status == .succeeded
+        ? MCPResourceActivity.parse(result) : nil
       execution.output = result.pretty
       try saveToolExecution(execution, runID: runID)
       return result.pretty

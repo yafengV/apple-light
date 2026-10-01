@@ -141,7 +141,13 @@ final class MCPToolCallTests: XCTestCase {
       .object(["type": .string("image"), "data": .string(png), "mimeType": .string("image/png")]),
       .object(["type": .string("resource"), "resource": .object([
         "uri": .string("memory://report"), "mimeType": .string("text/plain"), "text": .string("Embedded report")])]),
-    ]), "structuredContent": .object(["count": .number(3)])])
+    ]), "structuredContent": .object(["count": .number(3)]),
+      "_meta": .object(["openai/resourceActivities": .object([
+        "version": .number(1), "resources": .array([.object([
+          "id": .string("report"), "url": .string("https://example.test/report"),
+          "title": .string("Report"), "activities": .array([.string("read")]),
+        ])]),
+      ])])])
     let store = try await store(root, result: result)
     store.draft = "mcp-call"
     await store.sendDraft()
@@ -160,6 +166,10 @@ final class MCPToolCallTests: XCTestCase {
     XCTAssertEqual(document.blocks[2].content, .resource(uri: "memory://report", mime: "text/plain", text: "Embedded report", blob: nil))
     XCTAssertEqual(try MCPResultMedia.thumbnail(base64: png, mime: "image/png", size: 640).width, 2)
     XCTAssertEqual(run.toolExecutions.first?.status, .succeeded)
+    XCTAssertEqual(run.toolExecutions.first?.mcpResourceActivities?.first?.activities, [.read])
+    XCTAssertTrue([run].summarySources(in: saved).contains(.external(TaskExternalSource(
+      resource: CodexWebSource(title: "Report", url: "https://example.test/report"),
+      activities: [.read]))))
     XCTAssertEqual(saved.chatContext(taskID: saved.task(containing: run.id)?.id).first(where: { $0.role == "tool" })?.content, output)
     await store.shutdown()
   }

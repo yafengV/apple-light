@@ -1,13 +1,24 @@
 import Foundation
 import Markdown
 
-enum TaskExternalSourceActivity: String, Equatable {
-  case provided, read
+enum TaskExternalSourceActivity: String, Codable, Equatable, Hashable {
+  case provided, read, created, updated
+
+  var order: Int {
+    switch self {
+    case .provided: 0
+    case .read: 1
+    case .created: 2
+    case .updated: 3
+    }
+  }
 
   var label: String {
     switch self {
     case .provided: "在会话中提供"
     case .read: "聊天期间读取"
+    case .created: "聊天期间创建"
+    case .updated: "聊天期间更新"
     }
   }
 }
@@ -20,9 +31,14 @@ struct TaskExternalSource: Identifiable, Equatable {
   var title: String { resource.title }
   var url: String { resource.url }
 
-  mutating func merge(_ source: CodexWebSource, activity: TaskExternalSourceActivity) {
-    if !activities.contains(activity) { activities.append(activity) }
-    if resource.title == URL(string: resource.url)?.host, source.title != URL(string: source.url)?.host {
+  mutating func merge(_ source: CodexWebSource, activity: TaskExternalSourceActivity,
+    preferTitle: Bool = false) {
+    if !activities.contains(activity) {
+      activities.append(activity)
+      activities.sort { $0.order < $1.order }
+    }
+    if preferTitle || resource.title == URL(string: resource.url)?.host
+      && source.title != URL(string: source.url)?.host {
       resource = source
     }
   }
