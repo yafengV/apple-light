@@ -37,10 +37,40 @@ final class TaskSummarySourceTests: XCTestCase {
 
     XCTAssertEqual([first, second].summarySources(in: library), [
       .file(file), .image(image), .external(external),
-      .tool(id: serverID, name: "Files"),
+      .tool(MCPToolSource(id: serverID, name: "Files", calls: Array(executions.prefix(2)))),
       .webSearch(CodexWebSearchSummary(queryCount: 0, queries: [], viewedLinks: [])),
     ])
+    guard case .tool(let source) = [first, second].summarySources(in: library)[3] else {
+      return XCTFail("Missing grouped tool source")
+    }
+    XCTAssertEqual(source.activities.map(\.name), ["read", "search"])
     XCTAssertTrue([foreign].summarySources(in: WorkspaceLibrary()).isEmpty)
+  }
+
+  func testToolSourcesGroupRepeatedCallsByServerAndToolAcrossRuns() throws {
+    let serverID = UUID()
+    let calls = [
+      MCPToolExecution(callID: "first", serverID: serverID, serverName: "Files",
+        toolName: "read", arguments: "{\"path\":\"a\"}", status: .succeeded),
+      MCPToolExecution(callID: "second", serverID: serverID, serverName: "Files",
+        toolName: "read", arguments: "{\"path\":\"b\"}", status: .failed),
+      MCPToolExecution(callID: "third", serverID: serverID, serverName: "Files",
+        toolName: "write", arguments: "{\"path\":\"c\"}", status: .succeeded),
+    ]
+    func run(_ id: String, _ executions: [MCPToolExecution]) throws -> AgentRun {
+      AgentRun(id: id, kind: "chat", project: "", status: "succeeded",
+        createdAt: 0, updatedAt: 0, request: .null,
+        result: .object(["tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode(executions))]))
+    }
+    let sources = try [run("first", [calls[0]]), run("second", Array(calls.dropFirst()))]
+      .summarySources(in: WorkspaceLibrary())
+    XCTAssertEqual(sources, [.tool(MCPToolSource(id: serverID, name: "Files", calls: calls))])
+    guard case .tool(let source) = sources[0] else { return XCTFail("Missing tool source") }
+    XCTAssertEqual(source.activities.map(\.name), ["read", "write"])
+    XCTAssertEqual(source.activities.map { $0.calls.count }, [2, 1])
+    XCTAssertEqual(source.activities[0].calls.map(\.status), [.succeeded, .failed])
+    XCTAssertTrue(sources[0].searchableText.contains("write"))
   }
 
   func testSourcesKeepSuccessfulSiteToolCallsByWebsiteWithoutRequestArguments() throws {

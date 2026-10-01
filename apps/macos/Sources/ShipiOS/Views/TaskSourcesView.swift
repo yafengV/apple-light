@@ -43,8 +43,8 @@ struct TaskSourcesListView: View {
           }
           .buttonStyle(.plain).help("查看 \(activity.website) 的站点工具调用")
         }
-      case .tool(_, let name):
-        Label(name, systemImage: "puzzlepiece.extension")
+      case .tool(let source):
+        Label(source.name, systemImage: "puzzlepiece.extension")
           .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
       case .webSearch:
         Label("网页搜索", systemImage: "globe")
@@ -82,6 +82,7 @@ struct TaskSourcesView: View {
   private var otherSources: [TaskSummarySource] {
     filtered.filter {
       if case .siteTool = $0 { return false }
+      if case .tool = $0 { return false }
       if case .webSearch = $0 { return false }
       return true
     }
@@ -92,6 +93,13 @@ struct TaskSourcesView: View {
       if case .webSearch(let summary) = source { return summary }
     }
     return nil
+  }
+
+  private var toolSources: [MCPToolSource] {
+    filtered.compactMap { source in
+      if case .tool(let tool) = source { return tool }
+      return nil
+    }
   }
 
   private var siteToolWebsites: [SiteToolWebsiteGroup] {
@@ -142,6 +150,9 @@ struct TaskSourcesView: View {
             ForEach(siteToolWebsites) { group in
               BrowserSiteToolWebsiteSection(group: group, openExternal: openExternal)
             }
+            ForEach(toolSources) { source in
+              MCPToolSourceSection(source: source)
+            }
             if let webSearchSource {
               CodexWebSearchSourceSection(summary: webSearchSource, openExternal: openExternal)
             }
@@ -156,6 +167,71 @@ struct TaskSourcesView: View {
       if let previewImage {
         ImageGalleryPreview(image: previewImage, images: sourceImages.map(ImagePreviewItem.init),
           root: dataRoot) { self.previewImage = nil }
+      }
+    }
+  }
+}
+
+private struct MCPToolSourceSection: View {
+  let source: MCPToolSource
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 9) {
+      Label(source.name, systemImage: "puzzlepiece.extension")
+        .appFont(.body, weight: .medium)
+      ForEach(source.activities) { activity in
+        if activity.calls.count == 1, let call = activity.calls.first {
+          MCPSourceCallRow(execution: call, summary: "\(activity.name) 1 次")
+        } else {
+          DisclosureGroup("\(activity.name) \(activity.calls.count) 次") {
+            VStack(alignment: .leading, spacing: 8) {
+              ForEach(activity.calls.indices, id: \.self) { index in
+                VStack(alignment: .leading, spacing: 6) {
+                  Text("第 \(index + 1) 次 · \(activity.calls[index].label)")
+                    .appFont(.caption).foregroundStyle(.secondary)
+                  MCPSourceCallDetails(execution: activity.calls[index])
+                }
+              }
+            }.padding(.top, 6)
+          }
+        }
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+  }
+}
+
+private struct MCPSourceCallRow: View {
+  let execution: MCPToolExecution
+  let summary: String
+
+  var body: some View {
+    DisclosureGroup {
+      MCPSourceCallDetails(execution: execution).padding(.top, 6)
+    } label: {
+      HStack {
+        Text(summary).lineLimit(1)
+        Spacer()
+        Text(execution.label).appFont(.caption).foregroundStyle(.secondary)
+      }
+    }
+  }
+}
+
+private struct MCPSourceCallDetails: View {
+  let execution: MCPToolExecution
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text("输入").appFont(.caption, weight: .medium).foregroundStyle(.secondary)
+      ScrollView {
+        Text(execution.arguments).appFont(.caption, design: .monospaced)
+          .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+      }.frame(maxHeight: 192)
+      if let output = execution.output {
+        MCPResultView(output: output)
       }
     }
   }
