@@ -20,6 +20,19 @@ struct AppshotTarget {
   var icon: NSImage? { application.icon }
 }
 
+enum AppshotTargetOrder {
+  static func pids(frontmost: pid_t?, cached: pid_t?, cachedAt: Date?,
+    now: Date, ownPID: pid_t) -> [pid_t] {
+    var result: [pid_t] = []
+    if let frontmost, frontmost != ownPID { result.append(frontmost) }
+    if let cached, cached != ownPID, !result.contains(cached),
+      let cachedAt, now.timeIntervalSince(cachedAt) <= 300 {
+      result.append(cached)
+    }
+    return result
+  }
+}
+
 enum AppshotIcon {
   static let maxBytes = 256 * 1_024
 
@@ -109,7 +122,7 @@ enum AppshotImage {
   }
 }
 
-/// Uses a recent foreground window when authorized, with a system picker fallback.
+/// Captures the actual frontmost app, then a recent external app, with a picker fallback.
 @MainActor final class AppshotCapture: NSObject, SCContentSharingPickerObserver {
   private var continuation: CheckedContinuation<AppshotCaptureResult?, Error>?
   private var onScreenshot: ((AppshotCaptureResult) -> Void)?
@@ -147,14 +160,19 @@ enum AppshotImage {
 
   func availableTarget() -> AppshotTarget? {
     guard CGPreflightScreenCaptureAccess(),
-      let lastExternalAt, Date().timeIntervalSince(lastExternalAt) <= 300,
-      let app = lastExternalApp, !app.isTerminated,
-      app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
       let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)
-        as? [[String: Any]],
-      let windowID = AppshotImage.frontWindowID(for: app.processIdentifier, windows: windows)
-    else { return nil }
-    return AppshotTarget(application: app, windowID: windowID)
+        as? [[String: Any]] else { return nil }
+    let frontmost = NSWorkspace.shared.frontmostApplication
+    let apps = [frontmost, lastExternalApp].compactMap { $0 }
+    let order = AppshotTargetOrder.pids(frontmost: frontmost?.processIdentifier,
+      cached: lastExternalApp?.processIdentifier, cachedAt: lastExternalAt,
+      now: Date(), ownPID: ProcessInfo.processInfo.processIdentifier)
+    for pid in order {
+      guard let app = apps.first(where: { $0.processIdentifier == pid && !$0.isTerminated }),
+        let windowID = AppshotImage.frontWindowID(for: pid, windows: windows) else { continue }
+      return AppshotTarget(application: app, windowID: windowID)
+    }
+    return nil
   }
 
   func capture(target selectedTarget: AppshotTarget? = nil,

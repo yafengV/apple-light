@@ -129,6 +129,19 @@ final class AppshotCaptureTests: XCTestCase {
     XCTAssertNil(AppshotImage.frontWindowID(for: 99, windows: windows))
   }
 
+  func testFrontmostAppDoesNotExpireWhileItRemainsForeground() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let stale = now.addingTimeInterval(-600)
+    XCTAssertEqual(AppshotTargetOrder.pids(frontmost: 42, cached: 42, cachedAt: stale,
+      now: now, ownPID: 7), [42])
+    XCTAssertEqual(AppshotTargetOrder.pids(frontmost: 43, cached: 42,
+      cachedAt: now.addingTimeInterval(-20), now: now, ownPID: 7), [43, 42])
+    XCTAssertEqual(AppshotTargetOrder.pids(frontmost: 7, cached: 42,
+      cachedAt: now.addingTimeInterval(-20), now: now, ownPID: 7), [42])
+    XCTAssertEqual(AppshotTargetOrder.pids(frontmost: 7, cached: 42, cachedAt: stale,
+      now: now, ownPID: 7), [])
+  }
+
   func testCapturedImageCanEnterExistingAttachmentStorage() throws {
     let context = CGContext(data: nil, width: 32, height: 24, bitsPerComponent: 8,
       bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
