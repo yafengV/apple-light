@@ -4,44 +4,70 @@ struct AppshotSettingsView: View {
   @Bindable var store: WorkspaceStore
 
   var body: some View {
-    Form {
-      Section {
-        VStack(alignment: .leading, spacing: 8) {
-          Text("截取应用快照，向 ChatGPT 展示你最前端的窗口")
-            .appFont(size: 18, weight: .semibold)
-          Text("应用快照包含窗口截图；获得辅助功能权限后，还可附带窗口中的文字。")
-            .foregroundStyle(.secondary)
-        }.frame(maxWidth: .infinity, alignment: .leading)
-      }
-      Section("快捷键") {
-        SettingsMenuPicker("快捷键", description: store.appshotHotkey.explanation,
-          selection: Binding(
-            get: { store.appshotHotkey },
-            set: { store.appshotHotkey = $0 }),
-          options: AppshotHotkey.allCases.map {
-            SettingsMenuOption(value: $0, title: $0.title)
-          })
-          .settingsSearchTarget(.appshotHotkey)
-        if store.appshotHotkey != .none && !store.accessibilityGranted {
-          HStack {
-            Text("在其他应用中使用快捷键需要辅助功能权限。")
+    SettingsScrollPage(title: SettingsPage.appshots.title, actions: {}, controls: {}) {
+      VStack(alignment: .leading, spacing: 20) {
+        HStack(alignment: .top, spacing: 16) {
+          Image(systemName: "macwindow.on.rectangle")
+            .font(.system(size: 30, weight: .light))
+            .frame(width: 40).accessibilityHidden(true)
+          VStack(alignment: .leading, spacing: 6) {
+            Text("截取应用快照，向 ShipiOS 展示你最前端的窗口")
+              .appFont(size: 18, weight: .semibold)
+            Text("应用快照包含视觉和文字内容，包括已滚出视野的文字。")
               .foregroundStyle(.secondary)
-            Spacer()
-            Button("打开系统设置") { store.openAccessibilitySettings() }
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        ViewThatFits(in: .horizontal) {
+          HStack(alignment: .top, spacing: 16) {
+            controls.frame(minWidth: 340, maxWidth: .infinity)
+            AppshotDemoView().frame(minWidth: 340, maxWidth: .infinity)
+          }
+          VStack(spacing: 16) {
+            controls
+            AppshotDemoView().frame(maxWidth: 390)
           }
         }
       }
-      Section("发送") {
-        AppshotDestinationMenu(store: store)
-          .settingsSearchTarget(.appshotDestination)
-        SettingsToggle(title: "播放音效", description: "截取成功时播放系统提示音。",
-          isOn: Binding(
-            get: { store.appshotSoundEnabled },
-            set: { store.appshotSoundEnabled = $0 }))
-          .settingsSearchTarget(.appshotSound)
-      }
-    }.settingsFormStyle().appSurface()
+    }
       .onAppear { store.refreshComputerUsePermissions() }
+  }
+
+  private var controls: some View {
+    VStack(spacing: 0) {
+      SettingsMenuPicker("快捷键", description: store.appshotHotkey.explanation,
+        selection: Binding(
+          get: { store.appshotHotkey },
+          set: { store.appshotHotkey = $0 }),
+        options: AppshotHotkey.allCases.map {
+          SettingsMenuOption(value: $0, title: $0.title)
+        })
+        .settingsSearchTarget(.appshotHotkey)
+        .padding(16)
+      if store.appshotHotkey != .none && !store.accessibilityGranted {
+        HStack(spacing: 8) {
+          Text("在其他应用中使用快捷键需要辅助功能权限。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          Spacer(minLength: 0)
+          Button("打开系统设置") { store.openAccessibilitySettings() }
+        }.padding(.horizontal, 16).padding(.bottom, 12)
+      }
+      Divider().padding(.horizontal, 16)
+      AppshotDestinationMenu(store: store)
+        .settingsSearchTarget(.appshotDestination)
+        .padding(16)
+      Divider().padding(.horizontal, 16)
+      SettingsToggle(title: "播放音效", description: "截取成功时播放系统提示音。",
+        isOn: Binding(
+          get: { store.appshotSoundEnabled },
+          set: { store.appshotSoundEnabled = $0 }))
+        .settingsSearchTarget(.appshotSound)
+        .padding(16)
+    }
+    .toggleStyle(SettingsSwitchStyle())
+    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
   }
 }
 
