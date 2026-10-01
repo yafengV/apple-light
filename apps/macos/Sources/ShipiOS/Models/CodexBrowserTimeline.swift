@@ -22,11 +22,13 @@ enum CodexBrowserTimeline {
     case "download": "下载网页文件"
     case "download_status": "查看下载进度"
     case "cancel_download": "取消网页下载"
+    case "site_tools": "列出站点工具"
+    case "site_tool_call": "调用站点工具"
     default: "列出网页标签"
     }
     var execution = index.map { executions[$0] } ?? MCPToolExecution(
       callID: requestID, serverID: serverID, serverName: "浏览器", toolName: name,
-      arguments: event["url"].text ?? event["tabId"].text ?? "当前任务",
+      arguments: event["siteTool"].text ?? event["url"].text ?? event["tabId"].text ?? "当前任务",
       status: .running)
     if type == "browser_result" {
       let result = event["result"]
@@ -38,7 +40,8 @@ enum CodexBrowserTimeline {
       }
       execution.output = String(result.pretty.prefix(16_000))
       if let url = result["url"].text {
-        let label = result["label"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let label = result["site_tool"].text
+          ?? result["label"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         execution.arguments = label.isEmpty ? url : "\(label) · \(url)"
       }
     }
@@ -53,6 +56,7 @@ enum CodexBrowserTimeline {
   static func source(_ event: JSONValue) -> CodexWebSource? {
     guard event["type"].text == "browser_result",
       event["result"]["status"].text == "ok",
+      event["result"]["tools"] == .null,
       let raw = event["result"]["url"].text, raw.utf8.count <= 4_096,
       let url = try? BrowserAddress.url(raw) else { return nil }
     let title = event["result"]["title"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

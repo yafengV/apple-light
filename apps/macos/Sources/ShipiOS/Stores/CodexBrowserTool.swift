@@ -9,6 +9,7 @@ extension WorkspaceStore {
       taskID: taskID, action: request["action"].text ?? "", tabID: request["tabId"].text,
       requestedURL: request["url"].text, handle: request["handle"].text,
       text: request["text"].text, downloadID: request["downloadId"].text,
+      siteTool: request["siteTool"].text, arguments: request["arguments"],
       requestID: requestID, token: token)
     guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
       removeCodexBrowserScreenshot(requestID: requestID)
@@ -24,7 +25,8 @@ extension WorkspaceStore {
 
   func codexBrowserResult(taskID: String, action: String, tabID: String?,
     requestedURL: String? = nil, handle: String? = nil, text: String? = nil,
-    downloadID: String? = nil, requestID: String? = nil, token: UUID? = nil) async -> JSONValue {
+    downloadID: String? = nil, siteTool: String? = nil, arguments: JSONValue = .null,
+    requestID: String? = nil, token: UUID? = nil) async -> JSONValue {
     guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
       return .object(["status": .string("cancelled")])
     }
@@ -100,7 +102,8 @@ extension WorkspaceStore {
         "tab_id": .string(tab.id.uuidString), "url": .string(tab.committedURL?.absoluteString ?? url.absoluteString),
         "title": .string(tab.title)])
     }
-    guard ["read", "screenshot", "inspect", "click", "fill", "download"].contains(action),
+    guard ["read", "screenshot", "inspect", "click", "fill", "download",
+      "site_tools", "site_tool_call"].contains(action),
       let tabID, let id = UUID(uuidString: tabID),
       let tab = tabs.first(where: { $0.id == id }),
       !tab.closed, !tab.loading, let url = tab.committedURL,
@@ -118,6 +121,30 @@ extension WorkspaceStore {
       codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }) else {
       return .object(["status": .string("unavailable"),
         "message": .string("授权期间网页已变化，请重新列出标签。")])
+    }
+    if action == "site_tools" || action == "site_tool_call" {
+      guard browserPermissionPreferences.siteToolsEnabled else {
+        return .object(["status": .string("denied"),
+          "message": .string("已在浏览器设置中关闭站点工具。")])
+      }
+      if action == "site_tools" {
+        await tab.refreshSiteTools()
+        guard !tab.closed, !tab.loading, tab.committedURL == url else {
+          return .object(["status": .string("unavailable"),
+            "message": .string("发现期间网页已变化。")])
+        }
+        return .object(["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
+          "url": .string(url.absoluteString), "title": .string(tab.title),
+          "tools": .array(tab.siteTools.prefix(32).map { tool in
+            let schema = (try? JSONDecoder().decode(JSONValue.self, from: Data(tool.schemaJSON.utf8)))
+              ?? .object([:])
+            return .object(["name": .string(tool.name), "title": .string(tool.title),
+              "description": .string(tool.summary), "read_only_hint": .bool(tool.readOnly),
+              "input_schema": schema])
+          }), "truncated": .bool(tab.siteTools.count > 32)])
+      }
+      return await invokeCodexSiteTool(tab: tab, taskID: taskID, url: url,
+        name: siteTool, arguments: arguments, token: token)
     }
     if action == "screenshot" {
       guard let requestID, UUID(uuidString: requestID) != nil else {
@@ -199,6 +226,99 @@ extension WorkspaceStore {
       tabs.append(contentsOf: taskTabs.browser.session.tabs.filter { ids.contains($0.id) && !$0.closed })
     }
     return tabs.sorted { $0.id.uuidString < $1.id.uuidString }
+  }
+
+  private func invokeCodexSiteTool(tab: BrowserTab, taskID: String, url: URL,
+    name: String?, arguments: JSONValue, token: UUID?) async -> JSONValue {
+    guard !tab.agentOperationActive else {
+      return .object(["status": .string("error"), "message": .string("此网页正在执行其他 Agent 操作。")])
+    }
+    guard let name, case .object = arguments,
+      let data = try? JSONEncoder().encode(arguments), data.count <= 8_192 else {
+      return .object(["status": .string("error"),
+        "message": .string("请提供站点工具名称与 8 KiB 以内的 JSON 对象参数。")])
+    }
+    await tab.refreshSiteTools()
+    guard let tool = tab.siteTools.first(where: { $0.name == name }) else {
+      return .object(["status": .string("unavailable"),
+        "message": .string("当前页面未注册此站点工具，请重新列出。")])
+    }
+    let revision = tab.siteToolsRevision
+    tab.agentOperationActive = true
+    defer { tab.agentOperationActive = false }
+    guard await confirmCodexSiteTool(tool, arguments: arguments, url: url,
+      taskID: taskID, token: token) else {
+      return .object(["status": .string("denied"), "host": .string(url.host ?? "")])
+    }
+    guard codexBrowserRequestCurrent(taskID: taskID, token: token),
+      codexBrowserTabs(taskID: taskID).contains(where: { $0 === tab }),
+      !tab.closed, !tab.loading, tab.committedURL == url,
+      browserPermissionPreferences.siteToolsEnabled,
+      browserPermissionPreferences.decision(for: url) != .block,
+      tab.siteToolsRevision == revision,
+      tab.siteTools.contains(tool) else {
+      return .object(["status": .string("unavailable"),
+        "message": .string("确认期间页面、工具注册或权限已变化；请重新列出。")])
+    }
+    tab.siteToolExecuting = true
+    defer { tab.siteToolExecuting = false }
+    tab.agentNavigationHost = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    tab.agentAllowedFrameHosts = Set([tab.agentNavigationHost].compactMap { $0 })
+    defer { tab.agentNavigationHost = nil; tab.agentAllowedFrameHosts = nil }
+    do {
+      let output = try await tab.executeSiteTool(tool, arguments: arguments)
+      guard codexBrowserRequestCurrent(taskID: taskID, token: token) else {
+        return .object(["status": .string("cancelled")])
+      }
+      let truncated = output.count > 16_000
+      let currentURL = tab.committedURL ?? url
+      if !tab.closed {
+        tab.recentSiteTools.removeAll { $0 == tool.name }
+        tab.recentSiteTools.insert(tool.name, at: 0)
+        tab.recentSiteTools = Array(tab.recentSiteTools.prefix(8))
+      }
+      return .object(["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
+        "url": .string(currentURL.absoluteString), "title": .string(tab.title),
+        "site_tool": .string(tool.name), "output": .string(String(output.prefix(16_000))),
+        "truncated": .bool(truncated), "page_changed": .bool(currentURL != url)])
+    } catch {
+      return .object(["status": .string("error"), "message": .string(
+        "站点工具执行未确认成功：\(error.localizedDescription)。请先检查页面，勿直接重试。")])
+    }
+  }
+
+  private func confirmCodexSiteTool(_ tool: BrowserSiteTool, arguments: JSONValue,
+    url: URL, taskID: String, token: UUID?) async -> Bool {
+    let taskWindow = taskWindowResources.allObjects.first {
+      $0.tasks[taskID] != nil && $0.window?.isVisible == true
+    }?.window
+    let mainWindow = selectedTask?.id == taskID
+      ? NSApp.windows.first { $0.identifier?.rawValue == "main" && $0.isVisible } : nil
+    guard let window = taskWindow ?? mainWindow, window.attachedSheet == nil else { return false }
+    let allowed = await withCheckedContinuation { continuation in
+      let alert = NSAlert()
+      alert.messageText = "允许 Agent 调用站点工具吗？"
+      let title = tool.title.replacingOccurrences(of: "\n", with: " ")
+      let summary = tool.summary.replacingOccurrences(of: "\n", with: " ")
+      alert.informativeText = "网站：\(url.host ?? "未知网站")\n工具：\(tool.name) · \(title)\n网站声明：\(summary)\n说明和只读声明未经验证。请检查以下全部参数。"
+      let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 440, height: 160))
+      scroll.hasVerticalScroller = true
+      let details = NSTextView(frame: scroll.bounds)
+      details.isEditable = false
+      details.isSelectable = true
+      details.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+      details.string = arguments.pretty
+      details.autoresizingMask = [.width]
+      scroll.documentView = details
+      alert.accessoryView = scroll
+      alert.addButton(withTitle: "取消")
+      alert.addButton(withTitle: "允许本次调用")
+      alert.beginSheetModal(for: window) { response in
+        continuation.resume(returning: response == .alertSecondButtonReturn)
+      }
+      expireCodexBrowserAlert(alert, in: window, taskID: taskID, token: token)
+    }
+    return allowed && codexBrowserRequestCurrent(taskID: taskID, token: token)
   }
 
   private func interactWithCodexBrowser(tab: BrowserTab, taskID: String,

@@ -49,6 +49,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   private(set) var closed = false
   var siteTools: [BrowserSiteTool] = []
   @ObservationIgnored var siteToolsRevision = UUID()
+  var siteToolExecuting = false
+  var recentSiteTools: [String] = []
   private(set) var selectingElement = false
   var selectedElement: BrowserElementReference?
   var elementSelectionError: String?
@@ -145,7 +147,9 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     else { invalidateSiteTools(); activeNavigation = bypassCache ? view.reloadFromOrigin() : view.reload() }
   }
   func stop() { view.stopLoading(); loading = false }
-  private func invalidateSiteTools() { siteTools = []; siteToolsRevision = UUID() }
+  private func invalidateSiteTools() {
+    siteTools = []; siteToolsRevision = UUID(); recentSiteTools = []
+  }
   private static func sameDocument(_ left: URL?, _ right: URL?) -> Bool {
     guard let left, let right,
       var a = URLComponents(url: left, resolvingAgainstBaseURL: false),

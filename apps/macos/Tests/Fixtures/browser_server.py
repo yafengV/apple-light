@@ -63,8 +63,9 @@ class Handler(BaseHTTPRequestHandler):
             body = (b'<!doctype html><html><head><title>Site tools</title></head><body>'
                     b'<script>document.modelContext.registerTool({'
                     b'name:"read_title",title:"Read title",description:"Read page title",'
-                    b'inputSchema:{type:"object",properties:{}},'
-                    b'annotations:{readOnlyHint:true},execute:async()=>({title:document.title})'
+                    b'inputSchema:{type:"object",properties:{section:{type:"string"}}},'
+                    b'annotations:{readOnlyHint:true},'
+                    b'execute:async(args)=>({title:document.title,section:args.section??null})'
                     b'});</script><iframe src="/site-tools-frame"></iframe></body></html>')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')

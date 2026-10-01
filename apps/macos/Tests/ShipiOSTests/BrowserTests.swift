@@ -65,13 +65,36 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(tab.siteTools.first?.title, "Read title")
     XCTAssertEqual(tab.siteTools.first?.summary, "Read page title")
     XCTAssertEqual(tab.siteTools.first?.readOnly, true)
+    let readTitle = try XCTUnwrap(tab.siteTools.first)
+    let schema = try XCTUnwrap(readTitle.schemaJSON.data(using: .utf8))
+    XCTAssertEqual(try JSONDecoder().decode(JSONValue.self, from: schema)["properties"]["section"]["type"].text,
+      "string")
+    let output = try await tab.executeSiteTool(readTitle,
+      arguments: .object(["section": .string("intro")]))
+    let result = try JSONDecoder().decode(JSONValue.self, from: Data(output.utf8))
+    XCTAssertEqual(result["title"].text, "Site tools")
+    XCTAssertEqual(result["section"].text, "intro")
     _ = try await tab.view.evaluateJavaScript("""
       document.modelContext.registerTool({name:'new_tool', description:'Dynamic',
         inputSchema:{type:'object',properties:{}}, execute:async()=>({})});
+      undefined;
       """)
     try await eventually("Dynamic site tool did not appear") { tab.siteTools.count == 2 }
     _ = try await tab.view.evaluateJavaScript("document.modelContext.unregisterTool('new_tool')")
     try await eventually("Removed site tool still appears") { tab.siteTools.map(\.name) == ["read_title"] }
+    _ = try await tab.view.evaluateJavaScript("document.modelContext.unregisterTool('read_title')")
+    try await eventually("Old registration still appears") { tab.siteTools.isEmpty }
+    do {
+      _ = try await tab.executeSiteTool(readTitle, arguments: .object([:]))
+      XCTFail("Unregistered tool must not execute")
+    } catch {}
+    _ = try await tab.view.evaluateJavaScript("""
+      document.modelContext.registerTool({name:'read_title',title:'Read title',description:'Read page title',
+        inputSchema:{type:'object',properties:{}},annotations:{readOnlyHint:true},
+        execute:async()=>({title:document.title})});
+      undefined;
+      """)
+    try await eventually("Re-registered tool did not appear") { tab.siteTools.map(\.name) == ["read_title"] }
     tab.address = base + "/site-tools#section"; tab.navigate()
     try await eventually("Fragment navigation did not finish") {
       !tab.loading && tab.view.url?.fragment == "section"
@@ -81,6 +104,81 @@ final class BrowserTests: XCTestCase {
     XCTAssertTrue(tab.siteTools.isEmpty)
     try await eventually("Navigation did not finish") { !tab.loading && tab.title == "Two" }
     XCTAssertTrue(tab.siteTools.isEmpty)
+  }
+  @MainActor func testSiteToolHostRespectsTaskOwnershipAndDisableSwitch() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("site-tool-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"]),
+      .init(id: "other", project: "", title: "Other", runIDs: ["run-other"])]
+    store.selection = "run-owner"
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/site-tools", title: "Site tools")
+    store.library.browserPermissions.defaultDecision = .allow
+    let foreign = await store.codexBrowserResult(taskID: "other", action: "site_tools",
+      tabID: tab.id.uuidString)
+    XCTAssertEqual(foreign["status"].text, "unavailable")
+    let discovered = await store.codexBrowserResult(taskID: "owner", action: "site_tools",
+      tabID: tab.id.uuidString)
+    XCTAssertEqual(discovered["status"].text, "ok")
+    XCTAssertEqual(discovered["tools"].items.first?["name"].text, "read_title")
+    XCTAssertEqual(discovered["tools"].items.first?["input_schema"]["properties"]["section"]["type"].text,
+      "string")
+    store.setBrowserSiteToolsEnabled(false)
+    let disabled = await store.codexBrowserResult(taskID: "owner", action: "site_tools",
+      tabID: tab.id.uuidString)
+    XCTAssertEqual(disabled["status"].text, "denied")
+    let disabledCall = await store.codexBrowserResult(taskID: "owner", action: "site_tool_call",
+      tabID: tab.id.uuidString, siteTool: "read_title", arguments: .object([:]))
+    XCTAssertEqual(disabledCall["status"].text, "denied")
+    store.setBrowserSiteToolsEnabled(true)
+    let noVisibleWindow = await store.codexBrowserResult(taskID: "owner", action: "site_tool_call",
+      tabID: tab.id.uuidString, siteTool: "read_title", arguments: .object([:]))
+    XCTAssertEqual(noVisibleWindow["status"].text, "denied")
+    XCTAssertTrue(tab.recentSiteTools.isEmpty)
+  }
+  @MainActor func testSiteToolCallRequiresConfirmationAndRejectsChangedRegistration() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("site-tool-confirm-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    defer { store.workspace.browser.shutdown() }
+    store.library.tasks = [.init(id: "owner", project: "", title: "Owner", runIDs: ["run-owner"])]
+    store.selection = "run-owner"
+    XCTAssertEqual(store.selectedTask?.id, "owner")
+    store.newBrowserTab()
+    let tab = try XCTUnwrap(store.workspace.browser.selected)
+    try await load(tab, "/site-tools", title: "Site tools")
+    store.library.browserPermissions.defaultDecision = .allow
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.identifier = NSUserInterfaceItemIdentifier("main")
+    window.orderFront(nil)
+    defer { window.close() }
+    XCTAssertTrue(window.isVisible)
+
+    let accepted = Task { await store.codexBrowserResult(taskID: "owner", action: "site_tool_call",
+      tabID: tab.id.uuidString, siteTool: "read_title",
+      arguments: .object(["section": .string("approved")])) }
+    try await eventually("Site tool approval sheet did not appear") { window.attachedSheet != nil }
+    window.endSheet(try XCTUnwrap(window.attachedSheet), returnCode: .alertSecondButtonReturn)
+    let result = await accepted.value
+    XCTAssertEqual(result["status"].text, "ok")
+    let payload = try XCTUnwrap(result["output"].text)
+    XCTAssertEqual(try JSONDecoder().decode(JSONValue.self, from: Data(payload.utf8))["section"].text,
+      "approved")
+    XCTAssertEqual(tab.recentSiteTools, ["read_title"])
+
+    let stale = Task { await store.codexBrowserResult(taskID: "owner", action: "site_tool_call",
+      tabID: tab.id.uuidString, siteTool: "read_title", arguments: .object([:])) }
+    try await eventually("Second site tool approval sheet did not appear") { window.attachedSheet != nil }
+    _ = try await tab.view.evaluateJavaScript("document.modelContext.unregisterTool('read_title')")
+    try await eventually("Site tool did not unregister") { tab.siteTools.isEmpty }
+    window.endSheet(try XCTUnwrap(window.attachedSheet), returnCode: .alertSecondButtonReturn)
+    let staleResult = await stale.value
+    XCTAssertEqual(staleResult["status"].text, "unavailable")
+    XCTAssertEqual(tab.recentSiteTools, ["read_title"])
   }
   @MainActor func testFindCommandTargetsActiveBrowserWithoutOpeningConversationFind() throws {
     let store = WorkspaceStore()

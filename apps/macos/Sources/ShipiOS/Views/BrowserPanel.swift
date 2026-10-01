@@ -116,6 +116,7 @@ struct BrowserPanel: View {
           if store.browserPermissionPreferences.siteToolsEnabled && !tab.siteTools.isEmpty {
             Button { showingSiteTools.toggle() } label: {
               Image(systemName: "chevron.up.square")
+                .foregroundStyle(tab.siteToolExecuting ? Color.accentColor : Color.secondary)
             }
             .help("查看站点工具")
             .accessibilityLabel("查看站点工具")
@@ -304,8 +305,17 @@ private struct BrowserSiteToolsPopover: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       Text("站点工具").appFont(.headline)
-      Text("此网站声明了以下工具。调用能力仍在开发中。")
+      Text("工具由当前网站提供；调用前会显示参数并请求确认。")
         .appFont(.caption).foregroundStyle(.secondary)
+      if !tab.recentSiteTools.isEmpty {
+        VStack(alignment: .leading, spacing: 3) {
+          Text("本页最近使用").appFont(.caption, weight: .medium)
+          ForEach(tab.recentSiteTools, id: \.self) { name in
+            Text(name).appFont(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Divider()
+      }
       ScrollView {
         VStack(alignment: .leading, spacing: 8) {
           ForEach(tab.siteTools) { tool in

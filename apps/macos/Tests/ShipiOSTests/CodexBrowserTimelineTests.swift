@@ -69,4 +69,36 @@ final class CodexBrowserTimelineTests: XCTestCase {
     XCTAssertEqual(executions[0].status, .cancelled)
     XCTAssertFalse(CodexBrowserTimeline.expirePending(&executions, status: .failed))
   }
+
+  func testSiteToolCallHasNamedCardAndCurrentPageSourceWithoutPersistingArguments() {
+    let id = UUID().uuidString
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    let request: JSONValue = .object([
+      "type": .string("browser_request"), "requestId": .string(id),
+      "action": .string("site_tool_call"), "siteTool": .string("read_title"),
+      "tabId": .string(UUID().uuidString),
+      "arguments": .object(["secret": .string("private draft")]),
+    ])
+    XCTAssertTrue(CodexBrowserTimeline.apply(request, executions: &executions, items: &items))
+    XCTAssertEqual(executions.first?.toolName, "调用站点工具")
+    XCTAssertEqual(executions.first?.arguments, "read_title")
+    XCTAssertFalse(executions.first?.arguments.contains("private draft") ?? true)
+    let result: JSONValue = .object([
+      "type": .string("browser_result"), "requestId": .string(id),
+      "result": .object(["status": .string("ok"), "url": .string("https://example.com/docs"),
+        "title": .string("Docs"), "site_tool": .string("read_title"),
+        "output": .string("done")]),
+    ])
+    XCTAssertTrue(CodexBrowserTimeline.apply(result, executions: &executions, items: &items))
+    XCTAssertEqual(executions.first?.arguments, "read_title · https://example.com/docs")
+    XCTAssertEqual(CodexBrowserTimeline.source(result)?.url, "https://example.com/docs")
+    let catalog: JSONValue = .object([
+      "type": .string("browser_result"), "requestId": .string(UUID().uuidString),
+      "result": .object(["status": .string("ok"), "url": .string("https://example.com/docs"),
+        "tools": .array([.object(["name": .string("read_title")])])]),
+    ])
+    XCTAssertNil(CodexBrowserTimeline.source(catalog),
+      "Listing available tools is not a recently used site-tool source")
+  }
 }
