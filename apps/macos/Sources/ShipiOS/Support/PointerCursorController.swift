@@ -1,4 +1,6 @@
 import AppKit
+import SwiftTerm
+import WebKit
 
 @MainActor
 final class PointerCursorController {
@@ -11,12 +13,11 @@ final class PointerCursorController {
       return
     }
     for window in NSApp.windows { window.acceptsMouseMovedEvents = true }
-    monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .cursorUpdate]) {
-      event in
-      if Self.isInteractive(event.window?.contentView?.hitTest(event.locationInWindow)) {
-        NSCursor.pointingHand.set()
-      } else {
-        NSCursor.arrow.set()
+    monitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { event in
+      guard let window = event.window else { return event }
+      let location = window.contentView?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+      if let cursor = Self.cursorOverride(for: window.contentView?.hitTest(location)) {
+        cursor.set()
       }
       return event
     }
@@ -26,13 +27,25 @@ final class PointerCursorController {
     if let monitor { NSEvent.removeMonitor(monitor) }
   }
 
-  private static func isInteractive(_ view: NSView?) -> Bool {
-    var view = view
-    while let current = view {
-      if current is NSButton { return true }
-      if let role = current.accessibilityRole(), role == .button || role == .link { return true }
-      view = current.superview
+  /// `nil` leaves AppKit's cursor rectangles in charge of text, resizing, and panning.
+  static func cursorOverride(for view: NSView?) -> NSCursor? {
+    var ancestor = view
+    while let current = ancestor {
+      if current is NSTextView || current is NSTextField
+        || current is PanelResizeHandle.ResizeView || current is ImagePreviewCanvas.Picture
+        || current is WKWebView || current is TerminalView {
+        return nil
+      }
+      ancestor = current.superview
     }
-    return false
+    ancestor = view
+    var interactive = false
+    while let current = ancestor {
+      if let control = current as? NSControl, !control.isEnabled { return .arrow }
+      if current is NSButton { interactive = true }
+      if let role = current.accessibilityRole(), role == .button || role == .link { interactive = true }
+      ancestor = current.superview
+    }
+    return interactive ? .pointingHand : .arrow
   }
 }
