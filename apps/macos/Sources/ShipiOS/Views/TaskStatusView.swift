@@ -7,9 +7,22 @@ struct TaskStatusSnapshot {
   let codexThreadID: String?
   let recentContextInputTokens: Int?
   let contextWindow: Int?
+  let currentModel: String
+  let recentUsageModel: String?
+  let recentUsageInputTokens: Int?
   let usesCodexCore: Bool
-  let contextFraction: Double?
   let recordedUsage: ModelTokenUsage?
+
+  var contextFraction: Double? { contextFraction(for: contextWindow) }
+
+  func contextFraction(for window: Int?) -> Double? {
+    guard let recentContextInputTokens, let window, window > 0,
+      recentContextInputTokens >= 0, recentContextInputTokens <= window,
+      recentUsageModel == currentModel, recentUsageInputTokens == recentContextInputTokens else {
+      return nil
+    }
+    return Double(recentContextInputTokens) / Double(window)
+  }
 
   init(task: WorkspaceTask, records: [ModelUsageRecord], recentContextInputTokens: Int?,
     currentModel: String = "", contextWindow: Int? = nil, usesCodexCore: Bool = false) {
@@ -18,22 +31,28 @@ struct TaskStatusSnapshot {
     codexThreadID = task.copyableCodexThreadID
     self.recentContextInputTokens = recentContextInputTokens
     self.contextWindow = contextWindow
+    self.currentModel = currentModel
     self.usesCodexCore = usesCodexCore
     let latest = records.filter { $0.taskID == task.id }.max { $0.date < $1.date }
-    if let recentContextInputTokens, let contextWindow, contextWindow > 0,
-      recentContextInputTokens >= 0, recentContextInputTokens <= contextWindow,
-      latest?.model == currentModel, latest?.usage.inputTokens == recentContextInputTokens {
-      contextFraction = Double(recentContextInputTokens) / Double(contextWindow)
-    } else {
-      contextFraction = nil
-    }
+    recentUsageModel = latest?.model
+    recentUsageInputTokens = latest?.usage.inputTokens
     recordedUsage = records.filter { $0.taskID == task.id }.groupedByTask.first?.usage
   }
 }
 
 struct TaskStatusView: View {
   let status: TaskStatusSnapshot
+  var loadContextWindow: (() async -> Int?)? = nil
   let close: () -> Void
+  @State private var fetchedContext: (identity: String, window: Int)?
+  @State private var loadingContextIdentity: String?
+
+  private var contextIdentity: String { status.taskID + "|" + status.currentModel }
+  private var contextWindow: Int? {
+    if fetchedContext?.identity == contextIdentity { return fetchedContext?.window }
+    return status.contextWindow
+  }
+  private var contextFraction: Double? { status.contextFraction(for: contextWindow) }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -63,7 +82,7 @@ struct TaskStatusView: View {
               .appFont(.headline)
             LabeledContent("最近一轮上下文输入", value:
               status.recentContextInputTokens.map { "\($0.formatted()) tokens" } ?? "暂无数据")
-            if let fraction = status.contextFraction, let window = status.contextWindow {
+            if let fraction = contextFraction, let window = contextWindow {
               ProgressView(value: fraction)
                 .accessibilityLabel("上下文窗口用量")
                 .accessibilityValue("约 \(Int((fraction * 100).rounded()))%")
@@ -77,7 +96,9 @@ struct TaskStatusView: View {
             } else {
               LabeledContent("累计记录", value: "暂无数据")
             }
-            if status.contextFraction == nil {
+            if loadingContextIdentity == contextIdentity {
+              ProgressView("正在获取模型窗口…").controlSize(.small)
+            } else if contextFraction == nil {
               Text("暂无可与最近一轮用量匹配的模型窗口数据，无法计算百分比。")
                 .appFont(.caption).foregroundStyle(.secondary)
             }
@@ -96,6 +117,16 @@ struct TaskStatusView: View {
       }
     }
     .frame(width: 440, height: 410)
+    .task(id: contextIdentity) {
+      guard status.contextWindow == nil, status.recentContextInputTokens != nil,
+        let loadContextWindow else { return }
+      let identity = contextIdentity
+      loadingContextIdentity = identity
+      let window = await loadContextWindow()
+      guard !Task.isCancelled else { return }
+      if let window { fetchedContext = (identity, window) }
+      if loadingContextIdentity == identity { loadingContextIdentity = nil }
+    }
   }
 
   private func identifier(_ label: String, value: String) -> some View {

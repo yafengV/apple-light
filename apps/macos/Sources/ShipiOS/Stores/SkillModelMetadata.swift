@@ -6,6 +6,31 @@ extension WorkspaceStore {
     return skillModelCatalogs[ModelCatalogSource(config)]?[config.model]?.contextWindow
   }
 
+  func loadContextWindow(for taskID: String?,
+    fetch: (ModelConfiguration) async throws -> [ModelCatalogEntry] = { config in
+      let key = try ModelKeychain.read(account: config.credentialAccount)
+      return try await ModelAPIClient().modelDetails(config: config, key: key, timeout: 3)
+    }) async -> Int? {
+    let config = modelConfiguration(for: taskID)
+    let source = ModelCatalogSource(config)
+    if let catalog = skillModelCatalogs[source] {
+      return catalog[config.model]?.contextWindow
+    }
+    let generation = skillModelCatalogGenerations[source] ?? UUID()
+    skillModelCatalogGenerations[source] = generation
+    do {
+      let entries = try await fetch(config)
+      guard !Task.isCancelled else { return nil }
+      if skillModelCatalogGenerations[source] == generation, skillModelCatalogs[source] == nil {
+        skillModelCatalogs[source] = Dictionary(entries.map { ($0.id, $0) },
+          uniquingKeysWith: { _, latest in latest })
+      }
+      return skillModelCatalogs[source]?[config.model]?.contextWindow
+    } catch {
+      return nil
+    }
+  }
+
   func captureSkillModelMetadata(_ catalog: ModelCatalog, config: ModelConfiguration) {
     let source = ModelCatalogSource(config)
     guard !Task.isCancelled, catalog.source == source, !catalog.loading, catalog.error == nil else { return }

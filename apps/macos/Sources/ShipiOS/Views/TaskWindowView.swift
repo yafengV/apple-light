@@ -532,7 +532,8 @@ struct TaskWindowView: View {
           recentContextInputTokens: store.contextInputTokens(taskID: taskID),
           currentModel: store.modelConfiguration(for: taskID).model,
           contextWindow: store.contextWindow(for: taskID),
-          usesCodexCore: store.modelConfiguration(for: taskID).apiProtocol == .codexResponses)) {
+          usesCodexCore: store.modelConfiguration(for: taskID).apiProtocol == .codexResponses),
+          loadContextWindow: { await store.loadContextWindow(for: taskID) }) {
           showingTaskStatus = false
         }
       }

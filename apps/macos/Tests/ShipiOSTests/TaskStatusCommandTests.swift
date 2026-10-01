@@ -74,6 +74,48 @@ final class TaskStatusCommandTests: XCTestCase {
     XCTAssertNil(store.contextWindow(for: nil))
   }
 
+  @MainActor func testTaskStatusLoadsMissingContextWindowOnceFromSelectedService() async {
+    let store = WorkspaceStore()
+    var config = ModelConfiguration()
+    config.baseURL = "https://example.com/v1"
+    config.model = "selected"
+    store.modelConfiguration = config
+    var fetches = 0
+    let first = await store.loadContextWindow(for: nil) { requested in
+      fetches += 1
+      XCTAssertEqual(requested.credentialAccount, "https://example.com/v1")
+      return [ModelCatalogEntry(id: "selected", contextWindow: 8_000)]
+    }
+    XCTAssertEqual(first, 8_000)
+    let second = await store.loadContextWindow(for: nil) { _ in
+      fetches += 1
+      return []
+    }
+    XCTAssertEqual(second, 8_000)
+    XCTAssertEqual(fetches, 1)
+    config.model = "unknown"
+    store.modelConfiguration = config
+    let unknown = await store.loadContextWindow(for: nil) { _ in
+      fetches += 1
+      return []
+    }
+    XCTAssertNil(unknown)
+    XCTAssertEqual(fetches, 1)
+  }
+
+  @MainActor func testTaskStatusKeepsUsageWhenModelCatalogFails() async {
+    let store = WorkspaceStore()
+    var config = ModelConfiguration()
+    config.baseURL = "https://example.com/v1"
+    config.model = "selected"
+    store.modelConfiguration = config
+    let window = await store.loadContextWindow(for: nil) { _ in
+      throw AgentFailure(message: "Service unavailable")
+    }
+    XCTAssertNil(window)
+    XCTAssertNil(store.contextWindow(for: nil))
+  }
+
   private func record(taskID: String, input: Int, output: Int) -> ModelUsageRecord {
     ModelUsageRecord(runID: UUID().uuidString, taskID: taskID,
       taskTitle: taskID, projectTitle: "", model: "test", reasoning: "",

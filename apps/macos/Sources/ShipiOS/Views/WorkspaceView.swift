@@ -20,7 +20,8 @@ struct WorkspaceView: View {
           recentContextInputTokens: store.contextInputTokens(taskID: task.id),
           currentModel: store.modelConfiguration(for: task.id).model,
           contextWindow: store.contextWindow(for: task.id),
-          usesCodexCore: store.modelConfiguration(for: task.id).apiProtocol == .codexResponses)) {
+          usesCodexCore: store.modelConfiguration(for: task.id).apiProtocol == .codexResponses),
+          loadContextWindow: { await store.loadContextWindow(for: task.id) }) {
           store.showingTaskStatus = false
         }
       }
