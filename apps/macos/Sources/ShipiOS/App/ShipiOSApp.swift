@@ -214,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func captureAppshotFromShortcut() {
     guard let store, store.appshotHotkey != .none, store.shortcutCaptureCount == 0,
       !store.shuttingDown, !store.hasSettingsConfirmation else { return }
-    let target = store.appshotCapture.availableTarget()
+    guard let target = store.appshotCapture.availableTarget() else { return }
     let mainWindow = NSApp.windows.first { $0.identifier?.rawValue == "main" }
     let current = AppshotShortcutChat.resolve(lastWindow: lastAppshotWindow,
       mainWindow: mainWindow, store: store, popout: popoutWindowController)
