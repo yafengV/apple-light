@@ -46,7 +46,7 @@ struct AgentSettingsView: View {
               if visible { confirmingFullAccess = true }
               else {
                 status = store.saveShowFullAccessInComposer(false)
-                  ? "已隐藏完全访问；新任务的完全访问默认值已恢复为工作区写入。"
+                  ? "已隐藏完全访问；新任务的完全访问默认值已恢复为按需请求批准。"
                   : "保存失败，请重试。"
               }
             }))
@@ -56,14 +56,18 @@ struct AgentSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
       Section("Codex Core 权限") {
-        SettingsMenuPicker("审批策略", description: "按需请求批准，或让需要批准的操作直接失败。", selection: Binding(
+        SettingsMenuPicker("审批策略", description: "按需请求批准，或不再请求批准；受沙箱限制的操作会失败。", selection: Binding(
           get: { store.library.agentRuntimePreferences.approvalPolicy },
           set: { value in updatePermissions { $0.approvalPolicy = value } }),
           options: AgentApprovalPolicy.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.agentApproval)
         SettingsMenuPicker("文件访问", description: "限制 Agent 可编辑的文件范围。", selection: Binding(
           get: { store.library.agentRuntimePreferences.sandboxMode },
-          set: { value in updatePermissions { $0.sandboxMode = value } }),
+          set: { value in updatePermissions {
+            $0.sandboxMode = value
+            if value != .workspaceWrite { $0.networkAccess = false }
+            if value == .fullAccess { $0.approvalPolicy = .never }
+          } }),
           options: AgentSandboxMode.visibleOptions(
             showFullAccess: store.library.showFullAccessInComposer)
             .map { SettingsMenuOption(value: $0, title: $0.title) })
@@ -123,7 +127,7 @@ struct AgentSettingsView: View {
           : "保存失败，请重试。"
       }
     } message: {
-      Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，包括执行可能造成破坏的命令；是否请求批准仍由审批策略决定。确认仅将完全访问加入输入区权限菜单，不会自动启用。")
+      Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，且不再请求批准，包括执行可能造成破坏的命令。确认仅将完全访问加入输入区权限菜单，不会自动启用。")
     }
   }
 

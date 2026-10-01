@@ -3,6 +3,23 @@ import XCTest
 @testable import ShipiOS
 
 final class WorkspaceLibraryTests: XCTestCase {
+  func testPermissionPresetsPairApprovalAndSandboxAndNameCustomCombinations() {
+    XCTAssertEqual(AgentRuntimePreferences.askForApproval,
+      AgentRuntimePreferences(approvalPolicy: .onRequest,
+        sandboxMode: .workspaceWrite, networkAccess: false))
+    XCTAssertEqual(AgentRuntimePreferences.fullAccess,
+      AgentRuntimePreferences(approvalPolicy: .never,
+        sandboxMode: .fullAccess, networkAccess: false))
+    XCTAssertEqual(AgentRuntimePreferences.askForApproval.menuTitle, "按需请求批准")
+    XCTAssertEqual(AgentRuntimePreferences.fullAccess.menuTitle, "完全访问")
+    XCTAssertEqual(AgentRuntimePreferences(approvalPolicy: .onRequest,
+      sandboxMode: .fullAccess).menuTitle, "自定义权限")
+    XCTAssertEqual(AgentRuntimePreferences(approvalPolicy: .never,
+      sandboxMode: .workspaceWrite).menuTitle, "自定义权限")
+    XCTAssertEqual(AgentRuntimePreferences(approvalPolicy: .onRequest,
+      sandboxMode: .workspaceWrite, networkAccess: true).menuTitle, "自定义权限")
+  }
+
   @MainActor func testAgentRuntimePermissionsPersistAndRollBackOnSaveFailure() throws {
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertEqual(legacy.agentRuntimePreferences, AgentRuntimePreferences())
@@ -54,8 +71,8 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertTrue(store.saveShowFullAccessInComposer(false))
     let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
     XCTAssertFalse(restored.showFullAccessInComposer)
-    XCTAssertEqual(restored.agentRuntimePreferences.sandboxMode, .workspaceWrite)
-    XCTAssertEqual(restored.popoutHomeRuntimePreferences?.sandboxMode, .workspaceWrite)
+    XCTAssertEqual(restored.agentRuntimePreferences, .askForApproval)
+    XCTAssertEqual(restored.popoutHomeRuntimePreferences, .askForApproval)
     XCTAssertEqual(restored.taskRuntimePreferences[task.id], full)
     XCTAssertFalse(store.saveAgentRuntimePreferences(full))
   }
@@ -80,11 +97,15 @@ final class WorkspaceLibraryTests: XCTestCase {
     XCTAssertTrue(store.saveShowFullAccessInComposer(true))
     let full = AgentRuntimePreferences(approvalPolicy: .never, sandboxMode: .fullAccess)
     XCTAssertTrue(store.saveComposerRuntimePreferences(full,
+      taskID: nil, draftKey: secondDraft))
+    XCTAssertTrue(store.saveComposerRuntimePreferences(full,
       taskID: task.id, draftKey: firstDraft))
     XCTAssertEqual(store.composerRuntimePreferences(taskID: task.id, draftKey: secondDraft), full)
     XCTAssertTrue(store.saveShowFullAccessInComposer(false))
     XCTAssertEqual(store.composerRuntimePreferences(taskID: task.id, draftKey: firstDraft), full,
       "Existing task permission snapshots remain visible after hiding the option")
+    XCTAssertEqual(store.composerRuntimePreferences(taskID: nil, draftKey: secondDraft),
+      .askForApproval)
     XCTAssertFalse(store.saveComposerRuntimePreferences(full,
       taskID: nil, draftKey: secondDraft))
     XCTAssertFalse(store.saveComposerRuntimePreferences(readOnly,

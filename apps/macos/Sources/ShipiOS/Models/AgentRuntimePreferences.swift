@@ -34,6 +34,21 @@ struct AgentRuntimePreferences: Codable, Equatable {
   var approvalPolicy = AgentApprovalPolicy.onRequest
   var sandboxMode = AgentSandboxMode.workspaceWrite
   var networkAccess = false
+
+  static let askForApproval = AgentRuntimePreferences()
+  static let fullAccess = AgentRuntimePreferences(approvalPolicy: .never,
+    sandboxMode: .fullAccess)
+
+  var isFullAccessPreset: Bool {
+    sandboxMode == .fullAccess && approvalPolicy == .never
+  }
+
+  var menuTitle: String {
+    if self == .askForApproval { return "按需请求批准" }
+    if isFullAccessPreset { return "完全访问" }
+    if sandboxMode == .readOnly && approvalPolicy == .onRequest { return "只读" }
+    return "自定义权限"
+  }
 }
 
 enum AgentResponseVerbosity: String, Codable, CaseIterable {

@@ -69,17 +69,14 @@ extension WorkspaceStore {
       candidate.showFullAccessInComposer = visible
       if !visible {
         if candidate.agentRuntimePreferences.sandboxMode == .fullAccess {
-          candidate.agentRuntimePreferences.sandboxMode = .workspaceWrite
-          candidate.agentRuntimePreferences.networkAccess = false
+          candidate.agentRuntimePreferences = .askForApproval
         }
         if candidate.popoutHomeRuntimePreferences?.sandboxMode == .fullAccess {
-          candidate.popoutHomeRuntimePreferences?.sandboxMode = .workspaceWrite
-          candidate.popoutHomeRuntimePreferences?.networkAccess = false
+          candidate.popoutHomeRuntimePreferences = .askForApproval
         }
         for key in Array(candidate.newTaskRuntimePreferences.keys) {
           if candidate.newTaskRuntimePreferences[key]?.sandboxMode == .fullAccess {
-            candidate.newTaskRuntimePreferences[key]?.sandboxMode = .workspaceWrite
-            candidate.newTaskRuntimePreferences[key]?.networkAccess = false
+            candidate.newTaskRuntimePreferences[key] = .askForApproval
           }
         }
       }

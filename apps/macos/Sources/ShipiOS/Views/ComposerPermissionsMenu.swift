@@ -17,26 +17,65 @@ struct ComposerPermissionsMenu: View {
   }
 
   private var title: String {
-    if effective.sandboxMode == .fullAccess { return "完全访问" }
-    if effective.sandboxMode == .readOnly { return "只读" }
-    return "默认权限"
+    effective.menuTitle
   }
 
   var body: some View {
     Menu {
+      AgentPermissionOptions(effective: effective, hasOverride: hasOverride,
+        showFullAccess: store.library.showFullAccessInComposer) { choice in
+          _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
+        }
+    } label: {
+      Label(title, systemImage: "lock.shield")
+        .appFont(.caption)
+    }
+    .menuStyle(.borderlessButton).fixedSize()
+    .accessibilityLabel("权限：\(title)")
+    .help(taskID == nil ? "为新任务选择 Codex Core 权限" : "为当前任务下一轮选择 Codex Core 权限")
+    .disabled(!store.libraryLoaded)
+  }
+}
+
+/// Keep the presets and advanced controls identical in the main composer,
+/// task windows, and the popout home. Presets always select both Codex fields.
+struct AgentPermissionOptions: View {
+  let effective: AgentRuntimePreferences
+  let hasOverride: Bool
+  let showFullAccess: Bool
+  let onSelect: (AgentRuntimePreferences?) -> Void
+
+  var body: some View {
+    Button {
+      onSelect(nil)
+    } label: {
+      if !hasOverride { Label("沿用全局设置", systemImage: "checkmark") }
+      else { Text("沿用全局设置") }
+    }
+    Divider()
+    Button {
+      onSelect(.askForApproval)
+    } label: {
+      if hasOverride && effective == .askForApproval {
+        Label("按需请求批准", systemImage: "checkmark")
+      } else { Text("按需请求批准") }
+    }
+    if showFullAccess || effective.sandboxMode == .fullAccess {
       Button {
-        _ = store.saveComposerRuntimePreferences(nil, taskID: taskID, draftKey: draftKey)
+        onSelect(.fullAccess)
       } label: {
-        if !hasOverride { Label("沿用全局设置", systemImage: "checkmark") }
-        else { Text("沿用全局设置") }
+        if hasOverride && effective.isFullAccessPreset {
+          Label("完全访问", systemImage: "checkmark")
+        } else { Text("完全访问") }
       }
-      Divider()
+    }
+    Menu("自定义权限") {
       Menu("审批策略") {
         ForEach(AgentApprovalPolicy.allCases, id: \.self) { policy in
           Button {
             var choice = effective
             choice.approvalPolicy = policy
-            _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
+            onSelect(choice)
           } label: {
             if effective.approvalPolicy == policy {
               Label(policy.title, systemImage: "checkmark")
@@ -46,13 +85,13 @@ struct ComposerPermissionsMenu: View {
       }
       Menu("文件访问") {
         ForEach(AgentSandboxMode.visibleOptions(
-          showFullAccess: store.library.showFullAccessInComposer
-            || effective.sandboxMode == .fullAccess), id: \.self) { mode in
+          showFullAccess: showFullAccess || effective.sandboxMode == .fullAccess), id: \.self) { mode in
           Button {
             var choice = effective
             choice.sandboxMode = mode
             if mode != .workspaceWrite { choice.networkAccess = false }
-            _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
+            if mode == .fullAccess { choice.approvalPolicy = .never }
+            onSelect(choice)
           } label: {
             if effective.sandboxMode == mode {
               Label(mode.title, systemImage: "checkmark")
@@ -64,20 +103,13 @@ struct ComposerPermissionsMenu: View {
         Button {
           var choice = effective
           choice.networkAccess.toggle()
-          _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
+          onSelect(choice)
         } label: {
           if effective.networkAccess {
             Label("允许网络访问", systemImage: "checkmark")
           } else { Text("允许网络访问") }
         }
       }
-    } label: {
-      Label(title, systemImage: "lock.shield")
-        .appFont(.caption)
     }
-    .menuStyle(.borderlessButton).fixedSize()
-    .accessibilityLabel("权限：\(title)")
-    .help(taskID == nil ? "为新任务选择 Codex Core 权限" : "为当前任务下一轮选择 Codex Core 权限")
-    .disabled(!store.libraryLoaded)
   }
 }

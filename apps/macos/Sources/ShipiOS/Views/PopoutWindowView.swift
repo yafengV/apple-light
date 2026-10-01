@@ -301,52 +301,10 @@ struct PopoutHomeView: View {
     Menu("权限") {
       let effective = store.library.popoutHomeRuntimePreferences
         ?? store.library.agentRuntimePreferences
-      Button {
-        _ = store.savePopoutHomeRuntimePreferences(nil)
-      } label: {
-        if store.library.popoutHomeRuntimePreferences == nil {
-          Label("沿用全局设置", systemImage: "checkmark")
-        } else { Text("沿用全局设置") }
-      }
-      Divider()
-      Menu("审批策略") {
-        ForEach(AgentApprovalPolicy.allCases, id: \.self) { policy in
-          Button {
-            var choice = effective
-            choice.approvalPolicy = policy
-            _ = store.savePopoutHomeRuntimePreferences(choice)
-          } label: {
-            if effective.approvalPolicy == policy {
-              Label(policy.title, systemImage: "checkmark")
-            } else { Text(policy.title) }
-          }
-        }
-      }
-      Menu("文件访问") {
-        ForEach(AgentSandboxMode.visibleOptions(
-          showFullAccess: store.library.showFullAccessInComposer), id: \.self) { mode in
-          Button {
-            var choice = effective
-            choice.sandboxMode = mode
-            if mode != .workspaceWrite { choice.networkAccess = false }
-            _ = store.savePopoutHomeRuntimePreferences(choice)
-          } label: {
-            if effective.sandboxMode == mode {
-              Label(mode.title, systemImage: "checkmark")
-            } else { Text(mode.title) }
-          }
-        }
-      }
-      if effective.sandboxMode == .workspaceWrite {
-        Button {
-          var choice = effective
-          choice.networkAccess.toggle()
+      AgentPermissionOptions(effective: effective,
+        hasOverride: store.library.popoutHomeRuntimePreferences != nil,
+        showFullAccess: store.library.showFullAccessInComposer) { choice in
           _ = store.savePopoutHomeRuntimePreferences(choice)
-        } label: {
-          if effective.networkAccess {
-            Label("允许网络访问", systemImage: "checkmark")
-          } else { Text("允许网络访问") }
-        }
       }
     }
     .disabled(submitting)
