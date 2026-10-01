@@ -22,6 +22,7 @@ struct ImageAttachmentsView: View {
                   }
                   .buttonStyle(.plain).focusable().focused($focusedImage, equals: image.id)
                   .accessibilityLabel("预览应用窗口：\(context.displayTitle)")
+                  .padding(.top, removable ? 0 : 10)
                   .onKeyPress(keys: [.space, .return], phases: .down) { press in
                     guard isEnabled, press.modifiers.isEmpty else { return .ignored }
                     open(image)
@@ -63,7 +64,7 @@ struct ImageAttachmentsView: View {
               }.padding(6).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             }
           }
-        }
+        }.padding(.horizontal, images.contains(where: { $0.appshot != nil }) ? 12 : 0)
       }.scrollIndicators(.hidden).accessibilityLabel("图片附件")
     }
   }
@@ -79,10 +80,23 @@ struct ImageAttachmentsView: View {
   }
 }
 
-private struct AppshotCardVisual: View {
+enum AppshotCardLayout {
+  static let width: CGFloat = 232
+  static let height: CGFloat = 140
+
+  static func screenshotHeight(pixelWidth: Int, pixelHeight: Int) -> CGFloat {
+    guard pixelWidth > 0, pixelHeight > 0 else { return height }
+    return CGFloat(pixelHeight) * min(width / CGFloat(pixelWidth), height / CGFloat(pixelHeight))
+  }
+}
+
+struct AppshotCardVisual: View {
   let image: ImageAttachment
   let context: AppshotContext
   let root: URL
+  @State private var thumbnail: CGImage?
+  @State private var failed = false
+  @State private var isHovered = false
 
   private var icon: NSImage? {
     if let stored = AppshotIcon.image(context.iconPNG) { return stored }
@@ -93,22 +107,50 @@ private struct AppshotCardVisual: View {
 
   var body: some View {
     ZStack(alignment: .bottom) {
-      AttachmentThumbnail(image: image, root: root, size: 512)
-        .frame(width: 232, height: 140, alignment: .bottom)
-        .mask(LinearGradient(stops: [
-          .init(color: .white, location: 0),
-          .init(color: .white, location: 0.6),
-          .init(color: .white.opacity(0.2), location: 0.8),
-          .init(color: .clear, location: 1),
-        ], startPoint: .top, endPoint: .bottom))
-      Group {
-        if let icon { Image(nsImage: icon).resizable().scaledToFit() }
-        else { Image(systemName: "app").resizable().scaledToFit() }
-      }.frame(width: 24, height: 24)
+      Color.clear.frame(width: AppshotCardLayout.width, height: AppshotCardLayout.height)
+      if let thumbnail {
+        Image(decorative: thumbnail, scale: 1)
+          .resizable().scaledToFit()
+          .frame(width: AppshotCardLayout.width,
+            height: AppshotCardLayout.screenshotHeight(
+              pixelWidth: thumbnail.width, pixelHeight: thumbnail.height))
+          .padding(.horizontal, 12)
+          .mask(LinearGradient(stops: [
+            .init(color: .white, location: 0),
+            .init(color: .white.opacity(0.21), location: 0.79),
+            .init(color: .clear, location: 1),
+          ], startPoint: .top, endPoint: .bottom))
+          .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 10)
+      } else if failed {
+        Image(systemName: "exclamationmark.triangle")
+          .frame(width: AppshotCardLayout.width, height: AppshotCardLayout.height)
+          .accessibilityLabel("截图不可用")
+      } else {
+        ProgressView().controlSize(.small)
+          .frame(width: AppshotCardLayout.width, height: AppshotCardLayout.height)
+      }
+      if let icon {
+        Image(nsImage: icon).resizable().scaledToFit()
+          .frame(width: 24, height: 24)
+          .accessibilityHidden(true)
+      }
     }
-    .frame(width: 232, height: 140)
-    .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
-    .clipShape(RoundedRectangle(cornerRadius: 16))
+    .frame(width: AppshotCardLayout.width, height: AppshotCardLayout.height)
+    .background(isHovered ? Color(nsColor: .controlBackgroundColor).opacity(0.75) : .clear,
+      in: RoundedRectangle(cornerRadius: 16))
+    .contentShape(RoundedRectangle(cornerRadius: 16))
+    .onHover { isHovered = $0 }
+    .task(id: image.id) {
+      thumbnail = nil
+      failed = false
+      do {
+        let decoded = try await Task.detached(priority: .userInitiated) {
+          try ImageAttachmentStorage.thumbnail(image, root: root, size: 512)
+        }.value
+        guard !Task.isCancelled else { return }
+        thumbnail = decoded
+      } catch { if !Task.isCancelled { failed = true } }
+    }
   }
 }
 

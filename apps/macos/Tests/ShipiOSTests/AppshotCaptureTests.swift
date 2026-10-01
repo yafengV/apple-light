@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 
 @testable import ShipiOS
@@ -22,6 +23,55 @@ final class AppshotCaptureTests: XCTestCase {
     let large = AppshotImage.size(rect: CGRect(x: 0, y: 0, width: 5_000, height: 2_500), pixelScale: 2)
     XCTAssertEqual(large.width, 3_200)
     XCTAssertEqual(large.height, 1_600)
+  }
+
+  func testAppshotCardUsesReferenceFitHeightForWideAndTallWindows() {
+    XCTAssertEqual(AppshotCardLayout.screenshotHeight(pixelWidth: 800, pixelHeight: 200), 58,
+      accuracy: 0.001)
+    XCTAssertEqual(AppshotCardLayout.screenshotHeight(pixelWidth: 400, pixelHeight: 800), 140)
+    XCTAssertEqual(AppshotCardLayout.screenshotHeight(pixelWidth: 0, pixelHeight: 800), 140)
+  }
+
+  @MainActor func testWideAppshotCardRendersInNativeHost() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let graphics = try XCTUnwrap(CGContext(data: nil, width: 800, height: 200,
+      bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    graphics.setFillColor(NSColor.systemRed.cgColor)
+    graphics.fill(CGRect(x: 0, y: 0, width: 800, height: 200))
+    let encoded = try AppshotImage.encode(try XCTUnwrap(graphics.makeImage()), applicationName: "Example")
+    let metadata = AppshotContext(appName: "Example", bundleIdentifier: nil,
+      windowTitle: "Wide Window", axTree: "")
+    let attachment = try ImageAttachmentStorage.importData(encoded.data,
+      name: encoded.name, root: root, appshot: metadata)
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 190),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: AppshotCardVisual(
+      image: attachment, context: metadata, root: root).frame(width: 300, height: 190))
+    window.contentView = host
+    host.frame = window.contentView!.bounds
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+    XCTAssertGreaterThan(png.count, 2_000)
+    let rendered = try XCTUnwrap(NSBitmapImageRep(data: png))
+    let redRows = (0..<rendered.pixelsHigh).filter { row in
+      guard let color = rendered.colorAt(x: 150, y: row)?.usingColorSpace(.deviceRGB) else { return false }
+      return color.redComponent > 0.6 && color.greenComponent < 0.3
+    }
+    XCTAssertGreaterThan(try XCTUnwrap(redRows.first), 95,
+      "A wide screenshot should rest at the bottom of the 140pt Appshot card")
+    XCTAssertGreaterThan(try XCTUnwrap(redRows.last), 135)
+    if let directory = ProcessInfo.processInfo.environment["SHIPIOS_APPSHOT_SNAPSHOTS"] {
+      try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+      try png.write(to: URL(fileURLWithPath: directory).appendingPathComponent("wide-card.png"))
+    }
   }
 
   func testAutomaticCaptureUsesFrontmostEligibleWindowForRecordedApp() {
