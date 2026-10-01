@@ -75,6 +75,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case screenRecording
   case accessibility
   case allowedApplications
+  case appshotHotkey
+  case appshotDestination
+  case appshotSound
   case browserHistory
   case browserClear
   case browserDownloadFolder
@@ -190,6 +193,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .screenRecording: .computerUse
     case .accessibility: .computerUse
     case .allowedApplications: .computerUse
+    case .appshotHotkey, .appshotDestination, .appshotSound: .appshots
     case .browserHistory: .browser
     case .browserClear: .browser
     case .browserDownloadFolder: .browser
@@ -278,6 +282,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .screenRecording: "屏幕录制"
     case .accessibility: "辅助功能"
     case .allowedApplications: "始终允许的应用"
+    case .appshotHotkey: "应用快照快捷键"
+    case .appshotDestination: "Appshot 发送目标"
+    case .appshotSound: "播放音效"
     case .browserHistory: "浏览历史"
     case .browserClear: "清除浏览数据"
     case .browserDownloadFolder: "下载位置"
@@ -409,6 +416,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .screenRecording: "系统访问"
     case .accessibility: "系统访问"
     case .allowedApplications: "添加应用"
+    case .appshotHotkey: "同时按下两个 Command ⌘ 键 无"
+    case .appshotDestination: "自动 当前聊天 新聊天"
+    case .appshotSound: "截图声音"
     case .browserHistory: "历史与数据 搜索标题网址"
     case .browserClear: "Cookie 缓存"
     case .browserDownloadFolder: "文件夹"

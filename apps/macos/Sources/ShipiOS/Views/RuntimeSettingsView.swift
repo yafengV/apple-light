@@ -196,6 +196,8 @@ struct RuntimeSettingsView: View {
       BrowserSettingsView(store: store)
     case .computerUse:
       ComputerUseSettingsView(store: store)
+    case .appshots:
+      AppshotSettingsView(store: store)
     case .connections:
       ConnectionSettingsView(store: store)
     case .hooks:

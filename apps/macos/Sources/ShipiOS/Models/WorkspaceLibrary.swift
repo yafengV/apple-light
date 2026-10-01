@@ -292,6 +292,9 @@ enum WebLinkTarget: String, Codable, CaseIterable, Identifiable {
 
 /// Desktop organization is separate from immutable execution records in the Agent database.
 struct WorkspaceLibrary: Codable {
+  var appshotHotkeyEnabled = true
+  var appshotDestination = AppshotDestination.automatic
+  var appshotSoundEnabled = true
   var activityPreferences = ActivityPreferences()
   var tasks: [WorkspaceTask] = []
   var projects: [String] = []
@@ -412,6 +415,7 @@ struct WorkspaceLibrary: Codable {
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, dismissedEducationalTipIDs,
+      appshotHotkeyEnabled, appshotDestination, appshotSoundEnabled,
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
@@ -496,6 +500,9 @@ struct WorkspaceLibrary: Codable {
     browserDownloads =
       try c.decodeIfPresent([BrowserDownloadRecord].self, forKey: .browserDownloads) ?? []
     pluginsEnabled = try c.decodeIfPresent(Bool.self, forKey: .pluginsEnabled) ?? true
+    appshotHotkeyEnabled = try c.decodeIfPresent(Bool.self, forKey: .appshotHotkeyEnabled) ?? true
+    appshotDestination = try c.decodeIfPresent(AppshotDestination.self, forKey: .appshotDestination) ?? .automatic
+    appshotSoundEnabled = try c.decodeIfPresent(Bool.self, forKey: .appshotSoundEnabled) ?? true
     showInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
     showEducationalTips =
       try c.decodeIfPresent(Bool.self, forKey: .showEducationalTips) ?? true

@@ -3,6 +3,21 @@ import CryptoKit
 import Foundation
 
 extension WorkspaceStore {
+  var appshotHotkeyEnabled: Bool {
+    get { library.appshotHotkeyEnabled }
+    set { updateGeneralPreference(\.appshotHotkeyEnabled, value: newValue) }
+  }
+
+  var appshotDestination: AppshotDestination {
+    get { library.appshotDestination }
+    set { updateGeneralPreference(\.appshotDestination, value: newValue) }
+  }
+
+  var appshotSoundEnabled: Bool {
+    get { library.appshotSoundEnabled }
+    set { updateGeneralPreference(\.appshotSoundEnabled, value: newValue) }
+  }
+
   static let popoutHomeDraftKey = "popout-home"
 
   var popoutHomeDraft: String {

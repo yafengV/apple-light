@@ -92,6 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petPanelController: PetPanelController?
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
+  private var appshotModifierMonitor: AppshotModifierMonitor?
+  private var mainWindowFocusObserver: NSObjectProtocol?
+  private var lastMainWindowFocus: Date?
   private var popoutWindowController: PopoutWindowController?
   private let pointerCursorController = PointerCursorController()
   private var quitting = false
@@ -120,6 +123,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     quitting = true
     stopAutomationPolling()
     stopSkillMonitoring()
+    appshotModifierMonitor = nil
+    if let mainWindowFocusObserver {
+      NotificationCenter.default.removeObserver(mainWindowFocusObserver)
+      self.mainWindowFocusObserver = nil
+    }
     Task {
       await store?.shutdown()
       sender.reply(toApplicationShouldTerminate: true)
@@ -147,6 +155,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         popoutController?.toggle()
       }
       popoutGlobalHotKey = popoutHotKey
+      mainWindowFocusObserver = NotificationCenter.default.addObserver(
+        forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
+      ) { [weak self] notification in
+        guard let window = notification.object as? NSWindow,
+          window.identifier?.rawValue == "main" else { return }
+        Task { @MainActor [weak self] in self?.lastMainWindowFocus = Date() }
+      }
+      if NSApp.keyWindow?.identifier?.rawValue == "main" { lastMainWindowFocus = Date() }
+      appshotModifierMonitor = AppshotModifierMonitor { [weak self] in
+        self?.captureAppshotFromShortcut()
+      }
       let refreshHotKey = { [weak hotKey, weak store] in
         guard let hotKey, let store else { return }
         do { try hotKey.register(store.shortcuts.binding("pet")) }
@@ -175,6 +194,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     ready = true
     await openPendingNotification()
     await openPendingDeepLinks()
+  }
+
+  private func captureAppshotFromShortcut() {
+    guard let store, store.appshotHotkeyEnabled, store.shortcutCaptureCount == 0,
+      !store.shuttingDown, !store.hasSettingsConfirmation else { return }
+    let target = store.appshotCapture.availableTarget()
+    let currentChat = store.selectedTask != nil
+    let recentlyFocused = lastMainWindowFocus.map { Date().timeIntervalSince($0) < 60 } ?? false
+    let startNew = store.appshotDestination.shouldStartNewChat(
+      hasCurrentChat: currentChat, focusedRecently: recentlyFocused)
+    if startNew && store.busy { return }
+    Task { @MainActor [weak store] in
+      guard let store else { return }
+      if startNew { await store.newChat() }
+      let owner = NSApp.windows.first { $0.identifier?.rawValue == "main" }
+      await store.captureAppshot(draft: store.draftKey, target: target,
+        ownerWindow: owner) { [weak store] in
+          guard let store else { return }
+          if store.destination != .workspace { store.returnToWorkspace() }
+          store.showMainWindowHandler?()
+          if store.appshotSoundEnabled { NSSound.beep() }
+        }
+    }
   }
 
   func startAutomationPolling(every interval: Duration = .seconds(30)) {

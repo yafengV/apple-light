@@ -207,7 +207,7 @@ extension DesktopCommand {
 }
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-  case general, profile, appearance, pets, personalization, memories, model, agent, git, codeReview, environments, usage, shortcuts, notifications, browser, computerUse, connections, mcpServers, hooks, plugins, skills, worktrees, archived, runtime
+  case general, profile, appearance, pets, personalization, memories, model, agent, git, codeReview, environments, usage, shortcuts, notifications, browser, computerUse, appshots, connections, mcpServers, hooks, plugins, skills, worktrees, archived, runtime
   var id: String { rawValue }
   var title: String {
     switch self {
@@ -227,6 +227,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .notifications: "通知"
     case .browser: "浏览器"
     case .computerUse: "电脑使用"
+    case .appshots: "应用快照"
     case .connections: "连接"
     case .mcpServers: "MCP 服务器"
     case .hooks: "Hooks"
@@ -255,6 +256,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .notifications: "bell"
     case .browser: "globe"
     case .computerUse: "macbook.and.iphone"
+    case .appshots: "camera.viewfinder"
     case .connections: "network"
     case .mcpServers: "server.rack"
     case .hooks: "point.topleft.down.to.point.bottomright.curvepath"

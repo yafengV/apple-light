@@ -20,7 +20,7 @@ enum SettingsNavigation {
       .memories, .pets, .shortcuts, .usage, .model,
     ]),
     .init(id: "integrations", title: "集成", pages: [
-      .computerUse, .plugins, .browser,
+      .computerUse, .appshots, .plugins, .browser,
     ]),
     .init(id: "coding", title: "编码", pages: [
       .hooks, .connections, .codeReview, .git, .environments, .worktrees,
@@ -67,6 +67,7 @@ enum SettingsNavigation {
     case .worktrees: ["工作树", "Worktrees", "根目录", "恢复"]
     case .browser: ["浏览器", "历史", "网站数据", "下载", "权限"]
     case .computerUse: ["电脑使用", "屏幕录制", "辅助功能", "允许应用"]
+    case .appshots: ["应用快照", "Appshot", "截图", "快捷键", "目标", "音效"]
     case .connections: ["SSH", "远程", "主机", "设备", "连接"]
     case .mcpServers: ["MCP", "服务器", "插件"]
     case .hooks: ["Hooks", "钩子", "插件"]

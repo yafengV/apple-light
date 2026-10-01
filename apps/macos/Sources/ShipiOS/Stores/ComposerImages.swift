@@ -10,8 +10,10 @@ enum ImageImport: Sendable {
 extension WorkspaceStore {
   var draftImages: [ImageAttachment] { library.draftImages[draftKey] ?? [] }
 
-  func captureAppshot(draft key: String, target: AppshotTarget? = nil) async {
-    await captureAppshotWithProgress(draft: key) { progress in
+  func captureAppshot(draft key: String, target: AppshotTarget? = nil,
+    ownerWindow: NSWindow? = nil, onScreenshot: (() -> Void)? = nil) async {
+    await captureAppshotWithProgress(draft: key, ownerWindow: ownerWindow,
+      onScreenshot: onScreenshot) { progress in
       try await appshotCapture.capture(target: target, onScreenshot: progress)
     }
   }
@@ -24,6 +26,7 @@ extension WorkspaceStore {
 
   func captureAppshotWithProgress(draft key: String,
     ownerWindow: NSWindow? = nil,
+    onScreenshot: (() -> Void)? = nil,
     capture: (@escaping (AppshotCaptureResult) -> Void) async throws -> AppshotCaptureResult?) async {
     guard libraryLoaded, !shuttingDown, !importingImages, !importingFiles else { return }
     guard (library.draftImages[key]?.count ?? 0) < ImageAttachmentStorage.maxCount else {
@@ -36,6 +39,7 @@ extension WorkspaceStore {
       guard let self, self.importingImages, self.pendingAppshot == nil else { return }
       let id = UUID()
       self.pendingAppshot = PendingAppshot(id: id, draftKey: key, result: screenshot)
+      onScreenshot?()
       self.prepareAppshotHandoff(id: id, screenshot: screenshot,
         ownerWindow: captureOwner)
     }
