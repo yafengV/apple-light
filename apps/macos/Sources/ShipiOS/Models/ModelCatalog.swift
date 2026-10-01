@@ -5,6 +5,7 @@ import CoreFoundation
 struct ModelCatalogEntry: Equatable {
   let id: String
   let supportedReasoningEfforts: Set<String>?
+  let reasoningOrder: [String]?
   let displayName: String?
   let description: String?
   let defaultReasoningEffort: String?
@@ -13,11 +14,20 @@ struct ModelCatalogEntry: Equatable {
   let contextWindow: Int?
 
   init(id: String, supportedReasoningEfforts: Set<String>? = nil,
+    reasoningOrder: [String]? = nil,
     displayName: String? = nil, description: String? = nil,
     defaultReasoningEffort: String? = nil, priority: Int? = nil,
     showInPicker: Bool? = nil, contextWindow: Int? = nil) {
     self.id = id
     self.supportedReasoningEfforts = supportedReasoningEfforts
+    if let reasoningOrder {
+      var seen = Set<String>()
+      self.reasoningOrder = reasoningOrder.filter { seen.insert($0).inserted }
+    } else if let supportedReasoningEfforts {
+      let known = AgentReasoningEfforts.available(advanced: Set(AgentAdvancedReasoningEffort.allCases))
+      self.reasoningOrder = known.filter { supportedReasoningEfforts.contains($0) }
+        + supportedReasoningEfforts.subtracting(known).sorted()
+    } else { self.reasoningOrder = nil }
     self.displayName = displayName
     self.description = description
     self.defaultReasoningEffort = defaultReasoningEffort
@@ -39,18 +49,28 @@ enum ReasoningCommand {
     }
   }
 
-  func target(current: String, entry: ModelCatalogEntry,
-    advanced: Set<AgentAdvancedReasoningEffort>) -> String? {
-    guard let supported = entry.supportedReasoningEfforts else { return nil }
-    let choices = AgentReasoningEfforts.available(advanced: advanced)
-      .filter { !$0.isEmpty && supported.contains($0) }
-    guard choices.count >= 2,
-      let index = choices.firstIndex(of: current.isEmpty ? entry.defaultReasoningEffort ?? "" : current)
-    else { return nil }
+  private func choices(entry: ModelCatalogEntry?) -> [String] {
+    if let supported = entry?.supportedReasoningEfforts {
+      let known = Set(AgentReasoningEfforts.available(advanced: Set(AgentAdvancedReasoningEffort.allCases)))
+      return (entry?.reasoningOrder ?? []).filter { !$0.isEmpty && known.contains($0) && supported.contains($0) }
+    }
+    // Codex falls back to these tiers when the model list has no capability record.
+    return ["minimal", "low", "medium", "high", "xhigh", "max"]
+  }
+
+  func effective(current: String, entry: ModelCatalogEntry?) -> String {
+    let selected = current.isEmpty ? entry?.defaultReasoningEffort ?? "medium" : current
+    return choices(entry: entry).contains(selected) ? selected : "medium"
+  }
+
+  func target(current: String, entry: ModelCatalogEntry?) -> String? {
+    let choices = choices(entry: entry)
+    guard !choices.isEmpty else { return effective(current: current, entry: entry) }
+    let index = choices.firstIndex(of: effective(current: current, entry: entry)) ?? -1
     switch self {
-    case .increase: return index < choices.count - 1 ? choices[index + 1] : nil
-    case .decrease: return index > 0 ? choices[index - 1] : nil
-    case .cycle: return choices[(index + 1) % choices.count]
+    case .increase: return choices[min(index + 1, choices.count - 1)]
+    case .decrease: return choices[max(index - 1, 0)]
+    case .cycle: return choices[index == choices.count - 1 ? 0 : index + 1]
     }
   }
 }
@@ -81,20 +101,22 @@ final class ModelCatalog {
         guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
         let value = row["supported_reasoning_efforts"] ?? row["supportedReasoningEfforts"]
           ?? row["supported_reasoning_levels"] ?? row["supportedReasoningLevels"]
-        let efforts: Set<String>? = {
-          if let strings = value as? [String] { return Set(strings) }
+        let effortOrder: [String]? = {
+          if let strings = value as? [String] { return strings }
           if let objects = value as? [[String: Any]] {
-            return Set(objects.compactMap {
+            return objects.compactMap {
               ($0["reasoning_effort"] ?? $0["reasoningEffort"] ?? $0["effort"]) as? String
-            })
+            }
           }
           return nil
         }()
+        let efforts = effortOrder.map(Set.init)
         let previous = entries[id]
         let visibility = row["visibility"] as? String
         entries[id] = ModelCatalogEntry(
           id: id,
           supportedReasoningEfforts: efforts ?? previous?.supportedReasoningEfforts,
+          reasoningOrder: effortOrder ?? previous?.reasoningOrder,
           displayName: (row["display_name"] ?? row["displayName"] ?? row["name"]) as? String
             ?? previous?.displayName,
           description: row["description"] as? String ?? previous?.description,
@@ -187,7 +209,8 @@ final class ModelCatalog {
   func availableReasoning(for model: String, advanced: Set<AgentAdvancedReasoningEffort>) -> [String] {
     let visible = AgentReasoningEfforts.available(advanced: advanced)
     guard let supported = supportedReasoningEfforts[model] else { return visible }
-    return visible.filter { $0.isEmpty || supported.contains($0) }
+    let allowed = Set(visible)
+    return [""] + (details[model]?.reasoningOrder ?? []).filter { allowed.contains($0) && supported.contains($0) }
   }
 
   func powerChoices(for model: String, advanced: Set<AgentAdvancedReasoningEffort>) -> [String] {

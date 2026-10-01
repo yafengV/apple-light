@@ -39,6 +39,9 @@ final class ModelSelectionTests: XCTestCase {
       ModelCatalogEntry(id: "gpt-codex", supportedReasoningEfforts: ["medium", "high"],
         displayName: "Codex", description: "Coding model", defaultReasoningEffort: "medium"),
     ])
+    let ordered = try ModelCatalog.decodeDetails(Data(#"{"data":[{"id":"ordered","supported_reasoning_efforts":["high","low","high"]}]}"#.utf8))
+    XCTAssertEqual(ordered.first?.reasoningOrder, ["high", "low"])
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "high", entry: ordered.first), "low")
     let priorities = Data(#"{"models":[{"slug":"low-priority","priority":1,"visibility":"list"},{"slug":"hidden","priority":20,"visibility":"hide"},{"slug":"high-priority","priority":10,"show_in_picker":true}]}"#.utf8)
     XCTAssertEqual(try ModelCatalog.decodeDetails(priorities), [
       ModelCatalogEntry(id: "hidden", priority: 20, showInPicker: false),
@@ -77,6 +80,16 @@ final class ModelSelectionTests: XCTestCase {
     ] }
     XCTAssertEqual(catalog.availableReasoning(for: "known", advanced: [.max, .ultra]),
       ["", "low", "max"])
+    await catalog.load(config: ModelConfiguration()) { _ in [
+      ModelCatalogEntry(id: "ordered", supportedReasoningEfforts: ["low", "high"],
+        reasoningOrder: ["high", "low"]),
+    ] }
+    XCTAssertEqual(catalog.availableReasoning(for: "ordered", advanced: []), ["", "high", "low"])
+    await catalog.load(config: ModelConfiguration()) { _ in [
+      ModelCatalogEntry(id: "known", supportedReasoningEfforts: ["low", "max"],
+        displayName: "Known Reasoner", description: "For coding", defaultReasoningEffort: "low"),
+      ModelCatalogEntry(id: "unknown"),
+    ] }
     XCTAssertEqual(catalog.availableReasoning(for: "unknown", advanced: [.max]),
       ["", "none", "minimal", "low", "medium", "high", "xhigh", "max"])
     XCTAssertEqual(catalog.availableReasoning(for: "missing", advanced: []),
@@ -99,28 +112,26 @@ final class ModelSelectionTests: XCTestCase {
     XCTAssertFalse(catalog.isCurrentReasoningUnsupported(for: "unknown", reasoning: "high"))
   }
 
-  func testReasoningCommandsRequireKnownCapabilitiesAndRespectBounds() {
+  func testReasoningCommandsUseProviderCapabilitiesAndReferenceFallback() {
     let entry = ModelCatalogEntry(id: "known", supportedReasoningEfforts: ["low", "high", "max"],
       defaultReasoningEffort: "low")
-    XCTAssertEqual(ReasoningCommand("reasoning-increase")?.target(current: "", entry: entry,
-      advanced: []), "high")
-    XCTAssertEqual(ReasoningCommand("reasoning-decrease")?.target(current: "high", entry: entry,
-      advanced: []), "low")
-    XCTAssertNil(ReasoningCommand("reasoning-decrease")?.target(current: "low", entry: entry,
-      advanced: []))
-    XCTAssertNil(ReasoningCommand("reasoning-increase")?.target(current: "high", entry: entry,
-      advanced: []))
-    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "high", entry: entry,
-      advanced: []), "low")
-    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "high", entry: entry,
-      advanced: [.max]), "max")
-    XCTAssertNil(ReasoningCommand("reasoning-cycle")?.target(current: "low",
-      entry: ModelCatalogEntry(id: "unknown"), advanced: []))
-    XCTAssertNil(ReasoningCommand("reasoning-cycle")?.target(current: "low",
-      entry: ModelCatalogEntry(id: "single", supportedReasoningEfforts: ["low"]), advanced: []))
-    XCTAssertNil(ReasoningCommand("reasoning-increase")?.target(current: "",
-      entry: ModelCatalogEntry(id: "no-default", supportedReasoningEfforts: ["low", "high"]),
-      advanced: []))
+    XCTAssertEqual(ReasoningCommand("reasoning-increase")?.target(current: "", entry: entry), "high")
+    XCTAssertEqual(ReasoningCommand("reasoning-decrease")?.target(current: "high", entry: entry), "low")
+    XCTAssertEqual(ReasoningCommand("reasoning-decrease")?.target(current: "low", entry: entry), "low")
+    XCTAssertEqual(ReasoningCommand("reasoning-increase")?.target(current: "max", entry: entry), "max")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "high", entry: entry), "max")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "max", entry: entry), "low")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "low",
+      entry: ModelCatalogEntry(id: "unknown")), "medium")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "medium", entry: nil), "high")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "xhigh", entry: nil), "max")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "max", entry: nil), "minimal")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "low",
+      entry: ModelCatalogEntry(id: "single", supportedReasoningEfforts: ["low"])), "low")
+    XCTAssertEqual(ReasoningCommand("reasoning-cycle")?.target(current: "medium",
+      entry: ModelCatalogEntry(id: "empty", supportedReasoningEfforts: [])), "medium")
+    XCTAssertEqual(ReasoningCommand("reasoning-increase")?.target(current: "",
+      entry: ModelCatalogEntry(id: "no-default", supportedReasoningEfforts: ["low", "high"])), "low")
   }
 
   @MainActor func testReasoningCommandUsesTargetTaskModelAndPersistsSelection() async throws {
@@ -147,7 +158,15 @@ final class ModelSelectionTests: XCTestCase {
     store.executeReasoningCommand("reasoning-increase", taskID: "two")
     XCTAssertEqual(store.modelConfiguration(for: "two").reasoning, "high")
     XCTAssertEqual(store.modelConfiguration(for: "one").reasoning, "low")
-    XCTAssertNil(store.reasoningCommandTarget("reasoning-increase", taskID: "two"))
+    XCTAssertEqual(store.reasoningCommandTarget("reasoning-increase", taskID: "two"), "high")
+    let atTop = store.library.tasks.first { $0.id == "two" }?.modelSelection
+    store.executeReasoningCommand("reasoning-increase", taskID: "two")
+    XCTAssertEqual(store.library.tasks.first { $0.id == "two" }?.modelSelection, atTop)
+    store.skillModelCatalogs[ModelCatalogSource(config)] = nil
+    store.modelCatalogRevision = UUID()
+    XCTAssertEqual(store.reasoningCommandTarget("reasoning-increase", taskID: "one"), "medium")
+    store.executeReasoningCommand("reasoning-increase", taskID: nil)
+    XCTAssertEqual(store.modelConfiguration.reasoning, "medium")
     await store.shutdown()
   }
 
