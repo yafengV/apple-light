@@ -120,6 +120,14 @@ extension Collection where Element == AgentRun {
           addExternal(source, activity: .provided)
         }
         for message in run.codexSteeredMessages {
+          for file in message.files {
+            let source = TaskSummarySource.file(file)
+            if seen.insert(source.id).inserted { files.append(source) }
+          }
+          for image in message.images {
+            let source = TaskSummarySource.image(image)
+            if seen.insert(source.id).inserted { files.append(source) }
+          }
           for source in TaskProvidedWebLinks.collect(message.text) {
             addExternal(source, activity: .provided)
           }

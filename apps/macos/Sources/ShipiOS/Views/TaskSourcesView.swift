@@ -79,13 +79,11 @@ struct TaskSourcesView: View {
     return sources.filter { $0.searchableText.localizedStandardContains(term) }
   }
 
-  private var otherSources: [TaskSummarySource] {
-    filtered.filter {
-      if case .external = $0 { return false }
-      if case .siteTool = $0 { return false }
-      if case .tool = $0 { return false }
-      if case .webSearch = $0 { return false }
-      return true
+  private var attachmentSources: [TaskSummarySource] {
+    filtered.filter { source in
+      if case .file = source { return true }
+      if case .image = source { return true }
+      return false
     }
   }
 
@@ -151,10 +149,11 @@ struct TaskSourcesView: View {
       } else {
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 14) {
-            TaskSourcesListView(sources: otherSources, images: sourceImages,
-              openFile: { previewFile = $0 },
-              openImage: { image, _ in previewImage = ImagePreviewItem(image) },
-              openExternal: openExternal, openSiteTool: { _ in })
+            ForEach(attachmentSources) { source in
+              TaskAttachmentSourceSection(source: source,
+                openFile: { previewFile = $0 },
+                openImage: { previewImage = ImagePreviewItem($0) })
+            }
             ForEach(externalSources) { source in
               TaskExternalSourceSection(source: source, openExternal: openExternal)
             }
@@ -180,6 +179,34 @@ struct TaskSourcesView: View {
           root: dataRoot) { self.previewImage = nil }
       }
     }
+  }
+}
+
+private struct TaskAttachmentSourceSection: View {
+  let source: TaskSummarySource
+  let openFile: (FileAttachment) -> Void
+  let openImage: (ImageAttachment) -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      switch source {
+      case .file(let file):
+        Button { openFile(file) } label: {
+          Label(file.name, systemImage: file.isPDF ? "doc.richtext" : "doc.text")
+            .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+        }.buttonStyle(.plain).help("预览文件：\(file.name)")
+      case .image(let image):
+        Button { openImage(image) } label: {
+          Label(image.name, systemImage: "photo")
+            .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+        }.buttonStyle(.plain).help("预览图片：\(image.name)")
+      default: EmptyView()
+      }
+      Text("已附加到会话").appFont(.caption).foregroundStyle(.secondary)
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
   }
 }
 

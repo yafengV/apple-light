@@ -209,4 +209,19 @@ final class TaskSummarySourceTests: XCTestCase {
         activities: [.provided])),
     ])
   }
+
+  func testSteeredMessageAttachmentsAppearInSourcesWithoutDuplicates() throws {
+    let file = FileAttachment(id: UUID(), name: "brief.pdf", byteCount: 128,
+      sha256: "file", isPDF: true)
+    let image = ImageAttachment(id: UUID(), name: "screen.png", mimeType: "image/png",
+      byteCount: 64, sha256: "image")
+    let message = QueuedMessage(taskID: "task", text: "请查看附件", images: [image], files: [file])
+    let run = AgentRun(id: "steered-attachments", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object(["codex_steered_messages": try JSONDecoder().decode(JSONValue.self,
+        from: JSONEncoder().encode([message]))]))
+    var library = WorkspaceLibrary()
+    library.runFiles[run.id] = [file]
+    XCTAssertEqual([run].summarySources(in: library), [.file(file), .image(image)])
+  }
 }
