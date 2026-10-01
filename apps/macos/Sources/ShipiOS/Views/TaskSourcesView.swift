@@ -119,6 +119,23 @@ struct TaskSourcesView: View {
     return groups
   }
 
+  private var attachedSiteToolGroups: [String: SiteToolWebsiteGroup] {
+    let websites = siteToolWebsites
+    var claimed = Set<String>()
+    var attached: [String: SiteToolWebsiteGroup] = [:]
+    for source in externalSources {
+      guard let host = source.siteToolHost, claimed.insert(host).inserted,
+        let group = websites.first(where: { $0.host == host }) else { continue }
+      attached[source.id] = group
+    }
+    return attached
+  }
+
+  private var standaloneSiteToolWebsites: [SiteToolWebsiteGroup] {
+    let attachedHosts = Set(attachedSiteToolGroups.values.map(\.host))
+    return siteToolWebsites.filter { !attachedHosts.contains($0.host) }
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       HStack {
@@ -155,9 +172,10 @@ struct TaskSourcesView: View {
                 openImage: { previewImage = ImagePreviewItem($0) })
             }
             ForEach(externalSources) { source in
-              TaskExternalSourceSection(source: source, openExternal: openExternal)
+              TaskExternalSourceSection(source: source, siteTools: attachedSiteToolGroups[source.id],
+                openExternal: openExternal)
             }
-            ForEach(siteToolWebsites) { group in
+            ForEach(standaloneSiteToolWebsites) { group in
               BrowserSiteToolWebsiteSection(group: group, openExternal: openExternal)
             }
             ForEach(toolSources) { source in
@@ -212,6 +230,7 @@ private struct TaskAttachmentSourceSection: View {
 
 private struct TaskExternalSourceSection: View {
   let source: TaskExternalSource
+  let siteTools: SiteToolWebsiteGroup?
   let openExternal: (URL) -> Void
 
   var body: some View {
@@ -228,6 +247,7 @@ private struct TaskExternalSourceSection: View {
       ForEach(source.activities, id: \.self) { activity in
         Text(activity.label).appFont(.caption).foregroundStyle(.secondary)
       }
+      if let siteTools { BrowserSiteToolActivitiesView(group: siteTools) }
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -376,27 +396,35 @@ private struct BrowserSiteToolWebsiteSection: View {
       } else {
         Label(group.host, systemImage: "globe").appFont(.body, weight: .medium)
       }
-      ForEach(group.tools) { tool in
-        DisclosureGroup {
-          VStack(alignment: .leading, spacing: 12) {
-            ForEach(tool.calls) { call in
-              BrowserSiteToolCallDetails(execution: call)
-            }
-          }.padding(.top, 6)
-        } label: {
-          HStack {
-            Text(tool.name).lineLimit(1)
-            Spacer()
-            Text("\(tool.calls.count) 次")
-              .appFont(.caption).foregroundStyle(.secondary)
-          }
-        }
-        .accessibilityLabel("\(group.host) 的 \(tool.name)，使用 \(tool.calls.count) 次")
-      }
+      BrowserSiteToolActivitiesView(group: group)
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+  }
+}
+
+private struct BrowserSiteToolActivitiesView: View {
+  let group: SiteToolWebsiteGroup
+
+  var body: some View {
+    ForEach(group.tools) { tool in
+      DisclosureGroup {
+        VStack(alignment: .leading, spacing: 12) {
+          ForEach(tool.calls) { call in
+            BrowserSiteToolCallDetails(execution: call)
+          }
+        }.padding(.top, 6)
+      } label: {
+        HStack {
+          Text(tool.name).lineLimit(1)
+          Spacer()
+          Text("\(tool.calls.count) 次")
+            .appFont(.caption).foregroundStyle(.secondary)
+        }
+      }
+      .accessibilityLabel("\(group.host) 的 \(tool.name)，使用 \(tool.calls.count) 次")
+    }
   }
 }
 

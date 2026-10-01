@@ -27,4 +27,14 @@ final class TaskExternalResourceProviderTests: XCTestCase {
     XCTAssertEqual(read.detail, "Google Drive · \(url)")
     XCTAssertEqual(read.iconName, "doc.text")
   }
+
+  func testSiteToolAttachesOnlyToHostnameTitledResource() {
+    let url = "https://example.test/guide"
+    let hostname = TaskExternalSource(resource: .init(title: "example.test", url: url),
+      activities: [.read])
+    XCTAssertEqual(hostname.siteToolHost, "example.test")
+    let titled = TaskExternalSource(resource: .init(title: "Guide", url: url),
+      activities: [.read])
+    XCTAssertNil(titled.siteToolHost)
+  }
 }

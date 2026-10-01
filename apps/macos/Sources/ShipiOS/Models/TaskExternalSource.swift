@@ -34,6 +34,10 @@ struct TaskExternalSource: Identifiable, Equatable {
   var id: String { stableKey ?? CodexWebSource.sourceKey(resource.url) ?? resource.url }
   var title: String { resource.title }
   var url: String { resource.url }
+  var siteToolHost: String? {
+    guard let host = URL(string: url)?.host, title == host else { return nil }
+    return host
+  }
   var detail: String? {
     guard !activities.contains(.provided) else { return nil }
     return providerName.map { "\($0) · \(url)" } ?? url
