@@ -1073,7 +1073,7 @@ final class WorkspaceStore {
     scheduleManagedLimitCleanup()
   }
 
-  func sendDraft() async {
+  func sendDraft(followUpOverride: FollowUpBehavior? = nil) async {
     guard destination == .workspace, !importingImages && !importingFiles else { return }
     do {
       if handleComposerCommand() { return }
@@ -1111,7 +1111,7 @@ final class WorkspaceStore {
           error = "请在运行中的任务内追加消息。"
           return
         }
-        let behavior = followUpBehavior
+        let behavior = followUpOverride ?? followUpBehavior
         let message = QueuedMessage(
           taskID: task.id, text: note, images: images, files: files, mode: chatMode, pullRequestChecks: checkDraft)
         var candidate = library

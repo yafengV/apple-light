@@ -81,6 +81,8 @@ final class CommandMenuSearchTests: XCTestCase {
     XCTAssertEqual(groups["archive"], .chat)
     XCTAssertEqual(groups["plan"], .chat)
     XCTAssertEqual(groups["clear-prompt"], .chat)
+    XCTAssertEqual(groups["steer-prompt"], .chat)
+    XCTAssertEqual(groups["queue-prompt"], .chat)
     XCTAssertEqual(groups["add-photos"], .chat)
     XCTAssertEqual(groups["add-files"], .chat)
     XCTAssertEqual(groups["toggle-worktree-mode"], .chat)
@@ -174,6 +176,35 @@ final class CommandMenuSearchTests: XCTestCase {
     store.openSettings(.general)
     XCTAssertFalse(store.commandEnabled("add-photos"))
     XCTAssertFalse(store.commandEnabled("add-files"))
+    await store.shutdown()
+  }
+
+  @MainActor func testQueueCommandOverridesSteerPreferenceForOneRunningMessage() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let run = AgentRun(id: "active", kind: "chat", project: "", status: "running",
+      createdAt: 1, updatedAt: 1, request: .null, result: nil)
+    store.runs = [run]
+    store.library.attach(run, to: nil, note: "first")
+    store.selection = run.id
+    store.followUpBehavior = .steer
+    XCTAssertFalse(store.commandEnabled("queue-prompt"))
+    store.draft = "Queue just this message"
+    XCTAssertTrue(store.commandEnabled("queue-prompt"))
+    XCTAssertTrue(store.commandEnabled("steer-prompt"))
+    XCTAssertTrue(TaskWindowCommandContext.owns("queue-prompt"))
+    XCTAssertTrue(TaskWindowCommandContext.owns("steer-prompt"))
+
+    store.executeCommand("queue-prompt")
+    for _ in 0..<100 where store.library.queuedMessages.isEmpty {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertEqual(store.library.queuedMessages.map(\.text), ["Queue just this message"])
+    XCTAssertEqual(store.followUpBehavior, .steer)
+    XCTAssertEqual(store.draft, "")
+    XCTAssertNil(store.error)
     await store.shutdown()
   }
 

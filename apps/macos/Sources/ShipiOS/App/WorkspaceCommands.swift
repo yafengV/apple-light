@@ -28,6 +28,8 @@ struct WorkspaceCommands: Commands {
     }
     CommandMenu("任务") {
       command("send")
+      command("steer-prompt")
+      command("queue-prompt")
       command("clear-prompt")
       command("add-photos")
       command("add-files")

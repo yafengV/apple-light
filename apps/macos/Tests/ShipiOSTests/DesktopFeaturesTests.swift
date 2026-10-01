@@ -2460,7 +2460,7 @@ final class ModelTransportTests: XCTestCase {
     store.notificationPreferences = .init(timing: .never)
     await store.open(project)
     XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
-    store.followUpBehavior = .steer
+    XCTAssertEqual(store.followUpBehavior, .queue)
     await store.startChat("slow-codex")
     let run = try XCTUnwrap(store.library.chatRuns.last)
     let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
@@ -2474,7 +2474,8 @@ final class ModelTransportTests: XCTestCase {
     let file = try FileAttachmentStorage.importFile(source, root: root.appendingPathComponent("Data"))
     store.draft = "steered-inflight-proof"
     store.library.draftFiles[store.draftKey] = [file]
-    await store.sendDraft()
+    await store.sendDraft(followUpOverride: .steer)
+    XCTAssertEqual(store.followUpBehavior, .queue)
     XCTAssertEqual(store.library.chatRuns.count, 1)
     XCTAssertTrue(store.library.queuedMessages.isEmpty, store.error ?? "Steering stayed queued")
     XCTAssertEqual(store.library.chatRuns[0].codexSteeredMessages.map(\.text),
@@ -2519,7 +2520,7 @@ final class ModelTransportTests: XCTestCase {
     try store.saveModelConfiguration(config)
     store.notificationPreferences = .init(timing: .never)
     await store.open(project)
-    store.followUpBehavior = .steer
+    XCTAssertEqual(store.followUpBehavior, .queue)
     await store.startChat("slow-codex")
     let run = try XCTUnwrap(store.library.chatRuns.last)
     let taskID = try XCTUnwrap(store.library.task(containing: run.id)?.id)
@@ -2529,7 +2530,8 @@ final class ModelTransportTests: XCTestCase {
     }
     XCTAssertTrue(store.codexTransport.canSteer(taskID: taskID))
     store.setTaskWindowDraft("steered-inflight-proof", taskID: taskID)
-    await store.sendTaskWindowDraft(taskID, mode: .standard)
+    await store.sendTaskWindowDraft(taskID, mode: .standard, followUpOverride: .steer)
+    XCTAssertEqual(store.followUpBehavior, .queue)
     XCTAssertEqual(store.library.chatRuns.count, 1)
     XCTAssertTrue(store.library.queuedMessages.isEmpty, store.error ?? "Window steering stayed queued")
     XCTAssertTrue(store.taskWindowDraft(taskID).isEmpty)

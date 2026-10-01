@@ -29,7 +29,8 @@ extension WorkspaceStore {
     setTaskWindowDraft(prompt, taskID: taskID)
   }
 
-  func sendTaskWindowDraft(_ taskID: String, mode: ChatMode) async {
+  func sendTaskWindowDraft(_ taskID: String, mode: ChatMode,
+    followUpOverride: FollowUpBehavior? = nil) async {
     guard let task = library.tasks.first(where: { $0.id == taskID }) else {
       error = "这个任务已经不存在。"
       return
@@ -87,7 +88,8 @@ extension WorkspaceStore {
       let message = QueuedMessage(taskID: taskID, text: prompt,
         images: taskWindowImages(taskID), files: taskWindowFiles(taskID), mode: mode, pullRequestChecks: checkDraft)
       var candidate = library
-      if followUpBehavior == .steer,
+      let behavior = followUpOverride ?? followUpBehavior
+      if behavior == .steer,
         let first = candidate.queuedMessages.firstIndex(where: { $0.taskID == taskID }) {
         candidate.queuedMessages.insert(message, at: first)
       } else {
@@ -103,7 +105,7 @@ extension WorkspaceStore {
       if candidate.pullRequestCheckDrafts[taskID] == checkDraft { candidate.pullRequestCheckDrafts[taskID] = nil }
       do {
         try commitLibrary(candidate)
-        if followUpBehavior == .steer { await steerActiveChat(with: message) }
+        if behavior == .steer { await steerActiveChat(with: message) }
       } catch { self.error = error.localizedDescription }
       return
     }

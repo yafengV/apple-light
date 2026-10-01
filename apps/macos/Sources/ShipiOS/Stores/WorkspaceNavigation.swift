@@ -68,6 +68,8 @@ extension WorkspaceStore {
       focusComposer = UUID()
     case "sidebar": NotificationCenter.default.post(name: .toggleShipiOSSidebar, object: nil)
     case "send": Task { await sendDraft() }
+    case "steer-prompt": Task { await sendDraft(followUpOverride: .steer) }
+    case "queue-prompt": Task { await sendDraft(followUpOverride: .queue) }
     case "find-next":
       if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(1) }
       else if let tab = pageFindTab, tab.showingPageFind { tab.findInPage() }
@@ -205,6 +207,14 @@ extension WorkspaceStore {
     case "activity": return libraryLoaded
     case "clear-unread": return libraryLoaded && !library.unreadTasks.isEmpty
     case "send": return canSend
+    case "steer-prompt", "queue-prompt":
+      guard let active = selectedActiveRun, active.kind == "chat",
+        destination == .workspace && action == .chat && canSend else { return false }
+      guard active.request["api_protocol"].text != ModelAPIProtocol.codexResponses.rawValue
+        || chatMode == .standard else { return false }
+      return !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        || !draftImages.isEmpty || !draftFiles.isEmpty || !reviewComments.isEmpty
+        || !browserComments.isEmpty || pullRequestCheckDraft != nil
     case "clear-prompt": return destination == .workspace && action == .chat && libraryLoaded
     case "add-photos", "add-files":
       return destination == .workspace && action == .chat && libraryLoaded && !shuttingDown

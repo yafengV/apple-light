@@ -218,6 +218,25 @@ final class TaskWindowTests: XCTestCase {
     XCTAssertNil(store.error)
   }
 
+  @MainActor func testTaskWindowQueueOverrideDoesNotChangeSavedSteerPreference() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.library.tasks = [.init(id: "popout", project: "", title: "Popout", runIDs: ["active"])]
+    store.runs = [AgentRun(id: "active", kind: "chat", project: "", status: "running",
+      createdAt: 1, updatedAt: 1, request: .null, result: nil)]
+    store.followUpBehavior = .steer
+    store.setTaskWindowDraft("Queue from this window", taskID: "popout")
+
+    await store.sendTaskWindowDraft("popout", mode: .standard, followUpOverride: .queue)
+
+    XCTAssertEqual(store.library.queuedMessages.map(\.text), ["Queue from this window"])
+    XCTAssertEqual(store.followUpBehavior, .steer)
+    XCTAssertEqual(store.taskWindowDraft("popout"), "")
+    XCTAssertNil(store.error)
+  }
+
   @MainActor func testPopoutPlanContinueTargetsItsTaskWithoutChangingMainDraft() {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

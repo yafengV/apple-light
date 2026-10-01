@@ -801,6 +801,11 @@ struct TaskWindowView: View {
       if store.commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
+      if let active = store.activeChatRun(taskID: taskID), canSend,
+        active.request["api_protocol"].text != ModelAPIProtocol.codexResponses.rawValue
+          || mode == .standard {
+        enabled.formUnion(["steer-prompt", "queue-prompt"])
+      }
       if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
       if !task.isTransient { enabled.formUnion(["pin", "unread", "rename"]) }
       if store.canArchiveTask(taskID, inWindow: resources.id) { enabled.insert("archive") }
@@ -884,6 +889,10 @@ struct TaskWindowView: View {
     case "palette", "palette-alternate": openSearch(.commands)
     case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
+    case "steer-prompt":
+      if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode, followUpOverride: .steer) } }
+    case "queue-prompt":
+      if canSend { Task { await store.sendTaskWindowDraft(taskID, mode: mode, followUpOverride: .queue) } }
     case "clear-prompt":
       store.setTaskWindowDraft("", taskID: taskID)
       composerFocused = true
