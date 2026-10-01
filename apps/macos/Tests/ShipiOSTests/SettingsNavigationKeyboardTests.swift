@@ -13,4 +13,17 @@ import XCTest
       XCTAssertEqual(SettingsNavigation.adjacent(to: pages[index + 1], offset: -1, in: pages), pages[index])
     }
   }
+
+  func testBackTabFromProfileReturnTargetsLastFormControlOnlyWhenAvailable() {
+    XCTAssertEqual(SettingsNavigation.backTabTarget(
+      page: .profile, searching: false, profileLoaded: true, hasConfirmation: false), .profileCard)
+    XCTAssertEqual(SettingsNavigation.backTabTarget(
+      page: .profile, searching: true, profileLoaded: true, hasConfirmation: false), .native)
+    XCTAssertEqual(SettingsNavigation.backTabTarget(
+      page: .profile, searching: false, profileLoaded: false, hasConfirmation: false), .native)
+    XCTAssertEqual(SettingsNavigation.backTabTarget(
+      page: .profile, searching: false, profileLoaded: true, hasConfirmation: true), .native)
+    XCTAssertEqual(SettingsNavigation.backTabTarget(
+      page: .appearance, searching: false, profileLoaded: true, hasConfirmation: false), .native)
+  }
 }

@@ -44,9 +44,21 @@ struct SettingsNavigationView: View {
           return .handled
         }
         .onKeyPress(keys: [.tab], phases: .down) { press in
-          guard press.modifiers.isEmpty else { return .ignored }
-          store.settingsSearchFocusRequest = UUID()
-          return .handled
+          if press.modifiers.isEmpty {
+            store.settingsSearchFocusRequest = UUID()
+            return .handled
+          }
+          if press.modifiers == .shift,
+            SettingsNavigation.backTabTarget(page: store.settingsPage, searching: searching,
+              profileLoaded: store.profileLoaded,
+              hasConfirmation: store.hasSettingsConfirmation) == .profileCard {
+            // SwiftUI's native backtab can jump from Back to the sidebar after
+            // a full traversal; send this known page boundary to its last control.
+            returnFocused = false
+            store.settingsLastControlFocusRequest = UUID()
+            return .handled
+          }
+          return .ignored
         }
         .help("返回之前的页面（Esc）")
         .accessibilityLabel(store.showingOpenSourceLicenses ? "返回通用" : "返回应用")

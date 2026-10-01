@@ -7,6 +7,13 @@ struct SettingsNavigationGroup: Identifiable {
 }
 
 enum SettingsNavigation {
+  enum BackTabTarget: Equatable { case native, profileCard }
+
+  static func backTabTarget(page: SettingsPage, searching: Bool,
+    profileLoaded: Bool, hasConfirmation: Bool) -> BackTabTarget {
+    page == .profile && !searching && profileLoaded && !hasConfirmation ? .profileCard : .native
+  }
+
   static let groups: [SettingsNavigationGroup] = [
     .init(id: "personal", title: "个人", pages: [
       .general, .notifications, .profile, .appearance, .agent, .personalization,

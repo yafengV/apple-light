@@ -7,6 +7,7 @@ struct ProfileSettingsView: View {
   @State private var card: ProfileCardDocument?
   @State private var exportingCard = false
   @State private var exportStatus: String?
+  @FocusState private var cardFocused: Bool
 
   var body: some View {
     Form {
@@ -69,7 +70,9 @@ struct ProfileSettingsView: View {
               .appFont(.caption).foregroundStyle(.secondary)
           }
           Spacer()
-          Button("保存资料卡…") { prepareCard() }.settingsSearchTarget(.profileCard).disabled(!store.profileLoaded)
+          Button("保存资料卡…") { prepareCard() }
+            .settingsSearchTarget(.profileCard).disabled(!store.profileLoaded)
+            .focused($cardFocused)
         }.padding(.vertical, 5)
         if let exportStatus { Text(exportStatus).appFont(.caption).textSelection(.enabled) }
       }
@@ -81,6 +84,14 @@ struct ProfileSettingsView: View {
         }
       }
     }.settingsFormStyle().appSurface()
+      .onChange(of: store.settingsLastControlFocusRequest) { _, request in
+        DispatchQueue.main.async {
+          guard store.settingsLastControlFocusRequest == request,
+            store.destination == .settings, store.settingsPage == .profile,
+            store.profileLoaded, !store.hasSettingsConfirmation else { return }
+          cardFocused = true
+        }
+      }
       .confirmationDialog("移除个人头像？", isPresented: $confirmingAvatarRemoval, titleVisibility: .visible) {
         Button("移除", role: .destructive) { _ = store.removeProfileAvatar() }
         Button("取消", role: .cancel) {}

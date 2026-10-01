@@ -100,6 +100,7 @@ final class WorkspaceStore {
   var showingOpenSourceLicenses = false
   var settingsSearchRequest: SettingsSearchRequest?
   var settingsSearchFocusRequest = UUID()
+  var settingsLastControlFocusRequest = UUID()
   var pluginDetailRoute: PluginDetailRoute?
   var pluginDetailForwardRoute: PluginDetailRoute?
   var pluginSettingsSection = PluginSettingsSection.plugins {
