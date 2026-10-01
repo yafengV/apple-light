@@ -213,7 +213,7 @@ struct RuntimeSettingsView: View {
         if let directory = store.dataDirectory {
           LabeledContent("当前项目") { Text(directory.path).textSelection(.enabled) }
         }
-        Text("本地 Agent 执行诊断和构建。模型会话使用独立 API；当前尚未接入 Codex Core 的自主编码工具循环。")
+        Text("本地 Agent 提供诊断、构建和 Codex Core 自主编码工具。当前模型会话使用独立 API 的\(store.modelConfiguration.apiProtocol == .codexResponses ? "Codex Core · Responses" : "Chat Completions") 协议。")
           .foregroundStyle(.secondary)
       }.settingsFormStyle().appSurface()
     }

@@ -529,7 +529,10 @@ struct TaskWindowView: View {
       if let task {
         TaskStatusView(status: TaskStatusSnapshot(task: task,
           records: store.library.modelUsageRecords,
-          recentContextInputTokens: store.contextInputTokens(taskID: taskID))) {
+          recentContextInputTokens: store.contextInputTokens(taskID: taskID),
+          currentModel: store.modelConfiguration(for: taskID).model,
+          contextWindow: store.contextWindow(for: taskID),
+          usesCodexCore: store.modelConfiguration(for: taskID).apiProtocol == .codexResponses)) {
           showingTaskStatus = false
         }
       }

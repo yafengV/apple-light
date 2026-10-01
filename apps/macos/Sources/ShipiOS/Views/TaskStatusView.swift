@@ -6,13 +6,27 @@ struct TaskStatusSnapshot {
   let title: String
   let codexThreadID: String?
   let recentContextInputTokens: Int?
+  let contextWindow: Int?
+  let usesCodexCore: Bool
+  let contextFraction: Double?
   let recordedUsage: ModelTokenUsage?
 
-  init(task: WorkspaceTask, records: [ModelUsageRecord], recentContextInputTokens: Int?) {
+  init(task: WorkspaceTask, records: [ModelUsageRecord], recentContextInputTokens: Int?,
+    currentModel: String = "", contextWindow: Int? = nil, usesCodexCore: Bool = false) {
     taskID = task.id
     title = task.title
     codexThreadID = task.copyableCodexThreadID
     self.recentContextInputTokens = recentContextInputTokens
+    self.contextWindow = contextWindow
+    self.usesCodexCore = usesCodexCore
+    let latest = records.filter { $0.taskID == task.id }.max { $0.date < $1.date }
+    if let recentContextInputTokens, let contextWindow, contextWindow > 0,
+      recentContextInputTokens >= 0, recentContextInputTokens <= contextWindow,
+      latest?.model == currentModel, latest?.usage.inputTokens == recentContextInputTokens {
+      contextFraction = Double(recentContextInputTokens) / Double(contextWindow)
+    } else {
+      contextFraction = nil
+    }
     recordedUsage = records.filter { $0.taskID == task.id }.groupedByTask.first?.usage
   }
 }
@@ -40,7 +54,7 @@ struct TaskStatusView: View {
             if let id = status.codexThreadID {
               identifier("Codex 会话 ID", value: id)
             } else {
-              LabeledContent("Codex 会话 ID", value: "尚未建立")
+              LabeledContent("Codex 会话 ID", value: status.usesCodexCore ? "尚未建立" : "不适用")
             }
           }
           Divider()
@@ -49,6 +63,13 @@ struct TaskStatusView: View {
               .appFont(.headline)
             LabeledContent("最近一轮上下文输入", value:
               status.recentContextInputTokens.map { "\($0.formatted()) tokens" } ?? "暂无数据")
+            if let fraction = status.contextFraction, let window = status.contextWindow {
+              ProgressView(value: fraction)
+                .accessibilityLabel("上下文窗口用量")
+                .accessibilityValue("约 \(Int((fraction * 100).rounded()))%")
+              Text("约 \(Int((fraction * 100).rounded()))% · 模型窗口 \(window.formatted()) tokens")
+                .appFont(.caption).foregroundStyle(.secondary)
+            }
             if let usage = status.recordedUsage {
               LabeledContent("累计记录", value: "\(usage.totalTokens.formatted()) tokens")
               LabeledContent("输入 / 输出", value:
@@ -56,8 +77,10 @@ struct TaskStatusView: View {
             } else {
               LabeledContent("累计记录", value: "暂无数据")
             }
-            Text("服务未提供上下文窗口上限时，无法计算使用百分比。")
-              .appFont(.caption).foregroundStyle(.secondary)
+            if status.contextFraction == nil {
+              Text("暂无可与最近一轮用量匹配的模型窗口数据，无法计算百分比。")
+                .appFont(.caption).foregroundStyle(.secondary)
+            }
           }
           Divider()
           VStack(alignment: .leading, spacing: 8) {

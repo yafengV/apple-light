@@ -17,7 +17,10 @@ struct WorkspaceView: View {
       if let task = store.selectedTask {
         TaskStatusView(status: TaskStatusSnapshot(task: task,
           records: store.library.modelUsageRecords,
-          recentContextInputTokens: store.contextInputTokens(taskID: task.id))) {
+          recentContextInputTokens: store.contextInputTokens(taskID: task.id),
+          currentModel: store.modelConfiguration(for: task.id).model,
+          contextWindow: store.contextWindow(for: task.id),
+          usesCodexCore: store.modelConfiguration(for: task.id).apiProtocol == .codexResponses)) {
           store.showingTaskStatus = false
         }
       }

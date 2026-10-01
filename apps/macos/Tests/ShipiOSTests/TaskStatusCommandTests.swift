@@ -38,6 +38,42 @@ final class TaskStatusCommandTests: XCTestCase {
     XCTAssertEqual(snapshot.recordedUsage?.totalTokens, 67)
   }
 
+  func testContextPercentageRequiresMatchingModelAndUsage() {
+    let task = WorkspaceTask(id: "second", project: "", title: "Second", runIDs: [])
+    let usage = record(taskID: task.id, input: 200, output: 5)
+    let matched = TaskStatusSnapshot(task: task, records: [usage],
+      recentContextInputTokens: 200, currentModel: "test", contextWindow: 1_000)
+    XCTAssertEqual(matched.contextFraction, 0.2)
+    XCTAssertEqual(matched.contextWindow, 1_000)
+    XCTAssertNil(TaskStatusSnapshot(task: task, records: [usage],
+      recentContextInputTokens: 200, currentModel: "new-model", contextWindow: 1_000).contextFraction)
+    XCTAssertNil(TaskStatusSnapshot(task: task, records: [usage],
+      recentContextInputTokens: 201, currentModel: "test", contextWindow: 1_000).contextFraction)
+    XCTAssertNil(TaskStatusSnapshot(task: task, records: [usage],
+      recentContextInputTokens: 200, currentModel: "test", contextWindow: nil).contextFraction)
+  }
+
+  @MainActor func testTaskContextWindowUsesOnlyCurrentServiceAndModel() {
+    let store = WorkspaceStore()
+    var config = ModelConfiguration()
+    config.baseURL = "https://example.com/v1"
+    config.model = "selected"
+    store.modelConfiguration = config
+    let source = ModelCatalogSource(config)
+    store.skillModelCatalogs[source] = [
+      "selected": ModelCatalogEntry(id: "selected", contextWindow: 8_000),
+      "other": ModelCatalogEntry(id: "other", contextWindow: 16_000),
+    ]
+    XCTAssertEqual(store.contextWindow(for: nil), 8_000)
+    config.model = "missing"
+    store.modelConfiguration = config
+    XCTAssertNil(store.contextWindow(for: nil))
+    config.baseURL = "https://another.example.com/v1"
+    config.model = "selected"
+    store.modelConfiguration = config
+    XCTAssertNil(store.contextWindow(for: nil))
+  }
+
   private func record(taskID: String, input: Int, output: Int) -> ModelUsageRecord {
     ModelUsageRecord(runID: UUID().uuidString, taskID: taskID,
       taskTitle: taskID, projectTitle: "", model: "test", reasoning: "",

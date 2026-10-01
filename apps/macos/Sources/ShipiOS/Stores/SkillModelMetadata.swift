@@ -1,6 +1,11 @@
 import Foundation
 
 extension WorkspaceStore {
+  func contextWindow(for taskID: String?) -> Int? {
+    let config = modelConfiguration(for: taskID)
+    return skillModelCatalogs[ModelCatalogSource(config)]?[config.model]?.contextWindow
+  }
+
   func captureSkillModelMetadata(_ catalog: ModelCatalog, config: ModelConfiguration) {
     let source = ModelCatalogSource(config)
     guard !Task.isCancelled, catalog.source == source, !catalog.loading, catalog.error == nil else { return }
