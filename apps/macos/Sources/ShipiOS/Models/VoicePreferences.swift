@@ -23,11 +23,10 @@ struct VoicePreferences: Codable, Equatable {
     dictationLocaleIdentifier = dictationLocaleIdentifier?
       .trimmingCharacters(in: .whitespacesAndNewlines)
     if dictationLocaleIdentifier?.isEmpty == true { dictationLocaleIdentifier = nil }
-    var seen = Set<String>()
     dictationDictionary = dictationDictionary.compactMap { entry in
-      let word = String(entry.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
-      guard !word.isEmpty, seen.insert(word.localizedLowercase).inserted else { return nil }
+      let word = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !word.isEmpty else { return nil }
       return word
-    }.prefix(100).map { $0 }
+    }
   }
 }

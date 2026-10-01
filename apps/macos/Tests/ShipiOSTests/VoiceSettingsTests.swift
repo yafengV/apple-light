@@ -11,11 +11,13 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertNil(legacy.voicePreferences.dictationLocaleIdentifier)
     XCTAssertTrue(legacy.voicePreferences.dictationDictionary.isEmpty)
 
+    let longPhrase = String(repeating: "词", count: 101)
     var library = WorkspaceLibrary()
     library.voicePreferences = VoicePreferences(dictationLocaleIdentifier: " zh-CN ",
-      dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " "])
+      dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase])
     XCTAssertEqual(library.voicePreferences.dictationLocaleIdentifier, "zh-CN")
-    XCTAssertEqual(library.voicePreferences.dictationDictionary, ["ShipiOS", "Xcode"])
+    XCTAssertEqual(library.voicePreferences.dictationDictionary,
+      ["ShipiOS", "shipios", "Xcode", longPhrase])
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
       from: JSONEncoder().encode(library))
     XCTAssertEqual(restored.voicePreferences, library.voicePreferences)
