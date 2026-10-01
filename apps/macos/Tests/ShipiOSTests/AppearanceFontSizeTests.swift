@@ -169,6 +169,46 @@ import XCTest
     owner.commit(field); XCTAssertEqual(state.value, 11); XCTAssertEqual(state.writes, 1)
     try await settle(host); XCTAssertFalse(window.isVisible)
   }
+  func testWheelStepsOnlyWhenFocusedAndKeepsDraftUntilBlur() async throws {
+    let state = InputState(); let (window, host, field) = try await host(state); defer { window.close() }
+    XCTAssertFalse(field.handleWheel(deltaY: 1))
+    XCTAssertEqual(field.stringValue, "14"); XCTAssertEqual(state.writes, 0)
+    let editor = try begin(field, window: window)
+    XCTAssertTrue(field.handleWheel(deltaY: 1)); XCTAssertEqual(editor.string, "15")
+    XCTAssertTrue(field.handleWheel(deltaY: -1)); XCTAssertEqual(editor.string, "14")
+    XCTAssertTrue(field.handleWheel(deltaY: 0)); XCTAssertEqual(editor.string, "14")
+    XCTAssertEqual(state.value, 14); XCTAssertEqual(state.writes, 0)
+    XCTAssertTrue(field.handleWheel(deltaY: 1))
+    window.makeFirstResponder(nil)
+    XCTAssertEqual(state.value, 15); XCTAssertEqual(state.writes, 1)
+    try await settle(host); XCTAssertFalse(window.isVisible)
+  }
+  func testHeldArrowRepeatsUntilReleaseWithoutSaving() async throws {
+    let state = InputState(); let (window, host, field) = try await host(state); defer { window.close() }
+    let editor = try begin(field, window: window)
+    field.beginArrowHold(direction: 1)
+    XCTAssertEqual(editor.string, "15"); XCTAssertEqual(state.writes, 0)
+    try await Task.sleep(for: .milliseconds(620))
+    XCTAssertEqual(editor.string, "16"); XCTAssertEqual(state.value, 14)
+    field.cancelArrowHold()
+    XCTAssertNil(field.arrowDirection)
+    try await Task.sleep(for: .milliseconds(120))
+    XCTAssertEqual(editor.string, "16"); XCTAssertEqual(state.writes, 0)
+    window.makeFirstResponder(nil)
+    XCTAssertEqual(state.value, 16); XCTAssertEqual(state.writes, 1)
+    try await settle(host)
+  }
+  func testHeldArrowStopsWhenFieldLosesFocus() async throws {
+    let state = InputState(); let (window, host, field) = try await host(state); defer { window.close() }
+    _ = try begin(field, window: window)
+    field.beginArrowHold(direction: 1)
+    window.makeFirstResponder(nil)
+    XCTAssertNil(field.arrowDirection)
+    XCTAssertEqual(state.value, 15)
+    try await Task.sleep(for: .milliseconds(620))
+    XCTAssertEqual(state.value, 15); XCTAssertEqual(state.writes, 1)
+    try await settle(host)
+  }
   func testInputMethodMarkedTextCannotCommitStepOrConsumeReturn() async throws {
     let state = InputState(); let (window, host, field) = try await host(state); defer { window.close() }
     let owner = try XCTUnwrap(field.owner), editor = try begin(field, window: window)

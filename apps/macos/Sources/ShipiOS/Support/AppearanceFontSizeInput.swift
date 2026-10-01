@@ -38,7 +38,7 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     }
   }
   static func dismantleNSView(_ field: Control, coordinator: Coordinator) {
-    coordinator.active = false; field.active = false; field.owner = nil; field.delegate = nil
+    coordinator.active = false; field.active = false; field.cancelArrowHold(); field.owner = nil; field.delegate = nil
   }
   final class Cell: NSTextFieldCell {
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
@@ -61,12 +61,15 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     var hovered = false { didSet { needsDisplay = true } }
     var showsArrows: Bool { acceptsFirstResponder && (hovered || currentEditor() != nil) }
     private var hoverArea: NSTrackingArea?
+    private var arrowTimer: Timer?
+    private(set) var arrowDirection: Int?
     private var requestedEnabled = true
     private var generation = UUID()
     override var isEnabled: Bool {
       get { requestedEnabled }
       set {
         guard requestedEnabled != newValue else { return }; requestedEnabled = newValue
+        if !newValue { cancelArrowHold() }
         generation = UUID(); let token = generation
         DispatchQueue.main.async { [weak self] in
           guard let self, self.generation == token else { return }
@@ -99,8 +102,58 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       guard acceptsFirstResponder else { return }
       let point = convert(event.locationInWindow, from: nil)
       if showsArrows, point.x >= bounds.maxX - 14 {
-        window?.makeFirstResponder(self); owner?.step(self, direction: point.y >= bounds.midY ? 1 : -1)
+        window?.makeFirstResponder(self)
+        beginArrowHold(direction: point.y >= bounds.midY ? 1 : -1)
       } else { super.mouseDown(with: event) }
+    }
+    override func mouseDragged(with event: NSEvent) {
+      guard arrowDirection != nil else { super.mouseDragged(with: event); return }
+      arrowDirection = convert(event.locationInWindow, from: nil).y >= bounds.midY ? 1 : -1
+    }
+    override func mouseUp(with event: NSEvent) {
+      guard arrowDirection != nil else { super.mouseUp(with: event); return }
+      cancelArrowHold()
+    }
+    override func scrollWheel(with event: NSEvent) {
+      if !handleWheel(deltaY: event.scrollingDeltaY) { super.scrollWheel(with: event) }
+    }
+    @discardableResult func handleWheel(deltaY: CGFloat) -> Bool {
+      guard acceptsFirstResponder, let window,
+        window.firstResponder === self || window.firstResponder === currentEditor() else { return false }
+      if deltaY != 0 { owner?.step(self, direction: deltaY > 0 ? 1 : -1) }
+      return true
+    }
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+      if newWindow == nil { cancelArrowHold() }
+      super.viewWillMove(toWindow: newWindow)
+    }
+    func beginArrowHold(direction: Int) {
+      cancelArrowHold()
+      arrowDirection = direction
+      owner?.step(self, direction: direction)
+      scheduleArrowTimer(after: 0.5, repeats: false) { [weak self] in
+        guard let self else { return }
+        self.repeatArrowStep()
+        self.scheduleArrowTimer(after: 0.05, repeats: true) { [weak self] in self?.repeatArrowStep() }
+      }
+    }
+    func cancelArrowHold() {
+      arrowTimer?.invalidate(); arrowTimer = nil; arrowDirection = nil
+    }
+    private func repeatArrowStep() {
+      guard let direction = arrowDirection, acceptsFirstResponder, window != nil else {
+        cancelArrowHold(); return
+      }
+      owner?.step(self, direction: direction)
+    }
+    private func scheduleArrowTimer(after delay: TimeInterval, repeats: Bool, action: @escaping () -> Void) {
+      arrowTimer?.invalidate()
+      let timer = Timer(timeInterval: delay, repeats: repeats) { [weak self] timer in
+        guard self != nil else { timer.invalidate(); return }
+        action()
+      }
+      arrowTimer = timer
+      RunLoop.main.add(timer, forMode: .common)
     }
     override func updateTrackingAreas() {
       super.updateTrackingAreas()
@@ -131,7 +184,9 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       guard let field = notification.object as? Control, canAct(field) else { return }; editing = true
     }
     func controlTextDidEndEditing(_ notification: Notification) {
-      guard let field = notification.object as? Control, editing else { return }
+      guard let field = notification.object as? Control else { return }
+      field.cancelArrowHold()
+      guard editing else { return }
       commit(field); editing = false; field.needsDisplay = true
     }
     func commit(_ field: Control) {
