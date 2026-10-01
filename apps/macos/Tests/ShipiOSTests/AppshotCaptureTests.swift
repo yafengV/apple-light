@@ -4,6 +4,13 @@ import XCTest
 @testable import ShipiOS
 
 final class AppshotCaptureTests: XCTestCase {
+  func testAppshotMenuNamesKnownTargetAndKeepsPickerFallback() {
+    XCTAssertEqual(AppshotMenuButton.title(for: "Xcode"), "附加 Xcode")
+    XCTAssertEqual(AppshotMenuButton.title(for: "  "), "截取应用窗口…")
+    XCTAssertEqual(AppshotMenuButton.title(for: nil), "截取应用窗口…")
+    XCTAssertLessThanOrEqual(AppshotMenuButton.title(for: String(repeating: "A", count: 200)).count, 83)
+  }
+
   func testScreenshotDimensionsStayWithinAttachmentBounds() {
     let small = AppshotImage.size(rect: CGRect(x: 0, y: 0, width: 800, height: 600), pixelScale: 2)
     XCTAssertEqual(small.width, 1_600)

@@ -11,6 +11,14 @@ struct AppshotCaptureResult: Sendable {
   }
 }
 
+struct AppshotTarget {
+  let application: NSRunningApplication
+  let windowID: CGWindowID
+
+  var name: String { application.localizedName ?? "应用窗口" }
+  var icon: NSImage? { application.icon }
+}
+
 enum AppshotImage {
   static func frontWindowID(for pid: pid_t, windows: [[String: Any]]) -> CGWindowID? {
     for info in windows {
@@ -84,15 +92,7 @@ enum AppshotImage {
     }
   }
 
-  func capture() async throws -> AppshotCaptureResult? {
-    guard !busy else { throw AgentFailure(message: "正在截取应用窗口。") }
-    busy = true
-    defer { busy = false }
-    if let automatic = try? await captureLastExternalWindow() { return automatic }
-    return try await captureFromPicker()
-  }
-
-  private func captureLastExternalWindow() async throws -> AppshotCaptureResult? {
+  func availableTarget() -> AppshotTarget? {
     guard CGPreflightScreenCaptureAccess(),
       let lastExternalAt, Date().timeIntervalSince(lastExternalAt) <= 300,
       let app = lastExternalApp, !app.isTerminated,
@@ -101,8 +101,25 @@ enum AppshotImage {
         as? [[String: Any]],
       let windowID = AppshotImage.frontWindowID(for: app.processIdentifier, windows: windows)
     else { return nil }
+    return AppshotTarget(application: app, windowID: windowID)
+  }
+
+  func capture(target selectedTarget: AppshotTarget? = nil) async throws -> AppshotCaptureResult? {
+    guard !busy else { throw AgentFailure(message: "正在截取应用窗口。") }
+    busy = true
+    defer { busy = false }
+    if let target = selectedTarget ?? availableTarget(),
+      let automatic = try? await captureLastExternalWindow(target) { return automatic }
+    return try await captureFromPicker()
+  }
+
+  private func captureLastExternalWindow(_ target: AppshotTarget) async throws -> AppshotCaptureResult? {
+    let app = target.application
+    guard CGPreflightScreenCaptureAccess(), !app.isTerminated,
+      app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
     let content = try await SCShareableContent.current
-    guard let window = content.windows.first(where: { $0.windowID == windowID }) else { return nil }
+    guard let window = content.windows.first(where: { $0.windowID == target.windowID }),
+      window.owningApplication?.processID == app.processIdentifier else { return nil }
     return try await screenshot(SCContentFilter(desktopIndependentWindow: window),
       applicationName: app.localizedName, bundleIdentifier: app.bundleIdentifier,
       windowTitle: window.title, pid: app.processIdentifier)

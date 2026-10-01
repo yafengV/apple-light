@@ -1397,9 +1397,8 @@ struct TaskWindowView: View {
             store.chooseFiles(draft: taskID)
           }.disabled(store.taskWindowFiles(taskID).count >= FileAttachmentStorage.maxCount
             && store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
-          Button("截取应用窗口…", systemImage: "camera.viewfinder") {
-            Task { await store.captureAppshot(draft: taskID) }
-          }.disabled(store.taskWindowImages(taskID).count >= ImageAttachmentStorage.maxCount)
+          AppshotMenuButton(store: store, draftKey: taskID,
+            imageCount: store.taskWindowImages(taskID).count)
         } label: {
           Image(systemName: "plus")
         }
