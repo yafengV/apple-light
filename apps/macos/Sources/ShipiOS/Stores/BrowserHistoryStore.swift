@@ -18,11 +18,7 @@ extension WorkspaceStore {
     do {
       let host = try BrowserPermissionPreferences.normalizedHost(input)
       var candidate = library
-      if decision == .ask {
-        candidate.browserPermissions.sites[host] = nil
-      } else {
-        candidate.browserPermissions.sites[host] = decision
-      }
+      candidate.browserPermissions.sites[host] = decision
       try commitLibrary(candidate)
       browserSettingsError = nil
       return true

@@ -851,6 +851,10 @@ final class BrowserTests: XCTestCase {
     preferences.sites["example.com"] = .block
     XCTAssertEqual(preferences.decision(for: URL(string: "https://example.com/a")!), .block)
     XCTAssertEqual(preferences.decision(for: URL(string: "https://other.example/a")!), .ask)
+    preferences.defaultDecision = .allow
+    preferences.sites["example.com"] = .ask
+    XCTAssertEqual(preferences.decision(for: URL(string: "https://example.com/a")!), .ask)
+    XCTAssertEqual(preferences.decision(for: URL(string: "https://other.example/a")!), .allow)
 
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertEqual(legacy.browserPermissions, BrowserPermissionPreferences())
@@ -1150,7 +1154,15 @@ final class BrowserTests: XCTestCase {
     let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
     XCTAssertEqual(restored.browserPermissions, store.browserPermissionPreferences)
     XCTAssertTrue(store.setBrowserSiteAccess("allowed.example", decision: .ask))
+    XCTAssertEqual(store.browserPermissionPreferences.sites["allowed.example"], .ask)
+    XCTAssertEqual(store.browserPermissionPreferences.decision(for:
+      URL(string: "https://allowed.example/path")!), .ask)
+    let restoredAsk = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(restoredAsk.browserPermissions.sites["allowed.example"], .ask)
+    store.removeBrowserSiteAccess("allowed.example")
     XCTAssertTrue(store.browserPermissionPreferences.sites.isEmpty)
+    XCTAssertEqual(store.browserPermissionPreferences.decision(for:
+      URL(string: "https://allowed.example/path")!), .block)
   }
   @MainActor func testTabSelectionClosingAndSettingsPreserveOwnership() {
     let store = WorkspaceStore()

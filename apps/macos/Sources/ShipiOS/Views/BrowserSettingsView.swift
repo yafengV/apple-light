@@ -154,6 +154,7 @@ struct BrowserSettingsView: View {
     Section("添加网站规则") {
       TextField("example.com", text: $site).settingsSearchTarget(.browserAddRule)
       Picker("访问权限", selection: $siteDecision) {
+        Text(BrowserAccessDecision.ask.title).tag(BrowserAccessDecision.ask)
         Text(BrowserAccessDecision.allow.title).tag(BrowserAccessDecision.allow)
         Text(BrowserAccessDecision.block.title).tag(BrowserAccessDecision.block)
       }.pickerStyle(.segmented)
@@ -162,6 +163,8 @@ struct BrowserSettingsView: View {
       }.disabled(site.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
     Section("网站规则") {
+      Text("网站规则优先于默认访问设置；移除规则后恢复使用默认设置。")
+        .appFont(.caption).foregroundStyle(.secondary)
       if store.browserPermissionPreferences.sites.isEmpty {
         ContentUnavailableView("没有网站规则", systemImage: "checkmark.shield")
       } else {
@@ -178,7 +181,7 @@ struct BrowserSettingsView: View {
             ).labelsHidden().frame(width: 120)
             Button(role: .destructive) { store.removeBrowserSiteAccess(host) } label: {
               Image(systemName: "trash")
-            }.help("删除网站规则")
+            }.help("移除网站规则并恢复默认访问设置")
           }
         }
       }
