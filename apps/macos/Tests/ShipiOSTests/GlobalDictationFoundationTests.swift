@@ -4,6 +4,25 @@ import XCTest
 @testable import ShipiOS
 
 final class GlobalDictationFoundationTests: XCTestCase {
+  func testToggleCancelsPendingStartAndRestartsAfterAutomaticCompletion() {
+    var state = GlobalDictationToggleState()
+    XCTAssertEqual(state.press(activeTarget: nil, newToken: "first"), .start("first"))
+    XCTAssertEqual(state.press(activeTarget: nil, newToken: "ignored"), .cancelPending)
+    XCTAssertNil(state.token)
+    state.didResolveStart(token: "first", active: true)
+    XCTAssertNil(state.token, "Late authorization must not revive a canceled shortcut")
+
+    XCTAssertEqual(state.press(activeTarget: nil, newToken: "second"), .start("second"))
+    state.didResolveStart(token: "second", active: true)
+    XCTAssertEqual(state.press(activeTarget: "second", newToken: "ignored"), .stop("second"))
+    XCTAssertNil(state.token)
+
+    XCTAssertEqual(state.press(activeTarget: nil, newToken: "third"), .start("third"))
+    state.didResolveStart(token: "third", active: true)
+    XCTAssertEqual(state.press(activeTarget: nil, newToken: "fourth"), .start("fourth"),
+      "A recognizer that ended by itself must not consume the next toggle press")
+  }
+
   func testInsertionReplacesSelectionAndKeepsUTF16Caret() throws {
     let plan = try XCTUnwrap(GlobalDictationInsertionPlan.make(
       original: "A😀BC", selection: CFRange(location: 3, length: 1), transcript: "你好"))

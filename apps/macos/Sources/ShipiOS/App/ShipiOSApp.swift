@@ -76,6 +76,9 @@ private struct ShipiOSMenuBarView: View {
       showMainWindow()
     }
     Button("弹出窗口") { store.popoutWindowHandler?() }
+    if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
+      Button("结束全局听写") { store.dictation.stop(target: target) }
+    }
     Divider()
     Button("退出 ShipiOS") { NSApp.terminate(nil) }
   }
@@ -92,6 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petPanelController: PetPanelController?
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
+  private var globalDictationToggleHotKey: AppGlobalHotKey?
+  private var globalDictationState = GlobalDictationToggleState()
   private var appshotModifierMonitor: AppshotModifierMonitor?
   private var appshotShortcutPending = false
   private var appshotWindowFocusObserver: NSObjectProtocol?
@@ -127,6 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     stopSkillMonitoring()
     appshotModifierMonitor = nil
     store?.appshotHotkeyChangeHandler = nil
+    store?.globalDictationHotkeyChangeHandler = nil
     if let appshotWindowFocusObserver {
       NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
       self.appshotWindowFocusObserver = nil
@@ -158,6 +164,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         popoutController?.toggle()
       }
       popoutGlobalHotKey = popoutHotKey
+      let dictationHotKey = AppGlobalHotKey(id: 3, title: "切换听写") { [weak self] in
+        self?.toggleGlobalDictation()
+      }
+      globalDictationToggleHotKey = dictationHotKey
+      store.globalDictationHotkeyChangeHandler = { [weak self] in
+        self?.refreshGlobalDictationHotkey()
+      }
       appshotWindowFocusObserver = NotificationCenter.default.addObserver(
         forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
       ) { [weak self] notification in
@@ -200,6 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       }
       refreshHotKey()
       refreshPopoutHotKey()
+      refreshGlobalDictationHotkey()
       store.appearanceHandler = { [weak pointerCursorController] appearance in
         pointerCursorController?.apply(appearance.usePointerCursors)
       }
@@ -210,6 +224,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     ready = true
     await openPendingNotification()
     await openPendingDeepLinks()
+  }
+
+  private func refreshGlobalDictationHotkey() {
+    guard let store, let globalDictationToggleHotKey else { return }
+    do {
+      try globalDictationToggleHotKey.register(store.voicePreferences.globalToggleHotkey)
+      store.globalDictationHotkeyError = nil
+    } catch {
+      store.globalDictationHotkeyError = error.localizedDescription
+    }
+  }
+
+  private func toggleGlobalDictation() {
+    guard let store, !quitting, store.shortcutCaptureCount == 0 else { return }
+    let decision = globalDictationState.press(activeTarget: store.dictation.target,
+      newToken: "global-dictation:" + UUID().uuidString)
+    switch decision {
+    case .stop(let token):
+      store.dictation.stop(target: token)
+      return
+    case .cancelPending:
+      return
+    case .start(let token):
+      beginGlobalDictation(token: token, store: store)
+    }
+  }
+
+  private func beginGlobalDictation(token: String, store: WorkspaceStore) {
+    do {
+      let textTarget = try GlobalDictationTextTarget.capture()
+      store.globalDictationHotkeyError = nil
+      Task { @MainActor [weak self, weak store] in
+        guard let self, let store, self.globalDictationState.token == token else { return }
+        await store.dictation.start(target: token,
+          languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
+          microphoneDeviceID: store.voicePreferences.microphoneDeviceID,
+          dictionary: store.voicePreferences.dictationDictionary) { [weak store] _, transcript in
+          do {
+            try textTarget.insert(transcript)
+          } catch {
+            store?.globalDictationHotkeyError = error.localizedDescription
+            store?.notices.show(id: "global-dictation", title: error.localizedDescription,
+              level: .error)
+          }
+        }
+        self.globalDictationState.didResolveStart(token: token,
+          active: store.dictation.target == token)
+        if store.dictation.target != token {
+          if store.dictation.errorTarget == token, let error = store.dictation.error {
+            store.globalDictationHotkeyError = error
+            store.notices.show(id: "global-dictation", title: error, level: .error)
+          }
+        }
+      }
+    } catch {
+      globalDictationState.cancel(token: token)
+      store.globalDictationHotkeyError = error.localizedDescription
+      store.notices.show(id: "global-dictation", title: error.localizedDescription, level: .error)
+    }
   }
 
   private func captureAppshotFromShortcut() {

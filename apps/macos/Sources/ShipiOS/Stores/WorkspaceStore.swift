@@ -17,6 +17,8 @@ final class WorkspaceStore {
     }
   }
   var dictation = SpeechDictation()
+  @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?
+  var globalDictationHotkeyError: String?
   @ObservationIgnored let appshotCapture = AppshotCapture()
   @ObservationIgnored var appshotHotkeyChangeHandler: (() -> Void)?
   var appshotHotkeyError: String?

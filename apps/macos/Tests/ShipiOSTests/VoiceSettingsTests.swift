@@ -10,15 +10,18 @@ final class VoiceSettingsTests: XCTestCase {
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertNil(legacy.voicePreferences.dictationLocaleIdentifier)
     XCTAssertNil(legacy.voicePreferences.microphoneDeviceID)
+    XCTAssertNil(legacy.voicePreferences.globalToggleHotkey)
     XCTAssertTrue(legacy.voicePreferences.dictationDictionary.isEmpty)
 
     let longPhrase = String(repeating: "词", count: 101)
     var library = WorkspaceLibrary()
     library.voicePreferences = VoicePreferences(dictationLocaleIdentifier: " zh-CN ",
       microphoneDeviceID: " selected-microphone ",
+      globalToggleHotkey: ShortcutBinding("⌃⌥D"),
       dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase])
     XCTAssertEqual(library.voicePreferences.dictationLocaleIdentifier, "zh-CN")
     XCTAssertEqual(library.voicePreferences.microphoneDeviceID, "selected-microphone")
+    XCTAssertEqual(library.voicePreferences.globalToggleHotkey, ShortcutBinding("⌃⌥D"))
     XCTAssertEqual(library.voicePreferences.dictationDictionary,
       ["ShipiOS", "shipios", "Xcode", longPhrase])
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
@@ -33,10 +36,33 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertEqual(request.contextualStrings, ["ShipiOS", "Xcode"])
   }
 
+  @MainActor func testGlobalToggleHotkeyRefreshesOnlyWhenBindingChanges() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    var refreshes = 0
+    store.globalDictationHotkeyChangeHandler = { refreshes += 1 }
+    var preferences = store.voicePreferences
+    preferences.dictationLocaleIdentifier = "en-US"
+    store.voicePreferences = preferences
+    XCTAssertEqual(refreshes, 0)
+    preferences.globalToggleHotkey = ShortcutBinding("⌃⌥D")
+    store.voicePreferences = preferences
+    XCTAssertEqual(refreshes, 1)
+    store.voicePreferences = preferences
+    XCTAssertEqual(refreshes, 1)
+    preferences.globalToggleHotkey = nil
+    store.voicePreferences = preferences
+    XCTAssertEqual(refreshes, 2)
+    await store.shutdown()
+  }
+
   func testVoicePageAndSearchTargetsAreVisible() {
     XCTAssertTrue(SettingsNavigation.pages.contains(.voice))
     XCTAssertEqual(SettingsSearch.results(for: "听写词典").map(\.field), [.voiceDictionary])
     XCTAssertEqual(SettingsSearch.results(for: "麦克风").map(\.field), [.voiceMicrophone])
+    XCTAssertEqual(SettingsSearch.results(for: "切换听写快捷键").map(\.field), [.voiceToggleHotkey])
   }
 
   @MainActor func testVoiceSettingsPageRenders() async throws {

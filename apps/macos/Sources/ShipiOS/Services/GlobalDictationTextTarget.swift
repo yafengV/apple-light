@@ -45,6 +45,8 @@ struct GlobalDictationInsertionPlan: Equatable {
 
   static func capture() throws -> GlobalDictationTextTarget {
     guard AXIsProcessTrusted() else {
+      let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+      _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
       throw AgentFailure(message: "全局听写需要辅助功能权限，请在系统设置中允许 ShipiOS 控制此 Mac。")
     }
     let system = AXUIElementCreateSystemWide()

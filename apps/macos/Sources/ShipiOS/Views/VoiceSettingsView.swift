@@ -6,6 +6,8 @@ struct VoiceSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var dictionaryRows: [DictionaryRow] = []
   @State private var microphones: [AVCaptureDevice] = []
+  @State private var recordingGlobalToggle = false
+  @State private var globalHotkeyWarning: String?
   @FocusState private var focusedDictionaryRow: UUID?
 
   private struct DictionaryRow: Identifiable {
@@ -83,6 +85,53 @@ struct VoiceSettingsView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
 
         Text("听写").appFont(size: 15, weight: .semibold)
+        LabeledContent {
+          HStack(spacing: 8) {
+            if recordingGlobalToggle {
+              ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制切换听写快捷键",
+                receive: receiveGlobalToggleHotkey,
+                activityChanged: { active in
+                  store.shortcutCaptureCount = max(0,
+                    store.shortcutCaptureCount + (active ? 1 : -1))
+                }, onBlur: { recordingGlobalToggle = false })
+                .frame(width: 144, height: 28)
+            } else {
+              Button(store.voicePreferences.globalToggleHotkey?.display ?? "关闭") {
+                globalHotkeyWarning = nil
+                recordingGlobalToggle = true
+              }
+            }
+            if store.voicePreferences.globalToggleHotkey != nil {
+              Button {
+                var preferences = store.voicePreferences
+                preferences.globalToggleHotkey = nil
+                store.voicePreferences = preferences
+                recordingGlobalToggle = false
+              } label: { Image(systemName: "xmark") }
+                .buttonStyle(.plain)
+                .accessibilityLabel("关闭全局切换听写快捷键")
+            }
+          }
+        } label: {
+          SettingsControlLabel(title: "切换听写快捷键",
+            description: "在桌面任意可编辑输入框按一次开始听写，再按一次结束。")
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .settingsSearchTarget(.voiceToggleHotkey)
+        if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
+          HStack {
+            Label("正在全局听写", systemImage: "mic.fill")
+            Spacer()
+            Button("结束听写") { store.dictation.stop(target: target) }
+          }
+          .padding(12)
+          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        }
+        if let error = globalHotkeyWarning ?? store.globalDictationHotkeyError {
+          Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
+        }
         VStack(spacing: 0) {
           LabeledContent {
             Button("添加词条") { insertDictionaryRow(after: nil) }
@@ -132,6 +181,7 @@ struct VoiceSettingsView: View {
       refreshMicrophones()
     }
     .onDisappear { persistDictionaryRows() }
+    .onDisappear { recordingGlobalToggle = false }
     .onChange(of: focusedDictionaryRow) { oldValue, newValue in
       if oldValue != nil && oldValue != newValue {
         persistDictionaryRows()
@@ -165,5 +215,26 @@ struct VoiceSettingsView: View {
   private func refreshMicrophones() {
     microphones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone],
       mediaType: .audio, position: .unspecified).devices
+  }
+
+  private func receiveGlobalToggleHotkey(_ event: NSEvent) {
+    if event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+      recordingGlobalToggle = false
+      return
+    }
+    guard let binding = ShortcutBinding(event: event) else { return }
+    if let message = binding.validationMessage(for: "global-dictation-toggle") {
+      globalHotkeyWarning = message
+      return
+    }
+    if let conflict = store.shortcuts.conflict(for: binding, excluding: "global-dictation-toggle") {
+      globalHotkeyWarning = "已用于“\(conflict.title)”，请先移除该绑定。"
+      return
+    }
+    var preferences = store.voicePreferences
+    preferences.globalToggleHotkey = binding
+    store.voicePreferences = preferences
+    recordingGlobalToggle = false
+    globalHotkeyWarning = nil
   }
 }

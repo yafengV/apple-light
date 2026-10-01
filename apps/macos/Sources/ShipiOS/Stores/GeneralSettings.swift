@@ -5,7 +5,13 @@ import Foundation
 extension WorkspaceStore {
   var voicePreferences: VoicePreferences {
     get { library.voicePreferences }
-    set { updateGeneralPreference(\.voicePreferences, value: newValue) }
+    set {
+      let previousHotkey = library.voicePreferences.globalToggleHotkey
+      updateGeneralPreference(\.voicePreferences, value: newValue)
+      if library.voicePreferences.globalToggleHotkey != previousHotkey {
+        globalDictationHotkeyChangeHandler?()
+      }
+    }
   }
 
   var appshotHotkey: AppshotHotkey {

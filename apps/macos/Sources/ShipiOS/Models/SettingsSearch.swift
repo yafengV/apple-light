@@ -42,6 +42,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case voiceChat
   case voiceLanguage
   case voiceMicrophone
+  case voiceToggleHotkey
   case voiceDictionary
   case petChoice
   case petVisibility
@@ -198,7 +199,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .accessibility: .computerUse
     case .allowedApplications: .computerUse
     case .appshotHotkey, .appshotDestination, .appshotSound: .appshots
-    case .voiceChat, .voiceLanguage, .voiceMicrophone, .voiceDictionary: .voice
+    case .voiceChat, .voiceLanguage, .voiceMicrophone, .voiceToggleHotkey, .voiceDictionary: .voice
     case .browserHistory: .browser
     case .browserClear: .browser
     case .browserDownloadFolder: .browser
@@ -251,6 +252,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .voiceChat: "语音聊天"
     case .voiceLanguage: "识别语言"
     case .voiceMicrophone: "麦克风"
+    case .voiceToggleHotkey: "切换听写快捷键"
     case .voiceDictionary: "听写词典"
     case .petChoice: "选择宠物"
     case .petVisibility: "显示或隐藏宠物"
@@ -389,6 +391,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .voiceChat: "实时语音 会话"
     case .voiceLanguage: "听写 语言 locale"
     case .voiceMicrophone: "系统默认 输入设备"
+    case .voiceToggleHotkey: "全局 听写 快捷键 按一次 开始 结束"
     case .voiceDictionary: "词语 短语 词条 contextual strings"
     case .petChoice: "Codey Mini"
     case .petVisibility: "浮动宠物"

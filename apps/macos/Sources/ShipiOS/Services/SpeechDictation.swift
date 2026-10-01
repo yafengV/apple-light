@@ -80,6 +80,10 @@ import Speech
         return
       }
     } else {
+      guard AVCaptureDevice.default(for: .audio) != nil else {
+        fail("没有可用的麦克风输入。", token: token)
+        return
+      }
       let engine = AVAudioEngine()
       let input = engine.inputNode
       let format = input.outputFormat(forBus: 0)
