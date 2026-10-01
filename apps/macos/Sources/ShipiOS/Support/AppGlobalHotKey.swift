@@ -6,18 +6,23 @@ final class AppGlobalHotKey {
   private var hotKey: EventHotKeyRef?
   private var handler: EventHandlerRef?
   private let action: () -> Void
+  private let releaseAction: (() -> Void)?
   private let identifier: EventHotKeyID
   private let title: String
 
-  init(id: UInt32, title: String, action: @escaping () -> Void) {
+  init(id: UInt32, title: String, onRelease: (() -> Void)? = nil,
+    action: @escaping () -> Void) {
     identifier = EventHotKeyID(signature: 0x5348_4950, id: id) // SHIP
     self.title = title
     self.action = action
-    var event = EventTypeSpec(
-      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-    let status = InstallEventHandler(
-      GetApplicationEventTarget(),
-      { _, event, context in
+    releaseAction = onRelease
+    var events = [EventTypeSpec(
+      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))]
+    if onRelease != nil {
+      events.append(EventTypeSpec(
+        eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)))
+    }
+    let callback: EventHandlerUPP = { _, event, context in
         guard let event, let context else { return OSStatus(eventNotHandledErr) }
         var identifier = EventHotKeyID()
         let status = GetEventParameter(
@@ -27,10 +32,16 @@ final class AppGlobalHotKey {
         let owner = Unmanaged<AppGlobalHotKey>.fromOpaque(context).takeUnretainedValue()
         guard identifier.signature == owner.identifier.signature,
           identifier.id == owner.identifier.id else { return OSStatus(eventNotHandledErr) }
-        Task { @MainActor in owner.action() }
+        let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
+        Task { @MainActor in
+          if released { owner.releaseAction?() } else { owner.action() }
+        }
         return noErr
-      },
-      1, &event, Unmanaged.passUnretained(self).toOpaque(), &handler)
+      }
+    let status = events.withUnsafeBufferPointer { buffer in
+      InstallEventHandler(GetApplicationEventTarget(), callback, buffer.count,
+        buffer.baseAddress, Unmanaged.passUnretained(self).toOpaque(), &handler)
+    }
     if status != noErr { handler = nil }
   }
 
