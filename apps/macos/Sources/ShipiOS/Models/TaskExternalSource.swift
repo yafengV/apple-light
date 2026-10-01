@@ -26,22 +26,12 @@ enum TaskExternalSourceActivity: String, Codable, Equatable, Hashable {
 struct TaskExternalSource: Identifiable, Equatable {
   var resource: CodexWebSource
   var activities: [TaskExternalSourceActivity]
+  var stableKey: String? = nil
 
-  var id: String { CodexWebSource.sourceKey(resource.url) ?? resource.url }
+  var id: String { stableKey ?? CodexWebSource.sourceKey(resource.url) ?? resource.url }
   var title: String { resource.title }
   var url: String { resource.url }
 
-  mutating func merge(_ source: CodexWebSource, activity: TaskExternalSourceActivity,
-    preferTitle: Bool = false) {
-    if !activities.contains(activity) {
-      activities.append(activity)
-      activities.sort { $0.order < $1.order }
-    }
-    if preferTitle || resource.title == URL(string: resource.url)?.host
-      && source.title != URL(string: source.url)?.host {
-      resource = source
-    }
-  }
 }
 
 enum TaskProvidedWebLinks {

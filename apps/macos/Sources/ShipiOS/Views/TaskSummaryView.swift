@@ -50,7 +50,7 @@ struct TaskSummaryView: View {
     Group {
       if showingOutputs {
         TaskSummaryOutputsView(artifacts: runs.summaryArtifacts,
-          externalArtifacts: runs.summaryExternalArtifacts, linkedFiles: linkedFiles,
+          externalArtifacts: runs.summaryExternalArtifacts(in: library), linkedFiles: linkedFiles,
           previewLog: { preview = .log($0) }, openFile: openLinkedFile,
           openExternal: openExternal,
           refresh: refreshLinkedFiles,
@@ -83,7 +83,7 @@ struct TaskSummaryView: View {
     let sources = runs.summarySources(in: library)
     let pullRequests = (library.taskPullRequests[task.id] ?? []).filter { $0.validatedURL != nil }
     let artifacts = runs.summaryArtifacts
-    let externalArtifacts = runs.summaryExternalArtifacts
+    let externalArtifacts = runs.summaryExternalArtifacts(in: library)
     let outputCount = artifacts.reduce(0) { $0 + 1 + $1.outputs.count }
       + linkedFiles.count + externalArtifacts.count
     let sourceImages = sources.compactMap { source -> ImageAttachment? in

@@ -27,7 +27,7 @@ final class TaskSummarySourceTests: XCTestCase {
     })
     let sources = [created, read].summarySources(in: WorkspaceLibrary())
     XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: source,
-      activities: [.read, .created])))
+      activities: [.read, .created], stableKey: "provider:\(serverID.uuidString):document-1")))
   }
 
   func testSourcesUseOnlyTaskRunAttachmentsAndObservedTools() throws {
@@ -246,7 +246,8 @@ final class TaskSummarySourceTests: XCTestCase {
         from: JSONEncoder().encode(executions))]))
     let sources = [run].summarySources(in: WorkspaceLibrary())
     XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: .init(
-      title: "Report", url: url), activities: [.read])))
+      title: "Report", url: url), activities: [.read],
+      stableKey: "provider:\(tool.serverID.uuidString):report")))
     guard let last = sources.last, case .webSearch(let search) = last else {
       return XCTFail("Search query should remain")
     }

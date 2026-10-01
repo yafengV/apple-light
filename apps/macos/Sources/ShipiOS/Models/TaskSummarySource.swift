@@ -90,17 +90,13 @@ struct CodexWebSearchSummary: Equatable {
 extension Collection where Element == AgentRun {
   func summarySources(in library: WorkspaceLibrary) -> [TaskSummarySource] {
     var files: [TaskSummarySource] = []
-    var external: [TaskExternalSource] = []
     var toolSources: [MCPToolSource] = []
     var siteTools: [TaskSummarySource] = []
     var seen = Set<String>()
     var webSearch: CodexWebSearchSummary?
     var seenQueries = Set<String>()
     var seenLinks = Set<String>()
-    var qualifyingSourceKeys = Set<String>()
-    var mcpResourceKeys = Set<String>()
     for run in self {
-      var runActivities: [String: Set<TaskExternalSourceActivity>] = [:]
       for file in library.runFiles[run.id] ?? [] {
         let source = TaskSummarySource.file(file)
         if seen.insert(source.id).inserted { files.append(source) }
@@ -109,21 +105,7 @@ extension Collection where Element == AgentRun {
         let source = TaskSummarySource.image(image)
         if seen.insert(source.id).inserted { files.append(source) }
       }
-      func addExternal(_ source: CodexWebSource, activity: TaskExternalSourceActivity,
-        preferTitle: Bool = false) {
-        guard (source.url.hasPrefix("https://") || source.url.hasPrefix("http://")),
-          let key = CodexWebSource.sourceKey(source.url) else { return }
-        runActivities[key, default: []].insert(activity)
-        if let index = external.firstIndex(where: { $0.id == key }) {
-          external[index].merge(source, activity: activity, preferTitle: preferTitle)
-        } else {
-          external.append(TaskExternalSource(resource: source, activities: [activity]))
-        }
-      }
       if run.kind == "chat" {
-        for source in TaskProvidedWebLinks.collect(library.notes[run.id] ?? "") {
-          addExternal(source, activity: .provided)
-        }
         for message in run.codexSteeredMessages {
           for file in message.files {
             let source = TaskSummarySource.file(file)
@@ -133,12 +115,8 @@ extension Collection where Element == AgentRun {
             let source = TaskSummarySource.image(image)
             if seen.insert(source.id).inserted { files.append(source) }
           }
-          for source in TaskProvidedWebLinks.collect(message.text) {
-            addExternal(source, activity: .provided)
-          }
         }
       }
-      for source in run.codexWebSources { addExternal(source, activity: .read) }
       for execution in run.toolExecutions {
         if execution.serverID == CodexBrowserTimeline.serverID,
           execution.status == .succeeded, execution.browserSiteTool != nil {
@@ -153,17 +131,6 @@ extension Collection where Element == AgentRun {
         } else if execution.serverID != CodexCommandTimeline.serverID
           && execution.serverID != CodexBrowserTimeline.serverID,
           !execution.serverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-          if execution.status == .succeeded {
-            for resource in execution.mcpResourceActivities
-              ?? MCPResourceActivity.restored(from: execution.output) ?? [] {
-              if let key = CodexWebSource.sourceKey(resource.source.url) {
-                mcpResourceKeys.insert(key)
-              }
-              for activity in resource.activities {
-                addExternal(resource.source, activity: activity, preferTitle: true)
-              }
-            }
-          }
           if let index = toolSources.firstIndex(where: { $0.id == execution.serverID }) {
             toolSources[index].calls.append(execution)
           } else {
@@ -172,28 +139,26 @@ extension Collection where Element == AgentRun {
           }
         }
       }
-      for (key, activities) in runActivities where activities.contains(.provided)
-        || activities.contains(.read) && !activities.contains(.created) {
-        qualifyingSourceKeys.insert(key)
-      }
     }
-    external.removeAll { !qualifyingSourceKeys.contains($0.id) }
+    var external = TaskExternalResourceCatalog.collect(self, library: library).sources
     if var webSearch {
       let viewedURLs = Set(webSearch.viewedLinks.compactMap { CodexWebSource.sourceKey($0.url) })
-      external.removeAll { source in
-        source.activities == [.read] && viewedURLs.contains(source.id)
-          && !mcpResourceKeys.contains(source.id)
+      external.removeAll { entry in
+        let source = entry.source
+        let urlKey = CodexWebSource.sourceKey(source.url)
+        return source.activities == [.read] && urlKey.map(viewedURLs.contains) == true
+          && !entry.hasMCPResource
       }
-      let externalURLs = Set(external.map(\.id))
+      let externalURLs = Set(external.compactMap { CodexWebSource.sourceKey($0.source.url) })
       webSearch.viewedLinks.removeAll { link in
         CodexWebSource.sourceKey(link.url).map(externalURLs.contains) ?? false
       }
-      return files + external.map(TaskSummarySource.external) + siteTools
+      return files + external.map { .external($0.source) } + siteTools
         + toolSources.map(TaskSummarySource.tool)
         + (webSearch.queryCount == 0 && webSearch.viewedLinks.isEmpty
           ? [] : [.webSearch(webSearch)])
     }
-    return files + external.map(TaskSummarySource.external) + siteTools
+    return files + external.map { .external($0.source) } + siteTools
       + toolSources.map(TaskSummarySource.tool)
   }
 }

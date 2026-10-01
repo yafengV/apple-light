@@ -167,9 +167,11 @@ final class MCPToolCallTests: XCTestCase {
     XCTAssertEqual(try MCPResultMedia.thumbnail(base64: png, mime: "image/png", size: 640).width, 2)
     XCTAssertEqual(run.toolExecutions.first?.status, .succeeded)
     XCTAssertEqual(run.toolExecutions.first?.mcpResourceActivities?.first?.activities, [.read])
-    XCTAssertTrue([run].summarySources(in: saved).contains(.external(TaskExternalSource(
-      resource: CodexWebSource(title: "Report", url: "https://example.test/report"),
-      activities: [.read]))))
+    XCTAssertTrue([run].summarySources(in: saved).contains { source in
+      guard case .external(let resource) = source else { return false }
+      return resource.title == "Report" && resource.url == "https://example.test/report"
+        && resource.activities == [.read]
+    })
     XCTAssertEqual(saved.chatContext(taskID: saved.task(containing: run.id)?.id).first(where: { $0.role == "tool" })?.content, output)
     await store.shutdown()
   }

@@ -48,25 +48,8 @@ struct TaskSummaryOutputFile: Identifiable, Equatable, Sendable {
 
 extension Collection where Element == AgentRun {
   /// External resources produced or updated by successful MCP calls, including ones also read.
-  var summaryExternalArtifacts: [TaskExternalSource] {
-    var resources: [TaskExternalSource] = []
-    for run in self {
-      for execution in run.toolExecutions where execution.status == .succeeded {
-        for resource in execution.mcpResourceActivities
-          ?? MCPResourceActivity.restored(from: execution.output) ?? [] {
-          guard let key = CodexWebSource.sourceKey(resource.source.url) else { continue }
-          if let index = resources.firstIndex(where: { $0.id == key }) {
-            for activity in resource.activities {
-              resources[index].merge(resource.source, activity: activity, preferTitle: true)
-            }
-          } else {
-            resources.append(TaskExternalSource(resource: resource.source,
-              activities: resource.activities))
-          }
-        }
-      }
-    }
-    return resources.filter { $0.activities.contains(.created) || $0.activities.contains(.updated) }
+  func summaryExternalArtifacts(in library: WorkspaceLibrary) -> [TaskExternalSource] {
+    TaskExternalResourceCatalog.collect(self, library: library).artifacts
   }
 
   var summaryArtifacts: [TaskSummaryArtifact] {

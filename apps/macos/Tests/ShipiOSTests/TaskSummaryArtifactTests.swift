@@ -20,11 +20,13 @@ final class TaskSummaryArtifactTests: XCTestCase {
     let created = try run("created", status: .succeeded, activities: [.created])
     let updated = try run("updated", status: .succeeded, activities: [.updated])
     let failed = try run("failed", status: .failed, activities: [.created])
-    XCTAssertTrue([read].summaryExternalArtifacts.isEmpty)
-    XCTAssertTrue([failed].summaryExternalArtifacts.isEmpty)
-    XCTAssertEqual([read, created, updated, failed].summaryExternalArtifacts, [
+    XCTAssertTrue([read].summaryExternalArtifacts(in: WorkspaceLibrary()).isEmpty)
+    XCTAssertTrue([failed].summaryExternalArtifacts(in: WorkspaceLibrary()).isEmpty)
+    XCTAssertEqual([read, created, updated, failed].summaryExternalArtifacts(
+      in: WorkspaceLibrary()), [
       TaskExternalSource(resource: CodexWebSource(title: "Document",
-        url: "https://example.test/document"), activities: [.read, .created, .updated]),
+        url: "https://example.test/document"), activities: [.read, .created, .updated],
+        stableKey: "provider:\(serverID.uuidString):document-1"),
     ])
   }
 
