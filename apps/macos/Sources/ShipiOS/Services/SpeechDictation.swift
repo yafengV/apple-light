@@ -3,7 +3,7 @@ import Observation
 import Speech
 
 @MainActor @Observable final class SpeechDictation {
-  enum Phase: Equatable { case idle, requestingAccess, listening }
+  enum Phase: Equatable { case idle, requestingAccess, listening, finishing }
 
   private(set) var phase = Phase.idle
   private(set) var target: String?
@@ -19,6 +19,9 @@ import Speech
   @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
   @ObservationIgnored private var recognitionTask: SFSpeechRecognitionTask?
   @ObservationIgnored private var commit: ((String, String) -> Void)?
+  @ObservationIgnored private var finishTimeout: Task<Void, Never>?
+  @ObservationIgnored private var inputStopped = false
+  @ObservationIgnored private var completion = SpeechRecognitionCompletion()
 
   static func recognitionRequest(dictionary: [String]) -> SFSpeechAudioBufferRecognitionRequest {
     let request = SFSpeechAudioBufferRecognitionRequest()
@@ -39,6 +42,7 @@ import Speech
     error = nil
     errorTarget = nil
     partial = ""
+    completion = SpeechRecognitionCompletion()
     phase = .requestingAccess
 
     let authorization = await withCheckedContinuation { continuation in
@@ -112,12 +116,30 @@ import Speech
 
   func stop(target expected: String? = nil, commitResult: Bool = true) {
     guard let target, expected == nil || expected == target else { return }
-    let spoken = partial.trimmingCharacters(in: .whitespacesAndNewlines)
+    let spoken = completion.stop()
     let save = commit
     cleanup()
     if commitResult && !spoken.isEmpty { save?(target, spoken) }
     completedTarget = target
     completionID = UUID()
+  }
+
+  /// Ends recording while allowing Speech to deliver its final transcription.
+  func finish(target expected: String? = nil) {
+    guard let target, expected == nil || expected == target else { return }
+    guard phase == .listening else {
+      if phase != .finishing { stop(target: target) }
+      return
+    }
+    guard completion.beginFinishing() else { return }
+    phase = .finishing
+    endInput()
+    let token = generation
+    finishTimeout = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(5))
+      guard !Task.isCancelled else { return }
+      self?.finishIfCurrent(token: token)
+    }
   }
 
   func clearError(for target: String) {
@@ -128,12 +150,14 @@ import Speech
 
   private func receive(result: SFSpeechRecognitionResult?, error: Error?, token: UUID) {
     guard generation == token, target != nil else { return }
-    if let result { partial = result.bestTranscription.formattedString }
-    if result?.isFinal == true { stop(); return }
+    let completed = completion.receive(result?.bestTranscription.formattedString,
+      isFinal: result?.isFinal == true, hasError: error != nil)
+    partial = completion.latest
+    if result?.isFinal == true, completed { stop(); return }
     if let error {
       let message = "听写已中断：\(error.localizedDescription)"
       let failedTarget = target
-      stop()
+      if completed { stop() }
       self.error = message
       errorTarget = failedTarget
     }
@@ -147,11 +171,26 @@ import Speech
     errorTarget = failedTarget
   }
 
-  private func cleanup() {
-    generation = UUID()
+  private func finishIfCurrent(token: UUID) {
+    guard generation == token, completion.finishAfterTimeout() else { return }
+    stop()
+  }
+
+  private func endInput() {
+    guard !inputStopped else { return }
+    inputStopped = true
     engine?.stop()
     engine?.inputNode.removeTap(onBus: 0)
     if let capture { capture.stop() } else { request?.endAudio() }
+    engine = nil
+    capture = nil
+  }
+
+  private func cleanup() {
+    finishTimeout?.cancel()
+    finishTimeout = nil
+    generation = UUID()
+    endInput()
     recognitionTask?.cancel()
     engine = nil
     capture = nil
@@ -161,5 +200,7 @@ import Speech
     target = nil
     partial = ""
     phase = .idle
+    inputStopped = false
+    completion = SpeechRecognitionCompletion()
   }
 }

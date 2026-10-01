@@ -4,7 +4,7 @@ extension WorkspaceStore {
   func toggleDictation(target: String) async {
     guard !shuttingDown else { return }
     if dictation.target == target {
-      dictation.stop(target: target)
+      dictation.finish(target: target)
       return
     }
     let initial = library.drafts[target] ?? ""

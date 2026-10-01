@@ -77,7 +77,8 @@ private struct ShipiOSMenuBarView: View {
     }
     Button("弹出窗口") { store.popoutWindowHandler?() }
     if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
-      Button("结束全局听写") { store.dictation.stop(target: target) }
+      Button("结束全局听写") { store.dictation.finish(target: target) }
+        .disabled(store.dictation.phase == .finishing)
     }
     Divider()
     Button("退出 ShipiOS") { NSApp.terminate(nil) }
@@ -269,7 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       newToken: "global-dictation:" + UUID().uuidString)
     switch decision {
     case .stop(let token):
-      store.dictation.stop(target: token)
+      store.dictation.finish(target: token)
       return
     case .cancelPending:
       return
@@ -289,7 +290,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func releaseHoldGlobalDictation() {
     guard let token = globalDictationHoldState.release() else { return }
-    store?.dictation.stop(target: token)
+    store?.dictation.finish(target: token)
   }
 
   private func beginGlobalDictation(token: String, mode: GlobalDictationMode,

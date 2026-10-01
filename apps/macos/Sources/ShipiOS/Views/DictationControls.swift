@@ -31,10 +31,12 @@ struct DictationStatusView: View {
       HStack(spacing: 8) {
         Image(systemName: "waveform").foregroundStyle(.red)
         Text(store.dictation.phase == .requestingAccess ? "正在等待麦克风和语音识别权限…"
+          : store.dictation.phase == .finishing ? "正在整理听写…"
           : store.dictation.partial.isEmpty ? "正在听写…" : store.dictation.partial)
           .lineLimit(2)
         Spacer()
-        Button("完成") { store.dictation.stop(target: target) }
+        Button("完成") { store.dictation.finish(target: target) }
+          .disabled(store.dictation.phase == .finishing)
       }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal, 4)
     } else if store.dictation.errorTarget == target, let error = store.dictation.error {
       HStack(spacing: 8) {

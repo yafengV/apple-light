@@ -95,9 +95,11 @@ struct VoiceSettingsView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
           HStack {
-            Label("正在全局听写", systemImage: "mic.fill")
+            Label(store.dictation.phase == .finishing ? "正在整理听写…" : "正在全局听写",
+              systemImage: "mic.fill")
             Spacer()
-            Button("结束听写") { store.dictation.stop(target: target) }
+            Button("结束听写") { store.dictation.finish(target: target) }
+              .disabled(store.dictation.phase == .finishing)
           }
           .padding(12)
           .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
