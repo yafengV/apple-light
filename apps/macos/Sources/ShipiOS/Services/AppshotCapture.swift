@@ -20,6 +20,19 @@ struct AppshotTarget {
 }
 
 enum AppshotImage {
+  static func filename(applicationName: String?, at date: Date = Date()) -> String {
+    let rawName = applicationName ?? ""
+    let sanitized = rawName.replacingOccurrences(of: "[/:]", with: "-", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let name = sanitized.isEmpty ? "App" : String(sanitized.prefix(100))
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.dateFormat = "yyyy-MM-dd'T'HH-mm-ss.SSS'Z'"
+    return "\(name) Appshot \(formatter.string(from: date)).png"
+  }
+
   static func frontWindowID(for pid: pid_t, windows: [[String: Any]]) -> CGWindowID? {
     for info in windows {
       guard (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid,
@@ -42,17 +55,17 @@ enum AppshotImage {
       max(1, Int((sourceHeight * ratio).rounded())))
   }
 
-  static func encode(_ image: CGImage, applicationName: String?) throws -> AppshotCaptureResult {
+  static func encode(_ image: CGImage, applicationName: String?, at date: Date = Date()) throws -> AppshotCaptureResult {
     let bitmap = NSBitmapImageRep(cgImage: image)
-    let title = applicationName?.trimmingCharacters(in: .whitespacesAndNewlines)
-    let prefix = title.flatMap { $0.isEmpty ? nil : String($0.prefix(100)) } ?? "应用窗口"
+    let filename = filename(applicationName: applicationName, at: date)
     if let png = bitmap.representation(using: .png, properties: [:]),
       png.count <= ImageAttachmentStorage.maxBytes {
-      return AppshotCaptureResult(data: png, name: "\(prefix) 截图.png")
+      return AppshotCaptureResult(data: png, name: filename)
     }
     if let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]),
       jpeg.count <= ImageAttachmentStorage.maxBytes {
-      return AppshotCaptureResult(data: jpeg, name: "\(prefix) 截图.jpg")
+      return AppshotCaptureResult(data: jpeg,
+        name: String(filename.dropLast(4)) + ".jpg")
     }
     throw AgentFailure(message: "截图超过图片附件大小限制，请缩小目标窗口后重试。")
   }

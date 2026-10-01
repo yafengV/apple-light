@@ -6,6 +6,11 @@ struct AppshotContext: Codable, Equatable, Sendable {
   let windowTitle: String?
   let axTree: String
 
+  var displayTitle: String {
+    let title = windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return title.isEmpty ? appName : title
+  }
+
   static func modelContent(_ prompt: String, images: [ImageAttachment]) -> String {
     let rows: [[String: String]] = images.compactMap { image in
       guard let context = image.appshot else { return nil }
