@@ -21,9 +21,7 @@ struct AppshotMenuButton: View {
     Button {
       let selected = target
       Task {
-        await store.captureAppshot(draft: draftKey) {
-          try await store.appshotCapture.capture(target: selected)
-        }
+        await store.captureAppshot(draft: draftKey, target: selected)
       }
     } label: {
       Label {

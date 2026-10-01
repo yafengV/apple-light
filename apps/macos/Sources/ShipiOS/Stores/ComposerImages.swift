@@ -4,19 +4,27 @@ import UniformTypeIdentifiers
 enum ImageImport: Sendable {
   case file(URL)
   case bytes(Data, name: String)
-  case appshot(Data, name: String, context: AppshotContext)
+  case appshot(Data, name: String, context: AppshotContext, id: UUID?)
 }
 
 extension WorkspaceStore {
   var draftImages: [ImageAttachment] { library.draftImages[draftKey] ?? [] }
 
-  func captureAppshot(draft key: String) async {
-    await captureAppshot(draft: key) { try await appshotCapture.capture() }
+  func captureAppshot(draft key: String, target: AppshotTarget? = nil) async {
+    await captureAppshotWithProgress(draft: key) { progress in
+      try await appshotCapture.capture(target: target, onScreenshot: progress)
+    }
   }
 
   func captureAppshot(draft key: String,
     ownerWindow: NSWindow? = nil,
     capture: () async throws -> AppshotCaptureResult?) async {
+    await captureAppshotWithProgress(draft: key, ownerWindow: ownerWindow) { _ in try await capture() }
+  }
+
+  func captureAppshotWithProgress(draft key: String,
+    ownerWindow: NSWindow? = nil,
+    capture: (@escaping (AppshotCaptureResult) -> Void) async throws -> AppshotCaptureResult?) async {
     guard libraryLoaded, !shuttingDown, !importingImages, !importingFiles else { return }
     guard (library.draftImages[key]?.count ?? 0) < ImageAttachmentStorage.maxCount else {
       error = "每条消息最多添加 8 张图片。"
@@ -24,33 +32,66 @@ extension WorkspaceStore {
     }
     let captureOwner = ownerWindow ?? NSApp?.keyWindow
     importingImages = true
+    let progress: (AppshotCaptureResult) -> Void = { [weak self, weak captureOwner] screenshot in
+      guard let self, self.importingImages, self.pendingAppshot == nil else { return }
+      let id = UUID()
+      self.pendingAppshot = PendingAppshot(id: id, draftKey: key, result: screenshot)
+      self.prepareAppshotHandoff(id: id, screenshot: screenshot,
+        ownerWindow: captureOwner)
+    }
     do {
-      let result = try await capture()
+      let result = try await capture(progress)
       importingImages = false
-      guard let result else { return }
+      guard let result else {
+        clearPendingAppshot(draft: key, cancelHandoff: true)
+        return
+      }
+      if result.context == nil { clearPendingAppshot(draft: key, cancelHandoff: true) }
+      let pendingID = pendingAppshot?.draftKey == key ? pendingAppshot?.id : nil
       let item: ImageImport = result.context.map {
-        .appshot(result.data, name: result.name, context: $0)
+        .appshot(result.data, name: result.name, context: $0, id: pendingID)
       } ?? .bytes(result.data, name: result.name)
       let imported = await importImages([item], draft: key)
+      clearPendingAppshot(draft: key, cancelHandoff: !imported)
+      guard pendingID == nil else { return }
       guard imported, let sourceFrame = result.sourceFrame,
         let captureOwner, !appearance.shouldReduceMotion,
         let attachment = library.draftImages[key]?.last,
         attachment.name == result.name else { return }
-      appshotHandoffAnimator.cancel()
-      appshotHandoffStarted = false
-      appshotHandoff = AppshotHandoff(imageID: attachment.id,
-        ownerWindow: captureOwner, sourceFrame: sourceFrame,
-        screenshot: result.data)
-      Task { @MainActor [weak self] in
-        try? await Task.sleep(for: .seconds(2))
-        guard let self, self.appshotHandoff?.imageID == attachment.id else { return }
-        self.appshotHandoffAnimator.cancel()
-        self.appshotHandoff = nil
-        self.appshotHandoffStarted = false
-      }
+      prepareAppshotHandoff(id: attachment.id, screenshot: result,
+        ownerWindow: captureOwner, sourceFrame: sourceFrame)
     } catch {
       importingImages = false
+      clearPendingAppshot(draft: key, cancelHandoff: true)
       self.error = error.localizedDescription
+    }
+  }
+
+  private func prepareAppshotHandoff(id: UUID, screenshot: AppshotCaptureResult,
+    ownerWindow: NSWindow?, sourceFrame: CGRect? = nil) {
+    guard let sourceFrame = sourceFrame ?? screenshot.sourceFrame,
+      let ownerWindow, ownerWindow.isVisible, !ownerWindow.isMiniaturized,
+      !appearance.shouldReduceMotion else { return }
+    appshotHandoffAnimator.cancel()
+    appshotHandoffStarted = false
+    appshotHandoff = AppshotHandoff(imageID: id, ownerWindow: ownerWindow,
+      sourceFrame: sourceFrame, screenshot: screenshot.data)
+    Task { @MainActor [weak self] in
+      try? await Task.sleep(for: .seconds(2))
+      guard let self, self.appshotHandoff?.imageID == id else { return }
+      self.appshotHandoffAnimator.cancel()
+      self.appshotHandoff = nil
+      self.appshotHandoffStarted = false
+    }
+  }
+
+  private func clearPendingAppshot(draft key: String, cancelHandoff: Bool = false) {
+    guard let pending = pendingAppshot, pending.draftKey == key else { return }
+    pendingAppshot = nil
+    if cancelHandoff, appshotHandoff?.imageID == pending.id {
+      appshotHandoffAnimator.cancel()
+      appshotHandoff = nil
+      appshotHandoffStarted = false
     }
   }
 
@@ -163,9 +204,9 @@ extension WorkspaceStore {
               result.append(try ImageAttachmentStorage.importFile(url, root: root))
             case .bytes(let data, let name):
               result.append(try ImageAttachmentStorage.importData(data, name: name, root: root))
-            case .appshot(let data, let name, let context):
+            case .appshot(let data, let name, let context, let id):
               result.append(try ImageAttachmentStorage.importData(data, name: name, root: root,
-                appshot: context))
+                appshot: context, id: id ?? UUID()))
             }
           }
           return result

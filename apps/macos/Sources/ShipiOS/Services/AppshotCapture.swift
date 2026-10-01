@@ -112,6 +112,7 @@ enum AppshotImage {
 /// Uses a recent foreground window when authorized, with a system picker fallback.
 @MainActor final class AppshotCapture: NSObject, SCContentSharingPickerObserver {
   private var continuation: CheckedContinuation<AppshotCaptureResult?, Error>?
+  private var onScreenshot: ((AppshotCaptureResult) -> Void)?
   private var capturing = false
   private var busy = false
   private var lastExternalApp: NSRunningApplication?
@@ -155,10 +156,12 @@ enum AppshotImage {
     return AppshotTarget(application: app, windowID: windowID)
   }
 
-  func capture(target selectedTarget: AppshotTarget? = nil) async throws -> AppshotCaptureResult? {
+  func capture(target selectedTarget: AppshotTarget? = nil,
+    onScreenshot: ((AppshotCaptureResult) -> Void)? = nil) async throws -> AppshotCaptureResult? {
     guard !busy else { throw AgentFailure(message: "正在截取应用窗口。") }
     busy = true
-    defer { busy = false }
+    self.onScreenshot = onScreenshot
+    defer { busy = false; self.onScreenshot = nil }
     if let target = selectedTarget ?? availableTarget(),
       let automatic = try? await captureLastExternalWindow(target) { return automatic }
     return try await captureFromPicker()
@@ -241,13 +244,20 @@ enum AppshotImage {
     let image = try await SCScreenshotManager.captureImage(
       contentFilter: filter, configuration: configuration)
     let encoded = try AppshotImage.encode(image, applicationName: applicationName)
+    let sourceFrame = AppshotImage.sourceFrame(windowFrame: windowFrame,
+      contentRect: filter.contentRect)
+    let iconPNG = AppshotIcon.pngData(applicationIcon)
+    let previewContext = AppshotContext(appName: applicationName ?? "应用窗口",
+      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: "",
+      iconPNG: iconPNG)
+    onScreenshot?(AppshotCaptureResult(data: encoded.data, name: encoded.name,
+      context: previewContext, sourceFrame: sourceFrame))
     let collectedAXTree = await axTree
     let context = AppshotContext(appName: applicationName ?? "应用窗口",
       bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: collectedAXTree,
-      iconPNG: AppshotIcon.pngData(applicationIcon))
+      iconPNG: iconPNG)
     return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context,
-      sourceFrame: AppshotImage.sourceFrame(windowFrame: windowFrame,
-        contentRect: filter.contentRect))
+      sourceFrame: sourceFrame)
   }
 
   private func icon(for bundleIdentifier: String?) -> NSImage? {
@@ -259,6 +269,7 @@ enum AppshotImage {
   private func finish(_ result: Result<AppshotCaptureResult?, Error>) {
     guard let continuation else { return }
     self.continuation = nil
+    onScreenshot = nil
     capturing = false
     let picker = SCContentSharingPicker.shared
     picker.remove(self)

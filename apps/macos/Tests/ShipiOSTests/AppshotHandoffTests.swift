@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 
 @testable import ShipiOS
@@ -50,6 +51,7 @@ final class AppshotHandoffTests: XCTestCase {
     let other = NSWindow(contentRect: CGRect(x: 30, y: 30, width: 600, height: 400),
       styleMask: [.borderless], backing: .buffered, defer: false)
     owner.isReleasedWhenClosed = false; other.isReleasedWhenClosed = false
+    owner.orderFront(nil)
     defer { owner.close(); other.close() }
     let metadata = AppshotContext(appName: "Example", bundleIdentifier: nil,
       windowTitle: "Window", axTree: "")
@@ -89,5 +91,98 @@ final class AppshotHandoffTests: XCTestCase {
     XCTAssertTrue(owner === window)
     XCTAssertEqual(reported, window.convertToScreen(anchor.convert(anchor.bounds, to: nil)))
     XCTAssertNil(anchor.hitTest(.zero))
+  }
+
+  @MainActor func testEarlyScreenshotKeepsPlaceholderIDUntilFinalMetadataIsSaved() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    var appearance = store.appearance
+    appearance.reduceMotion = .off
+    store.appearance = appearance
+    let owner = NSWindow(contentRect: CGRect(x: 20, y: 20, width: 600, height: 400),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    owner.isReleasedWhenClosed = false
+    owner.orderFront(nil)
+    defer { owner.close() }
+    let bytes = try AttachmentFixture.png()
+    let source = CGRect(x: 100, y: 100, width: 500, height: 300)
+    let screenshot = AppshotCaptureResult(data: bytes, name: "Example Appshot.png",
+      sourceFrame: source)
+    let context = AppshotContext(appName: "Example", bundleIdentifier: "example.app",
+      windowTitle: "Window", axTree: "window text")
+    let final = AppshotCaptureResult(data: bytes, name: screenshot.name,
+      context: context, sourceFrame: source)
+    var release: CheckedContinuation<AppshotCaptureResult?, Never>?
+    let ready = expectation(description: "screenshot published before AX result")
+    let capture = Task {
+      await store.captureAppshotWithProgress(draft: "task", ownerWindow: owner) { progress in
+        progress(screenshot)
+        return await withCheckedContinuation { continuation in
+          release = continuation
+          ready.fulfill()
+        }
+      }
+    }
+    await fulfillment(of: [ready], timeout: 2)
+    let pending = try XCTUnwrap(store.pendingAppshot)
+    XCTAssertEqual(pending.draftKey, "task")
+    XCTAssertEqual(pending.screenshot, bytes)
+    XCTAssertNil(store.library.draftImages["task"])
+    let pendingView = NSHostingView(rootView: ImageAttachmentsView(store: store,
+      images: [], removable: true, draftKey: "task"))
+    XCTAssertGreaterThan(pendingView.fittingSize.height, 100,
+      "An early screenshot must reserve its composer card before the attachment is saved")
+    XCTAssertEqual(store.appshotHandoff?.imageID, pending.id)
+    XCTAssertTrue(store.appshotHandoff?.ownerWindow === owner)
+    release?.resume(returning: final)
+    await capture.value
+    XCTAssertNil(store.pendingAppshot)
+    let attachment = try XCTUnwrap(store.library.draftImages["task"]?.last)
+    XCTAssertEqual(attachment.id, pending.id)
+    XCTAssertEqual(attachment.appshot, context)
+    XCTAssertEqual(try ImageAttachmentStorage.data(attachment, root: root), bytes)
+
+    let cancelled = expectation(description: "second screenshot published")
+    var releaseCancel: CheckedContinuation<AppshotCaptureResult?, Never>?
+    let cancelCapture = Task {
+      await store.captureAppshotWithProgress(draft: "other", ownerWindow: owner) { progress in
+        progress(screenshot)
+        return await withCheckedContinuation { continuation in
+          releaseCancel = continuation
+          cancelled.fulfill()
+        }
+      }
+    }
+    await fulfillment(of: [cancelled], timeout: 2)
+    XCTAssertNotNil(store.pendingAppshot)
+    releaseCancel?.resume(returning: nil)
+    await cancelCapture.value
+    XCTAssertNil(store.pendingAppshot)
+    XCTAssertNil(store.appshotHandoff)
+    XCTAssertNil(store.library.draftImages["other"])
+    await store.shutdown()
+  }
+
+  @MainActor func testEarlyScreenshotFailureRemovesTransientCard() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let screenshot = AppshotCaptureResult(data: try AttachmentFixture.png(),
+      name: "Failed Appshot.png", sourceFrame: CGRect(x: 0, y: 0, width: 200, height: 100))
+    await store.captureAppshotWithProgress(draft: "task") { progress in
+      progress(screenshot)
+      throw AgentFailure(message: "capture failed")
+    }
+    XCTAssertNil(store.pendingAppshot)
+    XCTAssertNil(store.appshotHandoff)
+    XCTAssertNil(store.library.draftImages["task"])
+    XCTAssertFalse(store.importingImages)
+    XCTAssertEqual(store.error, "capture failed")
+    await store.shutdown()
   }
 }

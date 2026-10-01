@@ -1385,7 +1385,7 @@ struct TaskWindowView: View {
         .appFont(.caption).foregroundStyle(.secondary)
       }
       ImageAttachmentsView(
-        store: store, images: store.taskWindowImages(taskID), removable: true,
+        store: store, images: store.taskWindowImages(taskID), removable: true, draftKey: taskID,
         onRemove: { store.removeDraftImage($0, draft: taskID) })
       FileAttachmentsView(
         store: store, files: store.taskWindowFiles(taskID), removable: true,

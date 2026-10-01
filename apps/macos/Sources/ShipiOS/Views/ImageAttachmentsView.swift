@@ -5,12 +5,17 @@ struct ImageAttachmentsView: View {
   let store: WorkspaceStore
   let images: [ImageAttachment]
   var removable = false
+  var draftKey: String?
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.presentImageGallery) private var presentImageGallery
   @FocusState private var focusedImage: UUID?
   var onRemove: ((ImageAttachment) -> Void)?
+  private var pending: PendingAppshot? {
+    guard let draftKey, store.pendingAppshot?.draftKey == draftKey else { return nil }
+    return store.pendingAppshot
+  }
   var body: some View {
-    if !images.isEmpty {
+    if !images.isEmpty || pending != nil {
       ScrollView(.horizontal) {
         HStack(spacing: 10) {
           ForEach(images) { image in
@@ -69,7 +74,13 @@ struct ImageAttachmentsView: View {
               }.padding(6).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             }
           }
-        }.padding(.horizontal, images.contains(where: { $0.appshot != nil }) ? 12 : 0)
+          if let pending {
+            PendingAppshotCard(image: pending.image, icon: pending.icon)
+              .background { AppshotHandoffAnchor(imageID: pending.id, store: store) }
+              .opacity(store.appshotHandoff?.imageID == pending.id ? 0 : 1)
+              .accessibilityLabel("正在附加应用窗口截图")
+          }
+        }.padding(.horizontal, images.contains(where: { $0.appshot != nil }) || pending != nil ? 12 : 0)
       }.scrollIndicators(.hidden).accessibilityLabel("图片附件")
     }
   }
@@ -82,6 +93,36 @@ struct ImageAttachmentsView: View {
   }
   private func remove(_ image: ImageAttachment) {
     if let onRemove { onRemove(image) } else { store.removeDraftImage(image) }
+  }
+}
+
+private struct PendingAppshotCard: View {
+  let image: NSImage?
+  let icon: NSImage?
+
+  var body: some View {
+    ZStack(alignment: .bottom) {
+      Color.clear.frame(width: AppshotCardLayout.width, height: AppshotCardLayout.height)
+      if let image {
+        Image(nsImage: image).resizable().scaledToFit()
+          .frame(width: AppshotCardLayout.width,
+            height: AppshotCardLayout.screenshotHeight(
+              pixelWidth: Int(image.size.width), pixelHeight: Int(image.size.height)))
+          .padding(.horizontal, 12)
+          .mask(LinearGradient(stops: [
+            .init(color: .white, location: 0),
+            .init(color: .white.opacity(0.21), location: 0.79),
+            .init(color: .clear, location: 1),
+          ], startPoint: .top, endPoint: .bottom))
+          .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 10)
+      }
+      if let icon {
+        Image(nsImage: icon).resizable().scaledToFit()
+          .frame(width: 24, height: 24)
+          .accessibilityHidden(true)
+      }
+    }
+    .frame(width: AppshotCardLayout.width, height: AppshotCardLayout.height)
   }
 }
 

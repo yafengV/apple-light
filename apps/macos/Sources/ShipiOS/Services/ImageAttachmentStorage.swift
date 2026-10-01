@@ -20,7 +20,7 @@ enum ImageAttachmentStorage {
   }
 
   static func importData(_ data: Data, name: String, root: URL,
-    appshot: AppshotContext? = nil) throws -> ImageAttachment {
+    appshot: AppshotContext? = nil, id: UUID = UUID()) throws -> ImageAttachment {
     guard !data.isEmpty, data.count <= maxBytes,
       let source = CGImageSourceCreateWithData(data as CFData, nil),
       CGImageSourceGetCount(source) == 1,
@@ -66,7 +66,7 @@ enum ImageAttachmentStorage {
     default: throw AgentFailure(message: "支持 PNG、JPEG、WebP 和静态 GIF 图片。")
     }
     let attachment = ImageAttachment(
-      id: UUID(), name: String(name.prefix(200)), mimeType: mime,
+      id: id, name: String(name.prefix(200)), mimeType: mime,
       byteCount: stored.count, sha256: digest(stored), appshot: appshot)
     let directory = root.appendingPathComponent("Attachments", isDirectory: true)
     try FileManager.default.createDirectory(

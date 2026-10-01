@@ -2,6 +2,20 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
+struct PendingAppshot {
+  let id: UUID
+  let draftKey: String
+  let screenshot: Data
+  let image: NSImage?
+  let icon: NSImage?
+
+  init(id: UUID, draftKey: String, result: AppshotCaptureResult) {
+    self.id = id; self.draftKey = draftKey; self.screenshot = result.data
+    image = NSImage(data: result.data)
+    icon = AppshotIcon.image(result.context?.iconPNG)
+  }
+}
+
 @MainActor final class AppshotHandoff {
   let imageID: UUID
   weak var ownerWindow: NSWindow?

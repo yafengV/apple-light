@@ -65,7 +65,8 @@ struct ComposerView: View {
         }.padding(.horizontal, 4)
       }
       VStack(alignment: .leading, spacing: 12) {
-        ImageAttachmentsView(store: store, images: store.draftImages, removable: true)
+        ImageAttachmentsView(store: store, images: store.draftImages, removable: true,
+          draftKey: store.draftKey)
         FileAttachmentsView(store: store, files: store.draftFiles, removable: true)
         if store.importingFiles { ProgressView("正在添加文件…").controlSize(.small).appFont(.caption) }
         if store.importingImages {

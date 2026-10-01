@@ -68,10 +68,12 @@ struct PopoutHomeView: View {
         Button { onHide() } label: { Image(systemName: "xmark") }
           .buttonStyle(.plain).accessibilityLabel("隐藏弹出窗口")
       }
-      if !store.popoutHomeImages.isEmpty || !store.popoutHomeFiles.isEmpty {
+      if !store.popoutHomeImages.isEmpty || !store.popoutHomeFiles.isEmpty
+        || store.pendingAppshot?.draftKey == WorkspaceStore.popoutHomeDraftKey {
         ScrollView(.vertical) {
           VStack(alignment: .leading, spacing: 6) {
             ImageAttachmentsView(store: store, images: store.popoutHomeImages, removable: true,
+              draftKey: WorkspaceStore.popoutHomeDraftKey,
               onRemove: { store.removeDraftImage($0, draft: WorkspaceStore.popoutHomeDraftKey) })
             FileAttachmentsView(store: store, files: store.popoutHomeFiles, removable: true,
               onPreview: { previewFile = $0 },
@@ -508,11 +510,13 @@ struct PopoutThreadView: View {
           Spacer()
         }.padding(.horizontal, 16).padding(.top, 8)
       }
-      if !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty {
+      if !store.taskWindowImages(taskID).isEmpty || !store.taskWindowFiles(taskID).isEmpty
+        || store.pendingAppshot?.draftKey == taskID {
         ScrollView(.vertical) {
           VStack(alignment: .leading, spacing: 6) {
             ImageAttachmentsView(store: store, images: store.taskWindowImages(taskID),
-              removable: true, onRemove: { store.removeDraftImage($0, draft: taskID) })
+              removable: true, draftKey: taskID,
+              onRemove: { store.removeDraftImage($0, draft: taskID) })
             FileAttachmentsView(store: store, files: store.taskWindowFiles(taskID),
               removable: true, onPreview: { previewFile = $0 },
               onRemove: { store.removeDraftFile($0, draft: taskID) })
