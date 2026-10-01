@@ -47,3 +47,17 @@ struct DictationStatusView: View {
     }
   }
 }
+
+struct RealtimeVoiceButton: View {
+  @Bindable var store: WorkspaceStore
+
+  var body: some View {
+    Button { store.presentVoiceChat() } label: {
+      Image(systemName: "waveform.circle")
+        .frame(width: 26, height: 26)
+    }
+    .buttonStyle(.plain)
+    .help("开始语音聊天")
+    .accessibilityLabel("开始语音聊天")
+  }
+}

@@ -17,6 +17,8 @@ final class WorkspaceStore {
     }
   }
   var dictation = SpeechDictation()
+  let realtimeVoice = RealtimeVoiceSession()
+  var voiceChatPresented = false
   let voiceRecordingHistory: VoiceRecordingHistory
   @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?
   var globalDictationHotkeyError: String?
@@ -1312,6 +1314,7 @@ final class WorkspaceStore {
     captureFileEditorRecovery(from: workspace)
     for session in fileTabWorkspaces.values { captureFileEditorRecovery(from: session) }
     dictation.stop()
+    realtimeVoice.stop()
     shuttingDown = true
     appshotIntroRequest = nil
     pendingAppshot = nil

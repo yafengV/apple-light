@@ -423,6 +423,7 @@ struct ComposerView: View {
       }
       if store.action == .chat {
         DictationButton(store: store, target: store.draftKey, enabled: store.destination == .workspace)
+        RealtimeVoiceButton(store: store)
       }
       if store.selectedActiveRun?.kind == "chat", store.canSend, !store.draft.isEmpty || !store.draftImages.isEmpty || !store.draftFiles.isEmpty || store.pullRequestCheckDraft != nil {
         Button(store.followUpBehavior.composerLabel) { Task { await store.sendDraft() } }

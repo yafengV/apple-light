@@ -10,6 +10,7 @@ struct VoiceSettingsView: View {
   @State private var recordingGlobalHotkey: GlobalHotkeyMode?
   @State private var modifierCapture = VoiceModifierCaptureState()
   @State private var globalHotkeyWarning: String?
+  @State private var editingCustomVoice = false
   @FocusState private var focusedDictionaryRow: UUID?
 
   private enum GlobalHotkeyMode: Hashable { case hold, toggle }
@@ -33,6 +34,21 @@ struct VoiceSettingsView: View {
     }
   }()
 
+  private static let realtimeVoices = [
+    "marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"
+  ]
+
+  private var voiceOptions: [SettingsMenuOption<String>] {
+    var options = Self.realtimeVoices.map {
+      SettingsMenuOption(value: $0, title: $0.capitalized)
+    }
+    let selected = store.voicePreferences.realtimeVoiceID
+    if !Self.realtimeVoices.contains(selected) {
+      options.append(SettingsMenuOption(value: selected, title: selected))
+    }
+    return options
+  }
+
   private var microphoneOptions: [SettingsMenuOption<String?>] {
     var options = [SettingsMenuOption(value: Optional<String>.none, title: "系统默认")]
     options += microphones.sorted {
@@ -49,18 +65,69 @@ struct VoiceSettingsView: View {
     SettingsScrollPage(title: "语音", actions: {}, controls: {}) {
       VStack(alignment: .leading, spacing: 18) {
         Text("语音聊天").appFont(size: 15, weight: .semibold)
-        HStack(alignment: .top, spacing: 12) {
-          Image(systemName: "waveform")
-            .foregroundStyle(.secondary).frame(width: 20)
-          VStack(alignment: .leading, spacing: 4) {
-            Text("语音聊天不可用").appFont(size: 13, weight: .medium)
-            Text("当前配置支持设备端听写；实时语音会话尚不可用。")
-              .appFont(.caption).foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+          if store.modelConfiguration.baseURL.isEmpty {
+            HStack {
+              SettingsControlLabel(title: "语音聊天尚未配置",
+                description: "先配置独立 API 服务，再填写支持实时语音的模型。")
+              Spacer()
+              Button("配置 API 服务") { store.openSettings(.model) }
+            }.padding(16)
+            Divider().padding(.horizontal, 16)
           }
-          Spacer(minLength: 0)
+          HStack(spacing: 12) {
+            SettingsControlLabel(title: "实时语音模型",
+              description: "使用独立 API 服务的 /realtime WebSocket 接口。")
+            Spacer()
+            TextField("模型 ID", text: Binding(
+              get: { store.voicePreferences.realtimeModelID },
+              set: { value in
+                var preferences = store.voicePreferences
+                preferences.realtimeModelID = value
+                store.voicePreferences = preferences
+              }))
+              .textFieldStyle(.roundedBorder).frame(width: 200)
+              .accessibilityLabel("实时语音模型 ID")
+          }
+          .padding(16)
+          .settingsSearchTarget(.voiceModel)
+          Divider().padding(.horizontal, 16)
+          SettingsMenuPicker("音色", description: "用于新语音会话。", selection: Binding(
+            get: { store.voicePreferences.realtimeVoiceID },
+            set: { value in
+              var preferences = store.voicePreferences
+              preferences.realtimeVoiceID = value
+              store.voicePreferences = preferences
+            }), options: voiceOptions)
+            .padding(16)
+            .settingsSearchTarget(.voiceVoice)
+          if editingCustomVoice {
+            Divider().padding(.horizontal, 16)
+            HStack {
+              SettingsControlLabel(title: "自定义音色 ID",
+                description: "仅在独立服务支持该音色时使用。")
+              Spacer()
+              TextField("音色 ID", text: Binding(
+                get: { store.voicePreferences.realtimeVoiceID },
+                set: { value in
+                  var preferences = store.voicePreferences
+                  preferences.realtimeVoiceID = value
+                  store.voicePreferences = preferences
+                }))
+                .textFieldStyle(.roundedBorder).frame(width: 200)
+            }.padding(16)
+          }
+          Divider().padding(.horizontal, 16)
+          HStack {
+            Button(editingCustomVoice ? "收起自定义音色" : "自定义音色…") {
+              editingCustomVoice.toggle()
+            }.buttonStyle(.plain)
+            Spacer()
+            Button("开始语音聊天") { store.presentVoiceChat() }
+              .disabled(store.modelConfiguration.baseURL.isEmpty
+                || store.voicePreferences.realtimeModelID.isEmpty)
+          }.padding(16)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .settingsSearchTarget(.voiceChat)
 

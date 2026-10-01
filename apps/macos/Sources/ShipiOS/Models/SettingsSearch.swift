@@ -40,6 +40,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case notificationPermission
   case notificationTest
   case voiceChat
+  case voiceModel
+  case voiceVoice
   case voiceLanguage
   case voiceMicrophone
   case voiceHoldHotkey
@@ -201,7 +203,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .accessibility: .computerUse
     case .allowedApplications: .computerUse
     case .appshotHotkey, .appshotDestination, .appshotSound: .appshots
-    case .voiceChat, .voiceLanguage, .voiceMicrophone, .voiceHoldHotkey,
+    case .voiceChat, .voiceModel, .voiceVoice, .voiceLanguage, .voiceMicrophone, .voiceHoldHotkey,
       .voiceToggleHotkey, .voiceDictionary, .voiceRecordings: .voice
     case .browserHistory: .browser
     case .browserClear: .browser
@@ -253,6 +255,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .notificationPermission: "通知权限"
     case .notificationTest: "发送测试通知"
     case .voiceChat: "语音聊天"
+    case .voiceModel: "实时语音模型"
+    case .voiceVoice: "音色"
     case .voiceLanguage: "识别语言"
     case .voiceMicrophone: "麦克风"
     case .voiceHoldHotkey: "按住听写快捷键"
@@ -394,6 +398,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .notificationPermission: "允许通知"
     case .notificationTest: "测试"
     case .voiceChat: "实时语音 会话"
+    case .voiceModel: "Realtime 模型 WebSocket"
+    case .voiceVoice: "声音 朗读 回复"
     case .voiceLanguage: "听写 语言 locale"
     case .voiceMicrophone: "系统默认 输入设备"
     case .voiceHoldHotkey: "全局 听写 快捷键 按住 松开"

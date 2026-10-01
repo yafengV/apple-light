@@ -1438,6 +1438,7 @@ struct TaskWindowView: View {
         ).frame(minHeight: 42, maxHeight: 118)
 
         DictationButton(store: store, target: taskID)
+        RealtimeVoiceButton(store: store)
 
         if store.taskWindowOwnsActiveRun(taskID) {
           Button {

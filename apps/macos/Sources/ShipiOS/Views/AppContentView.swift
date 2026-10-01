@@ -174,6 +174,9 @@ struct AppContentView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
       }
+      .overlay {
+        if store.voiceChatPresented { RealtimeVoiceOverlay(store: store) }
+      }
       // Keep the window keyboard route attached while the workspace is hidden
       // behind settings. SwiftUI may detach zero-opacity native backgrounds.
       .background(WorkspaceKeyboardBridge(store: store).frame(width: 0, height: 0))

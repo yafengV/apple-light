@@ -3,6 +3,7 @@ import Foundation
 extension WorkspaceStore {
   func toggleDictation(target: String) async {
     guard !shuttingDown else { return }
+    if voiceChatPresented { dismissVoiceChat() }
     if dictation.target == target {
       dictation.finish(target: target)
       return

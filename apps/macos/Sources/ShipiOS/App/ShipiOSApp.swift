@@ -323,6 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
   private func beginGlobalDictation(token: String, mode: GlobalDictationMode,
     store: WorkspaceStore) {
+    if store.voiceChatPresented { store.dismissVoiceChat() }
     globalDictationIndicator?.clearError()
     do {
       let textTarget = try GlobalDictationTextTarget.capture()

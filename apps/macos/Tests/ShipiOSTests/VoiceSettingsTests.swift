@@ -13,6 +13,8 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertNil(legacy.voicePreferences.globalHoldHotkey)
     XCTAssertNil(legacy.voicePreferences.globalToggleHotkey)
     XCTAssertTrue(legacy.voicePreferences.dictationDictionary.isEmpty)
+    XCTAssertEqual(legacy.voicePreferences.realtimeModelID, "")
+    XCTAssertEqual(legacy.voicePreferences.realtimeVoiceID, "marin")
 
     let longPhrase = String(repeating: "词", count: 101)
     var library = WorkspaceLibrary()
@@ -20,13 +22,16 @@ final class VoiceSettingsTests: XCTestCase {
       microphoneDeviceID: " selected-microphone ",
       globalHoldHotkey: ShortcutBinding("⌃⌥H"),
       globalToggleHotkey: ShortcutBinding("⌃⌥D"),
-      dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase])
+      dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase],
+      realtimeModelID: " custom-voice-model ", realtimeVoiceID: " cedar ")
     XCTAssertEqual(library.voicePreferences.dictationLocaleIdentifier, "zh-CN")
     XCTAssertEqual(library.voicePreferences.microphoneDeviceID, "selected-microphone")
     XCTAssertEqual(library.voicePreferences.globalHoldHotkey, ShortcutBinding("⌃⌥H"))
     XCTAssertEqual(library.voicePreferences.globalToggleHotkey, ShortcutBinding("⌃⌥D"))
     XCTAssertEqual(library.voicePreferences.dictationDictionary,
       ["ShipiOS", "shipios", "Xcode", longPhrase])
+    XCTAssertEqual(library.voicePreferences.realtimeModelID, "custom-voice-model")
+    XCTAssertEqual(library.voicePreferences.realtimeVoiceID, "cedar")
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
       from: JSONEncoder().encode(library))
     XCTAssertEqual(restored.voicePreferences, library.voicePreferences)
@@ -80,6 +85,8 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "麦克风").map(\.field), [.voiceMicrophone])
     XCTAssertEqual(SettingsSearch.results(for: "切换听写快捷键").map(\.field), [.voiceToggleHotkey])
     XCTAssertEqual(SettingsSearch.results(for: "按住听写快捷键").map(\.field), [.voiceHoldHotkey])
+    XCTAssertEqual(SettingsSearch.results(for: "实时语音模型").map(\.field), [.voiceModel])
+    XCTAssertEqual(SettingsSearch.results(for: "音色").map(\.field), [.voiceVoice])
   }
 
   @MainActor func testVoiceSettingsPageRenders() async throws {
@@ -144,6 +151,11 @@ final class VoiceSettingsTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
+    store.modelConfiguration.baseURL = "https://voice.example.com/v1"
+    var voice = store.voicePreferences
+    voice.realtimeModelID = "custom-realtime"
+    voice.realtimeVoiceID = "cedar"
+    store.voicePreferences = voice
     let (transcriptID, _) = try XCTUnwrap(store.voiceRecordingHistory.begin())
     store.voiceRecordingHistory.finish(id: transcriptID, text: "已恢复的听写文本",
       cancelled: false, sizeBytes: 0, recordingError: nil)
@@ -167,6 +179,31 @@ final class VoiceSettingsTests: XCTestCase {
         .write(to: URL(fileURLWithPath: path), options: .atomic)
     }
     XCTAssertEqual(store.voiceRecordingHistory.recordings.count, 2)
+    window.close()
+    await store.shutdown()
+  }
+
+  @MainActor func testRealtimeVoiceOverlayRenders() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.voiceChatPresented = true
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 600),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: RealtimeVoiceOverlay(store: store)
+      .environment(\.appAppearance, store.appearance))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_REALTIME_OVERLAY_RENDER_PATH"] {
+      try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        .write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+    XCTAssertTrue(store.voiceChatPresented)
     window.close()
     await store.shutdown()
   }
