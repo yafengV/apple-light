@@ -19,6 +19,32 @@ struct AppshotTarget {
   var icon: NSImage? { application.icon }
 }
 
+enum AppshotIcon {
+  static let maxBytes = 256 * 1_024
+
+  static func pngData(_ icon: NSImage?) -> Data? {
+    guard let icon,
+      let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 128, pixelsHigh: 128,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+      let drawing = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = drawing
+    icon.draw(in: CGRect(x: 0, y: 0, width: 128, height: 128),
+      from: .zero, operation: .sourceOver, fraction: 1)
+    drawing.flushGraphics()
+    NSGraphicsContext.restoreGraphicsState()
+    guard let png = bitmap.representation(using: .png, properties: [:]),
+      png.count <= maxBytes else { return nil }
+    return png
+  }
+
+  static func image(_ data: Data?) -> NSImage? {
+    guard let data, data.count <= maxBytes else { return nil }
+    return NSImage(data: data)
+  }
+}
+
 enum AppshotImage {
   static func filename(applicationName: String?, at date: Date = Date()) -> String {
     let rawName = applicationName ?? ""
@@ -135,7 +161,7 @@ enum AppshotImage {
       window.owningApplication?.processID == app.processIdentifier else { return nil }
     return try await screenshot(SCContentFilter(desktopIndependentWindow: window),
       applicationName: app.localizedName, bundleIdentifier: app.bundleIdentifier,
-      windowTitle: window.title, pid: app.processIdentifier)
+      windowTitle: window.title, pid: app.processIdentifier, applicationIcon: app.icon)
   }
 
   private func captureFromPicker() async throws -> AppshotCaptureResult? {
@@ -180,14 +206,15 @@ enum AppshotImage {
         finish(.success(try await screenshot(filter,
           applicationName: window?.owningApplication?.applicationName,
           bundleIdentifier: window?.owningApplication?.bundleIdentifier,
-          windowTitle: window?.title, pid: window?.owningApplication?.processID)))
+          windowTitle: window?.title, pid: window?.owningApplication?.processID,
+          applicationIcon: icon(for: window?.owningApplication?.bundleIdentifier))))
       } catch { finish(.failure(error)) }
     }
   }
 
   private func screenshot(_ filter: SCContentFilter,
     applicationName: String?, bundleIdentifier: String?,
-    windowTitle: String?, pid: pid_t?) async throws -> AppshotCaptureResult {
+    windowTitle: String?, pid: pid_t?, applicationIcon: NSImage?) async throws -> AppshotCaptureResult {
     let size = AppshotImage.size(rect: filter.contentRect, pixelScale: filter.pointPixelScale)
     let configuration = SCStreamConfiguration()
     configuration.width = size.width
@@ -198,8 +225,15 @@ enum AppshotImage {
     let encoded = try AppshotImage.encode(image, applicationName: applicationName)
     let axTree = await AppshotAccessibility.snapshot(pid: pid, windowTitle: windowTitle)
     let context = AppshotContext(appName: applicationName ?? "应用窗口",
-      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: axTree)
+      bundleIdentifier: bundleIdentifier, windowTitle: windowTitle, axTree: axTree,
+      iconPNG: AppshotIcon.pngData(applicationIcon))
     return AppshotCaptureResult(data: encoded.data, name: encoded.name, context: context)
+  }
+
+  private func icon(for bundleIdentifier: String?) -> NSImage? {
+    guard let bundleIdentifier,
+      let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return nil }
+    return NSWorkspace.shared.icon(forFile: appURL.path)
   }
 
   private func finish(_ result: Result<AppshotCaptureResult?, Error>) {

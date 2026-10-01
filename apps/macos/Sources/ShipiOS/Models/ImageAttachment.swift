@@ -5,6 +5,13 @@ struct AppshotContext: Codable, Equatable, Sendable {
   let bundleIdentifier: String?
   let windowTitle: String?
   let axTree: String
+  let iconPNG: Data?
+
+  init(appName: String, bundleIdentifier: String?, windowTitle: String?, axTree: String,
+    iconPNG: Data? = nil) {
+    self.appName = appName; self.bundleIdentifier = bundleIdentifier
+    self.windowTitle = windowTitle; self.axTree = axTree; self.iconPNG = iconPNG
+  }
 
   var displayTitle: String {
     let title = windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

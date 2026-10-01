@@ -73,6 +73,28 @@ final class AppshotCaptureTests: XCTestCase {
     XCTAssertLessThan(content.utf8.count, 26_000)
     XCTAssertEqual(try JSONDecoder().decode(ImageAttachment.self,
       from: JSONEncoder().encode(image)).appshot, context)
+    let oldContext = Data(#"{"appName":"Sample","bundleIdentifier":"com.example.app","windowTitle":"Window","axTree":"AXWindow"}"#.utf8)
+    XCTAssertNil(try JSONDecoder().decode(AppshotContext.self, from: oldContext).iconPNG)
+  }
+
+  func testCapturedAppIconPersistsWithAttachmentAndRejectsOversizedData() throws {
+    let graphics = try XCTUnwrap(CGContext(data: nil, width: 24, height: 24, bitsPerComponent: 8,
+      bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    graphics.setFillColor(NSColor.systemRed.cgColor)
+    graphics.fill(CGRect(x: 0, y: 0, width: 24, height: 24))
+    let icon = NSImage(cgImage: try XCTUnwrap(graphics.makeImage()), size: NSSize(width: 24, height: 24))
+    let png = try XCTUnwrap(AppshotIcon.pngData(icon))
+    XCTAssertLessThanOrEqual(png.count, AppshotIcon.maxBytes)
+    let restored = try XCTUnwrap(AppshotIcon.image(png))
+    XCTAssertEqual(restored.size, NSSize(width: 128, height: 128))
+    XCTAssertNil(AppshotIcon.image(Data(repeating: 0, count: AppshotIcon.maxBytes + 1)))
+    let metadata = AppshotContext(appName: "Sample", bundleIdentifier: nil,
+      windowTitle: "Window", axTree: "", iconPNG: png)
+    let attachment = ImageAttachment(id: UUID(), name: "shot.png", mimeType: "image/png",
+      byteCount: 1, sha256: "digest", appshot: metadata)
+    XCTAssertEqual(try JSONDecoder().decode(ImageAttachment.self,
+      from: JSONEncoder().encode(attachment)).appshot?.iconPNG, png)
   }
 
   @MainActor func testCaptureCommandIsOwnedByTaskWindowAndRequiresChatWorkspace() async {

@@ -85,6 +85,7 @@ private struct AppshotCardVisual: View {
   let root: URL
 
   private var icon: NSImage? {
+    if let stored = AppshotIcon.image(context.iconPNG) { return stored }
     guard let bundle = context.bundleIdentifier,
       let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return nil }
     return NSWorkspace.shared.icon(forFile: appURL.path)
