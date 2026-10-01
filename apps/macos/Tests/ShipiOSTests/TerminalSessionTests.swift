@@ -75,8 +75,14 @@ final class TerminalSessionTests: XCTestCase {
     store.library.profiles[root.path] = BuildProfile(actions: [linux, first, second])
 
     XCTAssertEqual(store.shortcuts.binding("environment-action-1"), ShortcutBinding("⌘⇧D"))
+    XCTAssertNil(store.shortcuts.binding("environment-action-2"))
+    XCTAssertEqual(DesktopCommand.environmentActionSlot("environment-action-1"), 0)
+    XCTAssertEqual(DesktopCommand.environmentActionSlot("environment-action-9"), 8)
+    XCTAssertNil(DesktopCommand.environmentActionSlot("environment-action-10"))
     XCTAssertNil(store.shortcuts.binding("build"))
     XCTAssertTrue(store.commandEnabled("environment-action-1"))
+    XCTAssertTrue(store.commandEnabled("environment-action-2"))
+    XCTAssertFalse(store.commandEnabled("environment-action-3"))
     store.executeCommand("environment-action-1")
     let session = try XCTUnwrap(store.focusedWorkspaceContentTab?.terminalID.flatMap(store.terminalSession))
     XCTAssertEqual(session.displayTitle, "First")
@@ -84,8 +90,37 @@ final class TerminalSessionTests: XCTestCase {
       FileManager.default.fileExists(atPath: root.appendingPathComponent("first-action").path)
     }
     XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("second-action").path))
+    store.executeCommand("environment-action-2")
+    let secondSession = try XCTUnwrap(store.focusedWorkspaceContentTab?.terminalID.flatMap(store.terminalSession))
+    XCTAssertEqual(secondSession.displayTitle, "Second")
+    try await eventually("Second platform-filtered action did not run") {
+      FileManager.default.fileExists(atPath: root.appendingPathComponent("second-action").path)
+    }
     store.openSettings(.general)
     XCTAssertFalse(store.commandEnabled("environment-action-1"))
+    XCTAssertFalse(store.commandEnabled("environment-action-2"))
+  }
+
+  @MainActor func testNinthEnvironmentActionRunsItsOwnSlot() async throws {
+    let root = try folder()
+    let store = WorkspaceStore()
+    defer { store.workspace.terminals.shutdown() }
+    store.project = root
+    let actions = (1...9).map { number in
+      EnvironmentAction(title: "Action \(number)", script: "printf \(number) > action-nine-result")
+    }
+    store.library.profiles[root.path] = BuildProfile(actions: actions)
+    XCTAssertTrue(store.commandEnabled("environment-action-9"))
+    XCTAssertFalse(store.commandEnabled("environment-action-10"))
+
+    store.executeCommand("environment-action-9")
+
+    let session = try XCTUnwrap(store.focusedWorkspaceContentTab?.terminalID.flatMap(store.terminalSession))
+    XCTAssertEqual(session.displayTitle, "Action 9")
+    try await eventually("Ninth environment action did not run") {
+      FileManager.default.fileExists(atPath: root.appendingPathComponent("action-nine-result").path)
+    }
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("action-nine-result")), "9")
   }
 
   @MainActor func testTerminalShortcutUsesConfiguredRightPanelAndTogglesIt() throws {

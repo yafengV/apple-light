@@ -749,7 +749,7 @@ struct TaskWindowView: View {
           if ["find", "find-next", "find-previous", "model", "clear-prompt", "add-photos", "add-files", "rename", "fork", "open-task-window", "task-summary", "status", "init", "local", "worktree", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
             "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
-            || id.hasPrefix("focus-tab-") {
+            || id.hasPrefix("focus-tab-") || DesktopCommand.environmentActionSlot(id) != nil {
             searchReturnFocus = nil
           }
           performWindowCommand(id)
@@ -822,9 +822,11 @@ struct TaskWindowView: View {
         enabled.formUnion(["find-next", "find-previous"])
       }
       if !task.project.isEmpty { enabled.formUnion(["files", "tree", "review", "review-open", "terminal", "bottom-panel"]) }
-      if panels.workspace.root != nil,
-        store.library.profiles[task.project]?.actions.contains(where: \.isRunnableOnMac) == true {
-        enabled.insert("environment-action-1")
+      if panels.workspace.root != nil {
+        let actions = (store.library.profiles[task.project]?.actions ?? []).filter(\.isRunnableOnMac)
+        for slot in actions.prefix(9).indices {
+          enabled.insert("environment-action-\(slot + 1)")
+        }
       }
       for command in DesktopCommand.all where tabs.commandEnabled(command.id) {
         enabled.insert(command.id)
@@ -908,9 +910,10 @@ struct TaskWindowView: View {
         let page = browser.session.tabs.first(where: { $0.id == id }) { page.openPageFind() }
       else { tabs.revealChat(); showingFind = true; findFocusRequest = UUID() }
     case "model": openTaskModelPicker()
-    case "environment-action-1":
-      if let action = store.library.profiles[task.project]?.actions.first(where: \.isRunnableOnMac) {
-        runEnvironmentAction(action, task: task)
+    case let value where DesktopCommand.environmentActionSlot(value) != nil:
+      let actions = (store.library.profiles[task.project]?.actions ?? []).filter(\.isRunnableOnMac)
+      if let slot = DesktopCommand.environmentActionSlot(value), actions.indices.contains(slot) {
+        runEnvironmentAction(actions[slot], task: task)
       }
     case "fork": forkTask()
     case "open-side-chat": openSideChat()

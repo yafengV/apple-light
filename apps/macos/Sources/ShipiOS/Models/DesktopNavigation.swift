@@ -29,6 +29,13 @@ struct DesktopCommand: Identifiable {
     return number - 1
   }
 
+  static func environmentActionSlot(_ id: String) -> Int? {
+    let prefix = "environment-action-"
+    guard id.hasPrefix(prefix), let number = Int(id.dropFirst(prefix.count)),
+      (1...9).contains(number) else { return nil }
+    return number - 1
+  }
+
   static let all: [Self] = [
     .init(id: "palette", title: "命令菜单", icon: "command", shortcut: "⌘K"),
     .init(id: "palette-alternate", title: "命令菜单（备用）", icon: "command", shortcut: "⌘⇧P"),
@@ -90,6 +97,14 @@ struct DesktopCommand: Identifiable {
     .init(id: "automations", title: "自动化", icon: "clock.arrow.circlepath", shortcut: ""),
     .init(id: "open", title: "打开文件夹…", icon: "folder.badge.plus", shortcut: "⌘O"),
     .init(id: "environment-action-1", title: "运行首个环境操作", icon: "play.square", shortcut: "⌘⇧D"),
+    .init(id: "environment-action-2", title: "运行环境操作 2", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-3", title: "运行环境操作 3", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-4", title: "运行环境操作 4", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-5", title: "运行环境操作 5", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-6", title: "运行环境操作 6", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-7", title: "运行环境操作 7", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-8", title: "运行环境操作 8", icon: "play.square", shortcut: ""),
+    .init(id: "environment-action-9", title: "运行环境操作 9", icon: "play.square", shortcut: ""),
     .init(id: "files", title: "搜索文件", icon: "doc.text.magnifyingglass", shortcut: "⌘P"),
     .init(id: "tree", title: "切换文件树", icon: "sidebar.right", shortcut: "⌘⇧E"),
     .init(id: "terminal", title: "切换终端", icon: "terminal", shortcut: "⌃`"),
@@ -169,6 +184,7 @@ enum DesktopCommandGroup: String, CaseIterable {
 extension DesktopCommand {
   var group: DesktopCommandGroup {
     if id.hasPrefix("git.") { return .project }
+    if Self.environmentActionSlot(id) != nil { return .project }
     if id.hasPrefix("focus-chat-") || Self.recentChatSlot(id) != nil { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {

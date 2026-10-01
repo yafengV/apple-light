@@ -162,8 +162,11 @@ extension WorkspaceStore {
     case "copy-location": copyCurrentLocation()
     case "doctor": Task { await start("doctor") }
     case "build": Task { await start("build") }
-    case "environment-action-1":
-      if let action = availableEnvironmentActions.first { runEnvironmentAction(action) }
+    case let value where DesktopCommand.environmentActionSlot(value) != nil:
+      if let slot = DesktopCommand.environmentActionSlot(value),
+        availableEnvironmentActions.indices.contains(slot) {
+        runEnvironmentAction(availableEnvironmentActions[slot])
+      }
     case "stop": Task { await cancel() }
     default: break
     }
@@ -306,7 +309,11 @@ extension WorkspaceStore {
     case "project-picker": return destination == .workspace && activeLocalRun == nil && !busy && libraryLoaded
     case "doctor": return destination == .workspace && canStart
     case "build": return destination == .workspace && canBuild
-    case "environment-action-1": return destination == .workspace && !availableEnvironmentActions.isEmpty
+    case let value where DesktopCommand.environmentActionSlot(value) != nil:
+      return destination == .workspace && DesktopCommand.environmentActionSlot(value).map {
+        availableEnvironmentActions.indices.contains($0)
+      } == true
+    case let value where value.hasPrefix("environment-action-"): return false
     case "stop": return selectedActiveRun != nil || activeLocalRun != nil
     case "pet": return petsLoaded
     case "open-skills": return pluginsEnabled

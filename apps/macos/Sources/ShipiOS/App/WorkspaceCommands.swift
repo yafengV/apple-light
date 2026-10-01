@@ -105,6 +105,9 @@ struct WorkspaceCommands: Commands {
       command("automations")
       Divider()
       command("environment-action-1")
+      ForEach(2...9, id: \.self) { slot in
+        if commandEnabled("environment-action-\(slot)") { command("environment-action-\(slot)") }
+      }
       command("doctor")
       command("build")
       command("model")

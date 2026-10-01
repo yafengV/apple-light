@@ -31,6 +31,7 @@ struct CommandPaletteView: View {
   }
   private var matches: [DesktopCommand] {
     Self.matchingCommands(searchQuery, git: gitCommands, appearance: store.appearance)
+      .filter { DesktopCommand.environmentActionSlot($0.id) == nil || commandEnabled($0.id) }
   }
   static func matchingCommands(_ query: String, git: GitWorkflowCommandContext?, appearance: AppearancePreferences? = nil) -> [DesktopCommand] {
     var matches = DesktopCommand.search(query: query)
