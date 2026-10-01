@@ -95,6 +95,20 @@ struct VoiceSettingsView: View {
           .padding(16)
           .settingsSearchTarget(.voiceVoice)
           Divider().padding(.horizontal, 16)
+          Toggle(isOn: Binding(
+            get: { store.voicePreferences.screenContextEnabled },
+            set: { value in
+              var preferences = store.voicePreferences
+              preferences.screenContextEnabled = value
+              store.voicePreferences = preferences
+            })) {
+            SettingsControlLabel(title: "屏幕上下文",
+              description: "语音聊天中提到屏幕内容时，可读取前台应用。首次使用时由 macOS 请求权限。")
+          }
+          .toggleStyle(.switch)
+          .padding(16)
+          .settingsSearchTarget(.voiceScreenContext)
+          Divider().padding(.horizontal, 16)
           HStack {
             Spacer()
             Button("开始语音聊天") { store.presentVoiceChat() }

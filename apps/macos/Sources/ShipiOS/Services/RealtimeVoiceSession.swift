@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreGraphics
 import Observation
 
 @MainActor @Observable final class RealtimeVoiceSession {
@@ -9,6 +10,7 @@ import Observation
   private(set) var error: String?
   private(set) var assistantText = ""
   private(set) var userText = ""
+  private(set) var screenContextStatus: String?
 
   @ObservationIgnored private var generation = UUID()
   @ObservationIgnored private var model = ""
@@ -21,20 +23,26 @@ import Observation
   @ObservationIgnored private var audioContinuation: AsyncStream<Data>.Continuation?
   @ObservationIgnored private var capture: RealtimeVoiceCapture?
   @ObservationIgnored private var playback: RealtimeVoicePlayback?
+  @ObservationIgnored private var screenCapture: AppshotCapture?
+  @ObservationIgnored private var screenContextEnabled = false
   @ObservationIgnored private var responseFinished = false
 
   var isActive: Bool { phase != .idle && phase != .failed }
 
-  func start(config: ModelConfiguration, preferences: VoicePreferences) async {
+  func start(config: ModelConfiguration, preferences: VoicePreferences,
+    screenCapture: AppshotCapture? = nil) async {
     stop()
     let token = generation
     phase = .connecting
     error = nil
     assistantText = ""
     userText = ""
+    screenContextStatus = nil
     responseFinished = false
     model = preferences.realtimeModelID
     voice = preferences.realtimeVoiceID
+    screenContextEnabled = preferences.screenContextEnabled && screenCapture != nil
+    self.screenCapture = screenCapture
     do {
       let key = try ModelKeychain.read(account: config.credentialAccount)
       let request = try RealtimeVoiceWire.request(config: config, model: model, key: key)
@@ -87,6 +95,9 @@ import Observation
     capture = nil
     playback?.stop()
     playback = nil
+    screenCapture = nil
+    screenContextEnabled = false
+    screenContextStatus = nil
     responseFinished = false
     socket?.cancel(with: .goingAway, reason: nil)
     socket = nil
@@ -129,7 +140,8 @@ import Observation
     preferences: VoicePreferences, token: UUID) async throws {
     switch event {
     case .sessionCreated:
-      try await socket.send(.data(RealtimeVoiceWire.sessionUpdate(model: model, voice: voice)))
+      try await socket.send(.data(RealtimeVoiceWire.sessionUpdate(model: model, voice: voice,
+        screenContextEnabled: screenContextEnabled)))
     case .sessionUpdated:
       guard phase == .connecting else { return }
       try playback = RealtimeVoicePlayback { [weak self] in
@@ -166,6 +178,7 @@ import Observation
     case .speechStarted:
       playback?.interrupt()
       responseFinished = false
+      screenContextStatus = nil
       phase = .listening
     case .speechStopped, .responseStarted:
       phase = .thinking
@@ -181,9 +194,23 @@ import Observation
       assistantText = String((assistantText + delta).prefix(12_000))
     case .userText(let text):
       userText = String(text.prefix(12_000))
-    case .responseDone(let status):
+    case .responseDone(let status, let calls):
       if status == "failed" {
         throw AgentFailure(message: "语音模型未能完成回复。")
+      }
+      if !calls.isEmpty {
+        phase = .thinking
+        for (index, call) in calls.enumerated() {
+          var result = "unavailable"
+          if index == 0, call.name == "capture_screen_context", screenContextEnabled {
+            result = await captureScreenContext(socket: socket, token: token)
+          }
+          guard generation == token else { return }
+          try await socket.send(.data(RealtimeVoiceWire.functionOutput(
+            callID: call.callID, status: result)))
+        }
+        try await socket.send(.data(RealtimeVoiceWire.responseCreate()))
+        return
       }
       responseFinished = true
       if playback?.hasPendingAudio != true { phase = .listening }
@@ -191,6 +218,29 @@ import Observation
       throw AgentFailure(message: String(message.prefix(500)))
     case .ignored:
       break
+    }
+  }
+
+  private func captureScreenContext(socket: URLSessionWebSocketTask, token: UUID) async -> String {
+    guard let screenCapture else { return "unavailable" }
+    screenContextStatus = "正在读取前台窗口…"
+    guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
+      screenContextStatus = "请在系统设置中允许 ShipiOS 录制屏幕。"
+      return "permission_denied"
+    }
+    guard let target = screenCapture.availableTarget() else {
+      screenContextStatus = "没有可读取的前台应用窗口。"
+      return "no_foreground_window"
+    }
+    do {
+      guard let result = try await screenCapture.capture(target: target, mode: .shortcut),
+        generation == token else { return "unavailable" }
+      try await socket.send(.data(RealtimeVoiceWire.screenContextItem(result)))
+      screenContextStatus = "已加入 \(String((result.context?.appName ?? target.name).prefix(100))) 的屏幕内容"
+      return "captured"
+    } catch {
+      screenContextStatus = "无法读取前台窗口：\(error.localizedDescription)"
+      return "capture_failed"
     }
   }
 

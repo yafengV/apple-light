@@ -40,7 +40,7 @@ final class RealtimeVoiceWireTests: XCTestCase {
       .assistantText("Hello"))
     XCTAssertEqual(try RealtimeVoiceEvent.parse(Data(
       #"{"type":"response.done","response":{"status":"completed"}}"#.utf8)),
-      .responseDone("completed"))
+      .responseDone("completed", []))
     XCTAssertEqual(try RealtimeVoiceEvent.parse(Data(
       #"{"type":"response.output_audio.delta","delta":"AQIDBA=="}"#.utf8)),
       .assistantAudio(Data([1, 2, 3, 4])))
@@ -50,6 +50,37 @@ final class RealtimeVoiceWireTests: XCTestCase {
       RealtimeVoiceWire.audioAppend(Data([1, 2]))) as? [String: String])
     XCTAssertEqual(appended["type"], "input_audio_buffer.append")
     XCTAssertEqual(appended["audio"], "AQI=")
+  }
+
+  func testScreenContextToolAndImageMessageUseExplicitOptIn() throws {
+    let disabled = try XCTUnwrap(JSONSerialization.jsonObject(with:
+      RealtimeVoiceWire.sessionUpdate(model: "test-model", voice: "marin")) as? [String: Any])
+    XCTAssertNil((disabled["session"] as? [String: Any])?["tools"])
+    let enabled = try XCTUnwrap(JSONSerialization.jsonObject(with:
+      RealtimeVoiceWire.sessionUpdate(model: "test-model", voice: "marin",
+        screenContextEnabled: true)) as? [String: Any])
+    let session = try XCTUnwrap(enabled["session"] as? [String: Any])
+    let tools = try XCTUnwrap(session["tools"] as? [[String: Any]])
+    XCTAssertEqual(tools.first?["name"] as? String, "capture_screen_context")
+
+    let call = try RealtimeVoiceEvent.parse(Data(#"{"type":"response.done","response":{"status":"completed","output":[{"type":"function_call","name":"capture_screen_context","call_id":"call_1","arguments":"{}"}]}}"#.utf8))
+    XCTAssertEqual(call, .responseDone("completed", [RealtimeVoiceFunctionCall(
+      name: "capture_screen_context", callID: "call_1")]))
+    let screenshot = AppshotCaptureResult(data: Data([1, 2, 3]), name: "test.jpg",
+      context: AppshotContext(appName: "Test", bundleIdentifier: "test.app",
+        windowTitle: "Window", axTree: "A button"))
+    let item = try XCTUnwrap(JSONSerialization.jsonObject(with:
+      RealtimeVoiceWire.screenContextItem(screenshot)) as? [String: Any])
+    let content = try XCTUnwrap((item["item"] as? [String: Any])?["content"] as? [[String: Any]])
+    XCTAssertEqual(content.last?["image_url"] as? String, "data:image/jpeg;base64,AQID")
+    XCTAssertTrue((content.first?["text"] as? String)?.contains("A button") == true)
+    let output = try XCTUnwrap(JSONSerialization.jsonObject(with:
+      RealtimeVoiceWire.functionOutput(callID: "call_1", status: "captured")) as? [String: Any])
+    XCTAssertEqual((output["item"] as? [String: Any])?["call_id"] as? String, "call_1")
+    XCTAssertThrowsError(try RealtimeVoiceWire.functionOutput(callID: "", status: "captured"))
+    let echoedImage = Data((#"{"type":"conversation.item.created","item":{"image":""#
+      + String(repeating: "A", count: 2_200_000) + #""}}"#).utf8)
+    XCTAssertEqual(try RealtimeVoiceEvent.parse(echoedImage), .ignored)
   }
 
   func testPCMEncoderResamplesAcrossBuffersAndUsesLittleEndian() throws {

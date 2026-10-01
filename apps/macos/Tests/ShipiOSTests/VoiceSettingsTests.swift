@@ -16,6 +16,7 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertTrue(legacy.voicePreferences.dictationDictionary.isEmpty)
     XCTAssertEqual(legacy.voicePreferences.realtimeModelID, "")
     XCTAssertEqual(legacy.voicePreferences.realtimeVoiceID, "marin")
+    XCTAssertFalse(legacy.voicePreferences.screenContextEnabled)
 
     let longPhrase = String(repeating: "词", count: 101)
     var library = WorkspaceLibrary()
@@ -25,7 +26,8 @@ final class VoiceSettingsTests: XCTestCase {
       globalToggleHotkey: ShortcutBinding("⌃⌥D"),
       globalVoiceChatHotkey: ShortcutBinding("⌃⌥V"),
       dictationDictionary: [" ShipiOS ", "shipios", "Xcode", " ", longPhrase],
-      realtimeModelID: " custom-voice-model ", realtimeVoiceID: " cedar ")
+      realtimeModelID: " custom-voice-model ", realtimeVoiceID: " cedar ",
+      screenContextEnabled: true)
     XCTAssertEqual(library.voicePreferences.dictationLocaleIdentifier, "zh-CN")
     XCTAssertEqual(library.voicePreferences.microphoneDeviceID, "selected-microphone")
     XCTAssertEqual(library.voicePreferences.globalHoldHotkey, ShortcutBinding("⌃⌥H"))
@@ -35,6 +37,7 @@ final class VoiceSettingsTests: XCTestCase {
       ["ShipiOS", "shipios", "Xcode", longPhrase])
     XCTAssertEqual(library.voicePreferences.realtimeModelID, "custom-voice-model")
     XCTAssertEqual(library.voicePreferences.realtimeVoiceID, "cedar")
+    XCTAssertTrue(library.voicePreferences.screenContextEnabled)
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
       from: JSONEncoder().encode(library))
     XCTAssertEqual(restored.voicePreferences, library.voicePreferences)
@@ -95,6 +98,7 @@ final class VoiceSettingsTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "按住听写快捷键").map(\.field), [.voiceHoldHotkey])
     XCTAssertEqual(SettingsSearch.results(for: "实时语音模型").map(\.field), [.voiceModel])
     XCTAssertEqual(SettingsSearch.results(for: "音色").map(\.field), [.voiceVoice])
+    XCTAssertEqual(SettingsSearch.results(for: "屏幕上下文").map(\.field), [.voiceScreenContext])
     XCTAssertEqual(SettingsSearch.results(for: "语音聊天快捷键").map(\.field), [.voiceChatHotkey])
   }
 

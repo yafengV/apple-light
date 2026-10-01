@@ -8,7 +8,7 @@ extension WorkspaceStore {
     showMainWindowHandler?()
     if !realtimeVoice.isActive {
       Task { await realtimeVoice.start(config: modelConfiguration,
-        preferences: voicePreferences) }
+        preferences: voicePreferences, screenCapture: appshotCapture) }
     }
   }
 

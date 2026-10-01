@@ -9,12 +9,13 @@ struct VoicePreferences: Codable, Equatable {
   var dictationDictionary: [String] = []
   var realtimeModelID = ""
   var realtimeVoiceID = "marin"
+  var screenContextEnabled = false
 
   init(dictationLocaleIdentifier: String? = nil, microphoneDeviceID: String? = nil,
     globalHoldHotkey: ShortcutBinding? = nil, globalToggleHotkey: ShortcutBinding? = nil,
     globalVoiceChatHotkey: ShortcutBinding? = nil,
     dictationDictionary: [String] = [], realtimeModelID: String = "",
-    realtimeVoiceID: String = "marin") {
+    realtimeVoiceID: String = "marin", screenContextEnabled: Bool = false) {
     self.dictationLocaleIdentifier = dictationLocaleIdentifier
     self.microphoneDeviceID = microphoneDeviceID
     self.globalHoldHotkey = globalHoldHotkey
@@ -23,13 +24,14 @@ struct VoicePreferences: Codable, Equatable {
     self.dictationDictionary = dictationDictionary
     self.realtimeModelID = realtimeModelID
     self.realtimeVoiceID = realtimeVoiceID
+    self.screenContextEnabled = screenContextEnabled
     normalize()
   }
 
   private enum CodingKeys: CodingKey {
     case dictationLocaleIdentifier, microphoneDeviceID, globalHoldHotkey, globalToggleHotkey,
       globalVoiceChatHotkey,
-      dictationDictionary, realtimeModelID, realtimeVoiceID
+      dictationDictionary, realtimeModelID, realtimeVoiceID, screenContextEnabled
   }
 
   init(from decoder: Decoder) throws {
@@ -42,6 +44,7 @@ struct VoicePreferences: Codable, Equatable {
     dictationDictionary = try values.decodeIfPresent([String].self, forKey: .dictationDictionary) ?? []
     realtimeModelID = try values.decodeIfPresent(String.self, forKey: .realtimeModelID) ?? ""
     realtimeVoiceID = try values.decodeIfPresent(String.self, forKey: .realtimeVoiceID) ?? "marin"
+    screenContextEnabled = try values.decodeIfPresent(Bool.self, forKey: .screenContextEnabled) ?? false
     normalize()
   }
 

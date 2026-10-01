@@ -39,6 +39,10 @@ struct RealtimeVoiceOverlay: View {
           Text(error).appFont(.caption).foregroundStyle(.red)
             .multilineTextAlignment(.center).textSelection(.enabled)
         }
+        if let screenStatus = store.realtimeVoice.screenContextStatus {
+          Text(screenStatus).appFont(.caption).foregroundStyle(.secondary)
+            .multilineTextAlignment(.center).textSelection(.enabled)
+        }
         Spacer(minLength: 0)
         HStack(spacing: 14) {
           if store.realtimeVoice.phase == .failed {
