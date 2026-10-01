@@ -37,7 +37,8 @@ final class TaskSummarySourceTests: XCTestCase {
 
     XCTAssertEqual([first, second].summarySources(in: library), [
       .file(file), .image(image), .external(external),
-      .tool(id: serverID, name: "Files"), .webSearch,
+      .tool(id: serverID, name: "Files"),
+      .webSearch(CodexWebSearchSummary(queryCount: 0, queries: [], viewedLinks: [])),
     ])
     XCTAssertTrue([foreign].summarySources(in: WorkspaceLibrary()).isEmpty)
   }
@@ -62,5 +63,47 @@ final class TaskSummarySourceTests: XCTestCase {
     let sources = [run].summarySources(in: WorkspaceLibrary())
     XCTAssertEqual(sources, [.siteTool(completed)])
     XCTAssertEqual(sources.first?.searchableText, "read_title Docs https://example.test/docs")
+  }
+
+  func testWebSearchSourcesCountRepeatedQueriesAndGroupUniqueOpenedPages() throws {
+    var executions: [MCPToolExecution] = []
+    var items: [ChatResponseItem] = []
+    func finish(_ id: String, action: JSONValue, results: JSONValue = .null) {
+      XCTAssertTrue(CodexWebSearchTimeline.apply(.object([
+        "type": .string("web_search_end"), "call_id": .string(id),
+        "action": action, "results": results,
+      ]), executions: &executions, items: &items))
+    }
+    finish("search", action: .object([
+      "type": .string("search"),
+      "queries": .array([.string("swift ui"), .string("swift ui"), .string("ShipiOS")]),
+    ]))
+    finish("open", action: .object([
+      "type": .string("open_page"), "url": .string("https://example.test/docs"),
+    ]), results: .array([.object([
+      "title": .string("Reference docs"), "url": .string("https://example.test/docs"),
+    ])]))
+    finish("find", action: .object([
+      "type": .string("find_in_page"), "url": .string("https://example.test/docs"),
+      "pattern": .string("setup"),
+    ]))
+    finish("second", action: .object([
+      "type": .string("open_page"), "url": .string("https://example.test/guide"),
+    ]))
+    let encoded = try JSONDecoder().decode(JSONValue.self,
+      from: JSONEncoder().encode(executions))
+    let run = AgentRun(id: "search-run", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object(["tool_executions": encoded]))
+    let source = try XCTUnwrap([run].summarySources(in: WorkspaceLibrary()).last)
+    guard case .webSearch(let summary) = source else { return XCTFail("Missing web search source") }
+    XCTAssertEqual(summary.queryCount, 3)
+    XCTAssertEqual(summary.queries, ["swift ui", "ShipiOS"])
+    XCTAssertEqual(summary.viewedLinks, [
+      CodexWebSource(title: "Reference docs", url: "https://example.test/docs"),
+      CodexWebSource(title: "example.test", url: "https://example.test/guide"),
+    ])
+    XCTAssertTrue(source.searchableText.contains("swift ui"))
+    XCTAssertTrue(source.searchableText.contains("example.test/guide"))
   }
 }

@@ -80,7 +80,18 @@ struct TaskSourcesView: View {
   }
 
   private var otherSources: [TaskSummarySource] {
-    filtered.filter { if case .siteTool = $0 { return false }; return true }
+    filtered.filter {
+      if case .siteTool = $0 { return false }
+      if case .webSearch = $0 { return false }
+      return true
+    }
+  }
+
+  private var webSearchSource: CodexWebSearchSummary? {
+    for source in filtered {
+      if case .webSearch(let summary) = source { return summary }
+    }
+    return nil
   }
 
   private var siteToolWebsites: [SiteToolWebsiteGroup] {
@@ -131,6 +142,9 @@ struct TaskSourcesView: View {
             ForEach(siteToolWebsites) { group in
               BrowserSiteToolWebsiteSection(group: group, openExternal: openExternal)
             }
+            if let webSearchSource {
+              CodexWebSearchSourceSection(summary: webSearchSource, openExternal: openExternal)
+            }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(20)
@@ -144,6 +158,44 @@ struct TaskSourcesView: View {
           root: dataRoot) { self.previewImage = nil }
       }
     }
+  }
+}
+
+private struct CodexWebSearchSourceSection: View {
+  let summary: CodexWebSearchSummary
+  let openExternal: (URL) -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 9) {
+      Label("网页搜索", systemImage: "globe").appFont(.body, weight: .medium)
+      if summary.queryCount > 0 {
+        DisclosureGroup("搜索 \(summary.queryCount) 次") {
+          VStack(alignment: .leading, spacing: 6) {
+            ForEach(summary.queries, id: \.self) { query in
+              Text(query).appFont(.body).textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+          }.padding(.top, 6)
+        }
+      }
+      if !summary.viewedLinks.isEmpty {
+        DisclosureGroup("打开 \(summary.viewedLinks.count) 个网页") {
+          VStack(alignment: .leading, spacing: 6) {
+            ForEach(summary.viewedLinks) { link in
+              if let url = try? BrowserAddress.url(link.url) {
+                Button { openExternal(url) } label: {
+                  Label(link.title, systemImage: "link").lineLimit(1)
+                }
+                .buttonStyle(.plain).help(link.url)
+              }
+            }
+          }.padding(.top, 6)
+        }
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
   }
 }
 

@@ -75,6 +75,7 @@ struct MCPToolExecution: Codable, Equatable, Identifiable {
   var siteToolInputTruncated: Bool? = nil
   var siteToolOutputJSON: String? = nil
   var siteToolOutputTruncated: Bool? = nil
+  var webSearchActivity: CodexWebSearchActivity? = nil
   var label: String {
     switch status {
     case .awaitingApproval: "等待批准"
@@ -298,6 +299,7 @@ enum CodexWebSearchTimeline {
       arguments: "正在获取网页信息…", status: .running)
     if type == "web_search_end" {
       let action = event["action"]
+      execution.webSearchActivity = CodexWebSearchActivity.completed(event)
       let details: String
       switch action["type"].text {
       case "search":

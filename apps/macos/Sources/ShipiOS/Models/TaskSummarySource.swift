@@ -6,7 +6,7 @@ enum TaskSummarySource: Identifiable, Equatable {
   case external(CodexWebSource)
   case siteTool(MCPToolExecution)
   case tool(id: UUID, name: String)
-  case webSearch
+  case webSearch(CodexWebSearchSummary)
 
   var id: String {
     switch self {
@@ -36,7 +36,24 @@ enum TaskSummarySource: Identifiable, Equatable {
       guard let activity = execution.browserSiteTool else { return execution.toolName }
       return activity.name + " " + activity.title + " " + activity.url
     }
+    if case .webSearch(let summary) = self {
+      return ([title] + summary.queries + summary.viewedLinks.flatMap { [$0.title, $0.url] })
+        .joined(separator: " ")
+    }
     return title
+  }
+}
+
+struct CodexWebSearchSummary: Equatable {
+  var queryCount = 0
+  var queries: [String] = []
+  var viewedLinks: [CodexWebSource] = []
+
+  mutating func add(_ activity: CodexWebSearchActivity, seenQueries: inout Set<String>,
+    seenLinks: inout Set<String>) {
+    queryCount += activity.queryCount
+    for query in activity.queries where seenQueries.insert(query).inserted { queries.append(query) }
+    for link in activity.viewedLinks where seenLinks.insert(link.url).inserted { viewedLinks.append(link) }
   }
 }
 
@@ -46,7 +63,9 @@ extension Collection where Element == AgentRun {
     var external: [TaskSummarySource] = []
     var tools: [TaskSummarySource] = []
     var seen = Set<String>()
-    var hasWebSearch = false
+    var webSearch: CodexWebSearchSummary?
+    var seenQueries = Set<String>()
+    var seenLinks = Set<String>()
     for run in self {
       for file in library.runFiles[run.id] ?? [] {
         let source = TaskSummarySource.file(file)
@@ -68,7 +87,11 @@ extension Collection where Element == AgentRun {
           let source = TaskSummarySource.siteTool(execution)
           if seen.insert(source.id).inserted { tools.append(source) }
         } else if execution.serverID == CodexWebSearchTimeline.serverID {
-          hasWebSearch = true
+          if execution.status == .succeeded {
+            if webSearch == nil { webSearch = CodexWebSearchSummary() }
+            webSearch?.add(execution.webSearchActivity ?? .legacy(execution),
+              seenQueries: &seenQueries, seenLinks: &seenLinks)
+          }
         } else if execution.serverID != CodexCommandTimeline.serverID
           && execution.serverID != CodexBrowserTimeline.serverID,
           !execution.serverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -77,6 +100,6 @@ extension Collection where Element == AgentRun {
         }
       }
     }
-    return files + external + tools + (hasWebSearch ? [.webSearch] : [])
+    return files + external + tools + (webSearch.map { [.webSearch($0)] } ?? [])
   }
 }

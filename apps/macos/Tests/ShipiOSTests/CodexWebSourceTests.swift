@@ -23,6 +23,21 @@ final class CodexWebSourceTests: XCTestCase {
         "url": .string("https://example.test/other")]),
     ])), [CodexWebSource(title: "example.test", url: "https://example.test/other")])
     XCTAssertTrue(CodexWebSource.completed(.object(["type": .string("web_search_begin")])).isEmpty)
+    XCTAssertEqual(CodexWebSearchActivity.completed(event)?.viewedLinks,
+      [CodexWebSource(title: "Reference docs", url: "https://example.test/docs")])
+    XCTAssertEqual(CodexWebSearchActivity.completed(.object([
+      "type": .string("web_search_end"),
+      "action": .object(["type": .string("open_page"),
+        "url": .string("file:///tmp/private")]),
+    ]))?.viewedLinks, [])
+  }
+
+  func testLegacySearchTimelineRestoresMultipleQueries() {
+    let execution = MCPToolExecution(callID: "legacy", serverID: CodexWebSearchTimeline.serverID,
+      serverName: "Codex", toolName: "网页", arguments: "搜索：swift ui、ShipiOS",
+      status: .succeeded)
+    XCTAssertEqual(CodexWebSearchActivity.legacy(execution),
+      CodexWebSearchActivity(queryCount: 2, queries: ["swift ui", "ShipiOS"], viewedLinks: []))
   }
 
   @MainActor func testSourcesSurviveLaterResponseUpdatesAndRestore() async throws {
