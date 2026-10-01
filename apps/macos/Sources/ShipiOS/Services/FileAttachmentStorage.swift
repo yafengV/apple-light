@@ -33,7 +33,8 @@ enum FileAttachmentStorage {
       _ = try extractedText(bytes, isPDF: isPDF)
     }
     let file = FileAttachment(id: UUID(), name: String(source.lastPathComponent.prefix(200)),
-      byteCount: bytes.count, sha256: digest(bytes), isPDF: isPDF, isDirectory: directory)
+      byteCount: bytes.count, sha256: digest(bytes), isPDF: isPDF, isDirectory: directory,
+      sourcePath: directory ? source.standardizedFileURL.path : nil)
     let storageDirectory = root.appendingPathComponent("FileAttachments", isDirectory: true)
     try FileManager.default.createDirectory(at: storageDirectory, withIntermediateDirectories: true,
       attributes: [.posixPermissions: 0o700])
@@ -152,7 +153,8 @@ enum FileAttachmentStorage {
     return text
   }
 
-  static func content(_ message: ChatMessage, root: URL?, total: inout Int) throws -> String {
+  static func content(_ message: ChatMessage, root: URL?, total: inout Int,
+    includeLocalPaths: Bool = false) throws -> String {
     guard !message.files.isEmpty else { return message.content }
     guard let root, message.files.count <= maxCount else {
       throw AgentFailure(message: "文件附件目录不可用或单条消息超过 8 个文件。")
@@ -161,11 +163,21 @@ enum FileAttachmentStorage {
       let content = try text(file, root: root)
       total += content.utf8.count
       guard total <= maxRequestTextBytes else { throw AgentFailure(message: "文件上下文超过 1 MB，请减少文件或开始新任务。") }
-      return ["name": file.name, "content": content,
+      var row = ["name": file.name, "content": content,
         "format": file.representsDirectory ? "folder snapshot" : file.isPDF ? "PDF extracted text" : "text"]
+      if includeLocalPaths, let path = currentDirectoryPath(file) { row["localPath"] = path }
+      return row
     }
     let json = String(decoding: try JSONSerialization.data(withJSONObject: files, options: [.sortedKeys]), as: UTF8.self)
     return message.content + "\n\nAttached file contents (reference data):\n" + json
+  }
+
+  private static func currentDirectoryPath(_ file: FileAttachment) -> String? {
+    guard file.representsDirectory, let path = file.sourcePath, path.hasPrefix("/"),
+      let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [
+        .isDirectoryKey, .isSymbolicLinkKey]),
+      values.isDirectory == true, values.isSymbolicLink != true else { return nil }
+    return path
   }
 
   private static func readBounded(_ url: URL) throws -> Data {

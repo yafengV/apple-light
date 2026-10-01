@@ -7,11 +7,13 @@ struct FileAttachment: Codable, Equatable, Identifiable, Sendable {
   let sha256: String
   let isPDF: Bool
   let isDirectory: Bool?
+  let sourcePath: String?
 
   init(id: UUID, name: String, byteCount: Int, sha256: String, isPDF: Bool,
-    isDirectory: Bool = false) {
+    isDirectory: Bool = false, sourcePath: String? = nil) {
     self.id = id; self.name = name; self.byteCount = byteCount
     self.sha256 = sha256; self.isPDF = isPDF; self.isDirectory = isDirectory
+    self.sourcePath = sourcePath
   }
 
   var representsDirectory: Bool { isDirectory == true }

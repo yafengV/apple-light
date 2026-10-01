@@ -43,23 +43,35 @@ final class FileAttachmentTests: XCTestCase {
       at: folder.appendingPathComponent("external"), withDestinationURL: outside)
     let attached = try FileAttachmentStorage.importFile(folder, root: root)
     XCTAssertTrue(attached.representsDirectory)
+    XCTAssertEqual(attached.sourcePath, folder.standardizedFileURL.path)
     let snapshot = try FileAttachmentStorage.text(attached, root: root)
     let entries = try JSONDecoder().decode([[String: String]].self, from: Data(snapshot.utf8))
     XCTAssertTrue(entries.contains { $0["path"] == "Sources/main.swift" && $0["content"] == "let answer = 42" })
     XCTAssertTrue(entries.contains { $0["path"] == "logo.bin" && $0["content"] == "[content omitted]" })
     XCTAssertTrue(entries.contains { $0["path"] == "external" && $0["kind"] == "symbolic link omitted" })
     XCTAssertFalse(snapshot.contains("secret outside selected folder"))
-    try FileManager.default.removeItem(at: folder)
-    XCTAssertEqual(try FileAttachmentStorage.text(attached, root: root), snapshot)
     let message = ChatMessage(role: "user", content: "Inspect this folder", files: [attached])
     var total = 0
-    XCTAssertTrue(try FileAttachmentStorage.content(message, root: root, total: &total)
-      .contains("folder snapshot"))
+    let apiContent = try FileAttachmentStorage.content(message, root: root, total: &total)
+    XCTAssertFalse(apiContent.contains("localPath"))
+    let codexContent = try FileAttachmentStorage.content(message, root: root,
+      total: &total, includeLocalPaths: true)
+    XCTAssertTrue(codexContent.contains("localPath"))
+    XCTAssertTrue(codexContent.contains("folder snapshot"))
+    try FileManager.default.removeItem(at: folder)
+    XCTAssertEqual(try FileAttachmentStorage.text(attached, root: root), snapshot)
+    XCTAssertFalse(try FileAttachmentStorage.content(message, root: root,
+      total: &total, includeLocalPaths: true).contains("localPath"))
+    try FileManager.default.createSymbolicLink(at: folder, withDestinationURL: outside)
+    XCTAssertFalse(try FileAttachmentStorage.content(message, root: root,
+      total: &total, includeLocalPaths: true).contains("localPath"))
   }
 
   func testOldFileAttachmentDecodesWithoutDirectoryFlag() throws {
     let legacy = Data(#"{"id":"00000000-0000-0000-0000-000000000001","name":"old.txt","byteCount":1,"sha256":"digest","isPDF":false}"#.utf8)
-    XCTAssertFalse(try JSONDecoder().decode(FileAttachment.self, from: legacy).representsDirectory)
+    let decoded = try JSONDecoder().decode(FileAttachment.self, from: legacy)
+    XCTAssertFalse(decoded.representsDirectory)
+    XCTAssertNil(decoded.sourcePath)
   }
 
   func testBinaryOversizedAndSymlinkedAttachmentsAreRejected() throws {
@@ -153,6 +165,7 @@ final class FileAttachmentTests: XCTestCase {
     XCTAssertEqual(store.library.draftImages["selected"]?.first?.name, "photo.png")
     let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
     XCTAssertTrue(restored.draftFiles["selected"]?.first?.representsDirectory == true)
+    XCTAssertEqual(restored.draftFiles["selected"]?.first?.sourcePath, folder.standardizedFileURL.path)
     XCTAssertEqual(restored.draftImages["selected"]?.first?.name, "photo.png")
     await store.shutdown()
   }

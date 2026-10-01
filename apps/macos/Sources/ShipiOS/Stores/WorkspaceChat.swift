@@ -406,7 +406,7 @@ extension WorkspaceStore {
     var fileTextBytes = 0
     let fileAppendix = files.isEmpty ? nil : try FileAttachmentStorage.content(
       ChatMessage(role: "user", content: "", files: files), root: dataRoot,
-      total: &fileTextBytes)
+      total: &fileTextBytes, includeLocalPaths: true)
     let reviewAppendix = review.map { "\n\n\($0.snapshot.modelPrompt)" }
     guard let continuationText = messages.last?.content,
       !continuationText.isEmpty || !images.isEmpty || !files.isEmpty else {
@@ -1006,7 +1006,7 @@ extension WorkspaceStore {
         var fileTextBytes = 0
         let fileAppendix = message.files.isEmpty ? nil : try FileAttachmentStorage.content(
           ChatMessage(role: "user", content: "", files: message.files), root: dataRoot,
-          total: &fileTextBytes)
+          total: &fileTextBytes, includeLocalPaths: true)
         var prepared = message
         prepared.text = try promptWithPullRequestChecks(message.text, checks: message.pullRequestChecks, taskID: message.taskID)
         let steered = try await codexTransport.steer(taskID: message.taskID,
