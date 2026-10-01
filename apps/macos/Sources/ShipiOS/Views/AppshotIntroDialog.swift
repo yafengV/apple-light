@@ -16,11 +16,7 @@ struct AppshotIntroDialog: View {
           .onTapGesture(perform: cancel)
           .accessibilityHidden(true)
         VStack(alignment: .leading, spacing: 18) {
-          Image(systemName: "macwindow.on.rectangle")
-            .font(.system(size: 48, weight: .light))
-            .foregroundStyle(appearance.accentColor)
-            .frame(width: 88, height: 77, alignment: .leading)
-            .accessibilityHidden(true)
+          AppshotIntroArtwork().accessibilityHidden(true)
           Text("启用智能快照")
             .appFont(size: 20, weight: .semibold)
             .accessibilityAddTraits(.isHeader)
@@ -67,6 +63,63 @@ struct AppshotIntroDialog: View {
       RoundedRectangle(cornerRadius: 8)
         .strokeBorder(appearance.accentColor, lineWidth: 2)
         .padding(-3).allowsHitTesting(false)
+    }
+  }
+}
+
+/// A native ShipiOS illustration that keeps the reference dialog's compact
+/// window-and-corners silhouette without bundling the reference artwork.
+struct AppshotIntroArtwork: View {
+  private let blue = Color(red: 0.02, green: 0.47, blue: 0.98)
+
+  var body: some View {
+    ZStack {
+      corners
+        .stroke(blue, style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
+        .shadow(color: .cyan.opacity(0.48), radius: 5)
+      RoundedRectangle(cornerRadius: 11, style: .continuous)
+        .fill(.white)
+        .frame(width: 57, height: 50)
+        .shadow(color: .black.opacity(0.16), radius: 4, y: 2)
+      VStack(alignment: .leading, spacing: 5) {
+        HStack(spacing: 4) {
+          Circle().fill(.red).frame(width: 7, height: 7)
+          Circle().fill(.yellow).frame(width: 7, height: 7)
+          Circle().fill(.green).frame(width: 7, height: 7)
+        }
+        Text("ShipiOS")
+          .font(.system(size: 9, weight: .bold))
+          .foregroundStyle(Color(red: 0.04, green: 0.17, blue: 0.43))
+        Text("窗口快照")
+          .font(.system(size: 7, weight: .medium))
+          .foregroundStyle(Color(red: 0.29, green: 0.45, blue: 0.70))
+      }
+      .frame(width: 45, alignment: .leading)
+    }
+    .frame(width: 88, height: 77)
+  }
+
+  private var corners: Path {
+    Path { path in
+      path.move(to: CGPoint(x: 37, y: 7))
+      path.addLine(to: CGPoint(x: 26, y: 7))
+      path.addQuadCurve(to: CGPoint(x: 8, y: 25), control: CGPoint(x: 8, y: 7))
+      path.addLine(to: CGPoint(x: 8, y: 33))
+
+      path.move(to: CGPoint(x: 51, y: 7))
+      path.addLine(to: CGPoint(x: 62, y: 7))
+      path.addQuadCurve(to: CGPoint(x: 80, y: 25), control: CGPoint(x: 80, y: 7))
+      path.addLine(to: CGPoint(x: 80, y: 33))
+
+      path.move(to: CGPoint(x: 8, y: 44))
+      path.addLine(to: CGPoint(x: 8, y: 52))
+      path.addQuadCurve(to: CGPoint(x: 26, y: 70), control: CGPoint(x: 8, y: 70))
+      path.addLine(to: CGPoint(x: 37, y: 70))
+
+      path.move(to: CGPoint(x: 80, y: 44))
+      path.addLine(to: CGPoint(x: 80, y: 52))
+      path.addQuadCurve(to: CGPoint(x: 62, y: 70), control: CGPoint(x: 80, y: 70))
+      path.addLine(to: CGPoint(x: 51, y: 70))
     }
   }
 }
