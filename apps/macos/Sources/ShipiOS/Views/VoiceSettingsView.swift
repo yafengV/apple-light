@@ -52,32 +52,16 @@ struct VoiceSettingsView: View {
       VStack(alignment: .leading, spacing: 18) {
         Text("语音聊天").appFont(size: 15, weight: .semibold)
         VStack(spacing: 0) {
-          if store.modelConfiguration.baseURL.isEmpty {
+          if store.modelConfiguration.baseURL.isEmpty
+            || store.voicePreferences.realtimeModelID.isEmpty {
             HStack {
               SettingsControlLabel(title: "语音聊天尚未配置",
-                description: "先配置独立 API 服务，再填写支持实时语音的模型。")
+                description: "先在“模型与 API”中配置独立服务和实时语音模型。")
               Spacer()
-              Button("配置 API 服务") { store.openSettings(.model) }
+              Button("配置模型与 API") { store.openSettings(.model) }
             }.padding(16)
             Divider().padding(.horizontal, 16)
           }
-          HStack(spacing: 12) {
-            SettingsControlLabel(title: "实时语音模型",
-              description: "使用独立 API 服务的 /realtime WebSocket 接口。")
-            Spacer()
-            TextField("模型 ID", text: Binding(
-              get: { store.voicePreferences.realtimeModelID },
-              set: { value in
-                var preferences = store.voicePreferences
-                preferences.realtimeModelID = value
-                store.voicePreferences = preferences
-              }))
-              .textFieldStyle(.roundedBorder).frame(width: 200)
-              .accessibilityLabel("实时语音模型 ID")
-          }
-          .padding(16)
-          .settingsSearchTarget(.voiceModel)
-          Divider().padding(.horizontal, 16)
           HStack(spacing: 12) {
             SettingsControlLabel(title: "音色", description: "选择新语音聊天使用的音色。")
             Spacer()
@@ -108,13 +92,6 @@ struct VoiceSettingsView: View {
           .toggleStyle(.switch)
           .padding(16)
           .settingsSearchTarget(.voiceScreenContext)
-          Divider().padding(.horizontal, 16)
-          HStack {
-            Spacer()
-            Button("开始语音聊天") { store.presentVoiceChat() }
-              .disabled(store.modelConfiguration.baseURL.isEmpty
-                || store.voicePreferences.realtimeModelID.isEmpty)
-          }.padding(16)
           Divider().padding(.horizontal, 16)
           globalHotkeyRow(.voiceChat)
         }

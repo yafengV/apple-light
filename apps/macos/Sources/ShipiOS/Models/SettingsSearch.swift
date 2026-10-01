@@ -153,7 +153,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
       .pointer, .diffMarkers, .reduceMotion, .importTheme, .exportTheme,
       .lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont, .lightThemeShare, .darkThemeShare: .appearance
-    case .apiURL, .modelID, .apiKey, .reasoning, .tokenUsage: .model
+    case .apiURL, .modelID, .voiceModel, .apiKey, .reasoning, .tokenUsage: .model
     case .profileName: .profile
     case .profileUsername: .profile
     case .profileAvatar: .profile
@@ -205,7 +205,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .accessibility: .computerUse
     case .allowedApplications: .computerUse
     case .appshotHotkey, .appshotDestination, .appshotSound: .appshots
-    case .voiceChat, .voiceModel, .voiceVoice, .voiceScreenContext, .voiceChatHotkey,
+    case .voiceChat, .voiceVoice, .voiceScreenContext, .voiceChatHotkey,
       .voiceLanguage, .voiceMicrophone, .voiceHoldHotkey,
       .voiceToggleHotkey, .voiceDictionary, .voiceRecordings: .voice
     case .browserHistory: .browser

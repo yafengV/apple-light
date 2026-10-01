@@ -3,6 +3,7 @@ import SwiftUI
 struct ModelSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var draft = ModelConfiguration()
+  @State private var realtimeModelDraft = ""
   @State private var key = ""
   @State private var status = ""
   @State private var testing = false
@@ -13,6 +14,9 @@ struct ModelSettingsView: View {
           .settingsSearchTarget(.apiURL)
         TextField("模型 ID", text: $draft.model, prompt: Text("由你的服务商提供"))
           .settingsSearchTarget(.modelID)
+        TextField("实时语音模型 ID", text: $realtimeModelDraft,
+          prompt: Text("支持 /realtime 的模型；留空关闭语音聊天"))
+          .settingsSearchTarget(.voiceModel)
         SettingsMenuPicker("会话协议", selection: $draft.apiProtocol, options: [
           SettingsMenuOption(value: .chatCompletions, title: "Chat Completions"),
           SettingsMenuOption(value: .codexResponses, title: "Codex Core · Responses")
@@ -61,7 +65,10 @@ struct ModelSettingsView: View {
       Section {
         Button("回复风格与自定义指令…") { store.settingsPage = .personalization }
       }
-    }.settingsFormStyle().appSurface().onAppear { draft = store.modelConfiguration }
+    }.settingsFormStyle().appSurface().onAppear {
+      draft = store.modelConfiguration
+      realtimeModelDraft = store.voicePreferences.realtimeModelID
+    }
   }
   @discardableResult private func save() -> Bool {
     do {
@@ -75,6 +82,10 @@ struct ModelSettingsView: View {
         key = ""
       }
       try store.saveModelConfiguration(draft)
+      var voicePreferences = store.voicePreferences
+      voicePreferences.realtimeModelID = realtimeModelDraft
+      voicePreferences.normalize()
+      store.voicePreferences = voicePreferences
       status = "已保存。你可以返回任务发送消息。"
       return true
     } catch {
