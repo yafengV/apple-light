@@ -13,6 +13,13 @@ final class PopoutWindowController: NSObject, NSWindowDelegate {
   private(set) var state = PopoutWindowState()
   var hasVisibleWindow: Bool { homeWindow.isVisible || threadWindow?.isVisible == true }
 
+  func activeThreadID(for window: NSWindow) -> String? {
+    guard threadWindow === window, case .thread(let taskID) = state.visibleSurface else {
+      return nil
+    }
+    return taskID
+  }
+
   init(store: WorkspaceStore) {
     self.store = store
     homeWindow = Self.makeWindow(size: PopoutWindowPlacement.homeSize,

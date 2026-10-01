@@ -93,8 +93,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var appshotModifierMonitor: AppshotModifierMonitor?
-  private var mainWindowFocusObserver: NSObjectProtocol?
-  private var lastMainWindowFocus: Date?
+  private var appshotWindowFocusObserver: NSObjectProtocol?
+  private weak var lastAppshotWindow: NSWindow?
+  private var lastAppshotWindowFocus: Date?
   private var popoutWindowController: PopoutWindowController?
   private let pointerCursorController = PointerCursorController()
   private var quitting = false
@@ -124,9 +125,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     stopAutomationPolling()
     stopSkillMonitoring()
     appshotModifierMonitor = nil
-    if let mainWindowFocusObserver {
-      NotificationCenter.default.removeObserver(mainWindowFocusObserver)
-      self.mainWindowFocusObserver = nil
+    if let appshotWindowFocusObserver {
+      NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
+      self.appshotWindowFocusObserver = nil
     }
     Task {
       await store?.shutdown()
@@ -155,14 +156,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         popoutController?.toggle()
       }
       popoutGlobalHotKey = popoutHotKey
-      mainWindowFocusObserver = NotificationCenter.default.addObserver(
+      appshotWindowFocusObserver = NotificationCenter.default.addObserver(
         forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
       ) { [weak self] notification in
-        guard let window = notification.object as? NSWindow,
-          window.identifier?.rawValue == "main" else { return }
-        Task { @MainActor [weak self] in self?.lastMainWindowFocus = Date() }
+        guard let window = notification.object as? NSWindow else { return }
+        Task { @MainActor [weak self] in
+          guard let self, NSApp.windows.contains(where: { $0 === window }) else { return }
+          self.lastAppshotWindow = window
+          self.lastAppshotWindowFocus = Date()
+        }
       }
-      if NSApp.keyWindow?.identifier?.rawValue == "main" { lastMainWindowFocus = Date() }
+      if let window = NSApp.keyWindow {
+        lastAppshotWindow = window
+        lastAppshotWindowFocus = Date()
+      }
       appshotModifierMonitor = AppshotModifierMonitor(
         hotkey: { [weak store] in store?.appshotHotkey ?? .none },
         onTrigger: { [weak self] in self?.captureAppshotFromShortcut() })
@@ -200,23 +207,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     guard let store, store.appshotHotkey != .none, store.shortcutCaptureCount == 0,
       !store.shuttingDown, !store.hasSettingsConfirmation else { return }
     let target = store.appshotCapture.availableTarget()
-    let currentChat = store.selectedTask != nil
-    let recentlyFocused = lastMainWindowFocus.map { Date().timeIntervalSince($0) < 60 } ?? false
-    let startNew = store.appshotDestination.shouldStartNewChat(
-      hasCurrentChat: currentChat, focusedRecently: recentlyFocused,
-      canAcceptShortcut: store.destination == .workspace && store.action == .chat)
+    let mainWindow = NSApp.windows.first { $0.identifier?.rawValue == "main" }
+    let current = AppshotShortcutChat.resolve(lastWindow: lastAppshotWindow,
+      mainWindow: mainWindow, store: store, popout: popoutWindowController)
+    let recentlyFocused = current.ownerWindow != nil
+      && current.ownerWindow === lastAppshotWindow
+      && (lastAppshotWindowFocus.map { Date().timeIntervalSince($0) < 60 } ?? false)
+    let startNew = current.shouldStartNewChat(destination: store.appshotDestination,
+      focusedRecently: recentlyFocused, store: store)
     if startNew && store.busy { return }
-    Task { @MainActor [weak store] in
+    let existingDraftKey = current.draftKey(in: store)
+    Task { @MainActor [weak self, weak store] in
       guard let store else { return }
       if startNew { await store.newChat() }
-      let owner = NSApp.windows.first { $0.identifier?.rawValue == "main" }
-      await store.captureAppshot(draft: store.draftKey, target: target,
-        onScreenshot: { [weak store] in
+      let route: AppshotShortcutChat = startNew ? .main(mainWindow) : current
+      let draftKey = startNew ? store.draftKey : existingDraftKey
+      await store.captureAppshot(draft: draftKey, target: target,
+        onScreenshot: { [weak self, weak store] in
           guard let store else { return }
-          if store.destination != .workspace { store.returnToWorkspace() }
-          store.showMainWindowHandler?()
+          self?.revealAppshotChat(route, store: store)
           if store.appshotSoundEnabled { NSSound.beep() }
-        }, ownerWindow: owner)
+        }, ownerWindow: route.ownerWindow)
+    }
+  }
+
+  private func revealAppshotChat(_ chat: AppshotShortcutChat, store: WorkspaceStore) {
+    switch chat {
+    case .main:
+      if store.destination != .workspace { store.returnToWorkspace() }
+      store.showMainWindowHandler?()
+    case .task(let taskID, let window):
+      store.taskWindowResources.allObjects.first(where: { $0.window === window })?
+        .tasks[taskID]?.activate(nil, focus: false)
+      if window.isMiniaturized { window.deminiaturize(nil) }
+      NSApp.activate(ignoringOtherApps: true)
+      window.makeKeyAndOrderFront(nil)
+    case .popout(let taskID, _):
+      popoutWindowController?.openThread(taskID)
     }
   }
 

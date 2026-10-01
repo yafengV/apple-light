@@ -416,7 +416,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .screenRecording: "系统访问"
     case .accessibility: "系统访问"
     case .allowedApplications: "添加应用"
-    case .appshotHotkey: "同时按下两个 Command ⌘ 键 无"
+    case .appshotHotkey: "同时按下两个 Command ⌘ Option ⌥ Shift ⇧ 键 无"
     case .appshotDestination: "自动 当前聊天 新聊天"
     case .appshotSound: "截图声音"
     case .browserHistory: "历史与数据 搜索标题网址"

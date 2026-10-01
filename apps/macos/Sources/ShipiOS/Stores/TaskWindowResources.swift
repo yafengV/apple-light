@@ -4,6 +4,7 @@ import Observation
 @MainActor @Observable final class TaskWindowResources {
   @ObservationIgnored private(set) var id = UUID().uuidString
   @ObservationIgnored weak var window: NSWindow?
+  @ObservationIgnored private(set) var displayedTaskID: String?
   @ObservationIgnored private weak var windowAttachment: NSView?
   @ObservationIgnored weak var store: WorkspaceStore?
   @ObservationIgnored var navigate: ((String) -> Void)?
@@ -19,6 +20,10 @@ import Observation
       windowAttachment = nil
       self.window = nil
     }
+  }
+
+  func display(_ taskID: String?) {
+    displayedTaskID = taskID
   }
 
   func prepare(_ taskID: String, store: WorkspaceStore, windowID: String? = nil) {
@@ -154,7 +159,7 @@ import Observation
       capturePins()
       store?.taskWindowResources.remove(self)
       browsers.shutdown(); panels.shutdown(); tasks.removeAll()
-      navigate = nil; window = nil; windowAttachment = nil
+      navigate = nil; window = nil; windowAttachment = nil; displayedTaskID = nil
       store?.saveLibrary()
     }
   }

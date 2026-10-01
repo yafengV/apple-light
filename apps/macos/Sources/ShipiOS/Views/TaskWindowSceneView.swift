@@ -42,7 +42,10 @@ struct TaskWindowSceneView: View {
     }
     .background(TaskWindowResourceAttachment(resources: resources).frame(width: 0, height: 0))
     .onAppear { resources.navigate = visit }
-    .onChange(of: route) { _, _ in resources.navigate = visit }
+    .onChange(of: route) { previous, current in
+      resources.navigate = visit
+      if previous?.taskID != current?.taskID { resources.display(nil) }
+    }
     .onDisappear {
       let closedTaskID = route?.taskID
       store.dismissTaskArchive(inWindow: resources.id)
@@ -116,6 +119,7 @@ struct TaskWindowSceneView: View {
     }
     resources.retainTasks(availableTasks, displaying: taskID)
     resources.prepare(taskID, store: store, windowID: route?.id)
+    resources.display(taskID)
     if store.library.recordTaskVisit(taskID) { store.saveLibrary() }
     hasPresentedTask = true
     if store.library.tasks.contains(where: { $0.id == taskID && $0.isSideChat && $0.runIDs.isEmpty }),

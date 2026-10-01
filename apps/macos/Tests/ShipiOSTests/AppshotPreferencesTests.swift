@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 @testable import ShipiOS
@@ -69,6 +70,8 @@ final class AppshotPreferencesTests: XCTestCase {
     XCTAssertTrue(SettingsNavigation.pages.contains(.appshots))
     XCTAssertEqual(SettingsSearchField.appshotDestination.page, .appshots)
     XCTAssertEqual(SettingsSearch.results(for: "Appshot 发送目标").map(\.field), [.appshotDestination])
+    XCTAssertTrue(SettingsSearch.results(for: "Option ⌥").contains { $0.field == .appshotHotkey })
+    XCTAssertTrue(SettingsSearch.results(for: "Shift ⇧").contains { $0.field == .appshotHotkey })
   }
 
   @MainActor func testFirstUseWaitsForConsentAndCancelDoesNotCapture() async {
@@ -89,6 +92,44 @@ final class AppshotPreferencesTests: XCTestCase {
     await store.captureAppshot(draft: "first-use")
     XCTAssertNotNil(store.appshotIntroRequest)
     store.cancelAppshotIntro()
+    await store.shutdown()
+  }
+
+  @MainActor func testGlobalShortcutUsesLastFocusedTaskWindowDraft() async {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.library.tasks.append(WorkspaceTask(id: "other-task", project: "", title: "Other", runIDs: []))
+    let main = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    let taskWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 700, height: 600),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    main.isReleasedWhenClosed = false
+    taskWindow.isReleasedWhenClosed = false
+    let resources = TaskWindowResources()
+    resources.attach(window: taskWindow, from: NSView())
+    resources.display("other-task")
+    store.taskWindowResources.add(resources)
+
+    let chat = AppshotShortcutChat.resolve(lastWindow: taskWindow, mainWindow: main,
+      store: store, popout: nil)
+    XCTAssertEqual(chat.draftKey(in: store), "other-task")
+    XCTAssertTrue(chat.ownerWindow === taskWindow)
+    XCTAssertTrue(chat.hasCurrentChat(in: store))
+    XCTAssertTrue(chat.canAcceptShortcut(in: store))
+    XCTAssertFalse(chat.shouldStartNewChat(destination: .automatic,
+      focusedRecently: true, store: store))
+    XCTAssertTrue(chat.shouldStartNewChat(destination: .automatic,
+      focusedRecently: false, store: store))
+
+    resources.display(nil)
+    let loading = AppshotShortcutChat.resolve(lastWindow: taskWindow, mainWindow: main,
+      store: store, popout: nil)
+    XCTAssertTrue(loading.ownerWindow === main)
+    main.close()
+    taskWindow.close()
     await store.shutdown()
   }
 }
