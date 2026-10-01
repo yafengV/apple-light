@@ -2,6 +2,32 @@ import XCTest
 @testable import ShipiOS
 
 final class TaskSummaryArtifactTests: XCTestCase {
+  func testCreatedAndUpdatedMCPResourcesAppearAsExternalArtifacts() throws {
+    let serverID = UUID()
+    func run(_ id: String, status: MCPToolExecution.Status,
+      activities: [TaskExternalSourceActivity]) throws -> AgentRun {
+      var execution = MCPToolExecution(callID: id, serverID: serverID,
+        serverName: "Documents", toolName: "write", arguments: "{}", status: status)
+      execution.mcpResourceActivities = [MCPResourceActivity(id: "document-1",
+        source: CodexWebSource(title: "Document", url: "https://example.test/document"),
+        mimeType: "text/html", activities: activities)]
+      return AgentRun(id: id, kind: "chat", project: "", status: "succeeded",
+        createdAt: 0, updatedAt: 0, request: .null,
+        result: .object(["tool_executions": try JSONDecoder().decode(JSONValue.self,
+          from: JSONEncoder().encode([execution]))]))
+    }
+    let read = try run("read", status: .succeeded, activities: [.read])
+    let created = try run("created", status: .succeeded, activities: [.created])
+    let updated = try run("updated", status: .succeeded, activities: [.updated])
+    let failed = try run("failed", status: .failed, activities: [.created])
+    XCTAssertTrue([read].summaryExternalArtifacts.isEmpty)
+    XCTAssertTrue([failed].summaryExternalArtifacts.isEmpty)
+    XCTAssertEqual([read, created, updated, failed].summaryExternalArtifacts, [
+      TaskExternalSource(resource: CodexWebSource(title: "Document",
+        url: "https://example.test/document"), activities: [.read, .created, .updated]),
+    ])
+  }
+
   func testOnlyActualLocalOutputDirectoriesAppearAsArtifacts() {
     func run(_ id: String, kind: String, path: String?) -> AgentRun {
       AgentRun(id: id, kind: kind, project: "", status: "succeeded",

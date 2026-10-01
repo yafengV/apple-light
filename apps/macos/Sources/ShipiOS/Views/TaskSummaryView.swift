@@ -49,8 +49,10 @@ struct TaskSummaryView: View {
   var body: some View {
     Group {
       if showingOutputs {
-        TaskSummaryOutputsView(artifacts: runs.summaryArtifacts, linkedFiles: linkedFiles,
+        TaskSummaryOutputsView(artifacts: runs.summaryArtifacts,
+          externalArtifacts: runs.summaryExternalArtifacts, linkedFiles: linkedFiles,
           previewLog: { preview = .log($0) }, openFile: openLinkedFile,
+          openExternal: openExternal,
           refresh: refreshLinkedFiles,
           back: { showingOutputs = false }, close: close)
       } else {
@@ -81,6 +83,9 @@ struct TaskSummaryView: View {
     let sources = runs.summarySources(in: library)
     let pullRequests = (library.taskPullRequests[task.id] ?? []).filter { $0.validatedURL != nil }
     let artifacts = runs.summaryArtifacts
+    let externalArtifacts = runs.summaryExternalArtifacts
+    let outputCount = artifacts.reduce(0) { $0 + 1 + $1.outputs.count }
+      + linkedFiles.count + externalArtifacts.count
     let sourceImages = sources.compactMap { source -> ImageAttachment? in
       if case .image(let image) = source { return image }
       return nil
@@ -214,12 +219,12 @@ struct TaskSummaryView: View {
               }
             }.appFont(.callout)
           }
-          if !artifacts.isEmpty || !linkedFiles.isEmpty {
+          if !artifacts.isEmpty || !linkedFiles.isEmpty || !externalArtifacts.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 8) {
               HStack {
                 Label("输出", systemImage: "shippingbox").appFont(.headline)
-                Text((artifacts.reduce(0) { $0 + 1 + $1.outputs.count } + linkedFiles.count).formatted())
+                Text(outputCount.formatted())
                   .appFont(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("查看全部") { refreshLinkedFiles(); showingOutputs = true }
@@ -260,6 +265,7 @@ struct TaskSummaryView: View {
                 }
                 .buttonStyle(.plain).help(file.path)
               }
+              externalArtifactRows(externalArtifacts)
             }
           }
           if let usage {
@@ -282,5 +288,18 @@ struct TaskSummaryView: View {
     }
     .frame(width: 316)
     .background(.regularMaterial)
+  }
+
+  private func externalArtifactRows(_ artifacts: [TaskExternalSource]) -> some View {
+    ForEach(artifacts.prefix(3)) { resource in
+      if let url = try? BrowserAddress.url(resource.url) {
+        Button { openExternal(url) } label: {
+          Label(resource.title, systemImage: "link")
+            .appFont(.callout).lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain).help(resource.url)
+      }
+    }
   }
 }

@@ -4,9 +4,11 @@ import SwiftUI
 /// Searchable output list shown in the same summary panel.
 struct TaskSummaryOutputsView: View {
   let artifacts: [TaskSummaryArtifact]
+  let externalArtifacts: [TaskExternalSource]
   let linkedFiles: [TaskSummaryLinkedFile]
   let previewLog: (TaskSummaryOutputFile) -> Void
   let openFile: (TaskSummaryLinkedFile) -> Void
+  let openExternal: (URL) -> Void
   let refresh: () -> Void
   let back: () -> Void
   let close: () -> Void
@@ -23,6 +25,12 @@ struct TaskSummaryOutputsView: View {
       artifact.title.localizedStandardContains(term)
         || artifact.outputs.contains { $0.name.localizedStandardContains(term)
           || $0.title.localizedStandardContains(term) }
+    }
+  }
+  private var matchingExternalArtifacts: [TaskExternalSource] {
+    guard !term.isEmpty else { return externalArtifacts }
+    return externalArtifacts.filter {
+      ($0.title + " " + $0.url).localizedStandardContains(term)
     }
   }
 
@@ -46,7 +54,7 @@ struct TaskSummaryOutputsView: View {
         .textFieldStyle(.roundedBorder)
         .accessibilityLabel("搜索输出")
         .padding(12)
-      if matchingArtifacts.isEmpty && matchingFiles.isEmpty {
+      if matchingArtifacts.isEmpty && matchingFiles.isEmpty && matchingExternalArtifacts.isEmpty {
         ContentUnavailableView(term.isEmpty ? "暂无输出" : "没有匹配的输出",
           systemImage: "shippingbox")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -89,6 +97,18 @@ struct TaskSummaryOutputsView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
               }
               .buttonStyle(.plain).help(file.url.path)
+            }
+            ForEach(matchingExternalArtifacts) { resource in
+              if let url = try? BrowserAddress.url(resource.url) {
+                Button { openExternal(url) } label: {
+                  VStack(alignment: .leading, spacing: 2) {
+                    Label(resource.title, systemImage: "link").lineLimit(2)
+                    Text(resource.url).appFont(.caption).foregroundStyle(.secondary)
+                      .lineLimit(1)
+                  }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain).help(resource.url)
+              }
             }
           }.appFont(.callout)
             .frame(maxWidth: .infinity, alignment: .leading)

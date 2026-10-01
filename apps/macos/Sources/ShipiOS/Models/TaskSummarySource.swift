@@ -178,15 +178,22 @@ extension Collection where Element == AgentRun {
       }
     }
     external.removeAll { !qualifyingSourceKeys.contains($0.id) }
-    if let webSearch {
+    if var webSearch {
       let viewedURLs = Set(webSearch.viewedLinks.compactMap { CodexWebSource.sourceKey($0.url) })
       external.removeAll { source in
         source.activities == [.read] && viewedURLs.contains(source.id)
           && !mcpResourceKeys.contains(source.id)
       }
+      let externalURLs = Set(external.map(\.id))
+      webSearch.viewedLinks.removeAll { link in
+        CodexWebSource.sourceKey(link.url).map(externalURLs.contains) ?? false
+      }
+      return files + external.map(TaskSummarySource.external) + siteTools
+        + toolSources.map(TaskSummarySource.tool)
+        + (webSearch.queryCount == 0 && webSearch.viewedLinks.isEmpty
+          ? [] : [.webSearch(webSearch)])
     }
     return files + external.map(TaskSummarySource.external) + siteTools
       + toolSources.map(TaskSummarySource.tool)
-      + (webSearch.map { [.webSearch($0)] } ?? [])
   }
 }

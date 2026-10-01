@@ -67,7 +67,6 @@ final class TaskSummarySourceTests: XCTestCase {
       .file(file), .image(image),
       .external(TaskExternalSource(resource: external, activities: [.read])),
       .tool(MCPToolSource(id: serverID, name: "Files", calls: Array(executions.prefix(2)))),
-      .webSearch(CodexWebSearchSummary(queryCount: 0, queries: [], viewedLinks: [])),
     ])
     guard case .tool(let source) = [first, second].summarySources(in: library)[3] else {
       return XCTFail("Missing grouped tool source")
@@ -222,7 +221,37 @@ final class TaskSummarySourceTests: XCTestCase {
     XCTAssertEqual(source.title, "项目文档")
     XCTAssertEqual(source.activities, [.provided, .read])
     XCTAssertEqual(source.id, CodexWebSource.sourceKey(read.url))
-    XCTAssertTrue(sources.contains { if case .webSearch = $0 { return true }; return false })
+    XCTAssertFalse(sources.contains { if case .webSearch = $0 { return true }; return false })
+  }
+
+  func testMCPReadResourceReplacesDuplicateOpenedWebSearchLink() throws {
+    let url = "https://example.test/report"
+    var tool = MCPToolExecution(callID: "mcp", serverID: UUID(), serverName: "Reports",
+      toolName: "read", arguments: "{}", status: .succeeded)
+    tool.mcpResourceActivities = [MCPResourceActivity(id: "report", source: .init(
+      title: "Report", url: url), mimeType: nil, activities: [.read])]
+    var executions = [tool]
+    var items: [ChatResponseItem] = []
+    XCTAssertTrue(CodexWebSearchTimeline.apply(.object([
+      "type": .string("web_search_end"), "call_id": .string("search"),
+      "action": .object(["type": .string("search"), "queries": .array([.string("report")])]),
+    ]), executions: &executions, items: &items))
+    XCTAssertTrue(CodexWebSearchTimeline.apply(.object([
+      "type": .string("web_search_end"), "call_id": .string("open"),
+      "action": .object(["type": .string("open_page"), "url": .string(url)]),
+    ]), executions: &executions, items: &items))
+    let run = AgentRun(id: "mcp-web", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object(["tool_executions": try JSONDecoder().decode(JSONValue.self,
+        from: JSONEncoder().encode(executions))]))
+    let sources = [run].summarySources(in: WorkspaceLibrary())
+    XCTAssertEqual(sources.first, .external(TaskExternalSource(resource: .init(
+      title: "Report", url: url), activities: [.read])))
+    guard let last = sources.last, case .webSearch(let search) = last else {
+      return XCTFail("Search query should remain")
+    }
+    XCTAssertEqual(search.queries, ["report"])
+    XCTAssertTrue(search.viewedLinks.isEmpty)
   }
 
   func testSteeredUserMessageLinkAppearsAsProvidedSource() throws {
