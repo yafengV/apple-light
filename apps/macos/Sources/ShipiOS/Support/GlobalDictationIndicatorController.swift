@@ -78,7 +78,8 @@ import SwiftUI
     }
     panel.ignoresMouseEvents = state != .error
     panel.contentView = NSHostingView(rootView: GlobalDictationIndicatorView(
-      state: state, error: errorMessage, canCopy: recoverableTranscript != nil,
+      state: state, dictation: store.dictation, error: errorMessage,
+      canCopy: recoverableTranscript != nil,
       copied: copiedTranscript, onCopy: { [weak self] in self?.copyTranscript() },
       onDismiss: { [weak self] in self?.clearError() }))
     if !panel.isVisible || state == .initializing && lastState != .initializing {
@@ -136,6 +137,7 @@ private final class GlobalDictationIndicatorPanel: NSPanel {
 
 private struct GlobalDictationIndicatorView: View {
   let state: GlobalDictationIndicatorState
+  let dictation: SpeechDictation
   let error: String?
   let canCopy: Bool
   let copied: Bool
@@ -154,10 +156,7 @@ private struct GlobalDictationIndicatorView: View {
             .frame(width: 40, height: 8)
             .accessibilityLabel(state == .idle ? "全局听写已就绪" : "正在准备全局听写")
         case .listening:
-          Image(systemName: "waveform")
-            .font(.system(size: 17, weight: .medium))
-            .frame(width: 72, height: 30)
-            .foregroundStyle(.white)
+          GlobalDictationWaveformView(levels: dictation.audioLevels)
             .background(.black, in: Capsule())
             .accessibilityLabel("正在全局听写")
         case .transcribing:
@@ -188,5 +187,21 @@ private struct GlobalDictationIndicatorView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.clear)
+  }
+}
+
+struct GlobalDictationWaveformView: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  let levels: [Double]
+
+  var body: some View {
+    HStack(alignment: .center, spacing: 2) {
+      ForEach(Array(levels.enumerated()), id: \.offset) { _, level in
+        Capsule().fill(.white)
+          .frame(width: 2, height: max(2, 2 + level * 12))
+      }
+    }
+    .animation(reduceMotion ? nil : .easeOut(duration: 0.06), value: levels)
+    .frame(width: 72, height: 30)
   }
 }

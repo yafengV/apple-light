@@ -4,6 +4,7 @@ import Speech
 
 @MainActor @Observable final class SpeechDictation {
   enum Phase: Equatable { case idle, requestingAccess, listening, finishing }
+  static let waveformSampleCount = 14
 
   private(set) var phase = Phase.idle
   private(set) var target: String?
@@ -12,6 +13,7 @@ import Speech
   private(set) var errorTarget: String?
   private(set) var completedTarget: String?
   private(set) var completionID = UUID()
+  private(set) var audioLevels = Array(repeating: 0.0, count: waveformSampleCount)
 
   @ObservationIgnored private var generation = UUID()
   @ObservationIgnored private var engine: AVAudioEngine?
@@ -22,6 +24,7 @@ import Speech
   @ObservationIgnored private var finishTimeout: Task<Void, Never>?
   @ObservationIgnored private var inputStopped = false
   @ObservationIgnored private var completion = SpeechRecognitionCompletion()
+  @ObservationIgnored private var meter: SpeechAudioLevelMeter?
 
   static func recognitionRequest(dictionary: [String]) -> SFSpeechAudioBufferRecognitionRequest {
     let request = SFSpeechAudioBufferRecognitionRequest()
@@ -42,6 +45,7 @@ import Speech
     error = nil
     errorTarget = nil
     partial = ""
+    audioLevels = Array(repeating: 0.0, count: Self.waveformSampleCount)
     completion = SpeechRecognitionCompletion()
     phase = .requestingAccess
 
@@ -66,6 +70,13 @@ import Speech
 
     let request = Self.recognitionRequest(dictionary: dictionary)
     self.request = request
+    let meter = SpeechAudioLevelMeter { [weak self] level in
+      Task { @MainActor [weak self] in
+        guard let self, self.generation == token, self.phase == .listening else { return }
+        self.audioLevels = Array(self.audioLevels.dropFirst()) + [level]
+      }
+    }
+    self.meter = meter
     if let microphoneDeviceID {
       guard let device = AVCaptureDevice(uniqueID: microphoneDeviceID),
         device.isConnected, device.hasMediaType(.audio) else {
@@ -73,7 +84,7 @@ import Speech
         return
       }
       do {
-        let capture = try SpeechCaptureInput(device: device, request: request)
+        let capture = try SpeechCaptureInput(device: device, request: request, meter: meter)
         self.capture = capture
         guard await capture.start() else {
           fail("无法从所选麦克风开始录音。", token: token)
@@ -98,6 +109,7 @@ import Speech
       self.engine = engine
       input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
         request.append(buffer)
+        meter.append(buffer)
       }
       do {
         engine.prepare()
@@ -133,6 +145,7 @@ import Speech
     }
     guard completion.beginFinishing() else { return }
     phase = .finishing
+    audioLevels = Array(repeating: 0.0, count: Self.waveformSampleCount)
     endInput()
     let token = generation
     finishTimeout = Task { [weak self] in
@@ -196,10 +209,12 @@ import Speech
     capture = nil
     request = nil
     recognitionTask = nil
+    meter = nil
     commit = nil
     target = nil
     partial = ""
     phase = .idle
+    audioLevels = Array(repeating: 0.0, count: Self.waveformSampleCount)
     inputStopped = false
     completion = SpeechRecognitionCompletion()
   }

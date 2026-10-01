@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 @testable import ShipiOS
 
@@ -16,6 +17,23 @@ final class GlobalDictationIndicatorTests: XCTestCase {
       target: "global-dictation:one", phase: .finishing, hasError: false), .transcribing)
     XCTAssertEqual(GlobalDictationIndicatorState.resolve(hasHotkey: true,
       target: nil, phase: .idle, hasError: true), .error)
+  }
+
+  @MainActor func testWaveformRendersVaryingMeasuredLevels() throws {
+    _ = NSApplication.shared
+    let levels = [0.05, 0.3, 0.7, 1, 0.6, 0.2, 0.1,
+      0.4, 0.9, 0.5, 0.15, 0.75, 0.3, 0.05]
+    let host = NSHostingView(rootView: GlobalDictationWaveformView(levels: levels)
+      .background(.black, in: Capsule()))
+    host.frame = NSRect(x: 0, y: 0, width: 72, height: 30)
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    XCTAssertEqual(host.bounds.size, NSSize(width: 72, height: 30))
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_DICTATION_WAVEFORM_RENDER_PATH"] {
+      let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+      try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
   }
 
   @MainActor func testFloatingWindowIsNonActivatingAndErrorAllowsRecoveryClick() async throws {

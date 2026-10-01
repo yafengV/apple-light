@@ -8,11 +8,14 @@ final class SpeechCaptureInput: NSObject, AVCaptureAudioDataOutputSampleBufferDe
   private let session = AVCaptureSession()
   private let output = AVCaptureAudioDataOutput()
   private let request: SFSpeechAudioBufferRecognitionRequest
+  private let meter: SpeechAudioLevelMeter
   private let sessionQueue = DispatchQueue(label: "dev.shipios.dictation.session")
   private let sampleQueue = DispatchQueue(label: "dev.shipios.dictation.samples")
 
-  init(device: AVCaptureDevice, request: SFSpeechAudioBufferRecognitionRequest) throws {
+  init(device: AVCaptureDevice, request: SFSpeechAudioBufferRecognitionRequest,
+    meter: SpeechAudioLevelMeter) throws {
     self.request = request
+    self.meter = meter
     super.init()
     let input = try AVCaptureDeviceInput(device: device)
     session.beginConfiguration()
@@ -51,5 +54,6 @@ final class SpeechCaptureInput: NSObject, AVCaptureAudioDataOutputSampleBufferDe
   func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection) {
     request.appendAudioSampleBuffer(sampleBuffer)
+    meter.append(sampleBuffer)
   }
 }
