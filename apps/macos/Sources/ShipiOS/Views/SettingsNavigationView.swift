@@ -74,7 +74,7 @@ struct SettingsNavigationView: View {
               else { focusedPage = SettingsNavigation.pages.first }
             }
             return true
-          })
+          }, onCancelEmpty: { store.closeSettings() })
           .frame(height: 28).padding(.bottom, 8)
       }.focusSection()
 

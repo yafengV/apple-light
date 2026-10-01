@@ -4,6 +4,30 @@ import XCTest
 @testable import ShipiOS
 
 final class SettingsInteractionTests: XCTestCase {
+  @MainActor func testSearchEscapeClearsQueryThenReturnsToPreviousPage() {
+    var query = "权限"
+    var exits = 0
+    let view = SettingsSearchInput(query: Binding(get: { query }, set: { query = $0 }),
+      focusRequest: UUID(), visible: true, onMove: { _ in }, onSubmit: {},
+      onCancelEmpty: { exits += 1 })
+    let coordinator = view.makeCoordinator()
+    let field = NSSearchField()
+    field.stringValue = query
+    let editor = NSTextView()
+    let escape = #selector(NSResponder.cancelOperation(_:))
+    XCTAssertTrue(coordinator.control(field, textView: editor, doCommandBy: escape))
+    XCTAssertEqual(query, "")
+    XCTAssertEqual(field.stringValue, "")
+    XCTAssertEqual(exits, 0)
+    XCTAssertTrue(coordinator.control(field, textView: editor, doCommandBy: escape))
+    XCTAssertEqual(exits, 1)
+
+    editor.setMarkedText("拼", selectedRange: .init(location: 1, length: 0),
+      replacementRange: .init(location: NSNotFound, length: 0))
+    XCTAssertFalse(coordinator.control(field, textView: editor, doCommandBy: escape))
+    XCTAssertEqual(exits, 1)
+  }
+
   @MainActor func testUnhandledSearchTabLeavesNativeEditorForNormalTraversal() throws {
     _ = NSApplication.shared
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 300, height: 100),

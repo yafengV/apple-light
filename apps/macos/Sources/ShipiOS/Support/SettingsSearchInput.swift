@@ -11,6 +11,7 @@ struct SettingsSearchInput: NSViewRepresentable {
   let onMove: (MoveCommandDirection) -> Void
   let onSubmit: () -> Void
   var onTab: ((Bool) -> Bool)? = nil
+  var onCancelEmpty: (() -> Void)? = nil
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> NSSearchField {
@@ -85,8 +86,12 @@ struct SettingsSearchInput: NSViewRepresentable {
         guard parent.onTab?(true) == true else { return false }
         if let window = control.window { window.makeFirstResponder(window.contentView) }
       case #selector(NSResponder.cancelOperation(_:)):
-        parent.query = ""
-        control.stringValue = ""
+        if control.stringValue.isEmpty && parent.query.isEmpty {
+          parent.onCancelEmpty?()
+        } else {
+          parent.query = ""
+          control.stringValue = ""
+        }
       default: return false
       }
       return true
