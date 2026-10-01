@@ -121,7 +121,11 @@ struct BrowserPanel: View {
             .help("查看站点工具")
             .accessibilityLabel("查看站点工具")
             .popover(isPresented: $showingSiteTools, arrowEdge: .bottom) {
-              BrowserSiteToolsPopover(tab: tab)
+              BrowserSiteToolsPopover(tab: tab, openSources: {
+                showingSiteTools = false
+                if let context { context.openSources() }
+                else { _ = store.openTaskSources() }
+              })
             }
           }
           Button {
@@ -301,40 +305,72 @@ struct BrowserPanel: View {
 
 private struct BrowserSiteToolsPopover: View {
   @Bindable var tab: BrowserTab
+  let openSources: () -> Void
+  @State private var selectedToolName: String?
+
+  private var selectedTool: BrowserSiteTool? {
+    tab.siteTools.first { $0.name == selectedToolName }
+  }
+  private var readCount: Int { tab.siteTools.filter(\.readOnly).count }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Text("站点工具").appFont(.headline)
-      Text("工具由当前网站提供；调用前会显示参数并请求确认。")
-        .appFont(.caption).foregroundStyle(.secondary)
-      if !tab.recentSiteTools.isEmpty {
-        VStack(alignment: .leading, spacing: 3) {
-          Text("本页最近使用").appFont(.caption, weight: .medium)
-          ForEach(tab.recentSiteTools, id: \.self) { name in
-            Text(name).appFont(.caption).foregroundStyle(.secondary)
-          }
+      if let tool = selectedTool {
+        Button { selectedToolName = nil } label: {
+          Label("可用站点工具", systemImage: "chevron.left")
+        }.buttonStyle(.plain).appFont(.caption).accessibilityLabel("返回可用站点工具")
+        Text(tool.title).appFont(.headline)
+        Text(tool.name).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+        if !tool.summary.isEmpty {
+          Text(tool.summary).appFont(.body).textSelection(.enabled)
         }
-        Divider()
+        Text(tool.readOnly ? "网站声明：只读" : "网站声明：可能修改数据")
+          .appFont(.caption).foregroundStyle(.secondary)
+        Text("此声明由网站提供。每次调用都会显示参数并请求确认。")
+          .appFont(.caption).foregroundStyle(.secondary)
+      } else {
+        Text("可用站点工具").appFont(.headline)
+        Text("\(tab.siteTools.count) 个工具 · \(readCount) 个声明只读 · \(tab.siteTools.count - readCount) 个可能修改")
+          .appFont(.caption).foregroundStyle(.secondary)
+        if !tab.recentSiteTools.isEmpty {
+          VStack(alignment: .leading, spacing: 3) {
+            Text("最近使用").appFont(.caption, weight: .medium)
+            ForEach(tab.recentSiteTools, id: \.self) { name in
+              Button(name) { openSources() }
+                .buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
+                .accessibilityLabel("在来源中查看站点工具：\(name)")
+            }
+          }
+          Divider()
+        }
+        ScrollView {
+          VStack(alignment: .leading, spacing: 8) {
+            ForEach(tab.siteTools) { tool in
+              Button { selectedToolName = tool.name } label: {
+                HStack {
+                  VStack(alignment: .leading, spacing: 3) {
+                    Text(tool.title).appFont(.body, weight: .medium)
+                    Text(tool.readOnly ? "声明只读" : "可能修改")
+                      .appFont(.caption).foregroundStyle(.secondary)
+                  }
+                  Spacer()
+                  Image(systemName: "chevron.right").appFont(.caption).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+              }
+              .buttonStyle(.plain).accessibilityLabel("查看站点工具详情：\(tool.title)")
+              Divider()
+            }
+          }
+        }.frame(maxHeight: 300)
+        Text("工具由当前网站提供；调用前会显示参数并请求确认。")
+          .appFont(.caption).foregroundStyle(.secondary)
       }
-      ScrollView {
-        VStack(alignment: .leading, spacing: 8) {
-          ForEach(tab.siteTools) { tool in
-            VStack(alignment: .leading, spacing: 3) {
-              HStack {
-                Text(tool.title).appFont(.body, weight: .medium)
-                Spacer()
-                Text(tool.readOnly ? "声明只读" : "可能修改")
-                  .appFont(.caption).foregroundStyle(.secondary)
-              }
-              if !tool.summary.isEmpty {
-                Text(tool.summary).appFont(.caption).foregroundStyle(.secondary)
-              }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            Divider()
-          }
-        }
-      }.frame(maxHeight: 300)
     }.padding(14).frame(width: 330)
+      .onChange(of: tab.siteTools) { _, tools in
+        if let selectedToolName, !tools.contains(where: { $0.name == selectedToolName }) {
+          self.selectedToolName = nil
+        }
+      }
   }
 }
 

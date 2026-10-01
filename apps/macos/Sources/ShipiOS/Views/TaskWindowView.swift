@@ -983,6 +983,7 @@ struct TaskWindowView: View {
       newTab: { tabs.newBrowser(in: tabs.placement(tab.id)) },
       closeTab: { tabs.close(WorkspaceContentTab.browser($0, owner: taskID).id) }, reopen: { tabs.reopen() },
       openSettings: { store.openSettings(.browser); openWindow(id: "main") },
+      openSources: { tabs.openSources() },
       focusComposer: { tabs.revealChat() })
   }
 

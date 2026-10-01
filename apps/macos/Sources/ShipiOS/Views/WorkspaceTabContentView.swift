@@ -189,6 +189,12 @@ struct WorkspaceTabWindowView: View {
       openSettings: {
         store.openSettings(.browser)
         showMainWindow()
+      }, openSources: {
+        Task {
+          guard await store.focusDetachedWorkspaceChat(tab.id) else { return }
+          guard store.openTaskSources() else { return }
+          showMainWindow()
+        }
       }, focusComposer: focusChat, independentFocus: true, canReopen: false)
   }
 

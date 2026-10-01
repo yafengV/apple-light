@@ -7,6 +7,7 @@ import SwiftUI
   let closeTab: (UUID) -> Void
   let reopen: () -> Void
   let openSettings: () -> Void
+  let openSources: () -> Void
   let focusComposer: () -> Void
   var independentFocus = false
   var canReopen: Bool? = nil
