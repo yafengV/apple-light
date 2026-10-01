@@ -262,6 +262,7 @@ extension WorkspaceStore {
     }
     tab.siteToolExecuting = true
     defer { tab.siteToolExecuting = false }
+    let originTitle = tab.title
     tab.agentNavigationHost = url.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
     tab.agentAllowedFrameHosts = Set([tab.agentNavigationHost].compactMap { $0 })
     defer { tab.agentNavigationHost = nil; tab.agentAllowedFrameHosts = nil }
@@ -278,7 +279,8 @@ extension WorkspaceStore {
         tab.recentSiteTools = Array(tab.recentSiteTools.prefix(8))
       }
       return .object(["status": .string("ok"), "tab_id": .string(tab.id.uuidString),
-        "url": .string(currentURL.absoluteString), "title": .string(tab.title),
+        "url": .string(currentURL.absoluteString), "origin_url": .string(url.absoluteString),
+        "title": .string(tab.title), "origin_title": .string(originTitle),
         "site_tool": .string(tool.name), "output": .string(String(output.prefix(16_000))),
         "truncated": .bool(truncated), "page_changed": .bool(currentURL != url)])
     } catch {

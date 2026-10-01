@@ -178,7 +178,8 @@ struct TaskSummaryView: View {
                 .accessibilityLabel("添加来源")
               }
               TaskSourcesListView(sources: Array(sources.prefix(3)), images: sourceImages,
-                openFile: openFile, openImage: openImage, openExternal: openExternal)
+                openFile: openFile, openImage: openImage, openExternal: openExternal,
+                openSiteTool: { _ in openAllSources() })
               if sources.count > 3 {
                 Button("查看全部 \(sources.count.formatted()) 个来源", action: openAllSources)
                   .buttonStyle(.plain)

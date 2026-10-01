@@ -306,6 +306,7 @@ struct BrowserPanel: View {
 private struct BrowserSiteToolsPopover: View {
   @Bindable var tab: BrowserTab
   let openSources: () -> Void
+  @State private var showingAvailableTools = false
   @State private var selectedToolName: String?
 
   private var selectedTool: BrowserSiteTool? {
@@ -316,9 +317,7 @@ private struct BrowserSiteToolsPopover: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       if let tool = selectedTool {
-        Button { selectedToolName = nil } label: {
-          Label("可用站点工具", systemImage: "chevron.left")
-        }.buttonStyle(.plain).appFont(.caption).accessibilityLabel("返回可用站点工具")
+        backButton("可用站点工具") { selectedToolName = nil }
         Text(tool.title).appFont(.headline)
         Text(tool.name).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
         if !tool.summary.isEmpty {
@@ -328,21 +327,11 @@ private struct BrowserSiteToolsPopover: View {
           .appFont(.caption).foregroundStyle(.secondary)
         Text("此声明由网站提供。每次调用都会显示参数并请求确认。")
           .appFont(.caption).foregroundStyle(.secondary)
-      } else {
+      } else if showingAvailableTools {
+        backButton("站点工具") { showingAvailableTools = false }
         Text("可用站点工具").appFont(.headline)
         Text("\(tab.siteTools.count) 个工具 · \(readCount) 个声明只读 · \(tab.siteTools.count - readCount) 个可能修改")
           .appFont(.caption).foregroundStyle(.secondary)
-        if !tab.recentSiteTools.isEmpty {
-          VStack(alignment: .leading, spacing: 3) {
-            Text("最近使用").appFont(.caption, weight: .medium)
-            ForEach(tab.recentSiteTools, id: \.self) { name in
-              Button(name) { openSources() }
-                .buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
-                .accessibilityLabel("在来源中查看站点工具：\(name)")
-            }
-          }
-          Divider()
-        }
         ScrollView {
           VStack(alignment: .leading, spacing: 8) {
             ForEach(tab.siteTools) { tool in
@@ -362,7 +351,32 @@ private struct BrowserSiteToolsPopover: View {
             }
           }
         }.frame(maxHeight: 300)
+      } else {
+        Text("站点工具").appFont(.headline)
         Text("工具由当前网站提供；调用前会显示参数并请求确认。")
+          .appFont(.caption).foregroundStyle(.secondary)
+        Button { showingAvailableTools = true } label: {
+          HStack {
+            VStack(alignment: .leading, spacing: 3) {
+              Text("可用站点工具（\(tab.siteTools.count)）").appFont(.body, weight: .medium)
+              Text("\(readCount) 个读取 · \(tab.siteTools.count - readCount) 个写入")
+                .appFont(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").appFont(.caption).foregroundStyle(.secondary)
+          }.frame(maxWidth: .infinity, alignment: .leading)
+        }.buttonStyle(.plain).accessibilityLabel("可用站点工具，\(tab.siteTools.count) 个")
+        if !tab.recentSiteTools.isEmpty {
+          Divider()
+          Button { openSources() } label: {
+            HStack {
+              Text("最近使用").appFont(.body, weight: .medium)
+              Spacer()
+              Image(systemName: "arrow.up.right").appFont(.caption).foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+          }.buttonStyle(.plain).accessibilityLabel("在来源中查看最近使用的站点工具")
+        }
+        Text("工具只属于当前网页；导航或关闭页面后可能不可用。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
     }.padding(14).frame(width: 330)
@@ -371,6 +385,15 @@ private struct BrowserSiteToolsPopover: View {
           self.selectedToolName = nil
         }
       }
+      .onDisappear {
+        showingAvailableTools = false
+        selectedToolName = nil
+      }
+  }
+
+  private func backButton(_ title: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) { Label(title, systemImage: "chevron.left") }
+      .buttonStyle(.plain).appFont(.caption).accessibilityLabel("返回\(title)")
   }
 }
 

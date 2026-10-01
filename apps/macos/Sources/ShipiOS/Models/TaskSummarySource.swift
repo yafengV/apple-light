@@ -4,6 +4,7 @@ enum TaskSummarySource: Identifiable, Equatable {
   case file(FileAttachment)
   case image(ImageAttachment)
   case external(CodexWebSource)
+  case siteTool(MCPToolExecution)
   case tool(id: UUID, name: String)
   case webSearch
 
@@ -12,6 +13,7 @@ enum TaskSummarySource: Identifiable, Equatable {
     case .file(let file): "file:\(file.id.uuidString)"
     case .image(let image): "image:\(image.id.uuidString)"
     case .external(let source): "external:\(source.url)"
+    case .siteTool(let execution): "site-tool:\(execution.id.uuidString)"
     case .tool(let id, _): "tool:\(id.uuidString)"
     case .webSearch: "web-search"
     }
@@ -22,6 +24,7 @@ enum TaskSummarySource: Identifiable, Equatable {
     case .file(let file): file.name
     case .image(let image): image.name
     case .external(let source): source.title
+    case .siteTool(let execution): execution.browserSiteTool?.name ?? execution.toolName
     case .tool(_, let name): name
     case .webSearch: "网页搜索"
     }
@@ -29,6 +32,10 @@ enum TaskSummarySource: Identifiable, Equatable {
 
   var searchableText: String {
     if case .external(let source) = self { return source.title + " " + source.url }
+    if case .siteTool(let execution) = self {
+      guard let activity = execution.browserSiteTool else { return execution.toolName }
+      return activity.name + " " + activity.title + " " + activity.url
+    }
     return title
   }
 }
@@ -56,7 +63,11 @@ extension Collection where Element == AgentRun {
         if seen.insert(source.id).inserted { external.append(source) }
       }
       for execution in run.toolExecutions {
-        if execution.serverID == CodexWebSearchTimeline.serverID {
+        if execution.serverID == CodexBrowserTimeline.serverID,
+          execution.status == .succeeded, execution.browserSiteTool != nil {
+          let source = TaskSummarySource.siteTool(execution)
+          if seen.insert(source.id).inserted { tools.append(source) }
+        } else if execution.serverID == CodexWebSearchTimeline.serverID {
           hasWebSearch = true
         } else if execution.serverID != CodexCommandTimeline.serverID
           && execution.serverID != CodexBrowserTimeline.serverID,

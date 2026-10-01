@@ -87,11 +87,15 @@ final class CodexBrowserTimelineTests: XCTestCase {
     let result: JSONValue = .object([
       "type": .string("browser_result"), "requestId": .string(id),
       "result": .object(["status": .string("ok"), "url": .string("https://example.com/docs"),
-        "title": .string("Docs"), "site_tool": .string("read_title"),
+        "origin_url": .string("https://example.com/original"),
+        "title": .string("New page"), "origin_title": .string("Docs"),
+        "site_tool": .string("read_title"),
         "output": .string("done")]),
     ])
     XCTAssertTrue(CodexBrowserTimeline.apply(result, executions: &executions, items: &items))
     XCTAssertEqual(executions.first?.arguments, "read_title · https://example.com/docs")
+    XCTAssertEqual(executions.first?.browserSiteTool,
+      BrowserSiteToolActivity(name: "read_title", title: "Docs", url: "https://example.com/original"))
     XCTAssertEqual(CodexBrowserTimeline.source(result)?.url, "https://example.com/docs")
     let catalog: JSONValue = .object([
       "type": .string("browser_result"), "requestId": .string(UUID().uuidString),

@@ -39,6 +39,18 @@ enum CodexBrowserTimeline {
       default: .failed
       }
       execution.output = String(result.pretty.prefix(16_000))
+      if action == "site_tool_call" || execution.toolName == "调用站点工具" {
+        if result["status"].text == "ok",
+          let tool = result["site_tool"].text, !tool.isEmpty,
+          let raw = result["origin_url"].text ?? result["url"].text,
+          raw.utf8.count <= 4_096,
+          let url = try? BrowserAddress.url(raw) {
+          let title = (result["origin_title"].text ?? result["title"].text)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+          execution.browserSiteTool = BrowserSiteToolActivity(
+            name: String(tool.prefix(128)), title: String(title.prefix(160)), url: url.absoluteString)
+        } else { execution.browserSiteTool = nil }
+      }
       if let url = result["url"].text {
         let label = result["site_tool"].text
           ?? result["label"].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

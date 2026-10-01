@@ -52,6 +52,14 @@ struct ModelTurnResult {
 
 enum MCPApprovalDecision { case allowOnce, allowTask, deny }
 
+struct BrowserSiteToolActivity: Codable, Equatable {
+  let name: String
+  let title: String
+  let url: String
+
+  var website: String { URL(string: url)?.host ?? url }
+}
+
 struct MCPToolExecution: Codable, Equatable, Identifiable {
   enum Status: String, Codable { case awaitingApproval, running, succeeded, failed, denied, cancelled }
   var id = UUID()
@@ -62,6 +70,7 @@ struct MCPToolExecution: Codable, Equatable, Identifiable {
   var arguments: String
   var status: Status = .awaitingApproval
   var output: String?
+  var browserSiteTool: BrowserSiteToolActivity? = nil
   var label: String {
     switch status {
     case .awaitingApproval: "等待批准"

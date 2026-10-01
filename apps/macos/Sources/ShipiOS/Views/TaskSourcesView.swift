@@ -6,6 +6,7 @@ struct TaskSourcesListView: View {
   let openFile: (FileAttachment) -> Void
   let openImage: (ImageAttachment, [ImageAttachment]) -> Void
   let openExternal: (URL) -> Void
+  let openSiteTool: (MCPToolExecution) -> Void
 
   var body: some View {
     ForEach(sources) { source in
@@ -30,6 +31,18 @@ struct TaskSourcesListView: View {
           }
           .buttonStyle(.plain).help(source.url)
         }
+      case .siteTool(let execution):
+        if let activity = execution.browserSiteTool {
+          Button { openSiteTool(execution) } label: {
+            HStack(spacing: 8) {
+              Label(activity.name, systemImage: "puzzlepiece.extension")
+              Spacer(minLength: 4)
+              Text(activity.title.isEmpty ? activity.website : activity.title)
+                .appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .buttonStyle(.plain).help("查看 \(activity.website) 的站点工具调用")
+        }
       case .tool(_, let name):
         Label(name, systemImage: "puzzlepiece.extension")
           .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
@@ -52,6 +65,7 @@ struct TaskSourcesView: View {
   @State private var query = ""
   @State private var previewFile: FileAttachment?
   @State private var previewImage: ImagePreviewItem?
+  @State private var selectedSiteTool: MCPToolExecution?
 
   private var sourceImages: [ImageAttachment] {
     sources.compactMap { source in
@@ -64,6 +78,21 @@ struct TaskSourcesView: View {
     let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !term.isEmpty else { return sources }
     return sources.filter { $0.searchableText.localizedStandardContains(term) }
+  }
+
+  private var otherSources: [TaskSummarySource] {
+    filtered.filter { if case .siteTool = $0 { return false }; return true }
+  }
+
+  private var siteToolWebsites: [(host: String, sources: [TaskSummarySource])] {
+    var groups: [(host: String, sources: [TaskSummarySource])] = []
+    for source in filtered {
+      guard case .siteTool(let execution) = source, let host = execution.browserSiteTool?.website else { continue }
+      if let index = groups.firstIndex(where: { $0.host == host }) {
+        groups[index].sources.append(source)
+      } else { groups.append((host, [source])) }
+    }
+    return groups
   }
 
   var body: some View {
@@ -96,10 +125,19 @@ struct TaskSourcesView: View {
       } else {
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 14) {
-            TaskSourcesListView(sources: filtered, images: sourceImages,
+            TaskSourcesListView(sources: otherSources, images: sourceImages,
               openFile: { previewFile = $0 },
               openImage: { image, _ in previewImage = ImagePreviewItem(image) },
-              openExternal: openExternal)
+              openExternal: openExternal, openSiteTool: { selectedSiteTool = $0 })
+            ForEach(siteToolWebsites, id: \.host) { group in
+              VStack(alignment: .leading, spacing: 9) {
+                Text(group.host).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
+                TaskSourcesListView(sources: group.sources, images: sourceImages,
+                  openFile: { previewFile = $0 },
+                  openImage: { image, _ in previewImage = ImagePreviewItem(image) },
+                  openExternal: openExternal, openSiteTool: { selectedSiteTool = $0 })
+              }
+            }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(20)
@@ -107,11 +145,55 @@ struct TaskSourcesView: View {
       }
     }
     .sheet(item: $previewFile) { FileAttachmentPreview(file: $0, root: dataRoot) }
+    .sheet(item: $selectedSiteTool) {
+      BrowserSiteToolSourceDetail(execution: $0, openExternal: openExternal)
+    }
     .overlay {
       if let previewImage {
         ImageGalleryPreview(image: previewImage, images: sourceImages.map(ImagePreviewItem.init),
           root: dataRoot) { self.previewImage = nil }
       }
     }
+  }
+}
+
+private struct BrowserSiteToolSourceDetail: View {
+  let execution: MCPToolExecution
+  let openExternal: (URL) -> Void
+  @Environment(\.dismiss) private var dismiss
+
+  private var activity: BrowserSiteToolActivity? { execution.browserSiteTool }
+  private var output: String {
+    guard let raw = execution.output,
+      let result = try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)) else {
+      return execution.output ?? ""
+    }
+    return result["output"].text ?? ""
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 14) {
+      HStack {
+        Text(activity?.name ?? "站点工具").appFont(.headline)
+        Spacer()
+        Button("关闭") { dismiss() }
+      }
+      if let activity {
+        Text(activity.website).appFont(.caption).foregroundStyle(.secondary)
+        if !activity.title.isEmpty { Text(activity.title) }
+        Text(activity.url).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+        if let url = try? BrowserAddress.url(activity.url) {
+          Button("打开网站") { openExternal(url) }
+        }
+      }
+      Divider()
+      Text("调用结果").appFont(.caption, weight: .medium)
+      ScrollView {
+        Text(output.isEmpty ? "此调用没有文本结果。" : output)
+          .appFont(.body).textSelection(.enabled)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    .padding(20).frame(width: 520, height: 380)
   }
 }

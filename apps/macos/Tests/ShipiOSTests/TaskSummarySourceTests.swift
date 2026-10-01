@@ -41,4 +41,24 @@ final class TaskSummarySourceTests: XCTestCase {
     ])
     XCTAssertTrue([foreign].summarySources(in: WorkspaceLibrary()).isEmpty)
   }
+
+  func testSourcesKeepSuccessfulSiteToolCallsByWebsiteWithoutRequestArguments() throws {
+    var completed = MCPToolExecution(callID: "site-1", serverID: CodexBrowserTimeline.serverID,
+      serverName: "浏览器", toolName: "调用站点工具", arguments: "read_title · https://example.test/docs",
+      status: .succeeded)
+    completed.browserSiteTool = BrowserSiteToolActivity(name: "read_title", title: "Docs",
+      url: "https://example.test/docs")
+    var denied = MCPToolExecution(callID: "site-2", serverID: CodexBrowserTimeline.serverID,
+      serverName: "浏览器", toolName: "调用站点工具", arguments: "delete_item", status: .denied)
+    denied.browserSiteTool = BrowserSiteToolActivity(name: "delete_item", title: "Docs",
+      url: "https://example.test/docs")
+    let encoded = try JSONDecoder().decode(JSONValue.self,
+      from: JSONEncoder().encode([completed, denied]))
+    let run = AgentRun(id: "site-run", kind: "chat", project: "", status: "succeeded",
+      createdAt: 0, updatedAt: 0, request: .null,
+      result: .object(["tool_executions": encoded]))
+    let sources = [run].summarySources(in: WorkspaceLibrary())
+    XCTAssertEqual(sources, [.siteTool(completed)])
+    XCTAssertEqual(sources.first?.searchableText, "read_title Docs https://example.test/docs")
+  }
 }
