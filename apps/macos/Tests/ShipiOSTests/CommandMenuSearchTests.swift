@@ -80,6 +80,8 @@ final class CommandMenuSearchTests: XCTestCase {
     let groups = Dictionary(uniqueKeysWithValues: DesktopCommand.all.map { ($0.id, $0.group) })
     XCTAssertEqual(groups["archive"], .chat)
     XCTAssertEqual(groups["plan"], .chat)
+    XCTAssertEqual(groups["clear-prompt"], .chat)
+    XCTAssertEqual(groups["toggle-worktree-mode"], .chat)
     XCTAssertEqual(groups["open-task-window"], .chat)
     XCTAssertEqual(groups["next-task"], .navigation)
     XCTAssertEqual(groups["focus-chat-1"], .navigation)
@@ -116,6 +118,64 @@ final class CommandMenuSearchTests: XCTestCase {
 
     store.openSettings(.general)
     XCTAssertFalse(store.commandEnabled("plan"))
+    await store.shutdown()
+  }
+
+  @MainActor func testClearPromptKeepsAttachmentsAndOtherWindowDraft() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    let task = task("other")
+    store.library.tasks = [task]
+    store.setTaskWindowDraft("Other window prompt", taskID: task.id)
+    store.draft = "Main prompt"
+    let image = ImageAttachment(id: UUID(), name: "screen.png", mimeType: "image/png",
+      byteCount: 4, sha256: "image")
+    let file = FileAttachment(id: UUID(), name: "notes.txt", byteCount: 5,
+      sha256: "file", isPDF: false)
+    store.library.draftImages[store.draftKey] = [image]
+    store.library.draftFiles[store.draftKey] = [file]
+    XCTAssertTrue(DesktopCommand.search(query: "清除提示").contains { $0.id == "clear-prompt" })
+    XCTAssertTrue(TaskWindowCommandContext.owns("clear-prompt"))
+
+    store.showingCommands = true
+    store.executePaletteCommand("clear-prompt")
+    XCTAssertEqual(store.draft, "")
+    XCTAssertEqual(store.draftImages.map(\.id), [image.id])
+    XCTAssertEqual(store.draftFiles.map(\.id), [file.id])
+    XCTAssertEqual(store.taskWindowDraft(task.id), "Other window prompt")
+    store.openSettings(.general)
+    XCTAssertFalse(store.commandEnabled("clear-prompt"))
+    await store.shutdown()
+  }
+
+  @MainActor func testWorktreeModeCommandTogglesOnlyAnEligibleNewProjectTask() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    XCTAssertFalse(store.commandEnabled("toggle-worktree-mode"))
+    store.library.projects = [root.path]
+    store.project = root
+    store.workspace.gitAvailable = true
+    store.draft = "Keep project draft"
+    XCTAssertTrue(store.commandEnabled("toggle-worktree-mode"))
+    XCTAssertEqual(store.newTaskExecution, .local)
+
+    store.executeCommand("toggle-worktree-mode")
+    XCTAssertEqual(store.newTaskExecution, .worktree)
+    XCTAssertEqual(store.draft, "Keep project draft")
+    store.executeCommand("toggle-worktree-mode")
+    XCTAssertEqual(store.newTaskExecution, .local)
+    XCTAssertEqual(store.draft, "Keep project draft")
+
+    store.library.tasks = [.init(id: "existing", project: root.path, title: "Existing", runIDs: [])]
+    store.selectTask(store.library.tasks[0])
+    XCTAssertFalse(store.commandEnabled("toggle-worktree-mode"))
+    store.executeCommand("toggle-worktree-mode")
+    XCTAssertEqual(store.newTaskExecution, .local)
+    XCTAssertTrue(TaskWindowCommandContext.owns("toggle-worktree-mode"))
     await store.shutdown()
   }
 

@@ -51,6 +51,7 @@ struct DesktopCommand: Identifiable {
       shortcut: "⌘J"),
     .init(id: "model", title: "选择模型与推理强度", icon: "cpu", shortcut: "⌃⇧M"),
     .init(id: "plan", title: "切换计划模式", icon: "list.bullet.clipboard", shortcut: ""),
+    .init(id: "clear-prompt", title: "清除提示", icon: "eraser", shortcut: ""),
     .init(id: "dictation", title: "开始或结束听写", icon: "mic", shortcut: "⌃⇧D"),
     .init(id: "fork", title: "分叉到新任务", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "open-side-chat", title: "打开临时侧聊", icon: "bubble.left.and.bubble.right", shortcut: "⌘⌥S"),
@@ -63,6 +64,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "init", title: "生成项目 AGENTS.md 指南", icon: "doc.text.badge.plus", shortcut: ""),
     .init(id: "worktree", title: "在新 Git 工作树中运行", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "local", title: "在本地项目中运行", icon: "desktopcomputer", shortcut: ""),
+    .init(id: "toggle-worktree-mode", title: "切换本地／工作树", icon: "arrow.left.arrow.right", shortcut: ""),
     .init(id: "git.createBranch", title: "创建分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "git.commit", title: "提交或推送", icon: "arrow.up.doc", shortcut: ""),
     .init(id: "git.createPullRequest", title: "创建 PR", icon: "arrow.triangle.pull", shortcut: ""),
@@ -166,7 +168,7 @@ extension DesktopCommand {
     if id.hasPrefix("focus-chat-") || Self.recentChatSlot(id) != nil { return .navigation }
     if id.hasPrefix("focus-tab-") || id.hasPrefix("browser-") { return .panels }
     return switch id {
-    case "new", "new-alternate", "new-standalone", "send", "model", "plan", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "find", "find-next", "find-previous",
+    case "new", "new-alternate", "new-standalone", "send", "model", "plan", "clear-prompt", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "toggle-worktree-mode", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
     case "previous-task", "next-task", "next-attention", "activity", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation

@@ -58,6 +58,12 @@ extension WorkspaceStore {
       action = .chat
       chatMode = enteringPlan ? .plan : .standard
       focusComposer = UUID()
+    case "clear-prompt":
+      draft = ""
+      focusComposer = UUID()
+    case "toggle-worktree-mode":
+      newTaskExecution = newTaskExecution == .worktree ? .local : .worktree
+      focusComposer = UUID()
     case "sidebar": NotificationCenter.default.post(name: .toggleShipiOSSidebar, object: nil)
     case "send": Task { await sendDraft() }
     case "find-next":
@@ -197,6 +203,12 @@ extension WorkspaceStore {
     case "activity": return libraryLoaded
     case "clear-unread": return libraryLoaded && !library.unreadTasks.isEmpty
     case "send": return canSend
+    case "clear-prompt": return destination == .workspace && action == .chat && libraryLoaded
+    case "toggle-worktree-mode":
+      return destination == .workspace && action == .chat && selectedTask == nil
+        && libraryLoaded && !busy && !managedTaskPreparing && activeLocalRun == nil
+        && project != nil && workspace.gitAvailable
+        && !library.managedWorktrees.contains(where: { $0.path == project?.path })
     case "dictation": return destination == .workspace && action == .chat && !shuttingDown
     case "branch": return canChangeBranch && workspace.gitAvailable
     case "browser-address": return (commandFileWorkspace.map {

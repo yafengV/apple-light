@@ -28,6 +28,8 @@ struct WorkspaceCommands: Commands {
     }
     CommandMenu("任务") {
       command("send")
+      command("clear-prompt")
+      command("plan")
       command("dictation")
       command("stop")
       Button("批准当前请求") { performApproval { approvalCommands?.approve() } }.disabled(searchDialogActive == true || taskRenameActive == true || approvalCommands == nil || imagePreviewActive == true)
@@ -102,6 +104,7 @@ struct WorkspaceCommands: Commands {
       command("doctor")
       command("build")
       command("model")
+      command("toggle-worktree-mode")
     }
     CommandMenu("宠物") {
       command("pet")
