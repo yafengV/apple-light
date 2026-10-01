@@ -59,10 +59,12 @@ struct AppshotSettingsView: View {
         .settingsSearchTarget(.appshotDestination)
         .padding(16)
       Divider().padding(.horizontal, 16)
-      SettingsToggle(title: "播放音效", description: "截取成功时播放系统提示音。",
-        isOn: Binding(
+      Toggle(isOn: Binding(
           get: { store.appshotSoundEnabled },
-          set: { store.appshotSoundEnabled = $0 }))
+          set: { store.appshotSoundEnabled = $0 })) {
+        SettingsControlLabel(title: "播放音效")
+      }
+        .accessibilityLabel("播放应用快照音效")
         .settingsSearchTarget(.appshotSound)
         .padding(16)
     }
