@@ -10,6 +10,7 @@ class Handler(BaseHTTPRequestHandler):
     retry_attempts = 0
     review_patch_attempts = 0
     plan_patch_attempts = 0
+    guardian_review_count = 0
     def log_message(self, *args):
         pass
     def trace_phase(self, phase):
@@ -20,6 +21,14 @@ class Handler(BaseHTTPRequestHandler):
                                          'phase': phase}) + '\n')
     def do_GET(self):
         self.trace_phase('get')
+        if self.path == '/fixture-status':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'guardian_review_count': Handler.guardian_review_count,
+            }).encode())
+            return
         if self.path.startswith('/slow-models/'):
             time.sleep(5)
         if self.path == '/redirect/models':
@@ -99,7 +108,14 @@ class Handler(BaseHTTPRequestHandler):
                     for line in part.get('text', '').splitlines():
                         if line.startswith('SHIPIOS_MULTI_FOLDER_PROBE '):
                             folder_probe = json.loads(line.split(' ', 1)[1])
-            if folder_probe:
+            if 'For low-risk actions, give the final answer directly' in request_text:
+                Handler.guardian_review_count += 1
+                allow = 'codex-auto-review-allow' in request_text
+                assessment = ({'outcome': 'allow'} if allow else
+                    {'outcome': 'deny', 'rationale': 'Fixture denies sandbox escape.'})
+                item = {'type': 'message', 'role': 'assistant', 'id': 'guardian-assessment',
+                    'content': [{'type': 'output_text', 'text': json.dumps(assessment)}]}
+            elif folder_probe:
                 call_id = 'fixture-folders-' + folder_probe['token']
                 completed = any(isinstance(entry, dict) and entry.get('call_id') == call_id
                     and entry.get('type') == 'function_call_output' for entry in body.get('input', []))
@@ -237,6 +253,26 @@ class Handler(BaseHTTPRequestHandler):
                     'type': 'function_call', 'call_id': 'swift-permission-denied-call',
                     'name': 'exec_command',
                     'arguments': json.dumps({'cmd': 'printf denied > permission-denied.txt'}),
+                }
+            elif 'codex-auto-review-allow' in request_text and 'function_call_output' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-auto-review-allow-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({
+                        'cmd': 'printf allowed > auto-review-allow-proof.txt',
+                        'sandbox_permissions': 'require_escalated',
+                        'justification': 'Exercise the automatic approval reviewer in a fixture project',
+                    }),
+                }
+            elif 'codex-auto-review-deny' in request_text and 'function_call_output' not in request_text:
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-auto-review-deny-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({
+                        'cmd': 'printf denied > auto-review-deny-proof.txt',
+                        'sandbox_permissions': 'require_escalated',
+                        'justification': 'Exercise the automatic approval reviewer',
+                    }),
                 }
             elif 'codex-approval' in request_text and 'function_call_output' not in request_text:
                 item = {

@@ -122,6 +122,68 @@ final class SkillDiscoveryTransportTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testAutoReviewerDeniesEscalationWithoutShowingUserApproval() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await prepare(protocol: .codexResponses, root: root)
+    let project = try XCTUnwrap(store.project)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: nil, draftKey: store.draftKey))
+    store.draft = "codex-auto-review-deny"
+    await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask, store.error ?? "No review task started")
+    XCTAssertEqual(store.runtimePermissions(for: task.id), .approveForMe)
+    let runID = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: runID)?.value
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == runID })
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    XCTAssertTrue(run.toolExecutions.contains { $0.arguments.contains("auto-review-deny-proof.txt") },
+      "The escalation command never reached the reviewer")
+    XCTAssertTrue(run.toolExecutions.contains { $0.arguments.contains("auto-review-deny-proof.txt")
+      && $0.status == .failed
+      && $0.output?.contains("Fixture denies sandbox escape.") == true },
+      "Guardian denial did not reach the command timeline: \(run.toolExecutions)")
+    XCTAssertFalse(store.mcpPendingApprovals.values.contains { $0.runID == runID },
+      "An automatic review must not appear as a user approval card")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project
+      .appendingPathComponent("auto-review-deny-proof.txt").path))
+    let statusURL = try XCTUnwrap(URL(string: endpoint)?.deletingLastPathComponent()
+      .appendingPathComponent("fixture-status"))
+    let (statusData, _) = try await URLSession.shared.data(from: statusURL)
+    let fixtureStatus = try JSONDecoder().decode([String: Int].self, from: statusData)
+    XCTAssertGreaterThan(fixtureStatus["guardian_review_count"] ?? 0, 0,
+      "The model service never received a Guardian review request")
+    await store.shutdown()
+  }
+
+  @MainActor func testAutoReviewerAllowsEscalationWithoutShowingUserApproval() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try await prepare(protocol: .codexResponses, root: root)
+    let project = try XCTUnwrap(store.project)
+    XCTAssertTrue(store.saveComposerRuntimePreferences(.approveForMe,
+      taskID: nil, draftKey: store.draftKey))
+    store.draft = "codex-auto-review-allow"
+    await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask, store.error ?? "No review task started")
+    XCTAssertEqual(store.runtimePermissions(for: task.id), .approveForMe)
+    let runID = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: runID)?.value
+    let run = try XCTUnwrap(store.library.chatRuns.first { $0.id == runID })
+    XCTAssertEqual(run.status, "succeeded", run.result?["message"].text ?? "")
+    XCTAssertTrue(run.toolExecutions.contains { $0.arguments.contains("auto-review-allow-proof.txt")
+      && $0.status == .succeeded }, "Guardian approval did not complete the command")
+    XCTAssertFalse(store.mcpPendingApprovals.values.contains { $0.runID == runID })
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("auto-review-allow-proof.txt")),
+      "allowed")
+    let statusURL = try XCTUnwrap(URL(string: endpoint)?.deletingLastPathComponent()
+      .appendingPathComponent("fixture-status"))
+    let (statusData, _) = try await URLSession.shared.data(from: statusURL)
+    let fixtureStatus = try JSONDecoder().decode([String: Int].self, from: statusData)
+    XCTAssertGreaterThan(fixtureStatus["guardian_review_count"] ?? 0, 0)
+    await store.shutdown()
+  }
+
   @MainActor func testCoreDiscoversRepositorySkillAndReadsActualFileThroughNativeTool() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

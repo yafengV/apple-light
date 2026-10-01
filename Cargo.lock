@@ -2503,6 +2503,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-guardian-v2"
+version = "0.0.0"
+source = "git+https://github.com/openai/codex.git?rev=50d77959bf927293c4b5ddcca81d05331ae582ea#50d77959bf927293c4b5ddcca81d05331ae582ea"
+dependencies = [
+ "anyhow",
+ "codex-analytics",
+ "codex-api",
+ "codex-core",
+ "codex-extension-api",
+ "codex-features",
+ "codex-guardian-context",
+ "codex-guardian-reviewer",
+ "codex-history",
+ "codex-http-client",
+ "codex-login",
+ "codex-model-provider",
+ "codex-protocol",
+ "dirs",
+ "http 1.5.0",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "codex-history"
 version = "0.0.0"
 source = "git+https://github.com/openai/codex.git?rev=50d77959bf927293c4b5ddcca81d05331ae582ea#50d77959bf927293c4b5ddcca81d05331ae582ea"
@@ -4680,7 +4707,7 @@ checksum = "0ce92ff622d6dadf7349484f42c93271a0d49b7cc4d466a936405bacbe10aa78"
 dependencies = [
  "cfg-if",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6525,7 +6552,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -10654,6 +10681,7 @@ dependencies = [
  "codex-config",
  "codex-core-api",
  "codex-extension-api",
+ "codex-guardian-v2",
  "codex-history",
  "codex-login",
  "codex-protocol",

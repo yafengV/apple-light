@@ -331,7 +331,7 @@ impl Drop for SessionHomeGuard {
 }
 
 pub struct CodexSession {
-    manager: ThreadManager,
+    manager: Arc<ThreadManager>,
     thread_id: ThreadId,
     thread: Arc<CodexThread>,
     model: String,
@@ -550,29 +550,32 @@ impl CodexSession {
             .await?,
         );
         let installation_id = resolve_installation_id(&config.codex_home).await?;
-        let mut extensions = ExtensionRegistryBuilder::<Config>::new();
-        if let Some(browser) = options.browser_bridge {
-            extensions.tool_contributor(Arc::new(BrowserToolContributor::new(browser)));
-        }
-        let manager = ThreadManager::new(
-            &config,
-            Arc::clone(&auth_manager),
-            build_models_manager(&config, Arc::clone(&auth_manager)),
-            CodexAppsToolsCache::default(),
-            SessionSource::Exec,
-            environment_manager,
-            Arc::new(extensions.build()),
-            Arc::new(CodexHomeUserInstructionsProvider::new(
-                config.codex_home.clone(),
-            )),
-            None,
-            passthrough_image_store(),
-            thread_store,
-            local_agent_graph_store_from_state_db(state_db.as_ref()),
-            installation_id,
-            None,
-            None,
-        );
+        let manager = Arc::new_cyclic(|weak_manager| {
+            let mut extensions = ExtensionRegistryBuilder::<Config>::new();
+            codex_guardian_v2::install_reviewer(&mut extensions, weak_manager.clone());
+            if let Some(browser) = options.browser_bridge {
+                extensions.tool_contributor(Arc::new(BrowserToolContributor::new(browser)));
+            }
+            ThreadManager::new(
+                &config,
+                Arc::clone(&auth_manager),
+                build_models_manager(&config, Arc::clone(&auth_manager)),
+                CodexAppsToolsCache::default(),
+                SessionSource::Exec,
+                environment_manager,
+                Arc::new(extensions.build()),
+                Arc::new(CodexHomeUserInstructionsProvider::new(
+                    config.codex_home.clone(),
+                )),
+                None,
+                passthrough_image_store(),
+                thread_store,
+                local_agent_graph_store_from_state_db(state_db.as_ref()),
+                installation_id,
+                None,
+                None,
+            )
+        });
         let NewThread {
             thread_id, thread, ..
         } = match history {
