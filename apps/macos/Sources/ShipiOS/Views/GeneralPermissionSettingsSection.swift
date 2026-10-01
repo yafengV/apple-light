@@ -61,6 +61,7 @@ struct GeneralPermissionSettingsSection: View {
     } message: {
       Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，且不再请求批准，包括执行可能造成破坏的命令。确认仅将完全访问加入输入区权限菜单，不会自动启用。")
     }
+    NamedPermissionProfilesSettingsSection(store: store)
   }
 
   private var defaultOptions: [SettingsMenuOption<AgentRuntimePreferences>] {
@@ -72,8 +73,15 @@ struct GeneralPermissionSettingsSection: View {
     if store.library.showFullAccessInComposer || current.isFullAccessPreset {
       options.append(SettingsMenuOption(value: AgentRuntimePreferences.fullAccess, title: "完全访问"))
     }
+    for profile in store.library.namedPermissionProfiles
+      where !profile.requiresFullAccess || store.library.showFullAccessInComposer
+        || current.namedProfile == profile {
+      options.append(SettingsMenuOption(value: AgentRuntimePreferences(namedProfile: profile),
+        title: profile.title))
+    }
     if !options.contains(where: { $0.value == current }) {
-      options.append(SettingsMenuOption(value: current, title: "自定义权限（当前）"))
+      options.append(SettingsMenuOption(value: current,
+        title: current.namedProfile?.title ?? "自定义权限（当前）"))
     }
     return options
   }

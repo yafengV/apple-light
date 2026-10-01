@@ -17,7 +17,7 @@ enum ConnectionSettingsSection: String, CaseIterable, Identifiable {
 
 enum SettingsSearchField: String, CaseIterable, Identifiable {
   case editor, tips, sendShortcut, plainText, contextUsage, bottomPanel, webLinks,
-    generalDefaultPermissions, generalAutoReview,
+    generalDefaultPermissions, generalAutoReview, generalNamedPermissions,
     projectlessFolder, popoutHotkey, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
     preventSleep, enablePlugins, openSourceLicenses
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
@@ -246,6 +246,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentModel: "默认模型"
     case .generalDefaultPermissions: "默认权限"
     case .generalAutoReview: "自动审查"
+    case .generalNamedPermissions: "命名权限档案"
     case .agentReasoning: "推理强度"
     case .agentSuggestions: "显示建议提示"
     case .agentApprovalReviewer: "审批者"
@@ -376,6 +377,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentModel: "配置"
     case .generalDefaultPermissions: "权限 默认权限 模式 ask for approval"
     case .generalAutoReview: "权限 approve for me 自动审查批准 输入区 显示"
+    case .generalNamedPermissions: "权限 自定义 命名档案 配置 TOML profile"
     case .agentReasoning: "配置"
     case .agentSuggestions: "建议"
     case .agentApprovalReviewer: "权限 自动审查批准 approve for me reviewer"

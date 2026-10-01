@@ -109,8 +109,9 @@ async fn run() -> Result<()> {
     if let Action::ValidatePermissionProfile { id, config_path } = &args.command {
         let source =
             std::fs::read_to_string(config_path).context("read permission profile config")?;
-        shipios_codex::validate_named_permission_config(&source, id, &args.project).await?;
-        println!("valid");
+        let validation =
+            shipios_codex::validate_named_permission_config(&source, id, &args.project).await?;
+        println!("{}", serde_json::to_string(&validation)?);
         return Ok(());
     }
     let data_dir = match args

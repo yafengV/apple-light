@@ -34,6 +34,91 @@ final class WorkspaceLibraryTests: XCTestCase {
       .approveForMe)
   }
 
+  func testNamedPermissionProfilePersistsWithTaskSnapshot() throws {
+    let profile = AgentNamedPermissionProfile(id: "inspect", description: "项目只读",
+      configTOML: "[permissions.inspect]\nextends = \":read-only\"\n")
+    XCTAssertTrue(profile.hasValidShape)
+    XCTAssertFalse(AgentNamedPermissionProfile(id: "bad id", description: "",
+      configTOML: profile.configTOML).hasValidShape)
+    let selected = AgentRuntimePreferences(namedProfile: profile)
+    XCTAssertEqual(selected.menuTitle, "inspect")
+    var library = WorkspaceLibrary()
+    library.namedPermissionProfiles = [profile]
+    library.agentRuntimePreferences = selected
+    library.taskRuntimePreferences["task"] = selected
+    let restored = try JSONDecoder().decode(WorkspaceLibrary.self,
+      from: JSONEncoder().encode(library))
+    XCTAssertEqual(restored.namedPermissionProfiles, [profile])
+    XCTAssertEqual(restored.agentRuntimePreferences, selected)
+    XCTAssertEqual(restored.taskRuntimePreferences["task"], selected)
+  }
+
+  func testLegacyNamedProfileRequiresReviewBeforeFutureSelection() throws {
+    let legacy = Data(#"{"id":"inspect","description":"旧档案","configTOML":"[permissions.inspect]\nextends = \":read-only\"\n"}"#.utf8)
+    let profile = try JSONDecoder().decode(AgentNamedPermissionProfile.self, from: legacy)
+    XCTAssertTrue(profile.requiresFullAccess)
+  }
+
+  @MainActor func testEditingAndDeletingNamedProfileKeepsExistingTaskSnapshot() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("named-permissions-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let validator = root.appendingPathComponent("validator.sh")
+    try "#!/bin/sh\nprintf '%s\\n' '{\"requiresFullAccess\":false}'\n"
+      .write(to: validator, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: validator.path)
+    let store = WorkspaceStore(dataRoot: root,
+      agentExecutable: validator)
+    store.libraryLoaded = true
+    let original = AgentNamedPermissionProfile(id: "inspect", description: "旧定义",
+      configTOML: "[permissions.inspect]\nextends = \":read-only\"\n")
+    let firstSaved = await store.validateAndSaveNamedPermissionProfile(original)
+    XCTAssertTrue(firstSaved)
+    XCTAssertTrue(store.saveAgentRuntimePreferences(AgentRuntimePreferences(namedProfile: original)))
+    let task = WorkspaceTask(id: UUID().uuidString, project: "", title: "Existing", runIDs: [])
+    store.library.tasks = [task]
+    XCTAssertTrue(store.saveComposerRuntimePreferences(AgentRuntimePreferences(namedProfile: original),
+      taskID: task.id, draftKey: "unused"))
+    let changed = AgentNamedPermissionProfile(id: "inspect", description: "新定义",
+      configTOML: "[permissions.inspect]\nextends = \":workspace-write\"\n")
+    let secondSaved = await store.validateAndSaveNamedPermissionProfile(changed)
+    XCTAssertTrue(secondSaved)
+    XCTAssertEqual(store.library.agentRuntimePreferences.namedProfile, changed)
+    XCTAssertEqual(store.runtimePermissions(for: task.id).namedProfile, original)
+    XCTAssertTrue(store.deleteNamedPermissionProfile("inspect"))
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertTrue(restored.namedPermissionProfiles.isEmpty)
+    XCTAssertEqual(restored.agentRuntimePreferences, .askForApproval)
+    XCTAssertEqual(restored.taskRuntimePreferences[task.id]?.namedProfile, original)
+  }
+
+  @MainActor func testElevatedNamedProfileNeedsConfirmedFullAccessForFutureChoices() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("elevated-profile-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    let elevated = AgentNamedPermissionProfile(id: "broad", description: "广泛访问",
+      configTOML: "[permissions.broad.filesystem]\n\":root\" = \"write\"\n",
+      requiresFullAccess: true)
+    store.library.namedPermissionProfiles = [elevated]
+    XCTAssertTrue(store.saveLibrary())
+    let selected = AgentRuntimePreferences(namedProfile: elevated)
+    XCTAssertFalse(store.saveAgentRuntimePreferences(selected))
+    XCTAssertFalse(store.saveComposerRuntimePreferences(selected,
+      taskID: nil, draftKey: "new:project"))
+    XCTAssertTrue(store.saveShowFullAccessInComposer(true))
+    XCTAssertTrue(store.saveAgentRuntimePreferences(selected))
+    let task = WorkspaceTask(id: UUID().uuidString, project: "", title: "Existing", runIDs: [])
+    store.library.tasks = [task]
+    XCTAssertTrue(store.saveComposerRuntimePreferences(selected,
+      taskID: task.id, draftKey: "unused"))
+    XCTAssertTrue(store.saveShowFullAccessInComposer(false))
+    XCTAssertEqual(store.library.agentRuntimePreferences, .askForApproval)
+    XCTAssertEqual(store.runtimePermissions(for: task.id), selected)
+    XCTAssertFalse(store.saveComposerRuntimePreferences(selected,
+      taskID: nil, draftKey: "new:next"))
+  }
+
   @MainActor func testAgentRuntimePermissionsPersistAndRollBackOnSaveFailure() throws {
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))
     XCTAssertEqual(legacy.agentRuntimePreferences, AgentRuntimePreferences())

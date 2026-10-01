@@ -24,7 +24,8 @@ struct ComposerPermissionsMenu: View {
     Menu {
       AgentPermissionOptions(effective: effective, hasOverride: hasOverride,
         showAutoReview: store.library.showAutoReviewInComposer,
-        showFullAccess: store.library.showFullAccessInComposer) { choice in
+        showFullAccess: store.library.showFullAccessInComposer,
+        namedProfiles: store.library.namedPermissionProfiles) { choice in
           _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
         }
     } label: {
@@ -45,7 +46,14 @@ struct AgentPermissionOptions: View {
   let hasOverride: Bool
   let showAutoReview: Bool
   let showFullAccess: Bool
+  let namedProfiles: [AgentNamedPermissionProfile]
   let onSelect: (AgentRuntimePreferences?) -> Void
+
+  private var availableNamedProfiles: [AgentNamedPermissionProfile] {
+    namedProfiles.filter {
+      !$0.requiresFullAccess || showFullAccess || effective.namedProfile == $0
+    }
+  }
 
   var body: some View {
     Button {
@@ -80,6 +88,25 @@ struct AgentPermissionOptions: View {
         } else { Text("完全访问") }
       }
     }
+    if !availableNamedProfiles.isEmpty || effective.namedProfile != nil {
+      Divider()
+      ForEach(availableNamedProfiles) { profile in
+        Button {
+          onSelect(AgentRuntimePreferences(namedProfile: profile))
+        } label: {
+          if effective.namedProfile == profile {
+            Label(profile.title, systemImage: "checkmark")
+          } else { Text(profile.title) }
+        }
+      }
+      if let selected = effective.namedProfile, !namedProfiles.contains(selected) {
+        Button {
+          onSelect(AgentRuntimePreferences(namedProfile: selected))
+        } label: {
+          Label("\(selected.title)（当前任务快照）", systemImage: "checkmark")
+        }
+      }
+    }
     Menu("自定义权限") {
       Menu("审批者") {
         ForEach(AgentApprovalReviewer.allCases.filter {
@@ -87,10 +114,11 @@ struct AgentPermissionOptions: View {
         }, id: \.self) { reviewer in
           Button {
             var choice = effective
+            choice.namedProfile = nil
             choice.approvalReviewer = reviewer
             onSelect(choice)
           } label: {
-            if effective.approvalReviewer == reviewer {
+            if effective.namedProfile == nil && effective.approvalReviewer == reviewer {
               Label(reviewer.title, systemImage: "checkmark")
             } else { Text(reviewer.title) }
           }
@@ -100,10 +128,11 @@ struct AgentPermissionOptions: View {
         ForEach(AgentApprovalPolicy.allCases, id: \.self) { policy in
           Button {
             var choice = effective
+            choice.namedProfile = nil
             choice.approvalPolicy = policy
             onSelect(choice)
           } label: {
-            if effective.approvalPolicy == policy {
+            if effective.namedProfile == nil && effective.approvalPolicy == policy {
               Label(policy.title, systemImage: "checkmark")
             } else { Text(policy.title) }
           }
@@ -114,20 +143,22 @@ struct AgentPermissionOptions: View {
           showFullAccess: showFullAccess || effective.sandboxMode == .fullAccess), id: \.self) { mode in
           Button {
             var choice = effective
+            choice.namedProfile = nil
             choice.sandboxMode = mode
             if mode != .workspaceWrite { choice.networkAccess = false }
             if mode == .fullAccess { choice.approvalPolicy = .never }
             onSelect(choice)
           } label: {
-            if effective.sandboxMode == mode {
+            if effective.namedProfile == nil && effective.sandboxMode == mode {
               Label(mode.title, systemImage: "checkmark")
             } else { Text(mode.title) }
           }
         }
       }
-      if effective.sandboxMode == .workspaceWrite {
+      if effective.namedProfile == nil && effective.sandboxMode == .workspaceWrite {
         Button {
           var choice = effective
+          choice.namedProfile = nil
           choice.networkAccess.toggle()
           onSelect(choice)
         } label: {

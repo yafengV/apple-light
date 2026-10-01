@@ -1,5 +1,36 @@
 import Foundation
 
+enum AgentPermissionProfileValidation {
+  static func validate(_ profile: AgentNamedPermissionProfile, executable: URL,
+    project: URL) async throws -> Bool {
+    try await Task.detached(priority: .userInitiated) {
+      let staged = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shipios-permissions-\(UUID().uuidString).toml")
+      defer { try? FileManager.default.removeItem(at: staged) }
+      try Data(profile.configTOML.utf8).write(to: staged, options: .atomic)
+      try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: staged.path)
+      let process = Process()
+      process.executableURL = executable
+      process.arguments = ["--project", project.path, "validate-permission-profile",
+        "--id", profile.id, "--config-path", staged.path]
+      let standardOutput = Pipe()
+      let standardError = Pipe()
+      process.standardOutput = standardOutput
+      process.standardError = standardError
+      try process.run()
+      process.waitUntilExit()
+      guard process.terminationStatus == 0 else {
+        let detail = String(decoding: standardError.fileHandleForReading.readDataToEndOfFile(),
+          as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        throw AgentFailure(message: detail.isEmpty ? "Codex Core 拒绝此权限配置。" : detail)
+      }
+      struct Result: Decodable { var requiresFullAccess: Bool }
+      let data = standardOutput.fileHandleForReading.readDataToEndOfFile()
+      return try JSONDecoder().decode(Result.self, from: data).requiresFullAccess
+    }.value
+  }
+}
+
 extension WorkspaceStore {
   private func snapshotInheritedTaskPermissions(_ candidate: inout WorkspaceLibrary) {
     for task in candidate.tasks where candidate.taskRuntimePreferences[task.id] == nil {
@@ -22,6 +53,10 @@ extension WorkspaceStore {
     guard libraryLoaded else { return false }
     if let taskID, !library.tasks.contains(where: { $0.id == taskID }) { return false }
     let current = composerRuntimePreferences(taskID: taskID, draftKey: draftKey)
+    guard preferences?.namedProfile.map({ profile in
+      !profile.requiresFullAccess || library.showFullAccessInComposer
+        || current.namedProfile == profile
+    }) ?? true else { return false }
     guard preferences?.sandboxMode != .fullAccess || library.showFullAccessInComposer
       || current.sandboxMode == .fullAccess else { return false }
     guard preferences?.approvalReviewer != .autoReview || library.showAutoReviewInComposer
@@ -42,6 +77,10 @@ extension WorkspaceStore {
   @discardableResult func savePopoutHomeRuntimePreferences(
     _ preferences: AgentRuntimePreferences?) -> Bool {
     guard libraryLoaded else { return false }
+    guard preferences?.namedProfile.map({ profile in
+      !profile.requiresFullAccess || library.showFullAccessInComposer
+        || library.popoutHomeRuntimePreferences?.namedProfile == profile
+    }) ?? true else { return false }
     guard preferences?.sandboxMode != .fullAccess || library.showFullAccessInComposer else {
       return false
     }
@@ -61,6 +100,11 @@ extension WorkspaceStore {
   }
 
   @discardableResult func saveAgentRuntimePreferences(_ preferences: AgentRuntimePreferences) -> Bool {
+    guard preferences.namedProfile?.requiresFullAccess != true
+      || library.showFullAccessInComposer else { return false }
+    guard preferences.namedProfile.map({ named in
+      library.namedPermissionProfiles.contains(named)
+    }) ?? true else { return false }
     guard preferences.sandboxMode != .fullAccess || library.showFullAccessInComposer else {
       return false
     }
@@ -77,6 +121,89 @@ extension WorkspaceStore {
       return true
     } catch {
       self.error = "无法保存默认权限：\(error.localizedDescription)"
+      return false
+    }
+  }
+
+  @discardableResult func validateAndSaveNamedPermissionProfile(
+    _ profile: AgentNamedPermissionProfile
+  ) async -> Bool {
+    guard libraryLoaded else { return false }
+    guard profile.hasValidShape else {
+      generalSettingsError = "档案 ID、说明或配置长度不符合要求。"
+      return false
+    }
+    do {
+      let project: URL
+      if let root = workspace.root, FileManager.default.fileExists(atPath: root.path) {
+        project = root
+      } else {
+        project = dataRoot
+      }
+      var validated = profile
+      validated.requiresFullAccess = try await AgentPermissionProfileValidation.validate(profile,
+        executable: executable, project: project)
+      var candidate = library
+      if let index = candidate.namedPermissionProfiles.firstIndex(where: { $0.id == profile.id }) {
+        candidate.namedPermissionProfiles[index] = validated
+      } else {
+        candidate.namedPermissionProfiles.append(validated)
+      }
+      if candidate.agentRuntimePreferences.namedProfile?.id == profile.id {
+        snapshotInheritedTaskPermissions(&candidate)
+        if !validated.requiresFullAccess || candidate.showFullAccessInComposer {
+          candidate.agentRuntimePreferences.namedProfile = validated
+        } else {
+          candidate.agentRuntimePreferences = .askForApproval
+        }
+      }
+      if candidate.popoutHomeRuntimePreferences?.namedProfile?.id == profile.id {
+        if !validated.requiresFullAccess || candidate.showFullAccessInComposer {
+          candidate.popoutHomeRuntimePreferences?.namedProfile = validated
+        } else {
+          candidate.popoutHomeRuntimePreferences = nil
+        }
+      }
+      for key in Array(candidate.newTaskRuntimePreferences.keys)
+        where candidate.newTaskRuntimePreferences[key]?.namedProfile?.id == profile.id {
+        if !validated.requiresFullAccess || candidate.showFullAccessInComposer {
+          candidate.newTaskRuntimePreferences[key]?.namedProfile = validated
+        } else {
+          candidate.newTaskRuntimePreferences.removeValue(forKey: key)
+        }
+      }
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return true
+    } catch {
+      generalSettingsError = "无法保存命名权限档案：\(error.localizedDescription)"
+      return false
+    }
+  }
+
+  @discardableResult func deleteNamedPermissionProfile(_ id: String) -> Bool {
+    guard libraryLoaded, library.namedPermissionProfiles.contains(where: { $0.id == id }) else {
+      return false
+    }
+    do {
+      var candidate = library
+      candidate.namedPermissionProfiles.removeAll { $0.id == id }
+      if candidate.agentRuntimePreferences.namedProfile?.id == id {
+        snapshotInheritedTaskPermissions(&candidate)
+        candidate.agentRuntimePreferences = .askForApproval
+      }
+      if candidate.popoutHomeRuntimePreferences?.namedProfile?.id == id {
+        candidate.popoutHomeRuntimePreferences = nil
+      }
+      for key in Array(candidate.newTaskRuntimePreferences.keys)
+        where candidate.newTaskRuntimePreferences[key]?.namedProfile?.id == id {
+        candidate.newTaskRuntimePreferences.removeValue(forKey: key)
+      }
+      try commitLibrary(candidate)
+      generalSettingsError = nil
+      return true
+    } catch {
+      generalSettingsError = "无法删除命名权限档案：\(error.localizedDescription)"
       return false
     }
   }
@@ -119,15 +246,18 @@ extension WorkspaceStore {
       var candidate = library
       candidate.showFullAccessInComposer = visible
       if !visible {
-        if candidate.agentRuntimePreferences.sandboxMode == .fullAccess {
+        if candidate.agentRuntimePreferences.sandboxMode == .fullAccess
+          || candidate.agentRuntimePreferences.namedProfile?.requiresFullAccess == true {
           snapshotInheritedTaskPermissions(&candidate)
           candidate.agentRuntimePreferences = .askForApproval
         }
-        if candidate.popoutHomeRuntimePreferences?.sandboxMode == .fullAccess {
+        if candidate.popoutHomeRuntimePreferences?.sandboxMode == .fullAccess
+          || candidate.popoutHomeRuntimePreferences?.namedProfile?.requiresFullAccess == true {
           candidate.popoutHomeRuntimePreferences = .askForApproval
         }
         for key in Array(candidate.newTaskRuntimePreferences.keys) {
-          if candidate.newTaskRuntimePreferences[key]?.sandboxMode == .fullAccess {
+          if candidate.newTaskRuntimePreferences[key]?.sandboxMode == .fullAccess
+            || candidate.newTaskRuntimePreferences[key]?.namedProfile?.requiresFullAccess == true {
             candidate.newTaskRuntimePreferences[key] = .askForApproval
           }
         }

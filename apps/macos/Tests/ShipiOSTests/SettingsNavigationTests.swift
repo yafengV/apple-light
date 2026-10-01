@@ -103,12 +103,15 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(SettingsSearch.results(for: "审批策略").compactMap(\.field), [.agentApproval])
     let permissionFields = Set(SettingsSearch.results(for: "权限").compactMap(\.field))
     XCTAssertTrue(permissionFields.isSuperset(of: [
-      .generalDefaultPermissions, .generalAutoReview, .agentApprovalReviewer,
+      .generalDefaultPermissions, .generalAutoReview, .generalNamedPermissions,
+      .agentApprovalReviewer,
       .agentApproval, .agentSandbox, .agentFullAccess, .agentNetwork,
     ]))
     XCTAssertEqual(Set(SettingsSearch.results(for: "自动审查批准").compactMap(\.field)),
       [.generalAutoReview, .agentApprovalReviewer])
     XCTAssertEqual(SettingsSearch.results(for: "文件访问").compactMap(\.field), [.agentSandbox])
+    XCTAssertTrue(SettingsSearch.results(for: "命名权限档案")
+      .contains { $0.field == .generalNamedPermissions })
     XCTAssertEqual(SettingsSearch.results(for: "在输入区显示完全访问").compactMap(\.field),
       [.agentFullAccess])
     XCTAssertEqual(SettingsSearchField.agentFullAccess.page, .general)

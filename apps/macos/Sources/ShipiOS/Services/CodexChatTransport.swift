@@ -11,12 +11,19 @@ final class CodexChatTransport {
     let keyDigest: Data?
     let mcpDigest: Data
     let additionalFolders: [String]
+    let permissionProfileID: String?
+    let permissionProfileDigest: Data?
 
-    init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String]) {
+    init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String],
+      permissionProfile: AgentNamedPermissionProfile?) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
       mcpDigest = Data(SHA256.hash(data: mcpData))
       self.additionalFolders = additionalFolders
+      permissionProfileID = permissionProfile?.id
+      permissionProfileDigest = permissionProfile.map {
+        Data(SHA256.hash(data: Data($0.configTOML.utf8)))
+      }
     }
   }
 
@@ -143,8 +150,9 @@ final class CodexChatTransport {
     let mcpData = try encoder.encode(enabledServers)
     let mcpValue = try JSONDecoder().decode(JSONValue.self, from: mcpData)
     let token = generation
+    let selectedProfile = readOnly || textOnly ? nil : permissions.namedProfile
     let service = ServiceIdentity(config: config, key: key, mcpData: mcpData,
-      additionalFolders: Array(folders.dropFirst()))
+      additionalFolders: Array(folders.dropFirst()), permissionProfile: selectedProfile)
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }
@@ -167,6 +175,10 @@ final class CodexChatTransport {
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
           "resumeOnly": .bool(compact),
           "readOnly": .bool(readOnly), "textOnly": .bool(textOnly),
+          "permissionProfileId": selectedProfile.map { .string($0.id) } ?? .null,
+          "permissionProfileConfig": selectedProfile.map { .string($0.configTOML) } ?? .null,
+          "permissionProfileSelectionExplicit": .bool(true),
+          "permissionsSelectionExplicit": .bool(true),
           "additionalFolders": .array(folders.dropFirst().map(JSONValue.string)),
           "permissions": .object([
             "approvalPolicy": .string(permissions.approvalPolicy.rawValue),

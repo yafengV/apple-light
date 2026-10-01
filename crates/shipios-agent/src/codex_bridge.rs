@@ -33,6 +33,8 @@ pub struct StartThread {
     #[serde(default)]
     pub permissions: SessionPermissions,
     #[serde(default)]
+    pub permissions_selection_explicit: bool,
+    #[serde(default)]
     pub permission_profile_id: Option<String>,
     #[serde(default)]
     pub permission_profile_config: Option<String>,
@@ -509,11 +511,15 @@ impl CodexBridge {
             std::env::current_exe().context("resolve Agent executable")?,
             None,
         )?;
-        let permissions = previous
-            .as_ref()
-            .or(fork_source.as_ref())
-            .map(|thread| thread.permissions)
-            .unwrap_or(request.permissions);
+        let permissions = if request.permissions_selection_explicit {
+            request.permissions
+        } else {
+            previous
+                .as_ref()
+                .or(fork_source.as_ref())
+                .map(|thread| thread.permissions)
+                .unwrap_or(request.permissions)
+        };
         let responses = previous
             .as_ref()
             .or(fork_source.as_ref())
@@ -1157,6 +1163,7 @@ mod tests {
                     text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
+                    permissions_selection_explicit: false,
                     permission_profile_id: Some("inspect".to_owned()),
                     permission_profile_config: Some("default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n".to_owned()),
                     permission_profile_selection_explicit: true,
@@ -1182,6 +1189,7 @@ mod tests {
                     text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
+                    permissions_selection_explicit: false,
                     permission_profile_id: None,
                     permission_profile_config: None,
                     permission_profile_selection_explicit: false,
@@ -1205,7 +1213,11 @@ mod tests {
                     read_only: false,
                     text_only: false,
                     additional_folders: Vec::new(),
-                    permissions: SessionPermissions::default(),
+                    permissions: SessionPermissions {
+                        sandbox_mode: SessionSandboxMode::ReadOnly,
+                        ..SessionPermissions::default()
+                    },
+                    permissions_selection_explicit: true,
                     permission_profile_id: None,
                     permission_profile_config: None,
                     permission_profile_selection_explicit: true,
@@ -1217,6 +1229,8 @@ mod tests {
                 }).await?;
                 assert!(switched.resumed);
                 assert_eq!(saved_thread(&home)?.unwrap().permission_profile_id, None);
+                assert_eq!(saved_thread(&home)?.unwrap().permissions.sandbox_mode,
+                    SessionSandboxMode::ReadOnly);
                 bridge.shutdown().await;
                 Ok::<_, anyhow::Error>(())
             }).await.context("named profile Agent worker failed")?
@@ -1472,6 +1486,7 @@ mod tests {
                         text_only: false,
                         additional_folders: Vec::new(),
                         permissions: SessionPermissions::default(),
+                        permissions_selection_explicit: false,
                         permission_profile_id: None,
                         permission_profile_config: None,
                         permission_profile_selection_explicit: false,
@@ -1624,6 +1639,7 @@ mod tests {
                     text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
+                    permissions_selection_explicit: false,
                     permission_profile_id: None,
                     permission_profile_config: None,
                     permission_profile_selection_explicit: false,
@@ -1656,6 +1672,7 @@ mod tests {
                     text_only: false,
                     additional_folders: Vec::new(),
                     permissions: SessionPermissions::default(),
+                    permissions_selection_explicit: false,
                     permission_profile_id: None,
                     permission_profile_config: None,
                     permission_profile_selection_explicit: false,
@@ -1680,6 +1697,7 @@ mod tests {
                 text_only: false,
                 additional_folders: Vec::new(),
                 permissions: custom_permissions,
+                permissions_selection_explicit: false,
                 permission_profile_id: None,
                 permission_profile_config: None,
                 permission_profile_selection_explicit: false,
@@ -1748,6 +1766,7 @@ mod tests {
             text_only: false,
             additional_folders: Vec::new(),
             permissions: SessionPermissions::default(),
+            permissions_selection_explicit: false,
             permission_profile_id: None,
             permission_profile_config: None,
             permission_profile_selection_explicit: false,
@@ -1804,6 +1823,7 @@ mod tests {
                 text_only: false,
                 additional_folders: Vec::new(),
                 permissions: SessionPermissions::default(),
+                permissions_selection_explicit: false,
                 permission_profile_id: None,
                 permission_profile_config: None,
                 permission_profile_selection_explicit: false,

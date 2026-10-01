@@ -24,7 +24,9 @@ use codex_protocol::config_types::{
     WebSearchMode,
 };
 use codex_protocol::mcp::{ClientMcpExtensions, RequestId};
+use codex_protocol::models::ManagedFileSystemPermissions;
 use codex_protocol::openai_models::ReasoningEffort;
+use codex_protocol::permissions::{FileSystemPath, FileSystemSpecialPath};
 use codex_protocol::protocol::NetworkSandboxPolicy;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
@@ -237,11 +239,17 @@ async fn load_session_config(
 /// Validate an app-owned permissions document with the same Core loader used
 /// by a real task. Reject unrelated configuration so it cannot change model,
 /// authentication, MCP or other ShipiOS-owned runtime settings.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NamedPermissionProfileValidation {
+    pub requires_full_access: bool,
+}
+
 pub async fn validate_named_permission_config(
     source: &str,
     profile_id: &str,
     project_root: &std::path::Path,
-) -> Result<()> {
+) -> Result<NamedPermissionProfileValidation> {
     ensure!(
         source.len() <= 64 * 1024,
         "permission config exceeds 64 KiB"
@@ -299,13 +307,41 @@ pub async fn validate_named_permission_config(
         .context("create isolated permission validation home")?;
     std::fs::write(temporary_home.path().join("config.toml"), source)
         .context("stage permission config for validation")?;
-    load_session_config(
+    let config = load_session_config(
         temporary_home.path().to_path_buf(),
         project,
         Some(profile_id),
     )
     .await?;
-    Ok(())
+    let requires_full_access = match config.permissions.permission_profile() {
+        PermissionProfile::Disabled | PermissionProfile::External { .. } => true,
+        PermissionProfile::Managed {
+            file_system,
+            network,
+        } => {
+            network.is_enabled()
+                || match file_system {
+                    ManagedFileSystemPermissions::Unrestricted => true,
+                    ManagedFileSystemPermissions::Restricted { entries, .. } => {
+                        entries.iter().any(|entry| {
+                            entry.access.can_write()
+                                && !matches!(
+                                    entry.path,
+                                    FileSystemPath::Special {
+                                        value: FileSystemSpecialPath::ProjectRoots { .. }
+                                            | FileSystemSpecialPath::Tmpdir
+                                            | FileSystemSpecialPath::SlashTmp
+                                    }
+                                )
+                        })
+                    }
+                }
+        }
+    } || config.permissions.approval_policy.value()
+        == AskForApproval::Never;
+    Ok(NamedPermissionProfileValidation {
+        requires_full_access,
+    })
 }
 
 fn turn_profile(
@@ -1320,9 +1356,18 @@ mod tests {
         let project = tempfile::tempdir().unwrap();
         let valid =
             "default_permissions = \"inspect\"\n[permissions.inspect]\nextends = \":read-only\"\n";
-        validate_named_permission_config(valid, "inspect", project.path())
+        let safe = validate_named_permission_config(valid, "inspect", project.path())
             .await
             .unwrap();
+        assert!(!safe.requires_full_access);
+        let wide = validate_named_permission_config(
+            "[permissions.wide.filesystem]\n\":root\" = \"write\"\n",
+            "wide",
+            project.path(),
+        )
+        .await
+        .unwrap();
+        assert!(wide.requires_full_access);
         assert!(
             validate_named_permission_config(valid, "missing", project.path())
                 .await

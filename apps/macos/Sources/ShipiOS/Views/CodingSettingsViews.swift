@@ -128,6 +128,7 @@ struct AgentSettingsView: View {
 
   private func updatePermissions(_ change: (inout AgentRuntimePreferences) -> Void) {
     var preferences = store.library.agentRuntimePreferences
+    preferences.namedProfile = nil
     change(&preferences)
     status = store.saveAgentRuntimePreferences(preferences) ? "已保存。" : "保存失败，请重试。"
   }

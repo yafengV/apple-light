@@ -378,6 +378,7 @@ struct WorkspaceLibrary: Codable {
   var defaultTerminalLocation = WorkspaceTabPlacement.bottom
   var gitPreferences = GitPreferences()
   var agentRuntimePreferences = AgentRuntimePreferences()
+  var namedPermissionProfiles: [AgentNamedPermissionProfile] = []
   var showAutoReviewInComposer = false
   var showFullAccessInComposer = false
   /// Permission choice for an unsent main-window draft, keyed like `drafts`.
@@ -414,7 +415,8 @@ struct WorkspaceLibrary: Codable {
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
-      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, showAutoReviewInComposer, showFullAccessInComposer,
+      defaultTerminalLocation, gitPreferences, agentRuntimePreferences, namedPermissionProfiles,
+      showAutoReviewInComposer, showFullAccessInComposer,
       newTaskRuntimePreferences,
       popoutHomeRuntimePreferences, taskRuntimePreferences, agentResponsePreferences,
       agentWebSearchMode, enabledAdvancedReasoningEfforts,
@@ -522,6 +524,8 @@ struct WorkspaceLibrary: Codable {
     gitPreferences.normalize()
     agentRuntimePreferences = try c.decodeIfPresent(AgentRuntimePreferences.self,
       forKey: .agentRuntimePreferences) ?? AgentRuntimePreferences()
+    namedPermissionProfiles = try c.decodeIfPresent([AgentNamedPermissionProfile].self,
+      forKey: .namedPermissionProfiles) ?? []
     popoutHomeRuntimePreferences = try c.decodeIfPresent(AgentRuntimePreferences.self,
       forKey: .popoutHomeRuntimePreferences)
     newTaskRuntimePreferences = try c.decodeIfPresent([String: AgentRuntimePreferences].self,
