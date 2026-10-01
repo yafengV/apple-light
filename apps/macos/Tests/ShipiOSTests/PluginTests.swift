@@ -294,6 +294,39 @@ final class PluginTests: XCTestCase {
     XCTAssertEqual(selection.matches, [enabled])
   }
 
+  func testBrowserMentionSharesCandidateMenuOnlyWhenCoreBrowserIsAvailable() {
+    let plugin = PluginInstallation(
+      id: "build-tools", name: "Build Tools", summary: "", version: "1",
+      enabled: true, installedAt: Date(), components: PluginComponents())
+    var selection = PluginMentionSelection()
+    selection.update(draft: "Use @", plugins: [plugin], includeBrowser: false)
+    XCTAssertFalse(selection.browserMatch)
+    XCTAssertEqual(selection.handle(.accept), .accept(plugin))
+
+    selection.update(draft: "Use @", plugins: [plugin], includeBrowser: true)
+    XCTAssertTrue(selection.browserMatch)
+    XCTAssertEqual(selection.matchCount, 2)
+    XCTAssertEqual(selection.handle(.accept), .acceptBrowser)
+    XCTAssertEqual(selection.handle(.next), .handled)
+    XCTAssertEqual(selection.handle(.accept), .accept(plugin))
+    XCTAssertEqual(selection.handle(.previous), .handled)
+    XCTAssertEqual(selection.handle(.accept), .acceptBrowser)
+    XCTAssertEqual(
+      PluginMentionSelection.replacingTrailingMention(in: "Use @Bro", mention: "Browser"),
+      "Use @Browser ")
+
+    selection.update(draft: "Use @bro", plugins: [plugin], includeBrowser: true)
+    XCTAssertTrue(selection.browserMatch)
+    XCTAssertTrue(selection.matches.isEmpty)
+    XCTAssertEqual(selection.handle(.accept), .acceptBrowser)
+    selection.update(draft: "Use @bro", plugins: [plugin], includeBrowser: false)
+    XCTAssertFalse(selection.isVisible)
+    XCTAssertTrue(BrowserMention.isInvoked(in: "Use @Browser for this page"))
+    XCTAssertTrue(BrowserMention.isInvoked(in: "Use @browser for this page"))
+    XCTAssertFalse(BrowserMention.isInvoked(in: "email@Browser.com"))
+    XCTAssertFalse(BrowserMention.isInvoked(in: "Use @Browser-plugin"))
+  }
+
   func testSkillDiscoverySelectionAndExplicitContextHandleDuplicateNames() throws {
     let base = root()
     defer { try? FileManager.default.removeItem(at: base) }

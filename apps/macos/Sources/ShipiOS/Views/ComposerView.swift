@@ -43,6 +43,9 @@ struct ComposerView: View {
         ComposerPluginMentionsView(selection: $pluginSelection) { plugin in
           store.draft = PluginMentionSelection.replacingTrailingMention(
             in: store.draft, plugin: plugin)
+        } acceptBrowser: {
+          store.draft = PluginMentionSelection.replacingTrailingMention(
+            in: store.draft, mention: "Browser")
         }
       }
       if skillSelection.isVisible, focused, store.destination == .workspace {
@@ -236,7 +239,10 @@ struct ComposerView: View {
   private var editor: some View {
     ComposerTextEditor(
       text: $store.draft,
-      focused: Binding(get: { focused }, set: { focused = $0 }),
+      focused: Binding(get: { focused }, set: { value in
+        focused = value
+        if value { updateCommands() }
+      }),
       plainTextMode: store.composerPlainTextMode,
       placeholder: "发送消息，或输入 / 选择操作…",
       accessibilityLabel: "任务输入",
@@ -281,6 +287,10 @@ struct ComposerView: View {
           store.draft = PluginMentionSelection.replacingTrailingMention(
             in: store.draft, plugin: plugin)
           return true
+        case .acceptBrowser:
+          store.draft = PluginMentionSelection.replacingTrailingMention(
+            in: store.draft, mention: "Browser")
+          return true
         case .handled: return true
         case .ignored: break
         }
@@ -323,7 +333,8 @@ struct ComposerView: View {
   private func updateCommands() {
     commandSelection.update(draft: store.draft, enabled: store.enabledComposerCommands)
     pluginSelection.update(
-      draft: store.draft, plugins: store.composerPlugins)
+      draft: store.draft, plugins: store.composerPlugins,
+      includeBrowser: store.modelConfiguration(for: store.selectedTask?.id).apiProtocol == .codexResponses)
     skillSelection.update(
       draft: store.draft, skills: store.composerSkills)
   }

@@ -177,6 +177,7 @@ extension WorkspaceStore {
         systemInstructions, modeInstructions, review == nil ? "" : ModelCodeReviewContext.instructions,
         isSideChat ? "这是临时只读侧聊。只回答当前问题，不修改文件或运行有副作用的操作。主会话正在独立继续。" : "",
         pluginContext.instructions,
+        usesCodex && BrowserMention.isInvoked(in: prompt) ? BrowserMention.instructions : "",
       ]
       let instructions = (instructionPrefix + [skillDiscovery.instructions, workspaceInstructions])
         .filter { !$0.isEmpty }.joined(separator: "\n\n")

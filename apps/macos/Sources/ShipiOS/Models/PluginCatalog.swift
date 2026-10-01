@@ -114,31 +114,48 @@ struct PluginPreferences: Codable, Equatable {
 
 struct PluginMentionSelection {
   enum Key { case previous, next, accept, dismiss }
-  enum Result: Equatable { case ignored, handled, accept(PluginInstallation) }
+  enum Result: Equatable { case ignored, handled, accept(PluginInstallation), acceptBrowser }
 
   private(set) var matches: [PluginInstallation] = []
   private(set) var selected: PluginInstallation?
+  private(set) var browserMatch = false
+  private(set) var browserSelected = false
   private(set) var dismissed = false
   private var draft = ""
-  var isVisible: Bool { !dismissed && !matches.isEmpty }
+  var isVisible: Bool { !dismissed && (browserMatch || !matches.isEmpty) }
+  var matchCount: Int { matches.count + (browserMatch ? 1 : 0) }
 
-  mutating func update(draft: String, plugins: [PluginInstallation]) {
-    if draft != self.draft { dismissed = false; selected = nil }
+  mutating func update(draft: String, plugins: [PluginInstallation], includeBrowser: Bool = false) {
+    if draft != self.draft { dismissed = false; selected = nil; browserSelected = false }
     self.draft = draft
     guard let query = Self.trailingQuery(in: draft) else {
       matches = []
       selected = nil
+      browserMatch = false
+      browserSelected = false
       return
     }
+    let wasBrowserMatch = browserMatch
+    browserMatch = includeBrowser && (query.isEmpty || "Browser".localizedCaseInsensitiveContains(query))
+    if browserMatch && !wasBrowserMatch { selected = nil; browserSelected = true }
     matches = plugins.filter { plugin in
       plugin.enabled && (query.isEmpty || plugin.id.localizedCaseInsensitiveContains(query)
         || plugin.name.localizedCaseInsensitiveContains(query))
     }
-    if selected == nil || !matches.contains(selected!) { selected = matches.first }
+    if let selected, !matches.contains(selected) { self.selected = nil }
+    if !browserMatch { browserSelected = false }
+    if self.selected == nil && !browserSelected {
+      if browserMatch { browserSelected = true }
+      else { self.selected = matches.first }
+    }
   }
 
   mutating func highlight(_ plugin: PluginInstallation) {
-    if matches.contains(plugin) { selected = plugin }
+    if matches.contains(plugin) { selected = plugin; browserSelected = false }
+  }
+
+  mutating func highlightBrowser() {
+    if browserMatch { selected = nil; browserSelected = true }
   }
 
   mutating func handle(_ key: Key, isComposing: Bool = false) -> Result {
@@ -148,18 +165,26 @@ struct PluginMentionSelection {
       dismissed = true
       return .handled
     case .accept:
+      if browserSelected { return .acceptBrowser }
       return selected.map(Result.accept) ?? .handled
     case .previous, .next:
-      guard !matches.isEmpty else { return .handled }
-      let index = selected.flatMap { matches.firstIndex(of: $0) } ?? 0
-      selected = matches[min(max(index + (key == .next ? 1 : -1), 0), matches.count - 1)]
+      guard matchCount > 0 else { return .handled }
+      let offset = browserMatch ? 1 : 0
+      let index = browserSelected ? 0 : (selected.flatMap { matches.firstIndex(of: $0) } ?? 0) + offset
+      let next = min(max(index + (key == .next ? 1 : -1), 0), matchCount - 1)
+      browserSelected = browserMatch && next == 0
+      selected = browserSelected ? nil : matches[next - offset]
       return .handled
     }
   }
 
   static func replacingTrailingMention(in draft: String, plugin: PluginInstallation) -> String {
+    replacingTrailingMention(in: draft, mention: plugin.id)
+  }
+
+  static func replacingTrailingMention(in draft: String, mention: String) -> String {
     guard let at = trailingAt(in: draft) else { return draft }
-    return String(draft[..<at]) + "@" + plugin.id + " "
+    return String(draft[..<at]) + "@" + mention + " "
   }
 
   private static func trailingQuery(in draft: String) -> String? {
@@ -177,6 +202,19 @@ struct PluginMentionSelection {
     guard !suffix.contains(where: \.isWhitespace) else { return nil }
     return at
   }
+}
+
+enum BrowserMention {
+  static func isInvoked(in prompt: String) -> Bool {
+    let expression = try! NSRegularExpression(
+      pattern: #"(?<![A-Za-z0-9._-])@Browser(?![A-Za-z0-9._-])"#,
+      options: [.caseInsensitive])
+    return expression.firstMatch(
+      in: prompt, range: NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)) != nil
+  }
+
+  static let instructions =
+    "用户选择了 @Browser。需要访问任务内网页时，使用 shipios_browser 工具；先列出当前任务的标签再读取或操作。网站访问和敏感操作仍须经过 ShipiOS 授权。"
 }
 
 struct SkillMentionSelection {

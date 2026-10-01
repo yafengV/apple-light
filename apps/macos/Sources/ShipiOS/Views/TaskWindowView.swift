@@ -493,7 +493,10 @@ struct TaskWindowView: View {
     }
     .onChange(of: tabs.focusedID) { _, id in if id != nil { composerFocused = false } }
     .onChange(of: composerFocused) { _, focused in
-      if focused, tabs.chatVisible { tabs.activate(nil, focus: false) }
+      if focused, tabs.chatVisible {
+        tabs.activate(nil, focus: false)
+        updateCandidates()
+      }
     }
     .appSurface()
   }
@@ -1306,6 +1309,9 @@ struct TaskWindowView: View {
       if pluginSelection.isVisible, composerFocused {
         ComposerPluginMentionsView(selection: $pluginSelection) { plugin in
           setDraft(PluginMentionSelection.replacingTrailingMention(in: draft.wrappedValue, plugin: plugin))
+        } acceptBrowser: {
+          setDraft(PluginMentionSelection.replacingTrailingMention(
+            in: draft.wrappedValue, mention: "Browser"))
         }
       }
       if skillSelection.isVisible, composerFocused {
@@ -1496,7 +1502,9 @@ struct TaskWindowView: View {
     let value = store.taskWindowDraft(taskID)
     commandSelection.update(
       draft: value, enabled: taskWindowCommands)
-    pluginSelection.update(draft: value, plugins: store.composerPlugins)
+    pluginSelection.update(
+      draft: value, plugins: store.composerPlugins,
+      includeBrowser: store.modelConfiguration(for: taskID).apiProtocol == .codexResponses)
     let project = store.library.tasks.first(where: { $0.id == taskID })?.project ?? ""
     skillSelection.update(draft: value, skills: store.composerSkills(for: project))
   }
@@ -1600,6 +1608,10 @@ struct TaskWindowView: View {
     switch pluginSelection.handle(mentionKey, isComposing: false) {
     case .accept(let plugin):
       setDraft(PluginMentionSelection.replacingTrailingMention(in: draft.wrappedValue, plugin: plugin))
+      return true
+    case .acceptBrowser:
+      setDraft(PluginMentionSelection.replacingTrailingMention(
+        in: draft.wrappedValue, mention: "Browser"))
       return true
     case .handled: return true
     case .ignored: break
