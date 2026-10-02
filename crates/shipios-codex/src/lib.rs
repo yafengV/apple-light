@@ -1,8 +1,10 @@
 //! Host adapter for the pinned Codex Core runtime.
 
 mod browser_tool;
+mod confetti_tool;
 pub use browser_tool::BrowserToolBridge;
 use browser_tool::BrowserToolContributor;
+use confetti_tool::ConfettiToolContributor;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_config::{LoaderOverrides, McpServerConfig, RawMcpServerConfig};
@@ -57,6 +59,7 @@ pub struct SessionOptions {
     pub web_search: SessionWebSearch,
     pub mcp_servers: Vec<ShipMcpServer>,
     pub browser_bridge: Option<BrowserToolBridge>,
+    pub confetti: Option<(String, tokio::sync::broadcast::Sender<serde_json::Value>)>,
     pub runtime_paths: ExecServerRuntimePaths,
 }
 
@@ -782,6 +785,10 @@ impl CodexSession {
             if let Some(browser) = options.browser_bridge {
                 extensions.tool_contributor(Arc::new(BrowserToolContributor::new(browser)));
             }
+            if let Some((task_id, events)) = options.confetti {
+                extensions
+                    .tool_contributor(Arc::new(ConfettiToolContributor::new(task_id, events)));
+            }
             ThreadManager::new(
                 &config,
                 Arc::clone(&auth_manager),
@@ -1437,6 +1444,7 @@ mod tests {
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
             browser_bridge: None,
+            confetti: None,
             runtime_paths: ExecServerRuntimePaths::from_optional_paths(
                 Some(std::env::current_exe()?),
                 None,

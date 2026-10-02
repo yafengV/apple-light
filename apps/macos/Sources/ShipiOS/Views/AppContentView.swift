@@ -184,6 +184,13 @@ struct AppContentView: View {
       .overlay {
         if store.voiceChatPresented { RealtimeVoiceOverlay(store: store) }
       }
+      .overlay {
+        if let burst = store.confettiBurst {
+          ConfettiOverlay(burst: burst) {
+            if store.confettiBurst == burst { store.confettiBurst = nil }
+          }
+        }
+      }
       // Keep the window keyboard route attached while the workspace is hidden
       // behind settings. SwiftUI may detach zero-opacity native backgrounds.
       .background(WorkspaceKeyboardBridge(store: store).frame(width: 0, height: 0))

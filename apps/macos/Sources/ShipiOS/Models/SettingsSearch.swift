@@ -19,7 +19,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case editor, tips, sendShortcut, plainText, contextUsage, bottomPanel, webLinks,
     generalDefaultPermissions, generalAutoReview, generalNamedPermissions,
     projectlessFolder, popoutHotkey, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
-    preventSleep, enablePlugins, openSourceLicenses
+    preventSleep, confetti, enablePlugins, openSourceLicenses
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
     pointer, diffMarkers, reduceMotion, importTheme, exportTheme
   case lightUIFont, darkUIFont, lightContentFont, darkContentFont, lightCodeFont, darkCodeFont, lightThemeShare, darkThemeShare
@@ -180,7 +180,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentApprovalReviewer: .agent
     case .agentApproval: .agent
     case .agentSandbox: .agent
-    case .agentFullAccess: .general
+    case .agentFullAccess, .confetti: .general
     case .agentNetwork: .agent
     case .agentVerbosity: .agent
     case .agentReasoningSummary: .agent
@@ -359,6 +359,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .reviewDelivery: "审查结果呈现方式"
     case .terminalLocation: "默认终端位置"
     case .preventSleep: "运行时防止休眠"
+    case .confetti: "彩纸效果"
     case .enablePlugins: "插件"
     case .openSourceLicenses: "开源许可"
     case .theme: "基础主题"
@@ -500,6 +501,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .menuBar: "menu bar"
     case .reviewDelivery: "review 内联 单独"
     case .preventSleep: "sleep"
+    case .confetti: "confetti toys celebration"
     case .apiURL: "API base URL 服务地址"
     case .apiKey: "API 密钥"
     case .lightPalette, .darkPalette: "强调色 背景色 前景色 半透明侧栏"

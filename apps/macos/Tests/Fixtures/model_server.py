@@ -501,6 +501,17 @@ class Handler(BaseHTTPRequestHandler):
             user_index = max((i for i, m in enumerate(body['messages']) if m['role'] == 'user'), default=0)
             user_prompt = body['messages'][user_index]['content']
             tool_results = [m for m in body['messages'][user_index+1:] if m['role'] == 'tool']
+            if user_prompt == 'confetti-request' and not tool_results:
+                confetti = next((tool for tool in body.get('tools', [])
+                    if tool['function']['name'] == 'shipios_fire_confetti'), None)
+                if confetti:
+                    call = {'index': 0, 'id': 'confetti-1', 'type': 'function', 'function': {
+                        'name': 'shipios_fire_confetti', 'arguments': '{}'}}
+                    frame = {'choices': [{'delta': {'tool_calls': [call]}, 'finish_reason': None}]}
+                    self.wfile.write(('data: ' + json.dumps(frame) + '\n\n').encode())
+                    self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n')
+                    self.wfile.write(b'data: [DONE]\n\n')
+                    return
             if isinstance(user_prompt, str) and user_prompt.startswith('implicit-skill-read') and not tool_results:
                 read_tool = next((tool for tool in body.get('tools', [])
                     if tool['function']['name'] == 'shipios_read_skill'), None)

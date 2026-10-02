@@ -26,6 +26,7 @@ extension WorkspaceStore {
     bindings: [MCPToolBinding], skills: [PluginSkillReference] = []) async throws -> ModelTokenUsage? {
     var messages = initial, transcript: [ChatMessage] = []
     let toolDefinitions = bindings.map(\.wire) + (skills.isEmpty ? [] : [ModelSkillReadTool.wire])
+      + (confettiEnabled && !appearance.shouldReduceMotion ? [ModelConfettiTool.wire] : [])
     guard toolDefinitions.count <= 128 else {
       throw AgentFailure(message: "本轮技能与 MCP 工具合计超过 128 个，请停用不需要的服务器后重试。")
     }
@@ -69,7 +70,9 @@ extension WorkspaceStore {
       for (index, call) in turn.calls.enumerated() {
         do {
           let output: String
-          if call.name == ModelSkillReadTool.name, !skills.isEmpty {
+          if call.name == ModelConfettiTool.name, confettiEnabled {
+            output = fireConfetti() ? "Confetti fired in the ShipiOS window." : "Confetti was suppressed by Reduce Motion or the setting changed."
+          } else if call.name == ModelSkillReadTool.name, !skills.isEmpty {
             output = try executeSkillRead(call, advertised: skills, runID: runID)
           } else if let binding = bindings.first(where: { $0.alias == call.name }) {
             output = try await executeMCPCall(call, binding: binding, runID: runID)

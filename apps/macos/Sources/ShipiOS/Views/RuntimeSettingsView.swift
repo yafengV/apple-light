@@ -58,6 +58,12 @@ struct RuntimeSettingsView: View {
       Form {
         EditorSettingsSection(store: store)
         GeneralPermissionSettingsSection(store: store)
+        Section("玩具") {
+          SettingsToggle(title: "彩纸效果",
+            description: "当你要求 ShipiOS 庆祝时，允许模型在应用窗口中撒彩纸。",
+            isOn: $store.confettiEnabled)
+            .settingsSearchTarget(.confetti)
+        }
         Section("输入") {
           SettingsToggle(title: "显示教育提示", description: "在输入框上方显示可关闭的功能提示。",
             isOn: $store.showEducationalTips)

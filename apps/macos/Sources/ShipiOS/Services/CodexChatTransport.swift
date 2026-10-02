@@ -13,9 +13,10 @@ final class CodexChatTransport {
     let additionalFolders: [String]
     let permissionProfileID: String?
     let permissionProfileDigest: Data?
+    let confettiEnabled: Bool
 
     init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String],
-      permissionProfile: AgentNamedPermissionProfile?) {
+      permissionProfile: AgentNamedPermissionProfile?, confettiEnabled: Bool) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
       mcpDigest = Data(SHA256.hash(data: mcpData))
@@ -24,6 +25,7 @@ final class CodexChatTransport {
       permissionProfileDigest = permissionProfile.map {
         Data(SHA256.hash(data: Data($0.configTOML.utf8)))
       }
+      self.confettiEnabled = confettiEnabled
     }
   }
 
@@ -125,7 +127,7 @@ final class CodexChatTransport {
     fileAppendix: String?, readOnly: Bool = false, textOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
-    webSearchMode: AgentWebSearchMode,
+    webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false,
     compact: Bool = false, forkOrigin: CodexForkOrigin? = nil,
     resumeOrigin: CodexResumeOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
@@ -152,7 +154,8 @@ final class CodexChatTransport {
     let token = generation
     let selectedProfile = readOnly || textOnly ? nil : permissions.namedProfile
     let service = ServiceIdentity(config: config, key: key, mcpData: mcpData,
-      additionalFolders: Array(folders.dropFirst()), permissionProfile: selectedProfile)
+      additionalFolders: Array(folders.dropFirst()), permissionProfile: selectedProfile,
+      confettiEnabled: confettiEnabled)
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }
@@ -196,6 +199,7 @@ final class CodexChatTransport {
             "supportsHostedWebSearch": .bool(config.supportsHostedWebSearch),
           ]),
           "mcpServers": mcpValue,
+          "confettiEnabled": .bool(confettiEnabled),
           "forkOrigin": forkOrigin?.wireValue ?? .null,
           "resumeOrigin": resumeOrigin?.wireValue ?? .null,
         ])

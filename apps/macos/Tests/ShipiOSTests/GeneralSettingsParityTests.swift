@@ -98,6 +98,7 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertTrue(legacy.pluginsEnabled)
     XCTAssertTrue(legacy.showInMenuBar)
     XCTAssertTrue(legacy.showEducationalTips)
+    XCTAssertFalse(legacy.confettiEnabled)
     XCTAssertTrue(legacy.dismissedEducationalTipIDs.isEmpty)
     XCTAssertFalse(legacy.showContextUsageIndicator)
     XCTAssertTrue(legacy.showBottomPanelControl)
@@ -109,6 +110,34 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertNil(legacy.popoutHomeRuntimePreferences)
     XCTAssertTrue(legacy.taskRuntimePreferences.isEmpty)
     XCTAssertEqual(legacy.gitPreferences.reviewDelivery, .inline)
+  }
+
+  @MainActor func testConfettiPreferenceControlsRealBurstAndRespectsReducedMotion() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+
+    XCTAssertFalse(store.fireConfetti())
+    XCTAssertNil(store.confettiBurst)
+    store.confettiEnabled = true
+    XCTAssertTrue(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json")).confettiEnabled)
+    var appearance = store.appearance
+    appearance.reduceMotion = .off
+    store.library.appearance = appearance
+    XCTAssertTrue(store.fireConfetti())
+    XCTAssertNotNil(store.confettiBurst)
+    let first = store.confettiBurst
+    XCTAssertTrue(store.fireConfetti())
+    XCTAssertNotEqual(first, store.confettiBurst)
+
+    appearance.reduceMotion = .on
+    store.library.appearance = appearance
+    store.confettiBurst = nil
+    XCTAssertFalse(store.fireConfetti())
+    XCTAssertNil(store.confettiBurst)
+    store.confettiEnabled = false
+    XCTAssertFalse(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json")).confettiEnabled)
   }
 
   @MainActor func testMenuBarPreferenceDefaultsOnAndPersists() throws {

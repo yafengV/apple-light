@@ -73,6 +73,17 @@ extension WorkspaceStore {
     set { updateGeneralPreference(\.showEducationalTips, value: newValue) }
   }
 
+  var confettiEnabled: Bool {
+    get { library.confettiEnabled }
+    set { updateGeneralPreference(\.confettiEnabled, value: newValue) }
+  }
+
+  @discardableResult func fireConfetti() -> Bool {
+    guard confettiEnabled, !appearance.shouldReduceMotion else { return false }
+    confettiBurst = UUID()
+    return true
+  }
+
   func educationalTip(taskID: String?) -> ComposerEducationalTip? {
     guard showEducationalTips else { return nil }
     let hasActiveRun = taskID.map { activeRun(taskID: $0) != nil } ?? (selectedActiveRun != nil)

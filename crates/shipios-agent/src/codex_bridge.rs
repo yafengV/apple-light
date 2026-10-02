@@ -46,6 +46,8 @@ pub struct StartThread {
     pub web_search: SessionWebSearch,
     #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
+    #[serde(default)]
+    pub confetti_enabled: bool,
     pub fork_origin: Option<ForkThreadOrigin>,
     pub resume_origin: Option<ResumeThreadOrigin>,
 }
@@ -574,6 +576,9 @@ impl CodexBridge {
             web_search,
             mcp_servers: request.mcp_servers,
             browser_bridge: Some(self.browser.for_task(task_id.clone())),
+            confetti: request
+                .confetti_enabled
+                .then(|| (task_id.clone(), self.events.clone())),
             runtime_paths,
         };
         let resumed = previous.is_some();
@@ -1170,6 +1175,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    confetti_enabled: false,
                     fork_origin: None,
                     resume_origin: None,
                 }).await?;
@@ -1196,6 +1202,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    confetti_enabled: false,
                     fork_origin: None,
                     resume_origin: None,
                 }).await?;
@@ -1224,6 +1231,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    confetti_enabled: false,
                     fork_origin: None,
                     resume_origin: None,
                 }).await?;
@@ -1490,8 +1498,8 @@ mod tests {
                         api_key: None,
                         initial_context_bytes: Some(0),
                         resume_only: false,
-                fork_origin: None,
-                resume_origin: None,
+                        fork_origin: None,
+                        resume_origin: None,
                         read_only: false,
                         text_only: false,
                         additional_folders: Vec::new(),
@@ -1503,6 +1511,7 @@ mod tests {
                         responses: SessionResponsePreferences::default(),
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
+                        confetti_enabled: false,
                     })
                     .await?;
                 bridge
@@ -1573,6 +1582,128 @@ mod tests {
             })
             .await
             .context("Codex browser worker failed")?
+        })
+    }
+
+    #[test]
+    fn model_confetti_call_reaches_the_task_window() -> Result<()> {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_stack_size(16 * 1024 * 1024)
+            .build()?;
+        runtime.block_on(async {
+            tokio::spawn(async move {
+                let server = MockServer::start().await;
+                let sse = |events: Vec<Value>| {
+                    events
+                        .into_iter()
+                        .map(|event| {
+                            format!(
+                                "event: {}\ndata: {event}\n\n",
+                                event["type"].as_str().unwrap()
+                            )
+                        })
+                        .collect::<String>()
+                };
+                let completed = |id: &str| {
+                    json!({"type":"response.completed","response":{
+                        "id":id,"usage":{"input_tokens":0,"input_tokens_details":null,
+                        "output_tokens":0,"output_tokens_details":null,"total_tokens":0}}})
+                };
+                let call = sse(vec![
+                    json!({"type":"response.created","response":{"id":"confetti-1"}}),
+                    json!({"type":"response.output_item.done","item":{
+                        "type":"function_call","call_id":"fire-1",
+                        "name":"shipios_fire_confetti","arguments":"{}"}}),
+                    completed("confetti-1"),
+                ]);
+                let done = sse(vec![
+                    json!({"type":"response.created","response":{"id":"confetti-2"}}),
+                    json!({"type":"response.output_item.done","item":{
+                        "type":"message","role":"assistant","id":"celebrated",
+                        "content":[{"type":"output_text","text":"Celebrated"}]}}),
+                    completed("confetti-2"),
+                ]);
+                let count = std::sync::atomic::AtomicUsize::new(0);
+                Mock::given(method("POST"))
+                    .and(path("/v1/responses"))
+                    .respond_with(move |_request: &wiremock::Request| {
+                        let body = if count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                            &call
+                        } else {
+                            &done
+                        };
+                        ResponseTemplate::new(200)
+                            .insert_header("content-type", "text/event-stream")
+                            .set_body_string(body.clone())
+                    })
+                    .expect(2)
+                    .mount(&server)
+                    .await;
+                let temp = tempfile::tempdir()?;
+                let project = temp.path().join("Project");
+                let data = temp.path().join("Data/Projects/fixture");
+                std::fs::create_dir_all(&project)?;
+                std::fs::create_dir_all(&data)?;
+                let bridge = CodexBridge::new(data, project);
+                let mut events = bridge.subscribe();
+                let task_id = Uuid::new_v4().to_string();
+                bridge
+                    .start(StartThread {
+                        task_id: task_id.clone(),
+                        base_url: format!("{}/v1", server.uri()),
+                        model: "gpt-5.4".to_owned(),
+                        api_key: None,
+                        initial_context_bytes: Some(0),
+                        resume_only: false,
+                        read_only: false,
+                        text_only: false,
+                        additional_folders: Vec::new(),
+                        permissions: SessionPermissions::default(),
+                        permissions_selection_explicit: false,
+                        permission_profile_id: None,
+                        permission_profile_config: None,
+                        permission_profile_selection_explicit: false,
+                        responses: SessionResponsePreferences::default(),
+                        web_search: SessionWebSearch::default(),
+                        mcp_servers: Vec::new(),
+                        confetti_enabled: true,
+                        fork_origin: None,
+                        resume_origin: None,
+                    })
+                    .await?;
+                bridge
+                    .submit(&task_id, "Please celebrate with confetti".to_owned())
+                    .await?;
+                let mut fired = false;
+                let mut replied = false;
+                loop {
+                    let payload =
+                        tokio::time::timeout(std::time::Duration::from_secs(15), events.recv())
+                            .await??;
+                    assert_eq!(payload["taskId"], task_id);
+                    match payload["event"]["type"].as_str() {
+                        Some("confetti_fire") => fired = true,
+                        Some("agent_message") => {
+                            replied |= payload["event"]["message"] == "Celebrated"
+                        }
+                        Some("task_complete") => break,
+                        Some("error") => {
+                            anyhow::bail!("Codex confetti error: {}", payload["event"])
+                        }
+                        _ => {}
+                    }
+                }
+                assert!(fired && replied);
+                let requests = server.received_requests().await.unwrap();
+                assert!(
+                    String::from_utf8_lossy(&requests[0].body).contains("shipios_fire_confetti")
+                );
+                assert!(String::from_utf8_lossy(&requests[1].body).contains("requested"));
+                Ok::<_, anyhow::Error>(())
+            })
+            .await
+            .context("Codex confetti worker failed")?
         })
     }
 
@@ -1664,6 +1795,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    confetti_enabled: false,
                 })
                 .await
                 .is_err()
@@ -1697,6 +1829,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    confetti_enabled: false,
                 })
                 .await
                 .is_err()
@@ -1722,6 +1855,7 @@ mod tests {
                 responses: custom_responses,
                 web_search: custom_web_search,
                 mcp_servers: Vec::new(),
+                confetti_enabled: false,
             })
             .await?;
         assert_eq!(thread.task_id, task_id);
@@ -1791,6 +1925,7 @@ mod tests {
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
+            confetti_enabled: false,
         };
         let mut missing_turn = origin();
         missing_turn.through_turn_id = "missing-turn".to_owned();
@@ -1848,6 +1983,7 @@ mod tests {
                 responses: SessionResponsePreferences::default(),
                 web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),
+                confetti_enabled: false,
             })
             .await?;
         assert_eq!(

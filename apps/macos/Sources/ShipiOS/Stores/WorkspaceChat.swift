@@ -422,7 +422,9 @@ extension WorkspaceStore {
       planMode: mode == .plan, goalInstructions: goalInstructions,
       mcpServers: mcpServers, permissions: permissions,
       responses: library.agentResponsePreferences,
-      webSearchMode: library.agentWebSearchMode, compact: compact,
+      webSearchMode: library.agentWebSearchMode,
+      confettiEnabled: confettiEnabled && !appearance.shouldReduceMotion,
+      compact: compact,
       forkOrigin: library.tasks.first(where: { $0.id == taskID })?.codexForkOrigin,
       resumeOrigin: library.tasks.first(where: { $0.id == taskID }).flatMap(CodexResumeOrigin.init(task:)))
     do {
@@ -458,6 +460,8 @@ extension WorkspaceStore {
             recordCodexMCPCall(runID: runID, event: event)
           case "browser_request", "browser_result":
             recordCodexBrowserCall(runID: runID, event: event)
+          case "confetti_fire":
+            _ = fireConfetti()
           case "elicitation_request":
             if event["request"]["_meta"]["codex_approval_kind"].text == "mcp_tool_call",
               event["id"].text?.hasPrefix("mcp_tool_call_approval_") == true {

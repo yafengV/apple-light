@@ -207,6 +207,7 @@ final class WorkspaceStore {
   var profileLoaded = false
   var profileLoading = false
   var profileAvatarVersion = UUID()
+  var confettiBurst: UUID?
   var petPreferences = PetPreferences()
   var petCustomData: Data?
   var petError: String?
