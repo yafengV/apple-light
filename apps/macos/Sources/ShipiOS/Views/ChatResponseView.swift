@@ -5,6 +5,7 @@ struct ChatResponseView: View {
   @Environment(\.messageBrowserRoute) private var openInApp
   let store: WorkspaceStore
   let run: AgentRun
+  var railSpace: String? = nil
 
   var body: some View {
     let ordered = run.responseItems
@@ -56,6 +57,9 @@ struct ChatResponseView: View {
       case .user(let id):
         if let message = run.codexSteeredMessages.first(where: { $0.id == id }) {
           CodexSteeredMessageView(store: store, runID: run.id, message: message)
+            .id(ConversationRailItem.steeredID(runID: run.id, messageID: message.id))
+            .conversationRailPosition(
+              ConversationRailItem.steeredID(runID: run.id, messageID: message.id), in: railSpace)
         }
       }
     }

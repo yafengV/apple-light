@@ -7,6 +7,12 @@ struct ConversationTimelineView: View {
   @State private var pendingText: ConversationTextID?
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
   @State private var pendingMatch: ConversationMatch.ID?
+  @State private var currentRailID: String?
+  private let railSpace = "main-conversation-rail-scroll"
+  private var railItems: [ConversationRailItem] { store.conversationRailItems(for: store.conversationRuns) }
+  private var railCurrentID: String? {
+    railItems.first(where: { $0.id == currentRailID })?.id ?? railItems.first?.id
+  }
 
   private struct Revision: Equatable {
     let id: String
@@ -38,7 +44,8 @@ struct ConversationTimelineView: View {
               .disabled(!store.canSelectTask(source))
           }
           ForEach(store.conversationRuns) { run in
-            ExecutionMessageView(store: store, run: run).id(run.id).padding(4)
+            ExecutionMessageView(store: store, run: run, railSpace: railSpace).id(run.id).padding(4)
+              .conversationRailPosition(run.id, in: railSpace)
           }
           Color.clear.frame(height: 1).id("conversation-end")
         }.frame(maxWidth: 760).padding(.horizontal, 32).padding(.vertical, 28)
@@ -57,7 +64,26 @@ struct ConversationTimelineView: View {
             }
           }
       }
+      .coordinateSpace(name: railSpace)
       .defaultScrollAnchor(.top)
+      .overlay(alignment: .leading) {
+        if !railItems.isEmpty {
+          ConversationRailOverlay(items: railItems,
+            currentID: railCurrentID,
+            onSelect: { id in
+              pendingText = nil
+              pendingMatch = nil
+              scrolling.pauseFollowing()
+              reader.scrollTo(id, anchor: .top)
+            }, onBookmark: { id, bookmarked in
+              _ = store.setConversationBookmark(bookmarked, runID: id)
+            })
+        }
+      }
+      .onPreferenceChange(ConversationRailPositions.self) { positions in
+        currentRailID = ConversationRailSelection.current(
+          positions: positions, orderedIDs: railItems.map(\.id)) ?? currentRailID
+      }
       .overlay(alignment: .bottom) {
         if !scrolling.isAtBottom {
           Button {

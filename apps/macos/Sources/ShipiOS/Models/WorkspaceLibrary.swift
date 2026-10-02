@@ -316,6 +316,7 @@ struct WorkspaceLibrary: Codable {
   var localRuns: [AgentRun] { chatRuns + forkRuns }
   var queuedMessages: [QueuedMessage] = []
   var notes: [String: String] = [:]
+  var bookmarkedRunIDs: Set<String> = []
   var runBranches: [String: String] = [:]
   var drafts: [String: String] = [:]
   /// A deep-linked, unsent new task keeps its own draft instead of replacing the usual project draft.
@@ -412,7 +413,7 @@ struct WorkspaceLibrary: Codable {
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
+    case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, bookmarkedRunIDs, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
@@ -436,6 +437,7 @@ struct WorkspaceLibrary: Codable {
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     activityPreferences = try c.decodeIfPresent(ActivityPreferences.self, forKey: .activityPreferences) ?? .init()
+    bookmarkedRunIDs = try c.decodeIfPresent(Set<String>.self, forKey: .bookmarkedRunIDs) ?? []
     queuedMessages = try c.decodeIfPresent([QueuedMessage].self, forKey: .queuedMessages) ?? []
     chatRuns = try c.decodeIfPresent([AgentRun].self, forKey: .chatRuns) ?? []
     forkRuns = try c.decodeIfPresent([AgentRun].self, forKey: .forkRuns) ?? []
@@ -690,6 +692,10 @@ struct WorkspaceLibrary: Codable {
       tasks[index].forkOrigin = nil
     }
     deletedRunIDs.formUnion(runIDs)
+    bookmarkedRunIDs.subtract(runIDs)
+    bookmarkedRunIDs = Set(bookmarkedRunIDs.filter { bookmark in
+      !runIDs.contains(where: { bookmark.hasPrefix("steer:" + $0 + ":") })
+    })
     chatRuns.removeAll { runIDs.contains($0.id) }
     forkRuns.removeAll { runIDs.contains($0.id) }
     forkRunOrigins = forkRunOrigins.filter { !runIDs.contains($0.key) }

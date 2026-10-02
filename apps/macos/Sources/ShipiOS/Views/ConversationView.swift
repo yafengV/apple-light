@@ -83,6 +83,7 @@ struct ExecutionMessageView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
   var actions: ExecutionMessageActions? = nil
+  var railSpace: String? = nil
   @State private var expanded = false
   @State private var copied = false
 
@@ -165,7 +166,7 @@ struct ExecutionMessageView: View {
               systemImage: ChatMode.goal.icon
             ).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
           }
-          ChatResponseView(store: store, run: run)
+          ChatResponseView(store: store, run: run, railSpace: railSpace)
           if run.isActive, let status = run.result?["codex_runtime_status"].text,
             !status.isEmpty {
             Label(status, systemImage: "arrow.clockwise")

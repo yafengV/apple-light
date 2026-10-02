@@ -45,6 +45,12 @@ struct TaskWindowView: View {
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
   @State private var pendingText: ConversationTextID?
   @State private var pendingMatch: ConversationMatch.ID?
+  @State private var currentRailID: String?
+  private var railSpace: String { "task-conversation-rail-" + taskID }
+  private var railItems: [ConversationRailItem] { store.conversationRailItems(for: taskRuns) }
+  private var railCurrentID: String? {
+    railItems.first(where: { $0.id == currentRailID })?.id ?? railItems.first?.id
+  }
   @State private var searchMode: TaskWindowSearchMode?
   @State private var searchReturnFocus: SearchDialogReturnFocus?
   @State private var fileFocusAfterSearch: String?
@@ -1227,8 +1233,9 @@ struct TaskWindowView: View {
                 executionInspectorTab = "overview"
               },
               canFork: !windowCommandsBlocked && store.canForkTaskWindow(taskID, through: run.id),
-              onFork: { forkTask(through: run.id) }
-            ).id(run.id)
+              onFork: { forkTask(through: run.id) },
+              railSpace: railSpace
+            ).id(run.id).conversationRailPosition(run.id, in: railSpace)
           }
           Color.clear.frame(height: 1).id("task-window-end")
         }
@@ -1236,7 +1243,25 @@ struct TaskWindowView: View {
         .padding(.horizontal, 30).padding(.vertical, 26)
         .frame(maxWidth: .infinity)
       }
+      .coordinateSpace(name: railSpace)
       .defaultScrollAnchor(.bottom)
+      .overlay(alignment: .leading) {
+        if !railItems.isEmpty {
+          ConversationRailOverlay(items: railItems,
+            currentID: railCurrentID,
+            onSelect: { id in
+              pendingText = nil
+              pendingMatch = nil
+              reader.scrollTo(id, anchor: .top)
+            }, onBookmark: { id, bookmarked in
+              _ = store.setConversationBookmark(bookmarked, runID: id)
+            })
+        }
+      }
+      .onPreferenceChange(ConversationRailPositions.self) { positions in
+        currentRailID = ConversationRailSelection.current(
+          positions: positions, orderedIDs: railItems.map(\.id)) ?? currentRailID
+      }
       .onChange(of: taskRuns.map(\.updatedAt)) { _, _ in
         guard !showingFind else { return }
         withAnimation(.easeOut(duration: 0.15)) { reader.scrollTo("task-window-end", anchor: .bottom) }
@@ -1695,6 +1720,7 @@ private struct TaskWindowMessageView: View {
   let onInspect: (AgentRun) -> Void
   let canFork: Bool
   let onFork: () -> Void
+  let railSpace: String?
   @State private var copied = false
 
   var body: some View {
@@ -1733,7 +1759,7 @@ private struct TaskWindowMessageView: View {
               systemImage: ChatMode.goal.icon
             ).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
           }
-          ChatResponseView(store: store, run: run)
+          ChatResponseView(store: store, run: run, railSpace: railSpace)
           if run.isActive { ProgressView().controlSize(.small) }
           if let message = run.result?["message"].text {
             Text(message).foregroundStyle(.red).textSelection(.enabled)

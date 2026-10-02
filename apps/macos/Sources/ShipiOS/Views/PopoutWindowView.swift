@@ -388,6 +388,12 @@ struct PopoutThreadView: View {
   @State private var inspectedRun: AgentRun?
   @State private var inspectorTab = "overview"
   @State private var scrolling = ConversationScrollState()
+  @State private var currentRailID: String?
+  private var railSpace: String { "popout-conversation-rail-" + taskID }
+  private var railItems: [ConversationRailItem] { store.conversationRailItems(for: runs) }
+  private var railCurrentID: String? {
+    railItems.first(where: { $0.id == currentRailID })?.id ?? railItems.first?.id
+  }
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
   private var runs: [AgentRun] { store.taskWindowRuns(taskID) }
@@ -455,10 +461,13 @@ struct PopoutThreadView: View {
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 25) {
             ForEach(runs) { run in
-              ExecutionMessageView(store: store, run: run, actions: messageActions).id(run.id)
+              ExecutionMessageView(store: store, run: run, actions: messageActions,
+                railSpace: railSpace).id(run.id)
+                .conversationRailPosition(run.id, in: railSpace)
             }
             Color.clear.frame(height: 1).id("end")
-          }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+          }.padding(.leading, railItems.isEmpty ? 20 : 70).padding(.trailing, 20)
+            .padding(.vertical, 20).frame(maxWidth: .infinity, alignment: .leading)
             .background {
               ConversationScrollObserver { event in
                 switch event {
@@ -470,7 +479,24 @@ struct PopoutThreadView: View {
               }
             }
         }
+        .coordinateSpace(name: railSpace)
         .defaultScrollAnchor(.top)
+        .overlay(alignment: .leading) {
+          if !railItems.isEmpty {
+            ConversationRailOverlay(items: railItems,
+              currentID: railCurrentID,
+              onSelect: { id in
+                scrolling.pauseFollowing()
+                reader.scrollTo(id, anchor: .top)
+              }, onBookmark: { id, bookmarked in
+                _ = store.setConversationBookmark(bookmarked, runID: id)
+              })
+          }
+        }
+        .onPreferenceChange(ConversationRailPositions.self) { positions in
+          currentRailID = ConversationRailSelection.current(
+            positions: positions, orderedIDs: railItems.map(\.id)) ?? currentRailID
+        }
         .overlay(alignment: .bottom) {
           if !scrolling.isAtBottom {
             Button {
