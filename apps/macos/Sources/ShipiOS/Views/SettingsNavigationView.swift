@@ -207,8 +207,8 @@ struct SettingsNavigationView: View {
     if let window = NSApp.keyWindow, window.firstResponder is SettingsMenuControl {
       window.makeFirstResponder(window.contentView)
     }
-    store.settingsPage = page
-    focusedPage = page
+    store.requestSettingsPage(page)
+    focusedPage = store.settingsPage
   }
 
   private func reveal(_ result: SettingsSearchResult) {

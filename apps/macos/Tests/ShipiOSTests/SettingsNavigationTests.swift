@@ -1,7 +1,83 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import ShipiOS
 
 final class SettingsNavigationTests: XCTestCase {
+  @MainActor func testUnsavedChangesDialogRendersWithExplicitChoices() async throws {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: SettingsConfirmationDialog(title: "丢弃更改？",
+      message: "你有未保存的更改。现在离开将丢失这些更改。",
+      confirmLabel: "丢弃更改", busyLabel: "丢弃更改", busy: false,
+      error: nil, width: 420, identifier: "settings-unsaved-changes-dialog",
+      cancelLabel: "继续编辑", cancel: {}, confirm: {}))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_SETTINGS_UNSAVED_RENDER_PATH"] {
+      try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        .write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+    window.close()
+  }
+
+  @MainActor func testUnsavedModelSettingsGuardPageSearchAndExitNavigation() {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.openSettings(.model)
+    let resetToken = store.modelSettingsResetRequest
+    store.modelSettingsDirty = true
+
+    store.requestSettingsPage(.voice)
+    XCTAssertEqual(store.settingsPage, .model)
+    XCTAssertEqual(store.pendingSettingsNavigation, .page(.voice))
+    store.cancelDiscardSettingsChanges()
+    XCTAssertNil(store.pendingSettingsNavigation)
+    XCTAssertTrue(store.modelSettingsDirty)
+
+    let result = SettingsSearchResult(page: .shortcuts, field: .shortcutReset)
+    store.revealSetting(result)
+    XCTAssertEqual(store.settingsPage, .model)
+    XCTAssertEqual(store.pendingSettingsNavigation, .reveal(result))
+    store.confirmDiscardSettingsChanges()
+    XCTAssertEqual(store.settingsPage, .shortcuts)
+    XCTAssertEqual(store.settingsSearchRequest?.result, result)
+    XCTAssertFalse(store.modelSettingsDirty)
+    XCTAssertNotEqual(store.modelSettingsResetRequest, resetToken)
+
+    store.requestSettingsPage(.model)
+    store.modelSettingsDirty = true
+    store.closeSettings()
+    XCTAssertEqual(store.destination, .settings)
+    XCTAssertEqual(store.pendingSettingsNavigation, .close)
+    store.confirmDiscardSettingsChanges()
+    XCTAssertEqual(store.destination, .workspace)
+  }
+
+  @MainActor func testUnsavedPersonalizationEditsAreDiscardedOnlyAfterConfirmation() {
+    let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString))
+    store.openSettings(.personalization)
+    store.personalizationLoaded = true
+    store.customInstructions = "已保存"
+    store.personalizationDraft = "未保存"
+    store.requestSettingsPage(.general)
+    XCTAssertEqual(store.settingsPage, .personalization)
+    XCTAssertEqual(store.pendingSettingsNavigation, .page(.general))
+    store.cancelDiscardSettingsChanges()
+    XCTAssertEqual(store.personalizationDraft, "未保存")
+    store.requestSettingsPage(.general)
+    store.confirmDiscardSettingsChanges()
+    XCTAssertEqual(store.settingsPage, .general)
+    XCTAssertEqual(store.personalizationDraft, "已保存")
+  }
+
   @MainActor func testCommandSearchUsesEffectiveBindingsIncludingRemovedAndReassignedDefaults() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

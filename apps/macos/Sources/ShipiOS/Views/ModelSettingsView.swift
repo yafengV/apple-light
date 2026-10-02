@@ -63,12 +63,29 @@ struct ModelSettingsView: View {
         if !status.isEmpty { Text(status).appFont(.callout).textSelection(.enabled) }
       }
       Section {
-        Button("回复风格与自定义指令…") { store.settingsPage = .personalization }
+        Button("回复风格与自定义指令…") { store.requestSettingsPage(.personalization) }
       }
     }.settingsFormStyle().appSurface().onAppear {
-      draft = store.modelConfiguration
-      realtimeModelDraft = store.voicePreferences.realtimeModelID
+      reloadDraft()
     }
+    .onChange(of: draft) { _, _ in updateDirtyState() }
+    .onChange(of: realtimeModelDraft) { _, _ in updateDirtyState() }
+    .onChange(of: key) { _, _ in updateDirtyState() }
+    .onChange(of: store.modelSettingsResetRequest) { _, _ in reloadDraft() }
+    .onChange(of: store.settingsPage) { _, page in
+      if page == .model && !store.modelSettingsDirty { reloadDraft() }
+    }
+  }
+  private func reloadDraft() {
+    draft = store.modelConfiguration
+    realtimeModelDraft = store.voicePreferences.realtimeModelID
+    key = ""
+    status = ""
+    store.modelSettingsDirty = false
+  }
+  private func updateDirtyState() {
+    store.modelSettingsDirty = draft != store.modelConfiguration
+      || realtimeModelDraft != store.voicePreferences.realtimeModelID || !key.isEmpty
   }
   @discardableResult private func save() -> Bool {
     do {
@@ -86,6 +103,7 @@ struct ModelSettingsView: View {
       voicePreferences.realtimeModelID = realtimeModelDraft
       voicePreferences.normalize()
       store.voicePreferences = voicePreferences
+      store.modelSettingsDirty = false
       status = "已保存。你可以返回任务发送消息。"
       return true
     } catch {

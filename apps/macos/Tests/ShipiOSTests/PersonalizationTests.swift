@@ -165,15 +165,18 @@ final class PersonalizationTests: XCTestCase {
     XCTAssertFalse(store.handleWorkspaceShortcut(save))
     store.shortcutResetRequested = false
     store.closeSettings()
+    XCTAssertEqual(store.pendingSettingsNavigation, .close)
     XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    store.cancelDiscardSettingsChanges()
     XCTAssertTrue(store.customInstructions.isEmpty)
-    store.openSettings(.personalization)
     XCTAssertFalse(store.handleWorkspaceShortcut(try XCTUnwrap(ShortcutBinding("⌘⇧S"))))
     XCTAssertTrue(store.handleWorkspaceShortcut(save))
     XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("AGENTS.md"), encoding: .utf8), "仅在保存后使用")
     XCTAssertEqual(store.notices.items.last?.title, "已保存自定义指令")
     XCTAssertFalse(store.canSavePersonalizationEdits)
     XCTAssertFalse(store.handleWorkspaceShortcut(save))
+    store.closeSettings()
+    XCTAssertEqual(store.destination, .workspace)
   }
 
   @MainActor func testSaveFailureKeepsDraftAndCanRetryThroughSameAction() async throws {

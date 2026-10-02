@@ -138,6 +138,7 @@ final class VoiceSettingsTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
+    store.openSettings(.model)
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 650),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
@@ -149,6 +150,25 @@ final class VoiceSettingsTests: XCTestCase {
     let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
     host.cacheDisplay(in: host.bounds, to: bitmap)
     XCTAssertEqual(host.bounds.width, 760, accuracy: 1)
+    let realtimeModel = try XCTUnwrap(findTextField(in: host,
+      placeholder: "支持 /realtime 的模型；留空关闭语音聊天"))
+    realtimeModel.selectText(nil)
+    let editor = try XCTUnwrap(realtimeModel.currentEditor())
+    editor.string = "realtime-fixture"
+    realtimeModel.textDidChange(Notification(name: NSControl.textDidChangeNotification,
+      object: editor))
+    try await Task.sleep(for: .milliseconds(100))
+    XCTAssertTrue(store.modelSettingsDirty)
+    store.requestSettingsPage(.voice)
+    XCTAssertEqual(store.pendingSettingsNavigation, .page(.voice))
+    store.cancelDiscardSettingsChanges()
+    XCTAssertEqual(realtimeModel.stringValue, "realtime-fixture")
+    store.requestSettingsPage(.voice)
+    store.confirmDiscardSettingsChanges()
+    try await Task.sleep(for: .milliseconds(100))
+    XCTAssertEqual(store.settingsPage, .voice)
+    XCTAssertFalse(store.modelSettingsDirty)
+    XCTAssertEqual(realtimeModel.stringValue, "")
     if let path = ProcessInfo.processInfo.environment["SHIPIOS_MODEL_SETTINGS_RENDER_PATH"] {
       let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
       try png.write(to: URL(fileURLWithPath: path), options: .atomic)
@@ -272,5 +292,10 @@ final class VoiceSettingsTests: XCTestCase {
   @MainActor private func findMenu(in view: NSView, label: String) -> SettingsMenuControl? {
     if let menu = view as? SettingsMenuControl, menu.accessibilityLabel() == label { return menu }
     return view.subviews.lazy.compactMap { self.findMenu(in: $0, label: label) }.first
+  }
+
+  @MainActor private func findTextField(in view: NSView, placeholder: String) -> NSTextField? {
+    if let field = view as? NSTextField, field.placeholderString == placeholder { return field }
+    return view.subviews.lazy.compactMap { self.findTextField(in: $0, placeholder: placeholder) }.first
   }
 }

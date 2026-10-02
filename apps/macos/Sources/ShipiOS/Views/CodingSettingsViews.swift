@@ -13,7 +13,7 @@ struct AgentSettingsView: View {
       Section("Agent 默认值") {
         LabeledContent("模型", value: store.modelConfiguration.model.isEmpty ? "尚未配置" : store.modelConfiguration.model).settingsSearchTarget(.agentModel)
         LabeledContent("推理强度", value: reasoningTitle).settingsSearchTarget(.agentReasoning)
-        Button("配置模型与 API…") { store.settingsPage = .model }
+        Button("配置模型与 API…") { store.requestSettingsPage(.model) }
       }
       Section("模型功能") {
         LabeledContent {
@@ -101,7 +101,7 @@ struct AgentSettingsView: View {
           || !store.modelConfiguration.supportsHostedWebSearch {
           Text("当前模型配置未声明搜索能力。")
             .appFont(.caption).foregroundStyle(.secondary)
-          Button("配置模型服务…") { store.settingsPage = .model }
+          Button("配置模型服务…") { store.requestSettingsPage(.model) }
         }
         Text("搜索模式只用于新建的 Codex Core 会话；实际结果由服务商提供。")
           .appFont(.caption).foregroundStyle(.secondary)
@@ -193,7 +193,7 @@ struct GitSettingsView: View {
           Button("恢复默认目录") { store.setWorktreeRoot(nil) }
             .disabled(store.library.worktreeRoot == nil)
         }.disabled(store.busy)
-        Button("查看工作树设置…") { store.settingsPage = .worktrees }
+        Button("查看工作树设置…") { store.requestSettingsPage(.worktrees) }
       }
       GitInstructionsView(store: store, kind: .commit)
       GitInstructionsView(store: store, kind: .pullRequest)
@@ -248,7 +248,7 @@ struct CodeReviewSettingsView: View {
       Section("Pull Request 审查") {
         Text("自动 PR 审查需要代码托管连接。ShipiOS 当前不会伪造云端审查状态。")
           .foregroundStyle(.secondary)
-        Button("查看连接…") { store.settingsPage = .connections }
+        Button("查看连接…") { store.requestSettingsPage(.connections) }
       }
     }.settingsFormStyle().appSurface()
   }
@@ -763,7 +763,7 @@ struct LocalEnvironmentSettingsView: View {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))
       }
       Section("工作树环境") {
-        Button("查看工作树设置…") { store.settingsPage = .worktrees }
+        Button("查看工作树设置…") { store.requestSettingsPage(.worktrees) }
         Text("新任务可单独选择环境；托管工作树保存创建时的脚本和快捷操作。")
           .appFont(.caption).foregroundStyle(.secondary)
       }

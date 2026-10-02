@@ -10,6 +10,7 @@ struct SettingsConfirmationDialog: View {
   let error: String?
   let width: CGFloat
   let identifier: String
+  var cancelLabel = "取消"
   let cancel: () -> Void
   let confirm: () -> Void
   @Environment(\.appAppearance) private var appearance
@@ -34,7 +35,7 @@ struct SettingsConfirmationDialog: View {
           }
           HStack(spacing: 12) {
             Spacer()
-            Button("取消", action: cancel)
+            Button(cancelLabel, action: cancel)
               .buttonStyle(.plain).padding(.horizontal, 12).padding(.vertical, 8)
               .focusable(!busy).focused($focusedButton, equals: .cancel).focusEffectDisabled()
               .overlay { focusOutline(.cancel) }

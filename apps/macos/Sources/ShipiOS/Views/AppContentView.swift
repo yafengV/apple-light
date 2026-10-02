@@ -81,7 +81,14 @@ struct AppContentView: View {
       .accessibilityHidden(store.hasSettingsConfirmation || store.appshotIntroRequest != nil
         || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
       .overlay {
-        if let session = store.appearanceThemeImport {
+        if store.pendingSettingsNavigation != nil {
+          SettingsConfirmationDialog(title: "丢弃更改？",
+            message: "你有未保存的更改。现在离开将丢失这些更改。",
+            confirmLabel: "丢弃更改", busyLabel: "丢弃更改", busy: false,
+            error: nil, width: 420, identifier: "settings-unsaved-changes-dialog",
+            cancelLabel: "继续编辑", cancel: store.cancelDiscardSettingsChanges,
+            confirm: store.confirmDiscardSettingsChanges)
+        } else if let session = store.appearanceThemeImport {
           AppearanceThemeImportView(store: store, session: session).id(session.id)
         } else if let request = store.archiveConfirmation() {
           ActivityArchiveDialog(store: store, request: request).id(request.id)

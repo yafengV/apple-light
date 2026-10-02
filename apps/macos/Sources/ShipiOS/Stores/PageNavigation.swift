@@ -4,6 +4,12 @@ enum AppDestination: Equatable {
   case workspace, projects, plugins, skills, pluginDetail, automations, settings
 }
 
+enum PendingSettingsNavigation: Equatable {
+  case page(SettingsPage)
+  case reveal(SettingsSearchResult)
+  case close
+}
+
 enum WorkspaceOverlay: String, Identifiable, CaseIterable {
   case commands, taskSearch, fileSearch, projectPicker, imagePreview, filePreview, worktreeCreation
   var id: String { rawValue }
@@ -53,6 +59,10 @@ extension WorkspaceStore {
   }
   func openSettings(_ page: SettingsPage? = nil) {
     guard !hasSettingsConfirmation else { return }
+    if destination == .settings, let page, page != settingsPage {
+      requestSettingsPage(page)
+      return
+    }
     showingOpenSourceLicenses = false
     mcpServerEditor = nil
     pluginDetailForwardRoute = nil
@@ -80,9 +90,52 @@ extension WorkspaceStore {
       mcpServersError = nil
       return
     }
+    if hasUnsavedSettingsEdits {
+      pendingSettingsNavigation = .close
+      return
+    }
     settingsSearchRequest = nil
     destination = settingsReturnDestination
     if destination == .workspace { focusComposer = UUID() }
+  }
+
+  var hasUnsavedSettingsEdits: Bool {
+    switch settingsPage {
+    case .model: modelSettingsDirty
+    case .personalization: canSavePersonalizationEdits
+    default: false
+    }
+  }
+
+  func requestSettingsPage(_ page: SettingsPage) {
+    guard !hasSettingsConfirmation, page != settingsPage else { return }
+    if destination == .settings && hasUnsavedSettingsEdits {
+      pendingSettingsNavigation = .page(page)
+    } else {
+      settingsPage = page
+    }
+  }
+
+  func cancelDiscardSettingsChanges() {
+    pendingSettingsNavigation = nil
+  }
+
+  func confirmDiscardSettingsChanges() {
+    guard let pending = pendingSettingsNavigation else { return }
+    switch settingsPage {
+    case .model:
+      modelSettingsDirty = false
+      modelSettingsResetRequest = UUID()
+    case .personalization:
+      personalizationDraft = customInstructions
+    default: break
+    }
+    pendingSettingsNavigation = nil
+    switch pending {
+    case .page(let page): requestSettingsPage(page)
+    case .reveal(let result): revealSetting(result)
+    case .close: closeSettings()
+    }
   }
 
   @discardableResult func closeSettingsFromKeyboard(in targetWindow: NSWindow? = nil) -> Bool {

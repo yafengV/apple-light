@@ -573,6 +573,10 @@ extension WorkspaceStore {
     }
     guard result.field == nil || result.field?.page == result.page else { return }
     guard result.field?.requiresProject != true || project != nil else { return }
+    if destination == .settings, result.page != settingsPage, hasUnsavedSettingsEdits {
+      pendingSettingsNavigation = .reveal(result)
+      return
+    }
     if destination != .settings { openSettings(result.page) }
     if result.page == .general { showingOpenSourceLicenses = false }
     settingsPage = result.page

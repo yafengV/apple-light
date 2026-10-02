@@ -112,6 +112,9 @@ final class WorkspaceStore {
     }
   }
   var showingOpenSourceLicenses = false
+  var modelSettingsDirty = false
+  var modelSettingsResetRequest = UUID()
+  var pendingSettingsNavigation: PendingSettingsNavigation?
   var settingsSearchRequest: SettingsSearchRequest?
   var settingsSearchFocusRequest = UUID()
   var settingsLastControlFocusRequest = UUID()
@@ -290,7 +293,7 @@ final class WorkspaceStore {
   var appearanceThemeImport: AppearanceThemeImportSession?
   var hasSettingsConfirmation: Bool {
     archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil || archiveConfirmation() != nil
-      || appearanceThemeImport != nil
+      || appearanceThemeImport != nil || pendingSettingsNavigation != nil
   }
   @ObservationIgnored var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?
