@@ -34,6 +34,10 @@ import Observation
     let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
     return search.isEmpty ? files : files.filter { $0.path.localizedCaseInsensitiveContains(search) }
   }
+  var activeFilteredPath: String? {
+    let visible = filteredFiles
+    return visible.first(where: { $0.path == selectedPath })?.path ?? visible.first?.path
+  }
   var allCollapsed: Bool { !files.isEmpty && files.allSatisfy { collapsed.contains($0.path) } }
   func toggle(_ path: String, all: Bool = false) {
     guard files.contains(where: { $0.path == path }) else { return }

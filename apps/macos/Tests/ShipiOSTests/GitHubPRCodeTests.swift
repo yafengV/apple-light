@@ -449,6 +449,22 @@ import XCTest
     let old = state.navigation; state.open(position()); XCTAssertNotEqual(state.navigation, old)
     state.select("Sources/Main.swift"); XCTAssertNil(state.position)
   }
+  func testPRFileTreeHighlightsFirstFilteredFileWhenSelectionIsHidden() async throws {
+    let second = patch.replacingOccurrences(of: "Sources/Main.swift", with: "Tests/Other.swift")
+    let (request, service) = try await fixture(["prDiff": patch + second, "codeChangedFiles": 2])
+    let state = GitHubPRCodeState(service: service)
+    await state.load(request, valid: { true })
+    XCTAssertEqual(state.activeFilteredPath, "Sources/Main.swift")
+    state.select("Tests/Other.swift")
+    XCTAssertEqual(state.activeFilteredPath, "Tests/Other.swift")
+    state.query = "Main"
+    XCTAssertEqual(state.selectedPath, "Tests/Other.swift")
+    XCTAssertEqual(state.activeFilteredPath, "Sources/Main.swift")
+    state.query = "absent"
+    XCTAssertNil(state.activeFilteredPath)
+    state.query = ""
+    XCTAssertEqual(state.activeFilteredPath, "Tests/Other.swift")
+  }
   func testTreeGroupsFoldersBeforeFilesAndKeepsIdenticalBasenamesDistinct() throws {
     let files = try GitHubPRCodeFile.parse(patch + patch.replacingOccurrences(of: "Sources/", with: "Tests/")
       + patch.replacingOccurrences(of: "Sources/Main.swift", with: "README.md"))

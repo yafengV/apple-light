@@ -19,7 +19,7 @@ struct TaskPullRequestCodeTreeView: View {
               Text(marker(file.kind)).foregroundStyle(color(file.kind))
             }.padding(.leading, CGFloat(depth) * 12 + 8).padding(.trailing, 8).padding(.vertical, 5)
               .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-              .background(state.selectedPath == file.path ? Color.accentColor.opacity(0.12) : .clear,
+              .background(state.activeFilteredPath == file.path ? Color.accentColor.opacity(0.12) : .clear,
                 in: RoundedRectangle(cornerRadius: 5))
           }.buttonStyle(.plain).help(file.path).accessibilityLabel(file.path)
             .accessibilityIdentifier("pull-request-code-file-" + file.path)
