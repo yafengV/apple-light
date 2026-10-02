@@ -101,6 +101,7 @@ struct TaskPullRequestCodeView: View {
         Text(identity.headBranch + " → " + identity.baseBranch).lineLimit(1).foregroundStyle(.secondary)
       }
       Spacer(minLength: 0)
+      TaskPullRequestCodeFileJumpView(paths: state.files.map(\.path), select: state.jump(to:))
       Menu {
         if let store { CodeWordDiffMenu(store: store) }
         Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
