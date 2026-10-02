@@ -8,13 +8,20 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   var showsHeader = true
   var viewportWidth: CGFloat? = nil
   var wordDiffsEnabled = false
+  var richPreviewEnabled = true
+  var openLink: (URL) -> Void = { _ in }
   @State private var selection = PullRequestCodeSelection()
   @State private var selectionError: String?
   @State private var syntax = CodeSyntaxState()
+  @State private var richText: String?
   @ViewBuilder let comment: (GitHubPRReviewThread) -> Comment
   @Environment(\.appAppearance) private var appearance
   private var lines: [ReviewDiffLine] { file.diff.lines.filter { $0.canComment || $0.kind == .header } }
   private var collapsed: Bool { state.collapsed.contains(file.path) }
+  private var previewIdentity: String {
+    file.diff.fingerprint + ":" + (state.snapshot?.identity.head ?? "") + ":"
+      + String(richPreviewEnabled) + ":" + String(collapsed)
+  }
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       if showsHeader { PullRequestCodeFileHeader(file: file, state: state) }
@@ -38,12 +45,27 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
         if collapsed || file.binary { syntax.cancel() }
         else { await syntax.load(.init(file, wordDiffs: wordDiffsEnabled, themes: appearance.codeThemes)) }
       }
+      .task(id: previewIdentity) { await loadRichPreview() }
       .onDisappear { syntax.cancel() }
+  }
+  private func loadRichPreview() async {
+    richText = nil
+    guard !collapsed, richPreviewEnabled, GitHubPRRichPreview.supportsMarkdown(file),
+      let identity = state.snapshot?.identity else { return }
+    do {
+      let text = try await state.richPreviewText(file, identity: identity)
+      guard !Task.isCancelled else { return }
+      richText = text
+    } catch { richText = nil }
   }
   private var content: some View {
     VStack(alignment: .leading, spacing: 0) {
         if let selectionError { Text(selectionError).appFont(size: 12).foregroundStyle(.red).padding(8) }
-        if file.binary { Text("二进制文件已修改").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
+        if richPreviewEnabled, let richText, GitHubPRRichPreview.supportsMarkdown(file) {
+          MessageMarkdownView(source: richText, partPrefix: "pr-rich-preview-" + file.path, openLink: openLink)
+            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        else if file.binary { Text("二进制文件已修改").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
         else if lines.isEmpty { Text("文件内容没有文本差异").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
         else if state.split {
           ForEach(GitHubPRSplitLine.rows(lines)) { row in

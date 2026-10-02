@@ -112,6 +112,28 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRRichPreview" in query:
+            expression = variables["expression"]
+            assert expression.startswith(state["head"] + ":")
+            if state.get("previewGate"):
+                (root / "preview-held").touch()
+                deadline = time.monotonic() + 10
+                while not (root / "preview-release").exists():
+                    if time.monotonic() >= deadline:
+                        sys.exit("Preview read gate was not released")
+                    time.sleep(0.01)
+                state = json.loads(state_path.read_text())
+            text = state.get("previewText", "# Preview\n")
+            blob = {"__typename": "Blob", "text": text, "isTruncated": False,
+                    "isBinary": False, "byteSize": len(text.encode("utf-8"))}
+            blob.update(state.get("previewOverride", {}))
+            if state.get("headAfterPreview"):
+                state["detailHead"] = state["headAfterPreview"]
+                state_path.write_text(json.dumps(state))
+            print(json.dumps({"data": {"repository": {
+                "nameWithOwner": state.get("previewRepository", "sample/project"),
+                "object": None if state.get("previewMissing") else blob}}}))
+            sys.exit(0)
         if "ShipiOSPRGeneratedAttributes" in query:
             if state.get("attributesGate"):
                 (root / "attributes-held").touch()

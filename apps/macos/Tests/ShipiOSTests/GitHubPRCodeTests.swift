@@ -39,6 +39,88 @@ import XCTest
     XCTFail("CLI did not reach the confirmed read gate")
   }
 
+  func testRichMarkdownPreviewReadsExactHeadObjectAndRejectsIncompleteData() async throws {
+    let markdownDiff = "diff --git a/Docs/README.md b/Docs/README.md\n--- a/Docs/README.md\n+++ b/Docs/README.md\n@@ -1 +1 @@\n-old\n+new\n"
+    let (request, service) = try await fixture(["prDiff": markdownDiff, "previewText": "# 标题\n正文\n"])
+    let code = try await service.codeSnapshot(request)
+    XCTAssertTrue(GitHubPRRichPreview.supportsMarkdown(code.files[0]))
+    let preview = try await service.richPreviewText(request, code: code, file: code.files[0])
+    XCTAssertEqual(preview, "# 标题\n正文\n")
+    let records = try String(contentsOf: request.root.appendingPathComponent(".git/github-requests.jsonl"))
+    XCTAssertTrue(records.contains(head + ":Docs/README.md"))
+
+    let unavailable = GitHubPRCodeFile(path: "Docs/missing.md", oldPath: nil, patch: "", kind: .added, binary: false)
+    let error = await failure { _ = try await service.richPreviewText(request, code: code, file: unavailable) }
+    XCTAssertTrue(error.contains("不支持"))
+    XCTAssertFalse(GitHubPRRichPreview.supportsMarkdown(.init(path: "Docs/README.md", oldPath: nil,
+      patch: "", kind: .deleted, binary: false)))
+    XCTAssertFalse(GitHubPRRichPreview.supportsMarkdown(.init(path: "Docs/README.md", oldPath: nil,
+      patch: "", kind: .modified, binary: true)))
+
+    for extra: [String: Any] in [["previewOverride": ["isTruncated": true]],
+      ["previewOverride": ["byteSize": 1]], ["previewRepository": "other/project"],
+      ["headAfterPreview": String(repeating: "c", count: 40)]] {
+      let (nextRequest, nextService) = try await fixture(["prDiff": markdownDiff, "previewText": "# Preview\n"].merging(extra) { _, value in value })
+      let nextCode = try await nextService.codeSnapshot(nextRequest)
+      let message = await failure {
+        _ = try await nextService.richPreviewText(nextRequest, code: nextCode, file: nextCode.files[0])
+      }
+      XCTAssertFalse(message.isEmpty)
+    }
+  }
+
+  func testRichPreviewCannotInstallAfterTaskScopeChanges() async throws {
+    let markdownDiff = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n"
+    let (request, service) = try await fixture(["prDiff": markdownDiff, "previewGate": true])
+    let state = GitHubPRCodeState(service: service)
+    await state.load(request, valid: { true })
+    let file = try XCTUnwrap(state.files.first), identity = try XCTUnwrap(state.snapshot?.identity)
+    let read = Task { await failure { _ = try await state.richPreviewText(file, identity: identity) } }
+    for _ in 0..<200 {
+      if FileManager.default.fileExists(atPath: request.root.appendingPathComponent(".git/preview-held").path) { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: request.root.appendingPathComponent(".git/preview-held").path))
+    state.invalidate()
+    try Data().write(to: request.root.appendingPathComponent(".git/preview-release"))
+    let message = await read.value
+    XCTAssertTrue(message.contains("版本已变化"))
+    XCTAssertNil(state.snapshot)
+  }
+
+  func testHiddenMarkdownPreviewChangesRenderedCodeSurface() async throws {
+    let markdownDiff = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n"
+    let (request, service) = try await fixture(["prDiff": markdownDiff,
+      "previewText": "# Rendered heading\n\nA full paragraph from the PR head.\n"])
+    let state = GitHubPRCodeState(service: service)
+    await state.load(request, valid: { true })
+    let file = try XCTUnwrap(state.files.first)
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 500),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: TaskPullRequestCodeFileView(file: file, state: state,
+      threads: [], richPreviewEnabled: true, comment: { _ in EmptyView() }).frame(width: 720, height: 400))
+    window.contentView = host
+    let logURL = request.root.appendingPathComponent(".git/github-requests.jsonl")
+    for _ in 0..<50 {
+      if (try? String(contentsOf: logURL))?.contains("ShipiOSPRRichPreview") == true { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    try await Task.sleep(for: .milliseconds(300))
+    host.layoutSubtreeIfNeeded()
+    let rich = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: rich)
+    host.rootView = TaskPullRequestCodeFileView(file: file, state: state,
+      threads: [], richPreviewEnabled: false, comment: { _ in EmptyView() }).frame(width: 720, height: 400)
+    try await Task.sleep(for: .milliseconds(200))
+    host.layoutSubtreeIfNeeded()
+    let diff = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: diff)
+    XCTAssertNotEqual(rich.representation(using: .png, properties: [:]),
+      diff.representation(using: .png, properties: [:]))
+    XCTAssertFalse(window.isVisible)
+  }
+
   func testReadsRemoteDiffWithoutDependingOnLocalBranchAndChecksBothRevisions() async throws {
     let (request, service) = try await fixture()
     let value = try await service.codeSnapshot(request)

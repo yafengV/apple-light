@@ -59,6 +59,17 @@ import Observation
     page = .code; query = ""; position = nil; pendingPosition = target
     resolvePosition()
   }
+  func richPreviewText(_ file: GitHubPRCodeFile, identity: GitHubPRCodeIdentity) async throws -> String {
+    guard let request, let snapshot, snapshot.identity == identity, snapshot.files.contains(file) else {
+      throw GitHubPRCodeChanged(message: "PR 代码版本已变化，请刷新差异后重试预览。")
+    }
+    let text = try await service.richPreviewText(request, code: snapshot, file: file)
+    guard self.request == request, self.snapshot?.identity == identity,
+      self.snapshot?.files.contains(file) == true else {
+      throw GitHubPRCodeChanged(message: "PR 代码版本已变化，请刷新差异后重试预览。")
+    }
+    return text
+  }
   private func resolvePosition() {
     guard let target = pendingPosition, let file = files.first(where: { $0.matches(target) }) else { return }
     selectedPath = file.path; position = target; collapsed.remove(file.path)
