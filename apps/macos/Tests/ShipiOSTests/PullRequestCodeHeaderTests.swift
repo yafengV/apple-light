@@ -87,6 +87,43 @@ import XCTest
     XCTAssertEqual(file("old.swift", kind: .deleted).headerDescription, "old.swift")
     XCTAssertEqual(file("dir\\file.swift").headerRelativePath, "dir/file.swift")
   }
+  func testPRCodeSplitRatioKeepsBothPaneMinimumsAndAllowsWideFileTree() {
+    let layout = PullRequestCodeSplitLayout.self
+    XCTAssertEqual(layout.treeWidth(in: 680, leftRatio: layout.defaultLeftRatio), 220, accuracy: 1)
+    XCTAssertEqual(layout.treeWidth(in: 1_800, leftRatio: layout.defaultLeftRatio), 430.8, accuracy: 1)
+    XCTAssertEqual(layout.treeWidth(in: 1_800, leftRatio: 0), 1_375, accuracy: 1)
+    XCTAssertEqual(layout.treeWidth(in: 1_800, leftRatio: 1), 220, accuracy: 1)
+    XCTAssertEqual(layout.treeWidth(in: 1_800, leftRatio: .nan), 430.8, accuracy: 1)
+    let ratio = layout.leftRatio(forTreeWidth: 620, in: 1_800)
+    XCTAssertEqual(layout.treeWidth(in: 1_800, leftRatio: ratio), 620, accuracy: 0.1)
+    XCTAssertEqual(layout.treeWidth(in: 700,
+      leftRatio: layout.leftRatio(forTreeWidth: .infinity, in: 700)), 275, accuracy: 0.1)
+  }
+  func testHiddenPRCodeSplitterRestoresWidthAcrossViewRecreation() async throws {
+    let state = try await fixture(); state.showsFiles = true
+    let suite = "shipios-pr-code-split-" + UUID().uuidString
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let key = "shipios.pullRequest.code.leftSplitRatio"
+    defaults.set(0.65, forKey: key)
+    func codeView() -> some View {
+      TaskPullRequestCodeView(state: state, discussion: .init(), enabled: false,
+        writable: false, mentionRequest: nil, open: { _ in }, submit: { _, _ in }, retry: {}, retryComments: {})
+        .defaultAppStorage(defaults)
+    }
+    func rightmostScrollWidth(_ host: NSView) throws -> CGFloat {
+      try XCTUnwrap(scrolls(host).max { frame($0).maxX < frame($1).maxX }).bounds.width
+    }
+    let (firstWindow, firstHost) = window(codeView(), width: 1_800)
+    try await settle(firstHost)
+    XCTAssertEqual(try rightmostScrollWidth(firstHost), 628.25, accuracy: 20)
+    firstWindow.close()
+
+    let (secondWindow, secondHost) = window(codeView(), width: 1_800)
+    defer { secondWindow.close() }
+    try await settle(secondHost)
+    XCTAssertEqual(try rightmostScrollWidth(secondHost), 628.25, accuracy: 20)
+  }
   func testOptionToggleUsesClickedFileStateAndKeepsSelectionAndWindowScope() async throws {
     let state = try await fixture(), other = try await fixture()
     state.select(state.files[1].path); state.toggle(state.files[0].path)

@@ -1,5 +1,29 @@
 import SwiftUI
 
+struct PullRequestCodeSplitLayout {
+  static let dividerWidth: CGFloat = 5
+  static let minimumDiffWidth: CGFloat = 420
+  static let minimumTreeWidth: CGFloat = 220
+  static let defaultLeftRatio = 0.76
+
+  static func treeWidth(in totalWidth: CGFloat, leftRatio: Double) -> CGFloat {
+    let available = max(0, totalWidth - dividerWidth)
+    let minimum = min(minimumTreeWidth, available)
+    let maximum = max(minimum, available - minimumDiffWidth)
+    let ratio = leftRatio.isFinite ? min(1, max(0, leftRatio)) : defaultLeftRatio
+    return min(maximum, max(minimum, available * (1 - ratio)))
+  }
+
+  static func leftRatio(forTreeWidth desired: CGFloat, in totalWidth: CGFloat) -> Double {
+    let available = max(0, totalWidth - dividerWidth)
+    guard available > 0 else { return defaultLeftRatio }
+    let minimum = min(minimumTreeWidth, available)
+    let maximum = max(minimum, available - minimumDiffWidth)
+    let width = min(maximum, max(minimum, desired))
+    return Double(1 - width / available)
+  }
+}
+
 struct TaskPullRequestCodeView: View {
   let state: GitHubPRCodeState
   let discussion: GitHubPRDiscussionState
@@ -15,8 +39,8 @@ struct TaskPullRequestCodeView: View {
   var metadataError: String? = nil
   var store: WorkspaceStore? = nil
   @State private var comments = GitHubPRCommentCollapseState()
-  @State private var fileWidth: CGFloat = 260
   @State private var dragWidth: CGFloat?
+  @AppStorage("shipios.pullRequest.code.leftSplitRatio") private var leftSplitRatio = PullRequestCodeSplitLayout.defaultLeftRatio
   @AppStorage("shipios.review.richPreviewEnabled") private var richPreviewEnabled = true
 
   var body: some View {
@@ -68,12 +92,12 @@ struct TaskPullRequestCodeView: View {
         ContentUnavailableView("没有修改的文件", systemImage: "doc")
       } else {
         GeometryReader { geometry in
-          let width = min(fileWidth, max(220, geometry.size.width * 0.4))
+          let width = PullRequestCodeSplitLayout.treeWidth(in: geometry.size.width, leftRatio: leftSplitRatio)
           let narrow = geometry.size.width < 680
           HStack(spacing: 0) {
             differences
             if state.showsFiles && !narrow {
-              divider(width: width)
+              divider(width: width, totalWidth: geometry.size.width)
               fileTree.frame(width: width)
             }
           }
@@ -241,17 +265,24 @@ struct TaskPullRequestCodeView: View {
       .accessibilityIdentifier("pull-request-code-file-tree")
   }
 
-  private func divider(width: CGFloat) -> some View {
-    Rectangle().fill(.quaternary).frame(width: 5).contentShape(Rectangle())
+  private func divider(width: CGFloat, totalWidth: CGFloat) -> some View {
+    Rectangle().fill(.quaternary).frame(width: PullRequestCodeSplitLayout.dividerWidth).contentShape(Rectangle())
       .gesture(DragGesture(minimumDistance: 0).onChanged { value in
         if dragWidth == nil { dragWidth = width }
-        fileWidth = min(360, max(220, (dragWidth ?? width) - value.translation.width))
+        leftSplitRatio = PullRequestCodeSplitLayout.leftRatio(
+          forTreeWidth: (dragWidth ?? width) - value.translation.width, in: totalWidth)
       }.onEnded { _ in dragWidth = nil })
-      .focusable().onKeyPress(.leftArrow) { fileWidth = min(360, fileWidth + 10); return .handled }
-      .onKeyPress(.rightArrow) { fileWidth = max(220, fileWidth - 10); return .handled }
-      .accessibilityLabel("文件树宽度").accessibilityValue("\(Int(fileWidth))")
+      .focusable().onKeyPress(.leftArrow) { resizeTree(to: width + 10, in: totalWidth); return .handled }
+      .onKeyPress(.rightArrow) { resizeTree(to: width - 10, in: totalWidth); return .handled }
+      .onKeyPress(.home) { resizeTree(to: .infinity, in: totalWidth); return .handled }
+      .onKeyPress(.end) { resizeTree(to: 0, in: totalWidth); return .handled }
+      .accessibilityLabel("文件树宽度").accessibilityValue("\(Int(width))")
       .accessibilityAdjustableAction { direction in
-        fileWidth = min(360, max(220, fileWidth + (direction == .increment ? 10 : -10)))
+        resizeTree(to: width + (direction == .increment ? 10 : -10), in: totalWidth)
       }
+  }
+
+  private func resizeTree(to width: CGFloat, in totalWidth: CGFloat) {
+    leftSplitRatio = PullRequestCodeSplitLayout.leftRatio(forTreeWidth: width, in: totalWidth)
   }
 }
