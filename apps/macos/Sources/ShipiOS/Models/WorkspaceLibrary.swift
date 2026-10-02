@@ -214,6 +214,8 @@ struct GitPreferences: Codable, Equatable {
   var reviewDelivery = ReviewDelivery.inline
   var commitInstructions = ""
   var pullRequestInstructions = ""
+  var pullRequestWatchInstructions = ""
+  var autoMergeWatchedPullRequests = false
   var alwaysForcePush = false
   var includeUnstagedInCommit = true
   var createDraftPullRequests = false
@@ -226,6 +228,7 @@ struct GitPreferences: Codable, Equatable {
     case includeUnstagedInCommit
     case createDraftPullRequests
     case pullRequestInstructions
+    case pullRequestWatchInstructions, autoMergeWatchedPullRequests
     case pullRequestMergeMethod
   }
 
@@ -240,6 +243,8 @@ struct GitPreferences: Codable, Equatable {
       try c.decodeIfPresent(ReviewDelivery.self, forKey: .reviewDelivery) ?? .inline
     commitInstructions = try c.decodeIfPresent(String.self, forKey: .commitInstructions) ?? ""
     pullRequestInstructions = try c.decodeIfPresent(String.self, forKey: .pullRequestInstructions) ?? ""
+    pullRequestWatchInstructions = try c.decodeIfPresent(String.self, forKey: .pullRequestWatchInstructions) ?? ""
+    autoMergeWatchedPullRequests = try c.decodeIfPresent(Bool.self, forKey: .autoMergeWatchedPullRequests) ?? false
     alwaysForcePush = try c.decodeIfPresent(Bool.self, forKey: .alwaysForcePush) ?? false
     includeUnstagedInCommit = try c.decodeIfPresent(Bool.self, forKey: .includeUnstagedInCommit) ?? true
     createDraftPullRequests = try c.decodeIfPresent(Bool.self, forKey: .createDraftPullRequests) ?? false

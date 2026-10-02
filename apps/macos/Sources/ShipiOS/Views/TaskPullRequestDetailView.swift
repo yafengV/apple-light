@@ -25,6 +25,8 @@ struct TaskPullRequestDetailView: View {
   @State private var fixBranch: String?
   @State private var fixing = false
   @State private var fixError: String?
+  @State private var watchStarting = false
+  @State private var watchError: String?
   private var details: GitHubPRDetails? { state.snapshot?.details }
   private var valid: Bool {
     !store.restoringLibrary && !store.shuttingDown
@@ -133,6 +135,9 @@ struct TaskPullRequestDetailView: View {
             TaskPullRequestActionsView(state: state, request: request, writable: writable,
               apply: apply)
           }
+          if details?.state.uppercased() == "OPEN" || store.pullRequestWatch(for: request) != nil {
+            pullRequestWatchControls
+          }
           Divider()
           TaskPullRequestActivityView(state: discussion,
             enabled: discussion.canWrite(request, writable: writable), writable: writable,
@@ -188,6 +193,35 @@ struct TaskPullRequestDetailView: View {
       guard valid, let snapshot = editor.snapshot, snapshot.details.url == request.url else { return }
       guard state.acceptEditorChanges(editor) != nil else { return }
       onRefresh(snapshot.details.recorded(updating: request))
+    }
+  }
+
+  private var pullRequestWatchControls: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 8) {
+        if let watch = store.pullRequestWatch(for: request), watch.enabled {
+          Button(store.automationRunningIDs.contains(watch.id) ? "正在修复…" : "查看监控进度") {
+            if watch.taskID != nil { store.openAutomationCurrentTask(watch.id) }
+            else { store.showAutomations() }
+          }
+          .disabled(watchStarting)
+          Button("暂停监控") { store.pausePullRequestWatch(request) }
+            .disabled(watchStarting)
+        } else {
+          Button(store.pullRequestWatch(for: request) == nil ? "监控并修复 PR" : "恢复监控") {
+            Task {
+              watchStarting = true
+              watchError = nil
+              let started = await store.startPullRequestWatch(request, taskID: taskID, root: root)
+              if !started { watchError = store.automationsError ?? "无法启动 PR 监控。" }
+              watchStarting = false
+            }
+          }
+          .disabled(watchStarting || !writable || !store.automationsLoaded || details?.state.uppercased() != "OPEN")
+          if watchStarting { ProgressView().controlSize(.small) }
+        }
+      }
+      if let watchError { Text(watchError).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled) }
     }
   }
 

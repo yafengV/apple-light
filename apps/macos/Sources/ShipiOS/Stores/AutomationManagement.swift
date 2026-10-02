@@ -170,7 +170,10 @@ extension WorkspaceStore {
     for id in due { await runAutomation(id, scheduledAt: now) }
   }
 
-  func runAutomation(_ id: UUID, scheduledAt: Date = .now) async {
+  func runAutomation(_ id: UUID, scheduledAt: Date = .now,
+    readWatchedPullRequest: @escaping @Sendable (GitHubPullRequest, URL) async throws -> GitHubPRDetails = {
+      try await GitHubPRService().details(for: $0, at: $1)
+    }) async {
     guard let item = automationPreferences.items.first(where: { $0.id == id }),
       !automationRunningIDs.contains(id)
     else { return }
@@ -180,6 +183,44 @@ extension WorkspaceStore {
     if let taskID = item.taskID, activeRun(taskID: taskID) != nil { return }
     automationRunningIDs.insert(id)
     defer { automationRunningIDs.remove(id) }
+    if let watched = item.watchedPullRequest, item.activeOccurrenceAt == nil {
+      do {
+        let fresh = try await readWatchedPullRequest(watched, URL(fileURLWithPath: item.project))
+        guard let current = automationPreferences.items.first(where: { $0.id == id }),
+          current.enabled, current.watchedPullRequest?.validatedURL == watched.validatedURL else { return }
+        guard fresh.number == watched.number, fresh.url == watched.validatedURL?.absoluteString else {
+          throw GitHubPRRefreshRequired(message: "PR 身份已改变，监控未运行。")
+        }
+        let green = fresh.mergeable?.uppercased() == "MERGEABLE"
+          && fresh.checkSummary.failed == 0 && fresh.checkSummary.pending == 0
+          && fresh.statusCheckRollup != nil && !fresh.isDraft
+        let shouldStop = fresh.state.uppercased() != "OPEN"
+          || green && !library.gitPreferences.autoMergeWatchedPullRequests
+            && library.gitPreferences.pullRequestWatchInstructions
+              .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if shouldStop {
+          var completed = current
+          completed.enabled = false
+          completed.completedAt = scheduledAt
+          completed.watchedPullRequest = fresh.recorded(updating: watched)
+          _ = saveAutomation(completed)
+          return
+        }
+        if let prompt = PullRequestWatchPrompt.make(watched,
+          preferences: library.gitPreferences), prompt != current.prompt {
+          var refreshed = current
+          refreshed.prompt = prompt
+          guard saveAutomation(refreshed) else { return }
+        }
+      } catch {
+        if var delayed = automationPreferences.items.first(where: { $0.id == id }) {
+          delayed.nextRun = scheduledAt.addingTimeInterval(300)
+          _ = saveAutomation(delayed)
+        }
+        automationsError = "PR 监控无法核对当前状态，将稍后重试：\(error.localizedDescription)"
+        return
+      }
+    }
     let occurrence = item.activeOccurrenceAt ?? scheduledAt
     if item.activeOccurrenceAt == nil {
       var activated = item
@@ -219,6 +260,9 @@ extension WorkspaceStore {
         let source = URL(fileURLWithPath: sourcePath)
         let useWorktree = state.selectedExecution == .worktree && !project.isEmpty
           && FileManager.default.fileExists(atPath: source.appendingPathComponent(".git").path)
+        if state.watchedPullRequest != nil && !useWorktree {
+          throw AgentFailure(message: "PR 监控需要 Git 仓库及隔离工作树，未在当前检出目录运行。")
+        }
         let record = useWorktree
           ? try await prepareAutomationWorktree(sourcePath: sourcePath, taskID: ownerID,
             environmentSelection: state.environmentSelection(for: project)) : nil

@@ -1,12 +1,34 @@
 import SwiftUI
 
 enum GitInstructionKind {
-  case commit, pullRequest
-  var title: String { self == .commit ? "提交指令" : "PR 指令" }
-  var subtitle: String { self == .commit ? "添加到提交说明的生成提示中。" : "添加到 PR 标题和描述的生成提示中。" }
-  var field: SettingsSearchField { self == .commit ? .commitInstructions : .pullRequestInstructions }
+  case commit, pullRequest, watch
+  var title: String {
+    switch self {
+    case .commit: "提交指令"
+    case .pullRequest: "PR 指令"
+    case .watch: "PR 监控指令"
+    }
+  }
+  var subtitle: String {
+    switch self {
+    case .commit: "添加到提交说明的生成提示中。"
+    case .pullRequest: "添加到 PR 标题和描述的生成提示中。"
+    case .watch: "创建监控任务时添加到检查、修复与合并指令中。"
+    }
+  }
+  var field: SettingsSearchField {
+    switch self {
+    case .commit: .commitInstructions
+    case .pullRequest: .pullRequestInstructions
+    case .watch: .pullRequestWatchInstructions
+    }
+  }
   var keyPath: WritableKeyPath<GitPreferences, String> {
-    self == .commit ? \.commitInstructions : \.pullRequestInstructions
+    switch self {
+    case .commit: \.commitInstructions
+    case .pullRequest: \.pullRequestInstructions
+    case .watch: \.pullRequestWatchInstructions
+    }
   }
 }
 

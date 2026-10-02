@@ -22,6 +22,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var name = ""
   var prompt = ""
   var project = ""
+  /// A watched PR is rechecked before each scheduled run and paused when closed or merged.
+  var watchedPullRequest: GitHubPullRequest?
   /// Nil keeps the single-project format used by older saved automations.
   var projects: [String]?
   /// Nil keeps the local execution mode used by older saved automations.
@@ -186,6 +188,12 @@ enum AutomationStorage {
           && item.weekdays == Array(Set(item.weekdays ?? []).sorted())
           && item.weekdays?.allSatisfy { (1...7).contains($0) } == true)
       else { throw AgentFailure(message: "自动化名称、指令或日程无效。") }
+      if let request = item.watchedPullRequest {
+        guard request.validatedURL != nil, !item.project.isEmpty,
+          item.selectedProjects == [item.project] else {
+          throw AgentFailure(message: "PR 监控缺少有效地址或单一项目。")
+        }
+      }
       if let projects = item.projects {
         guard !projects.isEmpty, projects == Array(Set(projects).sorted()),
           (projects.count == 1 || !projects.contains("")), item.project == projects.first else {

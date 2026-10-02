@@ -317,6 +317,10 @@ extension WorkspaceStore {
       error = "PR 指令不能超过 16 KiB。"
       return false
     }
+    guard normalized.pullRequestWatchInstructions.utf8.count <= 16_384 else {
+      error = "PR 监控指令不能超过 16 KiB。"
+      return false
+    }
     var candidate = library
     candidate.gitPreferences = normalized
     do {

@@ -73,6 +73,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case disableGitBasedReview
   case commitInstructions
   case pullRequestInstructions
+  case pullRequestWatchInstructions
+  case autoMergeWatchedPullRequests
   case alwaysForcePush
   case createDraftPullRequests
   case pullRequestMergeMethod
@@ -188,7 +190,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentWebSearch: .agent
     case .agentAvailableReasoning: .agent
     case .hostedWebSearch: .model
-    case .branchPrefix, .disableGitBasedReview, .reviewDelivery: .git
+    case .branchPrefix, .disableGitBasedReview, .reviewDelivery,
+      .pullRequestWatchInstructions, .autoMergeWatchedPullRequests: .git
     case .commitInstructions: .git
     case .pullRequestInstructions: .git
     case .alwaysForcePush: .git
@@ -297,6 +300,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .disableGitBasedReview: "关闭基于 Git 的审查"
     case .commitInstructions: "提交指令"
     case .pullRequestInstructions: "PR 指令"
+    case .pullRequestWatchInstructions: "PR 监控指令"
+    case .autoMergeWatchedPullRequests: "准备好时自动合并"
     case .alwaysForcePush: "始终强制推送"
     case .createDraftPullRequests: "创建草稿 PR"
     case .pullRequestMergeMethod: "默认合并方式"
@@ -447,6 +452,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .disableGitBasedReview: "git 审查 最近一轮"
     case .commitInstructions: "commit message instructions 提交说明 生成"
     case .pullRequestInstructions: "pull request instructions GitHub 描述 生成"
+    case .pullRequestWatchInstructions: "pull request watch fix instructions"
+    case .autoMergeWatchedPullRequests: "auto merge watched pull request"
     case .alwaysForcePush: "push force-with-lease 远端"
     case .createDraftPullRequests: "draft pull request GitHub"
     case .pullRequestMergeMethod: "merge squash pull request GitHub 压缩 合并提交"

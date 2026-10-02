@@ -146,6 +146,7 @@ struct GitSettingsView: View {
   @State private var status = ""
   @State private var reviewModeStatus = ""
   @State private var reviewDeliveryStatus = ""
+  @State private var watchStatus = ""
 
   var body: some View {
     Form {
@@ -218,6 +219,20 @@ struct GitSettingsView: View {
           Text(reviewDeliveryStatus).appFont(.caption).foregroundStyle(.secondary)
         }
       }
+      Section("PR 监控与修复") {
+        SettingsToggle(title: "准备好时自动合并",
+          description: "新建的 PR 监控任务会在修复相关问题、检查通过且仓库允许时请求合并。",
+          isOn: Binding(
+            get: { store.library.gitPreferences.autoMergeWatchedPullRequests },
+            set: { value in
+              var preferences = store.library.gitPreferences
+              preferences.autoMergeWatchedPullRequests = value
+              watchStatus = store.saveGitPreferences(preferences)
+                ? "已保存自动合并偏好。" : (store.error ?? "保存失败，请重试。")
+            })).settingsSearchTarget(.autoMergeWatchedPullRequests)
+        if !watchStatus.isEmpty { Text(watchStatus).appFont(.caption).foregroundStyle(.secondary) }
+      }
+      GitInstructionsView(store: store, kind: .watch)
       Section("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.gitWorktreeRoot)
         HStack {
