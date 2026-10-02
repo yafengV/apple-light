@@ -344,7 +344,7 @@ extension WorkspaceStore {
     let tab = WorkspaceContentTab.review(owner: currentWorkspaceTabOwner)
     if !workspaceTabs.contains(tab) {
       workspaceTabs.append(tab)
-      workspace.reviewScope = library.gitPreferences.defaultReviewScope
+      workspace.selectedReviewScope = library.gitPreferences.defaultReviewScope
     }
     moveWorkspaceTab(tab.id, to: placement)
     activateWorkspaceTab(tab.id)

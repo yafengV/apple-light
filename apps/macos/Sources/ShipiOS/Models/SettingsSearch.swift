@@ -70,6 +70,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case agentAvailableReasoning
   case hostedWebSearch
   case branchPrefix
+  case disableGitBasedReview
   case commitInstructions
   case pullRequestInstructions
   case alwaysForcePush
@@ -187,7 +188,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentWebSearch: .agent
     case .agentAvailableReasoning: .agent
     case .hostedWebSearch: .model
-    case .branchPrefix, .reviewDelivery: .git
+    case .branchPrefix, .disableGitBasedReview, .reviewDelivery: .git
     case .commitInstructions: .git
     case .pullRequestInstructions: .git
     case .alwaysForcePush: .git
@@ -293,6 +294,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentAvailableReasoning: "可用推理强度"
     case .hostedWebSearch: "服务支持托管网页搜索"
     case .branchPrefix: "分支前缀"
+    case .disableGitBasedReview: "关闭基于 Git 的审查"
     case .commitInstructions: "提交指令"
     case .pullRequestInstructions: "PR 指令"
     case .alwaysForcePush: "始终强制推送"
@@ -442,6 +444,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentAvailableReasoning: "available reasoning efforts max ultra 模型功能 极高"
     case .hostedWebSearch: "web_search hosted Responses 服务能力"
     case .branchPrefix: "branch"
+    case .disableGitBasedReview: "git 审查 最近一轮"
     case .commitInstructions: "commit message instructions 提交说明 生成"
     case .pullRequestInstructions: "pull request instructions GitHub 描述 生成"
     case .alwaysForcePush: "push force-with-lease 远端"

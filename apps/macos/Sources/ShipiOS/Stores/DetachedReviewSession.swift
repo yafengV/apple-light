@@ -11,8 +11,8 @@ import Observation
     guard self.owner != owner || workspace.root != root else { return }
     self.owner = owner
     workspace.setProject(root, additionalFolders: store.additionalWorkspaceFolders(for: root))
-    workspace.reviewScope = store.currentWorkspaceTabOwner == owner
-      ? store.workspace.reviewScope
+    workspace.selectedReviewScope = store.currentWorkspaceTabOwner == owner
+      ? store.workspace.selectedReviewScope
       : store.library.workspaceTabLayouts[owner]?.reviewScope ?? store.library.gitPreferences.defaultReviewScope
     workspace.restoreReviewRepository(store.currentWorkspaceTabOwner == owner
       ? store.workspace.selectedReviewRepository : store.library.workspaceTabLayouts[owner]?.reviewRepository)
@@ -23,10 +23,10 @@ import Observation
       workspace.root == store.workspaceTabProject(owner: owner),
       store.workspaceTabs.contains(.review(owner: owner)) else { return }
     if store.currentWorkspaceTabOwner == owner {
-      store.workspace.reviewScope = workspace.reviewScope
+      store.workspace.selectedReviewScope = workspace.selectedReviewScope
       store.workspace.restoreReviewRepository(workspace.selectedReviewRepository)
     }
-    store.library.workspaceTabLayouts[owner]?.reviewScope = workspace.reviewScope
+    store.library.workspaceTabLayouts[owner]?.reviewScope = workspace.selectedReviewScope
     store.library.workspaceTabLayouts[owner]?.reviewRepository = workspace.selectedReviewRepository
     store.saveLibrary()
   }

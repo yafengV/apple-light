@@ -321,6 +321,12 @@ extension WorkspaceStore {
     candidate.gitPreferences = normalized
     do {
       try commitLibrary(candidate)
+      workspace.gitReviewLastTurnOnly = normalized.disableGitBasedReview
+      for sessions in additionalTaskWindowPanels.allObjects {
+        for panel in sessions.tasks.values {
+          panel.workspace.gitReviewLastTurnOnly = normalized.disableGitBasedReview
+        }
+      }
       return true
     } catch { self.error = "无法保存 Git 设置：\(error.localizedDescription)"; return false }
   }
@@ -344,7 +350,7 @@ extension WorkspaceStore {
     guard project != nil else { return }
     closeSettings()
     destination = .workspace
-    workspace.reviewScope = library.gitPreferences.defaultReviewScope
+    workspace.selectedReviewScope = library.gitPreferences.defaultReviewScope
     openReviewTab()
   }
 }

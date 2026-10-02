@@ -17,7 +17,7 @@ extension WorkspaceStore {
     }, active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
       bottom: activeBottomWorkspaceTabID, focused: focusedWorkspaceTabID,
       showingInspector: showingInspector, showingTerminal: showingTerminal,
-      showingTabs: showingWorkspaceTabs, side: workspaceContentPaneSide, reviewScope: workspace.reviewScope,
+      showingTabs: showingWorkspaceTabs, side: workspaceContentPaneSide, reviewScope: workspace.selectedReviewScope,
       reviewRepository: workspace.selectedReviewRepository)
   }
 
@@ -64,7 +64,7 @@ extension WorkspaceStore {
     showingTerminal = layout.showingTerminal && !visibleWorkspaceContentTabs(in: .bottom).isEmpty
     showingWorkspaceTabs = layout.showingTabs
     workspaceContentPaneSide = layout.side
-    workspace.reviewScope = layout.reviewScope
+    workspace.selectedReviewScope = layout.reviewScope
     workspace.restoreReviewRepository(layout.reviewRepository)
     restoredDetachedWorkspaceTabIDs = visibleWorkspaceContentTabs(in: .detached).map(\.id)
   }

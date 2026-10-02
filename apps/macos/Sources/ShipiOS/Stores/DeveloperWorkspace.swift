@@ -62,7 +62,12 @@ final class DeveloperWorkspace {
     return GitBranchService.canonicalRoot(root).path == repository.path ? root : repository
   }
   var canCommit = false
-  var reviewScope = GitReviewScope.unstaged
+  var selectedReviewScope = GitReviewScope.unstaged
+  var gitReviewLastTurnOnly = false
+  var reviewScope: GitReviewScope {
+    get { gitReviewLastTurnOnly ? .lastTurn : selectedReviewScope }
+    set { selectedReviewScope = newValue }
+  }
   var lastTurnReview: LastTurnReviewSnapshot?
   @ObservationIgnored var lastTurnDataRoot: URL?
   @ObservationIgnored var lastTurnReviewSource: () -> LastTurnReviewSource? = { nil }

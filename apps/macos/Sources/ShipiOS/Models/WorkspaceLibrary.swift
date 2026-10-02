@@ -210,6 +210,7 @@ struct GitPreferences: Codable, Equatable {
   var branchPrefix = "codex/"
   var defaultReviewScope = GitReviewScope.unstaged
   var readOnlyReview = false
+  var disableGitBasedReview = false
   var reviewDelivery = ReviewDelivery.inline
   var commitInstructions = ""
   var pullRequestInstructions = ""
@@ -221,7 +222,7 @@ struct GitPreferences: Codable, Equatable {
   init() {}
 
   enum CodingKeys: String, CodingKey {
-    case branchPrefix, defaultReviewScope, readOnlyReview, reviewDelivery, commitInstructions, alwaysForcePush
+    case branchPrefix, defaultReviewScope, readOnlyReview, disableGitBasedReview, reviewDelivery, commitInstructions, alwaysForcePush
     case includeUnstagedInCommit
     case createDraftPullRequests
     case pullRequestInstructions
@@ -234,6 +235,7 @@ struct GitPreferences: Codable, Equatable {
     defaultReviewScope =
       try c.decodeIfPresent(GitReviewScope.self, forKey: .defaultReviewScope) ?? .unstaged
     readOnlyReview = try c.decodeIfPresent(Bool.self, forKey: .readOnlyReview) ?? false
+    disableGitBasedReview = try c.decodeIfPresent(Bool.self, forKey: .disableGitBasedReview) ?? false
     reviewDelivery =
       try c.decodeIfPresent(ReviewDelivery.self, forKey: .reviewDelivery) ?? .inline
     commitInstructions = try c.decodeIfPresent(String.self, forKey: .commitInstructions) ?? ""

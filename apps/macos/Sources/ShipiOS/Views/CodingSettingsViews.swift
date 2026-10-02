@@ -144,10 +144,24 @@ struct GitSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var branchPrefix = ""
   @State private var status = ""
+  @State private var reviewModeStatus = ""
   @State private var reviewDeliveryStatus = ""
 
   var body: some View {
     Form {
+      Section("审查面板") {
+        SettingsToggle(title: "关闭基于 Git 的审查",
+          description: "审查面板仅显示“最近一轮”，隐藏未暂存、已暂存、提交和分支审查及其 Git 操作。",
+          isOn: Binding(
+            get: { store.library.gitPreferences.disableGitBasedReview },
+            set: { value in
+              var preferences = store.library.gitPreferences
+              preferences.disableGitBasedReview = value
+              reviewModeStatus = store.saveGitPreferences(preferences)
+                ? "已保存审查面板模式。" : (store.error ?? "保存失败，请重试。")
+            })).settingsSearchTarget(.disableGitBasedReview)
+        if !reviewModeStatus.isEmpty { Text(reviewModeStatus).appFont(.caption).foregroundStyle(.secondary) }
+      }
       Section("分支") {
         TextField("分支前缀", text: $branchPrefix, prompt: Text("codex/")).settingsSearchTarget(.branchPrefix)
         Text("从当前提交创建分支时自动填入此前缀。留空可关闭。")
@@ -250,6 +264,7 @@ struct CodeReviewSettingsView: View {
             preferences.defaultReviewScope = scope
             store.saveGitPreferences(preferences)
           }), options: GitReviewScope.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+        .disabled(store.library.gitPreferences.disableGitBasedReview)
         .settingsSearchTarget(.reviewScope)
         SettingsToggle(title: "只读审查",
           description: "只读时隐藏暂存、撤销和提交操作，差异、历史提交、分支比较和评论仍可使用。", isOn: Binding(

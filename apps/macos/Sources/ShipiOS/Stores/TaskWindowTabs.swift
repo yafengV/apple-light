@@ -167,7 +167,7 @@ import Observation
   func openReview(in place: WorkspaceTabPlacement = .left, defaultScope: GitReviewScope) {
     guard panels.workspace.root != nil, place != .bottom else { return }
     let tab = WorkspaceContentTab.review(owner: taskID)
-    if !tabs.contains(tab) { tabs.append(tab); panels.workspace.reviewScope = defaultScope }
+    if !tabs.contains(tab) { tabs.append(tab); panels.workspace.selectedReviewScope = defaultScope }
     move(tab.id, to: place)
     Task { await panels.workspace.refreshGit() }
   }
@@ -323,7 +323,7 @@ import Observation
       browser.reopen()
       openingPlacement = .left
     case .file(let path, _): _ = openFile(path, in: state.placement)
-    case .review: openReview(in: state.placement, defaultScope: panels.workspace.reviewScope)
+    case .review: openReview(in: state.placement, defaultScope: panels.workspace.selectedReviewScope)
     case .plan(let runID, _): openPlan(runID: runID)
     case .sources: openSources(in: state.placement)
     case .pullRequest(let url, _):
@@ -381,7 +381,7 @@ import Observation
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
         bottom: selections[.bottom], focused: focusedID, showingInspector: showingRight,
         showingTerminal: showingBottom, showingTabs: showingTabs, side: primarySide,
-        reviewScope: panels.workspace.reviewScope, reviewRepository: panels.workspace.selectedReviewRepository),
+        reviewScope: panels.workspace.selectedReviewScope, reviewRepository: panels.workspace.selectedReviewRepository),
       panelSizes: panels.panelSizes, showingFiles: panels.showingFiles)
   }
 
@@ -454,7 +454,7 @@ import Observation
     panels.panelSizes = saved.panelSizes
     panels.showingFiles = sameProject && panels.workspace.root != nil && saved.showingFiles
     if sameProject {
-      panels.workspace.reviewScope = layout.reviewScope
+      panels.workspace.selectedReviewScope = layout.reviewScope
       panels.workspace.restoreReviewRepository(layout.reviewRepository)
     }
     focusedID = tabs.first { $0.id == layout.focused && isVisible($0.id) }?.id

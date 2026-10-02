@@ -12,13 +12,13 @@ struct GitReviewView: View {
       if !workspace.reviewRepositories.isEmpty {
         GitReviewRepositoryPicker(workspace: workspace)
       }
-      if !workspace.reviewRepositoryErrors.isEmpty {
+      if !workspace.gitReviewLastTurnOnly && !workspace.reviewRepositoryErrors.isEmpty {
         ForEach(workspace.reviewRepositoryErrors.keys.sorted(), id: \.self) { path in
           Text(path + "：" + (workspace.reviewRepositoryErrors[path] ?? ""))
             .appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(.horizontal, 12)
         }
       }
-      if workspace.gitAvailable {
+      if workspace.gitAvailable || workspace.reviewScope == .lastTurn {
         if let repository = workspace.reviewScope == .lastTurn
           ? workspace.lastTurnReview?.source.root : workspace.gitRepositoryRoot, let project = workspace.root,
           GitBranchService.canonicalRoot(project).path != repository.path {
@@ -60,19 +60,26 @@ struct GitReviewView: View {
           if let error = store.generalSettingsError {
             Text(error).foregroundStyle(.red).help(error)
           }
-          if workspace.gitBusy || workspace.gitRefreshing {
+          if !workspace.gitReviewLastTurnOnly && (workspace.gitBusy || workspace.gitRefreshing) {
             ProgressView().controlSize(.small)
               .accessibilityLabel(workspace.gitBusy ? "正在处理 Git 变更" : "正在读取 Git 变更")
           }
           Button {
-            Task { await workspace.refreshGit() }
+            Task {
+              if workspace.gitReviewLastTurnOnly { await workspace.loadDiff() }
+              else { await workspace.refreshGit() }
+            }
           } label: {
             Image(systemName: "arrow.clockwise")
-          }.buttonStyle(.plain).help("刷新变更").accessibilityLabel("刷新变更")
-            .disabled(workspace.gitRefreshing || workspace.gitBusy)
+          }.buttonStyle(.plain)
+            .help(workspace.gitReviewLastTurnOnly ? "刷新最近一轮" : "刷新变更")
+            .accessibilityLabel(workspace.gitReviewLastTurnOnly ? "刷新最近一轮" : "刷新变更")
+            .disabled(workspace.gitRefreshing || workspace.gitBusy || workspace.reviewLoading)
         }.appFont(.caption).padding(12)
         Picker("变更范围", selection: $workspace.reviewScope) {
-          ForEach(GitReviewScope.allCases) { Text($0.title).tag($0) }
+          ForEach(workspace.gitReviewLastTurnOnly ? [.lastTurn] : GitReviewScope.allCases) {
+            Text($0.title).tag($0)
+          }
         }.pickerStyle(.menu).padding(.horizontal, 12).padding(.bottom, 8)
         if store.library.gitPreferences.readOnlyReview {
           Label("只读审查", systemImage: "lock")
@@ -171,7 +178,7 @@ struct GitReviewView: View {
         if let error = workspace.fileOpenError {
           Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(10)
         }
-        Group {
+        if !workspace.gitReviewLastTurnOnly {
           if !workspace.canCommit && !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
             Text("Git 状态暂不可用，请刷新变更后重试。").appFont(.caption).foregroundStyle(.secondary)
               .padding(
@@ -205,7 +212,17 @@ struct GitReviewView: View {
       } else {
         GitReviewEmptyView(workspace: workspace)
       }
-    }.onDisappear { workspace.cancelCommitMessageGeneration() }
+    }.onAppear {
+      workspace.gitReviewLastTurnOnly = store.library.gitPreferences.disableGitBasedReview
+    }
+    .onDisappear { workspace.cancelCommitMessageGeneration() }
+    .onChange(of: store.library.gitPreferences.disableGitBasedReview) { _, disabled in
+      workspace.gitReviewLastTurnOnly = disabled
+      if disabled {
+        workspace.cancelCommitMessageGeneration()
+        workspace.discardPlan = nil
+      }
+    }
     .onChange(of: store.library.gitPreferences.readOnlyReview) { _, readOnly in
       if readOnly {
         workspace.cancelCommitMessageGeneration()

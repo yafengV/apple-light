@@ -1270,6 +1270,7 @@ final class WorkspaceStore {
         library.appearance = appearance.normalized()
       }
       libraryLoaded = true
+      workspace.gitReviewLastTurnOnly = library.gitPreferences.disableGitBasedReview
       bindFileEditorRecovery(to: workspace)
       discardRestoredSideChats()
       if error == previousReadError { error = nil }
