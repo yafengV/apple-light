@@ -7,75 +7,87 @@ struct TaskPullRequestBinaryPreviewView: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 1) {
-      if let before = preview.before { pane(before, title: "之前") }
-      if let after = preview.after { pane(after, title: "之后") }
-      else if preview.before != nil { missingAfter }
+      if preview.before != nil || preview.after == nil { pane(preview.before, side: "之前") }
+      pane(preview.after, side: "之后")
     }
     .frame(maxWidth: .infinity)
     .background(.quaternary.opacity(0.2))
     .accessibilityIdentifier("pull-request-binary-preview")
   }
 
-  private var missingAfter: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text("之后").appFont(.caption).foregroundStyle(.secondary)
-      Text("文件已删除").appFont(.caption).foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, minHeight: 160)
-    }
-    .padding(12)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(.background)
-  }
-
-  @ViewBuilder private func pane(_ data: Data, title: String) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text(title).appFont(.caption).foregroundStyle(.secondary)
+  @ViewBuilder private func pane(_ data: Data?, side: String) -> some View {
+    Group {
       if preview.kind == .pdf {
-        TaskPullRequestPDFPreview(data: data).frame(minHeight: 320, maxHeight: 500)
-      } else if let image = NSImage(data: data) {
+        if let data { TaskPullRequestPDFPreview(data: data) }
+        else { placeholder("无 PDF 预览") }
+      } else if let data, let image = NSImage(data: data) {
         Image(nsImage: image).resizable().scaledToFit()
-          .frame(maxWidth: .infinity, minHeight: 160, maxHeight: 500)
-          .accessibilityLabel(title + "图片")
-      } else { unavailable }
+          .frame(maxWidth: .infinity, minHeight: 136, maxHeight: 500)
+          .padding(preview.kind == .svg ? 12 : 0)
+          .background(preview.kind == .svg ? Color.white : Color.clear)
+          .clipShape(RoundedRectangle(cornerRadius: 3))
+          .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+          .accessibilityLabel(side + "图片预览")
+      } else { placeholder("无图片") }
     }
+    .frame(maxWidth: .infinity, minHeight: 160, alignment: .center)
     .padding(12)
-    .frame(maxWidth: .infinity, alignment: .leading)
     .background(.background)
   }
 
-  private var unavailable: some View {
-    Text("预览不可用").appFont(.caption).foregroundStyle(.secondary)
+  private func placeholder(_ text: String) -> some View {
+    Text(text).appFont(.caption).foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, minHeight: 160)
   }
 }
 
 private struct TaskPullRequestPDFPreview: View {
+  private enum PagerControl: Hashable { case previous, next }
+
   let data: Data
   @State private var document: PDFDocument?
   @State private var pageNumber = 1
   @State private var pageImage: NSImage?
+  @State private var hovered = false
+  @FocusState private var focusedControl: PagerControl?
 
   var body: some View {
-    VStack(spacing: 8) {
+    Group {
       if let pageImage {
         Image(nsImage: pageImage).resizable().scaledToFit()
-          .frame(maxWidth: .infinity, minHeight: 280, maxHeight: 460)
+          .frame(maxWidth: .infinity)
+          .clipShape(RoundedRectangle(cornerRadius: 3))
+          .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
           .accessibilityLabel("PDF 第 \(pageNumber) 页")
       } else {
-        Text("PDF 预览不可用").appFont(.caption).foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, minHeight: 280)
-      }
-      if let document, document.pageCount > 1 {
-        HStack(spacing: 12) {
-          Button { pageNumber -= 1 } label: { Image(systemName: "chevron.left") }
-            .disabled(pageNumber <= 1).accessibilityLabel("上一页")
-          Text("\(pageNumber) / \(document.pageCount)").monospacedDigit()
-            .appFont(.caption).accessibilityLabel("第 \(pageNumber) 页，共 \(document.pageCount) 页")
-          Button { pageNumber += 1 } label: { Image(systemName: "chevron.right") }
-            .disabled(pageNumber >= document.pageCount).accessibilityLabel("下一页")
-        }.buttonStyle(.plain)
+        Text("无法渲染 PDF 预览").appFont(.caption).foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, minHeight: 160)
       }
     }
+    .overlay(alignment: .topTrailing) {
+      if let document, document.pageCount > 1 {
+        HStack(spacing: 2) {
+          Button { pageNumber -= 1 } label: { Image(systemName: "chevron.left") }
+            .disabled(pageNumber <= 1).accessibilityLabel("上一页")
+            .focused($focusedControl, equals: .previous)
+          Text("\(pageNumber)/\(document.pageCount)").monospacedDigit()
+            .appFont(.caption).foregroundStyle(.secondary)
+            .accessibilityLabel("第 \(pageNumber) 页，共 \(document.pageCount) 页")
+          Button { pageNumber += 1 } label: { Image(systemName: "chevron.right") }
+            .disabled(pageNumber >= document.pageCount).accessibilityLabel("下一页")
+            .focused($focusedControl, equals: .next)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 6).padding(.vertical, 4)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.quaternary))
+        .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+        .opacity(hovered || focusedControl != nil ? 1 : 0)
+        .allowsHitTesting(hovered || focusedControl != nil)
+        .padding(4)
+      }
+    }
+    .onHover { hovered = $0 }
     .task(id: data) { load() }
     .onChange(of: pageNumber) { _, _ in renderPage() }
   }

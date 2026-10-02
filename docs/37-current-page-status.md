@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+PR 图片/PDF 预览按当前 Codex 组件改为新增单列、修改/删除双列、缺失侧占位及悬停/聚焦显示的 PDF 右上角翻页控件，详见[第 563 篇](563-pr-binary-preview-panel-layout.md)。双端前台配对仍缺，完整验收 **0/47**。
+
 PR Markdown 现以当前 PR head 解析相对图片和链接；图片按需读取并校验 Git Blob，链接固定到该提交，详见[第 562 篇](562-pr-markdown-relative-resources.md)。真实可见图片与双端前台配对仍缺，完整验收 **0/47**。
 
 PR Code 现从 PR 对应的 head/base Git Blob 显示图片、SVG 与 PDF 前后预览；PDF 有逐页导航，版本和内容哈希均校验，详见[第 561 篇](561-pr-binary-preview.md)。双端前台视觉／操作仍缺，完整配对 **0/47**。

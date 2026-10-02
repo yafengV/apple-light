@@ -280,6 +280,41 @@ import XCTest
     XCTAssertFalse(window.isVisible)
   }
 
+  func testHiddenBinaryPreviewKeepsBeforeAndAfterInSeparatePanels() throws {
+    let red = try XCTUnwrap(Data(base64Encoded:
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGP4z8DwnxLMMGrAqAGjBgwXAwAwxP4QHCfkAAAAAABJRU5ErkJggg=="))
+    let blue = try XCTUnwrap(Data(base64Encoded:
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGElEQVR4nGNgYPj/nzI8asCoAaMGDBMDADKm/hDlteSrAAAAAElFTkSuQmCC"))
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 260),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: TaskPullRequestBinaryPreviewView(preview:
+      .init(kind: .image, before: red, after: blue))
+      .frame(width: 600, height: 240))
+    window.contentView = host
+    host.layoutSubtreeIfNeeded()
+    let display = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: display)
+    var leftRed = 0, leftBlue = 0, rightRed = 0, rightBlue = 0
+    for y in stride(from: 0, to: display.pixelsHigh, by: 4) {
+      for x in stride(from: 0, to: display.pixelsWide, by: 4) {
+        guard let color = display.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+        let red = color.redComponent > 0.7 && color.greenComponent < 0.3 && color.blueComponent < 0.3
+        let blue = color.blueComponent > 0.7 && color.greenComponent < 0.3 && color.redComponent < 0.3
+        if x < display.pixelsWide / 2 {
+          if red { leftRed += 1 }; if blue { leftBlue += 1 }
+        } else {
+          if red { rightRed += 1 }; if blue { rightBlue += 1 }
+        }
+      }
+    }
+    XCTAssertGreaterThan(leftRed, 5)
+    XCTAssertGreaterThan(rightBlue, 5)
+    XCTAssertEqual(leftBlue, 0)
+    XCTAssertEqual(rightRed, 0)
+    XCTAssertFalse(window.isVisible)
+  }
+
   func testReadsRemoteDiffWithoutDependingOnLocalBranchAndChecksBothRevisions() async throws {
     let (request, service) = try await fixture()
     let value = try await service.codeSnapshot(request)
