@@ -188,6 +188,20 @@ import XCTest
     XCTAssertFalse(window.isVisible)
   }
 
+  func testHiddenPRToolbarFitsBelowBranchLabelBreakpoint() async throws {
+    let state = try await fixture(); state.wrap = true
+    let (window, host) = window(TaskPullRequestCodeView(state: state, discussion: .init(), enabled: false,
+      writable: false, mentionRequest: nil, open: { _ in }, submit: { _, _ in }, retry: {}, retryComments: {}),
+      width: 360)
+    defer { window.close() }; try await settle(host)
+    XCTAssertLessThanOrEqual(host.fittingSize.width, 360)
+    XCTAssertFalse(scrolls(host).contains { $0.hasHorizontalScroller })
+    let title = try frame(header(host, path: state.files[0].path))
+    XCTAssertGreaterThanOrEqual(title.minX, 0)
+    XCTAssertLessThanOrEqual(title.maxX, 360)
+    XCTAssertFalse(window.isVisible)
+  }
+
   func testHiddenFileAndCommentLineNavigationSurvivesStickySectionsAndModeChanges() async throws {
     let state = try await fixture()
     let (window, host) = window(TaskPullRequestCodeView(state: state, discussion: .init(), enabled: false,

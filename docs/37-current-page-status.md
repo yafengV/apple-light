@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+PR Code 窄工具栏现按当前 Codex 隐藏分支路径，较宽时分别截断 head/base 分支名并保留完整无障碍说明；通用审查的空白差异与完整文件选项在参考 PR 页面本来就不显示，见[第 564 篇](564-pr-code-toolbar-narrow-branches.md)。前台尺寸和焦点配对仍缺，完整验收 **0/47**。
+
 PR 图片/PDF 预览按当前 Codex 组件改为新增单列、修改/删除双列、缺失侧占位及悬停/聚焦显示的 PDF 右上角翻页控件，详见[第 563 篇](563-pr-binary-preview-panel-layout.md)。双端前台配对仍缺，完整验收 **0/47**。
 
 PR Markdown 现以当前 PR head 解析相对图片和链接；图片按需读取并校验 Git Blob，链接固定到该提交，详见[第 562 篇](562-pr-markdown-relative-resources.md)。真实可见图片与双端前台配对仍缺，完整验收 **0/47**。

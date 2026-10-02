@@ -97,36 +97,49 @@ struct TaskPullRequestCodeView: View {
   }
 
   private var toolbar: some View {
-    HStack(spacing: 8) {
-      if let identity = state.snapshot?.identity {
-        Text(identity.headBranch + " → " + identity.baseBranch).lineLimit(1).foregroundStyle(.secondary)
+    GeometryReader { geometry in
+      HStack(spacing: 8) {
+        if geometry.size.width >= 400, let identity = state.snapshot?.identity {
+          HStack(spacing: 6) {
+            Text(identity.headBranch).lineLimit(1).truncationMode(.middle)
+            Image(systemName: "arrow.right").appFont(size: 10).accessibilityHidden(true)
+            Text(identity.baseBranch).lineLimit(1).truncationMode(.middle)
+          }
+          .foregroundStyle(.tertiary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel(identity.headBranch + " 合并到 " + identity.baseBranch)
+        } else { Spacer(minLength: 0) }
+        Menu {
+          Button("刷新差异", action: retry)
+            .disabled(state.loading || metadataLoading)
+          Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
+          Divider()
+          Button(richPreviewEnabled ? "关闭富文本预览" : "开启富文本预览") {
+            richPreviewEnabled.toggle()
+          }
+          .accessibilityIdentifier("pull-request-rich-preview-toggle")
+          if let store { CodeWordDiffMenu(store: store) }
+        } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton)
+          .accessibilityLabel("差异选项")
+        Button { state.toggleAll() } label: {
+          Image(systemName: state.groupExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+        }.buttonStyle(.plain).help(state.groupExpanded ? "收起全部差异" : "展开全部差异")
+          .accessibilityLabel(state.groupExpanded ? "收起全部差异" : "展开全部差异")
+        Button { state.split.toggle() } label: {
+          Image(systemName: state.split ? "rectangle.split.2x1" : "rectangle.split.1x2")
+        }.buttonStyle(.plain).help(state.split ? "切换为统一差异" : "切换为并排差异")
+          .accessibilityLabel(state.split ? "切换为统一差异" : "切换为并排差异")
+        Button { state.showsFiles.toggle() } label: { Image(systemName: "sidebar.right") }
+          .buttonStyle(.plain).help(state.showsFiles ? "隐藏文件树" : "显示文件树")
+          .accessibilityLabel(state.showsFiles ? "隐藏文件树" : "显示文件树")
+          .accessibilityValue(state.showsFiles ? "已显示" : "已隐藏")
       }
-      Spacer(minLength: 0)
-      Menu {
-        Button("刷新差异", action: retry)
-          .disabled(state.loading || metadataLoading)
-        Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
-        Divider()
-        Button(richPreviewEnabled ? "关闭富文本预览" : "开启富文本预览") {
-          richPreviewEnabled.toggle()
-        }
-        .accessibilityIdentifier("pull-request-rich-preview-toggle")
-        if let store { CodeWordDiffMenu(store: store) }
-      } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton)
-        .accessibilityLabel("差异选项")
-      Button { state.toggleAll() } label: {
-        Image(systemName: state.groupExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-      }.buttonStyle(.plain).help(state.groupExpanded ? "收起全部差异" : "展开全部差异")
-        .accessibilityLabel(state.groupExpanded ? "收起全部差异" : "展开全部差异")
-      Button { state.split.toggle() } label: {
-        Image(systemName: state.split ? "rectangle.split.2x1" : "rectangle.split.1x2")
-      }.buttonStyle(.plain).help(state.split ? "切换为统一差异" : "切换为并排差异")
-        .accessibilityLabel(state.split ? "切换为统一差异" : "切换为并排差异")
-      Button { state.showsFiles.toggle() } label: { Image(systemName: "sidebar.right") }
-        .buttonStyle(.plain).help(state.showsFiles ? "隐藏文件树" : "显示文件树")
-        .accessibilityLabel(state.showsFiles ? "隐藏文件树" : "显示文件树")
-        .accessibilityValue(state.showsFiles ? "已显示" : "已隐藏")
-    }.appFont(size: 13).padding(.horizontal, 12).frame(height: 38).overlay(alignment: .bottom) { Divider() }
+      .appFont(size: 13).padding(.horizontal, 12)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .overlay(alignment: .bottom) { Divider() }
+    }
+    .frame(height: 38)
   }
 
   private var differences: some View {
