@@ -145,11 +145,30 @@ struct ConversationNavigationRail: View {
         .help(item.bookmarked ? "移除书签" : "为此轮加书签")
         .accessibilityLabel(item.bookmarked ? "移除书签" : "为此轮加书签")
       }
-      Text(item.preview).appFont(.caption).foregroundStyle(.secondary)
-        .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
-      Text(item.date, style: .date).appFont(size: 11).foregroundStyle(.tertiary)
+      switch item.previewState {
+      case .loading:
+        VStack(alignment: .leading, spacing: 6) {
+          ForEach([1.0, 0.9, 0.75], id: \.self) { fraction in
+            RoundedRectangle(cornerRadius: 3).fill(.primary.opacity(0.1))
+              .frame(maxWidth: .infinity, alignment: .leading).frame(height: 11)
+              .scaleEffect(x: fraction, anchor: .leading)
+          }
+        }
+        .accessibilityLabel("正在加载回复预览")
+      case .unavailable:
+        Text("预览不可用").appFont(.caption).foregroundStyle(.secondary)
+      case .ready:
+        if !item.preview.isEmpty {
+          Text((try? AttributedString(markdown: item.preview,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(item.preview))
+            .appFont(.caption).foregroundStyle(.secondary)
+            .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+            .environment(\.openURL, OpenURLAction { _ in .discarded })
+        }
+      }
     }
-    .padding(12).frame(width: 270)
+    .padding(12).frame(width: 320)
   }
 }
 

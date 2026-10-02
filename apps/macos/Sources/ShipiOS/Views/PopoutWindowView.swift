@@ -389,6 +389,7 @@ struct PopoutThreadView: View {
   @State private var inspectorTab = "overview"
   @State private var scrolling = ConversationScrollState()
   @State private var currentRailID: String?
+  @State private var railFlash = ConversationRailFlash()
   private var railSpace: String { "popout-conversation-rail-" + taskID }
   private var railItems: [ConversationRailItem] { store.conversationRailItems(for: runs) }
   private var railCurrentID: String? {
@@ -469,6 +470,7 @@ struct PopoutThreadView: View {
           }.padding(.leading, railItems.count < ConversationNavigationRail.minimumItems ? 20 : 70)
             .padding(.trailing, 20)
             .padding(.vertical, 20).frame(maxWidth: .infinity, alignment: .leading)
+            .environment(\.conversationRailFlashID, railFlash.id)
             .background {
               ConversationScrollObserver { event in
                 switch event {
@@ -489,6 +491,7 @@ struct PopoutThreadView: View {
               onSelect: { id in
                 scrolling.pauseFollowing()
                 reader.scrollTo(id, anchor: .top)
+                railFlash.flash(id, reduceMotion: store.appearance.shouldReduceMotion)
               }, onBookmark: { id, bookmarked in
                 _ = store.setConversationBookmark(bookmarked, runID: id)
               }, visualizer: store.systemAudioVisualizer,

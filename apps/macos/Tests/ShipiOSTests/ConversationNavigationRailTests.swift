@@ -49,6 +49,19 @@ final class ConversationNavigationRailTests: XCTestCase {
     XCTAssertTrue(levels.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 })
   }
 
+  @MainActor func testNavigationFlashChangesTargetAndRespectsReducedMotion() async {
+    let flash = ConversationRailFlash()
+    flash.flash("first", reduceMotion: false)
+    XCTAssertEqual(flash.id, "first")
+    flash.flash("second", reduceMotion: false)
+    XCTAssertEqual(flash.id, "second")
+    flash.flash("third", reduceMotion: true)
+    XCTAssertNil(flash.id)
+    flash.flash("fourth", reduceMotion: false)
+    flash.clear()
+    XCTAssertNil(flash.id)
+  }
+
   @MainActor func testVisualizerSharesAndStopsCaptureWithoutPersistingAudio() async throws {
     let stub = StubCapture()
     let visualizer = SystemAudioVisualizer(makeCapture: { _ in
@@ -117,7 +130,10 @@ final class ConversationNavigationRailTests: XCTestCase {
       createdAt: 1_000, updatedAt: 1_000, request: .null,
       result: .object([
         "codex_steered_messages": steered,
-        "response_items": try ChatResponseItem.json([.user(message.id)]),
+        "response_items": try ChatResponseItem.json([
+          .message(id: UUID(), text: "首轮助手**回复**"), .user(message.id),
+          .message(id: UUID(), text: "追加后的回复"),
+        ]),
       ]))
     let store = WorkspaceStore(dataRoot: root)
     store.libraryLoaded = true
@@ -127,7 +143,8 @@ final class ConversationNavigationRailTests: XCTestCase {
     let items = store.conversationRailItems(for: [run])
     let steeredID = ConversationRailItem.steeredID(runID: run.id, messageID: message.id)
     XCTAssertEqual(items.map(\.id), [run.id, steeredID])
-    XCTAssertEqual(items.map(\.preview), ["首条问题", "后续问题"])
+    XCTAssertEqual(items.map(\.title), ["首条问题", "后续问题"])
+    XCTAssertEqual(items.map(\.preview), ["首轮助手**回复**", "追加后的回复"])
     XCTAssertTrue(store.setConversationBookmark(true, runID: run.id))
     XCTAssertTrue(store.setConversationBookmark(true, runID: steeredID))
     XCTAssertFalse(store.setConversationBookmark(true, runID: "unknown"))
@@ -140,6 +157,22 @@ final class ConversationNavigationRailTests: XCTestCase {
     XCTAssertTrue(deleted.bookmarkedRunIDs.isEmpty)
     XCTAssertTrue(try JSONDecoder().decode(WorkspaceLibrary.self,
       from: Data("{}".utf8)).bookmarkedRunIDs.isEmpty)
+  }
+
+  @MainActor func testRunningLastTurnShowsPreviewLoadingUntilResponseArrives() {
+    let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString))
+    let running = AgentRun(id: "active", kind: "chat", project: "", status: "running",
+      createdAt: 1_000, updatedAt: 1_000, request: .null, result: nil)
+    store.library.notes[running.id] = "等待回复"
+    let item = store.conversationRailItems(for: [running])[0]
+    XCTAssertEqual(item.title, "等待回复")
+    XCTAssertEqual(item.previewState, .loading)
+    let finished = AgentRun(id: running.id, kind: "chat", project: "", status: "succeeded",
+      createdAt: 1_000, updatedAt: 2_000, request: .null,
+      result: .object(["response": .string("已经完成")]))
+    XCTAssertEqual(store.conversationRailItems(for: [finished])[0].preview, "已经完成")
+    XCTAssertEqual(store.conversationRailItems(for: [finished])[0].previewState, .ready)
   }
 
   @MainActor func testRailRendersWithoutForegroundWindow() throws {

@@ -6,20 +6,43 @@ extension WorkspaceStore {
       let prompt = library.notes[run.id]?.trimmingCharacters(in: .whitespacesAndNewlines)
       let fallback = library.runFiles[run.id]?.first?.name
         ?? (library.runImages[run.id]?.isEmpty == false ? "图片" : run.title)
-      let preview = prompt.flatMap { $0.isEmpty ? nil : $0 } ?? fallback
-      let first = ConversationRailItem(id: run.id, title: run.title, preview: preview,
-        date: run.date, bookmarked: library.bookmarkedRunIDs.contains(run.id))
+      var title = prompt.flatMap { $0.isEmpty ? nil : $0 } ?? fallback
+      var id = run.id
+      var response: [String] = []
+      var items: [ConversationRailItem] = []
+      let bookmarkedIDs = library.bookmarkedRunIDs
       let messages = Dictionary(run.codexSteeredMessages.map { ($0.id, $0) },
         uniquingKeysWith: { first, _ in first })
-      let steered = (run.responseItems ?? run.displayedResponseItems).compactMap { item -> ConversationRailItem? in
-        guard case .user(let id) = item, let message = messages[id] else { return nil }
-        let key = ConversationRailItem.steeredID(runID: run.id, messageID: id)
-        let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let preview = text.isEmpty ? (message.files.first?.name ?? (message.images.isEmpty ? "消息" : "图片")) : text
-        return ConversationRailItem(id: key, title: "追加消息", preview: preview,
-          date: run.date, bookmarked: library.bookmarkedRunIDs.contains(key))
+      func finish(last: Bool) -> ConversationRailItem {
+        let preview = response.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return ConversationRailItem(id: id, title: title, preview: preview,
+          date: run.date, bookmarked: bookmarkedIDs.contains(id),
+          previewState: last && run.isActive && preview.isEmpty ? .loading : .ready)
       }
-      return [first] + steered
+      if run.kind == "chat" {
+        for item in run.responseItems ?? run.displayedResponseItems {
+          switch item {
+          case .message(_, let text):
+            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+              response.append(text)
+            }
+          case .user(let messageID):
+            guard let message = messages[messageID] else { continue }
+            items.append(finish(last: false))
+            id = ConversationRailItem.steeredID(runID: run.id, messageID: messageID)
+            let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            title = text.isEmpty
+              ? (message.files.first?.name ?? (message.images.isEmpty ? "(无内容)" : "图片"))
+              : text
+            response = []
+          default: break
+          }
+        }
+      } else {
+        response = [run.displaySummary]
+      }
+      items.append(finish(last: true))
+      return items
     }
   }
 

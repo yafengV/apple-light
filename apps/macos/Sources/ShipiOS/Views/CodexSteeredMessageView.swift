@@ -19,6 +19,8 @@ struct CodexSteeredMessageView: View {
           .appContentFont(size: 14).textSelection(.enabled)
           .padding(.horizontal, 17).padding(.vertical, 12)
           .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
+          .conversationRailFlash(ConversationRailItem.steeredID(runID: runID,
+            messageID: message.id))
       }
     }
     .frame(maxWidth: .infinity, alignment: .trailing)

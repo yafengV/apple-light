@@ -46,6 +46,7 @@ struct TaskWindowView: View {
   @State private var pendingText: ConversationTextID?
   @State private var pendingMatch: ConversationMatch.ID?
   @State private var currentRailID: String?
+  @State private var railFlash = ConversationRailFlash()
   private var railSpace: String { "task-conversation-rail-" + taskID }
   private var railItems: [ConversationRailItem] { store.conversationRailItems(for: taskRuns) }
   private var railCurrentID: String? {
@@ -1242,6 +1243,7 @@ struct TaskWindowView: View {
         .frame(maxWidth: 760)
         .padding(.horizontal, 30).padding(.vertical, 26)
         .frame(maxWidth: .infinity)
+        .environment(\.conversationRailFlashID, railFlash.id)
       }
       .coordinateSpace(name: railSpace)
       .defaultScrollAnchor(.bottom)
@@ -1253,6 +1255,7 @@ struct TaskWindowView: View {
               pendingText = nil
               pendingMatch = nil
               reader.scrollTo(id, anchor: .top)
+              railFlash.flash(id, reduceMotion: store.appearance.shouldReduceMotion)
             }, onBookmark: { id, bookmarked in
               _ = store.setConversationBookmark(bookmarked, runID: id)
             }, visualizer: store.systemAudioVisualizer,
@@ -1738,6 +1741,7 @@ private struct TaskWindowMessageView: View {
           ConversationSearchText(prompt, id: .init(run: run.id, part: "prompt"))
             .appContentFont(size: 14).textSelection(.enabled).padding(.horizontal, 16).padding(.vertical, 11)
             .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 15))
+            .conversationRailFlash(run.id, cornerRadius: 15)
         }
       }
       VStack(alignment: .leading, spacing: 12) {

@@ -104,6 +104,7 @@ struct ExecutionMessageView: View {
           .vertical, 12
         )
         .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
+        .conversationRailFlash(run.id)
       }
       VStack(alignment: .leading, spacing: 16) {
         HStack(spacing: 9) {

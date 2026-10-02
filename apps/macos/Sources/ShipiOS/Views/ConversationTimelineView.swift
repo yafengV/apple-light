@@ -8,6 +8,7 @@ struct ConversationTimelineView: View {
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
   @State private var pendingMatch: ConversationMatch.ID?
   @State private var currentRailID: String?
+  @State private var railFlash = ConversationRailFlash()
   private let railSpace = "main-conversation-rail-scroll"
   private var railItems: [ConversationRailItem] { store.conversationRailItems(for: store.conversationRuns) }
   private var railCurrentID: String? {
@@ -49,6 +50,7 @@ struct ConversationTimelineView: View {
           }
           Color.clear.frame(height: 1).id("conversation-end")
         }.frame(maxWidth: 760).padding(.horizontal, 32).padding(.vertical, 28)
+          .environment(\.conversationRailFlashID, railFlash.id)
           .frame(maxWidth: .infinity)
           .background {
             ConversationScrollObserver { event in
@@ -75,6 +77,7 @@ struct ConversationTimelineView: View {
               pendingMatch = nil
               scrolling.pauseFollowing()
               reader.scrollTo(id, anchor: .top)
+              railFlash.flash(id, reduceMotion: store.appearance.shouldReduceMotion)
             }, onBookmark: { id, bookmarked in
               _ = store.setConversationBookmark(bookmarked, runID: id)
             }, visualizer: store.systemAudioVisualizer,
