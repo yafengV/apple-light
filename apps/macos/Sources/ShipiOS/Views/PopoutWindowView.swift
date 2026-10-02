@@ -466,7 +466,8 @@ struct PopoutThreadView: View {
                 .conversationRailPosition(run.id, in: railSpace)
             }
             Color.clear.frame(height: 1).id("end")
-          }.padding(.leading, railItems.isEmpty ? 20 : 70).padding(.trailing, 20)
+          }.padding(.leading, railItems.count < ConversationNavigationRail.minimumItems ? 20 : 70)
+            .padding(.trailing, 20)
             .padding(.vertical, 20).frame(maxWidth: .infinity, alignment: .leading)
             .background {
               ConversationScrollObserver { event in
@@ -482,7 +483,7 @@ struct PopoutThreadView: View {
         .coordinateSpace(name: railSpace)
         .defaultScrollAnchor(.top)
         .overlay(alignment: .leading) {
-          if !railItems.isEmpty {
+          if railItems.count >= ConversationNavigationRail.minimumItems {
             ConversationRailOverlay(items: railItems,
               currentID: railCurrentID,
               onSelect: { id in
@@ -490,7 +491,10 @@ struct PopoutThreadView: View {
                 reader.scrollTo(id, anchor: .top)
               }, onBookmark: { id, bookmarked in
                 _ = store.setConversationBookmark(bookmarked, runID: id)
-              })
+              }, visualizer: store.systemAudioVisualizer,
+              audioEnabled: SystemAudioVisualizer.isSupported && store.audioVisualizerEnabled
+                && !store.appearance.shouldReduceMotion,
+              onAudioError: { store.error = $0 })
           }
         }
         .onPreferenceChange(ConversationRailPositions.self) { positions in

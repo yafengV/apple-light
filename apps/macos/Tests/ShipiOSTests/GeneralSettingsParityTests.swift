@@ -99,6 +99,7 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertTrue(legacy.showInMenuBar)
     XCTAssertTrue(legacy.showEducationalTips)
     XCTAssertFalse(legacy.confettiEnabled)
+    XCTAssertFalse(legacy.audioVisualizerEnabled)
     XCTAssertTrue(legacy.dismissedEducationalTipIDs.isEmpty)
     XCTAssertFalse(legacy.showContextUsageIndicator)
     XCTAssertTrue(legacy.showBottomPanelControl)
@@ -110,6 +111,19 @@ final class GeneralSettingsParityTests: XCTestCase {
     XCTAssertNil(legacy.popoutHomeRuntimePreferences)
     XCTAssertTrue(legacy.taskRuntimePreferences.isEmpty)
     XCTAssertEqual(legacy.gitPreferences.reviewDelivery, .inline)
+  }
+
+  @MainActor func testAudioVisualizerPreferencePersistsInWorkspaceLibrary() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    store.audioVisualizerEnabled = true
+    XCTAssertTrue(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .audioVisualizerEnabled)
+    store.audioVisualizerEnabled = false
+    XCTAssertFalse(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .audioVisualizerEnabled)
   }
 
   @MainActor func testConfettiPreferenceControlsRealBurstAndRespectsReducedMotion() throws {

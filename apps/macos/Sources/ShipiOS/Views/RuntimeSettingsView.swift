@@ -5,6 +5,7 @@ struct RuntimeSettingsView: View {
   @Bindable var store: WorkspaceStore
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
+  @State private var audioVisualizerPending = false
   var body: some View {
     HStack(spacing: 0) {
       SettingsNavigationView(store: store)
@@ -63,6 +64,17 @@ struct RuntimeSettingsView: View {
             description: "当你要求 ShipiOS 庆祝时，允许模型在应用窗口中撒彩纸。",
             isOn: $store.confettiEnabled)
             .settingsSearchTarget(.confetti)
+          SettingsToggle(title: "音频可视化",
+            description: "使用系统播放声音驱动会话导航轨道。音频仅在本机处理，不保存或上传。",
+            isOn: Binding(get: { store.audioVisualizerEnabled }, set: { enabled in
+              audioVisualizerPending = true
+              Task {
+                await store.setAudioVisualizerEnabled(enabled)
+                audioVisualizerPending = false
+              }
+            }))
+            .disabled(audioVisualizerPending || !SystemAudioVisualizer.isSupported)
+            .settingsSearchTarget(.audioVisualizer)
         }
         Section("输入") {
           SettingsToggle(title: "显示教育提示", description: "在输入框上方显示可关闭的功能提示。",

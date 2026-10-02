@@ -18,6 +18,7 @@ final class WorkspaceStore {
   }
   var dictation = SpeechDictation()
   let realtimeVoice = RealtimeVoiceSession()
+  let systemAudioVisualizer = SystemAudioVisualizer()
   var voiceChatPresented = false
   let voiceRecordingHistory: VoiceRecordingHistory
   @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?

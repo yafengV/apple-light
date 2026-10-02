@@ -374,6 +374,7 @@ struct WorkspaceLibrary: Codable {
   var showInMenuBar = true
   var showEducationalTips = true
   var confettiEnabled = false
+  var audioVisualizerEnabled = false
   var dismissedEducationalTipIDs: Set<String> = []
   var showContextUsageIndicator = false
   var showBottomPanelControl = true
@@ -418,7 +419,7 @@ struct WorkspaceLibrary: Codable {
       reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
-      pluginsEnabled, showInMenuBar, showEducationalTips, confettiEnabled, dismissedEducationalTipIDs,
+      pluginsEnabled, showInMenuBar, showEducationalTips, confettiEnabled, audioVisualizerEnabled, dismissedEducationalTipIDs,
       appshotHotkey, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro, voicePreferences,
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
@@ -521,6 +522,7 @@ struct WorkspaceLibrary: Codable {
     showEducationalTips =
       try c.decodeIfPresent(Bool.self, forKey: .showEducationalTips) ?? true
     confettiEnabled = try c.decodeIfPresent(Bool.self, forKey: .confettiEnabled) ?? false
+    audioVisualizerEnabled = try c.decodeIfPresent(Bool.self, forKey: .audioVisualizerEnabled) ?? false
     dismissedEducationalTipIDs =
       try c.decodeIfPresent(Set<String>.self, forKey: .dismissedEducationalTipIDs) ?? []
     showContextUsageIndicator =

@@ -67,7 +67,7 @@ struct ConversationTimelineView: View {
       .coordinateSpace(name: railSpace)
       .defaultScrollAnchor(.top)
       .overlay(alignment: .leading) {
-        if !railItems.isEmpty {
+        if railItems.count >= ConversationNavigationRail.minimumItems {
           ConversationRailOverlay(items: railItems,
             currentID: railCurrentID,
             onSelect: { id in
@@ -77,7 +77,11 @@ struct ConversationTimelineView: View {
               reader.scrollTo(id, anchor: .top)
             }, onBookmark: { id, bookmarked in
               _ = store.setConversationBookmark(bookmarked, runID: id)
-            })
+            }, visualizer: store.systemAudioVisualizer,
+            audioEnabled: SystemAudioVisualizer.isSupported && store.destination == .workspace
+              && store.audioVisualizerEnabled
+              && !store.appearance.shouldReduceMotion,
+            onAudioError: { store.error = $0 })
         }
       }
       .onPreferenceChange(ConversationRailPositions.self) { positions in

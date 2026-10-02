@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ConversationRailPositions: PreferenceKey {
@@ -37,13 +38,22 @@ enum ConversationRailSelection {
     let index = min(orderedIDs.count - 1, max(0, Int(y / 10)))
     return orderedIDs[index]
   }
+
+  static func audioLevel(index: Int, itemCount: Int, levels: [Double]) -> Double {
+    guard itemCount > 0, !levels.isEmpty, index >= 0, index < itemCount else { return 0 }
+    let first = index * levels.count / itemCount
+    let last = max(first, ((index + 1) * levels.count + itemCount - 1) / itemCount - 1)
+    return levels[first...min(last, levels.count - 1)].max() ?? 0
+  }
 }
 
 struct ConversationNavigationRail: View {
+  static let minimumItems = 4
   let items: [ConversationRailItem]
   let currentID: String?
   let onSelect: (String) -> Void
   let onBookmark: (String, Bool) -> Void
+  var audioLevels: [Double] = []
   @State private var previewID: String?
   @State private var previewHovered = false
   @State private var scrubID: String?
@@ -107,7 +117,11 @@ struct ConversationNavigationRail: View {
     let focus = scrubID ?? previewID
     let focusIndex = items.firstIndex(where: { $0.id == focus })
     let distance = focusIndex.map { abs($0 - index) } ?? 4
-    let width: CGFloat = distance == 0 ? 26 : distance == 1 ? 20 : distance == 2 ? 16 : 12
+    let audio = ConversationRailSelection.audioLevel(index: index,
+      itemCount: items.count, levels: audioLevels)
+    let progress: Double = distance == 0 ? 1 : distance == 1 ? 0.7
+      : distance == 2 ? 0.4 : distance == 3 ? 0.2 : audio
+    let width = CGFloat(6 + 20 * progress)
     return HStack(spacing: 2) {
       RoundedRectangle(cornerRadius: 1).fill(highlighted || distance == 0 ? .primary : .secondary)
         .frame(width: width, height: 2)
@@ -144,14 +158,44 @@ struct ConversationRailOverlay: View {
   let currentID: String?
   let onSelect: (String) -> Void
   let onBookmark: (String, Bool) -> Void
+  let visualizer: SystemAudioVisualizer
+  let audioEnabled: Bool
+  let onAudioError: (String) -> Void
+  @State private var audioLease: UUID?
 
   var body: some View {
     GeometryReader { proxy in
-      ConversationNavigationRail(items: items, currentID: currentID,
-        onSelect: onSelect, onBookmark: onBookmark)
-        .frame(height: min(CGFloat(items.count) * 10, proxy.size.height * 0.7, 640))
-        .position(x: 34, y: proxy.size.height / 2)
+      if items.count >= ConversationNavigationRail.minimumItems {
+        ConversationNavigationRail(items: items, currentID: currentID,
+          onSelect: onSelect, onBookmark: onBookmark,
+          audioLevels: audioEnabled ? visualizer.levels : [])
+          .frame(height: min(CGFloat(items.count) * 10, proxy.size.height * 0.7, 640))
+          .position(x: 34, y: proxy.size.height / 2)
+      }
     }
     .frame(width: 56)
+    .onAppear { reconcileAudio() }
+    .onChange(of: audioEnabled) { _, _ in reconcileAudio() }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+      visualizer.stop()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+      if audioEnabled { visualizer.resumeIfNeeded() }
+    }
+    .onChange(of: visualizer.error) { _, error in
+      if let error { onAudioError(error) }
+    }
+    .onDisappear {
+      if let audioLease { visualizer.detach(audioLease); self.audioLease = nil }
+    }
+  }
+
+  private func reconcileAudio() {
+    if audioEnabled && items.count >= ConversationNavigationRail.minimumItems {
+      if audioLease == nil { audioLease = visualizer.attach() }
+    } else if let audioLease {
+      visualizer.detach(audioLease)
+      self.audioLease = nil
+    }
   }
 }

@@ -38,6 +38,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>在你启动听写或语音聊天时使用麦克风。</string>
+<key>NSAudioCaptureUsageDescription</key><string>在你开启音频可视化时读取系统播放声音，仅在本机计算导航轨道动画。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>使用设备端语音识别将讲话内容加入任务草稿。</string>
 <key>CFBundleURLTypes</key><array><dict>
 <key>CFBundleURLName</key><string>dev.shipios.desktop</string>

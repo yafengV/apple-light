@@ -78,6 +78,33 @@ extension WorkspaceStore {
     set { updateGeneralPreference(\.confettiEnabled, value: newValue) }
   }
 
+  var audioVisualizerEnabled: Bool {
+    get { library.audioVisualizerEnabled }
+    set {
+      updateGeneralPreference(\.audioVisualizerEnabled, value: newValue)
+      if !library.audioVisualizerEnabled { systemAudioVisualizer.stop() }
+    }
+  }
+
+  func setAudioVisualizerEnabled(_ enabled: Bool) async {
+    guard enabled else { audioVisualizerEnabled = false; return }
+    guard libraryLoaded else {
+      generalSettingsError = "工作区尚未完成加载，请稍后再修改。"
+      return
+    }
+    do {
+      try await systemAudioVisualizer.ensureStarted()
+      audioVisualizerEnabled = true
+      if !audioVisualizerEnabled || !systemAudioVisualizer.hasClients {
+        systemAudioVisualizer.stop()
+      }
+    } catch is CancellationError {
+      return
+    } catch {
+      generalSettingsError = "无法启动系统音频可视化。请检查系统音频录制权限后重试。\n\(error.localizedDescription)"
+    }
+  }
+
   @discardableResult func fireConfetti() -> Bool {
     guard confettiEnabled, !appearance.shouldReduceMotion else { return false }
     confettiBurst = UUID()
