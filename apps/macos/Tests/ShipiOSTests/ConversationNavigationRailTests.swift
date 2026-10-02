@@ -66,6 +66,27 @@ final class ConversationNavigationRailTests: XCTestCase {
     XCTAssertTrue(levels.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 })
   }
 
+  func testRailPreviewFormatsBlockMarkdownAndKeepsTablesStructured() {
+    let parts = ConversationRailPreviewDocument.parse("""
+      # 结果
+
+      - 第一项
+      - 第二项
+
+      | 名称 | 数量 |
+      | --- | ---: |
+      | 文件 | 2 |
+      """)
+    XCTAssertEqual(parts.count, 2)
+    guard case .text(let text) = parts[0], case .table(let rows) = parts[1] else {
+      return XCTFail("Expected formatted text followed by a table")
+    }
+    XCTAssertEqual(String(text.characters), "结果\n• 第一项\n• 第二项")
+    XCTAssertEqual(rows.count, 2)
+    XCTAssertEqual(rows.map { $0.map { String($0.characters) } },
+      [["名称", "数量"], ["文件", "2"]])
+  }
+
   @MainActor func testNavigationFlashChangesTargetAndRespectsReducedMotion() async {
     let flash = ConversationRailFlash()
     flash.flash("first", reduceMotion: false)

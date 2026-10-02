@@ -228,12 +228,7 @@ struct ConversationNavigationRail: View {
         Text("预览不可用").appFont(.caption).foregroundStyle(.secondary)
       case .ready:
         if !item.preview.isEmpty {
-          Text((try? AttributedString(markdown: item.preview,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-            ?? AttributedString(item.preview))
-            .appFont(.caption).foregroundStyle(.secondary)
-            .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
-            .environment(\.openURL, OpenURLAction { _ in .discarded })
+          ConversationRailMarkdownPreview(source: item.preview)
         }
       }
       if item.previewState != .loading &&
