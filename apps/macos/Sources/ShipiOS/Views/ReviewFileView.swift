@@ -33,33 +33,16 @@ struct ReviewFileView: View {
           if patch.lines.isEmpty {
             Text("没有文本差异").appFont(.caption).foregroundStyle(.secondary).padding(12)
           }
-          ScrollView(.horizontal) {
-            LazyVStack(alignment: .leading, spacing: 0) {
-              ForEach(patch.lines) { line in
-                if workspace.canModifyReview, !scope.isHistorical, !file.untracked,
-                  let hunk = editableHunks[line.id]
-                {
-                  ReviewHunkControls(
-                    workspace: workspace, file: file, hunk: hunk,
-                    snapshot: patch, project: root, scope: scope)
-                } else {
-                  ReviewCodeLine(
-                    line: line,
-                    addComment: {
-                      store.beginReviewComment(anchor(line, patch: patch), taskID: taskID)
-                    },
-                    openLine: { openFile(line: line.workingLine) },
-                    tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)),
-                    changes: store.reviewWordDiffs ? syntax.changes(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)) : [])
-                }
-                ForEach(matchingComments(line, patch: patch)) { comment in
-                  ReviewCommentView(store: store, comment: comment, taskID: taskID)
-                    .frame(width: 280)
-                    .padding(8)
-                }
-              }
-            }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-          }.background(store.appearance.codeBackgroundColor)
+          if store.reviewDiffWrap {
+            diffRows(patch, editableHunks: editableHunks)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .background(store.appearance.codeBackgroundColor)
+          } else {
+            ScrollView(.horizontal) {
+              diffRows(patch, editableHunks: editableHunks)
+                .frame(minWidth: store.reviewDiffSplit ? 720 : 0, maxWidth: .infinity, alignment: .leading)
+            }.background(store.appearance.codeBackgroundColor)
+          }
         }
       }
     }
@@ -87,6 +70,69 @@ struct ReviewFileView: View {
       await syntax.load(CodeSyntaxInput(path: file.path, diff: patch, wordDiffs: store.reviewWordDiffs, themes: store.appearance.codeThemes))
     }
     .onDisappear { syntax.cancel() }
+  }
+
+  private func diffRows(_ patch: ReviewDiff, editableHunks: [Int: ReviewHunk]) -> some View {
+    LazyVStack(alignment: .leading, spacing: 0) {
+      if store.reviewDiffSplit {
+        ForEach(GitHubPRSplitLine.rows(patch.lines)) { row in
+          if let line = row.left, line.kind == .header || line.kind == .metadata {
+            reviewRow(line, patch: patch, editableHunks: editableHunks)
+          } else {
+            HStack(alignment: .top, spacing: 0) {
+              splitCell(row.left, side: .old, patch: patch)
+              Divider()
+              splitCell(row.right, side: .new, patch: patch)
+            }
+            ForEach(matchingComments(row, patch: patch)) { comment in
+              ReviewCommentView(store: store, comment: comment, taskID: taskID)
+                .frame(width: 280).padding(8)
+            }
+          }
+        }
+      } else {
+        ForEach(patch.lines) { line in reviewRow(line, patch: patch, editableHunks: editableHunks) }
+      }
+    }
+  }
+
+  @ViewBuilder private func reviewRow(_ line: ReviewDiffLine, patch: ReviewDiff,
+    editableHunks: [Int: ReviewHunk]) -> some View {
+    if workspace.canModifyReview, !scope.isHistorical, !file.untracked,
+      let hunk = editableHunks[line.id] {
+      ReviewHunkControls(workspace: workspace, file: file, hunk: hunk,
+        snapshot: patch, project: root, scope: scope)
+    } else { codeLine(line, patch: patch) }
+    ForEach(matchingComments(line, patch: patch)) { comment in
+      ReviewCommentView(store: store, comment: comment, taskID: taskID)
+        .frame(width: 280).padding(8)
+    }
+  }
+
+  @ViewBuilder private func splitCell(_ line: ReviewDiffLine?, side: ReviewCodeLine.Side,
+    patch: ReviewDiff) -> some View {
+    if let line {
+      codeLine(line, patch: patch, side: side)
+    } else { Color.clear.frame(maxWidth: .infinity).frame(minHeight: 20) }
+  }
+
+  private func codeLine(_ line: ReviewDiffLine, patch: ReviewDiff,
+    side: ReviewCodeLine.Side? = nil) -> some View {
+    ReviewCodeLine(line: line,
+      addComment: { store.beginReviewComment(anchor(line, patch: patch), taskID: taskID) },
+      openLine: { openFile(line: line.workingLine) },
+      commentsEnabled: !(side == .old && line.kind == .context),
+      tokens: syntax.tokens(line, identity: .init(path: file.path, fingerprint: patch.fingerprint)),
+      changes: store.reviewWordDiffs ? syntax.changes(line,
+        identity: .init(path: file.path, fingerprint: patch.fingerprint)) : [],
+      side: side, wrap: store.reviewDiffWrap)
+  }
+
+  private func matchingComments(_ row: GitHubPRSplitLine, patch: ReviewDiff) -> [ReviewComment] {
+    var seen = Set<UUID>()
+    return [row.left, row.right].compactMap { $0 }
+      .flatMap { matchingComments($0, patch: patch) }
+      .filter { seen.insert($0.id).inserted }
   }
 
   private var header: some View {
@@ -155,6 +201,7 @@ struct ReviewFileView: View {
 }
 
 struct ReviewCodeLine: View {
+  enum Side: Equatable { case old, new }
   let line: ReviewDiffLine
   let addComment: () -> Void
   let openLine: () -> Void
@@ -162,6 +209,8 @@ struct ReviewCodeLine: View {
   var openEnabled = true
   var tokens: [CodeSyntaxToken]? = nil
   var changes: [CodeWordRange] = []
+  var side: Side? = nil
+  var wrap = false
   @Environment(\.appAppearance) private var appearance
   @State private var hovering = false
   @FocusState private var focused: Bool
@@ -174,12 +223,17 @@ struct ReviewCodeLine: View {
       } else {
         Color.clear.frame(width: 22, height: 20)
       }
-      Text(line.oldLine.map(String.init) ?? "").frame(width: 38, alignment: .trailing)
-        .foregroundStyle(.secondary)
-      Text(line.newLine.map(String.init) ?? "").frame(width: 38, alignment: .trailing)
-        .foregroundStyle(.secondary)
+      if side != .new {
+        Text(line.oldLine.map(String.init) ?? "").frame(width: 38, alignment: .trailing)
+          .foregroundStyle(.secondary)
+      }
+      if side != .old {
+        Text(line.newLine.map(String.init) ?? "").frame(width: 38, alignment: .trailing)
+          .foregroundStyle(.secondary)
+      }
       CodeWordDiffText(line: line, tokens: tokens, changes: changes, marker: appearance.diffMarkerStyle, dark: appearance.isDark)
         .textSelection(.enabled)
+        .fixedSize(horizontal: !wrap, vertical: true)
         .padding(.leading, 12)
         .padding(.trailing, 10)
         .foregroundStyle(line.kind == .header ? Color.secondary : appearance.codeForegroundColor)

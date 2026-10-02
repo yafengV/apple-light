@@ -1,8 +1,64 @@
+import AppKit
+import SwiftUI
 import XCTest
 
 @testable import ShipiOS
 
 final class GitReviewTests: XCTestCase {
+  @MainActor func testNativeReviewLineWrapKeepsTextInsideSplitColumn() {
+    _ = NSApplication.shared
+    let line = ReviewDiffLine(id: 0,
+      text: "-" + String(repeating: "a changed value with spaces ", count: 20),
+      kind: .deletion, oldLine: 12, newLine: nil)
+    func height(wrap: Bool) -> CGFloat {
+      let host = NSHostingView(rootView: ReviewCodeLine(line: line,
+        addComment: {}, openLine: {}, side: .old, wrap: wrap).frame(width: 300))
+      host.layoutSubtreeIfNeeded()
+      return host.fittingSize.height
+    }
+    XCTAssertGreaterThan(height(wrap: true), height(wrap: false) + 15)
+  }
+
+  @MainActor func testHiddenGitFileReviewUsesSharedSplitAndWrapPreferences() async throws {
+    let root = try await repository()
+    try write("file.swift", "let old = " + String(repeating: "word ", count: 80) + "\n", root)
+    _ = try await commit("Initial", root)
+    try write("file.swift", "let new = " + String(repeating: "word ", count: 80) + "\n", root)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    workspace.reviewScope = .unstaged
+    await workspace.refreshGit()
+    await workspace.loadDiff()
+    let file = try XCTUnwrap(workspace.visibleChanges.first)
+    let dataRoot = FileManager.default.temporaryDirectory.appendingPathComponent("git-display-" + UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dataRoot) }
+    let store = WorkspaceStore(dataRoot: dataRoot); store.libraryLoaded = true
+    store.reviewDiffSplit = true
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: ReviewFileView(store: store, workspace: workspace,
+      file: file, root: root, scope: .unstaged, revision: workspace.reviewArguments.joined(separator: " "))
+      .frame(width: 500))
+    window.contentView = host
+    defer { window.close() }
+    func horizontalScrolls(_ node: NSView) -> [NSScrollView] {
+      ((node as? NSScrollView).map { $0.hasHorizontalScroller ? [$0] : [] } ?? [])
+        + node.subviews.flatMap(horizontalScrolls)
+    }
+    for _ in 0..<20 {
+      host.layoutSubtreeIfNeeded()
+      if !horizontalScrolls(host).isEmpty { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    XCTAssertFalse(horizontalScrolls(host).isEmpty)
+    store.reviewDiffWrap = true
+    try await Task.sleep(for: .milliseconds(250)); host.layoutSubtreeIfNeeded()
+    XCTAssertTrue(horizontalScrolls(host).isEmpty)
+    XCTAssertTrue(store.reviewDiffSplit)
+  }
+
   @MainActor func testStagedRenameDiffAndUnstageOperateOnBothPaths() async throws {
     let root = try await repository()
     let old = "old file.swift"

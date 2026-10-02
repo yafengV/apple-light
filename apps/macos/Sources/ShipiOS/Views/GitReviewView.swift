@@ -44,8 +44,19 @@ struct GitReviewView: View {
             jumpTarget = target
             jumpRequest = UUID()
           }
-          Menu { CodeWordDiffMenu(store: store) } label: { Image(systemName: "ellipsis") }
+          Menu {
+            Button(store.reviewDiffWrap ? "关闭自动换行" : "开启自动换行") {
+              store.reviewDiffWrap.toggle()
+            }
+            Divider()
+            CodeWordDiffMenu(store: store)
+          } label: { Image(systemName: "ellipsis") }
             .menuStyle(.borderlessButton).accessibilityLabel("差异选项")
+          Button { store.reviewDiffSplit.toggle() } label: {
+            Image(systemName: store.reviewDiffSplit ? "rectangle.split.2x1" : "rectangle.split.1x2")
+          }.buttonStyle(.plain)
+            .help(store.reviewDiffSplit ? "切换为统一差异" : "切换为并排差异")
+            .accessibilityLabel(store.reviewDiffSplit ? "切换为统一差异" : "切换为并排差异")
           if let error = store.generalSettingsError {
             Text(error).foregroundStyle(.red).help(error)
           }

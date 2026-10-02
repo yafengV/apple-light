@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import ShipiOS
 
@@ -76,6 +78,35 @@ private actor LastTurnReadGate {
     let oldIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
     await store.workspace.stage("file.txt", undo: false)
     XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), oldIndex)
+  }
+
+  func testHiddenLastTurnReviewSwitchesBetweenScrollableSplitAndWrappedColumns() async throws {
+    let (store, root) = try await fixture()
+    appendRun(store, root: root, diff: patch)
+    store.workspace.reviewScope = .lastTurn
+    await store.workspace.loadDiff()
+    let snapshot = try XCTUnwrap(store.workspace.lastTurnReview)
+    store.reviewDiffSplit = true
+    let view = ScrollView(.vertical) {
+      LastTurnReviewView(store: store, workspace: store.workspace, snapshot: snapshot)
+    }.frame(width: 500, height: 350)
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: view)
+    window.contentView = host
+    defer { window.close() }
+    func horizontalScrolls(_ node: NSView) -> [NSScrollView] {
+      ((node as? NSScrollView).map { $0.hasHorizontalScroller ? [$0] : [] } ?? [])
+        + node.subviews.flatMap(horizontalScrolls)
+    }
+    try await Task.sleep(for: .milliseconds(250)); host.layoutSubtreeIfNeeded()
+    XCTAssertFalse(horizontalScrolls(host).isEmpty)
+    store.reviewDiffWrap = true
+    try await Task.sleep(for: .milliseconds(250)); host.layoutSubtreeIfNeeded()
+    XCTAssertTrue(horizontalScrolls(host).isEmpty)
+    XCTAssertTrue(store.reviewDiffSplit)
   }
 
   func testMostRecentTurnWithoutDiffDoesNotFallBackToOlderChanges() async throws {
