@@ -39,6 +39,16 @@ enum ConversationRailSelection {
     return orderedIDs[index]
   }
 
+  static func scrubNavigationTarget(startY: CGFloat, y: CGFloat,
+    previousID: String?, orderedIDs: [String]) -> String? {
+    guard let target = scrubbedID(y: y, orderedIDs: orderedIDs),
+      target != previousID else { return nil }
+    if previousID == nil && target == scrubbedID(y: startY, orderedIDs: orderedIDs) {
+      return nil
+    }
+    return target
+  }
+
   static func audioLevel(index: Int, itemCount: Int, levels: [Double]) -> Double {
     guard itemCount > 0, !levels.isEmpty, index >= 0, index < itemCount else { return 0 }
     let first = index * levels.count / itemCount
@@ -57,6 +67,9 @@ struct ConversationNavigationRail: View {
   @State private var previewID: String?
   @State private var previewHovered = false
   @State private var scrubID: String?
+  @State private var suppressClickAfterScrub = false
+  @FocusState private var focusedID: String?
+  @FocusState private var bookmarkFocusedID: String?
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
@@ -65,7 +78,11 @@ struct ConversationNavigationRail: View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
           let highlighted = item.id == (scrubID ?? currentID)
           Button {
-            onSelect(item.id)
+            if suppressClickAfterScrub {
+              suppressClickAfterScrub = false
+              return
+            }
+            navigate(to: item.id, animated: true)
             previewID = item.id
           } label: {
             marker(item: item, index: index, highlighted: highlighted)
@@ -73,23 +90,30 @@ struct ConversationNavigationRail: View {
               .contentShape(Rectangle())
           }
           .buttonStyle(.plain)
+          .focused($focusedID, equals: item.id)
           .accessibilityLabel("跳转到第 \(index + 1) 条用户消息\(item.bookmarked ? "，已加书签" : "")")
           .accessibilityAddTraits(item.id == currentID ? [.isSelected] : [])
           .onHover { inside in
             if inside && scrubID == nil { previewID = item.id }
             else if !inside {
               DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                if previewID == item.id && !previewHovered { previewID = nil }
+                if previewID == item.id && !previewHovered && focusedID != item.id
+                  && bookmarkFocusedID != item.id {
+                  previewID = nil
+                }
               }
             }
           }
           .popover(isPresented: Binding(
-            get: { previewID == item.id && scrubID == nil },
+            get: { (scrubID ?? previewID) == item.id },
             set: { if !$0 && previewID == item.id { previewID = nil } }),
             arrowEdge: .trailing) {
             preview(item).onHover { inside in
               previewHovered = inside
-              if !inside && previewID == item.id { previewID = nil }
+              if !inside && previewID == item.id && focusedID != item.id
+                && bookmarkFocusedID != item.id {
+                previewID = nil
+              }
             }
           }
         }
@@ -97,20 +121,51 @@ struct ConversationNavigationRail: View {
       .coordinateSpace(name: "conversation-rail-markers")
       .simultaneousGesture(DragGesture(minimumDistance: 3, coordinateSpace: .named("conversation-rail-markers"))
         .onChanged { value in
-          scrubID = ConversationRailSelection.scrubbedID(y: value.location.y, orderedIDs: items.map(\.id))
-        }
-        .onEnded { value in
-          if let id = ConversationRailSelection.scrubbedID(y: value.location.y, orderedIDs: items.map(\.id)) {
-            onSelect(id)
+          let orderedIDs = items.map(\.id)
+          let next = ConversationRailSelection.scrubbedID(y: value.location.y,
+            orderedIDs: orderedIDs)
+          let target = ConversationRailSelection.scrubNavigationTarget(
+            startY: value.startLocation.y, y: value.location.y,
+            previousID: scrubID, orderedIDs: orderedIDs)
+          scrubID = next
+          if let target {
+            suppressClickAfterScrub = true
+            navigate(to: target, animated: false)
           }
+        }
+        .onEnded { _ in
           scrubID = nil
           previewID = nil
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            suppressClickAfterScrub = false
+          }
         })
+    }
+    .onChange(of: focusedID) { _, focused in
+      if let focused { previewID = focused }
+      else { dismissPreviewAfterFocusChange() }
+    }
+    .onChange(of: bookmarkFocusedID) { _, focused in
+      if let focused { previewID = focused }
+      else { dismissPreviewAfterFocusChange() }
     }
     .scrollIndicators(.hidden)
     .frame(width: 36)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("用户消息")
+  }
+
+  private func navigate(to id: String, animated: Bool) {
+    if animated && !reduceMotion {
+      withAnimation(.easeInOut(duration: 0.28)) { onSelect(id) }
+    } else { onSelect(id) }
+  }
+
+  private func dismissPreviewAfterFocusChange() {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+      if focusedID == nil && bookmarkFocusedID == nil && !previewHovered
+        && scrubID == nil { previewID = nil }
+    }
   }
 
   private func marker(item: ConversationRailItem, index: Int, highlighted: Bool) -> some View {
@@ -142,6 +197,7 @@ struct ConversationNavigationRail: View {
           Image(systemName: item.bookmarked ? "bookmark.fill" : "bookmark")
         }
         .buttonStyle(.plain)
+        .focused($bookmarkFocusedID, equals: item.id)
         .help(item.bookmarked ? "移除书签" : "为此轮加书签")
         .accessibilityLabel(item.bookmarked ? "移除书签" : "为此轮加书签")
       }

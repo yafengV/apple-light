@@ -26,6 +26,15 @@ final class ConversationNavigationRailTests: XCTestCase {
     XCTAssertEqual(ConversationRailSelection.scrubbedID(y: 100,
       orderedIDs: ["first", "second"]), "second")
     XCTAssertNil(ConversationRailSelection.scrubbedID(y: 0, orderedIDs: []))
+    let ids = ["first", "second", "third"]
+    XCTAssertNil(ConversationRailSelection.scrubNavigationTarget(startY: 5, y: 7,
+      previousID: nil, orderedIDs: ids))
+    XCTAssertEqual(ConversationRailSelection.scrubNavigationTarget(startY: 5, y: 16,
+      previousID: "first", orderedIDs: ids), "second")
+    XCTAssertNil(ConversationRailSelection.scrubNavigationTarget(startY: 5, y: 19,
+      previousID: "second", orderedIDs: ids))
+    XCTAssertEqual(ConversationRailSelection.scrubNavigationTarget(startY: 5, y: 4,
+      previousID: "second", orderedIDs: ids), "first")
     XCTAssertEqual(ConversationNavigationRail.minimumItems, 4)
     XCTAssertEqual(ConversationRailSelection.audioLevel(index: 1, itemCount: 4,
       levels: [0, 0.1, 0.2, 0.9, 0.4, 0.3, 0.2, 0]), 0.9)
