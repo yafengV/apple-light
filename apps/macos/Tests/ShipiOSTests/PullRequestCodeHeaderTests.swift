@@ -124,6 +124,35 @@ import XCTest
     try await settle(secondHost)
     XCTAssertEqual(try rightmostScrollWidth(secondHost), 628.25, accuracy: 20)
   }
+  func testPRCodeDiffDisplayPreferencesShareAcrossTabsAndRestart() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("pr-display-" + UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
+    let first = try await fixture(), second = try await fixture()
+    func view(_ state: GitHubPRCodeState, store: WorkspaceStore) -> some View {
+      TaskPullRequestCodeView(state: state, discussion: .init(), enabled: false,
+        writable: false, mentionRequest: nil, open: { _ in }, submit: { _, _ in }, retry: {}, retryComments: {}, store: store)
+    }
+    let (firstWindow, firstHost) = window(view(first, store: store))
+    let (secondWindow, secondHost) = window(view(second, store: store))
+    defer { firstWindow.close(); secondWindow.close() }
+    try await settle(firstHost); try await settle(secondHost)
+    XCTAssertFalse(first.split); XCTAssertFalse(second.wrap)
+    store.reviewDiffSplit = true; store.reviewDiffWrap = true
+    try await settle(firstHost); try await settle(secondHost)
+    XCTAssertTrue(first.split); XCTAssertTrue(first.wrap)
+    XCTAssertTrue(second.split); XCTAssertTrue(second.wrap)
+
+    let restored = WorkspaceStore(dataRoot: root)
+    restored.library = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    restored.libraryLoaded = true
+    XCTAssertTrue(restored.reviewDiffSplit); XCTAssertTrue(restored.reviewDiffWrap)
+    let reopened = try await fixture()
+    let (reopenedWindow, reopenedHost) = window(view(reopened, store: restored))
+    defer { reopenedWindow.close() }
+    try await settle(reopenedHost)
+    XCTAssertTrue(reopened.split); XCTAssertTrue(reopened.wrap)
+  }
   func testOptionToggleUsesClickedFileStateAndKeepsSelectionAndWindowScope() async throws {
     let state = try await fixture(), other = try await fixture()
     state.select(state.files[1].path); state.toggle(state.files[0].path)

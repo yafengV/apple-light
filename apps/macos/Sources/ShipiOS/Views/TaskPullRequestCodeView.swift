@@ -118,6 +118,12 @@ struct TaskPullRequestCodeView: View {
       comments.sync(cards ?? [], drafts: discussion.drafts)
     }
     .onChange(of: discussion.drafts) { _, drafts in comments.sync(discussion.snapshot?.commentCards ?? [], drafts: drafts) }
+    .onChange(of: store?.reviewDiffSplit, initial: true) { _, split in
+      if let split { state.split = split }
+    }
+    .onChange(of: store?.reviewDiffWrap, initial: true) { _, wrap in
+      if let wrap { state.wrap = wrap }
+    }
     .onDisappear { state.endNavigation() }
   }
 
@@ -138,7 +144,10 @@ struct TaskPullRequestCodeView: View {
         Menu {
           Button("刷新差异", action: retry)
             .disabled(state.loading || metadataLoading)
-          Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
+          Button(state.wrap ? "关闭自动换行" : "开启自动换行") {
+            if let store { store.reviewDiffWrap.toggle() }
+            else { state.wrap.toggle() }
+          }
           Divider()
           Button(richPreviewEnabled ? "关闭富文本预览" : "开启富文本预览") {
             richPreviewEnabled.toggle()
@@ -151,7 +160,10 @@ struct TaskPullRequestCodeView: View {
           Image(systemName: state.groupExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
         }.buttonStyle(.plain).help(state.groupExpanded ? "收起全部差异" : "展开全部差异")
           .accessibilityLabel(state.groupExpanded ? "收起全部差异" : "展开全部差异")
-        Button { state.split.toggle() } label: {
+        Button {
+          if let store { store.reviewDiffSplit.toggle() }
+          else { state.split.toggle() }
+        } label: {
           Image(systemName: state.split ? "rectangle.split.2x1" : "rectangle.split.1x2")
         }.buttonStyle(.plain).help(state.split ? "切换为统一差异" : "切换为并排差异")
           .accessibilityLabel(state.split ? "切换为统一差异" : "切换为并排差异")

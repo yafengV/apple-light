@@ -446,6 +446,16 @@ extension WorkspaceStore {
     set { updateGeneralPreference(\.reviewWordDiffs, value: newValue) }
   }
 
+  var reviewDiffSplit: Bool {
+    get { library.reviewDiffSplit }
+    set { updateGeneralPreference(\.reviewDiffSplit, value: newValue) }
+  }
+
+  var reviewDiffWrap: Bool {
+    get { library.reviewDiffWrap }
+    set { updateGeneralPreference(\.reviewDiffWrap, value: newValue) }
+  }
+
   private func updateGeneralPreference<Value: Equatable>(
     _ keyPath: WritableKeyPath<WorkspaceLibrary, Value>, value: Value
   ) {

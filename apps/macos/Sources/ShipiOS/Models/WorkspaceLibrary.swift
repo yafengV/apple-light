@@ -359,6 +359,8 @@ struct WorkspaceLibrary: Codable {
   var preferredEditor = ExternalEditor.system.rawValue
   var appearance: AppearancePreferences?
   var reviewWordDiffs = false
+  var reviewDiffSplit = false
+  var reviewDiffWrap = false
   var notifications: CompletionNotificationPreferences?
   var preventIdleSleep = false
   var followUpBehavior = FollowUpBehavior.queue
@@ -416,7 +418,7 @@ struct WorkspaceLibrary: Codable {
   enum CodingKeys: String, CodingKey {
     case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, bookmarkedRunIDs, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
-      reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
+      reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, reviewDiffSplit, reviewDiffWrap, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, confettiEnabled, audioVisualizerEnabled, dismissedEducationalTipIDs,
@@ -490,6 +492,8 @@ struct WorkspaceLibrary: Codable {
     appearance = try c.decodeIfPresent(AppearancePreferences.self, forKey: .appearance)?
       .normalized()
     reviewWordDiffs = try c.decodeIfPresent(Bool.self, forKey: .reviewWordDiffs) ?? false
+    reviewDiffSplit = try c.decodeIfPresent(Bool.self, forKey: .reviewDiffSplit) ?? false
+    reviewDiffWrap = try c.decodeIfPresent(Bool.self, forKey: .reviewDiffWrap) ?? false
     notifications = try c.decodeIfPresent(CompletionNotificationPreferences.self, forKey: .notifications)
     preventIdleSleep = try c.decodeIfPresent(Bool.self, forKey: .preventIdleSleep) ?? false
     followUpBehavior = try c.decodeIfPresent(FollowUpBehavior.self, forKey: .followUpBehavior) ?? .queue
