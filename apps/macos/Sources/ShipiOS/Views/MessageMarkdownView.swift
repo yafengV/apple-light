@@ -7,6 +7,7 @@ struct MessageMarkdownView: View {
   var runID = ""
   var partPrefix = "response"
   var linkActions: MessageLinkActions?
+  var githubMedia = false
   let openLink: (URL) -> Void
   @State private var blocks: [MessageBlock] = []
 
@@ -24,9 +25,12 @@ struct MessageMarkdownView: View {
           return .handled
         }
       )
-      .task(id: source) {
+      .task(id: source + (githubMedia ? "\u{0}github-media" : "")) {
         let input = source
-        let result = await Task.detached(priority: .userInitiated) { MessageDocument.parse(input) }
+        let media = githubMedia
+        let result = await Task.detached(priority: .userInitiated) {
+          MessageDocument.parse(input, githubMedia: media)
+        }
           .value
         guard !Task.isCancelled else { return }
         blocks = result
@@ -46,6 +50,7 @@ private struct MessageBlocksView: View {
 private struct MessageBlockView: View {
   @Environment(\.conversationRunID) private var runID
   @Environment(\.conversationResponsePart) private var partPrefix
+  @Environment(\.openURL) private var openURL
   let block: MessageBlock
   @ViewBuilder var body: some View {
     switch block.kind {
@@ -85,6 +90,8 @@ private struct MessageBlockView: View {
       MessageTableView(block: block)
     case .rule:
       Divider().padding(.vertical, 4)
+    case .media(let media):
+      TaskPullRequestCommentMediaView(media: media, open: { _ = openURL($0) })
     }
   }
 }
@@ -137,12 +144,24 @@ private struct MessageTableView: View {
         ForEach(block.rows.indices, id: \.self) { row in
           GridRow {
             ForEach(block.rows[row].indices, id: \.self) { column in
-              ConversationSearchText(
-                block.rows[row][column],
-                id: .init(run: runID, part: "\(partPrefix).\(block.id).cell.\(row).\(column)"),
-                nativeWeight: row == 0 ? .semibold : .regular
-              )
-              .fontWeight(row == 0 ? .semibold : .regular)
+              Group {
+                if block.mediaRows.indices.contains(row),
+                  block.mediaRows[row].indices.contains(column),
+                  block.mediaRows[row][column].contains(where: {
+                    if case .media = $0.kind { true } else { false }
+                  }) {
+                  VStack(alignment: .leading, spacing: 8) {
+                    ForEach(block.mediaRows[row][column]) { part in MessageBlockView(block: part) }
+                  }
+                } else {
+                  ConversationSearchText(
+                    block.rows[row][column],
+                    id: .init(run: runID, part: "\(partPrefix).\(block.id).cell.\(row).\(column)"),
+                    nativeWeight: row == 0 ? .semibold : .regular
+                  )
+                  .fontWeight(row == 0 ? .semibold : .regular)
+                }
+              }
               .frame(minWidth: 100, maxWidth: 280, alignment: alignment(column))
               .padding(.horizontal, 12).padding(.vertical, 9)
               .background(.primary.opacity(row == 0 ? 0.06 : row.isMultiple(of: 2) ? 0.025 : 0))

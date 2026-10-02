@@ -1,11 +1,17 @@
 import Foundation
-import Markdown
 
-struct GitHubPRCommentMedia: Equatable {
-  enum Kind: Equatable { case image, video }
+struct GitHubPRCommentMedia: Sendable, Equatable {
+  enum Kind: Sendable, Equatable { case image, video }
   let url: URL
   let kind: Kind
   let alt: String
+
+  static func mightContainURL(_ source: String) -> Bool {
+    let text = source.lowercased()
+    return text.contains("github.com/user-attachments/assets/") ||
+      text.contains("user-images.githubusercontent.com/") ||
+      text.contains("private-user-images.githubusercontent.com/")
+  }
 
   static func allowedURL(_ source: String) -> URL? {
     guard let url = URL(string: source), let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -31,82 +37,46 @@ struct GitHubPRCommentMedia: Equatable {
       [".mov", ".mp4", ".webm"].contains(where: path.hasSuffix) else { return nil }
     return url
   }
-}
 
-enum GitHubPRCommentSegment: Equatable {
-  case markdown(String)
-  case media(GitHubPRCommentMedia)
-
-  static func parse(_ source: String) -> [Self] {
-    var result: [Self] = []
-    var pending: [String] = []
-    func flush() {
-      let text = pending.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
-      if !text.isEmpty { result.append(.markdown(text)) }
-      pending.removeAll()
-    }
-    func append(_ media: GitHubPRCommentMedia) {
-      flush()
-      result.append(.media(media))
-    }
-    for block in Document(parsing: source).children {
-      if let paragraph = block as? Paragraph {
-        let paragraphSource = block.format().trimmingCharacters(in: .whitespacesAndNewlines)
-        if let url = GitHubPRCommentMedia.videoURL(paragraphSource) {
-          append(.init(url: url, kind: .video, alt: paragraphSource))
-          continue
-        }
-        var inline: [String] = []
-        var foundMedia = false
-        func flushInline() {
-          let text = inline.joined().trimmingCharacters(in: .whitespacesAndNewlines)
-          if !text.isEmpty { pending.append(text); flush() }
-          inline.removeAll()
-        }
-        for child in paragraph.children {
-          if let image = child as? Markdown.Image, let destination = image.source,
-            let url = GitHubPRCommentMedia.allowedURL(destination) {
-            flushInline()
-            append(.init(url: url, kind: .image, alt: image.plainText))
-            foundMedia = true
-          } else if paragraph.childCount == 1, let link = child as? Markdown.Link,
-            let destination = link.destination,
-            let url = GitHubPRCommentMedia.videoURL(destination) {
-            flushInline()
-            append(.init(url: url, kind: .video, alt: link.plainText))
-            foundMedia = true
-          } else {
-            inline.append(child.format())
-          }
-        }
-        if foundMedia { flushInline() }
-        else { pending.append(block.format()) }
-      } else if let html = block as? HTMLBlock, let media = htmlMedia(html.rawHTML) {
-        append(media)
-      } else {
-        pending.append(block.format())
-      }
-    }
-    flush()
-    // Preserve exact source, including Markdown spacing, when there is no media.
-    return result.contains(where: { if case .media = $0 { true } else { false } }) ? result : [.markdown(source)]
-  }
-
-  private static func htmlMedia(_ source: String) -> GitHubPRCommentMedia? {
+  static func html(_ source: String) -> Self? {
     let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let tag = trimmed.range(of: #"^<(img|video)\b[^>]*>"#, options: [.regularExpression, .caseInsensitive]),
       tag.lowerBound == trimmed.startIndex else { return nil }
     let opening = String(trimmed[tag])
     let remaining = trimmed[tag.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-    let kind: GitHubPRCommentMedia.Kind = opening.lowercased().hasPrefix("<img") ? .image : .video
+    let kind: Kind = opening.lowercased().hasPrefix("<img") ? .image : .video
     guard remaining.isEmpty || (kind == .video && remaining.lowercased() == "</video>") else { return nil }
-    guard let match = opening.range(of: #"\bsrc\s*=\s*(["'][^"']+["'])"#,
+    guard let sourceURL = attribute("src", in: opening), let url = allowedURL(sourceURL) else { return nil }
+    return .init(url: url, kind: kind, alt: attribute("alt", in: opening) ?? "")
+  }
+
+  private static func attribute(_ name: String, in tag: String) -> String? {
+    guard let match = tag.range(of: #"\b"# + name + #"\s*=\s*(["'][^"']*["'])"#,
       options: [.regularExpression, .caseInsensitive]),
-      let equals = opening[match].firstIndex(of: "=") else { return nil }
-    let quoted = opening[opening.index(after: equals)..<match.upperBound]
+      let equals = tag[match].firstIndex(of: "=") else { return nil }
+    let quoted = tag[tag.index(after: equals)..<match.upperBound]
       .trimmingCharacters(in: .whitespacesAndNewlines)
-    let sourceURL = String(quoted.dropFirst().dropLast())
-    guard let url = GitHubPRCommentMedia.allowedURL(sourceURL) else { return nil }
-    return .init(url: url, kind: kind, alt: "")
+    return decodeHTMLEntities(String(quoted.dropFirst().dropLast()))
+  }
+
+  private static func decodeHTMLEntities(_ source: String) -> String {
+    guard let expression = try? NSRegularExpression(pattern: #"&(?:#[xX][0-9a-fA-F]+|#[0-9]+|amp|quot|apos|lt|gt);"#,
+      options: .caseInsensitive) else { return source }
+    let nsSource = source as NSString
+    let matches = expression.matches(in: source, range: NSRange(location: 0, length: nsSource.length))
+    var result = source
+    for match in matches.reversed() {
+      let entity = nsSource.substring(with: match.range)
+      let key = String(entity.dropFirst().dropLast()).lowercased()
+      let named = ["amp": "&", "quot": "\"", "apos": "'", "lt": "<", "gt": ">"]
+      let value: String?
+      if key.hasPrefix("#x"), let scalar = UInt32(key.dropFirst(2), radix: 16).flatMap(UnicodeScalar.init) {
+        value = String(scalar)
+      } else if key.hasPrefix("#"), let scalar = UInt32(key.dropFirst(), radix: 10).flatMap(UnicodeScalar.init) {
+        value = String(scalar)
+      } else { value = named[key] }
+      if let value, let range = Range(match.range, in: result) { result.replaceSubrange(range, with: value) }
+    }
+    return result
   }
 }

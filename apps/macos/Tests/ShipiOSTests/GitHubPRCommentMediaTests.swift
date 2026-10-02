@@ -24,35 +24,80 @@ final class GitHubPRCommentMediaTests: XCTestCase {
   func testMarkdownImageAndVideoKeepSurroundingTextInOrder() {
     let source = "Before **bold** ![chart](https://user-images.githubusercontent.com/a.png) after.\n\n" +
       "https://github.com/user-attachments/assets/movie-id\n\nTail"
-    let segments = GitHubPRCommentSegment.parse(source)
-    XCTAssertEqual(segments.count, 5)
-    guard case .markdown(let before) = segments[0], case .media(let image) = segments[1],
-      case .markdown(let after) = segments[2], case .media(let video) = segments[3],
-      case .markdown(let tail) = segments[4] else {
+    let blocks = MessageDocument.parse(source, githubMedia: true)
+    XCTAssertEqual(blocks.count, 5)
+    guard case .paragraph = blocks[0].kind, case .media(let image) = blocks[1].kind,
+      case .paragraph = blocks[2].kind, case .media(let video) = blocks[3].kind,
+      case .paragraph = blocks[4].kind else {
       return XCTFail("Expected text, image, text, video, text")
     }
-    XCTAssertTrue(before.contains("**bold**"))
+    XCTAssertEqual(String(blocks[0].text.characters).trimmingCharacters(in: .whitespaces), "Before bold")
+    XCTAssertTrue(blocks[0].text.runs.contains(where: {
+      $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true
+    }))
     XCTAssertEqual(image.kind, .image)
     XCTAssertEqual(image.alt, "chart")
-    XCTAssertEqual(after, "after.")
+    XCTAssertEqual(String(blocks[2].text.characters).trimmingCharacters(in: .whitespaces), "after.")
     XCTAssertEqual(video.kind, .video)
-    XCTAssertEqual(tail, "Tail")
+    XCTAssertEqual(String(blocks[4].text.characters), "Tail")
   }
 
   func testCodeAndUntrustedImagesStayInMarkdown() {
     let source = "```md\n![fake](https://github.com/user-attachments/assets/id)\n```\n\n" +
       "![external](https://example.com/picture.png)"
-    XCTAssertEqual(GitHubPRCommentSegment.parse(source), [.markdown(source)])
+    let ordinary = MessageDocument.parse(source)
+    XCTAssertEqual(MessageDocument.parse(source, githubMedia: true), ordinary)
   }
 
   func testStandaloneHTMLMediaAndExtraHTML() {
     let image = "<img alt=\"chart\" src=\"https://user-images.githubusercontent.com/a.png\">"
-    guard case .media(let item) = GitHubPRCommentSegment.parse(image).first else {
+    guard case .media(let item) = MessageDocument.parse(image, githubMedia: true).first?.kind else {
       return XCTFail("Expected HTML image")
     }
     XCTAssertEqual(item.kind, .image)
+    XCTAssertEqual(item.alt, "chart")
+    let escaped = "<img alt=\"A &amp; B\" src=\"https://private-user-images.githubusercontent.com/a.png?x=1&amp;y=2\">"
+    guard case .media(let signed) = MessageDocument.parse(escaped, githubMedia: true).first?.kind else {
+      return XCTFail("Expected signed HTML image")
+    }
+    XCTAssertEqual(signed.alt, "A & B")
+    XCTAssertEqual(signed.url.query, "x=1&y=2")
     let unsafe = image + "<script>alert(1)</script>"
-    XCTAssertEqual(GitHubPRCommentSegment.parse(unsafe), [.markdown(unsafe)])
+    XCTAssertFalse(MessageDocument.parse(unsafe, githubMedia: true).contains(where: {
+      if case .media = $0.kind { true } else { false }
+    }))
+  }
+
+  func testMediaInsideListQuoteAndTableKeepsItsContainer() {
+    let image = "![chart](https://user-images.githubusercontent.com/a.png)"
+    let source = "- before " + image + " after\n\n> " + image +
+      "\n\n| file | image |\n| --- | --- |\n| A | " + image + " |"
+    let blocks = MessageDocument.parse(source, githubMedia: true)
+    XCTAssertEqual(blocks.count, 3)
+    guard case .list = blocks[0].kind, case .quote = blocks[1].kind,
+      case .table = blocks[2].kind else { return XCTFail("Expected list, quote, table") }
+    XCTAssertEqual(blocks[0].children[0].children.count, 3)
+    guard case .media(let listMedia) = blocks[0].children[0].children[1].kind,
+      case .media(let quoteMedia) = blocks[1].children[0].kind,
+      case .media(let cellMedia) = blocks[2].mediaRows[1][1][0].kind else {
+      return XCTFail("Expected media in all three nested containers")
+    }
+    XCTAssertEqual([listMedia.alt, quoteMedia.alt, cellMedia.alt], ["chart", "chart", "chart"])
+    XCTAssertTrue(MessageDocument.parse(source).allSatisfy { block in
+      if case .media = block.kind { return false }
+      return true
+    })
+  }
+
+  func testHeadingImageKeepsHeadingTextStyle() {
+    let source = "# Results ![chart](https://user-images.githubusercontent.com/a.png)"
+    let blocks = MessageDocument.parse(source, githubMedia: true)
+    XCTAssertEqual(blocks.count, 2)
+    guard case .heading(1) = blocks[0].kind, case .media(let image) = blocks[1].kind else {
+      return XCTFail("Expected heading and image")
+    }
+    XCTAssertEqual(String(blocks[0].text.characters).trimmingCharacters(in: .whitespaces), "Results")
+    XCTAssertEqual(image.alt, "chart")
   }
 
   func testResponseMIMEIsCheckedBeforePreview() {

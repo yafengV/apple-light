@@ -48,23 +48,8 @@ struct TaskPullRequestCommentContentView: View {
     .onChange(of: comment.body) { _, _ in expanded = false }
   }
   @ViewBuilder private var commentContent: some View {
-    let segments = GitHubPRCommentSegment.parse(commentBody)
-    if segments.count == 1, case .markdown = segments[0] {
-      MessageMarkdownView(source: commentBody, partPrefix: "pr-comment-" + comment.id,
-        openLink: open)
-    } else {
-      VStack(alignment: .leading, spacing: 14) {
-        ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
-          switch segment {
-          case .markdown(let source):
-            MessageMarkdownView(source: source,
-              partPrefix: "pr-comment-\(comment.id)-\(index)", openLink: open)
-          case .media(let media):
-            TaskPullRequestCommentMediaView(media: media, open: open)
-          }
-        }
-      }
-    }
+    MessageMarkdownView(source: commentBody, partPrefix: "pr-comment-" + comment.id,
+      githubMedia: true, openLink: open)
   }
   private func composer(_ draft: GitHubPRCommentDraft, label: String) -> some View {
     TaskPullRequestCommentComposer(text: Binding(get: { state.drafts[comment.id]?.text ?? "" }, set: {
@@ -77,7 +62,7 @@ struct TaskPullRequestCommentContentView: View {
   }
 }
 
-private struct TaskPullRequestCommentMediaView: View {
+struct TaskPullRequestCommentMediaView: View {
   let media: GitHubPRCommentMedia
   let open: (URL) -> Void
   @State private var image: NSImage?
