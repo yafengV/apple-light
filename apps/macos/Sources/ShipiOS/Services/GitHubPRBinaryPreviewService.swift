@@ -63,7 +63,7 @@ extension GitHubPRService {
     return .init(kind: kind, before: oldBytes, after: newBytes)
   }
 
-  private func previewBlob(_ oid: String, size: Int, repository: String, at root: URL) async throws -> Data {
+  func previewBlob(_ oid: String, size: Int, repository: String, at root: URL) async throws -> Data {
     let output = try await run(["api", "--hostname", "github.com",
       "repos/\(repository)/git/blobs/\(oid)"], at: root, maxOutputBytes: 16_777_216)
     let value = try JSONDecoder().decode(JSONValue.self, from: Data(output.utf8))

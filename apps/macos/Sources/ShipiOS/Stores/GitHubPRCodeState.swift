@@ -70,6 +70,26 @@ import Observation
     }
     return text
   }
+  func markdownContext(_ file: GitHubPRCodeFile,
+    identity: GitHubPRCodeIdentity) -> GitHubPRMarkdownContext? {
+    guard let request, snapshot?.identity == identity,
+      snapshot?.files.contains(file) == true else { return nil }
+    return GitHubPRMarkdownContext(pullRequestURL: request.pullRequest.validatedURL,
+      head: identity.head, filePath: file.path)
+  }
+  func markdownImage(_ file: GitHubPRCodeFile, identity: GitHubPRCodeIdentity,
+    path: String) async throws -> Data {
+    guard let request, let snapshot, snapshot.identity == identity,
+      snapshot.files.contains(file) else {
+      throw GitHubPRCodeChanged(message: "PR 代码版本已变化，请刷新差异后重试预览。")
+    }
+    let bytes = try await service.markdownImage(request, code: snapshot, file: file, path: path)
+    guard self.request == request, self.snapshot?.identity == identity,
+      self.snapshot?.files.contains(file) == true else {
+      throw GitHubPRCodeChanged(message: "PR 代码版本已变化，请刷新差异后重试预览。")
+    }
+    return bytes
+  }
   func binaryPreview(_ file: GitHubPRCodeFile, identity: GitHubPRCodeIdentity,
     richPreviewEnabled: Bool) async throws -> GitHubPRRichPreview.Binary {
     guard let request, let snapshot, snapshot.identity == identity, snapshot.files.contains(file) else {

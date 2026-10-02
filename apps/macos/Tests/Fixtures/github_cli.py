@@ -114,6 +114,19 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRMarkdownImage" in query:
+            expression = variables["expression"]
+            assert expression.startswith(state["head"] + ":")
+            encoded = state.get("binarySources", {}).get(expression)
+            blob = None
+            if encoded is not None:
+                data = base64.b64decode(encoded)
+                oid = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+                blob = {"__typename": "Blob", "oid": oid, "byteSize": len(data)}
+                blob.update(state.get("binaryObjectOverride", {}))
+            print(json.dumps({"data": {"repository": {
+                "nameWithOwner": state.get("binaryRepository", "sample/project"), "object": blob}}}))
+            sys.exit(0)
         if "ShipiOSPRBinaryPreview" in query:
             objects = {"nameWithOwner": state.get("binaryRepository", "sample/project")}
             for side in ("previous", "current"):

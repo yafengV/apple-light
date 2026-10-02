@@ -8,6 +8,8 @@ struct MessageMarkdownView: View {
   var partPrefix = "response"
   var linkActions: MessageLinkActions?
   var githubMedia = false
+  var prContext: GitHubPRMarkdownContext?
+  var prImageLoader: ((String) async throws -> Data)?
   let openLink: (URL) -> Void
   @State private var blocks: [MessageBlock] = []
 
@@ -16,6 +18,8 @@ struct MessageMarkdownView: View {
       .environment(\.conversationRunID, runID)
       .environment(\.conversationResponsePart, partPrefix)
       .environment(\.messageLinkActions, linkActions)
+      .environment(\.prMarkdownImageLoader, prImageLoader)
+      .environment(\.prMarkdownRevision, prContext?.head ?? "")
       .appContentFont(size: 14).lineSpacing(5).textSelection(.enabled)
       .tint(appearance.accentColor)
       .environment(
@@ -25,11 +29,14 @@ struct MessageMarkdownView: View {
           return .handled
         }
       )
-      .task(id: source + (githubMedia ? "\u{0}github-media" : "")) {
+      .task(id: source + (githubMedia ? "\u{0}github-media" : "")
+        + (prContext.map { "\u{0}\($0.repository):\($0.head):\($0.filePath)" } ?? "")) {
         let input = source
         let media = githubMedia
+        let context = prContext
+        if context != nil { blocks = [] }
         let result = await Task.detached(priority: .userInitiated) {
-          MessageDocument.parse(input, githubMedia: media)
+          MessageDocument.parse(input, githubMedia: media, prContext: context)
         }
           .value
         guard !Task.isCancelled else { return }
@@ -92,6 +99,66 @@ private struct MessageBlockView: View {
       Divider().padding(.vertical, 4)
     case .media(let media):
       TaskPullRequestCommentMediaView(media: media, open: { _ = openURL($0) })
+    case .prImage(let path, let alt):
+      PRMarkdownImageView(path: path, alt: alt)
+    }
+  }
+}
+
+private struct PRMarkdownImageLoaderKey: EnvironmentKey {
+  static let defaultValue: ((String) async throws -> Data)? = nil
+}
+
+private struct PRMarkdownRevisionKey: EnvironmentKey {
+  static let defaultValue = ""
+}
+
+private extension EnvironmentValues {
+  var prMarkdownImageLoader: ((String) async throws -> Data)? {
+    get { self[PRMarkdownImageLoaderKey.self] }
+    set { self[PRMarkdownImageLoaderKey.self] = newValue }
+  }
+  var prMarkdownRevision: String {
+    get { self[PRMarkdownRevisionKey.self] }
+    set { self[PRMarkdownRevisionKey.self] = newValue }
+  }
+}
+
+private struct PRMarkdownImageView: View {
+  @Environment(\.prMarkdownImageLoader) private var loadImage
+  @Environment(\.prMarkdownRevision) private var revision
+  let path: String
+  let alt: String
+  @State private var image: NSImage?
+  @State private var loading = true
+
+  var body: some View {
+    Group {
+      if let image {
+        Image(nsImage: image).resizable().scaledToFit()
+          .frame(maxWidth: .infinity, minHeight: 100, maxHeight: 500)
+          .accessibilityLabel(alt.isEmpty ? "图片" : alt)
+      } else if loading {
+        ProgressView("读取图片…").controlSize(.small).frame(minHeight: 100)
+      } else {
+        Text(alt.isEmpty ? "图片不可用" : alt).foregroundStyle(.secondary)
+          .frame(minHeight: 100)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .task(id: path + "\u{0}" + revision) {
+      image = nil; loading = true
+      guard let loadImage else { loading = false; return }
+      do {
+        let data = try await loadImage(path)
+        guard !Task.isCancelled else { return }
+        image = NSImage(data: data)
+      } catch {
+        guard !Task.isCancelled else { return }
+        image = nil
+      }
+      guard !Task.isCancelled else { return }
+      loading = false
     }
   }
 }

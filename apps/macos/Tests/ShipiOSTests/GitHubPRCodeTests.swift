@@ -89,6 +89,69 @@ import XCTest
     XCTAssertNil(state.snapshot)
   }
 
+  func testPRMarkdownImageReadsExactHeadBlobAndRejectsChangedOrCorruptContent() async throws {
+    let markdownDiff = "diff --git a/Docs/README.md b/Docs/README.md\n--- a/Docs/README.md\n+++ b/Docs/README.md\n@@ -1 +1 @@\n-old\n+![logo](../Images/logo.png)\n"
+    let png = try XCTUnwrap(Data(base64Encoded:
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j9XcAAAAASUVORK5CYII="))
+    let images = [head + ":Images/logo.png": png.base64EncodedString()]
+    let (request, service) = try await fixture(["prDiff": markdownDiff, "binarySources": images])
+    let code = try await service.codeSnapshot(request)
+    let context = try XCTUnwrap(GitHubPRMarkdownContext(pullRequestURL: request.pullRequest.validatedURL,
+      head: code.identity.head, filePath: code.files[0].path))
+    let path = try XCTUnwrap(context.path(for: "../Images/logo.png"))
+    let preview = try await service.markdownImage(request, code: code, file: code.files[0], path: path)
+    XCTAssertEqual(preview, png)
+    let records = try String(contentsOf: request.root.appendingPathComponent(".git/github-requests.jsonl"))
+    XCTAssertTrue(records.contains(head + ":Images/logo.png"))
+    XCTAssertTrue(records.contains("/git/blobs/"))
+    for extra: [String: Any] in [["binaryBlobOverride": ["content": "AA=="]],
+      ["binaryObjectOverride": ["byteSize": 10_485_761]],
+      ["binaryRepository": "other/project"],
+      ["headAfterBinaryBlob": String(repeating: "c", count: 40)]] {
+      let (nextRequest, nextService) = try await fixture(["prDiff": markdownDiff,
+        "binarySources": images].merging(extra) { _, value in value })
+      let nextCode = try await nextService.codeSnapshot(nextRequest)
+      let message = await failure {
+        _ = try await nextService.markdownImage(nextRequest, code: nextCode,
+          file: nextCode.files[0], path: path)
+      }
+      XCTAssertFalse(message.isEmpty)
+    }
+  }
+
+  func testHiddenPRMarkdownStartsRelativeImageReadFromHeadBlob() async throws {
+    let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 16, pixelsHigh: 16,
+      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+      colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+    for y in 0..<16 { for x in 0..<16 { bitmap.setColor(.red, atX: x, y: y) } }
+    let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+    XCTAssertNotNil(NSImage(data: png))
+    let markdownDiff = "diff --git a/Docs/README.md b/Docs/README.md\n--- a/Docs/README.md\n+++ b/Docs/README.md\n@@ -1 +1 @@\n-old\n+![红色图](../Images/red.png)\n"
+    let (request, service) = try await fixture(["prDiff": markdownDiff,
+      "previewText": "![红色图](../Images/red.png)",
+      "binarySources": [head + ":Images/red.png": png.base64EncodedString()]])
+    let state = GitHubPRCodeState(service: service)
+    await state.load(request, valid: { true })
+    let file = try XCTUnwrap(state.files.first)
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 500),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: TaskPullRequestCodeFileView(file: file, state: state,
+      threads: [], richPreviewEnabled: true, comment: { _ in EmptyView() })
+      .frame(width: 720, height: 440))
+    window.contentView = host
+    let logURL = request.root.appendingPathComponent(".git/github-requests.jsonl")
+    for _ in 0..<80 {
+      if (try? String(contentsOf: logURL))?.contains("/git/blobs/") == true { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    let records = try String(contentsOf: logURL)
+    XCTAssertTrue(records.contains("ShipiOSPRMarkdownImage"))
+    XCTAssertTrue(records.contains(head + ":Images/red.png"))
+    XCTAssertTrue(records.contains("/git/blobs/"))
+    XCTAssertFalse(window.isVisible)
+  }
+
   func testHiddenMarkdownPreviewChangesRenderedCodeSurface() async throws {
     let markdownDiff = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n"
     let (request, service) = try await fixture(["prDiff": markdownDiff,

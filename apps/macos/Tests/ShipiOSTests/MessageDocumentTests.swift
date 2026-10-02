@@ -3,6 +3,34 @@ import XCTest
 @testable import ShipiOS
 
 final class MessageDocumentTests: XCTestCase {
+  func testPRMarkdownResolvesImagesAndLinksAgainstHeadFile() throws {
+    let head = String(repeating: "a", count: 40)
+    let context = try XCTUnwrap(GitHubPRMarkdownContext(
+      pullRequestURL: URL(string: "https://github.com/sample/project/pull/42"),
+      head: head, filePath: "Docs/README.md"))
+    XCTAssertEqual(context.path(for: "../Images/a%20b.png?raw=1"), "Images/a b.png")
+    XCTAssertEqual(context.path(for: "../../outside.png"), nil)
+    XCTAssertEqual(context.path(for: "%2Fetc%2Fpasswd"), nil)
+    XCTAssertEqual(context.path(for: "https://example.com/image.png"), nil)
+    XCTAssertEqual(context.link(for: "../guide.md#intro")?.absoluteString,
+      "https://github.com/sample/project/blob/\(head)/guide.md#intro")
+    XCTAssertEqual(context.link(for: "#local")?.absoluteString,
+      "https://github.com/sample/project/blob/\(head)/Docs/README.md#local")
+    let blocks = MessageDocument.parse("![图](../Images/a%20b.png)\n\n[文档](../guide.md#intro)\n\n| 图 |\n| --- |\n| ![小图](./icon.png) |",
+      prContext: context)
+    XCTAssertEqual(blocks[0].kind, .prImage(path: "Images/a b.png", alt: "图"))
+    XCTAssertEqual(blocks[1].text.runs.first(where: { $0.link != nil })?.link?.absoluteString,
+      "https://github.com/sample/project/blob/\(head)/guide.md#intro")
+    XCTAssertTrue(blocks[2].mediaRows.flatMap { $0 }.flatMap { $0 }.contains {
+      $0.kind == .prImage(path: "Docs/icon.png", alt: "小图")
+    })
+    let escaped = MessageDocument.parse("[越界](../../outside.md)", prContext: context)
+    XCTAssertFalse(escaped[0].text.runs.contains { $0.link != nil })
+    XCTAssertFalse(MessageDocument.parse("![图](../Images/a.png)").contains {
+      if case .prImage = $0.kind { return true }; return false
+    })
+  }
+
   func testFencedCodePreservesWhitespaceAndDoesNotParseMarkdownInside() throws {
     let input = "## 示例\n\n```swift\n  let text = \"**原样**\"\n\nprint(text)\n```\n\n完成。"
     let blocks = MessageDocument.parse(input)

@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+PR Markdown 现以当前 PR head 解析相对图片和链接；图片按需读取并校验 Git Blob，链接固定到该提交，详见[第 562 篇](562-pr-markdown-relative-resources.md)。真实可见图片与双端前台配对仍缺，完整验收 **0/47**。
+
 PR Code 现从 PR 对应的 head/base Git Blob 显示图片、SVG 与 PDF 前后预览；PDF 有逐页导航，版本和内容哈希均校验，详见[第 561 篇](561-pr-binary-preview.md)。双端前台视觉／操作仍缺，完整配对 **0/47**。
 
 PR Code 工具栏已按参考端修正为选项、独立展开／收起、单击切换布局及文件树；富文本选项现可在版本校验后预览完整 Markdown 文件，见[第 560 篇](560-pr-rich-markdown-preview.md)。Markdown 相对资源和双端前台验收仍缺，完整配对 **0/47**。

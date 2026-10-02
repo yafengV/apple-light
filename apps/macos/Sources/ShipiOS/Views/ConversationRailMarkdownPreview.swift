@@ -47,6 +47,7 @@ enum ConversationRailPreviewDocument {
       return AttributedString(marker + " ") + joined(block.children.map(flatten), separator: " ")
     case .table: return AttributedString()
     case .media(let media): return AttributedString(media.alt)
+    case .prImage(_, let alt): return AttributedString(alt)
     }
   }
 

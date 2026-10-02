@@ -14,6 +14,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   @State private var selectionError: String?
   @State private var syntax = CodeSyntaxState()
   @State private var richText: String?
+  @State private var richIdentity: GitHubPRCodeIdentity?
   @State private var binaryPreview: GitHubPRRichPreview.Binary?
   @State private var previewLoading = false
   @ViewBuilder let comment: (GitHubPRReviewThread) -> Comment
@@ -53,6 +54,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   }
   private func loadRichPreview() async {
     richText = nil
+    richIdentity = nil
     binaryPreview = nil
     previewLoading = false
     guard !collapsed, let identity = state.snapshot?.identity else { return }
@@ -65,6 +67,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
         let text = try await state.richPreviewText(file, identity: identity)
         guard !Task.isCancelled else { return }
         richText = text
+        richIdentity = identity
       } else {
         let value = try await state.binaryPreview(file, identity: identity,
           richPreviewEnabled: richPreviewEnabled)
@@ -74,6 +77,7 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
     } catch {
       guard !Task.isCancelled else { return }
       richText = nil
+      richIdentity = nil
       binaryPreview = nil
     }
     previewLoading = false
@@ -84,8 +88,14 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
         if let binaryPreview {
           TaskPullRequestBinaryPreviewView(preview: binaryPreview)
         }
-        else if richPreviewEnabled, let richText, GitHubPRRichPreview.supportsMarkdown(file) {
-          MessageMarkdownView(source: richText, partPrefix: "pr-rich-preview-" + file.path, openLink: openLink)
+        else if richPreviewEnabled, let richText, let richIdentity,
+          state.snapshot?.identity == richIdentity,
+          let context = state.markdownContext(file, identity: richIdentity) {
+          MessageMarkdownView(source: richText, partPrefix: "pr-rich-preview-" + file.path,
+            githubMedia: true, prContext: context,
+            prImageLoader: { path in
+              try await state.markdownImage(file, identity: richIdentity, path: path)
+            }, openLink: openLink)
             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }
         else if previewLoading {
