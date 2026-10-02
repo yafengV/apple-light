@@ -10,13 +10,14 @@ struct GitHubPRService: Sendable {
       .map { URL(fileURLWithPath: $0) }
   }
 
-  func run(_ args: [String], at root: URL) async throws -> String {
+  func run(_ args: [String], at root: URL, maxOutputBytes: Int = 1_048_576) async throws -> String {
     guard let executable = executable ?? Self.installedExecutable(),
       FileManager.default.isExecutableFile(atPath: executable.path) else {
       throw AgentFailure(message: "尚未安装 GitHub CLI（gh）。安装后运行 gh auth login，再重新检查。")
     }
     try Task.checkCancellation()
-    let result = try await LocalWorkspaceService.command(executable.path, args, at: root)
+    let result = try await LocalWorkspaceService.command(executable.path, args, at: root,
+      maxOutputBytes: maxOutputBytes)
     guard result.status == 0 else { throw AgentFailure(message: result.text.isEmpty ? "GitHub CLI 操作失败。" : result.text) }
     return result.text
   }

@@ -1,4 +1,5 @@
 import AppKit
+import PDFKit
 import SwiftUI
 import XCTest
 @testable import ShipiOS
@@ -118,6 +119,101 @@ import XCTest
     host.cacheDisplay(in: host.bounds, to: diff)
     XCTAssertNotEqual(rich.representation(using: .png, properties: [:]),
       diff.representation(using: .png, properties: [:]))
+    XCTAssertFalse(window.isVisible)
+  }
+
+  func testBinaryPreviewReadsBothPRRevisionsAndChecksBlobHash() async throws {
+    let png = try XCTUnwrap(Data(base64Encoded:
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j9XcAAAAASUVORK5CYII="))
+    let encoded = png.base64EncodedString()
+    let binaryDiff = "diff --git a/Images/logo.png b/Images/logo.png\nindex 111..222 100644\nBinary files a/Images/logo.png and b/Images/logo.png differ\n"
+    let sources = [String(repeating: "b", count: 40) + ":Images/logo.png": encoded,
+      head + ":Images/logo.png": encoded]
+    let (request, service) = try await fixture(["prDiff": binaryDiff, "binarySources": sources])
+    let code = try await service.codeSnapshot(request)
+    XCTAssertEqual(GitHubPRRichPreview.binaryKind(code.files[0], richPreviewEnabled: false), .image)
+    let preview = try await service.binaryPreview(request, code: code, file: code.files[0],
+      richPreviewEnabled: false)
+    XCTAssertEqual(preview.before, png)
+    XCTAssertEqual(preview.after, png)
+    let log = try String(contentsOf: request.root.appendingPathComponent(".git/github-requests.jsonl"))
+    XCTAssertTrue(log.contains(String(repeating: "b", count: 40) + ":Images/logo.png"))
+    XCTAssertTrue(log.contains(head + ":Images/logo.png"))
+    XCTAssertEqual(log.components(separatedBy: "/git/blobs/").count - 1, 2)
+
+    for extra: [String: Any] in [["binaryBlobOverride": ["content": "AA=="]],
+      ["binaryObjectOverride": ["byteSize": 10_485_761]],
+      ["binaryRepository": "other/project"],
+      ["headAfterBinaryBlob": String(repeating: "c", count: 40)]] {
+      let (nextRequest, nextService) = try await fixture(["prDiff": binaryDiff,
+        "binarySources": sources].merging(extra) { _, value in value })
+      let nextCode = try await nextService.codeSnapshot(nextRequest)
+      let message = await failure {
+        _ = try await nextService.binaryPreview(nextRequest, code: nextCode,
+          file: nextCode.files[0], richPreviewEnabled: true)
+      }
+      XCTAssertFalse(message.isEmpty)
+    }
+  }
+
+  func testBinaryPreviewTypesMatchCodexRichPreviewRules() {
+    func file(_ path: String, kind: GitHubPRCodeFile.Kind = .modified) -> GitHubPRCodeFile {
+      .init(path: path, oldPath: nil, patch: "", kind: kind, binary: true)
+    }
+    XCTAssertEqual(GitHubPRRichPreview.binaryKind(file("x.JPG"), richPreviewEnabled: false), .image)
+    XCTAssertNil(GitHubPRRichPreview.binaryKind(file("x.svg"), richPreviewEnabled: false))
+    XCTAssertEqual(GitHubPRRichPreview.binaryKind(file("x.svg"), richPreviewEnabled: true), .svg)
+    XCTAssertEqual(GitHubPRRichPreview.binaryKind(file("x.pdf", kind: .deleted), richPreviewEnabled: false), .pdf)
+    XCTAssertNil(GitHubPRRichPreview.binaryKind(file("x.txt"), richPreviewEnabled: true))
+  }
+
+  func testBinaryPreviewCanReadFileBeyondNormalCommandOutputLimit() async throws {
+    let bytes = Data(repeating: 0xA5, count: 900_000)
+    let binaryDiff = "diff --git a/Images/large.png b/Images/large.png\nnew file mode 100644\nBinary files /dev/null and b/Images/large.png differ\n"
+    let (request, service) = try await fixture(["prDiff": binaryDiff,
+      "binarySources": [head + ":Images/large.png": bytes.base64EncodedString()]])
+    let code = try await service.codeSnapshot(request)
+    let preview = try await service.binaryPreview(request, code: code, file: code.files[0],
+      richPreviewEnabled: true)
+    XCTAssertNil(preview.before)
+    XCTAssertEqual(preview.after, bytes)
+  }
+
+  func testHiddenBinaryPreviewRendersSVGAndPDFDocument() async throws {
+    let svg = Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>".utf8)
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 380),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: TaskPullRequestBinaryPreviewView(preview:
+      .init(kind: .svg, before: nil, after: svg)).frame(width: 400, height: 360))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(200)); host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    var redPixels = 0
+    for y in stride(from: 0, to: bitmap.pixelsHigh, by: 4) {
+      for x in stride(from: 0, to: bitmap.pixelsWide, by: 4) {
+        if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+          color.redComponent > 0.7, color.greenComponent < 0.3, color.blueComponent < 0.3 {
+          redPixels += 1
+        }
+      }
+    }
+    XCTAssertGreaterThan(redPixels, 0)
+
+    let image = try XCTUnwrap(NSImage(data: svg))
+    let page = try XCTUnwrap(PDFPage(image: image))
+    let document = PDFDocument(); document.insert(page, at: 0)
+    document.insert(try XCTUnwrap(PDFPage(image: image)), at: 1)
+    let pdf = try XCTUnwrap(document.dataRepresentation())
+    host.rootView = TaskPullRequestBinaryPreviewView(preview:
+      .init(kind: .pdf, before: nil, after: pdf)).frame(width: 400, height: 360)
+    try await Task.sleep(for: .milliseconds(200)); host.layoutSubtreeIfNeeded()
+    let pdfBitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: pdfBitmap)
+    XCTAssertNotEqual(bitmap.representation(using: .png, properties: [:]),
+      pdfBitmap.representation(using: .png, properties: [:]))
+    XCTAssertEqual(PDFDocument(data: pdf)?.pageCount, 2)
     XCTAssertFalse(window.isVisible)
   }
 

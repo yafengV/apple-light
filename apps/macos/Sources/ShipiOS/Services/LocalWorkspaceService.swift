@@ -20,11 +20,16 @@ enum LocalWorkspaceService {
     case changedOnDisk(String)
   }
   static func command(_ executable: String, _ arguments: [String], at root: URL,
-    indexFile: URL? = nil, cancelWithTask: Bool = false) async throws
+    indexFile: URL? = nil, cancelWithTask: Bool = false,
+    maxOutputBytes: Int = 1_048_576) async throws
     -> CommandOutput
   {
+    guard (1...16_777_216).contains(maxOutputBytes) else {
+      throw AgentFailure(message: "命令输出大小限制无效。")
+    }
     let job = Task.detached(priority: .userInitiated) {
-      try runCommand(executable, arguments, at: root, indexFile: indexFile)
+      try runCommand(executable, arguments, at: root, indexFile: indexFile,
+        maxOutputBytes: maxOutputBytes)
     }
     return try await withTaskCancellationHandler {
       try await job.value
@@ -33,7 +38,7 @@ enum LocalWorkspaceService {
     }
   }
   private static func runCommand(_ executable: String, _ arguments: [String], at root: URL,
-    indexFile: URL?) throws
+    indexFile: URL?, maxOutputBytes: Int) throws
     -> CommandOutput
   {
     try Task<Never, Never>.checkCancellation()
@@ -65,22 +70,28 @@ enum LocalWorkspaceService {
     process.standardError = errorHandle
     try process.run()
     let deadline = Date().addingTimeInterval(20)
-    while process.isRunning && Date() < deadline && !Task<Never, Never>.isCancelled { Thread.sleep(forTimeInterval: 0.03) }
+    var exceededOutput = false
+    while process.isRunning && Date() < deadline && !Task<Never, Never>.isCancelled {
+      if let size = try? output.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+        size > maxOutputBytes { exceededOutput = true; break }
+      Thread.sleep(forTimeInterval: 0.03)
+    }
     if process.isRunning {
       process.terminate()
       Thread.sleep(forTimeInterval: 0.1)
       if process.isRunning { kill(process.processIdentifier, SIGKILL) }
       process.waitUntilExit()
       try Task<Never, Never>.checkCancellation()
+      if exceededOutput { throw AgentFailure(message: "命令输出超过预览大小限制。") }
       throw AgentFailure(message: "命令超时，请在终端检查项目。")
     }
     process.waitUntilExit()
     try Task<Never, Never>.checkCancellation()
     let reader = try FileHandle(forReadingFrom: output)
     defer { try? reader.close() }
-    let data = try reader.read(upToCount: 1_048_577) ?? Data()
-    guard data.count <= 1_048_576 else {
-      throw AgentFailure(message: "Output exceeds 1 MiB; inspect this repository in the terminal.")
+    let data = try reader.read(upToCount: maxOutputBytes + 1) ?? Data()
+    guard data.count <= maxOutputBytes else {
+      throw AgentFailure(message: "命令输出超过预览大小限制。")
     }
     var text = String(decoding: data, as: UTF8.self)
     if process.terminationStatus != 0 {

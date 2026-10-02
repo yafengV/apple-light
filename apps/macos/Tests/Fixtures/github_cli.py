@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Local GitHub CLI process fixture. Never accesses a network or user credentials."""
 import json
+import base64
+import hashlib
 import os
 import pathlib
 import sys
@@ -112,6 +114,24 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRBinaryPreview" in query:
+            objects = {"nameWithOwner": state.get("binaryRepository", "sample/project")}
+            for side in ("previous", "current"):
+                if side not in variables:
+                    continue
+                expression = variables[side]
+                revision, path = expression.split(":", 1)
+                assert revision in [state.get("codeBase", "b" * 40), state["head"]]
+                encoded = state.get("binarySources", {}).get(expression)
+                if encoded is None:
+                    objects[side] = None
+                    continue
+                data = base64.b64decode(encoded)
+                oid = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+                objects[side] = {"__typename": "Blob", "oid": oid, "byteSize": len(data)}
+                objects[side].update(state.get("binaryObjectOverride", {}))
+            print(json.dumps({"data": {"repository": objects}}))
+            sys.exit(0)
         if "ShipiOSPRRichPreview" in query:
             expression = variables["expression"]
             assert expression.startswith(state["head"] + ":")
@@ -344,6 +364,24 @@ elif args and args[0] == "api":
         print(json.dumps(response))
         sys.exit(0)
     endpoint = next(value for value in args if value.startswith("repos/"))
+    if "/git/blobs/" in endpoint:
+        oid = endpoint.rsplit("/", 1)[1]
+        matches = []
+        for encoded in state.get("binarySources", {}).values():
+            data = base64.b64decode(encoded)
+            digest = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+            if digest == oid:
+                matches.append((data, encoded))
+        if not matches:
+            sys.exit("Blob not found")
+        data, encoded = matches[0]
+        payload = {"sha": oid, "size": len(data), "encoding": "base64", "content": encoded}
+        payload.update(state.get("binaryBlobOverride", {}))
+        if state.get("headAfterBinaryBlob"):
+            state["detailHead"] = state["headAfterBinaryBlob"]
+            state_path.write_text(json.dumps(state))
+        print(json.dumps(payload))
+        sys.exit(0)
     if "/commits/" in endpoint and any(kind in endpoint for kind in ["/check-runs?", "/status?", "/check-suites?"]):
         kind = "checkRuns" if "/check-runs?" in endpoint else "checkSuites" if "/check-suites?" in endpoint else "commitStatuses"
         if state.get(kind + "Delay"):

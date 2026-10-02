@@ -14,12 +14,15 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   @State private var selectionError: String?
   @State private var syntax = CodeSyntaxState()
   @State private var richText: String?
+  @State private var binaryPreview: GitHubPRRichPreview.Binary?
+  @State private var previewLoading = false
   @ViewBuilder let comment: (GitHubPRReviewThread) -> Comment
   @Environment(\.appAppearance) private var appearance
   private var lines: [ReviewDiffLine] { file.diff.lines.filter { $0.canComment || $0.kind == .header } }
   private var collapsed: Bool { state.collapsed.contains(file.path) }
   private var previewIdentity: String {
     file.diff.fingerprint + ":" + (state.snapshot?.identity.head ?? "") + ":"
+      + (state.snapshot?.identity.base ?? "") + ":"
       + String(richPreviewEnabled) + ":" + String(collapsed)
   }
   var body: some View {
@@ -50,20 +53,43 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
   }
   private func loadRichPreview() async {
     richText = nil
-    guard !collapsed, richPreviewEnabled, GitHubPRRichPreview.supportsMarkdown(file),
-      let identity = state.snapshot?.identity else { return }
+    binaryPreview = nil
+    previewLoading = false
+    guard !collapsed, let identity = state.snapshot?.identity else { return }
+    let markdown = richPreviewEnabled && GitHubPRRichPreview.supportsMarkdown(file)
+    let binary = GitHubPRRichPreview.binaryKind(file, richPreviewEnabled: richPreviewEnabled) != nil
+    guard markdown || binary else { return }
+    previewLoading = true
     do {
-      let text = try await state.richPreviewText(file, identity: identity)
+      if markdown {
+        let text = try await state.richPreviewText(file, identity: identity)
+        guard !Task.isCancelled else { return }
+        richText = text
+      } else {
+        let value = try await state.binaryPreview(file, identity: identity,
+          richPreviewEnabled: richPreviewEnabled)
+        guard !Task.isCancelled else { return }
+        binaryPreview = value
+      }
+    } catch {
       guard !Task.isCancelled else { return }
-      richText = text
-    } catch { richText = nil }
+      richText = nil
+      binaryPreview = nil
+    }
+    previewLoading = false
   }
   private var content: some View {
     VStack(alignment: .leading, spacing: 0) {
         if let selectionError { Text(selectionError).appFont(size: 12).foregroundStyle(.red).padding(8) }
-        if richPreviewEnabled, let richText, GitHubPRRichPreview.supportsMarkdown(file) {
+        if let binaryPreview {
+          TaskPullRequestBinaryPreviewView(preview: binaryPreview)
+        }
+        else if richPreviewEnabled, let richText, GitHubPRRichPreview.supportsMarkdown(file) {
           MessageMarkdownView(source: richText, partPrefix: "pr-rich-preview-" + file.path, openLink: openLink)
             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        else if previewLoading {
+          ProgressView("读取预览…").controlSize(.small).padding(12)
         }
         else if file.binary { Text("二进制文件已修改").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
         else if lines.isEmpty { Text("文件内容没有文本差异").appFont(size: 12).foregroundStyle(.secondary).padding(12) }
