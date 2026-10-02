@@ -63,4 +63,40 @@ final class GitHubPRCommentMediaTests: XCTestCase {
     XCTAssertTrue(GitHubPRCommentMediaLoader.accepts("application/octet-stream", kind: .video))
     XCTAssertFalse(GitHubPRCommentMediaLoader.accepts("text/html", kind: .video))
   }
+
+  func testAuthenticatedRequestAndRedirectDoNotLeakToken() {
+    let media = GitHubPRCommentMedia(url: URL(string: "https://github.com/user-attachments/assets/id")!,
+      kind: .image, alt: "image")
+    let request = GitHubPRCommentMediaLoader.mediaRequest(media, token: "fake-token")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer fake-token")
+    XCTAssertNil(GitHubPRCommentMediaLoader.mediaRequest(media, token: "bad\ntoken")
+      .value(forHTTPHeaderField: "Authorization"))
+    let external = GitHubPRCommentMedia(url: URL(string: "https://example.com/image.png")!,
+      kind: .image, alt: "external")
+    XCTAssertNil(GitHubPRCommentMediaLoader.mediaRequest(external, token: "fake-token")
+      .value(forHTTPHeaderField: "Authorization"))
+    var redirect = URLRequest(url: URL(string: "https://objects.githubusercontent.com/file")!)
+    redirect.setValue("Bearer fake-token", forHTTPHeaderField: "Authorization")
+    let accepted = GitHubPRMediaRequestPolicy.redirect(redirect, originalHost: "github.com")
+    XCTAssertNotNil(accepted)
+    XCTAssertNil(accepted?.value(forHTTPHeaderField: "Authorization"))
+    redirect.url = URL(string: "https://example.com/file")!
+    XCTAssertNil(GitHubPRMediaRequestPolicy.redirect(redirect, originalHost: "github.com"))
+    redirect.url = URL(string: "http://objects.githubusercontent.com/file")!
+    XCTAssertNil(GitHubPRMediaRequestPolicy.redirect(redirect, originalHost: "github.com"))
+    XCTAssertEqual(GitHubPRCommentMediaLoader.maximumBytes, 10 * 1_048_576)
+  }
+
+  func testReadsOnlyFakeGitHubCLIAccountToken() async throws {
+    let folder = FileManager.default.temporaryDirectory
+      .appendingPathComponent("shipios-pr-media-gh-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let executable = folder.appendingPathComponent("gh")
+    let script = "#!/bin/sh\n[ \"$1 $2 $3 $4\" = 'auth token --hostname github.com' ] || exit 1\nprintf 'fake-token\\n'\n"
+    XCTAssertTrue(FileManager.default.createFile(atPath: executable.path,
+      contents: Data(script.utf8), attributes: [.posixPermissions: 0o700]))
+    let token = await GitHubPRCommentMediaLoader.authenticationToken(executable: executable)
+    XCTAssertEqual(token, "fake-token")
+  }
 }

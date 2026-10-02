@@ -99,15 +99,20 @@ private struct TaskPullRequestCommentMediaView: View {
           .clipShape(RoundedRectangle(cornerRadius: 8))
           .accessibilityLabel(media.alt.isEmpty ? "GitHub 视频" : media.alt)
       } else if failed {
-        Text("预览不可用").foregroundStyle(.secondary)
-      } else {
-        HStack(spacing: 7) {
-          ProgressView().controlSize(.small)
-          Text("正在加载 GitHub 媒体…").foregroundStyle(.secondary)
+        VStack(spacing: 8) {
+          Text("预览不可用").foregroundStyle(.secondary)
+          Button("在 GitHub 中打开") { open(media.url) }
+            .buttonStyle(.link).appFont(.caption)
         }
+        .frame(minWidth: 160, minHeight: 96)
+        .frame(maxWidth: .infinity)
+        .background(.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+      } else {
+        ProgressView().controlSize(.small)
+          .frame(minWidth: 160, minHeight: 96)
+          .background(.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+          .accessibilityLabel("正在加载 GitHub 媒体")
       }
-      Button("在 GitHub 中打开") { open(media.url) }
-        .buttonStyle(.link).appFont(.caption)
     }
     .task(id: media.url) { await load() }
     .onDisappear { cleanup() }
@@ -132,6 +137,9 @@ private struct TaskPullRequestCommentMediaView: View {
           let file = folder.appendingPathComponent("preview." + videoExtension)
           try data.write(to: file, options: .atomic)
           try Task.checkCancellation()
+          guard try await AVURLAsset(url: file).load(.isPlayable) else {
+            throw AgentFailure(message: "无法播放 GitHub 视频。")
+          }
           temporaryFolder = folder
           videoPlayer = AVPlayer(url: file)
         } catch {
