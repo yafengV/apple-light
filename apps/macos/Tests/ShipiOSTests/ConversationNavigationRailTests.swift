@@ -18,15 +18,23 @@ final class ConversationNavigationRailTests: XCTestCase {
   }
 
   func testSelectionFollowsVisiblePromptAndScrubBounds() {
-    XCTAssertEqual(ConversationRailSelection.current(
-      positions: ["first": -250, "second": 90, "third": 420],
-      orderedIDs: ["first", "second", "third"]), "second")
+    let ids = ["first", "second", "third"]
+    XCTAssertEqual(ConversationRailSelection.visibleIDs(positions: [
+      "first": CGRect(x: 0, y: -100, width: 100, height: 116),
+      "second": CGRect(x: 0, y: 90, width: 100, height: 60),
+      "third": CGRect(x: 0, y: 420, width: 100, height: 60),
+    ], orderedIDs: ids, viewportHeight: 300), ["second"])
+    XCTAssertEqual(ConversationRailSelection.visibleIDs(positions: [
+      "first": CGRect(x: 0, y: -10, width: 100, height: 50),
+      "third": CGRect(x: 0, y: 200, width: 100, height: 50),
+    ], orderedIDs: ids, viewportHeight: 300), Set(ids))
+    XCTAssertTrue(ConversationRailSelection.visibleIDs(positions: [:],
+      orderedIDs: ids, viewportHeight: 300).isEmpty)
     XCTAssertEqual(ConversationRailSelection.scrubbedID(y: -20,
       orderedIDs: ["first", "second"]), "first")
     XCTAssertEqual(ConversationRailSelection.scrubbedID(y: 100,
       orderedIDs: ["first", "second"]), "second")
     XCTAssertNil(ConversationRailSelection.scrubbedID(y: 0, orderedIDs: []))
-    let ids = ["first", "second", "third"]
     XCTAssertNil(ConversationRailSelection.scrubNavigationTarget(startY: 5, y: 7,
       previousID: nil, orderedIDs: ids))
     XCTAssertEqual(ConversationRailSelection.scrubNavigationTarget(startY: 5, y: 16,
@@ -251,7 +259,7 @@ final class ConversationNavigationRailTests: XCTestCase {
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 500),
       styleMask: [.borderless], backing: .buffered, defer: false)
     let host = NSHostingView(rootView: ConversationRailOverlay(items: items,
-      currentID: items[0].id, onSelect: { _ in }, onBookmark: { _, _ in },
+      currentIDs: [items[0].id], onSelect: { _ in }, onBookmark: { _, _ in },
       visualizer: SystemAudioVisualizer(), audioEnabled: false, onAudioError: { _ in }))
     window.contentView = host
     host.frame = NSRect(x: 0, y: 0, width: 320, height: 500)

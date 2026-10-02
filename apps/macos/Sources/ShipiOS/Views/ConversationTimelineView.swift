@@ -7,12 +7,15 @@ struct ConversationTimelineView: View {
   @State private var pendingText: ConversationTextID?
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
   @State private var pendingMatch: ConversationMatch.ID?
-  @State private var currentRailID: String?
+  @State private var railPositions: [String: CGRect] = [:]
+  @State private var railViewportHeight: CGFloat = 0
   @State private var railFlash = ConversationRailFlash()
   private let railSpace = "main-conversation-rail-scroll"
   private var railItems: [ConversationRailItem] { store.conversationRailItems(for: store.conversationRuns) }
-  private var railCurrentID: String? {
-    railItems.first(where: { $0.id == currentRailID })?.id ?? railItems.first?.id
+  private var railVisibleIDs: Set<String> {
+    let visible = ConversationRailSelection.visibleIDs(positions: railPositions,
+      orderedIDs: railItems.map(\.id), viewportHeight: railViewportHeight)
+    return visible.isEmpty ? Set(railItems.suffix(1).map(\.id)) : visible
   }
 
   private struct Revision: Equatable {
@@ -67,11 +70,17 @@ struct ConversationTimelineView: View {
           }
       }
       .coordinateSpace(name: railSpace)
+      .background {
+        GeometryReader { proxy in
+          Color.clear.preference(key: ConversationRailViewportHeight.self,
+            value: proxy.size.height)
+        }
+      }
       .defaultScrollAnchor(.top)
       .overlay(alignment: .leading) {
         if railItems.count >= ConversationNavigationRail.minimumItems {
           ConversationRailOverlay(items: railItems,
-            currentID: railCurrentID,
+            currentIDs: railVisibleIDs,
             onSelect: { id in
               pendingText = nil
               pendingMatch = nil
@@ -88,9 +97,9 @@ struct ConversationTimelineView: View {
         }
       }
       .onPreferenceChange(ConversationRailPositions.self) { positions in
-        currentRailID = ConversationRailSelection.current(
-          positions: positions, orderedIDs: railItems.map(\.id)) ?? currentRailID
+        railPositions = positions
       }
+      .onPreferenceChange(ConversationRailViewportHeight.self) { railViewportHeight = $0 }
       .overlay(alignment: .bottom) {
         if !scrolling.isAtBottom {
           Button {

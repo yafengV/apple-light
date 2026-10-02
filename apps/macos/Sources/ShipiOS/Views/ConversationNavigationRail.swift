@@ -2,9 +2,16 @@ import AppKit
 import SwiftUI
 
 struct ConversationRailPositions: PreferenceKey {
-  static var defaultValue: [String: CGFloat] = [:]
-  static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
+  static var defaultValue: [String: CGRect] = [:]
+  static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
     value.merge(nextValue(), uniquingKeysWith: { _, next in next })
+  }
+}
+
+struct ConversationRailViewportHeight: PreferenceKey {
+  static var defaultValue: CGFloat = 0
+  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    value = max(value, nextValue())
   }
 }
 
@@ -15,7 +22,7 @@ struct ConversationRailPosition: ViewModifier {
     if let space {
       content.background(GeometryReader { proxy in
         Color.clear.preference(key: ConversationRailPositions.self,
-          value: [id: proxy.frame(in: .named(space)).minY])
+          value: [id: proxy.frame(in: .named(space))])
       })
     } else { content }
   }
@@ -28,9 +35,15 @@ extension View {
 }
 
 enum ConversationRailSelection {
-  static func current(positions: [String: CGFloat], orderedIDs: [String]) -> String? {
-    let visible = orderedIDs.compactMap { id in positions[id].map { (id, $0) } }
-    return visible.last(where: { $0.1 <= 100 })?.0 ?? visible.first?.0
+  static func visibleIDs(positions: [String: CGRect], orderedIDs: [String],
+    viewportHeight: CGFloat) -> Set<String> {
+    guard viewportHeight > 0 else { return [] }
+    let visible = orderedIDs.indices.filter { index in
+      guard let bounds = positions[orderedIDs[index]] else { return false }
+      return bounds.maxY > 16 && bounds.minY < viewportHeight
+    }
+    guard let first = visible.first, let last = visible.last else { return [] }
+    return Set(orderedIDs[first...last])
   }
 
   static func scrubbedID(y: CGFloat, orderedIDs: [String]) -> String? {
@@ -60,7 +73,7 @@ enum ConversationRailSelection {
 struct ConversationNavigationRail: View {
   static let minimumItems = 4
   let items: [ConversationRailItem]
-  let currentID: String?
+  let currentIDs: Set<String>
   let onSelect: (String) -> Void
   let onBookmark: (String, Bool) -> Void
   var audioLevels: [Double] = []
@@ -76,7 +89,7 @@ struct ConversationNavigationRail: View {
     ScrollView(.vertical) {
       VStack(alignment: .leading, spacing: 0) {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-          let highlighted = item.id == (scrubID ?? currentID)
+          let highlighted = item.id == scrubID || currentIDs.contains(item.id)
           Button {
             if suppressClickAfterScrub {
               suppressClickAfterScrub = false
@@ -92,7 +105,7 @@ struct ConversationNavigationRail: View {
           .buttonStyle(.plain)
           .focused($focusedID, equals: item.id)
           .accessibilityLabel("跳转到第 \(index + 1) 条用户消息\(item.bookmarked ? "，已加书签" : "")")
-          .accessibilityAddTraits(item.id == currentID ? [.isSelected] : [])
+          .accessibilityAddTraits(currentIDs.contains(item.id) ? [.isSelected] : [])
           .onHover { inside in
             if inside && scrubID == nil { previewID = item.id }
             else if !inside {
@@ -247,7 +260,7 @@ struct ConversationNavigationRail: View {
 
 struct ConversationRailOverlay: View {
   let items: [ConversationRailItem]
-  let currentID: String?
+  let currentIDs: Set<String>
   let onSelect: (String) -> Void
   let onBookmark: (String, Bool) -> Void
   let visualizer: SystemAudioVisualizer
@@ -258,7 +271,7 @@ struct ConversationRailOverlay: View {
   var body: some View {
     GeometryReader { proxy in
       if items.count >= ConversationNavigationRail.minimumItems {
-        ConversationNavigationRail(items: items, currentID: currentID,
+        ConversationNavigationRail(items: items, currentIDs: currentIDs,
           onSelect: onSelect, onBookmark: onBookmark,
           audioLevels: audioEnabled ? visualizer.levels : [])
           .frame(height: min(CGFloat(items.count) * 10, proxy.size.height * 0.7, 640))
