@@ -88,6 +88,24 @@ import XCTest
     XCTAssertEqual(a.replies.map(\.id), ["visible"]); XCTAssertEqual(a.thread?.comments.count, 3)
     XCTAssertTrue(a.allIDs.contains("blank"))
   }
+  func testLongCommentBodyUsesThreeLinePreviewWithoutExpandingTheCard() async throws {
+    _ = NSApplication.shared
+    let state = GitHubPRDiscussionState()
+    let long = comment("long", body: Array(repeating: "一段较长的评论正文。", count: 15)
+      .joined(separator: "\n\n"))
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 500),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: TaskPullRequestCommentContentView(comment: long,
+      state: state, enabled: false, writable: false, mentionRequest: nil,
+      open: { _ in }, submit: { _, _ in }).frame(width: 400))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(400))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertLessThan(host.fittingSize.height, 120)
+    XCTAssertGreaterThan(host.fittingSize.height, 60)
+    XCTAssertFalse(window.isVisible)
+  }
   func testSnapshotBuildsOnlyVisibleCardsWithThreadIdentityAndOrder() {
     let a = card("a", resolved: false, replies: [comment("reply")])
     var snapshot = GitHubPRDiscussionSnapshot(requestURL: "url", nodeID: "pr", viewer: "viewer", author: "author", state: "OPEN",
