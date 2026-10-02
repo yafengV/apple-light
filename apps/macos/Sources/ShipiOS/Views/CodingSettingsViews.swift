@@ -144,6 +144,7 @@ struct GitSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var branchPrefix = ""
   @State private var status = ""
+  @State private var reviewDeliveryStatus = ""
 
   var body: some View {
     Form {
@@ -185,6 +186,23 @@ struct GitSettingsView: View {
             preferences.createDraftPullRequests = value
             status = store.saveGitPreferences(preferences) ? "已保存 PR 创建方式。" : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.createDraftPullRequests)
+      }
+      Section("代码审查") {
+        SettingsMenuPicker("审查结果呈现方式",
+          description: "内联时优先在当前聊天中运行审查，无法使用时创建独立任务；单独模式始终创建独立任务。",
+          selection: Binding(
+            get: { store.library.gitPreferences.reviewDelivery },
+            set: { value in
+              var preferences = store.library.gitPreferences
+              preferences.reviewDelivery = value
+              reviewDeliveryStatus = store.saveGitPreferences(preferences)
+                ? "已保存审查结果呈现方式。" : (store.error ?? "保存失败，请重试。")
+            }),
+          options: ReviewDelivery.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.reviewDelivery)
+        if !reviewDeliveryStatus.isEmpty {
+          Text(reviewDeliveryStatus).appFont(.caption).foregroundStyle(.secondary)
+        }
       }
       Section("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.gitWorktreeRoot)

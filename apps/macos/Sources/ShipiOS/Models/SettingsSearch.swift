@@ -187,7 +187,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .agentWebSearch: .agent
     case .agentAvailableReasoning: .agent
     case .hostedWebSearch: .model
-    case .branchPrefix: .git
+    case .branchPrefix, .reviewDelivery: .git
     case .commitInstructions: .git
     case .pullRequestInstructions: .git
     case .alwaysForcePush: .git
