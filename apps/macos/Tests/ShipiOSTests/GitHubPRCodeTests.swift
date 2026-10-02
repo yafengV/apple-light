@@ -81,23 +81,6 @@ import XCTest
     let state = GitHubPRCodeState(service: service); await state.load(request, valid: { true })
     XCTAssertEqual(state.snapshot?.files.count, 0); XCTAssertNil(state.error)
   }
-  func testJumpToFileClearsTreeFilterAndExpandsSelectedDiff() async throws {
-    let (request, service) = try await fixture()
-    let state = GitHubPRCodeState(service: service)
-    await state.load(request, valid: { true })
-    let path = "Sources/Main.swift"
-    state.toggle(path)
-    state.query = "other"
-    let previousNavigation = state.navigation
-    state.jump(to: path)
-    XCTAssertEqual(state.selectedPath, path)
-    XCTAssertEqual(state.query, "")
-    XCTAssertFalse(state.collapsed.contains(path))
-    XCTAssertNotEqual(state.navigation, previousNavigation)
-    state.query = "keep"
-    state.jump(to: "missing.swift")
-    XCTAssertEqual(state.query, "keep")
-  }
   func testParseAddedDeletedRenamedCopiedAndModeOnlyFiles() throws {
     let source = """
       diff --git a/new.swift b/new.swift

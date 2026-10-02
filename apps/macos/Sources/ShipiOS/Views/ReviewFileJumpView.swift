@@ -1,20 +1,20 @@
 import SwiftUI
 
-struct TaskPullRequestCodeFileJumpView: View {
+struct ReviewFileJumpView: View {
   let paths: [String]
   let select: (String) -> Void
   @State private var showing = false
   @State private var query = ""
   @State private var selected = 0
   @FocusState private var searchFocused: Bool
-  private var matches: [GitHubPRCodeFileJump.Match] {
-    GitHubPRCodeFileJump.matches(paths: paths, query: query)
+  private var matches: [ReviewFileJump.Match] {
+    ReviewFileJump.matches(paths: paths, query: query)
   }
 
   var body: some View {
     Button { showing = true } label: { Image(systemName: "doc.text.magnifyingglass") }
       .buttonStyle(.plain).help("跳转到文件").accessibilityLabel("跳转到文件")
-      .accessibilityIdentifier("pull-request-code-jump-to-file")
+      .accessibilityIdentifier("review-jump-to-file")
       .disabled(paths.isEmpty)
       .popover(isPresented: $showing, arrowEdge: .bottom) {
         VStack(spacing: 0) {

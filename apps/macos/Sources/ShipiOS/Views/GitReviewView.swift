@@ -5,6 +5,8 @@ struct GitReviewView: View {
   @Bindable var workspace: DeveloperWorkspace
   var taskID: String?
   var focusComposer: (() -> Void)?
+  @State private var jumpTarget: ReviewFileJump.Target?
+  @State private var jumpRequest = UUID()
   var body: some View {
     VStack(spacing: 0) {
       if !workspace.reviewRepositories.isEmpty {
@@ -34,6 +36,14 @@ struct GitReviewView: View {
             Label(workspace.gitBranch, systemImage: "arrow.triangle.branch").lineLimit(1)
           }
           Spacer()
+          ReviewFileJumpView(paths: reviewPaths) { path in
+            guard let target = ReviewFileJump.target(path: path, scope: workspace.reviewScope,
+              root: workspace.gitRoot, selection: reviewSelection, revision: reviewRevision,
+              files: workspace.visibleChanges, lastTurn: workspace.lastTurnReview) else { return }
+            workspace.collapsedReviewFiles.remove(target.collapseKey)
+            jumpTarget = target
+            jumpRequest = UUID()
+          }
           Menu { CodeWordDiffMenu(store: store) } label: { Image(systemName: "ellipsis") }
             .menuStyle(.borderlessButton).accessibilityLabel("差异选项")
           if let error = store.generalSettingsError {
@@ -95,22 +105,27 @@ struct GitReviewView: View {
         } else if workspace.reviewScope != .lastTurn && workspace.visibleChanges.isEmpty && workspace.error == nil {
           Text(emptyMessage).appFont(.caption).foregroundStyle(.secondary).padding()
         }
-        ScrollView {
-          LazyVStack(alignment: .leading, spacing: 10) {
-            if !workspace.gitRefreshing, workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
-              LastTurnReviewView(store: store, workspace: workspace, snapshot: snapshot, taskID: taskID)
-            } else if !workspace.reviewLoading && !workspace.gitRefreshing
-              && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot
-            {
-              ForEach(workspace.visibleChanges) { file in
-                ReviewFileView(
-                  store: store, workspace: workspace, file: file, root: root,
-                  scope: workspace.reviewScope, revision: reviewRevision, taskID: taskID
-                )
-                .id(root.path + ":" + reviewSelection + ":" + file.path)
+        ScrollViewReader { proxy in
+          ScrollView {
+            LazyVStack(alignment: .leading, spacing: 10) {
+              if !workspace.gitRefreshing, workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
+                LastTurnReviewView(store: store, workspace: workspace, snapshot: snapshot, taskID: taskID)
+              } else if !workspace.reviewLoading && !workspace.gitRefreshing
+                && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot
+              {
+                ForEach(workspace.visibleChanges) { file in
+                  ReviewFileView(
+                    store: store, workspace: workspace, file: file, root: root,
+                    scope: workspace.reviewScope, revision: reviewRevision, taskID: taskID
+                  )
+                  .id(root.path + ":" + reviewSelection + ":" + file.path)
+                }
               }
-            }
-          }.padding(10)
+            }.padding(10)
+          }
+          .onChange(of: jumpRequest) { _, _ in
+            if let jumpTarget { proxy.scrollTo(jumpTarget.anchor, anchor: .top) }
+          }
         }.frame(maxHeight: .infinity)
         if !store.reviewComments(taskID: taskID).isEmpty {
           HStack {
@@ -198,6 +213,7 @@ struct GitReviewView: View {
       if workspace.reviewScope == .lastTurn { await workspace.loadDiff() }
     }
     .onChange(of: reviewSelection) { old, _ in
+      jumpTarget = nil
       workspace.cancelCommitMessageGeneration()
       workspace.discardPlan = nil
       workspace.reviewPath = nil
@@ -222,6 +238,12 @@ struct GitReviewView: View {
 
   private var reviewRevision: String {
     workspace.reviewArguments.joined(separator: " ")
+  }
+
+  private var reviewPaths: [String] {
+    if workspace.reviewLoading || workspace.gitRefreshing { return [] }
+    return workspace.reviewScope == .lastTurn
+      ? workspace.lastTurnReview?.files.map(\.path) ?? [] : workspace.visibleChanges.map(\.path)
   }
 
   private var reviewSelection: String {

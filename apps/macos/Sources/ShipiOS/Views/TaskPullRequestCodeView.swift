@@ -101,21 +101,26 @@ struct TaskPullRequestCodeView: View {
         Text(identity.headBranch + " → " + identity.baseBranch).lineLimit(1).foregroundStyle(.secondary)
       }
       Spacer(minLength: 0)
-      TaskPullRequestCodeFileJumpView(paths: state.files.map(\.path), select: state.jump(to:))
       Menu {
+        Button("刷新差异", action: retry)
+          .disabled(state.loading || metadataLoading)
+        Divider()
         if let store { CodeWordDiffMenu(store: store) }
         Button(state.wrap ? "关闭自动换行" : "开启自动换行") { state.wrap.toggle() }
         Button(state.groupExpanded ? "收起全部差异" : "展开全部差异") { state.toggleAll() }
       } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton)
         .accessibilityLabel("差异选项")
-      Button(action: retry) { Image(systemName: "arrow.clockwise") }
-        .buttonStyle(.plain).help("刷新差异").accessibilityLabel("刷新差异")
-        .accessibilityIdentifier("pull-request-code-refresh")
-        .disabled(state.loading || metadataLoading)
-      Button { state.split.toggle() } label: {
-        Image(systemName: state.split ? "rectangle.split.1x2" : "rectangle.split.2x1")
-      }.buttonStyle(.plain).help(state.split ? "切换为统一差异" : "切换为并排差异")
-        .accessibilityLabel(state.split ? "切换为统一差异" : "切换为并排差异")
+      Menu {
+        Button { state.split = false } label: {
+          if !state.split { Label("统一差异", systemImage: "checkmark") }
+          else { Text("统一差异") }
+        }
+        Button { state.split = true } label: {
+          if state.split { Label("并排差异", systemImage: "checkmark") }
+          else { Text("并排差异") }
+        }
+      } label: { Image(systemName: state.split ? "rectangle.split.2x1" : "rectangle.split.1x2") }
+        .menuStyle(.borderlessButton).help("差异布局").accessibilityLabel("差异布局")
       Button { state.showsFiles.toggle() } label: { Image(systemName: "sidebar.right") }
         .buttonStyle(.plain).help(state.showsFiles ? "隐藏文件树" : "显示文件树")
         .accessibilityLabel(state.showsFiles ? "隐藏文件树" : "显示文件树")

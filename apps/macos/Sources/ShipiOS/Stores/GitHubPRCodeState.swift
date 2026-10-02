@@ -54,13 +54,6 @@ import Observation
     guard files.contains(where: { $0.path == path }) else { return }
     selectedPath = path; position = nil; navigation = UUID()
   }
-  func jump(to path: String) {
-    guard files.contains(where: { $0.path == path }) else { return }
-    query = ""
-    collapsed.remove(path)
-    collapseOverrides[path] = false
-    select(path)
-  }
   func open(_ target: GitHubPRCommentPosition) {
     guard target.isValid else { return }
     page = .code; query = ""; position = nil; pendingPosition = target

@@ -1,6 +1,11 @@
 import Foundation
 
-enum GitHubPRCodeFileJump {
+enum ReviewFileJump {
+  struct Target: Equatable {
+    let anchor: String
+    let collapseKey: String
+  }
+
   struct Match: Identifiable, Equatable {
     let path: String
     let fileName: String
@@ -28,5 +33,19 @@ enum GitHubPRCodeFileJump {
       if parents != .orderedSame { return parents == .orderedAscending }
       return left.path < right.path
     }
+  }
+
+  static func target(path: String, scope: GitReviewScope, root: URL?, selection: String,
+    revision: String,
+    files: [GitFile], lastTurn: LastTurnReviewSnapshot?) -> Target? {
+    if scope == .lastTurn {
+      guard let snapshot = lastTurn,
+        let file = snapshot.files.first(where: { $0.path == path }) else { return nil }
+      return .init(anchor: snapshot.source.runID + ":" + String(file.id),
+        collapseKey: "lastTurn:" + snapshot.source.runID + ":" + file.path)
+    }
+    guard let root, files.contains(where: { $0.path == path }) else { return nil }
+    return .init(anchor: root.path + ":" + selection + ":" + path,
+      collapseKey: scope.rawValue + ":" + revision + ":" + path)
   }
 }
