@@ -167,6 +167,23 @@ struct ConversationNavigationRail: View {
             .environment(\.openURL, OpenURLAction { _ in .discarded })
         }
       }
+      if item.previewState != .loading &&
+        (!item.outputs.isEmpty || item.additionalOutputCount > 0) {
+        HStack(spacing: 12) {
+          ForEach(item.outputs.prefix(2)) { output in
+            Label(output.label, systemImage: output.icon)
+              .appFont(.caption).foregroundStyle(.secondary)
+              .lineLimit(1).truncationMode(.middle)
+              .frame(maxWidth: 140, alignment: .leading)
+              .accessibilityLabel("产物：\(output.label)")
+          }
+          let remaining = max(0, item.outputs.count - 2) + item.additionalOutputCount
+          if remaining > 0 {
+            Text("+\(remaining)").appFont(.caption).foregroundStyle(.secondary)
+              .accessibilityLabel("另有 \(remaining) 项产物")
+          }
+        }
+      }
     }
     .padding(12).frame(width: 320)
   }

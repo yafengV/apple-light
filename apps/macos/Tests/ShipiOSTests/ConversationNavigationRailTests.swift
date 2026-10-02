@@ -175,6 +175,65 @@ final class ConversationNavigationRailTests: XCTestCase {
     XCTAssertEqual(store.conversationRailItems(for: [finished])[0].previewState, .ready)
   }
 
+  @MainActor func testRailShowsRecordedDiffFilesWithoutInventingInputOutputs() throws {
+    let diffID = UUID()
+    var execution = MCPToolExecution(callID: "tool", serverID: UUID(),
+      serverName: "Site", toolName: "create", arguments: "{}")
+    execution.status = .succeeded
+    execution.mcpResourceActivities = [.init(id: "page",
+      source: CodexWebSource(title: "预览页面", url: "https://example.com/page"),
+      mimeType: "text/html", activities: [.created])]
+    let tool = try JSONDecoder().decode(JSONValue.self,
+      from: JSONEncoder().encode([execution]))
+    let diff = CodexTurnDiff(id: diffID,
+      unifiedDiff: "diff --git a/First.swift b/First.swift\n--- a/First.swift\n+++ b/First.swift\n"
+        + "diff --git a/Second.swift b/Second.swift\n--- a/Second.swift\n+++ b/Second.swift\n",
+      truncated: true, changedFileCount: 3)
+    let encoded = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(diff))
+    let run = AgentRun(id: "diff-run", kind: "chat", project: "", status: "succeeded",
+      createdAt: 1_000, updatedAt: 1_000, request: .null,
+      result: .object(["codex_turn_diff": encoded, "tool_executions": tool,
+        "response_items": try ChatResponseItem.json([.tool(execution.id), .diff(diffID),
+          .message(id: UUID(), text: "完成")])]))
+    let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString))
+    store.library.notes[run.id] = "修改文件"
+    store.library.runFiles[run.id] = [.init(id: UUID(), name: "input.pdf",
+      byteCount: 1, sha256: "sample", isPDF: true)]
+    let item = try XCTUnwrap(store.conversationRailItems(for: [run]).first)
+    XCTAssertEqual(item.outputs.map(\.label), ["预览页面", "First.swift", "Second.swift"])
+    XCTAssertEqual(item.additionalOutputCount, 1)
+  }
+
+  @MainActor func testRailAssignsCreatedResourceToSteeredTurnOnly() throws {
+    let message = QueuedMessage(taskID: "task", text: "创建页面")
+    let steer = try JSONDecoder().decode(JSONValue.self,
+      from: JSONEncoder().encode([message]))
+    var execution = MCPToolExecution(callID: "call", serverID: UUID(),
+      serverName: "Site", toolName: "create", arguments: "{}")
+    execution.status = .succeeded
+    execution.mcpResourceActivities = [.init(id: "page",
+      source: CodexWebSource(title: "预览页面", url: "https://example.com/page"),
+      mimeType: "text/html", activities: [.created])]
+    let tool = try JSONDecoder().decode(JSONValue.self,
+      from: JSONEncoder().encode([execution]))
+    let run = AgentRun(id: "resource-run", kind: "chat", project: "", status: "succeeded",
+      createdAt: 1_000, updatedAt: 1_000, request: .null,
+      result: .object(["codex_steered_messages": steer, "tool_executions": tool,
+        "response_items": try ChatResponseItem.json([
+          .message(id: UUID(), text: "首轮"), .user(message.id),
+          .tool(execution.id), .message(id: UUID(), text: "已经创建"),
+        ])]))
+    let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString))
+    store.library.notes[run.id] = "开始"
+    let items = store.conversationRailItems(for: [run])
+    XCTAssertEqual(items.count, 2)
+    XCTAssertTrue(items[0].outputs.isEmpty)
+    XCTAssertEqual(items[1].outputs.map(\.label), ["预览页面"])
+    XCTAssertEqual(items[1].outputs.map(\.kind), [.website])
+  }
+
   @MainActor func testRailRendersWithoutForegroundWindow() throws {
     let items = (0..<4).map { index in
       ConversationRailItem(id: "run-\(index)", title: "模型", preview: "问题 \(index)",
