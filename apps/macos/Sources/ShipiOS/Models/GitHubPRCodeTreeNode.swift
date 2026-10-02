@@ -1,6 +1,12 @@
 import Foundation
 
 struct GitHubPRCodeTreeNode: Identifiable {
+  struct Row: Identifiable {
+    let node: GitHubPRCodeTreeNode
+    let depth: Int
+    let parentID: String?
+    var id: String { node.id }
+  }
   let id: String
   let name: String
   let file: GitHubPRCodeFile?
@@ -16,7 +22,24 @@ struct GitHubPRCodeTreeNode: Identifiable {
     }.map { name in
       let group = groups[name] ?? [], path = prefix + name
       if let file = group.first(where: { $0.path == path }) { return .init(id: path, name: name, file: file, children: []) }
-      return .init(id: path, name: name, file: nil, children: tree(group, prefix: path + "/"))
+      var children = tree(group, prefix: path + "/")
+      var folderPath = path
+      var folderName = name
+      while children.count == 1, let only = children.first, only.file == nil {
+        folderPath = only.id
+        folderName += "/" + only.name
+        children = only.children
+      }
+      return .init(id: folderPath, name: folderName, file: nil, children: children)
+    }
+  }
+  static func visibleRows(_ nodes: [Self], collapsed: Set<String>, depth: Int = 0,
+    parentID: String? = nil) -> [Row] {
+    nodes.flatMap { node in
+      let row = Row(node: node, depth: depth, parentID: parentID)
+      return node.file == nil && !collapsed.contains(node.id)
+        ? [row] + visibleRows(node.children, collapsed: collapsed, depth: depth + 1, parentID: node.id)
+        : [row]
     }
   }
 }

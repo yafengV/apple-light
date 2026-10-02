@@ -208,15 +208,34 @@ struct TaskPullRequestCodeView: View {
   }
   private var fileTree: some View {
     VStack(spacing: 8) {
-      TextField("搜索文件", text: Binding(get: { state.query }, set: { state.query = $0 }))
-        .textFieldStyle(.roundedBorder).padding(.horizontal, 8).padding(.top, 8)
-        .accessibilityIdentifier("pull-request-code-file-search")
-      if state.filteredFiles.isEmpty {
-        Text("没有匹配的文件").foregroundStyle(.secondary).padding(8)
+      HStack(spacing: 6) {
+        Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
+          .accessibilityHidden(true)
+        TextField("筛选文件…", text: Binding(get: { state.query }, set: { state.query = $0 }))
+          .textFieldStyle(.plain)
+          .accessibilityLabel("筛选文件")
+          .accessibilityIdentifier("pull-request-code-file-search")
+        if !state.query.isEmpty {
+          Button { state.query = "" } label: {
+            Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+          }
+          .buttonStyle(.plain)
+          .foregroundStyle(.secondary)
+          .accessibilityLabel("清除文件筛选")
+          .accessibilityIdentifier("pull-request-code-file-search-clear")
+        }
       }
+      .padding(.horizontal, 9).frame(height: 32)
+      .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+      .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary) }
+      .padding(.horizontal, 8).padding(.top, 8)
       ScrollView {
-        TaskPullRequestCodeTreeView(nodes: GitHubPRCodeTreeNode.tree(state.filteredFiles), state: state,
-          count: { threads(for: $0).count })
+        if state.filteredFiles.isEmpty {
+          Text("没有匹配的文件").foregroundStyle(.secondary).padding(8)
+        } else {
+          TaskPullRequestCodeTreeView(nodes: GitHubPRCodeTreeNode.tree(state.filteredFiles), state: state,
+            count: { threads(for: $0).count })
+        }
       }
     }.frame(maxHeight: .infinity, alignment: .top)
       .accessibilityIdentifier("pull-request-code-file-tree")

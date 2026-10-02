@@ -473,6 +473,39 @@ import XCTest
     XCTAssertEqual(nodes[0].children.first?.file?.path, "Sources/Main.swift")
     XCTAssertEqual(nodes[1].children.first?.file?.path, "Tests/Main.swift")
   }
+  func testPRFileTreeFlattensSingleDirectoryChainsAndNavigatesVisibleRows() {
+    let files = ["A/B/C/one.swift", "A/B/C/two.swift", "Other.swift"].map {
+      GitHubPRCodeFile(path: $0, oldPath: nil, patch: "", kind: .modified, binary: false)
+    }
+    let nodes = GitHubPRCodeTreeNode.tree(files)
+    XCTAssertEqual(nodes.map(\.name), ["A/B/C", "Other.swift"])
+    XCTAssertEqual(nodes[0].id, "A/B/C")
+    XCTAssertEqual(nodes[0].children.map(\.name), ["one.swift", "two.swift"])
+    var collapsed = Set<String>()
+    var rows = GitHubPRCodeTreeNode.visibleRows(nodes, collapsed: collapsed)
+    XCTAssertEqual(rows.map(\.id), ["A/B/C", "A/B/C/one.swift", "A/B/C/two.swift", "Other.swift"])
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.down, from: "A/B/C", rows: rows, collapsed: &collapsed),
+      "A/B/C/one.swift")
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.left, from: "A/B/C/one.swift", rows: rows, collapsed: &collapsed),
+      "A/B/C")
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.left, from: "A/B/C", rows: rows, collapsed: &collapsed),
+      "A/B/C")
+    XCTAssertEqual(collapsed, ["A/B/C"])
+    rows = GitHubPRCodeTreeNode.visibleRows(nodes, collapsed: collapsed)
+    XCTAssertEqual(rows.map(\.id), ["A/B/C", "Other.swift"])
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.right, from: "A/B/C", rows: rows, collapsed: &collapsed),
+      "A/B/C")
+    XCTAssertTrue(collapsed.isEmpty)
+    rows = GitHubPRCodeTreeNode.visibleRows(nodes, collapsed: collapsed)
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.right, from: "A/B/C", rows: rows, collapsed: &collapsed),
+      "A/B/C/one.swift")
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.first, from: "Other.swift", rows: rows, collapsed: &collapsed),
+      "A/B/C")
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.last, from: "A/B/C", rows: rows, collapsed: &collapsed),
+      "Other.swift")
+    XCTAssertEqual(GitHubPRCodeTreeKeyboard.move(.down, from: "Other.swift", rows: rows, collapsed: &collapsed),
+      "Other.swift")
+  }
   func testInvalidatedTaskCannotInstallLateDiffAndRetryPreservesPendingJump() async throws {
     let (request, service) = try await fixture(["codeDiffGate": true])
     let state = GitHubPRCodeState(service: service)
