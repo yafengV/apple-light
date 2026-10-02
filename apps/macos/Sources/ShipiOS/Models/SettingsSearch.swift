@@ -36,6 +36,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case memoryAdd
   case memorySaved
   case notificationTiming
+  case notificationApproval
+  case notificationQuestion
   case notificationPrompt
   case notificationPermission
   case notificationTest
@@ -164,7 +166,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .memoryEnabled: .memories
     case .memoryAdd: .memories
     case .memorySaved: .memories
-    case .notificationTiming: .notifications
+    case .notificationTiming, .notificationApproval, .notificationQuestion: .notifications
     case .notificationPrompt: .notifications
     case .notificationPermission: .notifications
     case .notificationTest: .notifications
@@ -254,7 +256,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .memoryAdd: "添加记忆"
     case .memorySaved: "已保存的记忆"
     case .notificationTiming: "显示通知"
-    case .notificationPrompt: "需要通知时询问系统权限"
+    case .notificationApproval: "需要批准时提醒"
+    case .notificationQuestion: "需要回答时提醒"
+    case .notificationPrompt: "首次提醒时请求 macOS 通知权限"
     case .notificationPermission: "通知权限"
     case .notificationTest: "发送测试通知"
     case .voiceChat: "语音聊天"
@@ -399,7 +403,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .memoryAdd: "新记忆"
     case .memorySaved: "编辑 删除 清空"
     case .notificationTiming: "任务结束 提醒时机"
-    case .notificationPrompt: "权限"
+    case .notificationApproval: "工具 批准 审批 通知"
+    case .notificationQuestion: "模型 提问 MCP 请求 回答 通知"
+    case .notificationPrompt: "系统 授权 提示 权限"
     case .notificationPermission: "允许通知"
     case .notificationTest: "测试"
     case .voiceChat: "实时语音 会话"

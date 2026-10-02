@@ -13,11 +13,38 @@ enum CompletionNotificationTiming: String, Codable, CaseIterable, Identifiable {
   }
 }
 
+enum TaskNotificationKind: String, Codable {
+  case completion, approval, question
+}
+
 struct CompletionNotificationPreferences: Codable, Equatable {
   var timing: CompletionNotificationTiming = .background
   var promptForPermission = false
-  func permits(appIsActive: Bool) -> Bool {
-    timing == .always || (timing == .background && !appIsActive)
+  var approvalAlertsEnabled = true
+  var questionAlertsEnabled = true
+  init(timing: CompletionNotificationTiming = .background, promptForPermission: Bool = false,
+    approvalAlertsEnabled: Bool = true, questionAlertsEnabled: Bool = true) {
+    self.timing = timing
+    self.promptForPermission = promptForPermission
+    self.approvalAlertsEnabled = approvalAlertsEnabled
+    self.questionAlertsEnabled = questionAlertsEnabled
+  }
+  private enum CodingKeys: String, CodingKey {
+    case timing, promptForPermission, approvalAlertsEnabled, questionAlertsEnabled
+  }
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    timing = try values.decodeIfPresent(CompletionNotificationTiming.self, forKey: .timing) ?? .background
+    promptForPermission = try values.decodeIfPresent(Bool.self, forKey: .promptForPermission) ?? false
+    approvalAlertsEnabled = try values.decodeIfPresent(Bool.self, forKey: .approvalAlertsEnabled) ?? true
+    questionAlertsEnabled = try values.decodeIfPresent(Bool.self, forKey: .questionAlertsEnabled) ?? true
+  }
+  func permits(_ kind: TaskNotificationKind, appIsActive: Bool) -> Bool {
+    switch kind {
+    case .completion: timing == .always || (timing == .background && !appIsActive)
+    case .approval: approvalAlertsEnabled
+    case .question: questionAlertsEnabled
+    }
   }
 }
 
@@ -48,12 +75,23 @@ struct CompletionNotice: Equatable {
   let title: String
   let body: String
   let destination: NotificationDestination?
+  var kind: TaskNotificationKind = .completion
+  private static func scope(_ root: URL) -> String {
+    SHA256.hash(data: Data(root.path.utf8)).map { String(format: "%02x", $0) }.joined()
+  }
   static func turn(_ run: AgentRun, task: WorkspaceTask, root: URL) -> Self {
-    let scope = SHA256.hash(data: Data(root.path.utf8)).map { String(format: "%02x", $0) }.joined()
     return Self(
-      id: "\(scope):\(run.id)", title: run.status == "succeeded" ? "任务已完成" : "任务失败",
+      id: "\(scope(root)):\(run.id)", title: run.status == "succeeded" ? "任务已完成" : "任务失败",
       body: task.title,
       destination: NotificationDestination(dataRoot: root.path, project: run.project, taskID: task.id, runID: run.id))
+  }
+  static func attention(_ kind: TaskNotificationKind, eventID: UUID,
+    run: AgentRun, task: WorkspaceTask, root: URL) -> Self {
+    Self(id: "\(scope(root)):\(run.id):\(kind.rawValue):\(eventID.uuidString)",
+      title: kind == .approval ? "需要批准操作" : "需要回答问题",
+      body: task.title,
+      destination: NotificationDestination(dataRoot: root.path, project: run.project,
+        taskID: task.id, runID: run.id), kind: kind)
   }
 }
 

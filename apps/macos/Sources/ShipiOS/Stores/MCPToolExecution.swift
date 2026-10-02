@@ -220,6 +220,7 @@ extension WorkspaceStore {
         mcpPendingApprovals[execution.id] = MCPApprovalContext(runID: runID, execution: execution,
           allowsOnce: allowsOnce, allowsTask: allowsTask)
         mcpApprovalContinuations[execution.id] = continuation
+        notifyAttention(runID: runID, kind: .approval, eventID: execution.id)
       }
     } onCancel: {
       Task { @MainActor [weak self] in self?.resolveMCPApproval(execution.id, decision: .deny) }

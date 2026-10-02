@@ -31,6 +31,7 @@ extension WorkspaceStore {
       runID: runID, taskID: taskID, request: request,
       verificationURL: request.isURLRequest ? try CodexElicitationRequest.verificationURL(event) : nil)
     saveLibrary()
+    notifyAttention(runID: runID, kind: .question, eventID: request.id)
     let decision: CodexElicitationDecision? = await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: nil); return }

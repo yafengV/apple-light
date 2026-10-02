@@ -15,9 +15,20 @@ struct NotificationSettingsView: View {
             SettingsMenuOption(value: $0, title: $0.title)
           })
         .settingsSearchTarget(.notificationTiming)
-        Toggle("需要通知时询问系统权限", isOn: binding(\.promptForPermission)).settingsSearchTarget(.notificationPrompt)
+      }
+      Section("需要你操作") {
+        SettingsToggle(title: "需要批准时提醒",
+          description: "工具操作等待你批准时发送通知。",
+          isOn: binding(\.approvalAlertsEnabled))
+          .settingsSearchTarget(.notificationApproval)
+        SettingsToggle(title: "需要回答时提醒",
+          description: "模型提问或 MCP 请求需要你继续操作时发送通知。",
+          isOn: binding(\.questionAlertsEnabled))
+          .settingsSearchTarget(.notificationQuestion)
       }
       Section("系统权限") {
+        Toggle("首次提醒时请求 macOS 通知权限", isOn: binding(\.promptForPermission))
+          .settingsSearchTarget(.notificationPrompt)
         LabeledContent("通知权限", value: store.notifications.permission.title).settingsSearchTarget(.notificationPermission)
         HStack {
           Button(store.notifications.requesting ? "正在请求…" : "允许通知") {

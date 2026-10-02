@@ -88,6 +88,7 @@ extension WorkspaceStore {
       responseItems: items, codexQuestions: records)
     codexPendingQuestions[request.id] = .init(runID: runID, taskID: owner.id, request: request)
     saveLibrary()
+    notifyAttention(runID: runID, kind: .question, eventID: request.id)
     let answers: [String: [String]]? = await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: nil); return }

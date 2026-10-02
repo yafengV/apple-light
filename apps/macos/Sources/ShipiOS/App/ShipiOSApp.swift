@@ -536,9 +536,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     let target = NotificationDestination(userInfo: notification.request.content.userInfo)
+    let kind = (notification.request.content.userInfo["notificationKind"] as? String)
+      .flatMap(TaskNotificationKind.init(rawValue:)) ?? .completion
     Task { @MainActor in
       let show = target == nil || (target?.dataRoot == self.store?.dataRoot.path
-        && self.store?.notificationPreferences.permits(appIsActive: NSApp.isActive) == true)
+        && self.store?.notificationPreferences.permits(kind, appIsActive: NSApp.isActive) == true)
       completionHandler(show ? [.banner, .list, .sound] : [])
     }
   }

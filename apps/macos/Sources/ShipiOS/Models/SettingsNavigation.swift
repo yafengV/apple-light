@@ -58,7 +58,7 @@ enum SettingsNavigation {
     case .memories: ["记忆", "memory"]
     case .pets: ["Codey", "Mini", "宠物", "全局快捷键"]
     case .shortcuts: ["键盘", "快捷键", "keyboard", "改键"]
-    case .notifications: ["通知", "提醒", "权限"]
+    case .notifications: ["通知", "提醒", "权限", "审批", "提问", "回答"]
     case .voice: ["语音", "听写", "识别语言", "麦克风", "词典"]
     case .usage: ["token", "用量", "输入", "输出"]
     case .agent: ["配置", "模型默认值", "推理强度"]

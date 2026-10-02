@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import XCTest
 
 @testable import ShipiOS
@@ -20,6 +22,36 @@ import XCTest
 }
 
 final class NotificationTests: XCTestCase {
+  @MainActor func testNotificationSettingsShowsActionAlertsAndSearchTargets() async throws {
+    XCTAssertEqual(SettingsSearchField.notificationApproval.page, .notifications)
+    XCTAssertEqual(SettingsSearchField.notificationQuestion.page, .notifications)
+    XCTAssertEqual(SettingsSearch.results(for: "需要批准时提醒").map(\.field), [.notificationApproval])
+    XCTAssertEqual(SettingsSearch.results(for: "需要回答时提醒").map(\.field), [.notificationQuestion])
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.notifications = CompletionNotificationCenter(delivery: FakeNotificationDelivery())
+    store.openSettings(.notifications)
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 650),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: NotificationSettingsView(store: store)
+      .environment(\.appAppearance, store.appearance))
+    window.contentView = host
+    try await Task.sleep(for: .milliseconds(200))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_NOTIFICATION_SETTINGS_RENDER_PATH"] {
+      try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        .write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+    window.close()
+    await store.shutdown()
+  }
+
   private func sampleRun(_ id: String = "run", kind: String = "chat", status: String = "succeeded") -> AgentRun {
     AgentRun(id: id, kind: kind, project: "/fixture", status: status,
       createdAt: 0, updatedAt: 1, request: .null, result: nil)
@@ -58,6 +90,85 @@ final class NotificationTests: XCTestCase {
     await center.deliver(notice) { (.init(timing: .always), false) }
     XCTAssertEqual(delivery.requests, 0)
     XCTAssertEqual(delivery.notices.count, 2)
+  }
+
+  func testLegacyNotificationPreferencesEnableActionAlerts() throws {
+    let legacy = try JSONDecoder().decode(CompletionNotificationPreferences.self,
+      from: Data(#"{"timing":"never","promptForPermission":true}"#.utf8))
+    XCTAssertEqual(legacy.timing, .never)
+    XCTAssertTrue(legacy.promptForPermission)
+    XCTAssertTrue(legacy.approvalAlertsEnabled)
+    XCTAssertTrue(legacy.questionAlertsEnabled)
+    XCTAssertFalse(legacy.permits(.completion, appIsActive: false))
+    XCTAssertTrue(legacy.permits(.approval, appIsActive: true))
+    XCTAssertTrue(legacy.permits(.question, appIsActive: true))
+    let restored = try JSONDecoder().decode(CompletionNotificationPreferences.self,
+      from: JSONEncoder().encode(legacy))
+    XCTAssertEqual(restored, legacy)
+  }
+
+  @MainActor func testApprovalAndQuestionAlertsUseIndependentPreferences() async {
+    let delivery = FakeNotificationDelivery()
+    let center = CompletionNotificationCenter(delivery: delivery)
+    let run = sampleRun(status: "running")
+    let task = WorkspaceTask(id: "task", project: run.project, title: "Needs input", runIDs: [run.id])
+    let approval = CompletionNotice.attention(.approval, eventID: UUID(),
+      run: run, task: task, root: URL(fileURLWithPath: "/fixture"))
+    let question = CompletionNotice.attention(.question, eventID: UUID(),
+      run: run, task: task, root: URL(fileURLWithPath: "/fixture"))
+    var preferences = CompletionNotificationPreferences(timing: .never,
+      approvalAlertsEnabled: true, questionAlertsEnabled: false)
+    await center.deliver(approval) { (preferences, true) }
+    await center.deliver(question) { (preferences, true) }
+    XCTAssertEqual(delivery.notices.map(\.kind), [.approval])
+    preferences.approvalAlertsEnabled = false
+    preferences.questionAlertsEnabled = true
+    await center.deliver(approval) { (preferences, false) }
+    await center.deliver(question) { (preferences, false) }
+    XCTAssertEqual(delivery.notices.map(\.kind), [.approval, .question])
+    XCTAssertNotEqual(approval.id, question.id)
+    XCTAssertEqual(question.destination?.runID, run.id)
+  }
+
+  @MainActor func testStoreAttentionAlertRoutesToItsTask() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    let delivery = FakeNotificationDelivery()
+    let delivered = expectation(description: "attention notification delivered")
+    delivery.onPost = { delivered.fulfill() }
+    store.notifications = CompletionNotificationCenter(delivery: delivery)
+    store.library.notifications = .init(timing: .never)
+    let run = sampleRun(status: "running")
+    store.library.chatRuns = [run]
+    store.library.attach(run, to: nil, note: "Respond to this task")
+    store.notifyAttention(runID: "run", kind: .question, eventID: UUID())
+    await fulfillment(of: [delivered], timeout: 2)
+    XCTAssertEqual(delivery.notices.first?.kind, .question)
+    XCTAssertEqual(delivery.notices.first?.destination?.taskID, "run")
+  }
+
+  @MainActor func testPendingToolApprovalActuallyEmitsAttentionAlert() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    let delivery = FakeNotificationDelivery()
+    let delivered = expectation(description: "approval notification delivered")
+    delivery.onPost = { delivered.fulfill() }
+    store.notifications = CompletionNotificationCenter(delivery: delivery)
+    store.library.notifications = .init(timing: .never)
+    let run = sampleRun(status: "running")
+    store.library.chatRuns = [run]
+    store.library.attach(run, to: nil, note: "Approve this task")
+    let execution = MCPToolExecution(callID: "tool-call", serverID: UUID(),
+      serverName: "fixture", toolName: "inspect", arguments: "{}")
+    let pending = Task { await store.requestMCPApproval(execution, runID: run.id) }
+    await fulfillment(of: [delivered], timeout: 2)
+    XCTAssertEqual(delivery.notices.first?.kind, .approval)
+    XCTAssertEqual(delivery.notices.first?.destination?.runID, run.id)
+    store.resolveMCPApproval(execution.id, decision: .deny)
+    let decision = await pending.value
+    XCTAssertEqual(decision, .deny)
   }
 
   @MainActor func testAutomaticPermissionPromptIsOptInAndOnlyOncePerSession() async {
@@ -119,7 +230,8 @@ final class NotificationTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     await store.restore()
-    store.notificationPreferences = .init(timing: .never, promptForPermission: true)
+    store.notificationPreferences = .init(timing: .never, promptForPermission: true,
+      approvalAlertsEnabled: false, questionAlertsEnabled: false)
     let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
     XCTAssertEqual(restored.notifications, store.notificationPreferences)
     let legacy = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8))

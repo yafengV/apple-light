@@ -41,6 +41,21 @@ extension WorkspaceStore {
     }
   }
 
+  func notifyAttention(runID: String, kind: TaskNotificationKind, eventID: UUID) {
+    guard kind != .completion,
+      let run = library.chatRuns.first(where: { $0.id == runID }),
+      let task = library.task(containing: runID), !task.archived,
+      task.project == run.project else { return }
+    let notice = CompletionNotice.attention(kind, eventID: eventID,
+      run: run, task: task, root: dataRoot)
+    Task { [weak self] in
+      guard let self else { return }
+      await notifications.deliver(notice) {
+        (self.notificationPreferences, NSApp?.isActive ?? false)
+      }
+    }
+  }
+
   @discardableResult func openNotification(_ target: NotificationDestination) async -> Bool {
     guard target.dataRoot == dataRoot.path,
       let task = library.tasks.first(where: { $0.id == target.taskID }),

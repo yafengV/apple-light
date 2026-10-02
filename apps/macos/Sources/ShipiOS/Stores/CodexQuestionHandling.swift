@@ -20,6 +20,7 @@ extension WorkspaceStore {
       request: request)
     saveLibrary()
     guard request.isBlocking else { return }
+    notifyAttention(runID: runID, kind: .question, eventID: request.id)
     let answers: [String: [String]]? = await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: nil); return }
