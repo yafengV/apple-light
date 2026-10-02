@@ -33,6 +33,18 @@ import Observation
   @ObservationIgnored private let service: GitHubPRService
   init(service: GitHubPRService = .init()) { self.service = service }
   var files: [GitHubPRCodeFile] { snapshot?.files ?? [] }
+  var presentation: GitHubPRCodePresentation {
+    .init(query: query, showsFiles: showsFiles, selectedPath: selectedPath, scrollOffset: scrollOffset)
+  }
+  func restorePresentation(_ value: GitHubPRCodePresentation) {
+    guard snapshot != nil, !navigationPending, pendingPosition == nil else { return }
+    query = value.query
+    showsFiles = value.showsFiles
+    selectedPath = files.contains(where: { $0.path == value.selectedPath })
+      ? value.selectedPath : files.first?.path
+    scrollOffset = value.scrollOffset.isFinite ? max(0, value.scrollOffset) : 0
+    scrollGeneration = UUID()
+  }
   var filteredFiles: [GitHubPRCodeFile] {
     let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
     return search.isEmpty ? files : files.filter { $0.path.localizedCaseInsensitiveContains(search) }

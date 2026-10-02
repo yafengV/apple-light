@@ -213,7 +213,11 @@ struct TaskPullRequestDetailView: View {
     .task(id: code.page == .code && !compact ? codeRequest : nil) {
       guard code.page == .code, !compact else { return }
       let captured = codeRequest
+      let wasUnloaded = code.snapshot == nil
       await code.load(captured, valid: { valid && captured == codeRequest })
+      if wasUnloaded, let captured, valid, captured == codeRequest {
+        store.prCodePresentationCache.restore(captured, into: code)
+      }
     }
     .onChange(of: codeRequest) { _, _ in if code.page != .code { code.invalidate() } }
     .task(id: code.page == .code && !compact ? code.snapshot : nil) {
@@ -242,7 +246,10 @@ struct TaskPullRequestDetailView: View {
     .onChange(of: presentations?.token(tabID)) { _, _ in consumeMergeRequest() }
     .onChange(of: state.snapshot) { _, _ in consumeMergeRequest() }
     .onChange(of: root) { _, _ in presentations?.clear(tabID) }
-    .onDisappear { presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel(); code.cancel() }
+    .onDisappear {
+      if let request = codeRequest { store.prCodePresentationCache.save(request, from: code) }
+      presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel(); code.cancel()
+    }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
         confirm: { apply(.merge(state.selectedMethod)) })

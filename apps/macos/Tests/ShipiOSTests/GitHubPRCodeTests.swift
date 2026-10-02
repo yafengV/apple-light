@@ -465,6 +465,43 @@ import XCTest
     state.query = ""
     XCTAssertEqual(state.activeFilteredPath, "Tests/Other.swift")
   }
+  func testPRCodePresentationRestoresAcrossStateRecreationWithoutOverridingCommentJump() async throws {
+    let second = patch.replacingOccurrences(of: "Sources/Main.swift", with: "Tests/Other.swift")
+    let (request, service) = try await fixture(["prDiff": patch + second, "codeChangedFiles": 2])
+    let cache = GitHubPRCodePresentationCache()
+    let original = GitHubPRCodeState(service: service)
+    await original.load(request, valid: { true })
+    original.select("Tests/Other.swift")
+    original.query = "Main"
+    original.showsFiles = true
+    original.rememberScrollOffset(640)
+    cache.save(request, from: original)
+    original.cancel()
+
+    let restored = GitHubPRCodeState(service: service)
+    await restored.load(request, valid: { true })
+    let otherTask = GitHubPRCodeRequest(taskID: "other-task", root: request.root,
+      pullRequest: request.pullRequest, head: request.head)
+    cache.restore(otherTask, into: restored)
+    XCTAssertEqual(restored.scrollOffset, 0)
+    XCTAssertEqual(restored.query, "")
+    cache.restore(request, into: restored)
+    XCTAssertEqual(restored.selectedPath, "Tests/Other.swift")
+    XCTAssertEqual(restored.activeFilteredPath, "Sources/Main.swift")
+    XCTAssertEqual(restored.scrollOffset, 640)
+    XCTAssertEqual(restored.query, "Main")
+    XCTAssertTrue(restored.showsFiles)
+    XCTAssertFalse(restored.navigationPending)
+
+    let commentTarget = GitHubPRCodeState(service: service)
+    commentTarget.open(position())
+    await commentTarget.load(request, valid: { true })
+    cache.restore(request, into: commentTarget)
+    XCTAssertEqual(commentTarget.selectedPath, "Sources/Main.swift")
+    XCTAssertEqual(commentTarget.query, "")
+    XCTAssertTrue(commentTarget.navigationPending)
+    XCTAssertEqual(commentTarget.position?.line, 9)
+  }
   func testTreeGroupsFoldersBeforeFilesAndKeepsIdenticalBasenamesDistinct() throws {
     let files = try GitHubPRCodeFile.parse(patch + patch.replacingOccurrences(of: "Sources/", with: "Tests/")
       + patch.replacingOccurrences(of: "Sources/Main.swift", with: "README.md"))
