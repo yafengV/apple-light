@@ -183,7 +183,8 @@ struct TaskPullRequestCodeFileView<Comment: View>: View {
             } catch { selectionError = error.localizedDescription }
           }, path: file.path) }
         .background {
-          if let position = state.position, file.matches(position), position.side == side, position.line == value {
+          if state.navigationPending, let position = state.position,
+            file.matches(position), position.side == side, position.line == value {
             PullRequestCodeScrollAnchor(request: state.navigation).frame(width: 1, height: 1)
           }
         }

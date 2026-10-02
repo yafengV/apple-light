@@ -12,8 +12,11 @@ import Observation
   private(set) var loading = false
   private(set) var error: String?
   private(set) var selectedPath: String?
+  private(set) var scrollOffset: Double = 0
+  private(set) var scrollGeneration = UUID()
   private(set) var position: GitHubPRCommentPosition?
   private(set) var navigation = UUID()
+  private(set) var navigationPending = false
   private(set) var collapsed = Set<String>()
   private(set) var groupExpanded = true
   private(set) var attributes: GitHubPRGeneratedAttributes?
@@ -56,7 +59,12 @@ import Observation
   }
   func select(_ path: String) {
     guard files.contains(where: { $0.path == path }) else { return }
-    selectedPath = path; position = nil; navigation = UUID()
+    selectedPath = path; position = nil; navigation = UUID(); navigationPending = true
+  }
+  func endNavigation() { navigationPending = false }
+  func rememberScrollOffset(_ offset: Double) {
+    guard offset.isFinite else { return }
+    scrollOffset = max(0, offset)
   }
   func open(_ target: GitHubPRCommentPosition) {
     guard target.isValid else { return }
@@ -111,7 +119,7 @@ import Observation
     guard let target = pendingPosition, let file = files.first(where: { $0.matches(target) }) else { return }
     selectedPath = file.path; position = target; collapsed.remove(file.path)
     collapseOverrides[file.path] = false
-    pendingPosition = nil; navigation = UUID()
+    pendingPosition = nil; navigation = UUID(); navigationPending = true
   }
   func rowTarget(in file: GitHubPRCodeFile) -> String? {
     guard let position, file.matches(position) else { return nil }
@@ -131,7 +139,10 @@ import Observation
     generation = UUID(); let token = generation
     request = next; loading = true; error = nil; snapshot = nil
     resetAttributes()
-    if changed { collapsed = []; collapseOverrides = [:]; groupExpanded = true; selectedPath = nil; position = nil }
+    if changed {
+      collapsed = []; collapseOverrides = [:]; groupExpanded = true; selectedPath = nil; position = nil
+      scrollOffset = 0; scrollGeneration = UUID(); navigationPending = false
+    }
     defer { if generation == token { loading = false } }
     do {
       let result = try await service.codeSnapshot(next)
@@ -149,7 +160,8 @@ import Observation
   }
   func invalidate() {
     generation = UUID(); request = nil; snapshot = nil; loading = false; error = nil
-    selectedPath = nil; position = nil; collapsed = []; collapseOverrides = [:]; groupExpanded = true; resetAttributes()
+    selectedPath = nil; position = nil; scrollOffset = 0; scrollGeneration = UUID(); navigationPending = false
+    collapsed = []; collapseOverrides = [:]; groupExpanded = true; resetAttributes()
   }
   func cancel() { invalidate(); pendingPosition = nil; scope = nil }
 

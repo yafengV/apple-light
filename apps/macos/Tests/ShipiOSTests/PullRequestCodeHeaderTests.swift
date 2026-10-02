@@ -4,6 +4,15 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class PullRequestCodeHeaderTests: XCTestCase {
+  private struct CodeTabHarness: View {
+    let state: GitHubPRCodeState
+    var body: some View {
+      if state.page == .code {
+        TaskPullRequestCodeView(state: state, discussion: .init(), enabled: false,
+          writable: false, mentionRequest: nil, open: { _ in }, submit: { _, _ in }, retry: {}, retryComments: {})
+      } else { Text("概览").frame(maxWidth: .infinity, maxHeight: .infinity) }
+    }
+  }
   private func file(_ path: String, old: String? = nil, kind: GitHubPRCodeFile.Kind = .modified, lines: Int = 3) -> GitHubPRCodeFile {
     let code = (1...lines).map { "+let value\($0) = \"" + String(repeating: "text ", count: 60) + "\"" }.joined(separator: "\n")
     return .init(path: path, oldPath: old ?? path, patch: "@@ -0,0 +1,\(lines) @@\n" + code, kind: kind, binary: false)
@@ -45,6 +54,9 @@ import XCTest
   }
   private func scrolls(_ view: NSView) -> [NSScrollView] {
     ((view as? NSScrollView).map { [$0] } ?? []) + view.subviews.flatMap(scrolls)
+  }
+  private func scrollPositions(_ view: NSView) -> [PullRequestCodeScrollPosition.Probe] {
+    ((view as? PullRequestCodeScrollPosition.Probe).map { [$0] } ?? []) + view.subviews.flatMap(scrollPositions)
   }
   private func buttons(_ node: NSView) -> [PullRequestCodeHeaderButtonView] {
     ((node as? PullRequestCodeHeaderButtonView).map { [$0] } ?? []) + node.subviews.flatMap(buttons)
@@ -118,6 +130,40 @@ import XCTest
     XCTAssertGreaterThan(horizontal.contentView.bounds.origin.x, 100)
     let after = try frame(header(host, path: state.files[0].path))
     XCTAssertEqual(after.minX, pinned.minX, accuracy: 1); XCTAssertEqual(after.minY, pinned.minY, accuracy: 1)
+    XCTAssertFalse(window.isVisible)
+  }
+  func testHiddenCodeTabRestoresVerticalPositionAfterSummaryRoundTrip() async throws {
+    let state = try await fixture(); state.page = .code
+    let (window, host) = window(CodeTabHarness(state: state))
+    defer { window.close() }; try await settle(host)
+    let vertical = try XCTUnwrap(scrolls(host).first {
+      $0.hasVerticalScroller && ($0.documentView?.bounds.height ?? 0) > $0.contentSize.height + 700
+    })
+    XCTAssertTrue(scrollPositions(host).contains { $0.enclosingScrollView === vertical })
+    vertical.contentView.scroll(to: NSPoint(x: 0, y: 640))
+    vertical.reflectScrolledClipView(vertical.contentView)
+    try await settle(host)
+    XCTAssertEqual(state.scrollOffset, 640, accuracy: 2)
+    state.page = .summary; try await settle(host)
+    XCTAssertFalse(scrolls(host).contains { $0 === vertical })
+    state.page = .code
+    try await Task.sleep(for: .milliseconds(450)); host.layoutSubtreeIfNeeded()
+    let restored = try XCTUnwrap(scrolls(host).first { $0.hasVerticalScroller })
+    XCTAssertEqual(restored.contentView.bounds.origin.y, 640, accuracy: 3)
+    XCTAssertEqual(state.scrollOffset, 640, accuracy: 3)
+    state.select(state.files[1].path)
+    try await Task.sleep(for: .milliseconds(400)); host.layoutSubtreeIfNeeded()
+    restored.contentView.scroll(to: NSPoint(x: 0, y: 640))
+    restored.reflectScrolledClipView(restored.contentView)
+    try await settle(host)
+    state.page = .summary; try await settle(host)
+    XCTAssertFalse(state.navigationPending)
+    state.page = .code
+    try await Task.sleep(for: .milliseconds(450)); host.layoutSubtreeIfNeeded()
+    let restoredAgain = try XCTUnwrap(scrolls(host).first { $0.hasVerticalScroller })
+    XCTAssertEqual(restoredAgain.contentView.bounds.origin.y, 640, accuracy: 3)
+    state.invalidate(); try await settle(host)
+    XCTAssertEqual(state.scrollOffset, 0)
     XCTAssertFalse(window.isVisible)
   }
   func testNativeReturnSpaceOptionAndCopyKeepIndependentActionsAndCleanup() async throws {

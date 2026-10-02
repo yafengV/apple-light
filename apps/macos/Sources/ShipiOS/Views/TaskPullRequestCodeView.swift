@@ -94,6 +94,7 @@ struct TaskPullRequestCodeView: View {
       comments.sync(cards ?? [], drafts: discussion.drafts)
     }
     .onChange(of: discussion.drafts) { _, drafts in comments.sync(discussion.snapshot?.commentCards ?? [], drafts: drafts) }
+    .onDisappear { state.endNavigation() }
   }
 
   private var toolbar: some View {
@@ -161,7 +162,8 @@ struct TaskPullRequestCodeView: View {
                 }
               }.padding(.bottom, 14)
                 .background(alignment: .topLeading) {
-                  PullRequestCodeScrollAnchor(request: state.selectedPath == file.path && state.position == nil ? state.navigation : nil,
+                  PullRequestCodeScrollAnchor(request: state.navigationPending && state.selectedPath == file.path
+                    && state.position == nil ? state.navigation : nil,
                     centered: false, topInset: 34).frame(width: 1, height: 1)
                 }
             } header: {
@@ -180,9 +182,11 @@ struct TaskPullRequestCodeView: View {
             }
           }
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+          .background { PullRequestCodeScrollPosition(state: state).frame(width: 0, height: 0) }
       }
       .task(id: state.navigation) {
-        guard let path = state.selectedPath, state.files.contains(where: { $0.path == path }) else { return }
+        guard state.navigationPending, let path = state.selectedPath,
+          state.files.contains(where: { $0.path == path }) else { return }
         // Materialize an offscreen section. Native anchors then address the page's
         // vertical document without changing its nested horizontal code scroller.
         proxy.scrollTo(path, anchor: .top)
