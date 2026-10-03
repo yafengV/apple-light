@@ -52,6 +52,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   case plan(String, owner: String)
   case sources(owner: String)
   case pullRequest(String, owner: String)
+  case pullRequestWatch(UUID, task: String, owner: String)
   case terminal(UUID, owner: String)
 
   var id: String {
@@ -62,13 +63,14 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .plan(let runID, _): "plan:\(runID)"
     case .sources(let owner): "sources:\(owner)"
     case .pullRequest(let url, let owner): "pull-request:\(owner):\(url)"
+    case .pullRequestWatch(_, let task, let owner): "pull-request-auto-fix:\(owner):\(task)"
     case .terminal(let id, _): "terminal:\(id.uuidString)"
     }
   }
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .terminal(_, let owner): owner
+    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .pullRequestWatch(_, _, let owner), .terminal(_, let owner): owner
     }
   }
 
@@ -85,6 +87,14 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     guard case .pullRequest(let url, _) = self else { return nil }
     return url
   }
+  var watchAutomationID: UUID? {
+    guard case .pullRequestWatch(let id, _, _) = self else { return nil }
+    return id
+  }
+  var watchTaskID: String? {
+    guard case .pullRequestWatch(_, let task, _) = self else { return nil }
+    return task
+  }
 
   var icon: String {
     switch self {
@@ -94,6 +104,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .plan: "text.document"
     case .sources: "square.stack"
     case .pullRequest: "arrow.triangle.pullrequest"
+    case .pullRequestWatch: "bolt.horizontal.circle"
     case .terminal: "terminal"
     }
   }
@@ -106,6 +117,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .plan: .plan
     case .sources: .sources
     case .pullRequest: .pullRequest
+    case .pullRequestWatch: .pullRequestWatch
     case .terminal: .terminal
     }
   }
@@ -118,6 +130,7 @@ enum PinnedWorkspaceTabKind: String, Codable {
   case plan
   case sources
   case pullRequest
+  case pullRequestWatch
   case terminal
 }
 
@@ -134,4 +147,6 @@ struct PinnedWorkspaceTab: Codable, Equatable, Identifiable {
   var title: String
   var restoreURL: String?
   var sourceWindowID: String? = nil
+  var watchAutomationID: UUID? = nil
+  var watchTaskID: String? = nil
 }

@@ -57,6 +57,8 @@ extension WorkspaceStore {
       guard let request = pullRequestContent(tab) else { return "Pull Request" }
       let title = request.title.trimmingCharacters(in: .whitespacesAndNewlines)
       return title.isEmpty ? "Pull request #\(request.number)" : title
+    case .pullRequestWatch:
+      return pullRequestWatchContent(tab)?.name ?? "PR 监控进度"
     case .terminal(let id, _):
       return terminalSession(id)?.displayTitle ?? "终端"
     }
@@ -95,6 +97,10 @@ extension WorkspaceStore {
     case .pullRequest(let url, let owner):
       reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
         kind: .pullRequest, title: workspaceTabTitle(tab), restoreURL: url)
+    case .pullRequestWatch(let id, let target, let owner):
+      reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
+        kind: .pullRequestWatch, title: workspaceTabTitle(tab), restoreURL: nil,
+        watchAutomationID: id, watchTaskID: target)
     case .terminal(_, let owner):
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .terminal,
@@ -247,6 +253,18 @@ extension WorkspaceStore {
         library.pinnedContentTabs[index].sourceWindowID = nil
         saveLibrary()
       }
+    case .pullRequestWatch:
+      guard let id = pin.watchAutomationID, let target = pin.watchTaskID else { return }
+      let tab = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: pin.owner)
+      guard tab.id == pin.sourceTabID, let watch = pullRequestWatchContent(tab),
+        openPullRequestWatchProgress(watch) else {
+        error = "此 PR 监控标签不可用。可以保留固定项或取消固定。"
+        return
+      }
+      if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
+        library.pinnedContentTabs[index].sourceWindowID = nil
+        saveLibrary()
+      }
     case .terminal:
       guard project != nil else {
         error = "此终端标签的项目不可用。可以保留固定项或取消固定。"
@@ -298,7 +316,7 @@ extension WorkspaceStore {
     case .file: break
     case .review:
       Task { await workspace.refreshGit() }
-    case .plan, .sources, .pullRequest: break
+    case .plan, .sources, .pullRequest, .pullRequestWatch: break
     case .terminal:
       focusTerminal()
     }
@@ -382,10 +400,10 @@ extension WorkspaceStore {
       return
     }
     if tab.kind == .file { closedFilePlacements[tab.id] = workspaceTabPlacement(tab.id) }
-    if tab.kind == .pullRequest { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
+    if tab.kind == .pullRequest || tab.kind == .pullRequestWatch { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
-    case .file, .review, .plan, .sources, .pullRequest:
+    case .file, .review, .plan, .sources, .pullRequest, .pullRequestWatch:
       pullRequestTabPresentations.clear(tab.id)
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
@@ -496,6 +514,9 @@ extension WorkspaceStore {
       return nil
     case .pullRequest:
       error = "PR 详情属于原任务，不能移到其他任务。"
+      return nil
+    case .pullRequestWatch:
+      error = "PR 监控进度属于原任务，不能移到其他任务。"
       return nil
     case .terminal(let terminalID, _): migrated = .terminal(terminalID, owner: newOwner)
     }
@@ -647,6 +668,11 @@ extension WorkspaceStore {
       if owner == currentWorkspaceTabOwner, let request = pullRequestContent(tab) {
         _ = openPullRequestContent(request, in: placement == .detached ? .right : placement)
       }
+    case .pullRequestWatch:
+      let placement = closedPullRequestPlacements.removeValue(forKey: tab.id) ?? .right
+      if tab.owner == currentWorkspaceTabOwner, let watch = pullRequestWatchContent(tab) {
+        _ = openPullRequestWatchProgress(watch, in: placement == .detached ? .right : placement)
+      }
     case .browser(let originalID, let owner):
       reopeningWorkspaceTabOwner = owner
       _ = workspace.browser.reopenClosedTab(originalID: originalID)
@@ -734,6 +760,7 @@ extension WorkspaceStore {
       case .plan(let runID, _): migrated = .plan(runID, owner: newOwner)
       case .sources: migrated = .sources(owner: newOwner)
       case .pullRequest(let url, _): migrated = .pullRequest(url, owner: newOwner)
+      case .pullRequestWatch(let id, let target, _): migrated = .pullRequestWatch(id, task: target, owner: newOwner)
       case .terminal(let id, _): migrated = .terminal(id, owner: newOwner)
       }
       migratedIDs[tab.id] = migrated.id

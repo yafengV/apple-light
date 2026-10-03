@@ -152,7 +152,7 @@ struct WorkspaceNoticeCard: View {
       .multilineTextAlignment(.leading)
   }
   private var action: some View {
-    Button("查看") { Task { await store.openNoticeTask(notice) } }
+    Button(notice.actionTitle) { Task { await store.openNoticeTask(notice) } }
       .buttonStyle(NoticeActionStyle(appearance: resolved, hovered: actionHovered,
         focused: focused == notice.generation.uuidString + "-view"))
       .focusable().focusEffectDisabled()

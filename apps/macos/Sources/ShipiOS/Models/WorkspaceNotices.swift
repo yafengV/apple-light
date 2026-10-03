@@ -9,6 +9,9 @@ struct WorkspaceNotice: Identifiable, Equatable {
   var description: String? = nil
   var level: Level
   var taskID: String?
+  var watchAutomationID: UUID? = nil
+  var watchTaskID: String? = nil
+  var actionTitle: String { watchAutomationID == nil ? "查看" : "查看进度" }
   var remaining: TimeInterval?
 }
 
@@ -23,8 +26,10 @@ struct WorkspaceNotice: Identifiable, Equatable {
   var visible: [WorkspaceNotice] { Array(items.prefix(3)) }
 
   func show(id: String, title: String, description: String? = nil, level: WorkspaceNotice.Level,
-    taskID: String? = nil, at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+    taskID: String? = nil, watchAutomationID: UUID? = nil, watchTaskID: String? = nil,
+    at uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
     let notice = WorkspaceNotice(id: id, title: title, description: description, level: level, taskID: taskID,
+      watchAutomationID: watchAutomationID, watchTaskID: watchTaskID,
       remaining: level == .pending ? nil : 5)
     // The public ID replaces an older toast; the rendered toast is a new
     // arrival at the front, with fresh actions and a fresh lifetime.

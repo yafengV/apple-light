@@ -11,6 +11,7 @@ import Observation
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
   private(set) var tasks: [String: TaskWindowTabs] = [:]
+  @ObservationIgnored private var deferredLayouts: [String: TaskWindowTabLayout] = [:]
 
   func attach(window: NSWindow?, from view: NSView) {
     if let window {
@@ -54,6 +55,9 @@ import Observation
       tasks[taskID]?.pullRequest = { [weak store] url in
         store?.pullRequestContent(.pullRequest(url, owner: taskID))
       }
+      tasks[taskID]?.watchAutomation = { [weak store] id, target in
+        store?.pullRequestWatchContent(.pullRequestWatch(id, task: target, owner: taskID))
+      }
       tasks[taskID]?.onTabWillClose = { [weak self] _ in self?.capturePins() }
       tasks[taskID]?.onTabReplaced = { [weak self] old, new in
         guard let self, let store = self.store else { return }
@@ -70,7 +74,9 @@ import Observation
         self?.capturePins()
       }
       if store.libraryLoaded, let layout = store.library.taskWindowTabLayouts[id]?[taskID] {
-        tasks[taskID]?.restoreLayout(layout)
+        if !store.automationsLoaded, layout.content.tabs.contains(where: { $0.kind == .pullRequestWatch }) {
+          deferredLayouts[taskID] = layout
+        } else { tasks[taskID]?.restoreLayout(layout) }
       }
     }
     tasks[taskID]?.canCloseFileTab = { [weak self, weak store] tab in
@@ -84,9 +90,15 @@ import Observation
   }
   func captureLayouts() {
     guard let store, store.libraryLoaded else { return }
-    for (taskID, tabs) in tasks where store.library.tasks.contains(where: { $0.id == taskID }) {
+    for (taskID, tabs) in tasks where deferredLayouts[taskID] == nil
+      && store.library.tasks.contains(where: { $0.id == taskID }) {
       store.library.taskWindowTabLayouts[id, default: [:]][taskID] = tabs.layoutSnapshot
     }
+  }
+  func restoreDeferredWatchLayouts() {
+    guard store?.automationsLoaded == true else { return }
+    for (taskID, layout) in deferredLayouts { tasks[taskID]?.restoreDeferredWatchLayout(layout) }
+    deferredLayouts.removeAll()
   }
   func retainTasks(_ available: Set<String>, displaying: String?) {
     for (id, panel) in panels.tasks where !available.contains(id) {
@@ -117,7 +129,7 @@ import Observation
     return PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: tab.owner,
       kind: tab.kind, title: tabs.title(tab),
       restoreURL: filePath ?? tab.pullRequestURL ?? browser?.committedURL?.absoluteString ?? browser?.address,
-      sourceWindowID: id)
+      sourceWindowID: id, watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
   }
   func capturePins() {
     guard let store else { return }
@@ -159,6 +171,7 @@ import Observation
       capturePins()
       store?.taskWindowResources.remove(self)
       browsers.shutdown(); panels.shutdown(); tasks.removeAll()
+      deferredLayouts.removeAll()
       navigate = nil; window = nil; windowAttachment = nil; displayedTaskID = nil
       store?.saveLibrary()
     }

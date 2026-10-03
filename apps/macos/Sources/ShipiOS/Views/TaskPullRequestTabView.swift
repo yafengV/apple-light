@@ -7,6 +7,7 @@ struct TaskPullRequestTabView: View {
   let openExternal: (URL) -> Void
   let close: () -> Void
   var focusComposer: (() -> Void)? = nil
+  var openWatchProgress: ((ShipAutomation) -> Void)? = nil
 
   var body: some View {
     if let request = store.pullRequestContent(tab),
@@ -14,7 +15,8 @@ struct TaskPullRequestTabView: View {
       TaskPullRequestDetailView(store: store, taskID: tab.owner, request: request,
         root: URL(fileURLWithPath: task.project), openExternal: openExternal,
         onRefresh: { _ = store.updateRecordedPullRequest($0, for: tab.owner) },
-        back: {}, close: close, focusComposer: focusComposer, compact: false, presentations: presentations, tabID: tab.id)
+        back: {}, close: close, focusComposer: focusComposer, compact: false, presentations: presentations,
+        tabID: tab.id, openWatchProgress: openWatchProgress)
         .id(tab.id)
     } else {
       ContentUnavailableView("PR 不可用", systemImage: "arrow.triangle.pullrequest",

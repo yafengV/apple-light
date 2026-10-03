@@ -12,6 +12,8 @@ extension WorkspaceStore {
       }.value
       automationsLoaded = true
       automationsError = nil
+      restoreWorkspaceTabLayout()
+      taskWindowResources.allObjects.forEach { $0.restoreDeferredWatchLayouts() }
     } catch {
       automationsError = "无法读取自动化：\(error.localizedDescription)"
     }

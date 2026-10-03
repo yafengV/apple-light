@@ -12,6 +12,10 @@ struct TaskWindowView: View {
   let canGoBack: Bool
   let canGoForward: Bool
   let onMove: (Bool) -> Void
+  var backgroundAgent = false
+  var backgroundAgentFocused = true
+  var onCloseBackgroundAgent: (() -> Void)? = nil
+  var onBackgroundAgentFocus: (() -> Void)? = nil
   @Environment(\.openWindow) private var openWindow
   @Environment(\.dismiss) private var dismiss
   @State private var forkError: String?
@@ -177,7 +181,7 @@ struct TaskWindowView: View {
                 sidePanelResizeHandle(geometry)
               }
               VStack(spacing: 0) {
-                if tabs.showingTabs { tabStrip(task, placement: .left); Divider() }
+                if tabs.showingTabs && (!backgroundAgent || !tabs.tabs.isEmpty) { tabStrip(task, placement: .left); Divider() }
                 if let tab = tabs.selected(.left) {
                   content(tab, task: task).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -259,8 +263,9 @@ struct TaskWindowView: View {
           configureTaskWorkspace()
           await taskWorkspace.refreshFiles()
         }
-        .navigationTitle(task.title)
+        .backgroundAgentNavigationTitle(task.title, embedded: backgroundAgent)
         .toolbar {
+          if !backgroundAgent {
           ToolbarItemGroup(placement: .primaryAction) {
             Button { performWindowCommand("find") } label: {
               Image(systemName: "text.magnifyingglass")
@@ -441,6 +446,7 @@ struct TaskWindowView: View {
               }.help("在主窗口中显示")
             }
           }
+          }
         }
       } else {
         ContentUnavailableView(
@@ -463,7 +469,7 @@ struct TaskWindowView: View {
     }
     .focusedSceneValue(\.taskRenameActive, renameTitle != nil)
     .taskRenameUndo(store: store, history: renameHistory, blocked: windowCommandsBlocked, onReveal: onNavigate)
-    .frame(minWidth: 620, minHeight: 520)
+    .frame(minWidth: backgroundAgent ? 0 : 620, minHeight: backgroundAgent ? 0 : 520)
     .gitWorkflowPresentation(store: store, workspace: taskWorkspace, taskID: taskID,
       currentTaskID: { task?.id }, keyboardAllowed: { searchMode == nil }, openPullRequestLink: { url in
         await store.openTaskWebLink(url, taskID: taskID, openInApp: { tabs.openBrowser($0, presentation: $1) })
@@ -478,18 +484,18 @@ struct TaskWindowView: View {
       }) {
       task != nil && !otherWindowModalActive && (searchMode == nil || searchMode == .commands)
     }
-    .focusedSceneValue(\.taskWindowCommands, windowCommandContext)
+    .backgroundAgentCommandRouting(commands: windowCommandContext, embedded: backgroundAgent)
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
-      shortcuts: store.shortcuts, blocked: windowCommandsBlocked).frame(width: 0, height: 0))
+      shortcuts: store.shortcuts, blocked: windowCommandsBlocked || (backgroundAgent && !backgroundAgentFocused)).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
       tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
         && store.archiveConfirmation(inWindow: resources.id) == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+      visible: (!backgroundAgent || backgroundAgentFocused) && tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
         && store.archiveConfirmation(inWindow: resources.id) == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+      visible: (!backgroundAgent || backgroundAgentFocused) && tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
         && store.archiveConfirmation(inWindow: resources.id) == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, searchMode == nil, renameTitle == nil else { return }
@@ -509,6 +515,7 @@ struct TaskWindowView: View {
     .onChange(of: composerFocused) { _, focused in
       if focused, tabs.chatVisible {
         tabs.activate(nil, focus: false)
+        if backgroundAgent { onBackgroundAgentFocus?() }
         updateCandidates()
       }
     }
@@ -587,6 +594,7 @@ struct TaskWindowView: View {
     .task(id: taskID) {
       await Task.yield()
       guard !Task.isCancelled else { return }
+      guard !backgroundAgent || backgroundAgentFocused else { return }
       if panels.showingFiles { taskWorkspace.fileFocusRequest = UUID() }
       else if let tab = tabs.focused { tabs.activate(tab.id) }
       else { composerFocused = true; taskComposerFocusRequest = UUID() }
@@ -869,7 +877,8 @@ struct TaskWindowView: View {
 
   private var windowCommandContext: TaskWindowCommandContext {
     TaskWindowCommandContext(enabled: windowCommandsBlocked ? [] : availableWindowCommands,
-      perform: performWindowCommand, copyLocationTitle: copyLocationTarget?.menuTitle,
+      perform: performWindowCommand, closeTitle: backgroundAgent ? "关闭监控进度" : "关闭任务窗口",
+      copyLocationTitle: copyLocationTarget?.menuTitle,
       keyboardAllowed: { id in
         if id == "stop", browser.session.hasNativeFocus(tabID: tabs.commandContentTab?.browserID) {
           return false
@@ -890,6 +899,7 @@ struct TaskWindowView: View {
       if (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace,
         let path = taskWorkspace.selectedFile { taskWorkspace.closeFile(path) }
       else if let tab = tabs.commandContentTab { tabs.close(tab.id) }
+      else if backgroundAgent { onCloseBackgroundAgent?() }
       else { dismiss() }
       return
     }
@@ -1200,7 +1210,11 @@ struct TaskWindowView: View {
         TaskPullRequestTabView(store: store, tab: tab, presentations: tabs.pullRequestPresentations,
           openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: taskID,
             openInApp: { tabs.openBrowser($0, presentation: $1) }) } },
-          close: { tabs.close(tab.id) }, focusComposer: { tabs.revealChat() })
+          close: { tabs.close(tab.id) }, focusComposer: { tabs.revealChat() },
+          openWatchProgress: { _ = tabs.openPullRequestWatch($0) })
+      case .pullRequestWatch:
+        PullRequestWatchProgressView(store: store, tab: tab, close: { tabs.close(tab.id) },
+          isFocused: tabs.focusedID == tab.id, onFocus: { tabs.activate(tab.id) })
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

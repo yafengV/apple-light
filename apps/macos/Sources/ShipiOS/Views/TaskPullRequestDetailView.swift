@@ -14,6 +14,7 @@ struct TaskPullRequestDetailView: View {
   var compact = true
   var presentations: PullRequestTabPresentations? = nil
   var tabID: String = ""
+  var openWatchProgress: ((ShipAutomation) -> Void)? = nil
 
   @State private var state = GitHubPRDetailState()
   @State private var editor = GitHubPREditState()
@@ -198,17 +199,31 @@ struct TaskPullRequestDetailView: View {
 
   private var pullRequestWatchControls: some View {
     VStack(alignment: .leading, spacing: 6) {
-      HStack(spacing: 8) {
+      HStack(spacing: 0) {
         if let watch = store.pullRequestWatch(for: request), watch.enabled {
-          Button(store.automationRunningIDs.contains(watch.id) ? "正在修复…" : "查看监控进度") {
-            if watch.taskID != nil { store.openAutomationCurrentTask(watch.id) }
-            else { store.showAutomations() }
-          }
-          .disabled(watchStarting)
-          Button("暂停监控") { store.pausePullRequestWatch(request) }
-            .disabled(watchStarting)
+          Button {
+            if let openWatchProgress { openWatchProgress(watch) }
+            else { Task { _ = await store.openPullRequestWatchProgress(watch, owner: taskID) } }
+          } label: {
+            HStack(spacing: 8) {
+              if store.activeRun(taskID: watch.taskID ?? "") != nil {
+                ProgressView().controlSize(.small)
+                Text("正在修复…")
+              } else {
+                Circle().fill(.green).frame(width: 6, height: 6).accessibilityHidden(true)
+                Text("监控并修复")
+              }
+              Spacer(minLength: 0)
+            }.padding(.horizontal, 12).padding(.vertical, 10).contentShape(Rectangle())
+          }.buttonStyle(.plain).disabled(watchStarting)
+            .accessibilityIdentifier("pull-request-watch-progress-button")
+          Divider().frame(height: 36)
+          Button { store.pausePullRequestWatch(request) } label: {
+            Image(systemName: "pause").frame(width: 36, height: 36).contentShape(Rectangle())
+          }.buttonStyle(.plain).disabled(watchStarting)
+            .help("暂停监控并修复").accessibilityLabel("暂停监控并修复")
         } else {
-          Button(store.pullRequestWatch(for: request) == nil ? "监控并修复 PR" : "恢复监控") {
+          Button {
             Task {
               watchStarting = true
               watchError = nil
@@ -216,11 +231,19 @@ struct TaskPullRequestDetailView: View {
               if !started { watchError = store.automationsError ?? "无法启动 PR 监控。" }
               watchStarting = false
             }
-          }
-          .disabled(watchStarting || !writable || !store.automationsLoaded || details?.state.uppercased() != "OPEN")
-          if watchStarting { ProgressView().controlSize(.small) }
+          } label: {
+            HStack(spacing: 8) {
+              if watchStarting { ProgressView().controlSize(.small) }
+              else { Image(systemName: "bolt.horizontal.circle") }
+              Text("监控并修复 PR")
+            }.frame(maxWidth: .infinity).padding(.vertical, 10).contentShape(Rectangle())
+          }.buttonStyle(.plain)
+            .disabled(watchStarting || !writable || !store.automationsLoaded || details?.state.uppercased() != "OPEN")
+            .accessibilityIdentifier("pull-request-watch-start-button")
         }
       }
+      .background(.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+      .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.primary.opacity(0.12)))
       if let watchError { Text(watchError).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled) }
     }
   }

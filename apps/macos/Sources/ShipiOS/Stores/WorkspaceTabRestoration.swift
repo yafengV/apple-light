@@ -13,7 +13,8 @@ extension WorkspaceStore {
         placement: workspaceTabPlacement(tab.id), address: browser?.address,
         committedURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString,
         filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
-        terminalSplitFraction: splitFraction)
+        terminalSplitFraction: splitFraction,
+        watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
     }, active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
       bottom: activeBottomWorkspaceTabID, focused: focusedWorkspaceTabID,
       showingInspector: showingInspector, showingTerminal: showingTerminal,
@@ -25,6 +26,9 @@ extension WorkspaceStore {
     guard libraryLoaded, !shuttingDown, !restoringWorkspaceTabLayout else { return }
     captureBackgroundBrowserTabs()
     guard workspaceLayoutActiveOwner == currentWorkspaceTabOwner else { return }
+    guard automationsLoaded || library.workspaceTabLayouts[currentWorkspaceTabOwner]?.tabs.contains(where: {
+      $0.kind == .pullRequestWatch
+    }) != true else { return }
     guard currentWorkspaceTabOwner.hasPrefix("new:") || library.tasks.contains(where: { $0.id == currentWorkspaceTabOwner }) else { return }
     library.workspaceTabLayouts[currentWorkspaceTabOwner] = workspaceTabLayoutSnapshot
   }
@@ -33,6 +37,8 @@ extension WorkspaceStore {
     let owner = currentWorkspaceTabOwner
     guard libraryLoaded, scopeLoaded, project == nil || connected,
       !restoringWorkspaceTabLayout, workspaceLayoutActiveOwner != owner else { return }
+    if !automationsLoaded,
+      library.workspaceTabLayouts[owner]?.tabs.contains(where: { $0.kind == .pullRequestWatch }) == true { return }
     workspaceLayoutActiveOwner = owner
     guard let layout = library.workspaceTabLayouts[owner] else {
       restoredWorkspaceTabOwners.insert(owner)
@@ -72,6 +78,10 @@ extension WorkspaceStore {
   /// Creates only this owner’s resource; never changes the main selection or focus.
   @discardableResult func materializeWorkspaceTab(_ saved: SavedWorkspaceTab, owner: String) -> WorkspaceContentTab? {
     if let existing = workspaceTabs.first(where: { $0.id == saved.id }) {
+      if existing.kind == .pullRequestWatch {
+        guard existing.watchAutomationID == saved.watchAutomationID,
+          existing.watchTaskID == saved.watchTaskID, pullRequestWatchContent(existing) != nil else { return nil }
+      }
       return existing.owner == owner ? existing : nil
     }
     let tab: WorkspaceContentTab
@@ -116,6 +126,12 @@ extension WorkspaceStore {
     case .pullRequest:
       let candidate = WorkspaceContentTab.pullRequest(saved.committedURL ?? "", owner: owner)
       guard saved.id == candidate.id, pullRequestContent(candidate) != nil else { return nil }
+      tab = candidate
+      workspaceTabs.append(tab)
+    case .pullRequestWatch:
+      guard let id = saved.watchAutomationID, let target = saved.watchTaskID else { return nil }
+      let candidate = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: owner)
+      guard saved.id == candidate.id, pullRequestWatchContent(candidate) != nil else { return nil }
       tab = candidate
       workspaceTabs.append(tab)
     case .terminal:

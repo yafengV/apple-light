@@ -26,6 +26,19 @@ extension WorkspaceStore {
   func openNoticeTask(_ notice: WorkspaceNotice) async {
     guard !hasSettingsConfirmation, presentedOverlay == nil, let taskID = notice.taskID else { return }
     guard notices.items.contains(where: { $0.id == notice.id && $0.generation == notice.generation && $0.taskID == taskID && $0.level != .pending }) else { return }
+    if let id = notice.watchAutomationID {
+      guard let target = notice.watchTaskID,
+        let watch = pullRequestWatchContent(.pullRequestWatch(id, task: target, owner: taskID)) else {
+        notices.show(id: notice.id, title: "监控进度已不可用。", level: .error)
+        return
+      }
+      if await openPullRequestWatchProgress(watch, owner: taskID, valid: {
+        self.notices.items.contains { $0.generation == notice.generation && $0.id == notice.id }
+      }) {
+        notices.dismiss(notice.id, generation: notice.generation)
+      }
+      return
+    }
     guard let task = library.tasks.first(where: { $0.id == taskID && !$0.isPopoutDraft }) else {
       notices.show(id: notice.id, title: "任务已恢复，但无法打开：任务已不存在。", level: .error)
       return

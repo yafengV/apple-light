@@ -8,6 +8,7 @@ import Observation
   let panels: TaskWindowPanels
   let pullRequestPresentations = PullRequestTabPresentations()
   @ObservationIgnored var pullRequest: ((String) -> GitHubPullRequest?)?
+  @ObservationIgnored var watchAutomation: ((UUID, String) -> ShipAutomation?)?
   @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
   @ObservationIgnored var canCloseFileTab: ((WorkspaceContentTab) -> Bool)?
   @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
@@ -115,6 +116,8 @@ import Observation
         return title.isEmpty ? "Pull request #\(request.number)" : title
       }
       return "Pull Request"
+    case .pullRequestWatch(let id, let target, _):
+      return watchAutomation?(id, target)?.name ?? "PR 监控进度"
     case .terminal(let id, _): return panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
     }
   }
@@ -204,6 +207,16 @@ import Observation
     let tab = WorkspaceContentTab.pullRequest(request.url, owner: taskID)
     if !tabs.contains(tab) { tabs.append(tab); placements[tab.id] = place }
     if mergeConfirmation { pullRequestPresentations.request(tab.id) }
+    activate(tab.id)
+    return true
+  }
+  @discardableResult func openPullRequestWatch(_ watch: ShipAutomation,
+    in place: WorkspaceTabPlacement = .right) -> Bool {
+    guard place == .left || place == .right, let target = watch.taskID,
+      watchAutomation?(watch.id, target) != nil else { return false }
+    let tab = WorkspaceContentTab.pullRequestWatch(watch.id, task: target, owner: taskID)
+    if let index = tabs.firstIndex(where: { $0.id == tab.id }) { tabs[index] = tab }
+    else { tabs.append(tab); placements[tab.id] = place }
     activate(tab.id)
     return true
   }
@@ -328,6 +341,8 @@ import Observation
     case .sources: openSources(in: state.placement)
     case .pullRequest(let url, _):
       if let request = pullRequest?(url) { _ = openPullRequest(request, in: state.placement) }
+    case .pullRequestWatch(let id, let target, _):
+      if let watch = watchAutomation?(id, target) { _ = openPullRequestWatch(watch, in: state.placement) }
     case .terminal: newTerminal(in: state.placement)
     }
   }
@@ -375,7 +390,8 @@ import Observation
         placement: placement(tab.id), address: page?.address,
         committedURL: tab.pullRequestURL ?? page?.committedURL?.absoluteString,
         filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
-        terminalSplitFraction: splitFraction)
+        terminalSplitFraction: splitFraction,
+        watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
     }
     return TaskWindowTabLayout(project: panels.workspace.root?.path,
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
@@ -430,6 +446,12 @@ import Observation
         let candidate = WorkspaceContentTab.pullRequest(entry.committedURL ?? "", owner: taskID)
         guard sameProject, entry.id == candidate.id, pullRequest?(entry.committedURL ?? "")?.validatedURL != nil else { continue }
         tab = candidate; tabs.append(tab)
+      case .pullRequestWatch:
+        guard let id = entry.watchAutomationID, let target = entry.watchTaskID,
+          watchAutomation?(id, target) != nil else { continue }
+        let candidate = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: taskID)
+        guard candidate.id == entry.id else { continue }
+        tab = candidate; tabs.append(tab)
       case .terminal:
         guard sameProject, entry.id.hasPrefix("terminal:"),
           let id = UUID(uuidString: String(entry.id.dropFirst(9))), panels.newTerminal(id: id) != nil else { continue }
@@ -466,6 +488,20 @@ import Observation
     synchronizingBrowser = false
     if let id = [focused, selected(.bottom), selected(.right), selected(.left)].compactMap({ $0?.terminalID }).first {
       panels.selectTerminal(id, focus: false)
+    }
+  }
+
+  /// If the user opened content while automation storage was loading, restore
+  /// only the deferred progress tabs and retain their new selection and focus.
+  func restoreDeferredWatchLayout(_ saved: TaskWindowTabLayout) {
+    if tabs.isEmpty { restoreLayout(saved); return }
+    for entry in saved.content.tabs where entry.kind == .pullRequestWatch {
+      guard let id = entry.watchAutomationID, let target = entry.watchTaskID,
+        watchAutomation?(id, target) != nil else { continue }
+      let tab = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: taskID)
+      guard entry.id == tab.id, !tabs.contains(where: { $0.id == tab.id }) else { continue }
+      tabs.append(tab)
+      placements[tab.id] = entry.placement == .right ? .right : .left
     }
   }
 }

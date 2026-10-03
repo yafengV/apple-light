@@ -35,6 +35,17 @@ struct TaskWindowCommandContext {
 }
 
 private struct TaskWindowCommandsKey: FocusedValueKey { typealias Value = TaskWindowCommandContext }
+extension View {
+  @ViewBuilder func backgroundAgentNavigationTitle(_ title: String, embedded: Bool) -> some View {
+    if embedded { self }
+    else { navigationTitle(title) }
+  }
+  @ViewBuilder func backgroundAgentCommandRouting(commands: TaskWindowCommandContext,
+    embedded: Bool) -> some View {
+    if embedded { focusedValue(\.taskWindowCommands, commands) }
+    else { focusedSceneValue(\.taskWindowCommands, commands) }
+  }
+}
 extension FocusedValues {
   var taskWindowCommands: TaskWindowCommandContext? {
     get { self[TaskWindowCommandsKey.self] }

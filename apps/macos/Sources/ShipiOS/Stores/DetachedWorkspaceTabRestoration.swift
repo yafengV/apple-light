@@ -31,6 +31,10 @@ extension WorkspaceStore {
     }
     guard owner.hasPrefix("new:") || library.tasks.contains(where: { $0.id == owner }) else { return .close }
     if let live = workspaceTabs.first(where: { $0.id == route.tabID }) {
+      if live.kind == .pullRequestWatch {
+        if !automationsLoaded { return .loading }
+        guard pullRequestWatchContent(live) != nil else { return .close }
+      }
       return live.owner == owner && workspaceTabPlacement(live.id) == .detached ? .ready(owner) : .close
     }
     guard let saved = library.workspaceTabLayouts[owner]?.tabs.first(where: { $0.id == route.tabID }),
@@ -55,6 +59,11 @@ extension WorkspaceStore {
     case .pullRequest:
       let candidate = WorkspaceContentTab.pullRequest(saved.committedURL ?? "", owner: owner)
       guard saved.id == candidate.id, pullRequestContent(candidate) != nil else { return .close }
+    case .pullRequestWatch:
+      if !automationsLoaded { return .loading }
+      guard let id = saved.watchAutomationID, let target = saved.watchTaskID else { return .close }
+      let candidate = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: owner)
+      guard saved.id == candidate.id, pullRequestWatchContent(candidate) != nil else { return .close }
     case .browser:
       guard saved.id.hasPrefix("browser:"), UUID(uuidString: String(saved.id.dropFirst(8))) != nil else { return .close }
     case .terminal:

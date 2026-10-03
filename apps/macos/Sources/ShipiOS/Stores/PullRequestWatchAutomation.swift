@@ -96,6 +96,8 @@ extension WorkspaceStore {
         return false
       }
       if runImmediately { Task { await self.runAutomation(watch.id) } }
+      notices.show(id: "pr-watch:" + watch.id.uuidString, title: "已启动自动修复", level: .info,
+        taskID: taskID, watchAutomationID: watch.id, watchTaskID: watch.taskID)
       return true
     } catch {
       automationsError = "无法开始 PR 监控：\(error.localizedDescription)"
@@ -105,6 +107,13 @@ extension WorkspaceStore {
 
   func pausePullRequestWatch(_ request: GitHubPullRequest) {
     guard let watch = pullRequestWatch(for: request) else { return }
-    setAutomationEnabled(false, id: watch.id)
+    var paused = watch
+    paused.enabled = false
+    if saveAutomation(paused) {
+      notices.show(id: "pr-watch:" + watch.id.uuidString, title: "已暂停自动修复", level: .info)
+    } else {
+      notices.show(id: "pr-watch:" + watch.id.uuidString,
+        title: automationsError ?? "无法暂停自动修复。", level: .error)
+    }
   }
 }

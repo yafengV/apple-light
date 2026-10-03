@@ -11,6 +11,8 @@ struct SavedWorkspaceTab: Codable, Equatable {
   var filePath: String? = nil
   /// Present only for a split terminal. The shell process itself is never restored.
   var terminalSplitFraction: Double? = nil
+  var watchAutomationID: UUID? = nil
+  var watchTaskID: String? = nil
 }
 
 struct WorkspaceTabLayout: Codable, Equatable {
