@@ -41,6 +41,9 @@ elif args[:2] == ["repo", "view"]:
 elif args[:2] == ["pr", "list"]:
     print(json.dumps(state.get("pullRequests", [])))
 elif args[:2] == ["pr", "view"]:
+    if state.get("detailReadFailure"):
+        print(state["detailReadFailure"], file=sys.stderr)
+        sys.exit(state.get("detailReadExitCode", 1))
     if state.get("detailReadGate"):
         import time
         (root / "detail-read-held").touch()

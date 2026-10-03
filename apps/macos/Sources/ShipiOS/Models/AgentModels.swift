@@ -77,6 +77,7 @@ struct AgentRun: Codable, Identifiable, Equatable {
   var isActive: Bool { ["queued", "running"].contains(status) }
   var title: String {
     if kind == "chat" {
+      if request["conversation_kind"].text == "watch_preflight" { return "PR 状态检查" }
       let model = request["model"].text ?? "模型会话"
       if request["conversation_kind"].text == "review" { return "代码审查 · \(model)" }
       switch ChatMode(rawValue: request["mode"].text ?? "") ?? .standard {

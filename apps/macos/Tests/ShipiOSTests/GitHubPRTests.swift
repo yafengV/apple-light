@@ -409,7 +409,8 @@ final class GitHubPRTests: XCTestCase {
     XCTAssertTrue(store.saveGitPreferences(preferences))
     let file = root.appendingPathComponent("workspace.json")
     XCTAssertEqual(try WorkspaceLibrary.load(from: file).gitPreferences.pullRequestInstructions, preferences.pullRequestInstructions)
-    XCTAssertEqual(SettingsSearch.results(for: "PR 指令").compactMap(\.field), [.pullRequestInstructions])
+    XCTAssertEqual(SettingsSearch.results(for: "PR 指令").compactMap(\.field),
+      [.pullRequestInstructions, .pullRequestWatchInstructions])
     var tooLong = preferences; tooLong.pullRequestInstructions = String(repeating: "字", count: 6000)
     XCTAssertFalse(store.saveGitPreferences(tooLong))
     XCTAssertEqual(store.library.gitPreferences, preferences)

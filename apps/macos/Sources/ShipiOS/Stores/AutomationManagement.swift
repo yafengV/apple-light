@@ -228,10 +228,17 @@ extension WorkspaceStore {
           guard saveAutomation(refreshed) else { return }
         }
       } catch {
-        if var delayed = automationPreferences.items.first(where: { $0.id == id }) {
-          delayed.nextRun = scheduledAt.addingTimeInterval(300)
-          _ = saveAutomation(delayed)
+        guard !(error is CancellationError), !Task.isCancelled,
+          var delayed = automationPreferences.items.first(where: { $0.id == id && $0.enabled }),
+          delayed.taskID == item.taskID,
+          delayed.watchedPullRequest?.validatedURL == watched.validatedURL,
+          validatePullRequestWatchTarget(delayed) else { return }
+        if let blocker = (error as? GitHubCLIError)?.blocker {
+          pauseWatchAfterPreflightBlocker(delayed, blocker: blocker, at: scheduledAt)
+          return
         }
+        delayed.nextRun = scheduledAt.addingTimeInterval(300)
+        _ = saveAutomation(delayed)
         automationsError = "PR 监控无法核对当前状态，将稍后重试：\(error.localizedDescription)"
         return
       }
