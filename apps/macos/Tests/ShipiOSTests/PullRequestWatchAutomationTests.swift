@@ -70,9 +70,10 @@ import XCTest
     await store.runAutomation(id, readWatchedPullRequest: { _, _ in merged })
     let completed = try XCTUnwrap(store.pullRequestWatch(for: request))
     XCTAssertFalse(completed.enabled)
-    XCTAssertNotNil(completed.completedAt)
+    XCTAssertNil(completed.completedAt)
+    XCTAssertNotNil(completed.pausedAt)
     XCTAssertNotNil(completed.taskID)
-    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertEqual(store.library.chatRuns.count, 2)
     XCTAssertFalse(try XCTUnwrap(AutomationStorage.load(root: root).items.first).enabled)
   }
 
@@ -113,7 +114,7 @@ import XCTest
     let id = try XCTUnwrap(store.pullRequestWatch(for: request)?.id)
     await store.runAutomation(id, readWatchedPullRequest: { _, _ in open })
     XCTAssertFalse(try XCTUnwrap(store.pullRequestWatch(for: request)).enabled)
-    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertEqual(store.library.chatRuns.count, 2)
 
     var preferences = store.library.gitPreferences
     preferences.pullRequestWatchInstructions = "Continue until this PR is merged."
@@ -128,7 +129,7 @@ import XCTest
     XCTAssertTrue(try XCTUnwrap(store.pullRequestWatch(for: request)).prompt
       .contains("Recheck all required checks before the next turn."))
     XCTAssertTrue(store.automationsError?.contains("隔离工作树") == true)
-    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertEqual(store.library.chatRuns.count, 2)
   }
 
   func testLaterWatchOccurrenceKeepsPreviousTaskIdentity() async throws {

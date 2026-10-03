@@ -44,15 +44,19 @@ struct ChatRunInspectorView: View {
   private var overview: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 14) {
-        LabeledContent("模型", value: run.request["model"].text ?? "未知")
-        LabeledContent("协议", value: run.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue
-          ? "Codex Core · Responses" : "Chat Completions")
+        if run.isWatchPreflight {
+          LabeledContent("执行来源", value: run.executionSourceLabel)
+        } else {
+          LabeledContent("模型", value: run.request["model"].text ?? "未知")
+          LabeledContent("协议", value: run.request["api_protocol"].text == ModelAPIProtocol.codexResponses.rawValue
+            ? "Codex Core · Responses" : "Chat Completions")
+        }
         LabeledContent("项目", value: run.project.isEmpty ? "无项目" : store.library.projectTitle(run.project))
         if let reasoning = run.request["reasoning_effort"].text, !reasoning.isEmpty {
           LabeledContent("推理强度", value: reasoning)
         }
         LabeledContent("开始", value: run.date.formatted(date: .abbreviated, time: .standard))
-        if !run.isActive {
+        if !run.isActive && !run.isWatchPreflight {
           LabeledContent("耗时", value: String(format: "%.1f 秒",
             max(0, (run.updatedAt - run.createdAt) / 1_000)))
         }

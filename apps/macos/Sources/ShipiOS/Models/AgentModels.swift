@@ -74,10 +74,17 @@ struct AgentRun: Codable, Identifiable, Equatable {
   let updatedAt: Double
   let request: JSONValue
   let result: JSONValue?
+  var isWatchPreflight: Bool {
+    kind == "chat" && request["conversation_kind"].text == "watch_preflight"
+  }
+  var executionSourceLabel: String {
+    if isWatchPreflight { return "PR 状态检查" }
+    return kind == "chat" ? (request["model"].text ?? "模型") : "本地执行"
+  }
   var isActive: Bool { ["queued", "running"].contains(status) }
   var title: String {
     if kind == "chat" {
-      if request["conversation_kind"].text == "watch_preflight" { return "PR 状态检查" }
+      if isWatchPreflight { return executionSourceLabel }
       let model = request["model"].text ?? "模型会话"
       if request["conversation_kind"].text == "review" { return "代码审查 · \(model)" }
       switch ChatMode(rawValue: request["mode"].text ?? "") ?? .standard {

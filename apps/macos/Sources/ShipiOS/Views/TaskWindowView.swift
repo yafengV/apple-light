@@ -1771,14 +1771,14 @@ private struct TaskWindowMessageView: View {
         HStack(spacing: 8) {
           Image(systemName: "sparkle")
           Text("ShipiOS").appFont(.caption, weight: .semibold)
-          Text(run.kind == "chat" ? (run.request["model"].text ?? "模型") : "本地执行")
+          Text(run.executionSourceLabel)
             .appFont(.caption).foregroundStyle(.tertiary)
           Spacer()
           if run.kind == "chat" {
             Button { onInspect(run) } label: {
               Image(systemName: "list.bullet.rectangle")
             }.buttonStyle(.plain).help("查看执行详情")
-              .accessibilityLabel("查看模型执行详情")
+              .accessibilityLabel(run.isWatchPreflight ? "查看 PR 状态检查详情" : "查看模型执行详情")
           }
           StatusLabel(run: run).appFont(.caption)
         }

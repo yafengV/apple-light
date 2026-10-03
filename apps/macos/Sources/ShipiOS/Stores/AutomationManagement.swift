@@ -200,23 +200,16 @@ extension WorkspaceStore {
       do {
         let fresh = try await readWatchedPullRequest(watched, URL(fileURLWithPath: item.project))
         guard let current = automationPreferences.items.first(where: { $0.id == id }),
-          current.enabled, current.watchedPullRequest?.validatedURL == watched.validatedURL else { return }
+          current.enabled, current.taskID == item.taskID, current.project == item.project,
+          current.watchedPullRequest?.validatedURL == watched.validatedURL else { return }
         guard fresh.number == watched.number, fresh.url == watched.validatedURL?.absoluteString else {
           throw GitHubPRRefreshRequired(message: "PR 身份已改变，监控未运行。")
         }
-        let green = fresh.mergeable?.uppercased() == "MERGEABLE"
-          && fresh.checkSummary.failed == 0 && fresh.checkSummary.pending == 0
-          && fresh.statusCheckRollup != nil && !fresh.isDraft
-        let shouldStop = fresh.state.uppercased() != "OPEN"
-          || green && !library.gitPreferences.autoMergeWatchedPullRequests
-            && library.gitPreferences.pullRequestWatchInstructions
-              .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if shouldStop {
-          var completed = current
-          completed.enabled = false
-          completed.completedAt = scheduledAt
-          completed.watchedPullRequest = fresh.recorded(updating: watched)
-          _ = saveAutomation(completed)
+        guard ["OPEN", "CLOSED", "MERGED"].contains(fresh.state.uppercased()) else {
+          throw GitHubPRRefreshRequired(message: "无法确认当前 PR 状态，监控未运行。")
+        }
+        if let outcome = PullRequestWatchPreflightOutcome.completion(for: fresh, preferences: library.gitPreferences) {
+          pauseWatchAfterPreflightResult(current, outcome: outcome, details: fresh, at: scheduledAt)
           return
         }
         let currentRequest = fresh.recorded(updating: watched)
@@ -230,7 +223,7 @@ extension WorkspaceStore {
       } catch {
         guard !(error is CancellationError), !Task.isCancelled,
           var delayed = automationPreferences.items.first(where: { $0.id == id && $0.enabled }),
-          delayed.taskID == item.taskID,
+          delayed.taskID == item.taskID, delayed.project == item.project,
           delayed.watchedPullRequest?.validatedURL == watched.validatedURL,
           validatePullRequestWatchTarget(delayed) else { return }
         if let blocker = (error as? GitHubCLIError)?.blocker {

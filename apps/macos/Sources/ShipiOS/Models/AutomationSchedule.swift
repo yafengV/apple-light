@@ -160,8 +160,21 @@ enum AutomationStorage {
   static func load(root: URL) throws -> AutomationPreferences {
     let url = root.appendingPathComponent("automations.json")
     guard FileManager.default.fileExists(atPath: url.path) else { return AutomationPreferences() }
-    let value = try JSONDecoder().decode(AutomationPreferences.self, from: Data(contentsOf: url))
+    var value = try JSONDecoder().decode(AutomationPreferences.self, from: Data(contentsOf: url))
     try validate(value)
+    // Older PR preflights marked an unlimited heartbeat as an exhausted schedule.
+    // Normalize on read; the next save persists it without inventing historical runs.
+    for index in value.items.indices {
+      let item = value.items[index]
+      guard item.watchedPullRequest != nil, !item.enabled, let ended = item.completedAt else { continue }
+      if item.cadence == .custom {
+        let rule = try AutomationRecurrenceRule.parse(item.customRule ?? "")
+        guard rule.count == nil, rule.until == nil else { continue }
+      }
+      value.items[index].completedAt = nil
+      value.items[index].pausedAt = item.pausedAt ?? ended
+      value.items[index].pauseReason = item.pauseReason ?? "PR 监控已暂停。"
+    }
     return value
   }
 

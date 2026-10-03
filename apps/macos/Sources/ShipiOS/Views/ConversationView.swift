@@ -110,7 +110,7 @@ struct ExecutionMessageView: View {
         HStack(spacing: 9) {
           Image(systemName: "sparkle").appFont(size: 18)
           Text("ShipiOS").appFont(size: 13, weight: .semibold)
-          Text(run.kind == "chat" ? (run.request["model"].text ?? "模型") : "本地执行").appFont(.caption)
+          Text(run.executionSourceLabel).appFont(.caption)
             .foregroundStyle(.tertiary)
           Spacer()
           if run.kind == "chat" {
@@ -120,7 +120,7 @@ struct ExecutionMessageView: View {
             } label: {
               Image(systemName: "list.bullet.rectangle")
             }.buttonStyle(.plain).help("查看执行详情")
-              .accessibilityLabel("查看模型执行详情")
+              .accessibilityLabel(run.isWatchPreflight ? "查看 PR 状态检查详情" : "查看模型执行详情")
           }
           Text(run.date, style: .time).appFont(.caption).foregroundStyle(.tertiary)
         }
