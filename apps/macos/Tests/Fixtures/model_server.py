@@ -192,6 +192,16 @@ class Handler(BaseHTTPRequestHandler):
                     'name': 'apply_patch',
                     'input': '*** Begin Patch\n*** Add File: review-write-proof.txt\n+must-not-write\n*** End Patch',
                 }
+            elif 'automation-pause-fixture' in request_text:
+                offered = any(t.get('name') == 'shipios_pause_automation' for t in body.get('tools', []))
+                if offered and 'pause-fixture-call' not in request_text:
+                    item = {'type': 'function_call', 'call_id': 'pause-fixture-call',
+                        'name': 'shipios_pause_automation',
+                        'arguments': json.dumps({'reason': 'CI provider access is unavailable. Which account should be connected?'})}
+                else:
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'pause-fixture-answer',
+                        'content': [{'type': 'output_text', 'text':
+                            'Heartbeat paused; current turn completed.' if offered else 'Pause tool unavailable.'}]}
             elif 'codex-question' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-question-call',
@@ -501,6 +511,19 @@ class Handler(BaseHTTPRequestHandler):
             user_index = max((i for i, m in enumerate(body['messages']) if m['role'] == 'user'), default=0)
             user_prompt = body['messages'][user_index]['content']
             tool_results = [m for m in body['messages'][user_index+1:] if m['role'] == 'tool']
+            if 'automation-pause-fixture' in str(user_prompt):
+                offered = any(t.get('function', {}).get('name') == 'shipios_pause_automation' for t in body.get('tools', []))
+                if offered and not tool_results:
+                    deltas = [{'role': 'assistant', 'tool_calls': [{'index': 0, 'id': 'pause-fixture-call',
+                        'type': 'function', 'function': {'name': 'shipios_pause_automation',
+                        'arguments': json.dumps({'reason': 'CI provider access is unavailable. Which account should be connected?'})}}]}]
+                    for delta in deltas:
+                        self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': delta, 'finish_reason': None}]}) + '\n\n').encode())
+                    self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': {}, 'finish_reason': 'tool_calls'}]}) + '\n\n').encode())
+                else:
+                    reply = 'Heartbeat paused; current turn completed.' if offered else 'Pause tool unavailable.'
+                    self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': {'content': reply}, 'finish_reason': 'stop'}]}) + '\n\n').encode())
+                self.wfile.write(b'data: [DONE]\n\n'); self.wfile.flush(); return
             if user_prompt == 'confetti-request' and not tool_results:
                 confetti = next((tool for tool in body.get('tools', [])
                     if tool['function']['name'] == 'shipios_fire_confetti'), None)

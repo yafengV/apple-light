@@ -1,7 +1,10 @@
 //! Host adapter for the pinned Codex Core runtime.
 
+mod automation_tool;
 mod browser_tool;
 mod confetti_tool;
+pub use automation_tool::AutomationToolBridge;
+use automation_tool::AutomationToolContributor;
 pub use browser_tool::BrowserToolBridge;
 use browser_tool::BrowserToolContributor;
 use confetti_tool::ConfettiToolContributor;
@@ -59,6 +62,7 @@ pub struct SessionOptions {
     pub web_search: SessionWebSearch,
     pub mcp_servers: Vec<ShipMcpServer>,
     pub browser_bridge: Option<BrowserToolBridge>,
+    pub automation_control: Option<(AutomationToolBridge, String, String)>,
     pub confetti: Option<(String, tokio::sync::broadcast::Sender<serde_json::Value>)>,
     pub runtime_paths: ExecServerRuntimePaths,
 }
@@ -785,6 +789,11 @@ impl CodexSession {
             if let Some(browser) = options.browser_bridge {
                 extensions.tool_contributor(Arc::new(BrowserToolContributor::new(browser)));
             }
+            if let Some((bridge, task, automation)) = options.automation_control {
+                extensions.tool_contributor(Arc::new(AutomationToolContributor::new(
+                    bridge, task, automation,
+                )));
+            }
             if let Some((task_id, events)) = options.confetti {
                 extensions
                     .tool_contributor(Arc::new(ConfettiToolContributor::new(task_id, events)));
@@ -1445,6 +1454,7 @@ mod tests {
             mcp_servers: Vec::new(),
             browser_bridge: None,
             confetti: None,
+            automation_control: None,
             runtime_paths: ExecServerRuntimePaths::from_optional_paths(
                 Some(std::env::current_exe()?),
                 None,

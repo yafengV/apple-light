@@ -254,6 +254,12 @@ async fn dispatch(
                 codex.resolve_elicitation(p).await.map_err(failed)?;
                 Ok(json!({"resolved":true}))
             }
+            "codex.automation.resolve" => {
+                let p: CodexBrowserResolution =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.resolve_automation(p).map_err(failed)?;
+                Ok(json!({"resolved":true}))
+            }
             "codex.browser.resolve" => {
                 let p: CodexBrowserResolution =
                     serde_json::from_value(params).map_err(|_| invalid())?;

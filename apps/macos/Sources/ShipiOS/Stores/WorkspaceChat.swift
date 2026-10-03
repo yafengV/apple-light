@@ -424,6 +424,7 @@ extension WorkspaceStore {
       responses: library.agentResponsePreferences,
       webSearchMode: library.agentWebSearchMode,
       confettiEnabled: confettiEnabled && !appearance.shouldReduceMotion,
+      pauseAutomationID: pausableWatch(runID: runID)?.id,
       compact: compact,
       forkOrigin: library.tasks.first(where: { $0.id == taskID })?.codexForkOrigin,
       resumeOrigin: library.tasks.first(where: { $0.id == taskID }).flatMap(CodexResumeOrigin.init(task:)))
@@ -460,6 +461,8 @@ extension WorkspaceStore {
             recordCodexMCPCall(runID: runID, event: event)
           case "browser_request", "browser_result":
             recordCodexBrowserCall(runID: runID, event: event)
+          case "automation_pause_request":
+            try await handleCodexAutomationPause(runID: runID, taskID: taskID, event: event)
           case "confetti_fire":
             _ = fireConfetti()
           case "elicitation_request":
@@ -729,6 +732,9 @@ extension WorkspaceStore {
     let allowsTask = persist.text == "session"
       || persist.items.contains(.string("session"))
     let unattended = current.request["automation_id"].text != nil
+    if unattended, readOnlyReason == nil {
+      pauseWatchForBlocker(runID: runID, reason: "工具 \(execution.serverName) / \(execution.toolName) 需要人工批准；无人值守 PR 监控未执行该操作。")
+    }
     let decision: MCPApprovalDecision = readOnlyReason != nil || unattended ? .deny
       : await requestMCPApproval(execution, runID: runID,
         allowsOnce: true, allowsTask: allowsTask)
@@ -853,6 +859,9 @@ extension WorkspaceStore {
     let choices = patch ? (once: true, task: false) : CodexCommandTimeline.approvalChoices(event)
     let unattended = library.chatRuns.first(where: { $0.id == runID })?
       .request["automation_id"].text != nil
+    if unattended, readOnlyReason == nil {
+      pauseWatchForBlocker(runID: runID, reason: "工具 \(execution.serverName) / \(execution.toolName) 需要人工批准；无人值守 PR 监控未执行该操作。")
+    }
     let decision: MCPApprovalDecision = readOnlyReason != nil || unattended ? .deny
       : await requestMCPApproval(execution, runID: runID,
         allowsOnce: choices.once, allowsTask: choices.task)

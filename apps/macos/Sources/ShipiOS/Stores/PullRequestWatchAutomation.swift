@@ -86,6 +86,8 @@ extension WorkspaceStore {
       watch.customRule = "FREQ=MINUTELY;INTERVAL=10"
       watch.scheduleAnchor = now
       watch.nextRun = watch.nextScheduledDate(after: now) ?? now.addingTimeInterval(600)
+      watch.pauseReason = nil
+      watch.pausedAt = nil
       watch.enabled = true
       watch.completedAt = nil
       guard saveAutomation(watch) else {

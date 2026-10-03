@@ -14,6 +14,7 @@ extension WorkspaceStore {
       response: current.result?["response"].text ?? "",
       responseItems: items, codexElicitations: records)
     if current.request["automation_id"].text != nil {
+      pauseWatchForBlocker(runID: runID, reason: "MCP 服务器 \(request.serverName) 需要用户输入或授权；无人值守监控未提供响应。")
       saveLibrary()
       do {
         try await codexTransport.resolveMCPElicitation(taskID: taskID,

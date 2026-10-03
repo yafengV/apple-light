@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use shipios_codex::{
-    ApprovalDecision, BrowserToolBridge, CodexSession, CodexTurnMode, ElicitationDecision,
-    SessionOptions, SessionPermissions, SessionResponsePreferences, SessionWebSearch,
-    ShipMcpServer,
+    ApprovalDecision, AutomationToolBridge, BrowserToolBridge, CodexSession, CodexTurnMode,
+    ElicitationDecision, SessionOptions, SessionPermissions, SessionResponsePreferences,
+    SessionWebSearch, ShipMcpServer,
 };
 use shipios_core::config::private_dir;
 use std::{collections::HashMap, io::Write, path::PathBuf, sync::Arc};
@@ -48,6 +48,7 @@ pub struct StartThread {
     pub mcp_servers: Vec<ShipMcpServer>,
     #[serde(default)]
     pub confetti_enabled: bool,
+    pub pause_automation_id: Option<String>,
     pub fork_origin: Option<ForkThreadOrigin>,
     pub resume_origin: Option<ResumeThreadOrigin>,
 }
@@ -339,6 +340,7 @@ pub struct CodexBridge {
     sessions: Arc<Mutex<HashMap<String, ThreadHandle>>>,
     events: broadcast::Sender<Value>,
     browser: BrowserToolBridge,
+    automation: AutomationToolBridge,
 }
 
 impl CodexBridge {
@@ -431,6 +433,7 @@ impl CodexBridge {
             .and_then(std::path::Path::parent)
             .unwrap_or(&data_dir)
             .join("CodexBrowserStaging");
+        let automation = AutomationToolBridge::new(events.clone());
         let browser = BrowserToolBridge::new(events.clone(), screenshot_root);
         Self {
             data_dir,
@@ -438,6 +441,7 @@ impl CodexBridge {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             events,
             browser,
+            automation,
         }
     }
 
@@ -450,11 +454,23 @@ impl CodexBridge {
         Ok(())
     }
 
+    pub fn resolve_automation(&self, response: CodexBrowserResolution) -> Result<()> {
+        ensure!(
+            self.automation
+                .resolve(&response.task_id, &response.request_id, response.result),
+            "automation request is no longer pending for this task"
+        );
+        Ok(())
+    }
+
     pub fn subscribe(&self) -> broadcast::Receiver<Value> {
         self.events.subscribe()
     }
 
     pub async fn start(&self, request: StartThread) -> Result<ThreadInfo> {
+        if let Some(id) = &request.pause_automation_id {
+            Uuid::parse_str(id).context("pauseAutomationId must be a UUID")?;
+        }
         ensure!(
             !request.text_only
                 || (request.resume_origin.is_none()
@@ -576,6 +592,10 @@ impl CodexBridge {
             web_search,
             mcp_servers: request.mcp_servers,
             browser_bridge: Some(self.browser.for_task(task_id.clone())),
+            automation_control: request
+                .pause_automation_id
+                .as_ref()
+                .map(|id| (self.automation.clone(), task_id.clone(), id.clone())),
             confetti: request
                 .confetti_enabled
                 .then(|| (task_id.clone(), self.events.clone())),
@@ -955,6 +975,7 @@ impl CodexBridge {
 
     pub async fn interrupt(&self, task_id: &str) -> Result<()> {
         self.browser.cancel_task(task_id);
+        self.automation.cancel_task(task_id);
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
@@ -966,6 +987,7 @@ impl CodexBridge {
 
     pub async fn stop(&self, task_id: &str) -> Result<()> {
         self.browser.cancel_task(task_id);
+        self.automation.cancel_task(task_id);
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
@@ -1176,6 +1198,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     confetti_enabled: false,
+                    pause_automation_id: None,
                     fork_origin: None,
                     resume_origin: None,
                 }).await?;
@@ -1203,6 +1226,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     confetti_enabled: false,
+                    pause_automation_id: None,
                     fork_origin: None,
                     resume_origin: None,
                 }).await?;
@@ -1232,6 +1256,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     confetti_enabled: false,
+                    pause_automation_id: None,
                     fork_origin: None,
                     resume_origin: None,
                 }).await?;
@@ -1512,6 +1537,7 @@ mod tests {
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
                         confetti_enabled: false,
+                    pause_automation_id: None,
                     })
                     .await?;
                 bridge
@@ -1668,6 +1694,7 @@ mod tests {
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
                         confetti_enabled: true,
+                        pause_automation_id: None,
                         fork_origin: None,
                         resume_origin: None,
                     })
@@ -1796,6 +1823,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     confetti_enabled: false,
+                    pause_automation_id: None,
                 })
                 .await
                 .is_err()
@@ -1830,6 +1858,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     confetti_enabled: false,
+                    pause_automation_id: None,
                 })
                 .await
                 .is_err()
@@ -1856,6 +1885,7 @@ mod tests {
                 web_search: custom_web_search,
                 mcp_servers: Vec::new(),
                 confetti_enabled: false,
+                pause_automation_id: None,
             })
             .await?;
         assert_eq!(thread.task_id, task_id);
@@ -1926,6 +1956,7 @@ mod tests {
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
             confetti_enabled: false,
+            pause_automation_id: None,
         };
         let mut missing_turn = origin();
         missing_turn.through_turn_id = "missing-turn".to_owned();
@@ -1984,6 +2015,7 @@ mod tests {
                 web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),
                 confetti_enabled: false,
+                pause_automation_id: None,
             })
             .await?;
         assert_eq!(

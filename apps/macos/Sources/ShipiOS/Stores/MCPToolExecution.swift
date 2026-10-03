@@ -25,8 +25,10 @@ extension WorkspaceStore {
   func streamChatWithTools(runID: String, config: ModelConfiguration, key: String?, messages initial: [ChatMessage],
     bindings: [MCPToolBinding], skills: [PluginSkillReference] = []) async throws -> ModelTokenUsage? {
     var messages = initial, transcript: [ChatMessage] = []
+    let pauseAutomationID = pausableWatch(runID: runID)?.id
     let toolDefinitions = bindings.map(\.wire) + (skills.isEmpty ? [] : [ModelSkillReadTool.wire])
       + (confettiEnabled && !appearance.shouldReduceMotion ? [ModelConfettiTool.wire] : [])
+      + (pauseAutomationID == nil ? [] : [ModelAutomationPauseTool.wire])
     guard toolDefinitions.count <= 128 else {
       throw AgentFailure(message: "本轮技能与 MCP 工具合计超过 128 个，请停用不需要的服务器后重试。")
     }
@@ -70,7 +72,9 @@ extension WorkspaceStore {
       for (index, call) in turn.calls.enumerated() {
         do {
           let output: String
-          if call.name == ModelConfettiTool.name, confettiEnabled {
+          if call.name == ModelAutomationPauseTool.name, let pauseAutomationID {
+            output = try executeAutomationPauseTool(call, runID: runID, expectedAutomationID: pauseAutomationID)
+          } else if call.name == ModelConfettiTool.name, confettiEnabled {
             output = fireConfetti() ? "Confetti fired in the ShipiOS window." : "Confetti was suppressed by Reduce Motion or the setting changed."
           } else if call.name == ModelSkillReadTool.name, !skills.isEmpty {
             output = try executeSkillRead(call, advertised: skills, runID: runID)
@@ -216,7 +220,10 @@ extension WorkspaceStore {
     allowsOnce: Bool = true, allowsTask: Bool = true
   ) async -> MCPApprovalDecision {
     if library.chatRuns.first(where: { $0.id == runID })?
-      .request["automation_id"].text != nil { return .deny }
+      .request["automation_id"].text != nil {
+      pauseWatchForBlocker(runID: runID, reason: "工具 \(execution.serverName) / \(execution.toolName) 需要人工批准；无人值守回合未执行该操作。")
+      return .deny
+    }
     return await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else { continuation.resume(returning: .deny); return }

@@ -67,6 +67,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         mcp_servers: Vec::new(),
         browser_bridge: None,
         confetti: None,
+        automation_control: None,
         runtime_paths: runtime_paths.clone(),
     })
     .await?;
@@ -85,6 +86,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
         mcp_servers: Vec::new(),
         browser_bridge: None,
         confetti: None,
+        automation_control: None,
         runtime_paths,
     })
     .await;

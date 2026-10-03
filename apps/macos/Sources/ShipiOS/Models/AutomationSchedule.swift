@@ -43,6 +43,8 @@ struct ShipAutomation: Codable, Identifiable, Equatable {
   var weekdays: [Int]?
   var customRule: String?
   var scheduleAnchor: Date?
+  var pauseReason: String?
+  var pausedAt: Date?
   var enabled = true
   /// Set when a finite custom schedule has exhausted its occurrences.
   var completedAt: Date?

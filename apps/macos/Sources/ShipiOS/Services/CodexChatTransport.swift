@@ -13,10 +13,11 @@ final class CodexChatTransport {
     let additionalFolders: [String]
     let permissionProfileID: String?
     let permissionProfileDigest: Data?
+    let pauseAutomationID: UUID?
     let confettiEnabled: Bool
 
     init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String],
-      permissionProfile: AgentNamedPermissionProfile?, confettiEnabled: Bool) {
+      permissionProfile: AgentNamedPermissionProfile?, confettiEnabled: Bool, pauseAutomationID: UUID?) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
       mcpDigest = Data(SHA256.hash(data: mcpData))
@@ -26,6 +27,7 @@ final class CodexChatTransport {
         Data(SHA256.hash(data: Data($0.configTOML.utf8)))
       }
       self.confettiEnabled = confettiEnabled
+      self.pauseAutomationID = pauseAutomationID
     }
   }
 
@@ -127,7 +129,7 @@ final class CodexChatTransport {
     fileAppendix: String?, readOnly: Bool = false, textOnly: Bool = false, planMode: Bool = false,
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
-    webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false,
+    webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false, pauseAutomationID: UUID? = nil,
     compact: Bool = false, forkOrigin: CodexForkOrigin? = nil,
     resumeOrigin: CodexResumeOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
@@ -155,7 +157,7 @@ final class CodexChatTransport {
     let selectedProfile = readOnly || textOnly ? nil : permissions.namedProfile
     let service = ServiceIdentity(config: config, key: key, mcpData: mcpData,
       additionalFolders: Array(folders.dropFirst()), permissionProfile: selectedProfile,
-      confettiEnabled: confettiEnabled)
+      confettiEnabled: confettiEnabled, pauseAutomationID: pauseAutomationID)
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }
@@ -200,6 +202,7 @@ final class CodexChatTransport {
           ]),
           "mcpServers": mcpValue,
           "confettiEnabled": .bool(confettiEnabled),
+          "pauseAutomationId": pauseAutomationID.map { .string($0.uuidString) } ?? .null,
           "forkOrigin": forkOrigin?.wireValue ?? .null,
           "resumeOrigin": resumeOrigin?.wireValue ?? .null,
         ])
@@ -413,6 +416,13 @@ final class CodexChatTransport {
 
   func resolveBrowserRequest(taskID: String, requestID: String, result: JSONValue) async throws {
     _ = try await client(for: taskID).request("codex.browser.resolve", [
+      "taskId": .string(taskID), "requestId": .string(requestID), "result": result,
+    ])
+  }
+
+  func resolveAutomationRequest(taskID: String, requestID: String, result: JSONValue) async throws {
+    guard streams[taskID] != nil else { throw CancellationError() }
+    _ = try await client(for: taskID).request("codex.automation.resolve", [
       "taskId": .string(taskID), "requestId": .string(requestID), "result": result,
     ])
   }

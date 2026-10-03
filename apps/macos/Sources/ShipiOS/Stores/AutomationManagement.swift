@@ -57,10 +57,16 @@ extension WorkspaceStore {
       edited.activeOccurrenceAt = previous.activeOccurrenceAt
       edited.completedProjectsForOccurrence = previous.completedProjectsForOccurrence
       edited.completedAt = previous.completedAt
+      // An editor opened before an unattended blocker must not silently resume its schedule.
+      if !previous.enabled, previous.pausedAt != nil, previous.pausedAt != item.pausedAt {
+        edited.enabled = false
+      }
+      edited.pauseReason = edited.enabled ? nil : previous.pauseReason
+      edited.pausedAt = edited.enabled ? nil : previous.pausedAt
       let scheduleChanged = previous.cadence != item.cadence || previous.hour != item.hour
         || previous.minute != item.minute || previous.selectedWeekdays != item.selectedWeekdays
         || previous.customRule != item.customRule
-      if scheduleChanged || !previous.enabled && item.enabled {
+      if scheduleChanged || !previous.enabled && edited.enabled {
         if (scheduleChanged || previous.completedAt != nil) && item.cadence == .custom {
           edited.scheduleAnchor = .now
         }
@@ -80,6 +86,8 @@ extension WorkspaceStore {
     guard var item = automationPreferences.items.first(where: { $0.id == id }) else { return }
     item.enabled = enabled
     if enabled {
+      item.pauseReason = nil
+      item.pausedAt = nil
       if item.completedAt != nil && item.cadence == .custom { item.scheduleAnchor = .now }
       item.completedAt = nil
       guard let next = item.nextScheduledDate(after: .now) else { return }
