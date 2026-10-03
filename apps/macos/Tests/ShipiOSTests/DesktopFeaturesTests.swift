@@ -3638,6 +3638,71 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertFalse(store.automationPreferences.items[0].needsReview)
     await store.shutdown()
   }
+  @MainActor func testPRWatchRetainsForkHistoryAndUsesUpdatedPromptAcrossRealRequests() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let source = root.appendingPathComponent("Source")
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: source)
+    _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: source)
+    try "committed\n".write(to: source.appendingPathComponent("file"), atomically: true, encoding: .utf8)
+    _ = try await GitReviewService.checked(["add", "file"], at: source)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
+    try "user edit\n".write(to: source.appendingPathComponent("file"), atomically: true, encoding: .utf8)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"))
+    await store.restore()
+    store.library.visit(source.path)
+    store.modelConfiguration = config
+    store.notificationPreferences = .init(timing: .never)
+    let owner = UUID().uuidString
+    let sourceRun = AgentRun(id: UUID().uuidString, kind: "chat", project: source.path,
+      status: "succeeded", createdAt: 0, updatedAt: 0,
+      request: .object(["api_protocol": .string("chatCompletions")]),
+      result: .object(["response": .string("The original PR task context")]))
+    store.library.tasks = [.init(id: owner, project: source.path, title: "PR source", runIDs: [sourceRun.id])]
+    store.library.chatRuns = [sourceRun]
+    store.library.notes[sourceRun.id] = "Original PR request"
+    let request = GitHubPullRequest(number: 17, url: "https://github.com/example/project/pull/17",
+      title: "Fix build", isDraft: false, headRefName: "fix", baseRefName: "main", isCrossRepository: false)
+    store.library.taskPullRequests[owner] = [request]
+    var preferences = store.library.gitPreferences
+    preferences.autoMergeWatchedPullRequests = true
+    preferences.pullRequestWatchInstructions = "first plugin-context"
+    XCTAssertTrue(store.saveGitPreferences(preferences))
+    let details = GitHubPRDetails(number: request.number, url: request.url, title: request.title,
+      body: nil, state: "OPEN", isDraft: false, headRefName: "fix", baseRefName: "main",
+      reviewDecision: nil, mergeable: "MERGEABLE", statusCheckRollup: [])
+    let started = await store.startPullRequestWatch(request, taskID: owner, root: source,
+      read: { _, _ in details }, runImmediately: false)
+    XCTAssertTrue(started, store.automationsError ?? "")
+    let watchID = try XCTUnwrap(store.pullRequestWatch(for: request)?.id)
+    await store.runAutomation(watchID, readWatchedPullRequest: { _, _ in details })
+    let first = try XCTUnwrap(store.pullRequestWatch(for: request))
+    let firstRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == first.lastRunID },
+      store.automationsError ?? store.error ?? "No first watch run")
+    XCTAssertEqual(firstRun.status, "succeeded")
+    let firstRequest = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(firstRun.result?["response"].text).utf8))
+    XCTAssertTrue(firstRequest["messages"].items.contains { $0["content"].text == "The original PR task context" })
+    preferences.pullRequestWatchInstructions = "second plugin-context"
+    XCTAssertTrue(store.saveGitPreferences(preferences))
+    await store.runAutomation(watchID, readWatchedPullRequest: { _, _ in details })
+    let second = try XCTUnwrap(store.pullRequestWatch(for: request))
+    let secondRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == second.lastRunID })
+    XCTAssertEqual(secondRun.status, "succeeded")
+    XCTAssertEqual(second.taskID, first.taskID)
+    XCTAssertNotEqual(second.lastRunID, first.lastRunID)
+    XCTAssertEqual(store.library.managedWorktrees.count, 1)
+    let secondRequest = try JSONDecoder().decode(JSONValue.self,
+      from: Data(try XCTUnwrap(secondRun.result?["response"].text).utf8))
+    XCTAssertTrue(secondRequest["messages"].items.last?["content"].text?.contains("second plugin-context") == true)
+    XCTAssertFalse(secondRequest["messages"].items.last?["content"].text?.contains("first plugin-context") == true)
+    let worktree = URL(fileURLWithPath: try XCTUnwrap(store.library.managedWorktrees.first?.path))
+    XCTAssertEqual(try String(contentsOf: worktree.appendingPathComponent("file")), "committed\n")
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "user edit\n")
+    await store.shutdown()
+  }
   @MainActor func testAutomationRunsIndependentlyInEverySelectedProject() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

@@ -3,6 +3,28 @@ import XCTest
 @testable import ShipiOS
 
 final class WorktreeTests: XCTestCase {
+  @MainActor func testPRWatchWorktreeExcludesUncommittedSourceChanges() async throws {
+    let (base, source) = try await fixture()
+    try write("local edit\n", source.appendingPathComponent("file"))
+    try write("private note\n", source.appendingPathComponent("untracked"))
+    let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"))
+    await store.restore()
+    store.library.visit(source.path)
+    XCTAssertTrue(store.saveLibrary())
+
+    let record = try await store.prepareAutomationWorktree(sourcePath: source.path,
+      taskID: UUID().uuidString, environmentSelection: WorktreeEnvironmentChoice.none,
+      includeSourceChanges: false)
+    let checkout = URL(fileURLWithPath: record.path)
+    XCTAssertEqual(try String(contentsOf: checkout.appendingPathComponent("file")), "initial\n")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: checkout.appendingPathComponent("untracked").path))
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "local edit\n")
+    XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("untracked")), "private note\n")
+    XCTAssertNil(record.sourceStashCommit)
+    XCTAssertTrue(record.sourceCopiedFiles?.isEmpty ?? true)
+    await store.shutdown()
+  }
+
   @MainActor func testPopoutEnvironmentChoiceRunsSelectedCheckoutSetup() async throws {
     let (base, source) = try await fixture()
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()

@@ -174,12 +174,15 @@ extension WorkspaceStore {
     readWatchedPullRequest: @escaping @Sendable (GitHubPullRequest, URL) async throws -> GitHubPRDetails = {
       try await GitHubPRService().details(for: $0, at: $1)
     }) async {
-    guard let item = automationPreferences.items.first(where: { $0.id == id }),
+    guard let item = automationPreferences.items.first(where: {
+      $0.id == id && ($0.enabled || $0.watchedPullRequest == nil)
+    }),
       !automationRunningIDs.contains(id)
     else { return }
     // A temporary workspace transition must not consume the scheduled occurrence.
     guard !busy, !managedTaskPreparing, !shuttingDown,
       !item.selectedProjects.contains(where: handoffBlocksProject) else { return }
+    guard validatePullRequestWatchTarget(item) else { return }
     if let taskID = item.taskID, activeRun(taskID: taskID) != nil { return }
     automationRunningIDs.insert(id)
     defer { automationRunningIDs.remove(id) }
@@ -206,10 +209,12 @@ extension WorkspaceStore {
           _ = saveAutomation(completed)
           return
         }
-        if let prompt = PullRequestWatchPrompt.make(watched,
-          preferences: library.gitPreferences), prompt != current.prompt {
+        let currentRequest = fresh.recorded(updating: watched)
+        if let prompt = PullRequestWatchPrompt.make(currentRequest,
+          preferences: library.gitPreferences) {
           var refreshed = current
           refreshed.prompt = prompt
+          refreshed.watchedPullRequest = currentRequest
           guard saveAutomation(refreshed) else { return }
         }
       } catch {
@@ -221,6 +226,12 @@ extension WorkspaceStore {
         return
       }
     }
+    // The PR preflight can refresh the prompt or pause the watch. Use that saved state
+    // for activation and for the message sent to the retained conversation.
+    guard let item = automationPreferences.items.first(where: {
+      $0.id == id && ($0.enabled || $0.watchedPullRequest == nil)
+    }) else { return }
+    guard validatePullRequestWatchTarget(item) else { return }
     let occurrence = item.activeOccurrenceAt ?? scheduledAt
     if item.activeOccurrenceAt == nil {
       var activated = item
@@ -232,7 +243,9 @@ extension WorkspaceStore {
     for project in item.selectedProjects {
       guard var state = automationPreferences.items.first(where: { $0.id == id }) else { break }
       if state.completedProjectsForOccurrence?.contains(project) == true { continue }
-      let ownerID = state.preparingTaskIDs?[project] ?? UUID().uuidString
+      let ownerID = state.preparingTaskIDs?[project]
+        ?? (state.watchedPullRequest != nil ? state.taskID : nil)
+        ?? UUID().uuidString
       if state.preparingTaskIDs?[project] == nil {
         state.preparingTaskIDs = state.preparingTaskIDs ?? [:]
         state.preparingTaskIDs?[project] = ownerID
@@ -242,17 +255,21 @@ extension WorkspaceStore {
         guard libraryLoaded else { throw AgentFailure(message: "工作区尚未加载完成。") }
         // Recovery belongs to its recorded task, even if project defaults have since changed.
         if let existingRunID = library.tasks.first(where: { $0.id == ownerID })?.runIDs.last,
+          (state.watchedPullRequest == nil || existingRunID != state.lastRunID),
           let existingRun = library.chatRuns.first(where: { $0.id == existingRunID }) {
-          guard existingRun.request["automation_id"].text == id.uuidString else {
+          if existingRun.request["automation_id"].text != id.uuidString,
+            state.watchedPullRequest == nil {
             throw AgentFailure(message: "待恢复任务不属于此自动化，未重复执行。")
           }
-          if existingRun.isActive { await modelTask(runID: existingRunID)?.value }
-          guard library.chatRuns.first(where: { $0.id == existingRunID })?.isActive == false else {
-            throw AgentFailure(message: "上次自动化运行仍未结束。")
+          if existingRun.request["automation_id"].text == id.uuidString {
+            if existingRun.isActive { await modelTask(runID: existingRunID)?.value }
+            guard library.chatRuns.first(where: { $0.id == existingRunID })?.isActive == false else {
+              throw AgentFailure(message: "上次自动化运行仍未结束。")
+            }
+            try recordAutomationProjectResult(id: id, project: project,
+              taskID: ownerID, runID: existingRunID)
+            continue
           }
-          try recordAutomationProjectResult(id: id, project: project,
-            taskID: ownerID, runID: existingRunID)
-          continue
         }
         let existingTask = library.tasks.first(where: { $0.id == ownerID })
         let sourcePath = library.managedWorktree(forTaskID: ownerID)?.source
@@ -265,7 +282,12 @@ extension WorkspaceStore {
         }
         let record = useWorktree
           ? try await prepareAutomationWorktree(sourcePath: sourcePath, taskID: ownerID,
-            environmentSelection: state.environmentSelection(for: project)) : nil
+            environmentSelection: state.environmentSelection(for: project),
+            includeSourceChanges: state.watchedPullRequest == nil) : nil
+        if state.watchedPullRequest != nil {
+          guard let current = automationPreferences.items.first(where: { $0.id == id && $0.enabled }),
+            validatePullRequestWatchTarget(current) else { return }
+        }
         let runProject = record?.path ?? sourcePath
         var candidate = library
         if let index = candidate.tasks.firstIndex(where: { $0.id == ownerID }) {
@@ -301,12 +323,18 @@ extension WorkspaceStore {
       } catch {
         let title = project.isEmpty ? "无项目" : library.projectTitle(project)
         failures.append("\(title)：\(error.localizedDescription)")
-        let hasRun = library.tasks.first(where: { $0.id == ownerID })?.runIDs.isEmpty == false
-        if !hasRun, var failed = automationPreferences.items.first(where: { $0.id == id }) {
+        let latestRunID = library.tasks.first(where: { $0.id == ownerID })?.runIDs.last
+        let hasUnrecordedRun = latestRunID != state.lastRunID
+          && library.chatRuns.contains {
+            $0.id == latestRunID && $0.request["automation_id"].text == id.uuidString
+          }
+        if !hasUnrecordedRun, var failed = automationPreferences.items.first(where: { $0.id == id }) {
           if !library.managedWorktrees.contains(where: { $0.taskID == ownerID }) {
-            var candidate = library
-            candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
-            try? commitLibrary(candidate)
+            if failed.watchedPullRequest == nil {
+              var candidate = library
+              candidate.tasks.removeAll { $0.id == ownerID && $0.runIDs.isEmpty }
+              try? commitLibrary(candidate)
+            }
             failed.preparingTaskIDs?[project] = nil
           }
           failed.completedProjectsForOccurrence = (failed.completedProjectsForOccurrence ?? []) + [project]

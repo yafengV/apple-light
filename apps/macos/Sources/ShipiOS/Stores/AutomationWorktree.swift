@@ -3,14 +3,17 @@ import Foundation
 extension WorkspaceStore {
   /// Prepare one scheduled run with the same durable managed-checkout machinery as a new task.
   func prepareAutomationWorktree(sourcePath: String, taskID: String,
-    environmentSelection: String = WorktreeEnvironmentChoice.legacy) async throws -> ManagedWorktree {
+    environmentSelection: String = WorktreeEnvironmentChoice.legacy,
+    includeSourceChanges: Bool = true) async throws -> ManagedWorktree {
     try await prepareDetachedManagedWorktree(sourcePath: sourcePath, taskID: taskID,
-      environmentSelection: environmentSelection, purpose: "计划任务")
+      environmentSelection: environmentSelection, purpose: "计划任务",
+      includeSourceChanges: includeSourceChanges)
   }
 
   /// Prepare a checkout without changing the currently selected workspace or its draft.
   func prepareDetachedManagedWorktree(sourcePath: String, taskID: String,
-    environmentSelection: String, purpose: String) async throws -> ManagedWorktree {
+    environmentSelection: String, purpose: String,
+    includeSourceChanges: Bool = true) async throws -> ManagedWorktree {
     let source = URL(fileURLWithPath: sourcePath)
     let snapshot = try await GitBranchService.snapshot(at: source)
     guard snapshot.canChange else {
@@ -24,7 +27,7 @@ extension WorkspaceStore {
         existing: existing?.environment)
       var sourceCopiedFiles: [ManagedSourceFile] = []
       var sourceStashCommit: String?
-      if existing == nil {
+      if existing == nil && includeSourceChanges {
         let paths = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
         sourceCopiedFiles = try ManagedSourceFiles.capture(paths, from: source,
           dataRoot: dataRoot, taskID: taskID)
