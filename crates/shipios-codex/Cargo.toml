@@ -13,6 +13,8 @@ codex-history = { git = "https://github.com/openai/codex.git", rev = "50d77959bf
 codex-hooks = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-rollout = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-config = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-core-plugins = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+codex-plugin = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-core = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-extension-api = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
 codex-guardian-v2 = { git = "https://github.com/openai/codex.git", rev = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
@@ -25,6 +27,8 @@ tokio.workspace = true
 toml.workspace = true
 uuid.workspace = true
 url = "2"
+sha2 = "0.10"
+libc.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

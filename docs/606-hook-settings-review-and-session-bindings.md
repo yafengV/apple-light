@@ -2,6 +2,8 @@
 
 接续第 604 篇的原生后端。本阶段将设置从仅展示声明改为可审阅、信任和逐项启停，并把当前私有定义与决策传到实际 Core 会话。完整 Codex UI 配对仍未完成，不能将本阶段当作 Hooks 整页通过。
 
+后续[第 607 篇](607-native-plugin-hook-environment.md)已接通原生 Plugin 来源、插件环境与跨任务持久数据；本篇下方的缺口保留为第 606 篇交付时的状态。保留全量的终态亦见第 607 篇，它不覆盖第 606/607 篇的新源码。
+
 ## 参考与实现范围
 
 当前参考包 `/Applications/ChatGPT.app/Contents/Resources/app.asar` 的公开 package metadata 为 `openai-codex-electron`、`26.930.21537`。只读取应用资源；没有读取个人 Codex 配置、登录、插件或会话。对应公开模块为 `hooks-settings-f74e8e9cf0ae.js`、`hooks-settings-model-f200bbc1bcb6.js`、`hooks-settings-source-label-817fd200ef7c.js`、`hooks-settings-copy-31e05f0310dd.js`。完整双端前台操作不以资源研究替代。
@@ -35,7 +37,7 @@ Rust workspace 的最终源码 **164 项通过**，其中 vendor sandboxing 106 
 
 ## 明确剩余项
 
-- 当前来源在 Core 内通过私有内存 User 层绑定；**没有原生 plugin origin 和 CODEX_PLUGIN_ROOT/CODEX_PLUGIN_DATA 环境**。绝对命令与实际会话已有执行证明，依赖插件环境的处理器不能描述为已完整支持。
+- 当时来源在 Core 内通过私有内存 User 层绑定；**没有原生 plugin origin 和 PLUGIN_ROOT/PLUGIN_DATA 环境**。环境变量名称已根据固定上游源码纠正，同时存在 CLAUDE_PLUGIN_ROOT/CLAUDE_PLUGIN_DATA 别名；它们不是 CODEX_PLUGIN_*。绝对命令与实际会话已有执行证明，当时依赖插件环境的处理器尚未支持；后续修正在第 607 篇。
 - 其他生命周期、PreToolUse 拦截、Permission/PostTool、Compact/Interrupt/Subagent、MCP 实际执行、async/超时/错误收尾与审计还需逐项验证。现有设置不显示完整 Hook 执行统计。
 - 原生会话配置当前按启动快照执行；变更在下一次 Core 启动生效。重建旧会话的 SessionEnd 等收尾仍需验证即时停用边界，不能宣称所有生命周期热更新已完成。
 - 用户/项目/管理来源、配置层覆盖冲突、全部空/错误/加载/取消和浏览器文档/外部配置入口的前台行为仍需补齐。

@@ -2,7 +2,7 @@ use anyhow::{Context, Result, ensure};
 use codex_config::{ConfigLayerStack, HookStateToml, HooksFile, HooksToml};
 use codex_core_api::{AbsolutePathBuf, Config, Feature};
 use codex_hooks::{HookListEntryHandler, HooksConfig, list_hooks};
-use codex_protocol::protocol::{HookEventName, HookTrustStatus};
+use codex_protocol::protocol::{HookEventName, HookSource, HookTrustStatus};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet},
@@ -18,6 +18,8 @@ pub struct SessionHookSource {
     pub configuration: String,
     #[serde(default)]
     pub states: BTreeMap<String, HookStateToml>,
+    #[serde(default)]
+    pub plugin: Option<crate::SessionHookPlugin>,
 }
 
 #[derive(Debug, Serialize)]
@@ -38,6 +40,8 @@ pub struct SessionHookMetadata {
     pub enabled: bool,
     pub current_hash: String,
     pub trust_status: HookTrustStatus,
+    pub source: HookSource,
+    pub plugin_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -100,16 +104,44 @@ fn configured_stack(
                         && digest.bytes().all(|byte| byte.is_ascii_hexdigit()))),
                 "invalid trusted hook hash"
             );
-            state.insert(format!("{}:{key}", path.display()), value.clone());
+            let prefix = if let Some(plugin) = &source.plugin {
+                format!(
+                    "{}:{}",
+                    plugin.native_id()?.as_key(),
+                    crate::hook_plugins::relative_path(source)
+                )
+            } else {
+                path.display().to_string()
+            };
+            state.insert(format!("{prefix}:{key}"), value.clone());
         }
         let hooks = HooksToml {
-            events: file.hooks,
+            events: if source.plugin.is_some() {
+                Default::default()
+            } else {
+                file.hooks
+            },
             state,
         };
-        let value = toml::Value::Table(toml::map::Map::from_iter([(
+        let mut value = toml::Value::Table(toml::map::Map::from_iter([(
             "hooks".to_owned(),
             toml::Value::try_from(hooks)?,
         )]));
+        if let Some(plugin) = &source.plugin {
+            value
+                .as_table_mut()
+                .context("hook layer must be a table")?
+                .insert(
+                    "plugins".into(),
+                    toml::Value::Table(toml::map::Map::from_iter([(
+                        plugin.native_id()?.as_key(),
+                        toml::Value::Table(toml::map::Map::from_iter([(
+                            "enabled".to_owned(),
+                            toml::Value::Boolean(true),
+                        )])),
+                    )])),
+                );
+        }
         // Only these app-supplied hooks are inserted. No project or user config
         // is loaded, and the existing requirement stack remains authoritative.
         stack = stack.with_user_config(&path, value)?;
@@ -152,11 +184,33 @@ fn inventory(
     }
     let paths: BTreeMap<_, _> = sources
         .iter()
-        .map(|source| source_path(home, &source.id).map(|path| (path, source.id.clone())))
+        .map(|source| {
+            let (path, prefix) = if source.plugin.is_some() {
+                let native = crate::hook_plugins::native_source(home, source)?;
+                (
+                    native.source_path,
+                    format!(
+                        "{}:{}:",
+                        native.plugin_id.as_key(),
+                        native.source_relative_path
+                    ),
+                )
+            } else {
+                let path = source_path(home, &source.id)?;
+                let prefix = format!("{}:", path.display());
+                (path, prefix)
+            };
+            Ok((path, (source.id.clone(), prefix)))
+        })
         .collect::<Result<_>>()?;
     let outcome = list_hooks(HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(stack.clone()),
+        plugin_hook_sources: sources
+            .iter()
+            .filter(|source| source.plugin.is_some())
+            .map(|source| crate::hook_plugins::native_source(home, source))
+            .collect::<Result<_>>()?,
         // Deliberately never bypass definition trust.
         ..Default::default()
     });
@@ -164,11 +218,8 @@ fn inventory(
         .hooks
         .into_iter()
         .filter_map(|hook| {
-            let source_id = paths.get(&hook.source_path)?.clone();
-            let key = hook
-                .key
-                .strip_prefix(&format!("{}:", hook.source_path.display()))?
-                .to_owned();
+            let (source_id, prefix) = paths.get(&hook.source_path)?.clone();
+            let key = hook.key.strip_prefix(&prefix)?.to_owned();
             let definition = definitions.get(&(source_id.clone(), key.clone()))?.clone();
             let handler = match hook.handler {
                 HookListEntryHandler::Command { command, r#async } => serde_json::json!({
@@ -189,6 +240,8 @@ fn inventory(
                 enabled: hook.enabled,
                 current_hash: hook.current_hash,
                 trust_status: hook.trust_status,
+                source: hook.source,
+                plugin_id: hook.plugin_id,
             })
         })
         .collect();
@@ -212,6 +265,11 @@ pub(crate) fn apply_session_hooks(
     config.config_layer_stack =
         configured_stack(&config.config_layer_stack, &config.codex_home, sources)?;
     config.features.enable(Feature::CodexHooks)?;
+    if sources.iter().any(|source| source.plugin.is_some()) {
+        crate::hook_plugins::install(&config.codex_home, sources)?;
+        config.features.enable(Feature::Plugins)?;
+        config.features.disable(Feature::RemotePlugin)?;
+    }
     Ok(())
 }
 
@@ -219,7 +277,7 @@ pub(crate) fn apply_session_hooks(
 mod tests {
     use super::*;
     fn source(command: &str) -> SessionHookSource {
-        SessionHookSource { id: "plugin-fixture".into(), configuration: serde_json::json!({
+        SessionHookSource { id: "plugin-fixture".into(), plugin: None, configuration: serde_json::json!({
             "hooks": { "SessionStart": [{ "hooks": [{ "type": "command", "command": command,
                 "timeout": 4, "async": true, "additionalContextLimit": 300, "statusMessage": "Loading" }] }] }
         }).to_string(), states: BTreeMap::new() }
@@ -277,7 +335,7 @@ mod tests {
     #[test]
     fn mcp_input_is_reviewable_and_changes_invalidate_only_its_trust() -> Result<()> {
         let root = tempfile::tempdir()?;
-        let mut source = SessionHookSource { id: "policy".into(), states: BTreeMap::new(),
+        let mut source = SessionHookSource { id: "policy".into(), plugin: None, states: BTreeMap::new(),
             configuration: serde_json::json!({"hooks": {"PreToolUse": [{"matcher":"shell", "hooks": [
                 {"type":"mcp_tool", "server":"policy", "tool":"inspect", "input":{"mode":"first","paths":["one","two"]}},
                 {"type":"command", "command":"echo check"}

@@ -1000,6 +1000,37 @@ impl CodexBridge {
         inline: Vec<shipios_codex::SessionHookSource>,
         attachment: Option<CodexTextAttachment>,
     ) -> Result<Vec<shipios_codex::SessionHookSource>> {
+        let mut sources = self.read_hook_source_payload(inline, attachment)?;
+        ensure!(sources.len() <= 128, "too many hook sources");
+        let mut bound =
+            std::collections::BTreeMap::<String, shipios_codex::SessionHookPlugin>::new();
+        for source in &mut sources {
+            if let Some(plugin) = &mut source.plugin {
+                if let Some(previous) = bound.get(&plugin.id) {
+                    ensure!(
+                        previous.fingerprint == plugin.fingerprint,
+                        "inconsistent hook plugin snapshots"
+                    );
+                    *plugin = previous.clone();
+                } else {
+                    let root = self
+                        .data_dir
+                        .parent()
+                        .and_then(std::path::Path::parent)
+                        .context("project data directory has no plugin root")?;
+                    plugin.bind_app_root(root)?;
+                    bound.insert(plugin.id.clone(), plugin.clone());
+                }
+            }
+        }
+        Ok(sources)
+    }
+
+    fn read_hook_source_payload(
+        &self,
+        inline: Vec<shipios_codex::SessionHookSource>,
+        attachment: Option<CodexTextAttachment>,
+    ) -> Result<Vec<shipios_codex::SessionHookSource>> {
         let Some(attachment) = attachment else {
             return Ok(inline);
         };

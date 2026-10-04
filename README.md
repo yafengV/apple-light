@@ -6,7 +6,7 @@ ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工�
 
 固定上游版本的 `codex-core-api` 已完成配置隔离、本机服务夹具、Agent RPC、Swift 文字/图片/文本文件会话与重启续接验证。命令执行、补丁及从实际 Swift 验证失败到修复、审查、提交和本地推送的连续验证见[核心闭环记录](docs/601-core-coding-workflow-verification.md)；所有页面、核心要求和剩余缺口见[对齐矩阵](docs/599-core-function-parity-matrix.md)。这些验证不代表真实模型或全部 UI 已验收。
 
-Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 606 篇](docs/606-hook-settings-review-and-session-bindings.md)；插件环境、完整生命周期、全部来源及前台对齐仍未完成。
+Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 606 篇](docs/606-hook-settings-review-and-session-bindings.md)；原生插件环境、资源刷新与跨任务持久数据见[第 607 篇](docs/607-native-plugin-hook-environment.md)。完整生命周期、全部来源、插件包兼容性及前台对齐仍未完成。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 

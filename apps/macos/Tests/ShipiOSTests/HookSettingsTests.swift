@@ -27,9 +27,10 @@ final class HookSettingsTests: XCTestCase {
     let f = try fixture(configuration("printf initial")); defer { try? FileManager.default.removeItem(at: f.root) }
     let executable = try AgentTestExecutable.url(), state = HookSettingsState(root: f.data)
     await state.reload(executable: executable)
-    let source = try XCTUnwrap(state.sources.first), hook = try XCTUnwrap(source.hooks.first)
+    let source = try XCTUnwrap(state.sources.first), hook = try XCTUnwrap(source.hooks.first, source.error ?? state.error ?? "Missing native inventory")
     XCTAssertEqual(hook.trustStatus, "untrusted"); XCTAssertFalse(hook.active)
     XCTAssertEqual(hook.eventName, "session_start"); XCTAssertEqual(hook.eventTitle, "SessionStart")
+    XCTAssertEqual(hook.source, "plugin"); XCTAssertTrue(hook.pluginId?.hasSuffix("@shipios-hooks") == true)
     state.open(source.id)
     await state.change(sourceID: source.id, expected: [hook], enabled: true, executable: executable)
     XCTAssertNotNil(state.error); XCTAssertTrue(try HookStateStorage.load(root: f.data).isEmpty)
@@ -53,6 +54,140 @@ final class HookSettingsTests: XCTestCase {
     XCTAssertEqual(state.selectedSource?.hooks.first?.trustStatus, "modified")
     XCTAssertFalse(try XCTUnwrap(state.selectedSource?.hooks.first).active)
     XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: f.data.appendingPathComponent("HookStaging").path).isEmpty)
+  }
+
+  @MainActor func testNativePluginEnvironmentResourcesRefreshAndDataSurviveOtherTaskAndRestart() async throws {
+    let f = try fixture(configuration(#"/bin/sh "$PLUGIN_ROOT/scripts/start.sh""#))
+    defer { try? FileManager.default.removeItem(at: f.root) }
+    let package = PluginStorage.packageURL(root: f.data, id: "hook-fixture")
+    let script = package.appendingPathComponent("scripts/start.sh")
+    try FileManager.default.createDirectory(at: script.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try #"""
+    set -eu
+    test "$PLUGIN_ROOT" = "$CLAUDE_PLUGIN_ROOT"
+    test "$PLUGIN_DATA" = "$CLAUDE_PLUGIN_DATA"
+    test -f "$PLUGIN_ROOT/resources.txt"
+    count=0
+    if test -f "$PLUGIN_DATA/count"; then count=$(cat "$PLUGIN_DATA/count"); fi
+    count=$((count + 1))
+    printf '%s' "$count" > "$PLUGIN_DATA/count"
+    printf 'PLUGIN-CONTEXT-%s-' "$count"
+    cat "$PLUGIN_ROOT/resources.txt"
+    """#.write(to: script, atomically: true, encoding: .utf8)
+    try "first-resource\n".write(to: package.appendingPathComponent("resources.txt"), atomically: true, encoding: .utf8)
+    let server = try GitGenerationFixture(root: f.root); defer { server.stop() }
+    let executable = try AgentTestExecutable.url()
+    let store = WorkspaceStore(dataRoot: f.data, agentExecutable: executable)
+    await store.restore()
+    let project = f.root.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    await store.open(project); try store.saveModelConfiguration(server.config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.hookSettings.reload(executable: executable)
+    let source = try XCTUnwrap(store.hookSettings.sources.first)
+    store.hookSettings.open(source.id)
+    await store.hookSettings.change(sourceID: source.id, expected: source.hooks, trust: true, executable: executable)
+    XCTAssertNil(store.hookSettings.error); store.hookSettings.close()
+    store.draft = "Native plugin first turn"; await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask), run = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: run)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.status, "succeeded")
+    let thread = try XCTUnwrap(store.library.tasks.first { $0.id == task.id }?.codexThreadID)
+    let firstBinding = try XCTUnwrap(store.hookSettings.sessionBindings().first)
+    try "second-resource\n".write(to: package.appendingPathComponent("resources.txt"), atomically: true, encoding: .utf8)
+    let changedBinding = try XCTUnwrap(store.hookSettings.sessionBindings().first)
+    XCTAssertEqual(firstBinding.configuration, changedBinding.configuration)
+    XCTAssertNotEqual(firstBinding.plugin?.fingerprint, changedBinding.plugin?.fingerprint)
+    let secondStarted = await store.startChat("Resource changed follow-up", taskID: task.id)
+    let second = try XCTUnwrap(secondStarted)
+    await store.modelTask(runID: second)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == second }?.status, "succeeded")
+    XCTAssertEqual(store.library.tasks.first { $0.id == task.id }?.codexThreadID, thread)
+    await store.openProjectless()
+    store.draft = "Plugin in another task"; await store.sendDraft()
+    let other = try XCTUnwrap(store.selectedTask), third = try XCTUnwrap(other.runIDs.first)
+    XCTAssertNotEqual(other.id, task.id)
+    await store.modelTask(runID: third)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == third }?.status, "succeeded")
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: f.data, agentExecutable: executable)
+    await restored.restore(); restored.notificationPreferences = .init(timing: .never)
+    let fourthStarted = await restored.startChat("Plugin after app restart", taskID: other.id)
+    let fourth = try XCTUnwrap(fourthStarted)
+    await restored.modelTask(runID: fourth)?.value
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == fourth }?.status, "succeeded")
+    await restored.shutdown()
+    let bodies = try server.records().map { $0["body"].pretty }
+    XCTAssertEqual(bodies.count, 4)
+    guard bodies.count == 4 else { return }
+    for (index, version) in [(0, "first-resource"), (1, "second-resource"), (2, "second-resource"), (3, "second-resource")] {
+      XCTAssertTrue(bodies[index].contains("PLUGIN-CONTEXT-\(index + 1)-\(version)"), bodies[index])
+    }
+    let dataRoot = f.data.appendingPathComponent("Hooks/PluginData")
+    let directories = try FileManager.default.contentsOfDirectory(at: dataRoot, includingPropertiesForKeys: nil)
+    XCTAssertEqual(directories.count, 1)
+    XCTAssertEqual(try String(contentsOf: XCTUnwrap(directories.first).appendingPathComponent("count")), "4")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: package.appendingPathComponent("count").path))
+  }
+
+  @MainActor func testResourceFingerprintRejectsStaleRPCAndEscapedResourcesAndTracksExecutableBits() async throws {
+    let f = try fixture(configuration("printf checked")); defer { try? FileManager.default.removeItem(at: f.root) }
+    let executable = try AgentTestExecutable.url(), state = HookSettingsState(root: f.data)
+    let package = PluginStorage.packageURL(root: f.data, id: "hook-fixture")
+    try "Unicode resource".write(to: package.appendingPathComponent("café-资源 🌱.txt"), atomically: true, encoding: .utf8)
+    let binding = try XCTUnwrap(state.sessionBindings().first)
+    let original = try await HookInventoryService.inspect([binding], root: f.data, executable: executable)
+    XCTAssertEqual(original.hooks.count, 1); XCTAssertEqual(original.hooks.first?.source, "plugin")
+    let resource = package.appendingPathComponent("resource.txt")
+    try "changed".write(to: resource, atomically: true, encoding: .utf8)
+    do {
+      _ = try await HookInventoryService.inspect([binding], root: f.data, executable: executable)
+      XCTFail("Agent must reject a resource snapshot changed after discovery")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("resources changed"), error.localizedDescription) }
+    let before = try XCTUnwrap(state.sessionBindings().first?.plugin?.fingerprint)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: resource.path)
+    XCTAssertNotEqual(try state.sessionBindings().first?.plugin?.fingerprint, before)
+    let outside = f.root.appendingPathComponent("outside")
+    try "outside".write(to: outside, atomically: true, encoding: .utf8)
+    try FileManager.default.createSymbolicLink(at: package.appendingPathComponent("link"), withDestinationURL: outside)
+    XCTAssertThrowsError(try state.sessionBindings())
+    XCTAssertEqual(try String(contentsOf: outside), "outside")
+  }
+
+  @MainActor func testPortableInlineSourcesExecuteTogetherAsNativePluginWithoutChangingInstalledManifest() async throws {
+    let f = try fixture(configuration("printf LEGACY-MUST-NOT-RUN"))
+    defer { try? FileManager.default.removeItem(at: f.root) }
+    let package = PluginStorage.packageURL(root: f.data, id: "hook-fixture")
+    let portable = JSONValue.object([
+      "$schema": .string(PluginStorage.portableSchema), "name": .string("hook-fixture"),
+      "extensions": .object(["com.openai": .object(["hooks": .array([
+        try JSONDecoder().decode(JSONValue.self, from: Data(configuration("printf PORTABLE-ONE").utf8)),
+        try JSONDecoder().decode(JSONValue.self, from: Data(configuration("printf PORTABLE-TWO").utf8))])])])])
+    let portableFile = package.appendingPathComponent("plugin.json")
+    try portable.pretty.write(to: portableFile, atomically: true, encoding: .utf8)
+    let original = try Data(contentsOf: portableFile)
+    let server = try GitGenerationFixture(root: f.root); defer { server.stop() }
+    let store = WorkspaceStore(dataRoot: f.data, agentExecutable: try AgentTestExecutable.url())
+    await store.restore(); try store.saveModelConfiguration(server.config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.hookSettings.reload(executable: store.executable)
+    let group = try XCTUnwrap(store.hookSettings.groups.first)
+    XCTAssertEqual(group.sources.count, 2); XCTAssertEqual(group.hooks.count, 2)
+    XCTAssertTrue(group.hooks.allSatisfy { $0.source == "plugin" })
+    XCTAssertEqual(Set(group.hooks.compactMap(\.pluginId)).count, 1)
+    store.hookSettings.open(group.id)
+    await store.hookSettings.change(sourceID: group.id, expected: group.hooks, trust: true, executable: store.executable)
+    XCTAssertNil(store.hookSettings.error); store.hookSettings.close()
+    store.draft = "Portable native Hook sources"; await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask), run = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: run)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.status, "succeeded")
+    let requests = try server.records()
+    let body = try XCTUnwrap(requests.first)["body"].pretty
+    XCTAssertTrue(body.contains("PORTABLE-ONE")); XCTAssertTrue(body.contains("PORTABLE-TWO"))
+    XCTAssertFalse(body.contains("LEGACY-MUST-NOT-RUN"))
+    XCTAssertEqual(try Data(contentsOf: portableFile), original)
+    await store.shutdown()
   }
 
   @MainActor func testLargeMCPInputIsReviewedIntactAndOnlyItsDefinitionChangeInvalidatesTrust() async throws {
@@ -155,7 +290,7 @@ final class HookSettingsTests: XCTestCase {
     XCTAssertEqual(state.groups.count, 1); XCTAssertEqual(group.sources.count, 2); XCTAssertEqual(group.hooks.count, 2)
     XCTAssertEqual(Set(group.hooks.map(\.key)).count, 1, "Same event indices are independent in separate files")
     XCTAssertEqual(Set(group.hooks.map(\.id)).count, 2)
-    let first = group.hooks[0]
+    let first = try XCTUnwrap(group.hooks.first)
     try HookStateStorage.update(root: f.data, sourceID: first.sourceId, changes: [first.key: .init(enabled: false)])
     state.open(group.id)
     await state.change(sourceID: group.id, expected: group.hooks, trust: true, executable: executable)

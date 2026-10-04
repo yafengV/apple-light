@@ -10,6 +10,12 @@ struct HookSourceBinding: Codable, Equatable, Sendable {
   let id: String
   let configuration: String
   var states: [String: HookDecision] = [:]
+  var plugin: HookPluginBinding? = nil
+}
+
+struct HookPluginBinding: Codable, Equatable, Sendable {
+  let id: String
+  let fingerprint: String
 }
 
 struct HookMetadata: Codable, Equatable, Identifiable, Sendable {
@@ -25,6 +31,8 @@ struct HookMetadata: Codable, Equatable, Identifiable, Sendable {
   let enabled: Bool
   let currentHash: String
   let trustStatus: String
+  var source: String? = nil
+  var pluginId: String? = nil
   var id: String { sourceId + ":" + key }
   var needsReview: Bool { trustStatus == "untrusted" || trustStatus == "modified" }
   var managed: Bool { trustStatus == "managed" }

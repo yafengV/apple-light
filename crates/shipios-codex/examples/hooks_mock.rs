@@ -99,7 +99,7 @@ async fn run_main(paths: Arg0DispatchPaths) -> Result<()> {
     let prompt = root.path().join("prompt-input.json");
     let quote = |path: &Path| format!("'{}'", path.display().to_string().replace('\'', "'\\''"));
     let command = |event: &str| format!("printf '%s\\n' {event} >> {}", quote(&marker));
-    let mut source = SessionHookSource { id: "native-lifecycle".into(), states: BTreeMap::new(),
+    let mut source = SessionHookSource { id: "native-lifecycle".into(), plugin: None, states: BTreeMap::new(),
         configuration: json!({"hooks":{
           "SessionStart":[{"hooks":[{"type":"command","command":format!("{}; printf '%s\\n' NATIVE-START-CONTEXT",command("SessionStart"))}]}],
           "UserPromptSubmit":[{"hooks":[{"type":"command","command":format!("{}; /bin/cat > {}; printf '%s\\n' NATIVE-PROMPT-CONTEXT",command("UserPromptSubmit"),quote(&prompt))}]}],

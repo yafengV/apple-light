@@ -110,6 +110,7 @@ enum PluginHookCatalog {
     var occurrences: [String: Int] = [:]
     let configurations = try configurations(pluginID: plugin.id, root: root)
     _ = try declarations(sources: configurations)
+    let fingerprint = try HookPluginResources.fingerprint(package: package)
     return try configurations.map { label, object in
       let index = occurrences[label, default: 0]
       occurrences[label] = index + 1
@@ -125,7 +126,8 @@ enum PluginHookCatalog {
       let file = try checkedHookURL(label, inside: package)
       return HookSettingsSource(id: id, pluginID: plugin.id, name: plugin.name,
         label: label, fileURL: file, pluginEnabled: plugin.enabled,
-        binding: HookSourceBinding(id: id, configuration: configuration, states: decisions[id] ?? [:]))
+        binding: HookSourceBinding(id: id, configuration: configuration, states: decisions[id] ?? [:],
+          plugin: HookPluginBinding(id: plugin.id, fingerprint: fingerprint)))
     }
   }
 

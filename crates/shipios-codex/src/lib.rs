@@ -3,12 +3,14 @@
 mod automation_tool;
 mod browser_tool;
 mod confetti_tool;
+mod hook_plugins;
 mod hooks;
 pub use automation_tool::AutomationToolBridge;
 use automation_tool::AutomationToolContributor;
 pub use browser_tool::BrowserToolBridge;
 use browser_tool::BrowserToolContributor;
 use confetti_tool::ConfettiToolContributor;
+pub use hook_plugins::SessionHookPlugin;
 pub use hooks::{SessionHookInventory, SessionHookSource, session_hook_inventory};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
