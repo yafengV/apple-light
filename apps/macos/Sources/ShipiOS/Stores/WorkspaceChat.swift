@@ -63,7 +63,8 @@ extension WorkspaceStore {
     images: [ImageAttachment] = [], files: [FileAttachment] = [],
     queuedMessageID: UUID? = nil, mode: ChatMode = .standard,
     review: ModelCodeReviewContext? = nil, compact: Bool = false,
-    automationID: UUID? = nil, pullRequestChecks: PullRequestCheckDraft? = nil
+    automationID: UUID? = nil, pullRequestChecks: PullRequestCheckDraft? = nil,
+    watchInspectionRunID: String? = nil
   )
     async -> String?
   {
@@ -103,6 +104,11 @@ extension WorkspaceStore {
       let isSideChat = requestedTaskID.flatMap { id in
         library.tasks.first(where: { $0.id == id })?.isSideChat
       } == true
+      let watchInspection = automationID.flatMap { id in
+        automationPreferences.items.first { $0.id == id && $0.taskID == requestedTaskID }
+      }?.watchedPullRequest != nil && requestedTaskID.flatMap {
+        library.managedWorktree(forTaskID: $0)
+      } == nil
       if isSideChat, mode != .standard || review != nil || compact {
         throw AgentFailure(message: "临时侧聊只支持普通问答。")
       }
@@ -176,6 +182,7 @@ extension WorkspaceStore {
       let instructionPrefix = [
         systemInstructions, modeInstructions, review == nil ? "" : ModelCodeReviewContext.instructions,
         isSideChat ? "这是临时只读侧聊。只回答当前问题，不修改文件或运行有副作用的操作。主会话正在独立继续。" : "",
+        watchInspection ? "This PR heartbeat is inspecting the configured checkout in read-only mode. Read logs and annotations first. Only if an authorized code change or conflict resolution is needed, call shipios_request_pr_worktree with the specific reason, then finish this turn. ShipiOS will prepare an isolated checkout and continue this same thread there. Never mutate, switch, reset, clean or commit from the configured checkout." : "",
         pluginContext.instructions,
         usesCodex && BrowserMention.isInvoked(in: prompt) ? BrowserMention.instructions : "",
       ]
@@ -214,6 +221,8 @@ extension WorkspaceStore {
       if compact { request["conversation_kind"] = .string("compact") }
       if isSideChat { request["conversation_kind"] = .string("side") }
       if let automationID { request["automation_id"] = .string(automationID.uuidString) }
+      if watchInspection { request["watch_phase"] = .string("inspection") }
+      if let watchInspectionRunID { request["watch_inspection_run_id"] = .string(watchInspectionRunID) }
       if automationID != nil, usesCodex {
         request["approval_policy"] = .string(AgentApprovalPolicy.never.rawValue)
       }
@@ -418,7 +427,8 @@ extension WorkspaceStore {
       taskID: taskID, workspace: workspace, executable: executable, additionalFolders: additionalFolders,
       config: config, key: key,
       initialText: initialText, continuationText: Self.codexContinuationText(messages: messages), images: images,
-      fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat,
+      fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat
+        || library.chatRuns.first(where: { $0.id == runID })?.request["watch_phase"].text == "inspection",
       planMode: mode == .plan, goalInstructions: goalInstructions,
       mcpServers: mcpServers, permissions: permissions,
       responses: library.agentResponsePreferences,
@@ -463,6 +473,8 @@ extension WorkspaceStore {
             recordCodexBrowserCall(runID: runID, event: event)
           case "automation_pause_request":
             try await handleCodexAutomationPause(runID: runID, taskID: taskID, event: event)
+          case "automation_worktree_request":
+            try await handleCodexWatchWorktree(runID: runID, taskID: taskID, event: event)
           case "confetti_fire":
             _ = fireConfetti()
           case "elicitation_request":

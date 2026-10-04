@@ -178,6 +178,22 @@ fn configured_permissions(read_only: bool, settings: SessionPermissions) -> Resu
     )?)
 }
 
+// PR inspection keeps the filesystem read-only while respecting explicitly
+// configured network access. Ordinary reviews and side chats remain unchanged.
+fn watch_inspection_profile(
+    mut profile: PermissionProfile,
+    inspection: bool,
+    permissions: SessionPermissions,
+) -> PermissionProfile {
+    if inspection
+        && permissions.network_access
+        && let PermissionProfile::Managed { network, .. } = &mut profile
+    {
+        *network = NetworkSandboxPolicy::Enabled;
+    }
+    profile
+}
+
 fn configured_approval(settings: SessionPermissions) -> AskForApproval {
     match settings.approval_policy {
         SessionApprovalPolicy::OnRequest => AskForApproval::OnRequest,
@@ -543,6 +559,7 @@ pub struct CodexSession {
     thread: Arc<CodexThread>,
     model: String,
     read_only: bool,
+    watch_inspection: bool,
     permissions: SessionPermissions,
     named_permissions: Option<PermissionProfileSnapshot>,
     _home_guard: SessionHomeGuard,
@@ -706,6 +723,7 @@ impl CodexSession {
                 config.permissions.profile_workspace_roots().to_vec(),
             )
         });
+        let watch_inspection = options.read_only && options.automation_control.is_some();
         config.cwd = AbsolutePathBuf::from_absolute_path_checked(project.clone())?;
         config.workspace_roots = workspace_roots;
         config.workspace_roots_explicit = true;
@@ -723,6 +741,16 @@ impl CodexSession {
                 .set(configured_approval(options.permissions))?;
         } else {
             config.permissions = configured_permissions(options.read_only, options.permissions)?;
+            if watch_inspection {
+                config.permissions = Permissions::from_approval_and_profile(
+                    Constrained::allow_any(configured_approval(options.permissions)),
+                    Constrained::allow_any(watch_inspection_profile(
+                        configured_profile(true, options.permissions),
+                        true,
+                        options.permissions,
+                    )),
+                )?;
+            }
         }
         config.approvals_reviewer = options.permissions.approval_reviewer.into();
         config.model_verbosity = options.responses.verbosity;
@@ -861,6 +889,7 @@ impl CodexSession {
             thread,
             model: options.model,
             read_only: options.read_only,
+            watch_inspection,
             permissions: options.permissions,
             named_permissions,
             _home_guard: home_guard,
@@ -968,6 +997,11 @@ impl CodexSession {
             permissions,
             self.named_permissions.as_ref(),
         );
+        if self.watch_inspection {
+            settings.permission_profile = settings
+                .permission_profile
+                .map(|profile| watch_inspection_profile(profile, true, permissions));
+        }
         settings.collaboration_mode = Some(collaboration_mode);
         let result = self
             .thread
@@ -1163,6 +1197,39 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn watch_inspection_network_does_not_grant_filesystem_writes_or_change_reviews() {
+        let permissions = SessionPermissions {
+            network_access: true,
+            ..Default::default()
+        };
+        let readonly = PermissionProfile::read_only();
+        let inspect = watch_inspection_profile(readonly.clone(), true, permissions);
+        match (&inspect, &readonly) {
+            (
+                PermissionProfile::Managed {
+                    file_system,
+                    network,
+                },
+                PermissionProfile::Managed {
+                    file_system: original,
+                    ..
+                },
+            ) => {
+                assert_eq!(file_system, original);
+                assert_eq!(*network, NetworkSandboxPolicy::Enabled);
+            }
+            _ => panic!("inspection must stay managed and read-only"),
+        }
+        assert_eq!(
+            watch_inspection_profile(readonly.clone(), false, permissions),
+            readonly
+        );
+        assert_eq!(
+            watch_inspection_profile(readonly.clone(), true, SessionPermissions::default()),
+            readonly
+        );
+    }
     #[test]
     fn session_permissions_apply_approval_sandbox_and_network_without_weakening_read_only() {
         let custom = SessionPermissions {

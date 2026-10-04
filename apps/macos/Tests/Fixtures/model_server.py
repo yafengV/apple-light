@@ -192,6 +192,27 @@ class Handler(BaseHTTPRequestHandler):
                     'name': 'apply_patch',
                     'input': '*** Begin Patch\n*** Add File: review-write-proof.txt\n+must-not-write\n*** End Patch',
                 }
+            elif 'watch-lazy-fixture' in request_text:
+                continuing = 'Continue this PR heartbeat in its prepared isolated worktree:' in request_text
+                if not continuing and 'watch-lazy-write-attempt' in request_text and 'watch-source-write-call' not in request_text:
+                    item = {'type': 'custom_tool_call', 'call_id': 'watch-source-write-call', 'name': 'apply_patch',
+                        'input': '*** Begin Patch\n*** Add File: source-must-not-change.txt\n+must not be created\n*** End Patch'}
+                elif 'watch-lazy-nochange' in request_text:
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'watch-inspected',
+                        'content': [{'type': 'output_text', 'text': 'Checks pending; no authorized code change is needed.'}]}
+                elif not continuing and 'watch-worktree-call' not in request_text:
+                    item = {'type': 'function_call', 'call_id': 'watch-worktree-call',
+                        'name': 'shipios_request_pr_worktree',
+                        'arguments': json.dumps({'reason': 'Logs identify a compile failure introduced by this PR.'})}
+                elif not continuing and 'watch-lazy-pause' in request_text and 'pause-lazy-call' not in request_text:
+                    item = {'type': 'function_call', 'call_id': 'pause-lazy-call',
+                        'name': 'shipios_pause_automation', 'arguments': json.dumps({'reason': 'PR access was revoked.'})}
+                elif continuing and 'watch-lazy-patch' not in request_text:
+                    item = {'type': 'custom_tool_call', 'call_id': 'watch-lazy-patch', 'name': 'apply_patch',
+                        'input': '*** Begin Patch\n*** Add File: lazy-repair-proof.txt\n+repaired only in isolation\n*** End Patch'}
+                else:
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'watch-lazy-answer',
+                        'content': [{'type': 'output_text', 'text': 'Repair continued in the isolated checkout.' if continuing else 'Repair requested; inspection finished.'}]}
             elif 'automation-pause-fixture' in request_text:
                 offered = any(t.get('name') == 'shipios_pause_automation' for t in body.get('tools', []))
                 if offered and 'pause-fixture-call' not in request_text:
@@ -511,6 +532,29 @@ class Handler(BaseHTTPRequestHandler):
             user_index = max((i for i, m in enumerate(body['messages']) if m['role'] == 'user'), default=0)
             user_prompt = body['messages'][user_index]['content']
             tool_results = [m for m in body['messages'][user_index+1:] if m['role'] == 'tool']
+            if 'watch-lazy-fixture' in str(user_prompt):
+                continuing = 'Continue this PR heartbeat in its prepared isolated worktree:' in str(user_prompt)
+                if 'watch-lazy-nochange' in str(user_prompt):
+                    reply = 'Checks pending; no authorized code change is needed.'
+                    call = None
+                elif not continuing and not tool_results:
+                    reply = None
+                    call = {'index': 0, 'id': 'watch-worktree-call', 'type': 'function',
+                        'function': {'name': 'shipios_request_pr_worktree',
+                            'arguments': json.dumps({'reason': 'Logs identify a compile failure introduced by this PR.'})}}
+                elif not continuing and 'watch-lazy-pause' in str(user_prompt) and len(tool_results) == 1:
+                    reply = None
+                    call = {'index': 0, 'id': 'pause-lazy-call', 'type': 'function',
+                        'function': {'name': 'shipios_pause_automation', 'arguments': json.dumps({'reason': 'PR access was revoked.'})}}
+                else:
+                    reply = 'Repair continued in the isolated checkout.' if continuing else 'Repair requested; inspection finished.'
+                    call = None
+                if call:
+                    self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': {'tool_calls': [call]}, 'finish_reason': None}]}) + '\n\n').encode())
+                    self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': {}, 'finish_reason': 'tool_calls'}]}) + '\n\n').encode())
+                else:
+                    self.wfile.write(('data: ' + json.dumps({'choices': [{'delta': {'content': reply}, 'finish_reason': 'stop'}]}) + '\n\n').encode())
+                self.wfile.write(b'data: [DONE]\n\n'); self.wfile.flush(); return
             if 'automation-pause-fixture' in str(user_prompt):
                 offered = any(t.get('function', {}).get('name') == 'shipios_pause_automation' for t in body.get('tools', []))
                 if offered and not tool_results:

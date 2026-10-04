@@ -43,6 +43,16 @@ impl AutomationToolBridge {
             .retain(|_, (owner, _)| owner != task);
     }
     async fn request(&self, task: &str, automation: &str, reason: &str) -> Result<Value, String> {
+        self.request_kind(task, automation, reason, "automation_pause_request")
+            .await
+    }
+    async fn request_kind(
+        &self,
+        task: &str,
+        automation: &str,
+        reason: &str,
+        kind: &str,
+    ) -> Result<Value, String> {
         let request = Uuid::new_v4().to_string();
         let (reply, receiver) = oneshot::channel();
         self.pending
@@ -55,15 +65,15 @@ impl AutomationToolBridge {
         };
         self.events
             .send(json!({"taskId":task, "event": {
-                "type":"automation_pause_request", "requestId":request,
+                "type":kind, "requestId":request,
                 "automationId":automation, "reason":reason
             }}))
-            .map_err(|_| "ShipiOS is not connected to pause this heartbeat.".to_owned())?;
+            .map_err(|_| "ShipiOS is not connected to handle this heartbeat request.".to_owned())?;
         match tokio::time::timeout(Duration::from_secs(30), receiver).await {
             Ok(Ok(value)) => Ok(value),
-            Ok(Err(_)) => Err("Heartbeat pause request was cancelled.".to_owned()),
+            Ok(Err(_)) => Err("Heartbeat request was cancelled.".to_owned()),
             Err(_) => Err(
-                "Heartbeat pause request timed out. Do not assume the schedule was paused."
+                "Heartbeat request timed out. Do not assume the requested action succeeded."
                     .to_owned(),
             ),
         }
@@ -102,17 +112,27 @@ impl ToolContributor for AutomationToolContributor {
         _: &ExtensionData,
         _: &ExtensionData,
     ) -> Vec<Arc<dyn for<'call> ToolExecutor<ToolCall<'call>>>> {
-        vec![Arc::new(PauseTool {
-            bridge: self.bridge.clone(),
-            task: self.task.clone(),
-            automation: self.automation.clone(),
-        })]
+        vec![
+            Arc::new(PauseTool {
+                bridge: self.bridge.clone(),
+                task: self.task.clone(),
+                automation: self.automation.clone(),
+                worktree: false,
+            }),
+            Arc::new(PauseTool {
+                bridge: self.bridge.clone(),
+                task: self.task.clone(),
+                automation: self.automation.clone(),
+                worktree: true,
+            }),
+        ]
     }
 }
 struct PauseTool {
     bridge: AutomationToolBridge,
     task: String,
     automation: String,
+    worktree: bool,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -121,12 +141,20 @@ struct PauseArgs {
 }
 impl<'call> ToolExecutor<ToolCall<'call>> for PauseTool {
     fn tool_name(&self) -> ToolName {
-        ToolName::plain("shipios_pause_automation")
+        ToolName::plain(if self.worktree {
+            "shipios_request_pr_worktree"
+        } else {
+            "shipios_pause_automation"
+        })
     }
     fn spec(&self) -> ToolSpec {
         ToolSpec::Function(ResponsesApiTool {
-            name: "shipios_pause_automation".to_owned(),
-            description: "Pause only the PR heartbeat attached to this thread before your final response when it is complete or blocked by unavailable credentials, access or a user decision. Report the exact reason and ask one concise question in the thread if input is needed. This does not interrupt the current turn or create, resume or change any other automation.".to_owned(),
+            name: if self.worktree { "shipios_request_pr_worktree" } else { "shipios_pause_automation" }.to_owned(),
+            description: if self.worktree {
+                "Request an isolated worktree for this PR heartbeat only after logs prove an authorized code change or conflict resolution is needed. Supply the specific reason. During inspection this records the request, without creating a checkout yet. Finish this read-only turn; ShipiOS will create the isolated worktree and continue this same thread there. Never claim creation or modify the configured checkout. If a worktree already exists, the result returns its path."
+            } else {
+                "Pause only the PR heartbeat attached to this thread before your final response when it is complete or blocked by unavailable credentials, access or a user decision. Report the exact reason and ask one concise question in the thread if input is needed. This does not interrupt the current turn or create, resume or change any other automation."
+            }.to_owned(),
             strict: false,
             parameters: parse_tool_input_schema(&json!({"type":"object","properties":{
                 "reason":{"type":"string","minLength":1,"maxLength":4096}
@@ -147,11 +175,21 @@ impl<'call> ToolExecutor<ToolCall<'call>> for PauseTool {
                     "Provide a nonempty reason within 4096 bytes.".to_owned(),
                 ));
             }
-            let result = self
-                .bridge
-                .request(&self.task, &self.automation, reason)
-                .await
-                .map_err(FunctionCallError::RespondToModel)?;
+            let result = if self.worktree {
+                self.bridge
+                    .request_kind(
+                        &self.task,
+                        &self.automation,
+                        reason,
+                        "automation_worktree_request",
+                    )
+                    .await
+            } else {
+                self.bridge
+                    .request(&self.task, &self.automation, reason)
+                    .await
+            }
+            .map_err(FunctionCallError::RespondToModel)?;
             Ok(Box::new(JsonToolOutput::new(result)) as Box<dyn ToolOutput>)
         })
     }
@@ -160,6 +198,36 @@ impl<'call> ToolExecutor<ToolCall<'call>> for PauseTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn worktree_request_is_not_a_creation_acknowledgement() {
+        let (events, mut receiver) = broadcast::channel(4);
+        let bridge = AutomationToolBridge::new(events);
+        let caller = bridge.clone();
+        let pending = tokio::spawn(async move {
+            caller
+                .request_kind(
+                    "task-a",
+                    "watch-a",
+                    "PR caused a compile error",
+                    "automation_worktree_request",
+                )
+                .await
+        });
+        let event = receiver.recv().await.unwrap();
+        assert_eq!(event["event"]["type"], "automation_worktree_request");
+        assert_eq!(event["event"]["reason"], "PR caused a compile error");
+        let id = event["event"]["requestId"].as_str().unwrap();
+        assert!(!bridge.resolve("other-task", id, json!({"status":"ready"})));
+        assert!(bridge.resolve(
+            "task-a",
+            id,
+            json!({"status":"requested", "checkout_created":false})
+        ));
+        let result = pending.await.unwrap().unwrap();
+        assert_eq!(result["status"], "requested");
+        assert_eq!(result["checkout_created"], false);
+        assert!(!bridge.resolve("task-a", id, json!({"status":"ready"})));
+    }
     #[tokio::test]
     async fn host_acknowledgement_is_owned_and_single_use() {
         let (events, mut receiver) = broadcast::channel(4);

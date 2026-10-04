@@ -15,9 +15,11 @@ final class CodexChatTransport {
     let permissionProfileDigest: Data?
     let pauseAutomationID: UUID?
     let confettiEnabled: Bool
+    let readOnly: Bool
 
     init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String],
-      permissionProfile: AgentNamedPermissionProfile?, confettiEnabled: Bool, pauseAutomationID: UUID?) {
+      permissionProfile: AgentNamedPermissionProfile?, confettiEnabled: Bool, pauseAutomationID: UUID?,
+      readOnly: Bool) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
       mcpDigest = Data(SHA256.hash(data: mcpData))
@@ -28,6 +30,7 @@ final class CodexChatTransport {
       }
       self.confettiEnabled = confettiEnabled
       self.pauseAutomationID = pauseAutomationID
+      self.readOnly = readOnly
     }
   }
 
@@ -157,7 +160,7 @@ final class CodexChatTransport {
     let selectedProfile = readOnly || textOnly ? nil : permissions.namedProfile
     let service = ServiceIdentity(config: config, key: key, mcpData: mcpData,
       additionalFolders: Array(folders.dropFirst()), permissionProfile: selectedProfile,
-      confettiEnabled: confettiEnabled, pauseAutomationID: pauseAutomationID)
+      confettiEnabled: confettiEnabled, pauseAutomationID: pauseAutomationID, readOnly: readOnly || textOnly)
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }

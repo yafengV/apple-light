@@ -3693,13 +3693,15 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(secondRun.status, "succeeded")
     XCTAssertEqual(second.taskID, first.taskID)
     XCTAssertNotEqual(second.lastRunID, first.lastRunID)
-    XCTAssertEqual(store.library.managedWorktrees.count, 1)
+    XCTAssertTrue(store.library.managedWorktrees.isEmpty)
     let secondRequest = try JSONDecoder().decode(JSONValue.self,
       from: Data(try XCTUnwrap(secondRun.result?["response"].text).utf8))
     XCTAssertTrue(secondRequest["messages"].items.last?["content"].text?.contains("second plugin-context") == true)
     XCTAssertFalse(secondRequest["messages"].items.last?["content"].text?.contains("first plugin-context") == true)
-    let worktree = URL(fileURLWithPath: try XCTUnwrap(store.library.managedWorktrees.first?.path))
-    XCTAssertEqual(try String(contentsOf: worktree.appendingPathComponent("file")), "committed\n")
+    XCTAssertEqual(firstRun.project, source.path)
+    XCTAssertEqual(secondRun.project, source.path)
+    XCTAssertEqual(firstRun.request["watch_phase"].text, "inspection")
+    XCTAssertEqual(secondRun.request["watch_phase"].text, "inspection")
     XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("file")), "user edit\n")
     await store.shutdown()
   }

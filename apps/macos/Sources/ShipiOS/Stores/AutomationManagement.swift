@@ -276,8 +276,11 @@ extension WorkspaceStore {
             guard library.chatRuns.first(where: { $0.id == existingRunID })?.isActive == false else {
               throw AgentFailure(message: "上次自动化运行仍未结束。")
             }
-            try recordAutomationProjectResult(id: id, project: project,
-              taskID: ownerID, runID: existingRunID)
+            let results = state.watchedPullRequest == nil ? [existingRunID]
+              : try await continueWatchInWorktree(id: id, project: project, taskID: ownerID,
+                inspectionRunID: existingRunID)
+            try recordAutomationProjectResults(id: id, project: project,
+              taskID: ownerID, runIDs: results)
             continue
           }
         }
@@ -290,12 +293,16 @@ extension WorkspaceStore {
         if state.watchedPullRequest != nil && !useWorktree {
           throw AgentFailure(message: "PR 监控需要 Git 仓库及隔离工作树，未在当前检出目录运行。")
         }
-        let record = useWorktree
+        let prepareNow = useWorktree && (state.watchedPullRequest == nil
+          || library.managedWorktree(forTaskID: ownerID) != nil)
+        let record = prepareNow
           ? try await prepareAutomationWorktree(sourcePath: sourcePath, taskID: ownerID,
             environmentSelection: state.environmentSelection(for: project),
             includeSourceChanges: state.watchedPullRequest == nil) : nil
         if state.watchedPullRequest != nil {
           guard let current = automationPreferences.items.first(where: { $0.id == id && $0.enabled }),
+            current.taskID == ownerID, current.project == state.project,
+            current.watchedPullRequest?.validatedURL == state.watchedPullRequest?.validatedURL,
             validatePullRequestWatchTarget(current) else { return }
         }
         let runProject = record?.path ?? sourcePath
@@ -328,8 +335,11 @@ extension WorkspaceStore {
         guard let run = library.chatRuns.first(where: { $0.id == runID }), !run.isActive else {
           throw AgentFailure(message: "自动化运行尚未完成。")
         }
-        try recordAutomationProjectResult(id: id, project: project,
-          taskID: ownerID, runID: runID)
+        let results = state.watchedPullRequest == nil ? [runID]
+          : try await continueWatchInWorktree(id: id, project: project, taskID: ownerID,
+            inspectionRunID: runID)
+        try recordAutomationProjectResults(id: id, project: project,
+          taskID: ownerID, runIDs: results)
       } catch {
         let title = project.isEmpty ? "无项目" : library.projectTitle(project)
         failures.append("\(title)：\(error.localizedDescription)")
@@ -369,14 +379,22 @@ extension WorkspaceStore {
     if !failures.isEmpty { automationsError = failures.joined(separator: "\n") }
   }
 
-  private func recordAutomationProjectResult(id: UUID, project: String,
-    taskID: String, runID: String) throws {
-    guard var updated = automationPreferences.items.first(where: { $0.id == id }) else {
+  private func recordAutomationProjectResults(id: UUID, project: String,
+    taskID: String, runIDs: [String]) throws {
+    guard let runID = runIDs.last,
+      var updated = automationPreferences.items.first(where: { $0.id == id }) else {
       throw AgentFailure(message: "自动化记录已删除。")
     }
-    if !updated.unresolvedRunIDs.contains(runID) {
-      updated.pendingRunIDs = updated.unresolvedRunIDs + [runID]
+    if updated.watchedPullRequest != nil {
+      guard updated.taskID == taskID, updated.selectedProjects.contains(project) else {
+        throw AgentFailure(message: "PR 监控归属已改变，未记录旧回合到新的监控任务。")
+      }
     }
+    var pending = updated.unresolvedRunIDs
+    for id in runIDs where !pending.contains(id) {
+      pending.append(id)
+    }
+    updated.pendingRunIDs = pending
     updated.lastRunID = runID
     updated.taskID = taskID
     if updated.completedProjectsForOccurrence?.contains(project) != true {
