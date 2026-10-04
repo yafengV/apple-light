@@ -24,6 +24,7 @@ struct PRCommentMarkdownTypography {
       bottom = level == 1 ? space * 2 : level == 2 || level == 3 ? space : 0
     case .quote: bottom = space * 2
     case .code: top = space * 5; bottom = top
+    case .table: top = space * 4
     default: break
     }
     if container == .root, case .paragraph = kind, index > 0 {

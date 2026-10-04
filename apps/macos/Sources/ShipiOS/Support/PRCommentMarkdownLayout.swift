@@ -72,6 +72,7 @@ struct PRCommentMarkdownText: NSViewRepresentable {
   let source: String
   let layout: PRCommentMarkdownLayout?
   var trailing: CGFloat = 0
+  var alignment: NSTextAlignment = .left
   @Environment(\.appAppearance) private var appearance
   @Environment(\.openURL) private var openURL
   func makeNSView(context: Context) -> TextView {
@@ -82,8 +83,13 @@ struct PRCommentMarkdownText: NSViewRepresentable {
     view.linkTextAttributes = [:]; view.delegate = view; return view
   }
   func updateNSView(_ view: TextView, context: Context) {
-    let content = LegacyMessageLinkText.attributedText(text, appearance: appearance, size: font.pointSize,
+    let content = NSMutableAttributedString(attributedString: LegacyMessageLinkText.attributedText(text, appearance: appearance, size: font.pointSize,
       weight: weight, lineSpacing: 0, fontOverride: font, lineHeight: lineHeight, inlineCodeScale: 0.92)
+    )
+    content.enumerateAttribute(.paragraphStyle, in: .init(location: 0, length: content.length)) { value, range, _ in
+      let paragraph = (value as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+      paragraph.alignment = alignment; content.addAttribute(.paragraphStyle, value: paragraph, range: range)
+    }
     let selected = view.selectedRange()
     if view.textStorage?.isEqual(to: content) != true {
       view.textStorage?.setAttributedString(content)

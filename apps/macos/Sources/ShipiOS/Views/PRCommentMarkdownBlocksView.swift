@@ -37,6 +37,8 @@ struct PRCommentMarkdownBlocksView: View {
         .padding(.vertical, metrics.space * 2)
     case .list:
       PRCommentMarkdownBlocksView(blocks: block.children, source: source, layout: layout, container: .list, trailing: trailing, listDepth: listDepth + 1)
+    case .table:
+      PRCommentMarkdownTableView(block: block, source: source)
     case .item(let marker, let checked):
       HStack(alignment: .top, spacing: metrics.space * 1.5) {
         Group {
