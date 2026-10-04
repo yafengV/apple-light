@@ -482,7 +482,12 @@ final class CodexChatTransport {
     clients.removeAll()
     let pendingStartups = Array(startupTasks.values)
     for startup in pendingStartups { await startup.value }
-    for client in running { await client.stop() }
+    // Independent project Agents must receive EOF together. Sequential waits
+    // accumulate SessionEnd deadlines and can strand another session's cleanup.
+    await withTaskGroup(of: Void.self) { group in
+      for client in running { group.addTask { @MainActor in await client.stop() } }
+      await group.waitForAll()
+    }
   }
 
   func resolveBrowserRequest(taskID: String, requestID: String, result: JSONValue) async throws {

@@ -222,9 +222,12 @@ final class CodexHookStatsTests: XCTestCase {
     XCTAssertNil(store.hookSettings.error); store.hookSettings.close()
     return (store, server, root)
   }
-  private func definitions(_ handlers: [(String, String)], asynchronous: Set<String> = []) -> JSONValue {
+  private func definitions(_ handlers: [(String, String)], asynchronous: Set<String> = [], timeout: Double? = nil) -> JSONValue {
     .object(["hooks": .object(Dictionary(handlers.map { event, command in
-      (event, JSONValue.array([.object(["hooks": .array([.object(["type": .string("command"), "command": .string(command), "async": .bool(asynchronous.contains(event))])])])]))
+      var fields: [String: JSONValue] = ["type": .string("command"), "command": .string(command),
+        "async": .bool(asynchronous.contains(event))]
+      if let timeout { fields["timeout"] = .number(timeout) }
+      return (event, JSONValue.array([.object(["hooks": .array([.object(fields)])])]))
     }, uniquingKeysWith: { a, _ in a }))])
   }
 
@@ -318,5 +321,132 @@ final class CodexHookStatsTests: XCTestCase {
     XCTAssertTrue(stats.runs.first?.visibleEntries.contains { $0.text.contains("prompt denied") } == true)
     XCTAssertTrue(try server.records().isEmpty)
     await store.shutdown()
+  }
+
+  @MainActor func testRealSessionEndSurvivesAgentEOFAndPersistsItsInternalTurn() async throws {
+    let (store, server, root) = try await liveFixture(definitions([
+      ("SessionEnd", #"printf 'ended' > "$PLUGIN_DATA/session-ended"; printf 'SESSION-END-ERROR\n' >&2; exit 1"#)],
+      asynchronous: ["SessionEnd"]))
+    defer { server.stop(); try? FileManager.default.removeItem(at: root) }
+    store.draft = "Session shutdown history"; await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask), id = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: id)?.value
+    let before = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    XCTAssertEqual(before.status, "succeeded")
+    XCTAssertTrue(before.codexHookRuns.isEmpty)
+    await store.shutdown()
+    let marker = FileManager.default.enumerator(at: store.dataRoot.appendingPathComponent("Hooks/PluginData"),
+      includingPropertiesForKeys: nil)?.allObjects.compactMap { $0 as? URL }
+      .first { $0.lastPathComponent == "session-ended" }
+    XCTAssertNotNil(marker, "The actual SessionEnd command must run, even when configured async")
+    let result = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    let end = try XCTUnwrap(result.codexHookRuns.first { $0.eventName == "session_end" }, result.result?.pretty ?? "")
+    XCTAssertEqual(end.status, "failed")
+    XCTAssertEqual(end.scope, "thread")
+    XCTAssertNotNil(end.runtimeTurnID)
+    XCTAssertNotEqual(end.runtimeTurnID, result.result?["codex_turn_id"].text)
+    XCTAssertTrue(end.visibleEntries.contains { $0.text.contains("SESSION-END-ERROR") })
+    XCTAssertEqual(result.codexHookStats?.errorCount, 1)
+    XCTAssertEqual(result.result?["response"], before.result?["response"])
+    let restored = WorkspaceStore(dataRoot: store.dataRoot); await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == id }?.codexHookRuns, result.codexHookRuns)
+    await restored.shutdown()
+  }
+
+  @MainActor func testThreadLifecycleCannotAttachToPendingNewServiceOrUnknownThread() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("hook-end-history-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root); await store.restore(); await store.openProjectless()
+    let taskID = UUID().uuidString
+    store.library.tasks.append(.init(id: taskID, project: "", title: "Old session", runIDs: ["run", "pending"]))
+    let index = try XCTUnwrap(store.library.tasks.firstIndex { $0.id == taskID })
+    store.library.tasks[index].codexThreadID = "new-thread"
+    store.library.chatRuns = [try run(), AgentRun(id: "pending", kind: "chat", project: "", status: "running",
+      createdAt: 3, updatedAt: 3, request: .object([:]), result: nil)]
+    var ending = hook("end", event: "session_end"); ending.scope = "thread"
+    let completed = try event(ending, turn: "internal-shutdown")
+    store.recordCodexHook(taskID: taskID, threadID: "thread", event: completed)
+    store.recordCodexHook(taskID: taskID, threadID: "thread", event: completed)
+    XCTAssertEqual(store.library.chatRuns[0].codexHookRuns.count, 1)
+    XCTAssertEqual(store.library.chatRuns[0].codexHookRuns.first?.runtimeTurnID, "internal-shutdown")
+    XCTAssertTrue(store.library.chatRuns[1].codexHookRuns.isEmpty)
+    store.recordCodexHook(runID: "pending", taskID: taskID, threadID: "thread", event: completed)
+    store.recordCodexHook(taskID: taskID, threadID: "unknown", event: completed)
+    ending.scope = "turn"
+    store.recordCodexHook(taskID: taskID, threadID: "thread", event: try event(ending, turn: "unbound"))
+    XCTAssertEqual(store.library.chatRuns[0].codexHookRuns.count, 1)
+    XCTAssertTrue(store.library.chatRuns[1].codexHookRuns.isEmpty)
+    await store.shutdown()
+  }
+
+  @MainActor func testRealSessionEndExplicitStopAndServiceChangeKeepOriginalRun() async throws {
+    let (store, server, root) = try await liveFixture(definitions([("SessionEnd", "exit 0")]))
+    defer { server.stop(); try? FileManager.default.removeItem(at: root) }
+    store.draft = "First session"; await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask), first = try XCTUnwrap(task.runIDs.first)
+    await store.modelTask(runID: first)?.value
+    await store.codexTransport.stop(taskID: task.id)
+    for _ in 0..<100 {
+      if store.library.chatRuns.first(where: { $0.id == first })?.codexHookStats?.count == 1 { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first }?.codexHookRuns.map(\.status), ["completed"])
+    let secondStarted = await store.startChat("Resumed session", taskID: task.id)
+    let second = try XCTUnwrap(secondStarted)
+    await store.modelTask(runID: second)?.value
+    var config = server.config; config.baseURL = config.baseURL.replacingOccurrences(of: "127.0.0.1", with: "localhost")
+    try store.saveModelConfiguration(config)
+    let thirdStarted = await store.startChat("Changed service", taskID: task.id)
+    let third = try XCTUnwrap(thirdStarted)
+    await store.modelTask(runID: third)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first }?.codexHookStats?.count, 1)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == second }?.codexHookRuns.map(\.status), ["completed"])
+    XCTAssertTrue(store.library.chatRuns.first { $0.id == third }?.codexHookRuns.isEmpty == true)
+    await store.shutdown()
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == third }?.codexHookRuns.map(\.status), ["completed"])
+    XCTAssertEqual(try server.records().count, 3)
+  }
+
+  @MainActor func testRealSessionEndTimeoutIsRecordedBeforeAgentExit() async throws {
+    let (store, server, root) = try await liveFixture(definitions([
+      ("SessionEnd", #"touch "$PLUGIN_DATA/end-started"; sleep 5; touch "$PLUGIN_DATA/end-finished""#)]))
+    defer { server.stop(); try? FileManager.default.removeItem(at: root) }
+    store.draft = "Timeout on shutdown"; await store.sendDraft()
+    let id = try XCTUnwrap(store.selectedTask?.runIDs.first)
+    await store.modelTask(runID: id)?.value
+    await store.shutdown()
+    let end = try XCTUnwrap(store.library.chatRuns.first { $0.id == id }?.codexHookRuns.first)
+    XCTAssertEqual(end.eventName, "session_end"); XCTAssertEqual(end.status, "failed")
+    XCTAssertTrue(end.visibleEntries.contains { $0.kind == "error" && !$0.text.isEmpty })
+    let markers = FileManager.default.enumerator(at: store.dataRoot.appendingPathComponent("Hooks/PluginData"),
+      includingPropertiesForKeys: nil)?.allObjects.compactMap { ($0 as? URL)?.lastPathComponent } ?? []
+    XCTAssertTrue(markers.contains("end-started")); XCTAssertFalse(markers.contains("end-finished"))
+  }
+
+  @MainActor func testRealShutdownStartsIndependentSessionEndHooksTogether() async throws {
+    let command = #"mktemp "$PLUGIN_DATA/ready.XXXXXX" >/dev/null; while [ "$(ls "$PLUGIN_DATA"/ready.* | wc -l)" -lt 2 ]; do sleep 0.02; done"#
+    for sharedProject in [false, true] {
+      let (store, server, root) = try await liveFixture(definitions([("SessionEnd", command)], timeout: 3))
+      defer { server.stop(); try? FileManager.default.removeItem(at: root) }
+      if sharedProject {
+        let project = root.appendingPathComponent("Project")
+        try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+        await store.open(project)
+        XCTAssertTrue(store.connected, store.error ?? "")
+      }
+      store.draft = "First independent session"; await store.sendDraft()
+      let first = try XCTUnwrap(store.selectedTask?.runIDs.first)
+      await store.modelTask(runID: first)?.value
+      store.newTask()
+      let secondStarted = await store.startChat("Second independent session")
+      let second = try XCTUnwrap(secondStarted)
+      await store.modelTask(runID: second)?.value
+      await store.shutdown()
+      for id in [first, second] {
+        let end = try XCTUnwrap(store.library.chatRuns.first { $0.id == id }?.codexHookRuns.first)
+        XCTAssertEqual(end.eventName, "session_end")
+        XCTAssertEqual(end.status, "completed", "Both real shell handlers must start before either can complete: \(end.entries)")
+      }
+    }
   }
 }

@@ -1124,10 +1124,23 @@ impl CodexBridge {
             .keys()
             .cloned()
             .collect::<Vec<_>>();
+        let mut stops = tokio::task::JoinSet::new();
         for task_id in task_ids {
-            let _ =
-                tokio::time::timeout(std::time::Duration::from_secs(10), self.stop(&task_id)).await;
+            self.browser.cancel_task(&task_id);
+            self.automation.cancel_task(&task_id);
+            if let Ok(sender) = self.sender(&task_id).await {
+                stops.spawn(async move {
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(10), async move {
+                        let (reply, result) = oneshot::channel();
+                        if sender.send(Command::Stop(reply)).await.is_ok() {
+                            let _ = result.await;
+                        }
+                    })
+                    .await;
+                });
+            }
         }
+        while stops.join_next().await.is_some() {}
     }
 }
 
@@ -1186,7 +1199,9 @@ async fn run_thread(
                 }
                 Some(Command::Stop(reply)) => {
                     let _ = live.interrupt_turn().await;
-                    let shutdown = session.take().expect("live session").shutdown().await;
+                    let shutdown = session.take().expect("live session").shutdown_with_events(|event| {
+                        let _ = events.send(json!({"taskId":task_id,"threadId":thread_id,"event":event}));
+                    }).await;
                     let mut active = sessions.lock().await;
                     if active.get(&task_key).is_some_and(|handle| handle.thread_id == thread_id) {
                         active.remove(&task_key);
@@ -1222,7 +1237,11 @@ async fn run_thread(
         }
     }
     if let Some(live) = session {
-        let _ = live.shutdown().await;
+        let _ = live
+            .shutdown_with_events(|event| {
+                let _ = events.send(json!({"taskId":task_id,"threadId":thread_id,"event":event}));
+            })
+            .await;
     }
     let mut active = sessions.lock().await;
     if active

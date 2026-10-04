@@ -1354,6 +1354,8 @@ final class WorkspaceStore {
     connected = false
     session = UUID()
     await codexTransport.shutdown()
+    // SessionEnd notifications can update historical runs during Agent teardown.
+    saveLibrary()
     await environmentSettingsSession.close()
     await client.stop()
   }

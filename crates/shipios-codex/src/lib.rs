@@ -1139,8 +1139,58 @@ impl CodexSession {
         Ok(())
     }
 
-    pub async fn shutdown(mut self) -> Result<()> {
-        let result = self.thread.shutdown_and_wait().await;
+    pub async fn shutdown(self) -> Result<()> {
+        self.shutdown_with_events(|_| {}).await
+    }
+
+    /// ShutdownComplete follows the final SessionEnd notifications. Runtime
+    /// termination alone does not prove that its queued events were consumed.
+    pub async fn shutdown_with_events(mut self, mut publish: impl FnMut(EventMsg)) -> Result<()> {
+        let result = {
+            let shutdown = self.thread.shutdown_and_wait();
+            tokio::pin!(shutdown);
+            let drain_deadline = tokio::time::sleep(std::time::Duration::from_secs(2));
+            tokio::pin!(drain_deadline);
+            let mut terminated = None;
+            let mut flush_error = None;
+            loop {
+                tokio::select! {
+                    result = &mut shutdown, if terminated.is_none() => {
+                        terminated = Some(result.map_err(anyhow::Error::from));
+                        drain_deadline.as_mut().reset(tokio::time::Instant::now()
+                            + std::time::Duration::from_secs(2));
+                    }
+                    event = self.thread.next_event() => match event {
+                        Ok(event) => {
+                            if matches!(event.msg, EventMsg::TurnComplete(_) | EventMsg::TurnAborted(_))
+                                && let Err(error) = self.thread.flush_rollout().await {
+                                    flush_error = Some(error);
+                                    continue;
+                            }
+                            let complete = matches!(event.msg, EventMsg::ShutdownComplete);
+                            publish(event.msg);
+                            if complete {
+                                let result = match terminated.take() {
+                                    Some(result) => result,
+                                    None => shutdown.await.map_err(anyhow::Error::from),
+                                };
+                                break result.and_then(|()| match flush_error {
+                                    Some(error) => Err(error.into()),
+                                    None => Ok(()),
+                                });
+                            }
+                        }
+                        Err(error) => break Err(error.into()),
+                    },
+                    _ = &mut drain_deadline, if terminated.is_some() => {
+                        break match terminated.take().expect("runtime terminated") {
+                            Err(error) => Err(error),
+                            Ok(()) => Err(anyhow::anyhow!("Codex shutdown completed without its terminal event")),
+                        };
+                    }
+                }
+            }
+        };
         self.manager.remove_thread(&self.thread_id).await;
         result.context("shut down Codex thread")?;
         if self._home_guard.has_auth {

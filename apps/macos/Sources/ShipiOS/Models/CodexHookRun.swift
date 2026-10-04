@@ -18,6 +18,8 @@ struct CodexHookRun: Codable, Equatable, Identifiable, Sendable {
   }
   let hookID: String
   var invocationID: String? = nil
+  var runtimeTurnID: String? = nil
+  var scope: String? = nil
   var id: String { invocationID ?? hookID }
   let startedAt: Int
   let completedAt: Int?
@@ -28,7 +30,8 @@ struct CodexHookRun: Codable, Equatable, Identifiable, Sendable {
   let displayOrder: Int
   let entries: [Entry]
   enum CodingKeys: String, CodingKey {
-    case invocationID, source, status, entries
+    case invocationID, scope, source, status, entries
+    case runtimeTurnID = "runtime_turn_id"
     case hookID = "id", startedAt = "started_at", completedAt = "completed_at"
     case eventName = "event_name", statusMessage = "status_message", displayOrder = "display_order"
   }

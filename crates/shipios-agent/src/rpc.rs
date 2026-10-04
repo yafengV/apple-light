@@ -383,8 +383,17 @@ pub async fn serve(
     codex.shutdown().await;
     event_task.abort();
     let _ = event_task.await;
-    codex_event_task.abort();
-    let _ = codex_event_task.await;
+    // Dropping all producers closes the broadcast stream after queued teardown
+    // events. Aborting the forwarder here loses SessionEnd and ShutdownComplete.
+    drop(codex);
+    let mut codex_event_task = codex_event_task;
+    if tokio::time::timeout(std::time::Duration::from_secs(2), &mut codex_event_task)
+        .await
+        .is_err()
+    {
+        codex_event_task.abort();
+        let _ = codex_event_task.await;
+    }
     drop(sender);
     // A client that stops reading must not keep the agent alive forever.
     let mut writer = writer;

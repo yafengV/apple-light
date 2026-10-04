@@ -14,6 +14,7 @@ final class AgentClient {
   private var generation = UUID()
   private var decoder = FrameDecoder()
   private var stopping = false
+  private var outputFinished = true
   private(set) var stderrTail = ""
 
   func start(executable: URL, project: URL, dataDirectory: URL,
@@ -43,10 +44,12 @@ final class AgentClient {
     stopping = false
     stderrTail = ""
     decoder = FrameDecoder()
+    outputFinished = true
     child.terminationHandler = { [weak self] child in
       Task { @MainActor in self?.terminated(status: child.terminationStatus, token: token) }
     }
     try child.run()
+    outputFinished = false
     process = child
     input = stdin.fileHandleForWriting
     // Dedicated readers prevent Foundation pipe buffering from blocking the main actor.
@@ -62,6 +65,7 @@ final class AgentClient {
     }
     Task { [weak self] in
       for await bytes in outputStream { self?.receive(bytes, token: token) }
+      if self?.generation == token { self?.outputFinished = true }
     }
     DispatchQueue.global(qos: .utility).async { [weak self] in
       while true {
@@ -119,23 +123,31 @@ final class AgentClient {
   }
 
   func stop(waitForEOF: Bool = true) async {
-    guard let child = process else { return }
+    let token = generation
+    let child = process
     stopping = true
     try? input?.close()
     input = nil
     // EOF requests cancellation. Wait without blocking the UI before falling back to SIGTERM.
     if waitForEOF {
       for _ in 0..<100 {
-        if !child.isRunning { break }
+        if child?.isRunning != true { break }
         try? await Task.sleep(for: .milliseconds(50))
       }
     }
-    if child.isRunning { child.terminate() }
+    if child?.isRunning == true { child?.terminate() }
     for _ in 0..<100 {
-      if !child.isRunning { break }
+      if child?.isRunning != true { break }
       try? await Task.sleep(for: .milliseconds(50))
     }
-    if child.isRunning { kill(child.processIdentifier, SIGKILL) }
+    if let child, child.isRunning { kill(child.processIdentifier, SIGKILL) }
+    // Process termination may reach the main actor before its final stdout
+    // frames. Keep this generation valid until the ordered consumer sees EOF.
+    for _ in 0..<40 {
+      if generation != token || outputFinished { break }
+      try? await Task.sleep(for: .milliseconds(50))
+    }
+    guard generation == token else { return }
     finishPending("Agent 连接已关闭")
     process = nil
     generation = UUID()
