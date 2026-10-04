@@ -3,6 +3,9 @@
 mod automation_tool;
 mod browser_tool;
 mod confetti_tool;
+mod descendant_interrupts;
+#[cfg(test)]
+mod descendant_interrupts_tests;
 mod hook_plugins;
 mod hooks;
 pub use automation_tool::AutomationToolBridge;
@@ -567,6 +570,9 @@ pub struct CodexSession {
     watch_inspection: bool,
     permissions: SessionPermissions,
     named_permissions: Option<PermissionProfileSnapshot>,
+    descendant_interrupts: tokio::sync::Mutex<tokio::task::JoinSet<()>>,
+    #[cfg(test)]
+    test_config: Config,
     _home_guard: SessionHomeGuard,
 }
 
@@ -853,6 +859,8 @@ impl CodexSession {
                 None,
             )
         });
+        #[cfg(test)]
+        let test_config = config.clone();
         let NewThread {
             thread_id, thread, ..
         } = match history {
@@ -899,6 +907,9 @@ impl CodexSession {
             watch_inspection,
             permissions: options.permissions,
             named_permissions,
+            descendant_interrupts: tokio::sync::Mutex::new(tokio::task::JoinSet::new()),
+            #[cfg(test)]
+            test_config,
             _home_guard: home_guard,
         })
     }
@@ -1051,8 +1062,26 @@ impl CodexSession {
     }
 
     pub async fn interrupt_turn(&self) -> Result<()> {
-        self.thread.submit(Op::Interrupt).await?;
-        Ok(())
+        let result = self.thread.submit(Op::Interrupt).await;
+        let manager = Arc::clone(&self.manager);
+        let parent = self.thread_id;
+        let mut jobs = self.descendant_interrupts.lock().await;
+        while let Some(result) = jobs.try_join_next() {
+            if result.is_err() {
+                eprintln!("ShipiOS descendant interrupt worker did not complete");
+            }
+        }
+        jobs.spawn(async move {
+            let report = descendant_interrupts::interrupt_active_descendants(manager, parent).await;
+            if report.failed != 0 || report.timed_out {
+                // Counts only: never print model/provider errors or credentials.
+                eprintln!(
+                    "ShipiOS descendant interrupt incomplete: failed={}, timed_out={}",
+                    report.failed, report.timed_out
+                );
+            }
+        });
+        result.map(|_| ()).map_err(Into::into)
     }
 
     pub async fn clean_background_terminals(&self) -> Result<()> {
@@ -1197,6 +1226,17 @@ impl CodexSession {
             }
         };
         self.manager.remove_thread(&self.thread_id).await;
+        // The manager is private to this task. Drain host-owned cleanup jobs
+        // and shut down its remaining children before releasing ephemeral auth.
+        self.descendant_interrupts.get_mut().shutdown().await;
+        let descendants = self
+            .manager
+            .shutdown_all_threads_bounded(std::time::Duration::from_secs(10))
+            .await;
+        ensure!(
+            descendants.submit_failed.is_empty() && descendants.timed_out.is_empty(),
+            "Codex descendant shutdown did not complete"
+        );
         result.context("shut down Codex thread")?;
         if self._home_guard.has_auth {
             let removed = logout(
