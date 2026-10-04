@@ -2,12 +2,11 @@ import SwiftUI
 
 struct PluginComponentSettingsView: View {
   enum Kind {
-    case mcpServers, hooks, plugins, skills
+    case mcpServers, plugins, skills
 
     var emptyTitle: String {
       switch self {
       case .mcpServers: "尚未安装 MCP 服务器"
-      case .hooks: "尚未安装 Hooks"
       case .plugins: "尚未安装插件"
       case .skills: "尚未安装技能"
       }
@@ -17,8 +16,6 @@ struct PluginComponentSettingsView: View {
       switch self {
       case .mcpServers:
         "MCP 服务器随 ShipiOS 插件保存在独立数据目录中。当前页面可以检查声明并统一启停插件。"
-      case .hooks:
-        "这里可检查已安装插件的 Hook 声明。启用插件不会授权或执行 Hook；运行时接入前，所有 Hook 均保持停用。"
       case .plugins:
         "插件可以包含技能、MCP 服务器、Hooks 和浏览器扩展。ShipiOS 不读取个人 Codex 的插件目录。"
       case .skills:
@@ -37,7 +34,6 @@ struct PluginComponentSettingsView: View {
       guard matches([plugin.name, plugin.summary, plugin.id]) else { return false }
       switch kind {
       case .mcpServers: return plugin.components.mcpServers > 0
-      case .hooks: return plugin.components.hasHooks
       case .plugins: return true
       case .skills: return plugin.components.skills > 0
       }
@@ -94,7 +90,6 @@ struct PluginComponentSettingsView: View {
                     set: { _ = store.setPluginEnabled($0, id: plugin.id) })
                 ).labelsHidden().accessibilityLabel("启用插件：\(plugin.name)")
               }
-              if kind == .hooks { hookDetails(for: plugin) }
             }.padding(.vertical, 4)
           }
         }
@@ -124,7 +119,6 @@ struct PluginComponentSettingsView: View {
   private var pageID: String {
     switch kind {
     case .mcpServers: SettingsPage.mcpServers.rawValue
-    case .hooks: SettingsPage.hooks.rawValue
     case .plugins: SettingsPage.plugins.rawValue
     case .skills: SettingsPage.skills.rawValue
     }
@@ -133,7 +127,6 @@ struct PluginComponentSettingsView: View {
   private var importSearchField: SettingsSearchField {
     switch kind {
     case .mcpServers: .mcpImport
-    case .hooks: .hooksImport
     case .plugins: .pluginsImport
     case .skills: .skillsImport
     }
@@ -142,7 +135,6 @@ struct PluginComponentSettingsView: View {
   private var installedSearchField: SettingsSearchField {
     switch kind {
     case .mcpServers: .mcpInstalled
-    case .hooks: .hooksInstalled
     case .plugins: .pluginsInstalled
     case .skills: .skillsInstalled
     }
@@ -151,7 +143,6 @@ struct PluginComponentSettingsView: View {
   private func componentDescription(_ plugin: PluginInstallation) -> String {
     switch kind {
     case .mcpServers: "\(plugin.components.mcpServers) 个 MCP 服务器 · \(plugin.id)"
-    case .hooks: "包含 Hooks · \(plugin.id)"
     case .plugins:
       plugin.components.labels.isEmpty
         ? plugin.id : plugin.components.labels.joined(separator: " · ")
@@ -159,40 +150,4 @@ struct PluginComponentSettingsView: View {
     }
   }
 
-  @ViewBuilder private func hookDetails(for plugin: PluginInstallation) -> some View {
-    let result = Result { try PluginHookCatalog.declarations(pluginID: plugin.id, root: store.dataRoot) }
-    switch result {
-    case .success(let declarations):
-      if declarations.isEmpty {
-        Text("未找到 Hook 声明 · 不会执行")
-          .appFont(.caption).foregroundStyle(.secondary)
-      } else {
-        DisclosureGroup("\(declarations.count) 条 Hook 声明 · 当前不会执行") {
-          ForEach(Array(declarations.enumerated()), id: \.offset) { _, declaration in
-            VStack(alignment: .leading, spacing: 3) {
-              Text("\(declaration.event) · \(declaration.kind)").appFont(.subheadline)
-              if !declaration.detail.isEmpty {
-                Text(declaration.detail).font(.system(.caption, design: .monospaced))
-                  .textSelection(.enabled)
-              }
-              if let matcher = declaration.matcher {
-                Text("匹配：\(matcher)").appFont(.caption).foregroundStyle(.secondary)
-              }
-              if let status = declaration.statusMessage {
-                Text(status).appFont(.caption).foregroundStyle(.secondary)
-              }
-              if let timeout = declaration.timeout {
-                Text("超时：\(timeout) 秒").appFont(.caption2).foregroundStyle(.secondary)
-              }
-              Text("\(declaration.availability) · \(declaration.source)")
-                .appFont(.caption2).foregroundStyle(.secondary)
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
-          }
-        }
-      }
-    case .failure(let error):
-      Text("无法读取 Hook 声明：\(error.localizedDescription)")
-        .appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
-    }
-  }
 }

@@ -231,6 +231,7 @@ final class WorkspaceStore {
   var pluginsLoaded = false
   var pluginsLoading = false
   var pluginsError: String?
+  var hookSettings: HookSettingsState
   var mcpServers: [MCPServerConfiguration] = []
   var mcpServersLoaded = false
   var mcpServersLoading = false
@@ -297,6 +298,7 @@ final class WorkspaceStore {
   var hasSettingsConfirmation: Bool {
     archiveDeletion != nil || shortcutResetRequested || memoryDeletion != nil || archiveConfirmation() != nil
       || appearanceThemeImport != nil || pendingSettingsNavigation != nil
+      || hookSettings.selectedSourceID != nil
   }
   @ObservationIgnored var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?
@@ -518,6 +520,7 @@ final class WorkspaceStore {
   init(dataRoot: URL? = nil, agentExecutable: URL? = nil,
     browserDataStore: WKWebsiteDataStore? = nil) {
     root = dataRoot ?? Self.defaultDataRoot
+    hookSettings = HookSettingsState(root: root)
     voiceRecordingHistory = VoiceRecordingHistory(dataRoot: root)
     self.agentExecutable = agentExecutable
     self.browserDataStore = browserDataStore

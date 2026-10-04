@@ -444,7 +444,7 @@ extension WorkspaceStore {
       fileAppendix: reviewAppendix ?? fileAppendix, readOnly: review != nil || sideChat
         || library.chatRuns.first(where: { $0.id == runID })?.request["watch_phase"].text == "inspection",
       planMode: mode == .plan, goalInstructions: goalInstructions,
-      mcpServers: mcpServers, permissions: permissions,
+      mcpServers: mcpServers, hooks: sideChat ? [] : try hookSettings.sessionBindings(), permissions: permissions,
       responses: library.agentResponsePreferences,
       webSearchMode: library.agentWebSearchMode,
       confettiEnabled: confettiEnabled && !appearance.shouldReduceMotion,

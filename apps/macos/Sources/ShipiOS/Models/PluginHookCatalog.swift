@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 struct PluginHookDeclaration: Equatable {
   let event: String
@@ -26,7 +27,7 @@ struct PluginHookDeclaration: Equatable {
 }
 
 enum PluginHookCatalog {
-  static func declarations(pluginID: String, root: URL) throws -> [PluginHookDeclaration] {
+  private static func configurations(pluginID: String, root: URL) throws -> [(String, Any)] {
     try PluginStorage.validateID(pluginID)
     let package = PluginStorage.packageURL(root: root, id: pluginID).standardizedFileURL
     let selection = try PluginStorage.selectedManifest(in: package)
@@ -51,6 +52,15 @@ enum PluginHookCatalog {
       sources = [("./hooks/hooks.json", try JSONSerialization.jsonObject(
         with: checkedData(at: file, inside: package)))]
     }
+    return sources
+  }
+
+  static func declarations(pluginID: String, root: URL) throws -> [PluginHookDeclaration] {
+    let sources = try configurations(pluginID: pluginID, root: root)
+    return try declarations(sources: sources)
+  }
+
+  private static func declarations(sources: [(String, Any)]) throws -> [PluginHookDeclaration] {
     var declarations: [PluginHookDeclaration] = []
     for (source, json) in sources {
       guard let file = json as? [String: Any] else {
@@ -92,6 +102,31 @@ enum PluginHookCatalog {
       }
     }
     return declarations
+  }
+
+  static func sources(plugin: PluginInstallation, root: URL,
+    decisions: HookStateStorage.Decisions) throws -> [HookSettingsSource] {
+    let package = PluginStorage.packageURL(root: root, id: plugin.id).standardizedFileURL
+    var occurrences: [String: Int] = [:]
+    let configurations = try configurations(pluginID: plugin.id, root: root)
+    _ = try declarations(sources: configurations)
+    return try configurations.map { label, object in
+      let index = occurrences[label, default: 0]
+      occurrences[label] = index + 1
+      // Source identity follows the package and declared location, rather than
+      // definition contents, so edits become modified instead of losing history.
+      let identity = plugin.id + "\n" + label + "\n" + String(index)
+      let id = "plugin_" + SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
+      let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
+      guard data.count <= PluginStorage.maximumManifestBytes,
+        let configuration = String(data: data, encoding: .utf8) else {
+        throw AgentFailure(message: "Hook 配置超过 256 KiB。")
+      }
+      let file = try checkedHookURL(label, inside: package)
+      return HookSettingsSource(id: id, pluginID: plugin.id, name: plugin.name,
+        label: label, fileURL: file, pluginEnabled: plugin.enabled,
+        binding: HookSourceBinding(id: id, configuration: configuration, states: decisions[id] ?? [:]))
+    }
   }
 
   private static func checkedHookURL(_ path: String, inside package: URL) throws -> URL {

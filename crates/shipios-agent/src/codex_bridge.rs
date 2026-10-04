@@ -48,6 +48,7 @@ pub struct StartThread {
     pub mcp_servers: Vec<ShipMcpServer>,
     #[serde(default)]
     pub hooks: Vec<shipios_codex::SessionHookSource>,
+    pub hooks_attachment: Option<CodexTextAttachment>,
     #[serde(default)]
     pub confetti_enabled: bool,
     pub pause_automation_id: Option<String>,
@@ -58,7 +59,9 @@ pub struct StartThread {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HookInventoryRequest {
+    #[serde(default)]
     pub sources: Vec<shipios_codex::SessionHookSource>,
+    pub sources_attachment: Option<CodexTextAttachment>,
 }
 
 #[derive(Deserialize)]
@@ -458,7 +461,8 @@ impl CodexBridge {
         request: HookInventoryRequest,
     ) -> Result<shipios_codex::SessionHookInventory> {
         let home = private_dir(&self.data_dir.join("Codex/HookInventory"))?;
-        shipios_codex::session_hook_inventory(&home, &request.sources)
+        let sources = self.read_hook_sources(request.sources, request.sources_attachment)?;
+        shipios_codex::session_hook_inventory(&home, &sources)
     }
 
     pub fn resolve_browser(&self, response: CodexBrowserResolution) -> Result<()> {
@@ -484,6 +488,7 @@ impl CodexBridge {
     }
 
     pub async fn start(&self, request: StartThread) -> Result<ThreadInfo> {
+        let hooks = self.read_hook_sources(request.hooks, request.hooks_attachment)?;
         if let Some(id) = &request.pause_automation_id {
             Uuid::parse_str(id).context("pauseAutomationId must be a UUID")?;
         }
@@ -607,7 +612,7 @@ impl CodexBridge {
             responses,
             web_search,
             mcp_servers: request.mcp_servers,
-            hooks: request.hooks,
+            hooks,
             browser_bridge: Some(self.browser.for_task(task_id.clone())),
             automation_control: request
                 .pause_automation_id
@@ -990,6 +995,72 @@ impl CodexBridge {
         Ok(text)
     }
 
+    fn read_hook_sources(
+        &self,
+        inline: Vec<shipios_codex::SessionHookSource>,
+        attachment: Option<CodexTextAttachment>,
+    ) -> Result<Vec<shipios_codex::SessionHookSource>> {
+        let Some(attachment) = attachment else {
+            return Ok(inline);
+        };
+        ensure!(inline.is_empty(), "hook sources cannot be supplied twice");
+        Uuid::parse_str(&attachment.id).context("hook attachment ID must be a UUID")?;
+        ensure!(
+            attachment.byte_count > 0 && attachment.byte_count <= 8 * 1024 * 1024,
+            "hook attachment exceeds size limit"
+        );
+        let root = self
+            .data_dir
+            .parent()
+            .and_then(std::path::Path::parent)
+            .context("project data directory has no hook attachment root")?
+            .canonicalize()
+            .context("resolve hook attachment root")?;
+        let expected = root.join("HookStaging");
+        ensure!(
+            expected.symlink_metadata()?.file_type().is_dir(),
+            "invalid hook staging directory"
+        );
+        let directory = expected.canonicalize()?;
+        ensure!(directory == expected, "hook staging escaped data root");
+        let file = directory.join(format!("{}.json", attachment.id));
+        let metadata = file.symlink_metadata().context("inspect hook attachment")?;
+        ensure!(
+            metadata.file_type().is_file(),
+            "hook attachment is not a regular file"
+        );
+        ensure!(
+            metadata.len() == attachment.byte_count,
+            "hook attachment size changed"
+        );
+        // Bound reads as well as preflight metadata: an external writer cannot
+        // cause a larger allocation after inspection.
+        use std::io::Read;
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+        }
+        let reader = options.open(&file).context("open hook attachment")?;
+        let opened = reader.metadata()?;
+        ensure!(
+            opened.is_file() && opened.len() == attachment.byte_count,
+            "hook attachment changed before reading"
+        );
+        let mut bytes = Vec::new();
+        reader
+            .take(attachment.byte_count + 1)
+            .read_to_end(&mut bytes)?;
+        ensure!(
+            bytes.len() as u64 == attachment.byte_count,
+            "hook attachment size changed"
+        );
+        std::fs::remove_file(&file).context("remove hook attachment")?;
+        serde_json::from_slice(&bytes).context("invalid hook attachment")
+    }
+
     pub async fn interrupt(&self, task_id: &str) -> Result<()> {
         self.browser.cancel_task(task_id);
         self.automation.cancel_task(task_id);
@@ -1215,6 +1286,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     hooks: Vec::new(),
+                        hooks_attachment: None,
                     confetti_enabled: false,
                     pause_automation_id: None,
                     fork_origin: None,
@@ -1244,6 +1316,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     hooks: Vec::new(),
+                        hooks_attachment: None,
                     confetti_enabled: false,
                     pause_automation_id: None,
                     fork_origin: None,
@@ -1275,6 +1348,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     hooks: Vec::new(),
+                        hooks_attachment: None,
                     confetti_enabled: false,
                     pause_automation_id: None,
                     fork_origin: None,
@@ -1557,6 +1631,7 @@ mod tests {
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
                         hooks: Vec::new(),
+                        hooks_attachment: None,
                         confetti_enabled: false,
                     pause_automation_id: None,
                     })
@@ -1715,6 +1790,7 @@ mod tests {
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
                         hooks: Vec::new(),
+                        hooks_attachment: None,
                         confetti_enabled: true,
                         pause_automation_id: None,
                         fork_origin: None,
@@ -1845,6 +1921,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     hooks: Vec::new(),
+                    hooks_attachment: None,
                     confetti_enabled: false,
                     pause_automation_id: None,
                 })
@@ -1881,6 +1958,7 @@ mod tests {
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
                     hooks: Vec::new(),
+                    hooks_attachment: None,
                     confetti_enabled: false,
                     pause_automation_id: None,
                 })
@@ -1909,6 +1987,7 @@ mod tests {
                 web_search: custom_web_search,
                 mcp_servers: Vec::new(),
                 hooks: Vec::new(),
+                hooks_attachment: None,
                 confetti_enabled: false,
                 pause_automation_id: None,
             })
@@ -1981,6 +2060,7 @@ mod tests {
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
             hooks: Vec::new(),
+            hooks_attachment: None,
             confetti_enabled: false,
             pause_automation_id: None,
         };
@@ -2041,6 +2121,7 @@ mod tests {
                 web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),
                 hooks: Vec::new(),
+                hooks_attachment: None,
                 confetti_enabled: false,
                 pause_automation_id: None,
             })

@@ -221,7 +221,7 @@ struct RuntimeSettingsView: View {
     case .connections:
       ConnectionSettingsView(store: store)
     case .hooks:
-      PluginComponentSettingsView(store: store, kind: .hooks)
+      HookSettingsView(store: store)
     case .plugins, .mcpServers, .skills:
       PluginSettingsView(store: store)
     case .worktrees:

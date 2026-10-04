@@ -21,6 +21,7 @@ extension WorkspaceStore {
       pluginSkills = loaded.1
       installedPluginSkills = loaded.2
       pluginsLoaded = true
+      hookSettings.invalidate()
       pluginsError = nil
     } catch {
       pluginSkills = []
@@ -168,6 +169,7 @@ extension WorkspaceStore {
   }
 
   private func refreshPluginSkills() throws {
+    hookSettings.invalidate()
     let available = try PluginStorage.skills(preferences: pluginPreferences, root: dataRoot)
     let installed = try PluginStorage.skills(preferences: pluginPreferences, root: dataRoot, includeDisabled: true)
     pluginSkills = available

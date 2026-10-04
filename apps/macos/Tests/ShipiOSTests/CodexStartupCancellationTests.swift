@@ -33,14 +33,12 @@ final class CodexStartupCancellationTests: XCTestCase {
   }
 
   private func delayedExecutable() throws -> URL {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
+    let binary = try AgentTestExecutable.url()
     func quoted(_ path: String) -> String { "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'" }
     let wrapper = root.appendingPathComponent("agent.sh")
     // Record the actual process before a delay longer than the cancellation deadline.
     // exec retains that PID when the real Agent starts.
-    try "#!/bin/sh\nprintf '%s\\n' \"$$\" >> \(quoted(launches.path))\n/bin/sleep 6\nexec \(quoted(repository.appendingPathComponent("target/debug/shipios-agent").path)) \"$@\"\n"
+    try "#!/bin/sh\nprintf '%s\\n' \"$$\" >> \(quoted(launches.path))\n/bin/sleep 6\nexec \(quoted(binary.path)) \"$@\"\n"
       .write(to: wrapper, atomically: true, encoding: .utf8)
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: wrapper.path)
     return wrapper

@@ -97,6 +97,106 @@ impl Drop for Client {
 }
 
 #[test]
+fn staged_hooks_cross_frame_limit_without_allowing_paths_or_duplicate_sources() {
+    let root = tempfile::tempdir().unwrap();
+    let project = root.path().join("Project");
+    let data = root.path().join("Projects/HookInventory");
+    let staging = root.path().join("HookStaging");
+    for directory in [&project, &data, &staging] {
+        std::fs::create_dir_all(directory).unwrap();
+    }
+    let mut client = Client::launch(&data, &project);
+    client.request("initialize", json!({"protocolVersion":1}));
+    let source = json!({"id":"large","configuration":json!({"hooks":{
+        "PreToolUse":[{"matcher":"shell","hooks":[{"type":"mcp_tool","server":"policy",
+        "tool":"inspect","input":{"evidence":"世界".repeat(20_000)}}]}]
+    }}).to_string()});
+    let write = |contents: &Value| {
+        let id = uuid::Uuid::new_v4().to_string();
+        let file = staging.join(format!("{id}.json"));
+        let bytes = serde_json::to_vec(contents).unwrap();
+        std::fs::write(&file, &bytes).unwrap();
+        (json!({"id":id,"byteCount":bytes.len()}), file)
+    };
+    let (attachment, file) = write(&json!([source.clone()]));
+    assert!(std::fs::metadata(&file).unwrap().len() > 65_536);
+    let listed = client.request("codex.hooks.list", json!({"sourcesAttachment":attachment}));
+    assert!(listed.get("error").is_none(), "{listed}");
+    assert_eq!(
+        listed["result"]["hooks"][0]["definition"]["handler"]["input"]["evidence"],
+        "世界".repeat(20_000)
+    );
+    assert!(!file.exists(), "consumed attachment must be removed");
+
+    let (attachment, file) = write(&json!([source.clone()]));
+    let duplicate = client.request(
+        "codex.hooks.list",
+        json!({"sources":[{"id":"duplicate","configuration":"{}"}],"sourcesAttachment":attachment}),
+    );
+    assert!(
+        duplicate["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("twice")
+    );
+    assert!(
+        file.exists(),
+        "rejected duplicate cannot consume staged data"
+    );
+
+    let mut changed_size = attachment.clone();
+    changed_size["byteCount"] = json!(1);
+    let mismatch = client.request(
+        "codex.hooks.list",
+        json!({"sourcesAttachment":changed_size}),
+    );
+    assert!(
+        mismatch["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("size changed")
+    );
+    let invalid = client.request(
+        "codex.hooks.list",
+        json!({"sourcesAttachment":{"id":"../outside","byteCount":1}}),
+    );
+    assert!(
+        invalid["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("UUID")
+    );
+    let oversized = client.request("codex.hooks.list", json!({"sourcesAttachment":{"id":uuid::Uuid::new_v4().to_string(),"byteCount":8*1024*1024+1}}));
+    assert!(
+        oversized["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("size limit")
+    );
+
+    let outside = root.path().join("outside.json");
+    std::fs::write(&outside, b"[]").unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    std::os::unix::fs::symlink(&outside, staging.join(format!("{id}.json"))).unwrap();
+    let link = client.request(
+        "codex.hooks.list",
+        json!({"sourcesAttachment":{"id":id,"byteCount":2}}),
+    );
+    assert!(
+        link["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("regular file")
+    );
+    assert_eq!(std::fs::read(&outside).unwrap(), b"[]");
+    assert_eq!(
+        client.request("codex.hooks.list", json!({"sources":[]}))["result"]["hooks"],
+        json!([])
+    );
+    client.finish();
+}
+
+#[test]
 fn native_hook_inventory_round_trips_trust_and_recovers_from_invalid_sources() {
     let root = tempfile::tempdir().unwrap();
     let project = root.path().join("Project");

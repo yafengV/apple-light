@@ -345,7 +345,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .runtimeRoot: "数据根目录"
     case .mcpImport: "添加 MCP 服务器"
     case .mcpInstalled: "已安装 MCP 服务器"
-    case .hooksImport: "导入本地插件"
+    case .hooksImport: "重新加载 Hooks"
     case .hooksInstalled: "已安装 Hooks"
     case .pluginsImport: "导入本地插件"
     case .pluginsInstalled: "已安装插件"

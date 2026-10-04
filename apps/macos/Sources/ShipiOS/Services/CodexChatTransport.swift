@@ -10,6 +10,7 @@ final class CodexChatTransport {
     let endpoint: String
     let keyDigest: Data?
     let mcpDigest: Data
+    let hooksDigest: Data
     let additionalFolders: [String]
     let permissionProfileID: String?
     let permissionProfileDigest: Data?
@@ -17,12 +18,13 @@ final class CodexChatTransport {
     let confettiEnabled: Bool
     let readOnly: Bool
 
-    init(config: ModelConfiguration, key: String?, mcpData: Data, additionalFolders: [String],
+    init(config: ModelConfiguration, key: String?, mcpData: Data, hooksData: Data, additionalFolders: [String],
       permissionProfile: AgentNamedPermissionProfile?, confettiEnabled: Bool, pauseAutomationID: UUID?,
       readOnly: Bool) {
       endpoint = config.credentialAccount
       keyDigest = key.map { Data(SHA256.hash(data: Data($0.utf8))) }
       mcpDigest = Data(SHA256.hash(data: mcpData))
+      hooksDigest = Data(SHA256.hash(data: hooksData))
       self.additionalFolders = additionalFolders
       permissionProfileID = permissionProfile?.id
       permissionProfileDigest = permissionProfile.map {
@@ -178,7 +180,7 @@ final class CodexChatTransport {
     config: ModelConfiguration, key: String?,
     initialText: String, continuationText: String, images: [ImageAttachment],
     fileAppendix: String?, readOnly: Bool = false, textOnly: Bool = false, planMode: Bool = false,
-    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration],
+    goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration], hooks: [HookSourceBinding] = [],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
     webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false, pauseAutomationID: UUID? = nil,
     compact: Bool = false, forkOrigin: CodexForkOrigin? = nil,
@@ -205,9 +207,11 @@ final class CodexChatTransport {
     encoder.outputFormatting = [.sortedKeys]
     let mcpData = try encoder.encode(enabledServers)
     let mcpValue = try JSONDecoder().decode(JSONValue.self, from: mcpData)
+    let effectiveHooks = textOnly ? [] : hooks
+    let hooksData = try encoder.encode(effectiveHooks)
     let token = generation
     let selectedProfile = readOnly || textOnly ? nil : permissions.namedProfile
-    let service = ServiceIdentity(config: config, key: key, mcpData: mcpData,
+    let service = ServiceIdentity(config: config, key: key, mcpData: mcpData, hooksData: hooksData,
       additionalFolders: Array(folders.dropFirst()), permissionProfile: selectedProfile,
       confettiEnabled: confettiEnabled, pauseAutomationID: pauseAutomationID, readOnly: readOnly || textOnly)
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
@@ -226,7 +230,9 @@ final class CodexChatTransport {
       let firstTurn = !activeThreads.contains(taskID)
       var sendFullContext = firstTurn
       if firstTurn {
-        let thread = try await client.request("codex.thread.start", [
+        let hooksAttachment = effectiveHooks.isEmpty ? nil : try HookStaging.stage(effectiveHooks, root: dataRoot)
+        defer { hooksAttachment?.remove() }
+        var threadParameters: [String: JSONValue] = [
           "taskId": .string(taskID), "baseUrl": .string(config.baseURL),
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
@@ -257,7 +263,9 @@ final class CodexChatTransport {
           "pauseAutomationId": pauseAutomationID.map { .string($0.uuidString) } ?? .null,
           "forkOrigin": forkOrigin?.wireValue ?? .null,
           "resumeOrigin": resumeOrigin?.wireValue ?? .null,
-        ])
+        ]
+        if let hooksAttachment { threadParameters["hooksAttachment"] = hooksAttachment.wireValue }
+        let thread = try await client.request("codex.thread.start", threadParameters)
         guard generation == token else { throw CancellationError() }
         sendFullContext = thread["resumed"].boolean != true && thread["forked"].boolean != true
         activeThreads.insert(taskID)

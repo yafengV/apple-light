@@ -84,7 +84,9 @@ struct AppContentView: View {
       .accessibilityHidden(store.hasSettingsConfirmation || store.appshotIntroRequest != nil
         || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
       .overlay {
-        if store.pendingSettingsNavigation != nil {
+        if let sourceID = store.hookSettings.selectedSourceID {
+          HookReviewDialog(store: store, sourceID: sourceID).id(sourceID)
+        } else if store.pendingSettingsNavigation != nil {
           SettingsConfirmationDialog(title: "丢弃更改？",
             message: "你有未保存的更改。现在离开将丢失这些更改。",
             confirmLabel: "丢弃更改", busyLabel: "丢弃更改", busy: false,

@@ -10658,6 +10658,7 @@ dependencies = [
  "codex-core-api",
  "codex-exec-server",
  "codex-protocol",
+ "libc",
  "serde",
  "serde_json",
  "sha2 0.10.9",
