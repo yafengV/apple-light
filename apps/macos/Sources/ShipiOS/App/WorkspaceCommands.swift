@@ -134,7 +134,11 @@ struct WorkspaceCommands: Commands {
     }
   }
   private func performUndo(redo: Bool) {
-    guard !WindowModalInteraction.blocksCommands(in: NSApp.keyWindow) else { return }
+    if WindowModalInteraction.blocksCommands(in: NSApp.keyWindow) {
+      guard WindowModalInteraction.allowsTextEditing(in: NSApp.keyWindow) else { return }
+      NSApp.sendAction(NSSelectorFromString(redo ? "redo:" : "undo:"), to: nil, from: nil)
+      return
+    }
     if let taskRenameUndo { taskRenameUndo.perform(redo) }
     else { NSApp.sendAction(NSSelectorFromString(redo ? "redo:" : "undo:"), to: nil, from: nil) }
   }

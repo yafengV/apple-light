@@ -31,6 +31,11 @@ import ObjectiveC
       scope.modalScopeActive else { return false }
     return scope.blocksWorkspaceCommands
   }
+  static func allowsTextEditing(in window: NSWindow?) -> Bool {
+    guard let editor = window?.firstResponder as? NSTextView, editor.isEditable else { return false }
+    let owner = editor.isFieldEditor ? editor.delegate as? NSView : editor
+    return owner.map(allows) == true
+  }
   static func allows(_ view: NSView) -> Bool {
     guard let window = view.window, let scope = (objc_getAssociatedObject(window, &key) as? Holder)?.scope,
       scope.modalScopeActive else { return true }

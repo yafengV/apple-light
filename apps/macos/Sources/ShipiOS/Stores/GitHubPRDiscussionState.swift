@@ -118,6 +118,14 @@ struct GitHubPRCommentDraft: Equatable {
     reviewHead = snapshot?.head; reviewFocus = UUID(); showingReview = true; errors[.review] = nil
   }
   func closeReview() { guard pendingOwner != .review else { return }; showingReview = false; if uncertainOwner != .review { errors[.review] = nil } }
+  @discardableResult func validateReviewSubmission() -> Bool {
+    guard showingReview, pendingOwner != .review, uncertainOwner != .review else { return false }
+    if !reviewDecision.accepts(reviewBody) {
+      errors[.review] = reviewDecision == .requestChanges ? "要求修改前请添加评论。" : "提交审查前请添加评论。"
+      lastErrorOwner = .review; return false
+    }
+    errors[.review] = nil; return true
+  }
   func draftAction(_ id: String) -> GitHubPRDiscussionAction? {
     guard let draft = drafts[id] else { return nil }
     switch draft.target {

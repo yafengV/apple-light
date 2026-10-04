@@ -312,14 +312,15 @@ struct TaskPullRequestDetailView: View {
         valid: { valid }, confirm: { apply(.merge(state.selectedMethod)) })
         .frame(width: 0, height: 0)
     }
-    .sheet(isPresented: $discussion.showingReview) {
-      TaskPullRequestReviewDialog(state: discussion, enabled: discussion.canWrite(request, writable: writable),
-        submit: { if let action = discussion.reviewAction { applyDiscussion(action, nil) } }, confirm: confirmDiscussion)
-    }
-    .sheet(item: $discussion.deleteTarget) { comment in
-      TaskPullRequestDeleteCommentDialog(comment: comment, state: discussion,
-        enabled: discussion.canWrite(request, writable: writable),
-        submit: { applyDiscussion(.delete(id: comment.id, kind: comment.kind), nil) })
+    .background {
+      PullRequestDiscussionDialogPresenter(state: discussion, request: request, writable: writable,
+        valid: { valid }, submitReview: { if let action = discussion.reviewAction { applyDiscussion(action, nil) } },
+        confirmReview: confirmDiscussion,
+        deleteComment: { comment in applyDiscussion(.delete(id: comment.id, kind: comment.kind), nil) },
+        reportDeleteError: { message in
+          store.notices.show(id: "pr-delete-" + request.url, title: "无法删除评论",
+            description: message, level: .error, taskID: taskID)
+        }).frame(width: 0, height: 0)
     }
   }
 

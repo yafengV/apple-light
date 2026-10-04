@@ -1,0 +1,206 @@
+{
+  "version": "26.930.21537",
+  "build": "12776",
+  "reviewAsset": "pull-request-detail-query-da2fa14a2b60.js",
+  "reviewSHA256": "4611dbf5e9df73227d8e0868b8031a65a59206fcd0fdedf03215ceeea40150a1",
+  "deleteAsset": "pull-request-comment-ae0822c719d2.js",
+  "deleteSHA256": "75f3614a2d5537a334dda26896e87ed89bf35e3bcb6698f93eeb00699d3a56c4",
+  "reviewCases": [
+    {
+      "name": "empty-comment",
+      "decision": "comment",
+      "pending": false,
+      "width": 600,
+      "rows": 4,
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "fieldsetDisabled": false,
+      "placeholder": "Add a comment…",
+      "confirmDisabled": false,
+      "confirmLoading": false,
+      "closeButton": false,
+      "prevented": true,
+      "mutationCount": 0,
+      "payload": null,
+      "result": {
+        "open": true,
+        "body": "",
+        "decision": "comment",
+        "error": "Add a comment before submitting the review"
+      }
+    },
+    {
+      "name": "empty-request",
+      "decision": "request_changes",
+      "pending": false,
+      "width": 600,
+      "rows": 4,
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "fieldsetDisabled": false,
+      "placeholder": "Add a comment…",
+      "confirmDisabled": false,
+      "confirmLoading": false,
+      "closeButton": false,
+      "prevented": true,
+      "mutationCount": 0,
+      "payload": null,
+      "result": {
+        "open": true,
+        "body": "  ",
+        "decision": "request_changes",
+        "error": "Add a comment before requesting changes"
+      }
+    },
+    {
+      "name": "empty-approve",
+      "decision": "approve",
+      "pending": false,
+      "width": 600,
+      "rows": 4,
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "fieldsetDisabled": false,
+      "placeholder": "Optional comment",
+      "confirmDisabled": false,
+      "confirmLoading": false,
+      "closeButton": false,
+      "prevented": true,
+      "mutationCount": 1,
+      "payload": {
+        "body": null,
+        "event": "approve",
+        "expectedHeadRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "result": {
+        "open": false,
+        "body": "",
+        "decision": "comment",
+        "error": null
+      }
+    },
+    {
+      "name": "trimmed-comment",
+      "decision": "comment",
+      "pending": false,
+      "width": 600,
+      "rows": 4,
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "fieldsetDisabled": false,
+      "placeholder": "Add a comment…",
+      "confirmDisabled": false,
+      "confirmLoading": false,
+      "closeButton": false,
+      "prevented": true,
+      "mutationCount": 1,
+      "payload": {
+        "body": "Review",
+        "event": "comment",
+        "expectedHeadRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "result": {
+        "open": false,
+        "body": "",
+        "decision": "comment",
+        "error": null
+      }
+    },
+    {
+      "name": "pending",
+      "decision": "comment",
+      "pending": true,
+      "width": 600,
+      "rows": 4,
+      "autoFocus": true,
+      "textareaDisabled": true,
+      "fieldsetDisabled": true,
+      "placeholder": "Add a comment…",
+      "confirmDisabled": false,
+      "confirmLoading": true,
+      "closeButton": false,
+      "prevented": true,
+      "mutationCount": 0,
+      "payload": null,
+      "result": {
+        "open": true,
+        "body": "Review",
+        "decision": "comment",
+        "error": null
+      }
+    },
+    {
+      "name": "failure",
+      "decision": "request_changes",
+      "pending": false,
+      "width": 600,
+      "rows": 4,
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "fieldsetDisabled": false,
+      "placeholder": "Add a comment…",
+      "confirmDisabled": false,
+      "confirmLoading": false,
+      "closeButton": false,
+      "prevented": true,
+      "mutationCount": 1,
+      "payload": {
+        "body": "Review",
+        "event": "request_changes",
+        "expectedHeadRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "result": {
+        "open": true,
+        "body": "Review",
+        "decision": "request_changes",
+        "error": "fixture failure"
+      }
+    }
+  ],
+  "deleteCases": [
+    {
+      "name": "idle",
+      "pending": false,
+      "width": 520,
+      "closeButton": false,
+      "sectionCount": 2,
+      "cancelDisabled": false,
+      "confirmColor": "dangerSolid",
+      "confirmLoading": false,
+      "prevented": true,
+      "mutationCount": 1,
+      "closes": 1,
+      "alerts": []
+    },
+    {
+      "name": "pending",
+      "pending": true,
+      "width": 520,
+      "closeButton": false,
+      "sectionCount": 2,
+      "cancelDisabled": true,
+      "confirmColor": "dangerSolid",
+      "confirmLoading": true,
+      "prevented": true,
+      "mutationCount": 0,
+      "closes": 0,
+      "alerts": []
+    },
+    {
+      "name": "failure",
+      "pending": false,
+      "width": 520,
+      "closeButton": false,
+      "sectionCount": 2,
+      "cancelDisabled": false,
+      "confirmColor": "dangerSolid",
+      "confirmLoading": false,
+      "prevented": true,
+      "mutationCount": 1,
+      "closes": 0,
+      "alerts": [
+        "fixture failure"
+      ]
+    }
+  ]
+}

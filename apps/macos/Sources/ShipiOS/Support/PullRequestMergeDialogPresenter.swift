@@ -36,7 +36,7 @@ struct PullRequestMergeDialogPresenter: NSViewRepresentable {
   }
 
   final class Button: NSButton {
-    enum Style { case method, secondary, primary }
+    enum Style { case method, secondary, primary, danger }
     var style = Style.secondary
     var selected = false
     var loading = false
@@ -89,9 +89,13 @@ struct PullRequestMergeDialogPresenter: NSViewRepresentable {
       let feedback = isEnabled && (hovered || isHighlighted)
       let background = style == .primary ? "textForeground" : feedback ? "buttonSecondaryBackgroundHover"
         : style == .method && !selected ? "transparent" : "controlBackground"
-      if background != "transparent" { roles[background].opacity(alpha * (style == .primary && feedback ? 0.8 : 1)).nativeColor.setFill(); path.fill() }
+      if style == .danger {
+        NSColor.systemRed.withAlphaComponent(alpha * (feedback ? 0.8 : 1)).setFill(); path.fill()
+      } else if background != "transparent" {
+        roles[background].opacity(alpha * (style == .primary && feedback ? 0.8 : 1)).nativeColor.setFill(); path.fill()
+      }
       let text = NSAttributedString(string: title, attributes: [.font: font ?? .systemFont(ofSize: 13),
-        .foregroundColor: roles[style == .primary ? "controlBackgroundOpaque" : "textForeground"].opacity(alpha).nativeColor])
+        .foregroundColor: style == .danger ? NSColor.white.withAlphaComponent(alpha) : roles[style == .primary ? "controlBackgroundOpaque" : "textForeground"].opacity(alpha).nativeColor])
       text.draw(at: .init(x: (bounds.width - text.size().width) / 2 + (loading ? 10 : 0), y: (bounds.height - text.size().height) / 2))
       if window?.firstResponder === self {
         roles["borderFocus"].nativeColor.setStroke(); path.lineWidth = 2; path.stroke()
