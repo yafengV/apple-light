@@ -1,0 +1,230 @@
+{
+  "version": "26.930.21537",
+  "sources": {
+    "app-initial-341eb5dd9ad5.css": "b9602ce3f1d278f45bb058f5004c769a741b43acb08b987aec3ae57781fc709f",
+    "app-shared-6fb15e58cd7f.css": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+    "pull-request-comment-ae0822c719d2.js": "75f3614a2d5537a334dda26896e87ed89bf35e3bcb6698f93eeb00699d3a56c4",
+    "pull-request-readonly-comment-5934b5e08be0.js": "d48e88a03c1fbb283abb6344b90099a9e3a78af5bd087eda235db7981b2d1c28",
+    "app-shared-59042e7300f7.js": "f788f64c401215fae493ac1e235869ed583b37b3468d037de080ca3d796450d9"
+  },
+  "bodyTextStyle": "small",
+  "replyTextStyle": "small",
+  "cssRules": [
+    {
+      "selector": "._Paragraph_176oq_2,._VisualizationBlock_176oq_2",
+      "declarations": "margin:0 0 var(--markdown-space)"
+    },
+    {
+      "selector": "._Paragraph_176oq_2,._Heading_176oq_2,._ListItem_176oq_2,._Table_176oq_2",
+      "declarations": "font-family:var(--font-content)"
+    },
+    {
+      "selector": "._Heading_176oq_2",
+      "declarations": "font-weight:var(--font-weight-semibold)"
+    },
+    {
+      "selector": "._Heading_176oq_2:where(h1)",
+      "declarations": "margin:calc(var(--markdown-space) * 4) 0 calc(var(--markdown-space) * 2);font-size:calc(var(--markdown-font-size) * 1.5);line-height:calc(var(--markdown-space) * 8)"
+    },
+    {
+      "selector": "._Heading_176oq_2:where(h2)",
+      "declarations": "margin:calc(var(--markdown-space) * 4) 0 var(--markdown-space);font-size:calc(var(--markdown-font-size) * 1.25);line-height:calc(var(--markdown-space) * 7)"
+    },
+    {
+      "selector": "._Heading_176oq_2:where(h3)",
+      "declarations": "margin:calc(var(--markdown-space) * 4) 0 var(--markdown-space);font-size:calc(var(--markdown-font-size) * 1.125);line-height:calc(var(--markdown-space) * 7)"
+    },
+    {
+      "selector": "._Heading_176oq_2:where(h4)",
+      "declarations": "margin:calc(var(--markdown-space) * 4) 0 0;font-size:var(--markdown-font-size);line-height:calc(var(--markdown-space) * 6)"
+    },
+    {
+      "selector": "._Heading_176oq_2:where(h5,h6)",
+      "declarations": "font-size:var(--markdown-font-size);line-height:var(--markdown-line-height);margin:0"
+    },
+    {
+      "selector": "._Heading_176oq_2:where(h4)+._Paragraph_176oq_2",
+      "declarations": "margin-top:0"
+    },
+    {
+      "selector": "._List_176oq_2",
+      "declarations": "margin:0;padding-inline-start:var(--markdown-line-height);list-style-position:outside"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2>._Paragraph_176oq_2[data-markdown-han-text]:has(+._Paragraph_176oq_2[data-markdown-han-text])",
+      "declarations": "margin-bottom:var(--spacing)"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2>:is(._Paragraph_176oq_2,._VisualizationBlock_176oq_2):not(:first-child)",
+      "declarations": "margin-top:calc(var(--markdown-space) * 2)"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2>:is(._Paragraph_176oq_2,._VisualizationBlock_176oq_2)+:is(._Paragraph_176oq_2,._VisualizationBlock_176oq_2)",
+      "declarations": "margin-block:calc(var(--markdown-space) * 4)"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2>._Heading_176oq_2:where(h1,h2,h3)+._Paragraph_176oq_2,._MarkdownRoot_176oq_2>._Paragraph_176oq_2+._List_176oq_2",
+      "declarations": "margin-top:0"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2>._List_176oq_2+._Heading_176oq_2",
+      "declarations": "margin-top:calc(var(--markdown-space) * 4)"
+    },
+    {
+      "selector": "._List_176oq_2 ._UnorderedList_176oq_2",
+      "declarations": "list-style-type:circle"
+    },
+    {
+      "selector": "._List_176oq_2 ._List_176oq_2 ._UnorderedList_176oq_2",
+      "declarations": "list-style-type:square"
+    },
+    {
+      "selector": "._ListItem_176oq_2",
+      "declarations": "padding-inline-start:calc(var(--markdown-space) * 1.5);display:list-item"
+    },
+    {
+      "selector": "._ListItem_176oq_2+._ListItem_176oq_2",
+      "declarations": "margin-top:0"
+    },
+    {
+      "selector": "._ListItem_176oq_2>:first-child:not(h1,h2,h3)",
+      "declarations": "margin-top:0;margin-bottom:0"
+    },
+    {
+      "selector": ":is(._ListItem_176oq_2,[data-markdown-list-item-content])>:last-child:not(h1,h2,h3)",
+      "declarations": "margin-bottom:0"
+    },
+    {
+      "selector": ":is(._ListItem_176oq_2,[data-markdown-list-item-content])[data-starts-with-heading]>:nth-child(1 of h1,h2,h3)",
+      "declarations": "margin-top:0"
+    },
+    {
+      "selector": ":is(._ListItem_176oq_2,[data-markdown-list-item-content])[data-ends-with-heading]>:nth-last-child(1 of h1,h2,h3)",
+      "declarations": "margin-bottom:0"
+    },
+    {
+      "selector": ":is(._ListItem_176oq_2,[data-markdown-list-item-content])>p",
+      "declarations": "margin:0"
+    },
+    {
+      "selector": ":is(._ListItem_176oq_2,[data-markdown-list-item-content])>p+p",
+      "declarations": "margin-top:calc(var(--markdown-space) * 4)"
+    },
+    {
+      "selector": "._ListItem_176oq_2>._List_176oq_2",
+      "declarations": "margin-top:0;margin-bottom:0"
+    },
+    {
+      "selector": "._UnorderedList_176oq_2>._ListItem_176oq_2::marker",
+      "declarations": "color:var(--text-primary);font-weight:var(--font-weight-semibold)"
+    },
+    {
+      "selector": "._OrderedList_176oq_2>._ListItem_176oq_2::marker",
+      "declarations": "color:var(--text-primary);font-weight:var(--font-weight-semibold)"
+    },
+    {
+      "selector": "._Blockquote_176oq_2",
+      "declarations": "margin:0 0 calc(var(--markdown-space) * 2);color:var(--text-primary);font-style:normal;line-height:calc(var(--markdown-space) * 6);padding-block:calc(var(--markdown-space) * 2);border:0;padding-inline-start:calc(var(--markdown-space) * 6);position:relative;background-color:#0000!important"
+    },
+    {
+      "selector": "._Blockquote_176oq_2>:first-child",
+      "declarations": "margin-top:0"
+    },
+    {
+      "selector": "._Blockquote_176oq_2>:last-child",
+      "declarations": "margin-bottom:0"
+    },
+    {
+      "selector": "._Blockquote_176oq_2>._Paragraph_176oq_2",
+      "declarations": "font-weight:var(--font-weight-normal);margin:0"
+    },
+    {
+      "selector": "._Blockquote_176oq_2>._Paragraph_176oq_2:before,._Blockquote_176oq_2>._Paragraph_176oq_2:after",
+      "declarations": "content:none"
+    },
+    {
+      "selector": "._Blockquote_176oq_2:after",
+      "declarations": "content:\"\";inset-inline-start:0;top:calc(var(--markdown-space) * 2);bottom:calc(var(--markdown-space) * 2);width:var(--markdown-space);border-radius:calc(var(--markdown-space) / 2);background-color:var(--border-medium);position:absolute"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2 :is(._Paragraph_176oq_2,._List_176oq_2,._ListItem_176oq_2,._Table_176oq_2)",
+      "declarations": "font-size:var(--markdown-font-size);line-height:var(--markdown-line-height)"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2[data-markdown-text-style=small]",
+      "declarations": "--markdown-font-size:var(--text-sm)"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2[data-markdown-animated] :is(._FadeIn_176oq_2,._HorizontalRule_176oq_2,._ListItem_176oq_2,._TableRow_176oq_2,._Blockquote_176oq_2)",
+      "declarations": "opacity:1;animation:_fade-in_176oq_2 var(--duration,var(--transition-duration-basic)) var(--fade-easing,cubic-bezier(.37, .55, .86, .88)) both;animation-delay:var(--fade-delay,0s)"
+    },
+    {
+      "selector": "._MarkdownRoot_176oq_2[data-markdown-animated] :is(._FadeIn_176oq_2,._HorizontalRule_176oq_2,._ListItem_176oq_2,._TableRow_176oq_2,._Blockquote_176oq_2,._ImageEnter_176oq_2)",
+      "declarations": "--duration:0s;opacity:1;animation-duration:0s;transform:scale(1);animation-delay:0s!important"
+    }
+  ],
+  "browserFixture": {
+    "width": 500,
+    "bodyFont": 13,
+    "lineHeight": 21.125,
+    "note": "Isolated semantic HTML with public shipped stylesheet rules; not paired Codex frontend acceptance",
+    "cases": [
+      {
+        "name": "lines",
+        "preview": 126.75,
+        "full": 211.25
+      },
+      {
+        "name": "paragraphs",
+        "preview": 191.75,
+        "full": 328.25
+      },
+      {
+        "name": "list",
+        "preview": 126.75,
+        "full": 211.25
+      },
+      {
+        "name": "quote",
+        "preview": 139.75,
+        "full": 224.25
+      },
+      {
+        "name": "headings",
+        "preview": 172.25,
+        "full": 172.25
+      },
+      {
+        "name": "loose-list",
+        "preview": 139.75,
+        "full": 224.25
+      },
+      {
+        "name": "nested-list",
+        "preview": 126.75,
+        "full": 211.25
+      }
+    ],
+    "nestedList": {
+      "styles": [
+        "disc",
+        "circle",
+        "square"
+      ],
+      "paragraphOffsets": [
+        26,
+        52
+      ],
+      "thirdTextOffset": 78
+    }
+  },
+  "expansionHook": {
+    "export": "Tx",
+    "function": "xTi",
+    "measurement": "CTi",
+    "fallbackLineHeightFactor": 1.5,
+    "tolerancePx": 1,
+    "rule": "contentHeightPx > ceil(wrapperLineHeightPx * collapsedLineCount) + 1",
+    "countsActualLines": false
+  }
+}

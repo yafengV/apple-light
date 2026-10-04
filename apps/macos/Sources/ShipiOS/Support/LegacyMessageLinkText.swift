@@ -77,15 +77,17 @@ struct LegacyMessageLinkText: NSViewRepresentable {
 
   static func attributedText(_ text: AttributedString, appearance: AppearancePreferences,
     size: CGFloat, weight: NSFont.Weight = .regular, lineSpacing: CGFloat = 5,
-    alignment: TextAlignment = .leading, secondary: Bool = false) -> NSAttributedString {
+    alignment: TextAlignment = .leading, secondary: Bool = false, fontOverride: NSFont? = nil,
+    lineHeight: CGFloat? = nil, inlineCodeScale: CGFloat = 1) -> NSAttributedString {
     let result = NSMutableAttributedString(string: "")
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = lineSpacing
     paragraph.alignment = alignment == .center ? .center : alignment == .trailing ? .right : .natural
-    let base = appearance.nativeFont(size: size, content: true)
+    if let lineHeight { paragraph.minimumLineHeight = lineHeight; paragraph.maximumLineHeight = lineHeight }
+    let base = fontOverride ?? appearance.nativeFont(size: size, content: true)
     for run in text.runs {
       let intent = run.inlinePresentationIntent ?? []
-      var font = intent.contains(.code) ? appearance.nativeFont(size: 12, code: true).withSize(base.pointSize)
+      var font = intent.contains(.code) ? appearance.nativeFont(size: 12, code: true).withSize(base.pointSize * inlineCodeScale)
         : weight == .regular ? base : NSFont(descriptor: base.fontDescriptor.addingAttributes([
           .traits: [NSFontDescriptor.TraitKey.weight: weight.rawValue]]), size: base.pointSize) ?? base
       if intent.contains(.stronglyEmphasized) { font = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) }

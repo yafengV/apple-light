@@ -14,8 +14,16 @@ struct TaskPullRequestCommentContentView: View {
   var showsReplyComposer = true
   @State private var expanded = false
   @State private var contentHeight: CGFloat = 0
-  private let collapsedHeight: CGFloat = 120
+  @State private var markdownLayout = PRCommentMarkdownLayout()
+  @Environment(\.appAppearance) private var appearance
+  private var collapsedHeight: CGFloat { markdownLayout.previewHeight ?? contentHeight }
   private var truncates: Bool { !isReply && !preventsTruncation }
+  // The reference hook checks the wrapper's inherited chat line height, while
+  // CSS line-clamp clips the actual small Markdown lines. These differ for
+  // paragraphs and headings, so six blocks can still offer an expansion button.
+  private var canExpand: Bool {
+    contentHeight.rounded() > ceil(CGFloat(appearance.uiSize) * 1.5 * 6) + 1
+  }
   private var draft: GitHubPRCommentDraft? { state.drafts[comment.id] }
   private var commentBody: String { comment.displayBody }
   var body: some View {
@@ -30,17 +38,17 @@ struct TaskPullRequestCommentContentView: View {
                 value: proxy.size.height)
             }
           }
-          .frame(height: truncates && contentHeight > collapsedHeight + 1 && !expanded ? collapsedHeight : nil,
+          .frame(height: truncates && canExpand && !expanded ? collapsedHeight : nil,
             alignment: .top)
           .clipped()
-        if truncates && contentHeight > collapsedHeight + 1 {
+        if truncates && canExpand {
           Button {
             expanded.toggle()
           } label: {
             HStack(spacing: 4) {
               Text(expanded ? "收起" : "展开更多")
-              Image(systemName: "chevron.down").appFont(size: 12).frame(width: 12, height: 12).rotationEffect(.degrees(expanded ? 180 : 0))
-            }.appFont(size: 14).foregroundStyle(.secondary)
+              Image(systemName: "chevron.down").font(Font(appearance.nativeFont(size: 12).withSize(12))).frame(width: 12, height: 12).rotationEffect(.degrees(expanded ? 180 : 0))
+            }.font(Font(appearance.nativeFont(size: 14).withSize(14))).frame(minHeight: 20).foregroundStyle(.secondary)
           }.buttonStyle(.plain)
             .accessibilityLabel(expanded ? "收起评论" : "展开完整评论")
             .accessibilityValue(expanded ? "已展开" : "已收起")
@@ -53,7 +61,7 @@ struct TaskPullRequestCommentContentView: View {
   }
   @ViewBuilder private var commentContent: some View {
     MessageMarkdownView(source: commentBody, partPrefix: "pr-comment-" + comment.id,
-      githubMedia: true, compactPRComment: true, openLink: open)
+      githubMedia: true, compactPRComment: true, prCommentLayout: markdownLayout, openLink: open)
   }
   private func composer(_ draft: GitHubPRCommentDraft, label: String) -> some View {
     TaskPullRequestCommentComposer(text: Binding(get: { state.drafts[comment.id]?.text ?? "" }, set: {

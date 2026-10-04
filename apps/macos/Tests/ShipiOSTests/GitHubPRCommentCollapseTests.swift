@@ -102,8 +102,7 @@ import XCTest
     window.contentView = host
     try await Task.sleep(for: .milliseconds(400))
     host.layoutSubtreeIfNeeded()
-    XCTAssertLessThan(host.fittingSize.height, 180)
-    XCTAssertGreaterThan(host.fittingSize.height, 120)
+    XCTAssertEqual(host.fittingSize.height, 191.75 + 6 + 20, accuracy: 1)
     XCTAssertFalse(window.isVisible)
   }
   func testSnapshotBuildsOnlyVisibleCardsWithThreadIdentityAndOrder() {

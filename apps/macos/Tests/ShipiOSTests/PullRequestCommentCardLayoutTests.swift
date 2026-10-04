@@ -98,13 +98,22 @@ import XCTest
   func testRichRootUsesSixLinesAndLongRepliesAndProtectedBodiesRemainComplete() async throws {
     let c = comment(body: Array(repeating: "A paragraph that is long enough to be visible.", count: 25).joined(separator: "\n\n"))
     let (_, root, preview) = try await host(content(c))
-    XCTAssertGreaterThan(preview.bounds.height, 120); XCTAssertLessThan(preview.bounds.height, 160)
+    XCTAssertEqual(preview.bounds.height, 191.75 + 6 + 20, accuracy: 1)
     try render(root, "root-six-lines")
     let (_, _, reply) = try await host(content(c, reply: true)), (_, _, protected) = try await host(content(c, protected: true))
     XCTAssertGreaterThan(reply.bounds.height, preview.bounds.height + 400)
     XCTAssertEqual(reply.bounds.height, protected.bounds.height, accuracy: 1)
     let (_, _, short) = try await host(content(comment(body: "One short line")))
     XCTAssertLessThan(short.bounds.height, 30)
+  }
+
+  func testSixTallHeadingsOfferExpansionWhileOneSixLineParagraphDoesNot() async throws {
+    let headings = (1...6).map { String(repeating: "#", count: $0) + " Heading \($0)" }.joined(separator: "\n\n")
+    let (_, _, headingBody) = try await host(content(comment(body: headings)))
+    XCTAssertEqual(headingBody.bounds.height, 172.25 + 6 + 20, accuracy: 1)
+    let lines = Array(repeating: "A plain text line", count: 6).joined(separator: "  \n")
+    let (_, _, sixLines) = try await host(content(comment(body: lines)))
+    XCTAssertEqual(sixLines.bounds.height, 126.75, accuracy: 1)
   }
 
   func testCollapsedHeaderHasReferenceFortyPointHeightAndExpandedBodyAddsOnlyItsOwnInsets() async throws {

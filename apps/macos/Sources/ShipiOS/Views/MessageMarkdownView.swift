@@ -9,13 +9,20 @@ struct MessageMarkdownView: View {
   var linkActions: MessageLinkActions?
   var githubMedia = false
   var compactPRComment = false
+  var prCommentLayout: PRCommentMarkdownLayout?
   var prContext: GitHubPRMarkdownContext?
   var prImageLoader: ((String) async throws -> Data)?
   let openLink: (URL) -> Void
   @State private var blocks: [MessageBlock] = []
+  @State private var renderedSource = ""
 
   var body: some View {
-    MessageBlocksView(blocks: blocks)
+    Group {
+      if compactPRComment {
+        PRCommentMarkdownBlocksView(blocks: blocks, source: renderedSource, layout: prCommentLayout)
+          .background { if let prCommentLayout { PRCommentMarkdownLayoutAnchor(layout: prCommentLayout) } }
+      } else { MessageBlocksView(blocks: blocks) }
+    }
       .environment(\.conversationRunID, runID)
       .environment(\.conversationResponsePart, partPrefix)
       .environment(\.messageLinkActions, linkActions)
@@ -33,6 +40,7 @@ struct MessageMarkdownView: View {
       .task(id: source + (githubMedia ? "\u{0}github-media" : "")
         + (prContext.map { "\u{0}\($0.repository):\($0.head):\($0.filePath)" } ?? "")) {
         let input = source
+        prCommentLayout?.prepare(input)
         let media = githubMedia
         let context = prContext
         if context != nil { blocks = [] }
@@ -42,6 +50,7 @@ struct MessageMarkdownView: View {
           .value
         guard !Task.isCancelled else { return }
         blocks = result
+        renderedSource = input
       }
   }
 }
@@ -246,4 +255,11 @@ private struct MessageTableView: View {
     return block.alignments[column] == 1
       ? .trailing : block.alignments[column] == 0 ? .center : .leading
   }
+}
+
+/// Non-text blocks retain their existing media, code, and table controls while
+/// small PR paragraphs, headings, lists, and quotes use the PR stylesheet.
+struct PRCommentMarkdownFallbackBlock: View {
+  let block: MessageBlock
+  var body: some View { MessageBlockView(block: block) }
 }
