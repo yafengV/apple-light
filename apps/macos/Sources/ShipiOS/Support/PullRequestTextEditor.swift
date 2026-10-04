@@ -15,6 +15,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
   var handleKey: ((NSEvent) -> Bool)? = nil
   var replacement: PullRequestTextReplacement? = nil
   var growsWithContent = false
+  var placeholder: String? = nil
   @Environment(\.isEnabled) private var enabled
   @Environment(\.appAppearance) private var appearance
   func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -36,6 +37,11 @@ struct PullRequestTextEditor: NSViewRepresentable {
     defer { context.coordinator.updatingView = false }
     editor.field = field; editor.submit = submit; editor.cancel = cancel
     editor.handleKey = handleKey
+    editor.growing = growsWithContent; editor.placeholder = placeholder
+    editor.placeholderColor = appearance.resolvedColors["textForegroundTertiary"].nativeColor
+    editor.textContainerInset = growsWithContent ? .zero : .init(width: 2, height: 5)
+    editor.textContainer?.lineFragmentPadding = growsWithContent ? 0 : 5
+    editor.needsDisplay = true
     editor.isEditable = enabled; editor.isSelectable = enabled
     let font = appearance.nativeFont(size: field == .title || growsWithContent ? 16 : 13)
     editor.font = field == .title ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
@@ -58,7 +64,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
     guard field == .title || growsWithContent, let editor = nsView.documentView as? TextView,
       let container = editor.textContainer, let layout = editor.layoutManager else { return nil }
     let width = max(60, proposal.width ?? 300)
-    container.containerSize = NSSize(width: width - 4, height: .greatestFiniteMagnitude)
+    container.containerSize = NSSize(width: width - (growsWithContent ? 0 : 4), height: .greatestFiniteMagnitude)
     layout.ensureLayout(for: container)
     let usedHeight = max(layout.usedRect(for: container).maxY, layout.extraLineFragmentRect.maxY) + 10
     return CGSize(width: width, height: Self.fittedHeight(usedHeight, growing: growsWithContent))
@@ -72,7 +78,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
     (scroll.documentView as? TextView)?.delegate = nil
     (scroll.documentView as? TextView)?.isEditable = false
   }
-  final class Coordinator: NSObject, NSTextViewDelegate {
+  @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
     var parent: PullRequestTextEditor
     var active = true
     var updatingView = false
@@ -104,18 +110,20 @@ struct PullRequestTextEditor: NSViewRepresentable {
       guard token != focused, token != scheduled else { return }
       scheduled = token
       DispatchQueue.main.async { [weak self, weak editor] in
-        guard let self, self.active, self.scheduled == token, self.parent.enabled,
+        guard let self, self.active, self.scheduled == token else { return }
+        self.scheduled = nil
+        guard self.parent.enabled,
           let editor, editor.isEditable, let window = editor.window,
-          !editor.isHiddenOrHasHiddenAncestor else { return }
-        window.makeFirstResponder(editor)
+          !editor.isHiddenOrHasHiddenAncestor, WindowModalInteraction.allows(editor) else { return }
+        guard window.makeFirstResponder(editor) else { return }
         self.parent.focusProbe?.record(editor)
         editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
-        self.focused = token; self.scheduled = nil
+        self.focused = token
       }
     }
     func textDidChange(_ notification: Notification) {
       guard active, parent.enabled, let editor = notification.object as? TextView,
-        editor.isEditable, !editor.hasMarkedText() else { return }
+        editor.isEditable, WindowModalInteraction.allows(editor), !editor.hasMarkedText() else { return }
       observeUndo(editor)
       let raw = editor.string
       let value = parent.field == .title ? GitHubPREditText.title(raw) : raw
@@ -136,7 +144,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
       if let editor = notification.object as? TextView { selectionChanged(editor) }
     }
     private func selectionChanged(_ editor: TextView) {
-      guard active, !updatingView, parent.enabled, editor.isEditable, !editor.hasMarkedText() else { return }
+      guard active, !updatingView, parent.enabled, editor.isEditable, WindowModalInteraction.allows(editor), !editor.hasMarkedText() else { return }
       parent.selectionChanged?(editor.string, editor.selectedRange())
     }
     func updateReplacement(_ editor: TextView, replacement: PullRequestTextReplacement?) {
@@ -145,13 +153,15 @@ struct PullRequestTextEditor: NSViewRepresentable {
       DispatchQueue.main.async { [weak self, weak editor] in
         guard let self, self.active, self.parent.enabled, let editor,
           self.parent.replacement?.id == replacement.id else { return }
+        guard WindowModalInteraction.allows(editor) else { return }
         if let window = editor.window, window.firstResponder !== editor { return }
         _ = editor.apply(replacement)
       }
     }
     func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange,
       replacementString: String?) -> Bool {
-      guard active, parent.enabled, parent.field == .title, !textView.hasMarkedText(),
+      guard active, parent.enabled, textView.isEditable, WindowModalInteraction.allows(textView) else { return false }
+      guard parent.field == .title, !textView.hasMarkedText(),
         let replacementString else { return true }
       let normalized = GitHubPREditText.title(replacementString)
       guard normalized != replacementString else { return true }
@@ -165,10 +175,24 @@ struct PullRequestTextEditor: NSViewRepresentable {
     var submit: () -> Void = {}
     var cancel: () -> Void = {}
     var handleKey: ((NSEvent) -> Bool)?
-    override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
-    override var canBecomeKeyView: Bool { isEditable && super.canBecomeKeyView }
+    var growing = false
+    var placeholder: String?
+    var placeholderColor = NSColor.tertiaryLabelColor
+    override var textContainerOrigin: NSPoint { growing ? .init(x: 0, y: 10) : super.textContainerOrigin }
+    override func draw(_ dirtyRect: NSRect) {
+      super.draw(dirtyRect)
+      if string.isEmpty, let placeholder {
+        var attributes: [NSAttributedString.Key: Any] = [.font: font ?? .systemFont(ofSize: 16), .foregroundColor: placeholderColor]
+        if let defaultParagraphStyle { attributes[.paragraphStyle] = defaultParagraphStyle }
+        let origin = textContainerOrigin
+        NSAttributedString(string: placeholder, attributes: attributes).draw(in:
+          NSRect(x: origin.x, y: origin.y, width: max(0, bounds.width - origin.x), height: max(0, bounds.height - origin.y)))
+      }
+    }
+    override var acceptsFirstResponder: Bool { isEditable && WindowModalInteraction.allows(self) && super.acceptsFirstResponder }
+    override var canBecomeKeyView: Bool { isEditable && WindowModalInteraction.allows(self) && super.canBecomeKeyView }
     override func keyDown(with event: NSEvent) {
-      guard isEditable else { return }
+      guard isEditable, WindowModalInteraction.allows(self) else { return }
       if !hasMarkedText() {
         if handleKey?(event) == true { return }
         if event.keyCode == 36 || event.keyCode == 76 {
@@ -187,7 +211,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
     }
     @discardableResult func apply(_ replacement: PullRequestTextReplacement) -> Bool {
       let length = (string as NSString).length
-      guard isEditable, !hasMarkedText(), string == replacement.expectedText,
+      guard isEditable, WindowModalInteraction.allows(self), !hasMarkedText(), string == replacement.expectedText,
         selectedRange() == replacement.selection, replacement.range.location <= length,
         replacement.range.length <= length - replacement.range.location else { return false }
       breakUndoCoalescing()

@@ -373,6 +373,11 @@ final class GitHubPREditTests: XCTestCase {
   @MainActor func testNativeEditorReturnEscapeMultilineAndIME() throws {
     let editor = PullRequestTextEditor.TextView(frame: NSRect(x: 0, y: 0, width: 300, height: 120))
     editor.isRichText = false; editor.isEditable = true
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: editor.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; window.contentView = NSView(frame: editor.frame)
+    window.contentView!.addSubview(editor); XCTAssertTrue(window.makeFirstResponder(editor))
+    defer { window.contentView = nil; window.close() }
     var saves = 0, cancels = 0
     editor.submit = { saves += 1 }; editor.cancel = { cancels += 1 }
     func key(_ code: UInt16, _ chars: String, _ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {

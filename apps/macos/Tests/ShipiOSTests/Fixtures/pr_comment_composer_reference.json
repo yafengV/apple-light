@@ -1,0 +1,202 @@
+{
+  "version": "26.930.21537",
+  "build": "12776",
+  "sourceAsset": "pull-request-comment-ae0822c719d2.js",
+  "sha256": "75f3614a2d5537a334dda26896e87ed89bf35e3bcb6698f93eeb00699d3a56c4",
+  "avatarAsset": "pull-request-readonly-comment-5934b5e08be0.js",
+  "avatarSHA256": "d48e88a03c1fbb283abb6344b90099a9e3a78af5bd087eda235db7981b2d1c28",
+  "layout": {
+    "inputTop": 10,
+    "inputHorizontal": 12,
+    "inputMinimum": 38,
+    "inputMaximum": 192,
+    "lineHeight": 28,
+    "inputFooterGap": 4,
+    "footerHorizontal": 8,
+    "footerBottom": 8,
+    "avatarSize": 24,
+    "buttonSize": 20,
+    "actionGap": 8,
+    "radius": 8
+  },
+  "cases": [
+    {
+      "name": "empty",
+      "editing": false,
+      "reply": false,
+      "pending": false,
+      "placeholder": "Leave a comment",
+      "ariaLabel": "Pull request comment",
+      "autoFocus": false,
+      "textareaDisabled": false,
+      "surfaceVariant": "default",
+      "cancelPresent": false,
+      "cancelDisabled": null,
+      "submitDisabled": true,
+      "submitLoading": false,
+      "buttonSize": "composerSm",
+      "avatar": "Avatar",
+      "prevented": true,
+      "submitted": [],
+      "cancels": 0,
+      "dirtyInitially": false,
+      "bodyAfter": "",
+      "error": null,
+      "errorRole": null
+    },
+    {
+      "name": "comment",
+      "editing": false,
+      "reply": false,
+      "pending": false,
+      "placeholder": "Leave a comment",
+      "ariaLabel": "Pull request comment",
+      "autoFocus": false,
+      "textareaDisabled": false,
+      "surfaceVariant": "default",
+      "cancelPresent": false,
+      "cancelDisabled": null,
+      "submitDisabled": false,
+      "submitLoading": false,
+      "buttonSize": "composerSm",
+      "avatar": "Avatar",
+      "prevented": true,
+      "submitted": [
+        "Comment"
+      ],
+      "cancels": 0,
+      "dirtyInitially": true,
+      "bodyAfter": "",
+      "error": null,
+      "errorRole": null
+    },
+    {
+      "name": "edit",
+      "editing": true,
+      "reply": false,
+      "pending": false,
+      "placeholder": "Leave a comment",
+      "ariaLabel": "Edit pull request comment",
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "surfaceVariant": "inline",
+      "cancelPresent": true,
+      "cancelDisabled": false,
+      "submitDisabled": false,
+      "submitLoading": false,
+      "buttonSize": "composerSm",
+      "avatar": "Avatar",
+      "prevented": true,
+      "submitted": [
+        "  Raw\n "
+      ],
+      "cancels": 1,
+      "dirtyInitially": true,
+      "bodyAfter": "",
+      "error": null,
+      "errorRole": null
+    },
+    {
+      "name": "reply",
+      "editing": false,
+      "reply": true,
+      "pending": false,
+      "placeholder": "Reply to author",
+      "ariaLabel": "Pull request reply",
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "surfaceVariant": "inline",
+      "cancelPresent": true,
+      "cancelDisabled": false,
+      "submitDisabled": false,
+      "submitLoading": false,
+      "buttonSize": "composerSm",
+      "avatar": "Avatar",
+      "prevented": true,
+      "submitted": [
+        "Reply"
+      ],
+      "cancels": 1,
+      "dirtyInitially": true,
+      "bodyAfter": "",
+      "error": null,
+      "errorRole": null
+    },
+    {
+      "name": "pending",
+      "editing": false,
+      "reply": false,
+      "pending": true,
+      "placeholder": "Leave a comment",
+      "ariaLabel": "Pull request comment",
+      "autoFocus": false,
+      "textareaDisabled": true,
+      "surfaceVariant": "default",
+      "cancelPresent": false,
+      "cancelDisabled": null,
+      "submitDisabled": false,
+      "submitLoading": true,
+      "buttonSize": "composerSm",
+      "avatar": "Avatar",
+      "prevented": true,
+      "submitted": [],
+      "cancels": 0,
+      "dirtyInitially": true,
+      "bodyAfter": "Comment",
+      "error": null,
+      "errorRole": null
+    },
+    {
+      "name": "failure",
+      "editing": true,
+      "reply": false,
+      "pending": false,
+      "placeholder": "Leave a comment",
+      "ariaLabel": "Edit pull request comment",
+      "autoFocus": true,
+      "textareaDisabled": false,
+      "surfaceVariant": "inline",
+      "cancelPresent": true,
+      "cancelDisabled": false,
+      "submitDisabled": false,
+      "submitLoading": false,
+      "buttonSize": "composerSm",
+      "avatar": "Avatar",
+      "prevented": true,
+      "submitted": [
+        "Retry"
+      ],
+      "cancels": 1,
+      "dirtyInitially": true,
+      "bodyAfter": "Retry",
+      "error": "fixture failure",
+      "errorRole": "alert"
+    }
+  ],
+  "avatarCases": [
+    {
+      "login": "reviewer",
+      "url": "https://github.com/reviewer.png?size=48"
+    },
+    {
+      "login": " reviewer ",
+      "url": "https://github.com/reviewer.png?size=48"
+    },
+    {
+      "login": "",
+      "url": null
+    },
+    {
+      "login": "bad name",
+      "url": null
+    },
+    {
+      "login": "someone/a",
+      "url": "https://github.com/someone%2Fa.png?size=48"
+    },
+    {
+      "login": "中文",
+      "url": "https://github.com/%E4%B8%AD%E6%96%87.png?size=48"
+    }
+  ]
+}

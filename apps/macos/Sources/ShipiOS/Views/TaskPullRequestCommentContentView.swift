@@ -56,7 +56,8 @@ struct TaskPullRequestCommentContentView: View {
       state.drafts[comment.id]?.text = $0; state.clearError(.draft(comment.id))
     }), label: label, focus: draft.focus, enabled: enabled, busy: state.pendingOwner == .draft(comment.id),
       cancel: { state.cancelDraft(comment.id) }, inputEnabled: state.canEdit(.draft(comment.id), writable: writable),
-      error: state.message(for: .draft(comment.id)), mentionRequest: mentionRequest) {
+      error: state.message(for: .draft(comment.id)), mentionRequest: mentionRequest,
+      kind: { if case .edit = draft.target { return .edit }; return .reply(author: comment.author) }()) {
         if let action = state.draftAction(comment.id) { submit(action, comment.id) }
       }
   }

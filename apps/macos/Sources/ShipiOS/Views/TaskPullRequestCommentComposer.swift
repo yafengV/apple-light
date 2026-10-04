@@ -12,24 +12,24 @@ struct TaskPullRequestCommentComposer: View {
   var inputEnabled: Bool? = nil
   var error: String? = nil
   var mentionRequest: GitHubPRMentionRequest? = nil
+  var kind: PullRequestCommentComposerKind = .comment
   let submit: () -> Void
+  @Environment(\.appAppearance) private var appearance
   @State private var mentions = GitHubPRMentionState()
   private var editable: Bool { inputEnabled ?? enabled }
-  private var canSubmit: Bool { enabled && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  private var canSubmit: Bool { enabled && !busy && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       VStack(spacing: 4) {
         PullRequestTextEditor(text: $text, field: .body, focus: focus,
-          submit: { if canSubmit { submit() } }, cancel: { if inlineCode && editable { cancel?() } }, accessibilityName: label,
+          submit: { if canSubmit { submit() } }, cancel: { if inlineCode && editable { cancel?() } }, accessibilityName: inlineCode ? label : kind.accessibilityLabel,
           selectionChanged: { body, range in mentions.setContext(mentionRequest); mentions.select(text: body, range: range) },
-          lostFocus: { mentions.blurred() }, handleKey: handleKey, replacement: mentions.replacement, growsWithContent: true)
-          .frame(minHeight: 38, maxHeight: 192).padding(6).disabled(!editable)
-        HStack {
-          if !inlineCode, let login = mentionRequest?.viewer {
-            Text(String(login.prefix(1)).uppercased()).appFont(.caption)
-              .frame(width: 22, height: 22).background(.quaternary, in: Circle()).accessibilityHidden(true)
-          }
+          lostFocus: { mentions.blurred() }, handleKey: handleKey, replacement: mentions.replacement, growsWithContent: true, placeholder: inlineCode ? nil : kind.placeholder)
+          .frame(minHeight: 38, maxHeight: 192).fixedSize(horizontal: false, vertical: true)
+          .padding(.horizontal, inlineCode ? 6 : 12).padding(.vertical, inlineCode ? 6 : 0).disabled(!editable)
+        HStack(spacing: 8) {
+          if !inlineCode { PullRequestCommentComposerAvatar(login: mentionRequest?.viewer ?? "") }
           Spacer()
           if inlineCode {
             if let cancel { Button("取消", action: cancel).disabled(!editable) }
@@ -38,23 +38,26 @@ struct TaskPullRequestCommentComposer: View {
             }.buttonStyle(.borderedProminent).disabled(!canSubmit)
           } else {
             if let cancel {
-              Button(action: cancel) { Image(systemName: "xmark").frame(width: 24, height: 24) }
-                .buttonStyle(.plain).disabled(!editable).help(label == "保存更改" ? "取消编辑" : "取消回复")
-                .accessibilityLabel("取消")
+              PullRequestCommentComposerButton(label: kind == .edit ? "取消编辑" : "取消回复", symbol: "xmark",
+                primary: false, busy: false, enabled: editable && !busy, accessibilityName: "取消", action: cancel)
             }
-            Button(action: submit) {
-              Group {
-                if busy { ProgressView().controlSize(.small) }
-                else { Image(systemName: "arrow.up") }
-              }.frame(width: 26, height: 26)
-            }.buttonStyle(.borderedProminent).controlSize(.small).clipShape(Circle())
-              .disabled(!canSubmit).help(label).accessibilityLabel(label)
+            PullRequestCommentComposerButton(label: label, symbol: "arrow.up", primary: true,
+              busy: busy, enabled: canSubmit, action: submit)
           }
         }.padding(.horizontal, 8).padding(.bottom, 8)
       }
-      .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
+      .background(inlineCode || kind.inlineSurface ? .clear : appearance.resolvedColors["controlBackgroundOpaque"].color, in: RoundedRectangle(cornerRadius: 8))
+      .overlay {
+        if inlineCode { RoundedRectangle(cornerRadius: 10).stroke(.quaternary) }
+        else if !kind.inlineSurface { RoundedRectangle(cornerRadius: 8).stroke(appearance.resolvedColors["border"].color) }
+      }
       .background(PullRequestMentionPopover(state: mentions, enabled: editable && mentions.visible))
-      if let error { Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled).accessibilityLabel("错误：" + error) }
+      if let error {
+        Group {
+          if inlineCode { Text(error).appFont(.caption) }
+          else { Text(error).appFont(size: 14).padding(.horizontal, 4) }
+        }.foregroundStyle(.red).textSelection(.enabled).accessibilityLabel("错误：" + error)
+      }
     }
     .task(id: mentionRequest?.scope) { mentions.setContext(mentionRequest) }
     .onChange(of: editable) { _, value in if !value { mentions.blurred() } }
