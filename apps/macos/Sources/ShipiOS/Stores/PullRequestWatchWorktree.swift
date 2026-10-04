@@ -1,6 +1,36 @@
 import Foundation
 
 extension WorkspaceStore {
+  /// A live scheduled occurrence can still be working after its read-only model
+  /// turn ends. Persisted request metadata alone must never imply a live operation.
+  func watchWorktreePreparationRun(taskID: String) -> AgentRun? {
+    guard let watch = automationPreferences.items.first(where: {
+      $0.taskID == taskID && $0.watchedPullRequest != nil && automationRunningIDs.contains($0.id)
+    }), let task = library.tasks.first(where: { $0.id == taskID && !$0.archived }),
+      activeRun(taskID: taskID) == nil, let latest = task.runIDs.last,
+      let run = library.chatRuns.first(where: { $0.id == latest }), run.status == "succeeded",
+      run.request["watch_phase"].text == "inspection",
+      run.request["automation_id"].text == watch.id.uuidString,
+      run.result?["watch_worktree_request"].text != nil,
+      watch.enabled || run.toolExecutions.contains(where: {
+        $0.serverID == ModelAutomationPauseTool.serverID
+          && $0.callID == "watch-worktree-preparation:" + run.id && $0.status == .running
+      }),
+      run.request["watch_source_project"].text.map({ $0 == watch.project }) ?? true else { return nil }
+    return run
+  }
+
+  func isPreparingWatchWorktree(runID: String) -> Bool {
+    guard let task = library.task(containing: runID) else { return false }
+    return watchWorktreePreparationRun(taskID: task.id)?.id == runID
+  }
+
+  func defersWatchInspectionCompletion(_ run: AgentRun) -> Bool {
+    guard let raw = run.request["automation_id"].text, let id = UUID(uuidString: raw),
+      automationPreferences.items.first(where: { $0.id == id })?.enabled == true else { return false }
+    return isPreparingWatchWorktree(runID: run.id)
+  }
+
   func executeWatchWorktreeTool(_ call: ModelFunctionCall, runID: String,
     expectedAutomationID: UUID) throws -> String {
     try Task.checkCancellation()
@@ -88,8 +118,49 @@ extension WorkspaceStore {
     }
     let source = library.managedWorktree(forTaskID: taskID)?.source
       ?? library.managedWorktrees.first(where: { $0.path == run.project })?.source ?? run.project
-    let record = try await prepareAutomationWorktree(sourcePath: source, taskID: taskID,
-      environmentSelection: watch.environmentSelection(for: project), includeSourceChanges: false)
+    let callID = "watch-worktree-preparation:" + inspectionRunID
+    var preparation = run.toolExecutions.first {
+      $0.serverID == ModelAutomationPauseTool.serverID && $0.callID == callID
+    }
+      ?? MCPToolExecution(callID: callID, serverID: ModelAutomationPauseTool.serverID,
+        serverName: "ShipiOS", toolName: "准备 PR 修复工作树", arguments: JSONValue.object([
+          "source": .string(source), "reason": .string(reason),
+        ]).pretty, status: .running)
+    preparation.status = .running
+    preparation.output = nil
+    try saveToolExecution(preparation, runID: inspectionRunID)
+    let record: ManagedWorktree
+    do {
+      record = try await prepareAutomationWorktree(sourcePath: source, taskID: taskID,
+        environmentSelection: watch.environmentSelection(for: project), includeSourceChanges: false)
+      preparation.status = .succeeded
+      preparation.output = JSONValue.object(["status": .string("prepared"),
+        "path": .string(record.path), "setup_completed": .bool(true)]).pretty
+      try saveToolExecution(preparation, runID: inspectionRunID)
+    } catch {
+      preparation.status = error is CancellationError || Task.isCancelled ? .cancelled : .failed
+      preparation.output = error.localizedDescription
+      try? saveToolExecution(preparation, runID: inspectionRunID)
+      if preparation.status == .failed,
+        let current = automationPreferences.items.first(where: {
+          $0.id == id && $0.taskID == taskID && $0.project == watch.project
+        }), let task = library.tasks.first(where: { $0.id == taskID }) {
+        let owner = [task.forkOrigin?.taskID, task.id].compactMap { $0 }.first {
+          pullRequestWatchContent(.pullRequestWatch(id, task: taskID, owner: $0)) != nil
+        }
+        notices.show(id: callID, title: "PR 修复工作树准备失败：" + error.localizedDescription,
+          level: .error, taskID: owner ?? taskID, watchAutomationID: owner == nil ? nil : id,
+          watchTaskID: owner == nil ? nil : taskID)
+        // Retain the unfinished occurrence for recovery without repeatedly
+        // rerunning a failed setup on every scheduler poll.
+        if current.enabled {
+          var retry = current
+          retry.nextRun = .now.addingTimeInterval(300)
+          _ = saveAutomation(retry)
+        }
+      }
+      throw error
+    }
     try Task.checkCancellation()
     guard let current = automationPreferences.items.first(where: {
       $0.id == id && $0.enabled && $0.taskID == taskID && $0.project == watch.project

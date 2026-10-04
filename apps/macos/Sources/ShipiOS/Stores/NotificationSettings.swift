@@ -28,6 +28,7 @@ extension WorkspaceStore {
       guard let task = library.task(containing: run.id), task.project == run.project,
         completionTracker.completed(run)
       else { continue }
+      if defersWatchInspectionCompletion(run) { continue }
       let isVisible = (appActive ?? NSApp?.isActive ?? false) && destination == .workspace
         && presentedOverlay == nil && selectedTask?.id == task.id
       if !isVisible, !task.archived { setTaskUnread(task.id, unread: true) }

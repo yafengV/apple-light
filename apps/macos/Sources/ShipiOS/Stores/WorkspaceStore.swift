@@ -475,9 +475,11 @@ final class WorkspaceStore {
     activeRun(taskID: taskID).flatMap { $0.kind == "chat" ? $0 : nil }
   }
 
-  func canStartChat(taskID: String?) -> Bool {
+  func canStartChat(taskID: String?, continuingWatchInspectionRunID: String? = nil) -> Bool {
     guard !busy, !managedTaskPreparing, !shuttingDown else { return false }
     if let taskID {
+      if let preparation = watchWorktreePreparationRun(taskID: taskID),
+        preparation.id != continuingWatchInspectionRunID { return false }
       guard !activityArchivingTaskIDs.contains(taskID),
         library.tasks.contains(where: { $0.id == taskID && !$0.archived }) else { return false }
       guard !library.managedWorktrees.contains(where: {

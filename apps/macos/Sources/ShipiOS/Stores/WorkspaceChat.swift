@@ -22,21 +22,30 @@ extension WorkspaceStore {
   func restoreInterruptedChats() {
     let interrupted = Set(library.chatRuns.filter(\.isActive).map(\.id))
     library.chatRuns = library.chatRuns.map { run in
-      guard run.isActive else { return run }
+      let interruptedPreparation = run.toolExecutions.contains {
+        $0.serverID == ModelAutomationPauseTool.serverID
+          && $0.callID == "watch-worktree-preparation:" + run.id && $0.status == .running
+      }
+      guard run.isActive || interruptedPreparation else { return run }
       var result = run.result
       if case .object(var fields) = result {
         if !run.toolExecutions.isEmpty {
           let records = run.toolExecutions.map { item in
             var item = item
-            if item.status == .running || item.status == .awaitingApproval {
+            let preparation = item.serverID == ModelAutomationPauseTool.serverID
+              && item.callID == "watch-worktree-preparation:" + run.id
+            if (run.isActive || preparation),
+              item.status == .running || item.status == .awaitingApproval {
               item.status = .cancelled
-              item.output = "应用已重启，本次调用未恢复；请确认服务器实际状态。"
+              item.output = preparation
+                ? "应用已重启，工作树准备结果尚未确认；下次监控将核对并恢复同一检出。"
+                : "应用已重启，本次调用未恢复；请确认服务器实际状态。"
             }
             return item
           }
           fields["tool_executions"] = try? JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(records))
         }
-        if !run.codexQuestions.isEmpty {
+        if run.isActive, !run.codexQuestions.isEmpty {
           let questions = run.codexQuestions.map { item in
             var item = item
             if item.status == .awaiting { item.status = .cancelled }
@@ -47,7 +56,7 @@ extension WorkspaceStore {
         result = .object(fields)
       }
       return AgentRun(
-        id: run.id, kind: run.kind, project: run.project, status: "interrupted",
+        id: run.id, kind: run.kind, project: run.project, status: run.isActive ? "interrupted" : run.status,
         createdAt: run.createdAt, updatedAt: Date().timeIntervalSince1970 * 1000,
         request: run.request, result: result)
     }
@@ -74,7 +83,8 @@ extension WorkspaceStore {
       !(await applyPrimaryToNewTask()) { return nil }
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
     let submittedCheckPrompt = consumeDraft ? library.drafts[requestedTaskID ?? draftKey] : nil
-    guard canStartChat(taskID: requestedTaskID) else { return nil }
+    guard canStartChat(taskID: requestedTaskID,
+      continuingWatchInspectionRunID: watchInspectionRunID) else { return nil }
     if requestedTaskID == nil,
       library.managedWorktrees.contains(where: { $0.path == currentProjectKey }) {
       error = "此工作树仅属于原任务。请返回来源项目创建新任务。"
@@ -104,9 +114,10 @@ extension WorkspaceStore {
       let isSideChat = requestedTaskID.flatMap { id in
         library.tasks.first(where: { $0.id == id })?.isSideChat
       } == true
-      let watchInspection = automationID.flatMap { id in
+      let watchConfiguration = automationID.flatMap { id in
         automationPreferences.items.first { $0.id == id && $0.taskID == requestedTaskID }
-      }?.watchedPullRequest != nil && requestedTaskID.flatMap {
+      }
+      let watchInspection = watchConfiguration?.watchedPullRequest != nil && requestedTaskID.flatMap {
         library.managedWorktree(forTaskID: $0)
       } == nil
       if isSideChat, mode != .standard || review != nil || compact {
@@ -222,6 +233,9 @@ extension WorkspaceStore {
       if isSideChat { request["conversation_kind"] = .string("side") }
       if let automationID { request["automation_id"] = .string(automationID.uuidString) }
       if watchInspection { request["watch_phase"] = .string("inspection") }
+      if watchConfiguration?.watchedPullRequest != nil, let source = watchConfiguration?.project {
+        request["watch_source_project"] = .string(source)
+      }
       if let watchInspectionRunID { request["watch_inspection_run_id"] = .string(watchInspectionRunID) }
       if automationID != nil, usesCodex {
         request["approval_policy"] = .string(AgentApprovalPolicy.never.rawValue)
@@ -950,7 +964,7 @@ extension WorkspaceStore {
       current, status: status, response: response, message: message,
       usage: usage, responseItems: items, toolExecutions: finalizedTools ? executions : nil)
     saveLibrary()
-    if let finished = runs.first(where: { $0.id == id }) { observeCompletions([finished]) }
+    if let finished = library.chatRuns.first(where: { $0.id == id }) { observeCompletions([finished]) }
     return continueTaskID
   }
   func replaceChat(

@@ -1780,7 +1780,9 @@ private struct TaskWindowMessageView: View {
             }.buttonStyle(.plain).help("查看执行详情")
               .accessibilityLabel(run.isWatchPreflight ? "查看 PR 状态检查详情" : "查看模型执行详情")
           }
-          StatusLabel(run: run).appFont(.caption)
+          if store.isPreparingWatchWorktree(runID: run.id) {
+            Text("正在准备修复工作树").appFont(.caption).foregroundStyle(.secondary)
+          } else { StatusLabel(run: run).appFont(.caption) }
         }
         if run.kind == "chat" {
           if run.request["mode"].text == ChatMode.goal.rawValue {
@@ -1790,7 +1792,9 @@ private struct TaskWindowMessageView: View {
             ).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
           }
           ChatResponseView(store: store, run: run, railSpace: railSpace)
-          if run.isActive { ProgressView().controlSize(.small) }
+          if store.isPreparingWatchWorktree(runID: run.id) {
+            ProgressView("正在准备修复工作树…").controlSize(.small)
+          } else if run.isActive { ProgressView().controlSize(.small) }
           if let message = run.result?["message"].text {
             Text(message).foregroundStyle(.red).textSelection(.enabled)
           }

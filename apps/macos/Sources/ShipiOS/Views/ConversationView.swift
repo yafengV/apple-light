@@ -174,7 +174,9 @@ struct ExecutionMessageView: View {
               .appFont(.caption).foregroundStyle(.secondary)
               .accessibilityLabel("Codex 运行状态：\(status)")
           }
-          if run.isActive { ProgressView().controlSize(.small).accessibilityLabel("正在生成回复") }
+          if store.isPreparingWatchWorktree(runID: run.id) {
+            ProgressView("正在准备修复工作树…").controlSize(.small)
+          } else if run.isActive { ProgressView().controlSize(.small).accessibilityLabel("正在生成回复") }
           if let message = run.result?["message"].text {
             ConversationSearchText(message, id: .init(run: run.id, part: "error")).appFont(.callout)
               .foregroundStyle(.red).textSelection(.enabled)

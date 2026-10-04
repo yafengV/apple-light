@@ -1,6 +1,18 @@
 import Foundation
+import AppKit
+import SwiftUI
 import XCTest
 @testable import ShipiOS
+
+@MainActor private final class WatchFeedbackDelivery: NotificationDelivery {
+  var notices: [CompletionNotice] = []
+  var onPost: (() -> Void)?
+  func permission() async -> NotificationPermission { .authorized }
+  func requestPermission() async throws { }
+  func post(_ notice: CompletionNotice) async throws {
+    notices.append(notice); onPost?()
+  }
+}
 
 @MainActor final class PullRequestWatchWorktreeTests: XCTestCase {
   private let request = GitHubPullRequest(number: 17,
@@ -340,6 +352,207 @@ import XCTest
     XCTAssertEqual(results.count, 2)
     XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: configured.path).appendingPathComponent("file")), "configured worktree edit\n")
     XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: repair.path).appendingPathComponent("file")), "committed\n")
+    await store.shutdown()
+  }
+
+  private func notifications(_ store: WorkspaceStore) -> WatchFeedbackDelivery {
+    let delivery = WatchFeedbackDelivery()
+    store.notifications = CompletionNotificationCenter(delivery: delivery)
+    store.notificationPreferences = .init(timing: .always)
+    return delivery
+  }
+
+  private func waitForPreparation(_ store: WorkspaceStore, taskID: String) async throws -> AgentRun {
+    let deadline = Date().addingTimeInterval(10)
+    while Date() < deadline {
+      if let run = store.watchWorktreePreparationRun(taskID: taskID),
+        run.toolExecutions.contains(where: {
+          $0.callID == "watch-worktree-preparation:" + run.id && $0.status == .running
+        }), store.library.managedWorktrees.first?.ready == true { return run }
+      try await Task.sleep(nanoseconds: 10_000_000)
+    }
+    throw AgentFailure(message: "Preparation not observed: " + (store.automationsError ?? store.error ?? ""))
+  }
+
+  private func holdSetup(_ store: WorkspaceStore, source: URL) {
+    store.library.profiles[source.path] = BuildProfile(worktreeSetupScript:
+      "watch_test_attempt=0; while [ \"$watch_test_attempt\" -lt 200 ]; do "
+      + "if [ -f .release-preparation ]; then exit 0; fi; "
+      + "watch_test_attempt=$((watch_test_attempt+1)); sleep 0.05; done; exit 1")
+  }
+
+  func testLivePreparationPreservesDraftAndOnlyFinalRepairNotifiesInBothProtocols() async throws {
+    let (server, port) = try startServer()
+    defer { if server.isRunning { server.terminate(); server.waitUntilExit() } }
+    for api in [ModelAPIProtocol.chatCompletions, .codexResponses] {
+      let (store, base, source, watch) = try await fixture()
+      defer { try? FileManager.default.removeItem(at: base) }
+      try configure(store, port: port, api: api)
+      store.project = source
+      let delivery = notifications(store)
+      let delivered = expectation(description: "Only final repair notifies: " + api.rawValue)
+      delivery.onPost = { delivered.fulfill() }
+      store.library.gitPreferences.pullRequestWatchInstructions = "watch-lazy-fixture"
+      holdSetup(store, source: source)
+      let details = liveDetails()
+      let occurrence = Task { await store.runAutomation(watch.id, readWatchedPullRequest: { _, _ in details }) }
+      let inspection = try await waitForPreparation(store, taskID: watch.taskID!)
+      XCTAssertTrue(delivery.notices.isEmpty)
+      XCTAssertTrue(store.isPreparingWatchWorktree(runID: inspection.id))
+      XCTAssertFalse(store.canStartChat(taskID: watch.taskID))
+      XCTAssertFalse(store.library.unreadTasks.contains(watch.taskID!))
+      store.setTaskWindowDraft("Keep this guidance", taskID: watch.taskID!)
+      await store.sendTaskWindowDraft(watch.taskID!, mode: .standard)
+      XCTAssertEqual(store.taskWindowDraft(watch.taskID!), "Keep this guidance")
+      XCTAssertEqual(store.library.chatRuns.count, 1)
+      store.observeCompletions([inspection])
+      XCTAssertTrue(delivery.notices.isEmpty)
+      let path = try XCTUnwrap(store.library.managedWorktrees.first?.path)
+      try "continue".write(to: URL(fileURLWithPath: path).appendingPathComponent(".release-preparation"),
+        atomically: true, encoding: .utf8)
+      await occurrence.value
+      await fulfillment(of: [delivered], timeout: 2)
+      let repair = try XCTUnwrap(store.library.chatRuns.last)
+      XCTAssertEqual(repair.status, "succeeded", repair.result?.pretty ?? "")
+      XCTAssertEqual(delivery.notices.count, 1)
+      XCTAssertEqual(delivery.notices[0].destination?.runID, repair.id)
+      XCTAssertEqual(delivery.notices[0].destination?.project, path)
+      XCTAssertEqual(delivery.notices[0].title, "任务已完成")
+      XCTAssertEqual(store.taskWindowDraft(watch.taskID!), "Keep this guidance")
+      XCTAssertNil(store.watchWorktreePreparationRun(taskID: watch.taskID!))
+      XCTAssertTrue(store.canStartChat(taskID: watch.taskID))
+      let preparation = try XCTUnwrap(store.library.chatRuns.first?.toolExecutions.first {
+        $0.callID == "watch-worktree-preparation:" + inspection.id
+      })
+      XCTAssertEqual(preparation.status, .succeeded)
+      XCTAssertTrue(preparation.output?.contains(path) == true)
+      let opened = await store.openNotification(try XCTUnwrap(delivery.notices[0].destination))
+      XCTAssertTrue(opened)
+      XCTAssertEqual(store.conversationReveal?.runID, repair.id)
+      await store.shutdown()
+    }
+  }
+
+  func testFailedPreparationShowsActualFailureAndDoesNotNotifyCompleted() async throws {
+    let (server, port) = try startServer()
+    defer { if server.isRunning { server.terminate(); server.waitUntilExit() } }
+    let (store, base, source, watch) = try await fixture()
+    defer { try? FileManager.default.removeItem(at: base) }
+    try configure(store, port: port, api: .chatCompletions)
+    store.project = source
+    let delivery = notifications(store)
+    store.library.gitPreferences.pullRequestWatchInstructions = "watch-lazy-fixture"
+    store.library.profiles[source.path] = BuildProfile(worktreeSetupScript: "printf 'setup failed' >&2; exit 1")
+    let details = liveDetails()
+    await store.runAutomation(watch.id, readWatchedPullRequest: { _, _ in details })
+    let inspection = try XCTUnwrap(store.library.chatRuns.first)
+    XCTAssertEqual(inspection.status, "succeeded")
+    let preparation = try XCTUnwrap(inspection.toolExecutions.first {
+      $0.callID == "watch-worktree-preparation:" + inspection.id
+    })
+    XCTAssertEqual(preparation.status, .failed)
+    XCTAssertTrue(preparation.output?.contains("setup failed") == true)
+    XCTAssertTrue(store.notices.items.contains { $0.title.contains("准备失败") })
+    XCTAssertEqual(store.library.tasks[0].project, source.path)
+    XCTAssertEqual(store.library.chatRuns.count, 1)
+    XCTAssertTrue(delivery.notices.isEmpty)
+    XCTAssertNil(store.watchWorktreePreparationRun(taskID: watch.taskID!))
+    XCTAssertTrue(store.canStartChat(taskID: watch.taskID))
+    XCTAssertGreaterThan(store.automationPreferences.items[0].nextRun.timeIntervalSinceNow, 290)
+    XCTAssertNotNil(store.automationPreferences.items[0].activeOccurrenceAt)
+    await store.shutdown()
+  }
+
+  func testSinglePhaseChecksAndModelPauseStillNotifyOnceInBothProtocols() async throws {
+    let (server, port) = try startServer()
+    defer { if server.isRunning { server.terminate(); server.waitUntilExit() } }
+    for api in [ModelAPIProtocol.chatCompletions, .codexResponses] {
+      for marker in ["watch-lazy-nochange", "watch-lazy-pause"] {
+        let (store, base, source, watch) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: base) }
+        try configure(store, port: port, api: api)
+        store.project = source
+        let delivery = notifications(store)
+        let delivered = expectation(description: marker + api.rawValue)
+        delivery.onPost = { delivered.fulfill() }
+        store.library.gitPreferences.pullRequestWatchInstructions = "watch-lazy-fixture " + marker
+        let details = liveDetails()
+        await store.runAutomation(watch.id, readWatchedPullRequest: { _, _ in details })
+        await fulfillment(of: [delivered], timeout: 2)
+        XCTAssertEqual(store.library.chatRuns.count, 1)
+        XCTAssertEqual(delivery.notices.count, 1)
+        XCTAssertEqual(delivery.notices[0].destination?.runID, store.library.chatRuns[0].id)
+        XCTAssertTrue(store.library.managedWorktrees.isEmpty)
+        XCTAssertNil(store.watchWorktreePreparationRun(taskID: watch.taskID!))
+        await store.shutdown()
+      }
+    }
+  }
+
+  func testRestartCancelsUnconfirmedHostPreparationWithoutChangingModelResult() async throws {
+    let (store, base, _, watch) = try await fixture()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let id = addInspection(store, watch: watch, status: "succeeded", requested: true)
+    let preparation = MCPToolExecution(callID: "watch-worktree-preparation:" + id,
+      serverID: ModelAutomationPauseTool.serverID, serverName: "ShipiOS", toolName: "准备 PR 修复工作树",
+      arguments: "{}", status: .running)
+    try store.saveToolExecution(preparation, runID: id)
+    store.restoreInterruptedChats()
+    let restored = try XCTUnwrap(store.library.chatRuns.first)
+    XCTAssertEqual(restored.status, "succeeded")
+    XCTAssertEqual(restored.toolExecutions[0].status, .cancelled)
+    XCTAssertTrue(restored.toolExecutions[0].output?.contains("尚未确认") == true)
+    XCTAssertFalse(store.isPreparingWatchWorktree(runID: id))
+    XCTAssertTrue(store.canStartChat(taskID: watch.taskID))
+    let disk = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(disk.chatRuns[0].toolExecutions[0].status, .cancelled)
+    await store.shutdown()
+  }
+
+  func testNativeProgressKeepsEditableComposerDuringRealWorktreeSetup() async throws {
+    let (server, port) = try startServer()
+    defer { if server.isRunning { server.terminate(); server.waitUntilExit() } }
+    let (store, base, source, watch) = try await fixture()
+    defer { try? FileManager.default.removeItem(at: base) }
+    try configure(store, port: port, api: .chatCompletions)
+    store.project = source
+    store.library.taskPullRequests[watch.taskID!] = [request]
+    store.library.gitPreferences.pullRequestWatchInstructions = "watch-lazy-fixture"
+    holdSetup(store, source: source)
+    store.draft = "source draft"
+    store.setTaskWindowDraft("watch draft", taskID: watch.taskID!)
+    let details = liveDetails()
+    let occurrence = Task { await store.runAutomation(watch.id, readWatchedPullRequest: { _, _ in details }) }
+    let inspection = try await waitForPreparation(store, taskID: watch.taskID!)
+    let tab = WorkspaceContentTab.pullRequestWatch(watch.id, task: watch.taskID!, owner: watch.taskID!)
+    let host = NSHostingView(rootView: PullRequestWatchProgressView(store: store, tab: tab, close: {})
+      .frame(width: 430, height: 680))
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 430, height: 680),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.isReleasedWhenClosed = false; window.contentView = host
+    defer { window.contentView = nil; window.close() }
+    try await Task.sleep(for: .milliseconds(700)); host.layoutSubtreeIfNeeded()
+    func editors(_ view: NSView) -> [ComposerNativeTextView] {
+      ((view as? ComposerNativeTextView).map { [$0] } ?? []) + view.subviews.flatMap(editors)
+    }
+    let editor = try XCTUnwrap(editors(host).first)
+    XCTAssertTrue(editor.isEditable)
+    editor.selectAll(nil); editor.insertText("Notes while preparing", replacementRange: editor.selectedRange())
+    try await Task.sleep(for: .milliseconds(100))
+    XCTAssertEqual(store.taskWindowDraft(watch.taskID!), "Notes while preparing")
+    XCTAssertEqual(store.draft, "source draft")
+    XCTAssertTrue(store.isPreparingWatchWorktree(runID: inspection.id))
+    XCTAssertFalse(store.canStartChat(taskID: watch.taskID))
+    if let path = ProcessInfo.processInfo.environment["SHIPIOS_PR_WATCH_FEEDBACK_RENDER_PATH"] {
+      let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+      host.cacheDisplay(in: host.bounds, to: bitmap)
+      try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: path))
+    }
+    let path = try XCTUnwrap(store.library.managedWorktrees.first?.path)
+    try "continue".write(to: URL(fileURLWithPath: path).appendingPathComponent(".release-preparation"),
+      atomically: true, encoding: .utf8)
+    await occurrence.value
+    XCTAssertEqual(store.library.chatRuns.count, 2)
     await store.shutdown()
   }
 }
