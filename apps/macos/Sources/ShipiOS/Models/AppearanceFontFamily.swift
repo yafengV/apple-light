@@ -5,8 +5,7 @@ import Foundation
 enum AppearanceFontFamily {
   static let generics: Set<String> = ["-apple-system", "blinkmacsystemfont", "monospace", "sans-serif", "serif", "system-ui", "ui-monospace", "ui-sans-serif"]
   static func trimmed(_ value: String) -> String {
-    let whitespace = CharacterSet(charactersIn: "\u{9}\u{a}\u{b}\u{c}\u{d}\u{20}\u{a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200a}\u{2028}\u{2029}\u{202f}\u{205f}\u{3000}\u{feff}")
-    return value.trimmingCharacters(in: whitespace)
+    JavaScriptText.trimmed(value)
   }
   private static func rawItems(_ value: String) -> [String] {
     let units = Array(value.utf16); var start = 0, index = 0, quote: UInt16?, result: [String] = []

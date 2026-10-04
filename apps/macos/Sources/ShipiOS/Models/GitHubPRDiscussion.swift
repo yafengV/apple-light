@@ -18,7 +18,8 @@ struct GitHubPRComment: Codable, Identifiable, Equatable, Sendable {
   var submittedAt: String? = nil
   var originalCommit: String? = nil
   var activityDate: String { kind == .review ? submittedAt ?? createdAt : createdAt }
-  var quotedBody: String { body.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
+  var displayBody: String { JavaScriptText.trimmed(body) }
+  var quotedBody: String { displayBody.components(separatedBy: "\n").map { "> " + $0 }.joined(separator: "\n") + "\n\n" }
 }
 
 struct GitHubPRReviewThread: Codable, Identifiable, Equatable, Sendable {
@@ -69,7 +70,7 @@ enum GitHubPRReviewDecision: String, CaseIterable, Identifiable, Sendable {
   var resultState: String {
     switch self { case .comment: "COMMENTED"; case .approve: "APPROVED"; case .requestChanges: "CHANGES_REQUESTED" }
   }
-  func accepts(_ body: String) -> Bool { self == .approve || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  func accepts(_ body: String) -> Bool { self == .approve || !JavaScriptText.trimmed(body).isEmpty }
 }
 
 enum GitHubPRDiscussionAction: Equatable, Sendable {

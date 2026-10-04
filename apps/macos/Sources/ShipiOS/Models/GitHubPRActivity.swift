@@ -55,7 +55,7 @@ extension GitHubPRDiscussionSnapshot {
         createdAt: createdAt, text: "开启了此 PR", url: requestURL)))
     }
     items += events.filter { $0.kind == "PullRequestCommit" }.map(GitHubPRActivityItem.event)
-    items += comments.filter { $0.kind == .issue && !$0.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    items += comments.filter { $0.kind == .issue && !$0.displayBody.isEmpty }
       .map(GitHubPRActivityItem.comment)
     for review in comments where review.kind == .review {
       let decision = review.reviewState?.uppercased()
@@ -64,9 +64,9 @@ extension GitHubPRDiscussionSnapshot {
         items.append(.event(.init(id: "review:" + review.id + ":" + kind, kind: kind, author: review.author,
           createdAt: review.activityDate, text: kind == "approved" ? "批准了这些更改" : "要求修改", url: review.url)))
       }
-      if !review.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { items.append(.comment(review)) }
+      if !review.displayBody.isEmpty { items.append(.comment(review)) }
     }
-    items += threads.filter { $0.comments.first?.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
+    items += threads.filter { $0.comments.first?.displayBody.isEmpty == false }
       .map(GitHubPRActivityItem.thread)
     if let mergedAt {
       items.append(.event(.init(id: "merged:" + requestURL, kind: "merged", author: mergedBy ?? "",

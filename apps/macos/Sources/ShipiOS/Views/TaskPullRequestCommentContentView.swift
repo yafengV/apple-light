@@ -13,7 +13,7 @@ struct TaskPullRequestCommentContentView: View {
   @State private var contentHeight: CGFloat = 0
   private let collapsedHeight: CGFloat = 60
   private var draft: GitHubPRCommentDraft? { state.drafts[comment.id] }
-  private var commentBody: String { comment.body.trimmingCharacters(in: .whitespacesAndNewlines) }
+  private var commentBody: String { comment.displayBody }
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       if let draft, case .edit = draft.target { composer(draft, label: "保存更改") }

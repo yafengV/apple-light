@@ -155,16 +155,19 @@ struct TaskPullRequestCommentView: View {
     actionsVisible && (target.canUpdate || target.canDelete || (!isReply && (thread == nil || thread?.canReply == true)))
   }
   private func actions(_ target: GitHubPRComment, isReply: Bool = false) -> some View {
-    Menu {
-      if target.canUpdate { Button("编辑") { collapse.expand(card); state.beginEdit(target) } }
-      if !isReply, thread == nil || thread?.canReply == true {
-        Button("引用回复") { collapse.expand(card); state.beginReply(target, thread: thread, quote: true) }
-      }
-      if target.canDelete { Button("删除", role: .destructive) { state.deleteTarget = target; state.clearError(.delete(target.id)) } }
-    } label: { Image(systemName: "ellipsis") }
-      .menuStyle(.borderlessButton).fixedSize()
-      .disabled(!state.canEdit(.draft(target.id), writable: writable))
-      .accessibilityLabel(target.author + " 的评论操作")
+    PullRequestCommentActionMenu(options: PullRequestCommentMenuAction.options(target, thread: thread, isReply: isReply),
+      enabled: state.canEdit(.draft(target.id), writable: writable)) { action in
+        guard state.canEdit(.draft(target.id), writable: writable), let current = state.snapshot?.comment(target.id) else { return false }
+        let currentThread = thread.flatMap { old in state.snapshot?.threads.first { $0.id == old.id } }
+        if thread != nil, currentThread == nil { return false }
+        guard PullRequestCommentMenuAction.options(current, thread: currentThread, isReply: isReply).contains(action) else { return false }
+        switch action {
+        case .edit: collapse.expand(card); state.beginEdit(current)
+        case .quote: collapse.expand(card); state.beginReply(current, thread: currentThread, quote: true)
+        case .delete: state.deleteTarget = current; state.clearError(.delete(current.id))
+        }
+        return true
+      }.id(target.id)
   }
   private func toggle() {
     collapse.toggle(card, all: NSApp.currentEvent?.modifierFlags.contains(.option) == true,

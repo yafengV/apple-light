@@ -6,7 +6,7 @@ extension GitHubPRService {
     let body: String?
     switch action {
     case .post(let value, _), .inline(let value, _), .edit(_, _, let value):
-      guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AgentFailure(message: "请填写评论。") }
+      guard !JavaScriptText.trimmed(value).isEmpty else { throw AgentFailure(message: "请填写评论。") }
       body = value
     case .review(let value, let decision, _):
       guard decision.accepts(value) else { throw AgentFailure(message: "请填写审查说明。") }
@@ -87,7 +87,7 @@ extension GitHubPRService {
     switch action {
     case .inline: throw AgentFailure(message: "代码评论必须使用绑定提交的评论接口。")
     case .post(let body, let thread):
-      let text = body.trimmingCharacters(in: .whitespacesAndNewlines)
+      let text = JavaScriptText.trimmed(body)
       if let thread {
         guard let target = fresh.threads.first(where: { $0.id == thread }), target.canReply else {
           throw GitHubPRDiscussionFailure(message: "该线程不存在或不允许回复。", snapshot: fresh)
@@ -143,7 +143,7 @@ extension GitHubPRService {
       }
       name = "addPullRequestReview"; type = "AddPullRequestReviewInput"
       input = ["pullRequestId": .string(fresh.nodeID), "event": .string(decision.rawValue), "commitOID": .string(head)]
-      let text = body.trimmingCharacters(in: .whitespacesAndNewlines)
+      let text = JavaScriptText.trimmed(body)
       if !text.isEmpty { input["body"] = .string(text) }
       result = "pullRequestReview { \(discussionCommentFields) state submittedAt commit { oid } }"
     }
@@ -162,11 +162,11 @@ extension GitHubPRService {
       let candidates = thread.map { id in current.threads.first { $0.id == id }?.comments ?? [] }
         ?? current.comments.filter { $0.kind == .issue }
       return candidates.filter { !baseline.commentIDs.contains($0.id) && $0.author.lowercased() == baseline.viewer.lowercased()
-        && $0.body == body.trimmingCharacters(in: .whitespacesAndNewlines) }.count == 1
+        && $0.body == JavaScriptText.trimmed(body) }.count == 1
     case .review(let body, let decision, let head):
       return current.comments.filter { $0.kind == .review && !baseline.commentIDs.contains($0.id)
         && $0.author.lowercased() == baseline.viewer.lowercased() && $0.reviewState == decision.resultState
-        && $0.commit == head && $0.body == body.trimmingCharacters(in: .whitespacesAndNewlines) }.count == 1
+        && $0.commit == head && $0.body == JavaScriptText.trimmed(body) }.count == 1
     }
   }
 
@@ -176,7 +176,7 @@ extension GitHubPRService {
     case .inline: return false
     case .post(let body, let thread):
       let node = thread == nil ? result["commentEdge"]["node"] : result["comment"]
-      return node["id"].text != nil && node["body"].text == body.trimmingCharacters(in: .whitespacesAndNewlines)
+      return node["id"].text != nil && node["body"].text == JavaScriptText.trimmed(body)
     case .edit(let id, let kind, let body):
       let node = result[kind == .issue ? "issueComment" : kind == .review ? "pullRequestReview" : "pullRequestReviewComment"]
       return node["id"].text == id && node["body"].text == body
@@ -185,7 +185,7 @@ extension GitHubPRService {
     case .review(let body, let decision, let head):
       let node = result["pullRequestReview"]
       return node["id"].text != nil && node["state"].text == decision.resultState && node["commit"]["oid"].text == head
-        && node["body"].text == body.trimmingCharacters(in: .whitespacesAndNewlines)
+        && node["body"].text == JavaScriptText.trimmed(body)
     }
   }
 

@@ -17,7 +17,7 @@ struct TaskPullRequestCommentComposer: View {
   @Environment(\.appAppearance) private var appearance
   @State private var mentions = GitHubPRMentionState()
   private var editable: Bool { inputEnabled ?? enabled }
-  private var canSubmit: Bool { enabled && !busy && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  private var canSubmit: Bool { enabled && !busy && !JavaScriptText.trimmed(text).isEmpty }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {

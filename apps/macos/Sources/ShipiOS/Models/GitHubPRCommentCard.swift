@@ -5,7 +5,7 @@ struct GitHubPRCommentCard: Identifiable, Equatable, Sendable {
   let thread: GitHubPRReviewThread?
   var id: String { comment.id }
   var replies: [GitHubPRComment] {
-    (thread?.comments.dropFirst() ?? []).filter { !$0.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    (thread?.comments.dropFirst() ?? []).filter { !$0.displayBody.isEmpty }
   }
   var defaultCollapsed: Bool { thread?.isResolved == true || comment.authorType != "User" }
   var allIDs: Set<String> { Set((thread?.comments ?? [comment]).map(\.id)) }

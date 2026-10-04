@@ -19,6 +19,11 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
   var buttonWidth: CGFloat = 176
   var fontSize: CGFloat = 14
   var menuWidth: CGFloat = 240
+  var icon: ((NSRect, NSColor, Bool) -> Void)? = nil
+  var dismissOnWindowBlur = true
+  var focusTriggerBeforeSelection = false
+  var restoreFocusAfterSelection = true
+  var commentMenuShadow = false
   let menuHeight: () -> CGFloat
   let available: Bool
   let open: (Bool) -> Void
@@ -47,6 +52,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     button.border = appearance.resolvedColors["border"].nativeColor
     button.focusBorder = appearance.resolvedColors["borderFocus"].nativeColor
     button.buttonWidth = buttonWidth
+    button.icon = icon; button.invalidateIntrinsicContentSize()
     button.setAccessibilityLabel(label)
     button.setAccessibilityValue(button.title); button.setAccessibilityExpanded(menu.presented)
     button.needsDisplay = true; owner.schedule(button)
@@ -86,6 +92,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     var border = NSColor.separatorColor
     var focusBorder = NSColor.keyboardFocusIndicatorColor
     var buttonWidth: CGFloat = 176
+    var icon: ((NSRect, NSColor, Bool) -> Void)?
     private var requestedEnabled = true
     private var generation = UUID()
     override var isEnabled: Bool {
@@ -105,8 +112,16 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     }
     override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
-    override var intrinsicContentSize: NSSize { .init(width: buttonWidth, height: 28) }
+    override var intrinsicContentSize: NSSize { .init(width: buttonWidth, height: icon == nil ? 28 : 24) }
     override func draw(_ dirtyRect: NSRect) {
+      if let icon {
+        let rect = bounds.insetBy(dx: 0.5, dy: 0.5), path = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)
+        if expanded || hovered { hoverSurface.setFill(); path.fill() }
+        icon(.init(x: bounds.midX - 8, y: bounds.midY - 8, width: 16, height: 16),
+          foreground.withAlphaComponent(isEnabled ? 1 : 0.5), isFlipped)
+        if window?.firstResponder === self { focusBorder.setStroke(); path.lineWidth = 2; path.stroke() }
+        return
+      }
       let rect = bounds.insetBy(dx: 0.5, dy: 0.5), path = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)
       let fill = expanded || hovered ? hoverSurface : surface
       fill.withAlphaComponent(fill.alphaComponent * (isEnabled ? 1 : 0.5)).setFill(); path.fill()
@@ -173,7 +188,8 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     }
     func choose(_ id: String, button: Control) {
       guard active, button.window != nil, button.acceptsFirstResponder, parent.enabled, parent.available, parent.menu.presented else { return }
-      if parent.choose(id) { dismiss(button, restore: true) }
+      if parent.focusTriggerBeforeSelection { button.window?.makeFirstResponder(button) }
+      if parent.choose(id) { dismiss(button, restore: parent.restoreFocusAfterSelection) }
     }
     func dismiss(_ button: Control, restore: Bool) {
       parent.menu.dismiss(); popup?.removeFromSuperview(); popup = nil; button.expanded = false; button.setAccessibilityExpanded(false)
@@ -214,7 +230,9 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
               if let popup = self.popup, let first = button.window?.firstResponder as? NSView,
                 first !== button, !first.isDescendant(of: popup),
                 ((first as? NSTextView)?.delegate as? NSView)?.isDescendant(of: popup) != true { self.dismiss(button, restore: false) }
-            } else { self.dismiss(button, restore: false) }
+            } else if note.name != NSWindow.didResignKeyNotification || self.parent.dismissOnWindowBlur {
+              self.dismiss(button, restore: false)
+            }
           }
         })
       }
@@ -227,7 +245,8 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       }
     }
     func handle(_ event: NSEvent, button: Control) -> Bool {
-      guard active, parent.menu.presented else { return false }
+      guard active, parent.menu.presented, let window = button.window, event.window === window else { return false }
+      guard button.acceptsFirstResponder, parent.enabled, parent.available else { dismiss(button, restore: false); return false }
       if event.type != .keyDown {
         let point = event.locationInWindow
         let containsPopup = popup.map { $0.convert($0.bounds, to: nil).contains(point) } ?? false
@@ -280,6 +299,14 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       if popup == nil || needsRootUpdate { host.rootView = root; needsRootUpdate = false }
       let converted = content.convert(frame, from: nil)
       if host.frame != converted { host.frame = converted }; host.focusRingType = .none
+      if parent.commentMenuShadow {
+        host.wantsLayer = true
+        host.layer?.masksToBounds = false
+        host.layer?.shadowColor = NSColor.black.cgColor
+        host.layer?.shadowOpacity = 0.12; host.layer?.shadowRadius = 8
+        host.layer?.shadowOffset = .init(width: 0, height: -8)
+        host.layer?.shadowPath = CGPath(roundedRect: host.bounds.insetBy(dx: 4, dy: 4), cornerWidth: 12, cornerHeight: 12, transform: nil)
+      }
       if host.superview !== content { content.addSubview(host, positioned: .above, relativeTo: nil); window.makeFirstResponder(host) }
       popup = host; button.expanded = true; button.setAccessibilityExpanded(true)
     }

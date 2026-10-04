@@ -22,7 +22,7 @@ extension GitHubPRService {
       throw GitHubPRDiscussionFailure(message: "PR 代码版本已改变，请刷新后重新选择。", snapshot: fresh, staleInline: anchor)
     }
     try Task.checkCancellation(); try await authorize()
-    let text = body.trimmingCharacters(in: .whitespacesAndNewlines), position = anchor.position
+    let text = JavaScriptText.trimmed(body), position = anchor.position
     var input: [String: JSONValue] = ["body": .string(text), "commit_id": .string(anchor.identity.head),
       "path": .string(position.path), "side": .string(position.side.rawValue.uppercased()), "line": .number(Double(position.line))]
     if let start = position.startLine {
@@ -93,7 +93,7 @@ extension GitHubPRService {
     current: GitHubPRDiscussionSnapshot) -> Bool {
     current.threads.filter { thread in
       guard let root = thread.comments.first, !baseline.commentIDs.contains(root.id), root.kind == .code,
-        root.author.lowercased() == baseline.viewer.lowercased(), root.body == body.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
+        root.author.lowercased() == baseline.viewer.lowercased(), root.body == JavaScriptText.trimmed(body) else { return false }
       let commit = anchor.identity.head.lowercased()
       return root.commit?.lowercased() == commit && sameInlinePosition(thread.position, anchor.position)
         || (root.originalCommit ?? root.commit)?.lowercased() == commit && sameInlinePosition(thread.hunkPosition, anchor.position)

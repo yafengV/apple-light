@@ -1,0 +1,480 @@
+{
+  "version": "26.930.21537",
+  "build": "12776",
+  "sourceAsset": "pull-request-readonly-comment-5934b5e08be0.js",
+  "sha256": "d48e88a03c1fbb283abb6344b90099a9e3a78af5bd087eda235db7981b2d1c28",
+  "commentAsset": "pull-request-comment-ae0822c719d2.js",
+  "commentSHA256": "75f3614a2d5537a334dda26896e87ed89bf35e3bcb6698f93eeb00699d3a56c4",
+  "workerSHA256": "23cb6abfcfe706cb571b80140a65b04b9a6a0a66b741439afde3d9e6cddf92d3",
+  "sharedSHA256": "f788f64c401215fae493ac1e235869ed583b37b3468d037de080ca3d796450d9",
+  "cssSHA256": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+  "layout": {
+    "widthMinimum": 160,
+    "trigger": 24,
+    "icon": 16,
+    "gutter": 4,
+    "rowPaddingX": 8,
+    "rowPaddingY": 5,
+    "font": 13,
+    "lineHeight": 1.4285714285714286,
+    "iconGap": 6,
+    "radius": 16,
+    "itemRadius": 12,
+    "collisionPadding": 6,
+    "sideOffset": 1,
+    "dismissOnWindowBlur": false
+  },
+  "cases": [
+    {
+      "mask": 0,
+      "present": false,
+      "items": []
+    },
+    {
+      "mask": 1,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Edit",
+          "icon": "pencil-light-16",
+          "tone": "default",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onEdit"
+      ]
+    },
+    {
+      "mask": 2,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Quote reply",
+          "icon": "arrow-curved-right-large-typographic-light-16",
+          "tone": "default",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onQuoteReply"
+      ]
+    },
+    {
+      "mask": 3,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Edit",
+          "icon": "pencil-light-16",
+          "tone": "default",
+          "stopped": 1
+        },
+        {
+          "label": "Quote reply",
+          "icon": "arrow-curved-right-large-typographic-light-16",
+          "tone": "default",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onEdit",
+        "onQuoteReply"
+      ]
+    },
+    {
+      "mask": 4,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Delete",
+          "icon": "trash-light-16",
+          "tone": "danger",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onDelete"
+      ]
+    },
+    {
+      "mask": 5,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Edit",
+          "icon": "pencil-light-16",
+          "tone": "default",
+          "stopped": 1
+        },
+        {
+          "label": "Delete",
+          "icon": "trash-light-16",
+          "tone": "danger",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onEdit",
+        "onDelete"
+      ]
+    },
+    {
+      "mask": 6,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Quote reply",
+          "icon": "arrow-curved-right-large-typographic-light-16",
+          "tone": "default",
+          "stopped": 1
+        },
+        {
+          "label": "Delete",
+          "icon": "trash-light-16",
+          "tone": "danger",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onQuoteReply",
+        "onDelete"
+      ]
+    },
+    {
+      "mask": 7,
+      "present": true,
+      "align": "end",
+      "width": "xs",
+      "triggerSize": "xs",
+      "triggerLabel": "Comment actions",
+      "items": [
+        {
+          "label": "Edit",
+          "icon": "pencil-light-16",
+          "tone": "default",
+          "stopped": 1
+        },
+        {
+          "label": "Quote reply",
+          "icon": "arrow-curved-right-large-typographic-light-16",
+          "tone": "default",
+          "stopped": 1
+        },
+        {
+          "label": "Delete",
+          "icon": "trash-light-16",
+          "tone": "danger",
+          "stopped": 1
+        }
+      ],
+      "selected": [
+        "onEdit",
+        "onQuoteReply",
+        "onDelete"
+      ]
+    }
+  ],
+  "quotes": [
+    {
+      "raw": "  Original\n ",
+      "displayBody": "Original",
+      "draft": "> Original\n\n",
+      "opened": true
+    },
+    {
+      "raw": " First\n\nSecond ",
+      "displayBody": "First\n\nSecond",
+      "draft": "> First\n> \n> Second\n\n",
+      "opened": true
+    },
+    {
+      "raw": "\r\n  A\r\nB  \r\n",
+      "displayBody": "A\r\nB",
+      "draft": "> A\r\n> B\n\n",
+      "opened": true
+    },
+    {
+      "raw": "﻿Content﻿",
+      "displayBody": "Content",
+      "draft": "> Content\n\n",
+      "opened": true
+    },
+    {
+      "raw": " Content　",
+      "displayBody": "Content",
+      "draft": "> Content\n\n",
+      "opened": true
+    },
+    {
+      "raw": "Content",
+      "displayBody": "Content",
+      "draft": "> Content\n\n",
+      "opened": true
+    },
+    {
+      "raw": "​Content​",
+      "displayBody": "​Content​",
+      "draft": "> ​Content​\n\n",
+      "opened": true
+    },
+    {
+      "raw": "᠎Content᠎",
+      "displayBody": "᠎Content᠎",
+      "draft": "> ᠎Content᠎\n\n",
+      "opened": true
+    },
+    {
+      "raw": "😀\n正文",
+      "displayBody": "😀\n正文",
+      "draft": "> 😀\n> 正文\n\n",
+      "opened": true
+    },
+    {
+      "raw": " \n﻿",
+      "displayBody": null,
+      "draft": null,
+      "opened": false
+    }
+  ],
+  "trimCases": [
+    {
+      "point": 9,
+      "value": "\tContent\t",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 10,
+      "value": "\nContent\n",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 11,
+      "value": "\u000bContent\u000b",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 12,
+      "value": "\fContent\f",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 13,
+      "value": "\rContent\r",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 32,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 160,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 5760,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8192,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8193,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8194,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8195,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8196,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8197,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8198,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8199,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8200,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8201,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8202,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8232,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8233,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8239,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 8287,
+      "value": " Content ",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 12288,
+      "value": "　Content　",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 65279,
+      "value": "﻿Content﻿",
+      "trimmed": "Content",
+      "empty": true
+    },
+    {
+      "point": 133,
+      "value": "Content",
+      "trimmed": "Content",
+      "empty": false
+    },
+    {
+      "point": 6158,
+      "value": "᠎Content᠎",
+      "trimmed": "᠎Content᠎",
+      "empty": false
+    },
+    {
+      "point": 8203,
+      "value": "​Content​",
+      "trimmed": "​Content​",
+      "empty": false
+    }
+  ],
+  "icons": [
+    {
+      "id": "edit",
+      "name": "pencil-light-16",
+      "bounds": {
+        "x": 1.806641,
+        "y": 1.804932,
+        "width": 12.387695,
+        "height": 12.390625
+      },
+      "paths": 1
+    },
+    {
+      "id": "quote",
+      "name": "arrow-curved-right-large-typographic-light-16",
+      "bounds": {
+        "x": 1.849854,
+        "y": 3.25,
+        "width": 12.258545,
+        "height": 9.499512
+      },
+      "paths": 1
+    },
+    {
+      "id": "delete",
+      "name": "trash-light-16",
+      "bounds": {
+        "x": 1.807861,
+        "y": 1.253906,
+        "width": 12.383789,
+        "height": 13.28125
+      },
+      "paths": 3
+    },
+    {
+      "id": "ellipsis",
+      "name": "ellipsis-horizontal-light-16",
+      "bounds": {
+        "x": 2.141235,
+        "y": 6.808105,
+        "width": 11.716797,
+        "height": 2.383789
+      },
+      "paths": 3
+    }
+  ]
+}

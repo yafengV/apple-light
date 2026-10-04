@@ -13,8 +13,8 @@ enum PullRequestCommentComposerKind: Equatable {
     switch self { case .comment: "PR 评论"; case .edit: "编辑 PR 评论"; case .reply: "PR 回复" }
   }
   static func avatarURL(_ login: String?) -> URL? {
-    guard let login = login?.trimmingCharacters(in: .whitespacesAndNewlines), !login.isEmpty,
-      login.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
+    guard let login = login.map(JavaScriptText.trimmed), !login.isEmpty,
+      login.rangeOfCharacter(from: JavaScriptText.whitespace) == nil else { return nil }
     let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
     guard let escaped = login.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
     return URL(string: "https://github.com/" + escaped + ".png?size=48")
