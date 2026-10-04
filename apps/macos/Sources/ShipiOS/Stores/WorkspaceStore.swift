@@ -239,6 +239,8 @@ final class WorkspaceStore {
   var mcpServerEditor: MCPServerConfiguration?
   var mcpConnectionStates: [UUID: MCPConnectionState] = [:]
   var mcpRefreshingServers: Set<UUID> = []
+  var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]
+  var backgroundTerminalCleanup: [String: UUID] = [:]
   var mcpPendingApprovals: [UUID: MCPApprovalContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
   var codexPendingQuestions: [UUID: CodexQuestionContext] = [:] { didSet { synchronizeActivityPriority() } }
@@ -247,7 +249,6 @@ final class WorkspaceStore {
   var codexPendingElicitations: [UUID: CodexElicitationContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var codexElicitationContinuations: [UUID: CheckedContinuation<CodexElicitationDecision?, Never>] = [:]
   @ObservationIgnored var codexSteeringMessages: Set<UUID> = []
-  @ObservationIgnored var codexCommandOutputBuffers: [String: [String: Data]] = [:]
   @ObservationIgnored var mcpTaskGrants: Set<String> = []
   @ObservationIgnored var mcpConnections: [UUID: MCPConnection] = [:]
   @ObservationIgnored var mcpConnectionTokens: [UUID: UUID] = [:]
@@ -531,6 +532,12 @@ final class WorkspaceStore {
     bindGitReviewPolicy(to: workspace)
     codexTransport.onThreadStarted = { [weak self] taskID, threadID, workspace in
       self?.recordCodexThreadID(taskID: taskID, threadID: threadID, workspace: workspace)
+    }
+    codexTransport.onRuntimeCommandEvent = { [weak self] taskID, threadID, event in
+      self?.recordCodexRuntimeCommand(taskID: taskID, threadID: threadID, event: event)
+    }
+    codexTransport.onThreadDisconnected = { [weak self] taskID in
+      self?.disconnectBackgroundTerminals(taskID: taskID)
     }
     codexTransport.onHookEvent = { [weak self] taskID, threadID, event in
       self?.recordCodexHook(taskID: taskID, threadID: threadID, event: event)

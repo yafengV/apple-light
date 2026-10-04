@@ -134,6 +134,11 @@ extension WorkspaceStore {
       guard saved.id == candidate.id, pullRequestWatchContent(candidate) != nil else { return nil }
       tab = candidate
       workspaceTabs.append(tab)
+    case .backgroundTerminal:
+      guard let id = WorkspaceContentTab.backgroundTerminalID(saved.id, owner: owner),
+        backgroundTerminalDocument(id, taskID: owner) != nil else { return nil }
+      tab = .backgroundTerminal(id, owner: owner)
+      workspaceTabs.append(tab)
     case .terminal:
       guard let root = workspaceTabProject(owner: owner),
         saved.id.hasPrefix("terminal:"), let id = UUID(uuidString: String(saved.id.dropFirst(9))) else { return nil }

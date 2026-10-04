@@ -19,6 +19,10 @@ struct TaskSummaryView: View {
   let task: WorkspaceTask
   let runs: [AgentRun]
   let library: WorkspaceLibrary
+  var backgroundTerminals: [CodexBackgroundTerminal] = []
+  var cleaningBackgroundTerminal: UUID? = nil
+  var openBackgroundTerminal: (UUID) -> Void = { _ in }
+  var cleanBackgroundTerminal: (UUID) async -> Void = { _ in }
   let openPlan: (String) -> Void
   let openAllSources: () -> Void
   let openFile: (FileAttachment) -> Void
@@ -111,6 +115,11 @@ struct TaskSummaryView: View {
               Label(latest.statusLabel, systemImage: latest.isActive ? "circle.dotted" : "checkmark.circle")
                 .appFont(.caption).foregroundStyle(.secondary)
             }
+          }
+          if !backgroundTerminals.isEmpty {
+            Divider()
+            BackgroundTerminalSummarySection(terminals: backgroundTerminals,
+              cleaning: cleaningBackgroundTerminal, open: openBackgroundTerminal, clean: cleanBackgroundTerminal)
           }
           if let latestPlanDocument {
             Divider()

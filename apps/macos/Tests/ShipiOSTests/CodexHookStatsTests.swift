@@ -284,7 +284,7 @@ final class CodexHookStatsTests: XCTestCase {
     }
     let ended = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
     XCTAssertEqual(ended.status, "cancelled")
-    XCTAssertTrue(ended.toolExecutions.contains { $0.status == .cancelled && $0.output?.contains("partial-command-output") == true })
+    XCTAssertTrue(ended.toolExecutions.contains { $0.status == .running && $0.output?.contains("partial-command-output") == true })
     let hook = try XCTUnwrap(ended.codexHookRuns.first { $0.eventName == "interrupt" })
     XCTAssertEqual(hook.status, "completed"); XCTAssertEqual(hook.scope, "turn")
     XCTAssertEqual(hook.runtimeTurnID, ended.result?["codex_turn_id"].text)

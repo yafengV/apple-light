@@ -196,6 +196,10 @@ struct TaskWindowView: View {
               if summaryInline {
                 Divider()
                 TaskSummaryView(task: task, runs: taskRuns, library: store.library,
+                  backgroundTerminals: store.backgroundTerminals(taskID: taskID),
+                  cleaningBackgroundTerminal: store.backgroundTerminalCleanup[taskID],
+                  openBackgroundTerminal: { id in taskSummary.dismissPopover(); _ = tabs.openBackgroundTerminal(id) },
+                  cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: taskID, selectedID: id, notices: resources.notices) },
                   openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                   openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -282,6 +286,10 @@ struct TaskWindowView: View {
               get: { taskSummary.showsPopover },
               set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
               TaskSummaryView(task: task, runs: taskRuns, library: store.library,
+                  backgroundTerminals: store.backgroundTerminals(taskID: taskID),
+                  cleaningBackgroundTerminal: store.backgroundTerminalCleanup[taskID],
+                  openBackgroundTerminal: { id in taskSummary.dismissPopover(); _ = tabs.openBackgroundTerminal(id) },
+                  cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: taskID, selectedID: id, notices: resources.notices) },
                 openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                 openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -458,6 +466,10 @@ struct TaskWindowView: View {
 
   private var routedTaskContent: some View {
     taskContent
+    .overlay(alignment: .top) {
+      WorkspaceNoticesView(store: store, notices: resources.notices)
+        .allowsHitTesting(!windowCommandsBlocked).accessibilityHidden(windowCommandsBlocked)
+    }
     .disabled(renameTitle != nil)
     .accessibilityHidden(renameTitle != nil)
     .overlay {
@@ -1215,6 +1227,16 @@ struct TaskWindowView: View {
       case .pullRequestWatch:
         PullRequestWatchProgressView(store: store, tab: tab, close: { tabs.close(tab.id) },
           isFocused: tabs.focusedID == tab.id, onFocus: { tabs.activate(tab.id) })
+      case .backgroundTerminal(let id, _):
+        BackgroundTerminalOutputView(document: store.backgroundTerminalDocument(id, taskID: taskID),
+          focused: tabs.focusedID == tab.id,
+          canFocus: { tabs.isVisible(tab.id) && tabs.focusedID == tab.id && !windowCommandsBlocked },
+          openLink: { url in
+            guard !windowCommandsBlocked else { return }
+            store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+              click: WebLinkClick(event: NSApp.currentEvent),
+              openInApp: { tabs.openBrowser($0, presentation: $1) })
+          })
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

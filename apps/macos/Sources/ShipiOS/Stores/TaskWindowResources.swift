@@ -8,6 +8,7 @@ import Observation
   @ObservationIgnored private weak var windowAttachment: NSView?
   @ObservationIgnored weak var store: WorkspaceStore?
   @ObservationIgnored var navigate: ((String) -> Void)?
+  let notices = WorkspaceNotices()
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
   private(set) var tasks: [String: TaskWindowTabs] = [:]
@@ -49,6 +50,9 @@ import Observation
     } else {
       tasks[taskID] = TaskWindowTabs(taskID: taskID,
         browser: browsers.browser(for: taskID, store: store), panels: panel)
+      tasks[taskID]?.backgroundTerminalTitle = { [weak store] id in
+        store?.backgroundTerminalDocument(id, taskID: taskID)?.title
+      }
       tasks[taskID]?.planDocument = { [weak store] runID in
         store?.taskWindowRuns(taskID).first(where: { $0.id == runID })?.codexPlanDocument
       }

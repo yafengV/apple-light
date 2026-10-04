@@ -49,6 +49,18 @@ struct WorkspaceTabContentView: View {
         close: { store.closeWorkspaceTab(tab.id) },
         isFocused: store.focusedWorkspaceTabID == tab.id || store.workspaceTabPlacement(tab.id) == .detached,
         onFocus: { store.activateWorkspaceTab(tab.id) })
+    case .backgroundTerminal(let id, let owner):
+      BackgroundTerminalOutputView(document: store.backgroundTerminalDocument(id, taskID: owner),
+        focused: store.focusedWorkspaceTabID == tab.id || store.workspaceTabPlacement(tab.id) == .detached,
+        canFocus: {
+          store.presentedOverlay == nil && !store.hasSettingsConfirmation
+            && !store.showingModelPicker && !store.showingBranchPicker
+            && (store.workspaceTabPlacement(tab.id) == .detached || store.focusedWorkspaceContentTab?.id == tab.id)
+        }, openLink: { url in
+          store.openMessageLink(url, project: nil,
+            ownerRunID: store.library.tasks.first { $0.id == owner }?.runIDs.last,
+            click: WebLinkClick(event: NSApp.currentEvent))
+        })
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)

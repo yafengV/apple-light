@@ -59,6 +59,8 @@ extension WorkspaceStore {
       return title.isEmpty ? "Pull request #\(request.number)" : title
     case .pullRequestWatch:
       return pullRequestWatchContent(tab)?.name ?? "PR 监控进度"
+    case .backgroundTerminal(let id, let owner):
+      return backgroundTerminalDocument(id, taskID: owner)?.title ?? "后台终端"
     case .terminal(let id, _):
       return terminalSession(id)?.displayTitle ?? "终端"
     }
@@ -101,6 +103,9 @@ extension WorkspaceStore {
       reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
         kind: .pullRequestWatch, title: workspaceTabTitle(tab), restoreURL: nil,
         watchAutomationID: id, watchTaskID: target)
+    case .backgroundTerminal(_, let owner):
+      reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
+        kind: .backgroundTerminal, title: workspaceTabTitle(tab), restoreURL: nil)
     case .terminal(_, let owner):
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .terminal,
@@ -265,6 +270,14 @@ extension WorkspaceStore {
         library.pinnedContentTabs[index].sourceWindowID = nil
         saveLibrary()
       }
+    case .backgroundTerminal:
+      guard let id = WorkspaceContentTab.backgroundTerminalID(pin.sourceTabID, owner: pin.owner),
+        openBackgroundTerminal(id) else {
+        error = "此后台终端输出不可用。可以保留固定项或取消固定。"; return
+      }
+      if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
+        library.pinnedContentTabs[index].sourceWindowID = nil; saveLibrary()
+      }
     case .terminal:
       guard project != nil else {
         error = "此终端标签的项目不可用。可以保留固定项或取消固定。"
@@ -316,7 +329,7 @@ extension WorkspaceStore {
     case .file: break
     case .review:
       Task { await workspace.refreshGit() }
-    case .plan, .sources, .pullRequest, .pullRequestWatch: break
+    case .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal: break
     case .terminal:
       focusTerminal()
     }
@@ -400,10 +413,10 @@ extension WorkspaceStore {
       return
     }
     if tab.kind == .file { closedFilePlacements[tab.id] = workspaceTabPlacement(tab.id) }
-    if tab.kind == .pullRequest || tab.kind == .pullRequestWatch { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
+    if tab.kind == .pullRequest || tab.kind == .pullRequestWatch || tab.kind == .backgroundTerminal { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
-    case .file, .review, .plan, .sources, .pullRequest, .pullRequestWatch:
+    case .file, .review, .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal:
       pullRequestTabPresentations.clear(tab.id)
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
@@ -506,6 +519,9 @@ extension WorkspaceStore {
       }
       migrated = .file(path, owner: newOwner)
     case .review: migrated = .review(owner: newOwner)
+    case .backgroundTerminal:
+      error = "后台终端输出属于原任务，不能移到其他任务。"
+      return nil
     case .plan:
       error = "计划文档属于原任务，不能移到其他任务。"
       return nil
@@ -677,6 +693,9 @@ extension WorkspaceStore {
       reopeningWorkspaceTabOwner = owner
       _ = workspace.browser.reopenClosedTab(originalID: originalID)
       reopeningWorkspaceTabOwner = nil
+    case .backgroundTerminal(let id, let owner):
+      let placement = closedPullRequestPlacements.removeValue(forKey: tab.id) ?? .right
+      if owner == currentWorkspaceTabOwner { _ = openBackgroundTerminal(id, in: placement == .detached ? .right : placement) }
     case .terminal(_, let owner):
       guard owner == currentWorkspaceTabOwner else { return }
       newTerminalTab(in: .bottom)
@@ -761,6 +780,7 @@ extension WorkspaceStore {
       case .sources: migrated = .sources(owner: newOwner)
       case .pullRequest(let url, _): migrated = .pullRequest(url, owner: newOwner)
       case .pullRequestWatch(let id, let target, _): migrated = .pullRequestWatch(id, task: target, owner: newOwner)
+      case .backgroundTerminal(let id, _): migrated = .backgroundTerminal(id, owner: newOwner)
       case .terminal(let id, _): migrated = .terminal(id, owner: newOwner)
       }
       migratedIDs[tab.id] = migrated.id

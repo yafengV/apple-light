@@ -2,19 +2,22 @@ import SwiftUI
 
 struct WorkspaceNoticesView: View {
   let store: WorkspaceStore
+  let notices: WorkspaceNotices
   @State private var interaction: NoticeInteractionState
   @State private var visual: NoticeVisualTimeline
   @FocusState private var focused: String?
   @State private var focusExitRevision = 0
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  init(store: WorkspaceStore, timeline: NoticeVisualTimeline? = nil) {
+  init(store: WorkspaceStore, notices: WorkspaceNotices? = nil, timeline: NoticeVisualTimeline? = nil) {
     self.store = store
-    _interaction = State(initialValue: NoticeInteractionState(notices: store.notices))
-    _visual = State(initialValue: timeline ?? NoticeVisualTimeline(initial: store.notices.items))
+    let notices = notices ?? store.notices
+    self.notices = notices
+    _interaction = State(initialValue: NoticeInteractionState(notices: notices))
+    _visual = State(initialValue: timeline ?? NoticeVisualTimeline(initial: notices.items))
   }
 
   var body: some View {
-    let items = store.notices.items
+    let items = notices.items
     let displayed = visual.active
     let stacking = visual.stacking
     let layout = NoticeStackLayout(heights: stacking.map { visual.heights[$0.generation] ?? 42 },
@@ -45,7 +48,7 @@ struct WorkspaceNoticesView: View {
           .transition(.identity)
       }
       ForEach(visual.exiting) { exit in
-        WorkspaceNoticeCard(store: store, notice: exit.notice, focused: $focused)
+        WorkspaceNoticeCard(store: store, notice: exit.notice, focused: $focused, interaction: interaction)
           .frame(height: exit.frameHeight, alignment: .top)
           .scaleEffect(exit.scale, anchor: .center)
           .offset(y: exit.offset + (exit.outward ? exit.exitOffset : 0))

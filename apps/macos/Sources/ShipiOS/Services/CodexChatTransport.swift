@@ -5,6 +5,8 @@ import CryptoKit
 @MainActor
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
+  var onRuntimeCommandEvent: ((String, String?, JSONValue) -> Void)?
+  var onThreadDisconnected: ((String) -> Void)?
   var onHookEvent: ((String, String?, JSONValue) -> Void)?
   var onThreadStarted: ((String, String, String) -> Void)?
   private struct ServiceIdentity: Equatable {
@@ -218,6 +220,7 @@ final class CodexChatTransport {
     if activeThreads.contains(taskID), serviceIdentities[taskID] != service {
       _ = try await client.request("codex.thread.stop", ["taskId": .string(taskID)])
       guard generation == token else { throw CancellationError() }
+      onThreadDisconnected?(taskID)
       activeThreads.remove(taskID)
       activeTurnIDs.removeValue(forKey: taskID)
       serviceIdentities.removeValue(forKey: taskID)
@@ -365,6 +368,7 @@ final class CodexChatTransport {
     browserTurnTokens.removeValue(forKey: taskID)
     guard activeThreads.contains(taskID) else { return }
     _ = try? await client(for: taskID).request("codex.thread.stop", ["taskId": .string(taskID)])
+    onThreadDisconnected?(taskID)
     activeThreads.remove(taskID)
     serviceIdentities.removeValue(forKey: taskID)
     activeTurnIDs.removeValue(forKey: taskID)
@@ -451,6 +455,7 @@ final class CodexChatTransport {
 
   private func reset(_ error: Error) {
     generation = UUID()
+    for taskID in activeThreads { onThreadDisconnected?(taskID) }
     activeThreads.removeAll()
     serviceIdentities.removeAll()
     activeTurnIDs.removeAll()
@@ -466,6 +471,7 @@ final class CodexChatTransport {
       Task { await client.stop() }
     }
     for taskID in taskProjects.filter({ $0.value == project }).map(\.key) {
+      onThreadDisconnected?(taskID)
       taskProjects.removeValue(forKey: taskID)
       activeThreads.remove(taskID)
       serviceIdentities.removeValue(forKey: taskID)
@@ -523,6 +529,10 @@ final class CodexChatTransport {
   private func receive(_ payload: JSONValue) {
     guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
+    if ["task_started", "turn_started", "exec_command_begin", "exec_command_end",
+      "exec_command_output_delta", "raw_response_item", "shutdown_complete"].contains(event["type"].text ?? "") {
+      onRuntimeCommandEvent?(taskID, payload["threadId"].text, event)
+    }
     if event["type"].text == "browser_request" {
       guard let token = browserTurnTokens[taskID], let stream = streams[taskID] else { return }
       stream.yield(event)

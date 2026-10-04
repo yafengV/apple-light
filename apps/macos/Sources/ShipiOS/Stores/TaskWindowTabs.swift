@@ -12,6 +12,7 @@ import Observation
   @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
   @ObservationIgnored var canCloseFileTab: ((WorkspaceContentTab) -> Bool)?
   @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
+  @ObservationIgnored var backgroundTerminalTitle: ((UUID) -> String?)?
   @ObservationIgnored var planDocument: ((String) -> CodexPlanDocument?)?
   private(set) var tabs: [WorkspaceContentTab] = []
   private var placements: [String: WorkspaceTabPlacement] = [:]
@@ -118,6 +119,7 @@ import Observation
       return "Pull Request"
     case .pullRequestWatch(let id, let target, _):
       return watchAutomation?(id, target)?.name ?? "PR 监控进度"
+    case .backgroundTerminal(let id, _): return backgroundTerminalTitle?(id) ?? "后台终端"
     case .terminal(let id, _): return panels.terminals.first { $0.id == id }?.displayTitle ?? "终端"
     }
   }
@@ -187,6 +189,13 @@ import Observation
     let tab = WorkspaceContentTab.file(normalizedPath, owner: taskID)
     if !tabs.contains(tab) { tabs.append(tab) }
     move(tab.id, to: place)
+    return true
+  }
+  @discardableResult func openBackgroundTerminal(_ id: UUID, in place: WorkspaceTabPlacement = .right) -> Bool {
+    guard place != .bottom, place != .detached, backgroundTerminalTitle?(id) != nil else { return false }
+    let tab = WorkspaceContentTab.backgroundTerminal(id, owner: taskID)
+    if tabs.contains(tab) { activate(tab.id) }
+    else { tabs.append(tab); move(tab.id, to: place) }
     return true
   }
   func openPlan(runID: String) {
@@ -343,6 +352,7 @@ import Observation
       if let request = pullRequest?(url) { _ = openPullRequest(request, in: state.placement) }
     case .pullRequestWatch(let id, let target, _):
       if let watch = watchAutomation?(id, target) { _ = openPullRequestWatch(watch, in: state.placement) }
+    case .backgroundTerminal(let id, _): _ = openBackgroundTerminal(id, in: state.placement)
     case .terminal: newTerminal(in: state.placement)
     }
   }
@@ -452,6 +462,10 @@ import Observation
         let candidate = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: taskID)
         guard candidate.id == entry.id else { continue }
         tab = candidate; tabs.append(tab)
+      case .backgroundTerminal:
+        guard let id = WorkspaceContentTab.backgroundTerminalID(entry.id, owner: taskID),
+          backgroundTerminalTitle?(id) != nil else { continue }
+        tab = .backgroundTerminal(id, owner: taskID); tabs.append(tab)
       case .terminal:
         guard sameProject, entry.id.hasPrefix("terminal:"),
           let id = UUID(uuidString: String(entry.id.dropFirst(9))), panels.newTerminal(id: id) != nil else { continue }

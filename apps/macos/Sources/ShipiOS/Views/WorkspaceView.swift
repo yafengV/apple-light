@@ -233,6 +233,16 @@ struct WorkspaceView: View {
                 get: { taskSummary.showsPopover },
                 set: { if !$0 { taskSummary.dismissPopover() } }), arrowEdge: .bottom) {
                 TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
+                  backgroundTerminals: store.backgroundTerminals(taskID: task.id),
+                  cleaningBackgroundTerminal: store.backgroundTerminalCleanup[task.id],
+                  openBackgroundTerminal: { id in
+                    taskSummary.dismissPopover()
+                    if store.openBackgroundTerminal(id),
+                      let route = store.detachedWorkspaceTabRoute(WorkspaceContentTab.backgroundTerminal(id, owner: task.id).id) {
+                      openWindow(value: route)
+                    }
+                  },
+                  cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: task.id, selectedID: id) },
                   openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                   openFile: { taskSummary.dismissPopover(); store.preview($0) },
@@ -394,6 +404,16 @@ struct WorkspaceView: View {
             if summaryInline, let task = store.selectedTask {
               Divider()
               TaskSummaryView(task: task, runs: store.conversationRuns, library: store.library,
+                  backgroundTerminals: store.backgroundTerminals(taskID: task.id),
+                  cleaningBackgroundTerminal: store.backgroundTerminalCleanup[task.id],
+                  openBackgroundTerminal: { id in
+                    taskSummary.dismissPopover()
+                    if store.openBackgroundTerminal(id),
+                      let route = store.detachedWorkspaceTabRoute(WorkspaceContentTab.backgroundTerminal(id, owner: task.id).id) {
+                      openWindow(value: route)
+                    }
+                  },
+                  cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: task.id, selectedID: id) },
                 openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                 openFile: { taskSummary.dismissPopover(); store.preview($0) },

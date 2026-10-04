@@ -26,7 +26,10 @@ extension WorkspaceStore {
         $0.serverID == ModelAutomationPauseTool.serverID
           && $0.callID == "watch-worktree-preparation:" + run.id && $0.status == .running
       }
-      guard run.isActive || interruptedPreparation else { return run }
+      let interruptedBackground = run.toolExecutions.contains {
+        $0.serverID == CodexCommandTimeline.serverID && $0.toolName == "命令" && $0.status == .running
+      }
+      guard run.isActive || interruptedPreparation || interruptedBackground else { return run }
       var result = run.result
       if case .object(var fields) = result {
         if !run.toolExecutions.isEmpty {
@@ -34,12 +37,15 @@ extension WorkspaceStore {
             var item = item
             let preparation = item.serverID == ModelAutomationPauseTool.serverID
               && item.callID == "watch-worktree-preparation:" + run.id
-            if (run.isActive || preparation),
+            let background = item.serverID == CodexCommandTimeline.serverID && item.toolName == "命令"
+            if (run.isActive || preparation || background),
               item.status == .running || item.status == .awaitingApproval {
               item.status = .cancelled
-              item.output = preparation
-                ? "应用已重启，工作树准备结果尚未确认；下次监控将核对并恢复同一检出。"
-                : "应用已重启，本次调用未恢复；请确认服务器实际状态。"
+              if !background {
+                item.output = preparation
+                  ? "应用已重启，工作树准备结果尚未确认；下次监控将核对并恢复同一检出。"
+                  : "应用已重启，本次调用未恢复；请确认服务器实际状态。"
+              }
             }
             return item
           }
@@ -474,14 +480,12 @@ extension WorkspaceStore {
             if event["type"].text?.hasSuffix("_begin") == true {
               recordCodexRuntimeStatus(runID: runID, message: nil)
             }
-            recordCodexCommand(runID: runID, event: event)
+            if event["type"].text?.hasPrefix("patch_") == true { recordCodexCommand(runID: runID, event: event) }
             if event["type"].text == "exec_command_begin" || event["type"].text == "patch_apply_begin" {
               rendered = ""
             }
-          case "exec_command_output_delta":
-            recordCodexCommandOutput(runID: runID, event: event)
-          case "raw_response_item":
-            recordCodexCommandResult(runID: runID, event: event)
+          case "exec_command_output_delta", "raw_response_item":
+            break // Routed independently of this turn stream to the original command.
           case "web_search_begin", "web_search_end":
             recordCodexRuntimeStatus(runID: runID, message: nil)
             recordCodexWebSearch(runID: runID, event: event)
@@ -611,14 +615,11 @@ extension WorkspaceStore {
     if let index = runs.firstIndex(where: { $0.id == runID }) { runs[index] = updated }
     saveLibrary()
   }
-  @discardableResult private func recordCodexCommand(runID: String, event: JSONValue) -> MCPToolExecution? {
+  @discardableResult func recordCodexCommand(runID: String, event: JSONValue) -> MCPToolExecution? {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return nil }
     var executions = current.toolExecutions
     var items = current.responseItems ?? []
     guard CodexCommandTimeline.apply(event, executions: &executions, items: &items) else { return nil }
-    if event["type"].text == "exec_command_end", let callID = event["call_id"].text {
-      codexCommandOutputBuffers[runID]?[callID] = nil
-    }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions)
     saveLibrary()
@@ -628,31 +629,11 @@ extension WorkspaceStore {
         && $0.toolName == (patch ? "补丁" : "命令")
     }
   }
-  private func recordCodexCommandOutput(runID: String, event: JSONValue) {
-    guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
-    var executions = current.toolExecutions
-    var buffers = codexCommandOutputBuffers[runID] ?? [:]
-    guard CodexCommandTimeline.appendOutput(event, executions: &executions,
-      outputBuffers: &buffers) else { return }
-    codexCommandOutputBuffers[runID] = buffers
-    replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
-      toolExecutions: executions)
-    if Date().timeIntervalSince(lastChatSave) > 1 {
-      lastChatSave = Date()
-      saveLibrary()
-    }
-  }
-  private func recordCodexCommandResult(runID: String, event: JSONValue) {
+  func recordCodexCommandResult(runID: String, event: JSONValue) {
     guard let current = library.chatRuns.first(where: { $0.id == runID }) else { return }
     var executions = current.toolExecutions
     var items = current.responseItems ?? []
     guard CodexCommandTimeline.applyResponseItem(event, executions: &executions, items: &items) else { return }
-    if let callID = event["item"]["call_id"].text,
-      let execution = executions.first(where: {
-        $0.serverID == CodexCommandTimeline.serverID && $0.callID == callID
-      }), execution.status == .running {
-      codexCommandOutputBuffers[runID, default: [:]][callID] = Data((execution.output ?? "").utf8)
-    }
     replaceChat(current, status: current.status, response: current.result?["response"].text ?? "",
       responseItems: items, toolExecutions: executions)
     saveLibrary()
@@ -921,7 +902,6 @@ extension WorkspaceStore {
   private func finishChat(
     _ id: String, status: String, message: String? = nil, usage: ModelTokenUsage? = nil
   ) -> String? {
-    codexCommandOutputBuffers[id] = nil
     expireCodexQuestions(runID: id)
     expireCodexElicitations(runID: id)
     guard let current = library.chatRuns.first(where: { $0.id == id }) else { return nil }
@@ -931,6 +911,8 @@ extension WorkspaceStore {
     var finalizedTools = false
     for index in executions.indices where executions[index].status == .running
       || executions[index].status == .awaitingApproval {
+      if let command = codexBackgroundTerminals[executions[index].id], command.runID == id,
+        command.running, !command.cleanupRequested { continue }
       finalizedTools = true
       executions[index].status = status == "cancelled" ? .cancelled : .failed
       if executions[index].output == nil {

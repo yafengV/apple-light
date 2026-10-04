@@ -18,6 +18,7 @@ struct WorkspaceNoticeCard: View {
   @State private var swipeOffset: CGFloat = 0
   @State private var swipeOut = false
   @State private var cardWidth: CGFloat = 0
+  private var notices: WorkspaceNotices { interaction?.notices ?? store.notices }
   private var resolved: AppearancePreferences {
     var value = appearance
     if value.theme == "system" { value.theme = scheme == .dark ? "dark" : "light" }
@@ -43,7 +44,7 @@ struct WorkspaceNoticeCard: View {
             if notice.description == nil, notice.taskID != nil { action }
           }
           if notice.level != .pending {
-            Button { store.notices.dismiss(notice.id, generation: notice.generation) } label: {
+            Button { notices.dismiss(notice.id, generation: notice.generation) } label: {
               NoticeGlyph(close: true).frame(width: 16, height: 16)
                 .frame(width: 24, height: 24)
                 .background(closeHovered ? closeHoverColor : .clear, in: Circle())
@@ -120,7 +121,7 @@ struct WorkspaceNoticeCard: View {
           onSwipeDismiss(notice.generation)
           if reduceMotion {
             swipeOut = true
-            store.notices.dismiss(notice.id, generation: notice.generation)
+            notices.dismiss(notice.id, generation: notice.generation)
           } else {
             withAnimation(.easeOut(duration: 0.2)) {
               swipeOut = true
@@ -128,7 +129,7 @@ struct WorkspaceNoticeCard: View {
             }
             Task { @MainActor in
               try? await Task.sleep(for: .milliseconds(200))
-              store.notices.dismiss(notice.id, generation: notice.generation)
+              notices.dismiss(notice.id, generation: notice.generation)
             }
           }
         } else {

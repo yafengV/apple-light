@@ -53,6 +53,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   case sources(owner: String)
   case pullRequest(String, owner: String)
   case pullRequestWatch(UUID, task: String, owner: String)
+  case backgroundTerminal(UUID, owner: String)
   case terminal(UUID, owner: String)
 
   var id: String {
@@ -64,19 +65,30 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .sources(let owner): "sources:\(owner)"
     case .pullRequest(let url, let owner): "pull-request:\(owner):\(url)"
     case .pullRequestWatch(_, let task, let owner): "pull-request-auto-fix:\(owner):\(task)"
+    case .backgroundTerminal(let id, let owner): "background-terminal:\(owner):\(id.uuidString)"
     case .terminal(let id, _): "terminal:\(id.uuidString)"
     }
   }
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .pullRequestWatch(_, _, let owner), .terminal(_, let owner): owner
+    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .pullRequestWatch(_, _, let owner), .terminal(_, let owner), .backgroundTerminal(_, let owner): owner
     }
   }
 
   var browserID: UUID? {
     guard case .browser(let id, _) = self else { return nil }
     return id
+  }
+
+  var backgroundTerminalID: UUID? {
+    guard case .backgroundTerminal(let id, _) = self else { return nil }
+    return id
+  }
+  static func backgroundTerminalID(_ tabID: String, owner: String) -> UUID? {
+    let prefix = "background-terminal:\(owner):"
+    guard tabID.hasPrefix(prefix) else { return nil }
+    return UUID(uuidString: String(tabID.dropFirst(prefix.count)))
   }
 
   var terminalID: UUID? {
@@ -105,6 +117,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .sources: "square.stack"
     case .pullRequest: "arrow.triangle.pullrequest"
     case .pullRequestWatch: "bolt.horizontal.circle"
+    case .backgroundTerminal: "terminal"
     case .terminal: "terminal"
     }
   }
@@ -118,6 +131,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .sources: .sources
     case .pullRequest: .pullRequest
     case .pullRequestWatch: .pullRequestWatch
+    case .backgroundTerminal: .backgroundTerminal
     case .terminal: .terminal
     }
   }
@@ -131,6 +145,7 @@ enum PinnedWorkspaceTabKind: String, Codable {
   case sources
   case pullRequest
   case pullRequestWatch
+  case backgroundTerminal
   case terminal
 }
 
