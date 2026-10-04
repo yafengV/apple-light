@@ -74,6 +74,8 @@ import XCTest
     XCTAssertTrue(window.makeFirstResponder(region)); XCTAssertTrue(window.firstResponder === region)
     let toolbar = try XCTUnwrap(descendants(root, PRCommentTableCopyToolbar.Surface.self).first)
     XCTAssertFalse(toolbar.visible, "Region focus is outside toolbar focus-within")
+    XCTAssertNotNil(region.layer?.mask); XCTAssertFalse(toolbar.isDescendant(of: region))
+    XCTAssertNil(toolbar.layer?.mask, "The table fade does not fade its copy/expand actions")
   }
   func testRealKeyViewLoopEntersRegionBeforeCopyAndExpandAndSkipsPlainCells() async throws {
     let (window, root, _, region) = try await host(overflow)

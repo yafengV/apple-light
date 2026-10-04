@@ -1,0 +1,92 @@
+{
+  "version": "26.930.21537",
+  "sources": {
+    "app-initial-60d038a052d7.js": "8c7725f402d87efcecbfaae599f96074d126ab03f1d9acb8edf7244043666ff3",
+    "app-shared-6fb15e58cd7f.css": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+    "app-initial-341eb5dd9ad5.css": "b9602ce3f1d278f45bb058f5004c769a741b43acb08b987aec3ae57781fc709f"
+  },
+  "rootFontSize": 16,
+  "distance": 16,
+  "animationRange": "min(2px,50%) max(100% - 2px,50%)",
+  "keyframes": {
+    "0%": [
+      0,
+      16
+    ],
+    ".1%,99.9%": [
+      16,
+      16
+    ],
+    "100%": [
+      16,
+      0
+    ]
+  },
+  "states": [
+    {
+      "viewport": 200,
+      "document": 640,
+      "offset": 0,
+      "left": 0,
+      "right": 16
+    },
+    {
+      "viewport": 200,
+      "document": 640,
+      "offset": 2,
+      "left": 0,
+      "right": 16
+    },
+    {
+      "viewport": 200,
+      "document": 640,
+      "offset": 3,
+      "left": 16,
+      "right": 16
+    },
+    {
+      "viewport": 200,
+      "document": 640,
+      "offset": 438,
+      "left": 16,
+      "right": 0
+    },
+    {
+      "viewport": 200,
+      "document": 40200,
+      "offset": 22,
+      "left": 8.0008,
+      "right": 16
+    },
+    {
+      "viewport": 200,
+      "document": 202,
+      "offset": 0,
+      "left": 0,
+      "right": 16
+    },
+    {
+      "viewport": 200,
+      "document": 202,
+      "offset": 1,
+      "left": 16,
+      "right": 0
+    },
+    {
+      "viewport": 200,
+      "document": 202,
+      "offset": 2,
+      "left": 16,
+      "right": 0
+    },
+    {
+      "viewport": 10,
+      "document": 640,
+      "offset": 200,
+      "left": 16,
+      "right": 16
+    }
+  ],
+  "noOverflowMask": "none",
+  "scope": "Actual shared and initial public CSS loaded in a local browser. Controls set geometry/scroll; CUA reads computed styles and image. Live Codex frontend not accessed. Narrow viewport stop clipping inferred from CSS color-stop fixup and visible browser ramp."
+}

@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 /// Only the overflow viewport is a keyboard stop; the toolbar owns its separate shortcuts.
@@ -40,6 +41,10 @@ struct PRCommentTableScrollView: NSViewRepresentable {
     private var generation = UUID()
     private var tableSize = CGSize.zero
     private var viewportWidth: CGFloat = 0
+    private let fadeLayer = CAGradientLayer()
+    private var boundsObserver: NSObjectProtocol?
+    private var originalBoundsNotifications = false
+    private(set) var edgeFade: PRCommentTableEdgeFade?
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool {
       active && enabled && overflowing && window != nil && !isHiddenOrHasHiddenAncestor
@@ -55,6 +60,14 @@ struct PRCommentTableScrollView: NSViewRepresentable {
       document.sizingOptions = []; documentView = document; document.addSubview(anchor)
       setAccessibilityIdentifier("pr-comment-table-scroll")
       setAccessibilityElement(false)
+      wantsLayer = true
+      fadeLayer.startPoint = .init(x: 0, y: 0.5); fadeLayer.endPoint = .init(x: 1, y: 0.5)
+      originalBoundsNotifications = contentView.postsBoundsChangedNotifications
+      contentView.postsBoundsChangedNotifications = true
+      boundsObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification,
+        object: contentView, queue: .main) { [weak self] _ in
+          MainActor.assumeIsolated { self?.updateFadeMask() }
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(block: MessageBlock, source: String, metrics: PRCommentTableMetrics, width: CGFloat,
@@ -88,10 +101,36 @@ struct PRCommentTableScrollView: NSViewRepresentable {
       super.layout()
       document.frame = .init(origin: .zero, size: tableSize)
       anchor.frame = .zero
+      updateFadeMask()
+    }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); updateFadeMask() }
+    override func reflectScrolledClipView(_ clipView: NSClipView) {
+      super.reflectScrolledClipView(clipView); updateFadeMask()
+    }
+    private func updateFadeMask() {
+      let fade = active && window != nil && overflowing
+        ? PRCommentTableEdgeFade(viewport: contentView.bounds.width, document: document.bounds.width,
+            offset: contentView.bounds.minX) : nil
+      guard let fade else {
+        edgeFade = nil
+        if layer?.mask != nil {
+          CATransaction.begin(); CATransaction.setDisableActions(true); layer?.mask = nil; CATransaction.commit()
+        }
+        return
+      }
+      guard fade != edgeFade || fadeLayer.frame != bounds || layer?.mask !== fadeLayer else { return }
+      edgeFade = fade
+      CATransaction.begin(); CATransaction.setDisableActions(true)
+      fadeLayer.frame = bounds
+      let stops = fade.stops
+      fadeLayer.locations = stops.map { NSNumber(value: Double($0.position)) }
+      fadeLayer.colors = stops.map { NSColor.black.withAlphaComponent($0.alpha).cgColor }
+      layer?.mask = fadeLayer
+      CATransaction.commit()
     }
     private func refreshOverflow() {
       let value = viewportWidth > 0 && tableSize.width > viewportWidth + 0.5
-      guard value != overflowing else { return }
+      guard value != overflowing else { updateFadeMask(); return }
       overflowing = value
       setAccessibilityElement(value)
       setAccessibilityRole(value ? .group : nil)
@@ -101,6 +140,7 @@ struct PRCommentTableScrollView: NSViewRepresentable {
         if window?.firstResponder === self { window?.selectNextKeyView(self) }
         contentView.scroll(to: .init(x: 0, y: contentView.bounds.minY)); reflectScrolledClipView(contentView)
       }
+      updateFadeMask()
     }
     @discardableResult func handle(_ event: NSEvent) -> Bool {
       guard acceptsFirstResponder, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
@@ -113,8 +153,12 @@ struct PRCommentTableScrollView: NSViewRepresentable {
     override func keyDown(with event: NSEvent) {
       if !handle(event) { super.keyDown(with: event) }
     }
+    deinit { if let boundsObserver { NotificationCenter.default.removeObserver(boundsObserver) } }
     func retire() {
       active = false; generation = UUID(); receive = nil; anchor.removeFromSuperview()
+      if let boundsObserver { NotificationCenter.default.removeObserver(boundsObserver) }; boundsObserver = nil
+      contentView.postsBoundsChangedNotifications = originalBoundsNotifications
+      updateFadeMask()
       if window?.firstResponder === self { window?.makeFirstResponder(nil) }
     }
   }

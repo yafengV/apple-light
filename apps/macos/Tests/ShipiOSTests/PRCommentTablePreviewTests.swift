@@ -88,6 +88,7 @@ import XCTest
     XCTAssertEqual(surface.cardFrame.width, surface.tableSize.width + 74, accuracy: 0.1)
     XCTAssertEqual(surface.cardFrame.height, 620, accuracy: 1); XCTAssertEqual(surface.cardFrame.minY, 48, accuracy: 1)
     XCTAssertEqual(surface.scroll.frame.height, 554, accuracy: 1)
+    XCTAssertNil(surface.scroll.layer?.mask, "Public table previews do not enable the ordinary table edge fade")
     XCTAssertEqual(surface.close.frame, .init(x: 1228, y: 12, width: 40, height: 40))
     XCTAssertEqual(surface.close.accessibilityLabel(), "关闭表格预览")
     let texts = descendants(surface.document, PRCommentMarkdownText.TextView.self)

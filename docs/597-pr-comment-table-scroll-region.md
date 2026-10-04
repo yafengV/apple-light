@@ -1,5 +1,7 @@
 # PR 普通表格：溢出区域、键盘与无障碍
 
+后续横向渐隐、挂载清理与最新前台启动证据见[第 598 篇](598-pr-comment-table-edge-fade.md)。
+
 本阶段接续[表格预览](596-pr-comment-table-preview.md)，补齐普通表格滚动区域的焦点和无障碍行为。不是完整页面或像素对齐验收。
 
 参考为当前已安装版本 26.930.21537 的公开 `LJc` 组件。它只有在 `scrollWidth > clientWidth` 时给表格滚动容器设置 `role=region`、可滚动表格标签及 `tabIndex=0`，非溢出时三者都不设置。复制按钮绑定水平滚动处理器，展开按钮不绑定；展开有 `aria-haspopup=dialog` 和 `aria-expanded`。参考哈希与本地夹具事实见 `pr_comment_table_scroll_reference.json`。
