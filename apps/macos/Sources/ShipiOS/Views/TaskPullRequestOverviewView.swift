@@ -57,6 +57,8 @@ struct TaskPullRequestOverviewView: View {
   let retryReviewers: () -> Void
   let applyReviewers: (GitHubPRReviewerAction) -> Void
   var openCode: (() -> Void)? = nil
+  var statusState: GitHubPRDetailState? = nil
+  var changeStatus: ((GitHubPRStatus) -> Void)? = nil
   private var details: GitHubPRDetails? { snapshot?.details }
   private var presentation: GitHubPROverviewPresentation {
     .init(request: request, metadata: snapshot, loading: loading, error: error,
@@ -93,7 +95,9 @@ struct TaskPullRequestOverviewView: View {
         readout(presentation.checks, name: "检查")
       }.accessibilityIdentifier("pull-request-overview-checks")
       PullRequestOverviewRow(label: "状态", icon: "", iconColor: statusColor, pullRequestStatus: status) {
-        Text(recordedStatus)
+        if let statusState, let changeStatus {
+          TaskPullRequestStatusView(state: statusState, request: request, writable: writable, select: changeStatus)
+        } else { Text(recordedStatus) }
       }.accessibilityIdentifier("pull-request-overview-status")
       if let snapshot, snapshot.isAutoMergeEnabled, details?.state.uppercased() != "MERGED" {
         PullRequestOverviewRow(label: "自动合并", icon: "arrow.triangle.merge") {

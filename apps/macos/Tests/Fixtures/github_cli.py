@@ -41,6 +41,8 @@ elif args[:2] == ["repo", "view"]:
 elif args[:2] == ["pr", "list"]:
     print(json.dumps(state.get("pullRequests", [])))
 elif args[:2] == ["pr", "view"]:
+    if state.get("statusReadFailureAfterAction") and state.get("statusAccepted"):
+        sys.exit("Status confirmation unavailable")
     if state.get("detailReadFailure"):
         print(state["detailReadFailure"], file=sys.stderr)
         sys.exit(state.get("detailReadExitCode", 1))
@@ -144,6 +146,31 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRStatusMutation" in query:
+            assert arg("--hostname") == "github.com"
+            assert variables["input"]["pullRequestId"] == state.get("statusNode", "pr-node")
+            action = re.search(r"action:(\w+)\(input:", query).group(1)
+            assert action in ["convertPullRequestToDraft", "markPullRequestReadyForReview", "closePullRequest", "reopenPullRequest"]
+            if state.get("statusMutationDelay"):
+                time.sleep(state["statusMutationDelay"])
+            if action in state.get("statusRejected", []):
+                print(json.dumps({"errors": [{"message": "Status mutation rejected: " + action}]}))
+                sys.exit(0)
+            item = next(x for x in state["pullRequests"] if x["number"] == 42)
+            if not state.get("statusNoChange"):
+                if action == "convertPullRequestToDraft": item["isDraft"] = True
+                elif action == "markPullRequestReadyForReview": item["isDraft"] = False
+                else: state["detailState"] = "CLOSED" if action == "closePullRequest" else "OPEN"
+                if action == "closePullRequest": state["autoMerge"] = False
+            state["statusAccepted"] = True
+            if state.get("statusViewerAfterAction"):
+                state["viewer"] = state["statusViewerAfterAction"]
+            state_path.write_text(json.dumps(state))
+            if state.get("statusLostResponse"):
+                sys.exit("Connection interrupted after status mutation")
+            print(json.dumps({"data": {"action": {"pullRequest": {"id": "pr-node", "number": 42,
+                "url": item["url"], "state": state.get("detailState", "OPEN"), "isDraft": item["isDraft"]}}}}))
+            sys.exit(0)
         if "ShipiOSPRReviewers" in query or "ShipiOSPRReviewerCandidates" in query:
             if state.get("reviewerReadFailure") or (state.get("reviewerReadFailureAfterAction") and state.get("reviewerActionAccepted")):
                 sys.exit("Reviewers unavailable")
@@ -434,7 +461,7 @@ elif args and args[0] == "api":
                      if "number=" + str(item.get("number")) in args), None)
         if item is None:
             sys.exit("PR not found")
-        request = {**item, "state": state.get("detailState", "OPEN"),
+        request = {**item, "id": state.get("statusNode", "pr-node"), "state": state.get("detailState", "OPEN"),
                    "headRefOid": state.get("metadataHead", state.get("detailHead", state.get("head"))),
                    "author": {"login": state.get("author", "fixture-author")},
                    "autoMergeRequest": {"enabledAt": "2026-09-29T00:00:00Z"} if state.get("autoMerge") else None}

@@ -21,6 +21,8 @@ import Observation
   private(set) var snapshot: GitHubPRMergeSnapshot?
   private(set) var loading = false
   private(set) var action: GitHubPRMergeAction?
+  private(set) var statusAction: GitHubPRStatus?
+  private(set) var statusRequiresRefresh = false
   private(set) var error: String?
   private(set) var notice: String?
   var showingMergeConfirmation = false
@@ -38,8 +40,9 @@ import Observation
   }
 
   func busy(for request: GitHubPullRequest) -> Bool { coordinator.isBusy(request.url) }
+  var metadataError: String? { snapshot == nil ? error : nil }
   func acceptMetadata(_ snapshot: GitHubPRMergeSnapshot) {
-    guard action == nil else { return }
+    guard action == nil, statusAction == nil else { return }
     readToken = UUID(); loading = false
     self.snapshot = snapshot
   }
@@ -54,17 +57,71 @@ import Observation
   func mergeDisabledReason(for request: GitHubPullRequest, writable: Bool) -> String? {
     if busy(for: request) { return "另一个 PR 操作正在进行。" }
     if !writable { return "当前任务不能修改 PR。" }
+    if statusRequiresRefresh { return "请刷新以确认上次状态操作的结果。" }
     if loading || snapshot == nil { return "请先读取最新 PR 状态。" }
     return snapshot?.mergeDisabledReason
   }
   func autoMergeDisabledReason(for request: GitHubPullRequest, writable: Bool) -> String? {
     if busy(for: request) { return "另一个 PR 操作正在进行。" }
     if !writable { return "当前任务不能修改 PR。" }
+    if statusRequiresRefresh { return "请刷新以确认上次状态操作的结果。" }
     if loading || snapshot == nil { return "请先读取最新 PR 状态。" }
     return snapshot?.autoMergeDisabledReason
   }
+  func statusDisabledReason(for request: GitHubPullRequest, writable: Bool) -> String? {
+    if busy(for: request) { return "另一个 PR 操作正在进行。" }
+    if !writable { return "当前任务不能修改 PR。" }
+    if statusRequiresRefresh { return "请刷新以确认上次状态操作的结果。" }
+    guard !loading, let snapshot else { return "请先读取最新 PR 状态。" }
+    guard snapshot.isAuthor, let viewer = snapshot.viewer, !viewer.isEmpty,
+      let node = snapshot.nodeID, !node.isEmpty else { return "仅 PR 作者可以更改状态。" }
+    if GitHubPRStatus(snapshot.details) == .merged { return "此 PR 已合并。" }
+    return nil
+  }
+
+  @discardableResult func startStatus(_ next: GitHubPRStatus, request: GitHubPullRequest, at root: URL,
+    valid: @escaping @MainActor () -> Bool,
+    writable: @escaping @MainActor () -> Bool,
+    updated: @escaping @MainActor (GitHubPullRequest) -> Void,
+    changed: @escaping @MainActor () -> Void = {},
+    reportError: @escaping @MainActor (String) -> Void = { _ in }) -> Bool {
+    guard statusDisabledReason(for: request, writable: writable()) == nil, valid(), let expected = snapshot,
+      next.canSelect(from: .init(expected.details)) else { return false }
+    let token = UUID(), owner = generation
+    guard coordinator.begin(request.url, token: token) else { return false }
+    statusAction = next; error = nil; notice = nil; showingMergeConfirmation = false
+    operation = Task {
+      var publish = false
+      defer {
+        coordinator.end(request.url, token: token)
+        if generation == owner {
+          statusAction = nil; operation = nil
+          if publish, valid() { changed() }
+        }
+      }
+      do {
+        let result = try await service.updateStatus(next, expected: expected, request: request, at: root) {
+          guard valid(), writable(), self.generation == owner else { throw CancellationError() }
+        }
+        guard !Task.isCancelled, generation == owner, valid() else { return }
+        snapshot = result; statusRequiresRefresh = false; publish = true
+        updated(result.details.recorded(updating: request))
+      } catch {
+        guard !Task.isCancelled, generation == owner, valid() else { return }
+        if let failure = error as? GitHubPRStatusFailure {
+          snapshot = failure.snapshot; statusRequiresRefresh = failure.requiresRefresh
+          if let snapshot { updated(snapshot.details.recorded(updating: request)) }
+          publish = true
+        }
+        self.error = error.localizedDescription
+        reportError(error.localizedDescription)
+      }
+    }
+    return true
+  }
+
   func selectMethod(_ method: GitHubPRMergeMethod) {
-    guard action == nil, snapshot?.allowedMethods.contains(method) == true else { return }
+    guard action == nil, statusAction == nil, snapshot?.allowedMethods.contains(method) == true else { return }
     selectedMethod = method; fallbackToSquash = false
   }
   func openConfirmation(for request: GitHubPullRequest, writable: Bool) {
@@ -75,14 +132,14 @@ import Observation
   func refresh(_ request: GitHubPullRequest, at root: URL, preferred: GitHubPRMergeMethod,
     valid: @escaping @MainActor () -> Bool,
     updated: @escaping @MainActor (GitHubPullRequest) -> Void) async {
-    guard !loading, action == nil, valid() else { return }
+    guard !loading, action == nil, statusAction == nil, valid() else { return }
     let token = UUID(), owner = generation
     readToken = token; loading = true; snapshot = nil; error = nil; notice = nil
     defer { if readToken == token && generation == owner { loading = false } }
     do {
       let result = try await service.mergeSnapshot(for: request, at: root)
       guard !Task.isCancelled, generation == owner, readToken == token, valid() else { return }
-      snapshot = result
+      snapshot = result; statusRequiresRefresh = false
       selectedMethod = result.method(preferred: fallbackToSquash ? .squash : preferred)
       updated(result.details.recorded(updating: request))
     } catch {
@@ -144,6 +201,7 @@ import Observation
   func cancel() {
     generation = UUID(); readToken = UUID()
     operation?.cancel(); operation = nil; loading = false; action = nil
+    statusAction = nil; statusRequiresRefresh = false
     snapshot = nil; error = nil; notice = nil; showingMergeConfirmation = false
     fallbackToSquash = false; selectedMethod = .merge
   }

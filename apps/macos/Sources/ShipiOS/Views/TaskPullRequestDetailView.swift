@@ -99,10 +99,11 @@ struct TaskPullRequestDetailView: View {
             writable: writable, save: { save(.title) }, open: openExternal)
             .padding(.horizontal, 8)
           TaskPullRequestOverviewView(snapshot: state.snapshot, request: request, loading: state.loading,
-            error: state.error, checks: checks, discussion: discussion, reviewers: reviewers, writable: writable,
+            error: state.metadataError, checks: checks, discussion: discussion, reviewers: reviewers, writable: writable,
             searchReviewers: { reviewers.setQuery($0, request: request, at: root, valid: { valid }) },
             retryReviewers: { Task { await loadReviewers() } }, applyReviewers: applyReviewers,
-            openCode: compact || codeRequest == nil ? nil : { code.page = .code })
+            openCode: compact || codeRequest == nil ? nil : { code.page = .code },
+            statusState: state, changeStatus: applyStatus)
           if compact, discussion.snapshot?.canReview == true {
             Button("提交审查") { discussion.openReview() }
               .disabled(!discussion.canWrite(request, writable: writable))
@@ -331,6 +332,15 @@ struct TaskPullRequestDetailView: View {
   }
   private func loadReviewers() async {
     await reviewers.load(request, at: root, valid: { valid })
+  }
+  private func applyStatus(_ status: GitHubPRStatus) {
+    state.startStatus(status, request: request, at: root, valid: { valid }, writable: { writable },
+      updated: onRefresh,
+      changed: { GitHubPRDiscussionUpdates.shared.publish(dataRoot: store.dataRoot, request: request) },
+      reportError: { message in
+        store.notices.show(id: "pr-status-" + request.url, title: "无法更改 PR 状态",
+          description: message, level: .error, taskID: taskID)
+      })
   }
   private func applyReviewers(_ action: GitHubPRReviewerAction) {
     reviewers.apply(action, request: request, at: root, valid: { valid }, writable: { writable },

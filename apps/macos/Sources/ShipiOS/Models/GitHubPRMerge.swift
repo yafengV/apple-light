@@ -15,6 +15,8 @@ struct GitHubPRMergeSnapshot: Equatable, Sendable {
   let isAuthor: Bool
   let allowedMethods: [GitHubPRMergeMethod]
   let isAutoMergeEnabled: Bool
+  var viewer: String? = nil
+  var nodeID: String? = nil
 
   var headRevision: String? {
     guard let value = details.headRefOid, [40, 64].contains(value.count),

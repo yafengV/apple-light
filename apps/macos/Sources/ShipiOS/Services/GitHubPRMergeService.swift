@@ -12,7 +12,7 @@ extension GitHubPRService {
         repository(owner:$owner,name:$name){
           nameWithOwner mergeCommitAllowed squashMergeAllowed
           pullRequest(number:$number){
-            number url state isDraft headRefOid headRefName baseRefName
+            id number url state isDraft headRefOid headRefName baseRefName
             author{login} autoMergeRequest{enabledAt}
           }
         }
@@ -36,7 +36,8 @@ extension GitHubPRService {
     if repo.squashMergeAllowed { methods.append(.squash) }
     return GitHubPRMergeSnapshot(details: details, repository: repository,
       isAuthor: pr.author?.login.caseInsensitiveCompare(data.viewer.login) == .orderedSame,
-      allowedMethods: methods, isAutoMergeEnabled: pr.autoMergeRequest != nil)
+      allowedMethods: methods, isAutoMergeEnabled: pr.autoMergeRequest != nil,
+      viewer: data.viewer.login, nodeID: pr.id)
   }
 
   /// Refresh before mutation, then make GitHub enforce the exact displayed head revision.
@@ -100,6 +101,7 @@ private struct PRMergeMetadata: Decodable {
   struct Actor: Decodable { let login: String }
   struct AutoMerge: Decodable { let enabledAt: String? }
   struct Request: Decodable {
+    let id: String?
     let number: Int
     let url: String
     let state: String
