@@ -431,7 +431,7 @@ struct ComposerView: View {
       }
       if store.selectedActiveRun != nil {
         Button {
-          Task { await store.cancel() }
+          store.requestStop()
         } label: {
           Image(systemName: "stop.fill").appFont(size: 12, weight: .semibold).frame(
             width: 30, height: 30)

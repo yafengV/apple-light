@@ -602,7 +602,7 @@ struct PopoutThreadView: View {
           .frame(minHeight: 48, maxHeight: 90)
         if store.taskWindowOwnsActiveRun(taskID) {
           Button {
-            Task { await store.cancel(taskID: taskID) }
+            store.requestStop(taskID: taskID)
           } label: {
             Image(systemName: "stop.fill").frame(width: 28, height: 28)
           }

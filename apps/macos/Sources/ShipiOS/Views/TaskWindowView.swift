@@ -850,7 +850,7 @@ struct TaskWindowView: View {
           || mode == .standard {
         enabled.formUnion(["steer-prompt", "queue-prompt"])
       }
-      if store.activeRun(taskID: taskID) != nil { enabled.insert("stop") }
+      if store.stopTarget(taskID: taskID) != nil { enabled.insert("stop") }
       if !task.isTransient { enabled.formUnion(["pin", "unread", "rename"]) }
       if store.canArchiveTask(taskID, inWindow: resources.id) { enabled.insert("archive") }
       if store.canOpenSideChat(from: taskID) { enabled.insert("open-side-chat") }
@@ -949,7 +949,7 @@ struct TaskWindowView: View {
     case "capture-appshot": Task { await store.captureAppshot(draft: taskID) }
     case "add-files": store.chooseFiles(draft: taskID)
     case "dictation": Task { await store.toggleDictation(target: taskID) }
-    case "stop": Task { await store.cancel(taskID: taskID) }
+    case "stop": store.requestStop(taskID: taskID)
     case "find":
       if let file = commandFileWorkspace, file.selectedFile != nil {
         file.fileFind.open(editor: file.fileFind.editor, source: file.fileText)
@@ -1518,7 +1518,7 @@ struct TaskWindowView: View {
 
         if store.taskWindowOwnsActiveRun(taskID) {
           Button {
-            Task { await store.cancel(taskID: taskID) }
+            store.requestStop(taskID: taskID)
           } label: {
             Image(systemName: "stop.fill").frame(width: 28, height: 28)
           }

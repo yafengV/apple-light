@@ -172,7 +172,7 @@ extension WorkspaceStore {
         availableEnvironmentActions.indices.contains(slot) {
         runEnvironmentAction(availableEnvironmentActions[slot])
       }
-    case "stop": Task { await cancel() }
+    case "stop": requestStop()
     default: break
     }
   }
@@ -323,7 +323,7 @@ extension WorkspaceStore {
         availableEnvironmentActions.indices.contains($0)
       } == true
     case let value where value.hasPrefix("environment-action-"): return false
-    case "stop": return selectedActiveRun != nil || activeLocalRun != nil
+    case "stop": return stopTarget() != nil
     case "pet": return petsLoaded
     case "open-skills": return pluginsEnabled
     case "reload-skills": return pluginsEnabled && !pluginsLoading

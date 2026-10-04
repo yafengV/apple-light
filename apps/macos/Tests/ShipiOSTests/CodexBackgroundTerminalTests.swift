@@ -139,6 +139,136 @@ import XCTest
     XCTAssertEqual(store.backgroundTerminals(taskID: "task").count, 1)
   }
 
+  func testIdleStopIsAvailableWithoutTurnAndFailureDoesNotUseRowFeedback() async throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    try finishModel(store)
+    XCTAssertTrue(store.commandEnabled("stop"))
+    XCTAssertNotNil(store.stopTarget(taskID: "task"))
+    XCTAssertNil(store.stopTarget(taskID: "missing"))
+    store.presentedOverlay = .taskSearch
+    XCTAssertFalse(store.commandEnabled("stop"))
+    store.presentedOverlay = nil
+    await store.cancel(taskID: "task")
+    XCTAssertTrue(store.notices.items.isEmpty)
+    XCTAssertNil(store.error)
+    XCTAssertTrue(store.backgroundTerminalCleanup.isEmpty)
+    XCTAssertTrue(store.backgroundTerminalCleanupRequests.isEmpty)
+    XCTAssertEqual(store.backgroundTerminals(taskID: "task").count, 1)
+    store.disconnectBackgroundTerminals(taskID: "task")
+    XCTAssertFalse(store.commandEnabled("stop"))
+  }
+
+  func testCapturedStopCancelsOriginalRunAndPausesGoalBeforeCancellation() async throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    store.library.tasks.append(WorkspaceTask(id: "peer", project: store.dataRoot.path, title: "Peer", runIDs: ["peer-run"]))
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    store.library.chatRuns.append(run("peer-run", turn: "peer-turn", project: store.dataRoot.path))
+    store.library.goalSessions["task"] = .init(definition: .init(objective: "Goal", successCriteria: ["Done"]))
+    let original = Task { _ = try? await Task.sleep(for: .seconds(30)) }
+    let peer = Task { _ = try? await Task.sleep(for: .seconds(30)) }
+    store.installModelTask(original, runID: "run"); store.installModelTask(peer, runID: "peer-run")
+    defer { original.cancel(); peer.cancel(); store.removeModelTask(runID: "run"); store.removeModelTask(runID: "peer-run") }
+    let stop = try XCTUnwrap(store.requestStop())
+    store.selection = "peer-run"
+    await stop.value
+    XCTAssertTrue(original.isCancelled)
+    XCTAssertFalse(peer.isCancelled)
+    XCTAssertTrue(store.codexBackgroundTerminals.values.allSatisfy { $0.running && !$0.cleanupRequested },
+      "Interrupting an active turn must not clean unified exec background processes")
+    XCTAssertEqual(store.library.goalSessions["task"]?.status, .paused)
+    let persisted = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(persisted.goalSessions["task"]?.status, .paused)
+    XCTAssertEqual(store.selection, "peer-run")
+  }
+
+  func testStaleRunStopNeverRetargetsNextRunOrItsBackgroundTerminals() async throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    let target = try XCTUnwrap(store.stopTarget())
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    try finishModel(store)
+    store.library.tasks[0].runIDs.append("next")
+    store.library.chatRuns.append(run("next", turn: "next-turn", project: store.dataRoot.path))
+    let next = Task { _ = try? await Task.sleep(for: .seconds(30)) }
+    store.installModelTask(next, runID: "next")
+    defer { next.cancel(); store.removeModelTask(runID: "next") }
+    await store.performStop(target)
+    XCTAssertFalse(next.isCancelled)
+    XCTAssertEqual(store.backgroundTerminals(taskID: "task").count, 1)
+    XCTAssertTrue(store.notices.items.isEmpty)
+  }
+
+  func testCapturedIdleStopDoesNotCleanNewTurnOrChangedThread() async throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    try finishModel(store)
+    let idle = try XCTUnwrap(store.stopTarget())
+    store.library.tasks[0].runIDs.append("next")
+    store.library.chatRuns.append(run("next", turn: "next-turn", project: store.dataRoot.path))
+    store.library.goalSessions["task"] = .init(definition: .init(objective: "Goal", successCriteria: ["Done"]))
+    await store.performStop(idle)
+    XCTAssertEqual(store.library.goalSessions["task"]?.status, .active)
+    try finishModel(store, id: "next")
+    let id = try XCTUnwrap(store.codexBackgroundTerminals.keys.first)
+    let old = try XCTUnwrap(store.codexBackgroundTerminals[id])
+    store.codexBackgroundTerminals[id] = .init(id: id, taskID: old.taskID, runID: old.runID,
+      threadID: "replacement", turnID: old.turnID, callID: old.callID, processID: old.processID,
+      command: old.command, bytes: old.bytes)
+    await store.performStop(idle)
+    XCTAssertEqual(store.library.goalSessions["task"]?.status, .active)
+    XCTAssertFalse(store.codexBackgroundTerminals[id]?.cleanupRequested == true)
+  }
+
+  func testCapturedIdleStopRejectsReplacedTaskThreadEvenIfOldRuntimeEntryRemains() async throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    try finishModel(store)
+    let target = try XCTUnwrap(store.stopTarget())
+    store.library.tasks[0].codexThreadID = "replacement"
+    store.library.goalSessions["task"] = .init(definition: .init(objective: "Goal", successCriteria: ["Done"]))
+    XCTAssertNil(store.stopTarget(taskID: "task"))
+    await store.performStop(target)
+    XCTAssertEqual(store.library.goalSessions["task"]?.status, .active)
+    XCTAssertTrue(store.codexBackgroundTerminals.values.allSatisfy { $0.running && !$0.cleanupRequested })
+  }
+
+  func testIdleStopKeyboardContextOwnsTaskAndPreservesBrowserFocusFilter() async throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    try finishModel(store)
+    var browserFocused = false
+    var stop: Task<Void, Never>?
+    let context = TaskWindowCommandContext(enabled: store.stopTarget(taskID: "task") == nil ? [] : ["stop"],
+      perform: { _ in stop = store.requestStop(taskID: "task") }, keyboardAllowed: { _ in !browserFocused })
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘."), shortcuts: store.shortcuts), "stop")
+    browserFocused = true
+    XCTAssertNil(context.command(for: ShortcutBinding("⌘."), shortcuts: store.shortcuts))
+    XCTAssertTrue(context.execute("stop"), "A menu action remains available independently of browser keyboard focus")
+    await stop?.value
+    XCTAssertTrue(store.notices.items.isEmpty)
+    XCTAssertTrue(store.backgroundTerminalCleanup.isEmpty)
+    XCTAssertEqual(store.backgroundTerminals(taskID: "task").count, 1)
+  }
+
+  func testTaskStopDoesNotFallBackToAnotherLocalRunAndMainPrefersOwnedBackground() throws {
+    let store = try fixture(); defer { store.workspace.browser.shutdown() }
+    store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
+    try finishModel(store)
+    let expected = try XCTUnwrap(store.stopTarget(taskID: "task"))
+    let local = AgentRun(id: "build", kind: "build", project: store.dataRoot.path,
+      status: "running", createdAt: 0, updatedAt: 0, request: .null, result: nil)
+    store.runs.append(local)
+    XCTAssertEqual(store.stopTarget(), expected)
+    XCTAssertNil(store.stopTarget(taskID: "missing"))
+    store.backgroundTerminalCleanupRequests.insert("task")
+    XCTAssertNil(store.stopTarget(), "Pending task cleanup must not redirect Stop to an unrelated build")
+    XCTAssertNil(store.stopTarget(taskID: "task"))
+    store.backgroundTerminalCleanupRequests.remove("task")
+    store.disconnectBackgroundTerminals(taskID: "task")
+    XCTAssertNil(store.stopTarget(taskID: "task"))
+    XCTAssertEqual(store.stopTarget(), .run(runID: "build", taskID: nil))
+  }
+
   func testForkedHistoricalExecutionDoesNotReadOriginalTasksLiveOutput() throws {
     let store = try fixture(); defer { store.workspace.browser.shutdown() }
     store.recordCodexRuntimeCommand(taskID: "task", threadID: "thread", event: begin())
@@ -382,6 +512,59 @@ import XCTest
       placement: .right, address: nil, committedURL: nil), owner: task.id), tab)
     await restored.shutdown()
   }
+  func testRealIdleStopCommandUsesCapturedTaskAndLeavesPeerProcessAndRepliesIntact() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("native-idle-stop-\(UUID())")
+    let project = root.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    let server = Process(); server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    server.arguments = ["-u", URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("Fixtures/background_terminal_model_server.py").path]
+    server.environment = ["BACKGROUND_GATE_ROOT": project.path]
+    let output = Pipe(); server.standardOutput = output; server.standardError = FileHandle.nullDevice
+    try server.run()
+    defer { if server.isRunning { server.terminate(); server.waitUntilExit() }; try? FileManager.default.removeItem(at: root) }
+    let port = String(decoding: output.fileHandleForReading.availableData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    _ = try XCTUnwrap(Int(port))
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: try AgentTestExecutable.url())
+    await store.restore()
+    var config = ModelConfiguration(); config.baseURL = "http://127.0.0.1:\(port)/v1"
+    config.model = "gpt-5.4"; config.apiProtocol = .codexResponses; config.reasoning = "low"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    let started = await store.startChat("background-target")
+    let first = try XCTUnwrap(started)
+    await store.modelTask(runID: first)?.value
+    let task = try XCTUnwrap(store.library.task(containing: first))
+    let terminal = try XCTUnwrap(store.backgroundTerminals(taskID: task.id).first)
+    let pid = try XCTUnwrap(Int32(String(contentsOf: project.appendingPathComponent("target-pid"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)))
+    store.newTask()
+    let peerStarted = await store.startChat("background-peer")
+    let peer = try XCTUnwrap(peerStarted)
+    await store.modelTask(runID: peer)?.value
+    let peerTask = try XCTUnwrap(store.library.task(containing: peer))
+    let peerPID = try XCTUnwrap(Int32(String(contentsOf: project.appendingPathComponent("peer-pid"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)))
+    XCTAssertEqual(kill(pid, 0), 0); XCTAssertEqual(kill(peerPID, 0), 0)
+    store.selection = first
+    XCTAssertTrue(store.commandEnabled("stop"))
+    store.executeCommand("stop")
+    store.selection = peer
+    try await eventually { kill(pid, 0) != 0 }
+    XCTAssertEqual(kill(peerPID, 0), 0)
+    XCTAssertTrue(store.backgroundTerminals(taskID: task.id).isEmpty)
+    XCTAssertEqual(store.backgroundTerminals(taskID: peerTask.id).count, 1)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == peer }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first }?.result?["response"].text, "Background fixture reply")
+    XCTAssertTrue(store.backgroundTerminalDocument(terminal.id, taskID: task.id)?.output.contains("initial-target") == true)
+    XCTAssertTrue(store.backgroundTerminalCleanup.isEmpty)
+    XCTAssertTrue(store.notices.items.isEmpty)
+    XCTAssertEqual(store.selection, peer)
+    await store.cancel(taskID: peerTask.id)
+    try await eventually { kill(peerPID, 0) != 0 }
+    await store.shutdown()
+  }
+
   private func eventually(_ predicate: () -> Bool) async throws {
     for _ in 0..<1500 { if predicate() { return }; try await Task.sleep(for: .milliseconds(10)) }
     XCTFail("Expected native background terminal state was not observed")

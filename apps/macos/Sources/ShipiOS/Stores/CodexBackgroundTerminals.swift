@@ -128,21 +128,27 @@ extension WorkspaceStore {
 
   func cleanBackgroundTerminals(taskID: String, selectedID: UUID,
     notices destination: WorkspaceNotices? = nil) async {
-    guard backgroundTerminalCleanup[taskID] == nil,
+    guard backgroundTerminalCleanup[taskID] == nil, !backgroundTerminalCleanupRequests.contains(taskID),
       backgroundTerminals(taskID: taskID).contains(where: { $0.id == selectedID }) else { return }
     backgroundTerminalCleanup[taskID] = selectedID
-    let requestedIDs = Set(codexBackgroundTerminals.values.filter { $0.taskID == taskID && $0.running }.map(\.id))
     defer { backgroundTerminalCleanup[taskID] = nil }
     do {
-      try await codexTransport.cleanBackgroundTerminals(taskID: taskID)
-      // This acknowledges submission only. Late output/end events still route
-      // to these identities; the UI stops offering another cleanup request.
-      for (id, var entry) in codexBackgroundTerminals where requestedIDs.contains(id) && entry.running {
-        entry.cleanupRequested = true; codexBackgroundTerminals[id] = entry
-      }
+      try await submitBackgroundTerminalCleanup(taskID: taskID)
     } catch {
       (destination ?? notices).show(id: "background-terminal-clean:\(taskID)", title: "无法停止后台终端",
         description: error.localizedDescription, level: .error)
+    }
+  }
+
+  func submitBackgroundTerminalCleanup(taskID: String) async throws {
+    guard backgroundTerminalCleanupRequests.insert(taskID).inserted else { return }
+    defer { backgroundTerminalCleanupRequests.remove(taskID) }
+    let requestedIDs = Set(codexBackgroundTerminals.values.filter { $0.taskID == taskID && $0.running }.map(\.id))
+    try await codexTransport.cleanBackgroundTerminals(taskID: taskID)
+    // Submission acknowledges only the captured commands. Their late output
+    // and end notifications continue to update the original history.
+    for (id, var entry) in codexBackgroundTerminals where requestedIDs.contains(id) && entry.running {
+      entry.cleanupRequested = true; codexBackgroundTerminals[id] = entry
     }
   }
 

@@ -241,6 +241,7 @@ final class WorkspaceStore {
   var mcpRefreshingServers: Set<UUID> = []
   var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]
   var backgroundTerminalCleanup: [String: UUID] = [:]
+  @ObservationIgnored var backgroundTerminalCleanupRequests: Set<String> = []
   var mcpPendingApprovals: [UUID: MCPApprovalContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
   var codexPendingQuestions: [UUID: CodexQuestionContext] = [:] { didSet { synchronizeActivityPriority() } }
@@ -921,20 +922,6 @@ final class WorkspaceStore {
       return
     }
     await submit(request, note: library.notes[run.id] ?? "")
-  }
-
-  func cancel(taskID: String? = nil) async {
-    let run: AgentRun?
-    if let taskID { run = activeRun(taskID: taskID) }
-    else { run = selectedActiveRun ?? activeLocalRun }
-    guard let run else { return }
-    if run.kind == "chat" {
-      modelTask(runID: run.id)?.cancel()
-      return
-    }
-    do { _ = try await client.request("run.cancel", ["runId": .string(run.id)]) } catch {
-      self.error = error.localizedDescription
-    }
   }
 
   func reload() async {

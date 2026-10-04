@@ -1,5 +1,7 @@
 # 核心功能与全部页面对齐矩阵
 
+当前接续[第 612 篇空闲停止与操作身份](612-idle-stop-background-cleanup.md)：没有活动回合时的停止命令已接入任务后台终端清理；主/任务/侧聊入口同步捕获身份，拒绝旧回合、新回合及线程替换竞争，停止前暂停所属目标。200 项关联回归与最后保护变更后的 45 项复测、包内 Agent 21 项复测、正式构建/严格签名及 IPC 冒烟通过（各组有重叠）；新包前台仍锁定，完整配对保持 **0/47**。保留的全量 handle 42865 已确认 exit 0：`7af567a` 的 2,601 项 Swift、0 失败、2 跳过与 IPC 通过，不覆盖第 611/612 篇；下文“仍在运行”是历史记录。Node REPL/子代理与全部执行类型、完整前台配对继续未完成。
+
 当前接续[第 611 篇后台终端摘要与输出标签](611-background-terminal-summary-and-output-tabs.md)：主/独立任务窗口的真实摘要、清理反馈、右侧只读输出与历史恢复已接入；回合结束后的通知保留原任务/回合归属。最终 234 项 Swift 关联回归、包内 Agent 13 项复测、正式构建/严格签名及 IPC 冒烟通过；Mac 前台仍锁定；没有新增完整双端通过项，保持 **0/47**。以下各阶段结果按其当时源码及验证范围保留。
 
 当前接续[第 610 篇中断与后台终端清理](610-interrupt-and-background-terminal-cleanup.md)：已区分回合中断和 Core 后台终端清理，新增按任务提交通道，真实 PID/同项目隔离、审批取消/过期批准和会话续聊已验证。168 项 Rust、105 项 Swift 关联及最终包 19 项复测、正式构建/签名/IPC 通过；Mac 前台仍锁定。后台摘要/输出标签与前台配对仍未完成。保留全量 `f274f79` 已确认 exit 0：2,586 项 Swift、0 失败、2 跳过、IPC 通过；不覆盖第 608—610 篇，下文“仍在运行”是历史状态。
@@ -57,14 +59,14 @@
 | C01 | 独立数据、模型/API、认证和 Core 配置；自有 Agent 而非调用个人 Codex | `crates/shipios-codex/src/lib.rs`、配置/RPC 隔离测试；本阶段捆绑 Agent 冒烟 | 真实用户服务、所有继承环境边界和服务切换前台验收；保持不读取个人 Codex 配置 |
 | C02 | 项目及项目外任务、独立输出目录和任务历史 | WorkspaceRestorationTests；ModelTransportTests 的项目及项目外真实 HTTP 流程 | 全部入口、空状态、目录失效和完整自主编码闭环 |
 | C03 | 流式输出、UTF-8、模型列表及任务协议快照 | `testStreamingUTF8AndModelList`、`testCodexResponsesChatUsesAgentAndKeepsTaskReply` | 真实服务断流/延迟/模型能力；页面渲染与全部输出类型 |
-| C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest`；第 603 篇真实延迟启动的独立取消、无请求、PID 退出和立即重试 | 主/独立窗口连续操作配对及工具执行期间的完整取消边界 |
+| C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest`；第 603 篇真实延迟启动的独立取消、无请求、PID 退出和立即重试 | 第 612 篇已补齐空闲后台停止、捕获身份与目标暂停；Node REPL/子代理、主/独立窗口连续操作配对及全部工具执行取消边界仍缺 |
 | C05 | 等待下一轮、引导优先于旧队列；Core 同回合引导 | `testSteeringRunsBeforeMessagesAlreadyWaitingInQueue`、`testSteeringCancelsCurrentStreamAndContinuesWithPartialReply`、Core steering/detached draft 两项及 RPC 冒烟 | 全部入口、按键和并发焦点；不同协议保持其实际执行语义 |
 | C06 | 重试状态、终止错误和外部中断收尾 | `testCodexRetryStatusAppearsThenClearsOnReply`、`testCodexTerminalProviderErrorFailsRun`、`testCodexExternalInterruptEndsActiveRunWithoutSpinner`；第 610 篇实际运行/审批等待中断、Hook 失败收尾及原任务续聊 | 真实服务重连、审批/提问期间断联及前台错误恢复 |
 | C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 601 篇实际失败输出→补丁→再验证连续用例及恢复；第 610 篇独立后台清理、实际 PID 与同项目任务隔离；第 611 篇主/任务窗口后台摘要、只读输出、迟到通知及恢复 | 真实模型复杂需求、多工具/多回合完整自主编码、复杂失败恢复、后台终端全部前台操作、所有运行卡片和前台配对 |
 | C08 | 人工允许/拒绝、作用域授权、任务权限和自动审核 | RPC 审批冒烟、SkillDiscoveryTransportTests；`testChangingTaskPermissionAppliesToNextCoreTurn` | 所有审批变体、跨窗口投递、持久 Core 逐工具权限和管理策略 |
 | C09 | 结构化提问及 MCP 类型化表单/URL 请求 | CodexElicitationSchemaTests、MCPApprovalRoutingTests、RPC 提问；第 199、211—213 篇 | 所有前台表单/焦点/键盘/取消；真实 OAuth 与 HTTP 后台通知 |
 | C10 | 只读计划回合、计划进度、完成计划文档及次轮恢复 | CodexPlanDocumentTests；`testPlanModeReachesActualRequestAndResetsAfterSubmission`；第 601 篇 Core 实际拒绝写入和次轮恢复写入复测 | 计划标签全交互与 Codex 配对 |
-| C11 | 持久目标、自动续轮、未给状态时暂停及迭代上限 | 四项 ModelTransportTests goal 集成、GoalModeTests；第 601 篇两项原生 Core 完成/指令清理与缺少信号暂停集成 | 真实模型完成判定、暂停/继续/取消组合及 Codex 目标生命周期配对 |
+| C11 | 持久目标、自动续轮、未给状态时暂停及迭代上限 | 四项 ModelTransportTests goal 集成、GoalModeTests；第 601 篇两项原生 Core 完成/指令清理与缺少信号暂停集成 | 第 612 篇验证用户停止前暂停所属目标并持久化；真实模型完成判定、全部暂停/继续/取消组合及 Codex 目标生命周期配对仍缺 |
 | C12 | 恢复会话、草稿、队列；失败区别于空历史 | WorkspaceRestorationTests、`testProjectlessStoreStreamsQueuesAndRestoresRealConversation`、CodexNativeForkTests；第 603 篇关闭初始化等待者和实际进程清理 | 杀进程/磁盘失败/并发保存组合及所有窗口恢复 |
 | C13 | 原生历史分叉、同检出共享任务及新工作树分叉 | CodexNativeForkTests 的实际 Agent、Git 和恢复路径 | 历史运行中分叉前台流程、所有归档共享成员、完整环境及跨提交脏状态 Handoff |
 | C14 | 文件、图片和文本/PDF 附件进入请求及保留归属 | 第 44、193、194 篇及既有测试；本阶段未全量复测 | 更多二进制格式、媒体、复杂粘贴/拖放及全部前台入口 |
