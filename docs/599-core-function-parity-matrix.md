@@ -1,5 +1,7 @@
 # 核心功能与全部页面对齐矩阵
 
+当前接续[第 610 篇中断与后台终端清理](610-interrupt-and-background-terminal-cleanup.md)：已区分回合中断和 Core 后台终端清理，新增按任务提交通道，真实 PID/同项目隔离、审批取消/过期批准和会话续聊已验证。168 项 Rust、105 项 Swift 关联及最终包 19 项复测、正式构建/签名/IPC 通过；Mac 前台仍锁定。后台摘要/输出标签与前台配对仍未完成。保留全量 `f274f79` 已确认 exit 0：2,586 项 Swift、0 失败、2 跳过、IPC 通过；不覆盖第 608—610 篇，下文“仍在运行”是历史状态。
+
 本阶段 SessionEnd 事件收尾见[第 609 篇](609-session-end-event-drain-and-history.md)：Core/Agent/stdout 的最后通知完整读取、服务变更的原历史归属和多会话并发关闭已实现；167 项 Rust、122 项 Swift 关联回归及最终包 17 项复测、正式构建/签名/IPC 通过；Mac 前台仍锁屏。精确前台统计呈现、其他生命周期和全部双端配对仍未完成。
 
 本阶段会话 Hook 运行统计与所属窗口弹层见[第 608 篇](608-hook-run-statistics-and-history.md)：同步执行事件已接入持久回合历史，包含实际会话启动/提交/停止、工具前后及阻止/失败计数。原生 Core 明确隐藏 async UI 通知，真实异步上下文传递另行验证。完整前台/生命周期审计和双端配对仍未完成。
@@ -55,8 +57,8 @@
 | C03 | 流式输出、UTF-8、模型列表及任务协议快照 | `testStreamingUTF8AndModelList`、`testCodexResponsesChatUsesAgentAndKeepsTaskReply` | 真实服务断流/延迟/模型能力；页面渲染与全部输出类型 |
 | C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest`；第 603 篇真实延迟启动的独立取消、无请求、PID 退出和立即重试 | 主/独立窗口连续操作配对及工具执行期间的完整取消边界 |
 | C05 | 等待下一轮、引导优先于旧队列；Core 同回合引导 | `testSteeringRunsBeforeMessagesAlreadyWaitingInQueue`、`testSteeringCancelsCurrentStreamAndContinuesWithPartialReply`、Core steering/detached draft 两项及 RPC 冒烟 | 全部入口、按键和并发焦点；不同协议保持其实际执行语义 |
-| C06 | 重试状态、终止错误和外部中断收尾 | `testCodexRetryStatusAppearsThenClearsOnReply`、`testCodexTerminalProviderErrorFailsRun`、`testCodexExternalInterruptEndsActiveRunWithoutSpinner` | 真实服务重连、审批/提问期间断联及前台错误恢复 |
-| C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 601 篇实际失败输出→补丁→再验证连续用例及恢复 | 真实模型复杂需求、多工具/多回合完整自主编码、复杂失败恢复、所有运行卡片和前台配对 |
+| C06 | 重试状态、终止错误和外部中断收尾 | `testCodexRetryStatusAppearsThenClearsOnReply`、`testCodexTerminalProviderErrorFailsRun`、`testCodexExternalInterruptEndsActiveRunWithoutSpinner`；第 610 篇实际运行/审批等待中断、Hook 失败收尾及原任务续聊 | 真实服务重连、审批/提问期间断联及前台错误恢复 |
+| C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 601 篇实际失败输出→补丁→再验证连续用例及恢复；第 610 篇独立后台清理、实际 PID 与同项目任务隔离 | 真实模型复杂需求、多工具/多回合完整自主编码、复杂失败恢复、后台终端摘要/输出标签、所有运行卡片和前台配对 |
 | C08 | 人工允许/拒绝、作用域授权、任务权限和自动审核 | RPC 审批冒烟、SkillDiscoveryTransportTests；`testChangingTaskPermissionAppliesToNextCoreTurn` | 所有审批变体、跨窗口投递、持久 Core 逐工具权限和管理策略 |
 | C09 | 结构化提问及 MCP 类型化表单/URL 请求 | CodexElicitationSchemaTests、MCPApprovalRoutingTests、RPC 提问；第 199、211—213 篇 | 所有前台表单/焦点/键盘/取消；真实 OAuth 与 HTTP 后台通知 |
 | C10 | 只读计划回合、计划进度、完成计划文档及次轮恢复 | CodexPlanDocumentTests；`testPlanModeReachesActualRequestAndResetsAfterSubmission`；第 601 篇 Core 实际拒绝写入和次轮恢复写入复测 | 计划标签全交互与 Codex 配对 |
@@ -70,7 +72,7 @@
 | C18 | 独立技能自动发现、按需读取、调用、启停和预算 | SkillDiscoveryTransportTests 14 项：两种协议、本机 Core 原生读文件、来源、路径别名、预算及超时 | 在线来源、系统作用域/OAuth、全部技能页和依赖表单前台配对 |
 | C19 | MCP 握手、连接取消/重试、工具、任务审批与历史 | MCPApprovalRoutingTests；第 88—90、209—213、439 篇 | Core 持久逐工具授权、OAuth、HTTP 后台通知、插件内逐服务器运行 |
 | C20 | 插件本地安装/详情/启停/卸载及上下文调用 | PluginCatalog、PluginManagement；既有测试 | 公开目录、市场/账户同步、完整 MCP/浏览器扩展/Hook 生命周期 |
-| C21 | 原生 Hooks 查询/信任/执行；设置来源/逐项审阅/启停和私有持久化，真实 Responses 会话接入；原生 Plugin 环境、资源更新和跨任务数据，以及同步运行历史/统计 | 第 604 篇四事件、第 606 篇三轮/多文件/大 input、第 607 篇实际四轮资源/恢复与 portable 多来源；第 608 篇会话/工具前后执行、阻止/失败及持久统计；第 609 篇 SessionEnd EOF/显式停止/服务变更、超时及多会话并发关闭 | 原始清单资源及完整包兼容性、其余生命周期、即时停用收尾、MCP/async/超时/错误隔离与完整生命周期审计；统计前台、全部来源及双端配对 |
+| C21 | 原生 Hooks 查询/信任/执行；设置来源/逐项审阅/启停和私有持久化，真实 Responses 会话接入；原生 Plugin 环境、资源更新和跨任务数据，以及同步运行历史/统计 | 第 604 篇四事件、第 606 篇三轮/多文件/大 input、第 607 篇实际四轮资源/恢复与 portable 多来源；第 608 篇会话/工具前后执行、阻止/失败及持久统计；第 609 篇 SessionEnd EOF/显式停止/服务变更、超时及多会话并发关闭；第 610 篇 Interrupt 命令/审批等待及非零退出收尾 | 原始清单资源及完整包兼容性、其余生命周期、即时停用收尾、MCP/async/超时/错误隔离与完整生命周期审计；统计前台、全部来源及双端配对 |
 | C22 | 自动化日程、按次任务/项目/模型、审查历史和工作树 | 进程内调度及既有 Agent 集成测试；第 308 篇等 | 错过日程处理、完整 RFC 5545、进程退出后可靠调度、云环境/组织权限 |
 | C23 | PR watch 分叉续接、只读检查、按需工作树、暂停和结果 | 第 574—581 篇及关联测试 | 检查/修复单回合切换、模型最终回复、退出后的调度与真实 GitHub 修复/合并 |
 | C24 | 浏览器持久资料、Agent 读/操作、下载与站点权限 | 既有真实 WebKit 夹具与浏览器服务；本阶段未全量复测 | 跨重启登录、特殊 iframe、CDP/WebMCP、敏感操作语义审批及前台配对 |

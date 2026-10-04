@@ -288,6 +288,18 @@ class Handler(BaseHTTPRequestHandler):
                     'name': 'exec_command',
                     'arguments': json.dumps({'cmd': 'pwd', 'yield_time_ms': 10000}),
                 }
+            elif 'codex-interrupt-command-probe' in request_text and 'swift-interrupt-command-call' not in request_text:
+                prefix = 'peer-interrupt' if 'codex-interrupt-command-probe-peer' in request_text else 'interrupt'
+                item = {
+                    'type': 'function_call', 'call_id': 'swift-interrupt-command-call',
+                    'name': 'exec_command',
+                    'arguments': json.dumps({
+                        'cmd': f"printf '%s\\n' \"$$\" > {prefix}-pid.txt; "
+                            f"printf 'partial-command-output\\n'; touch {prefix}-started; "
+                            f"sleep 30; touch {prefix}-finished",
+                        'yield_time_ms': 1000,
+                    }),
+                }
             elif 'codex-live-output-probe' in request_text and 'function_call_output' not in request_text:
                 item = {
                     'type': 'function_call', 'call_id': 'swift-live-output-call',

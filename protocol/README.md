@@ -10,7 +10,7 @@
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}
 ```
 
-返回 `protocolVersion`、`serverVersion`、项目、数据目录和能力。当前 `runKinds` 为 `doctor`、`build`；`modelCalls`、`codexEmbedded`、`uiVerification` 和 `release` 都为 false。版本不兼容时不初始化，客户端可再次握手。
+返回 `protocolVersion`、`serverVersion`、项目、数据目录和能力。当前 `runKinds` 为 `doctor`、`build`；`modelCalls`、`codexEmbedded` 和 `codexResponses` 为 true；`codexEventReplay`、`uiVerification` 和 `release` 为 false。版本不兼容时不初始化，客户端可再次握手。
 
 所有方法必须有字符串或整数 `id`。无 ID 的 notification 不执行方法，也不回复。握手后无需额外发送 `initialized`。
 
@@ -63,3 +63,9 @@ EOF、SIGINT 或 SIGTERM 会请求取消活动任务并保存结果；关闭前�
 请求形如 `{"id":1,"query":"cpv"}`，以换行结束，每帧最多 64 KiB；编号为非负整数。响应形如 `{"id":1,"files":[{"path":"Sources/CommandPaletteView.swift","isDirectory":false,"score":100}],"complete":false}`。同一编号可能收到多次更新，`complete:true` 表示该查询与首次目录扫描均已完成；空查询直接返回空的完成结果。客户端必须丢弃旧编号响应，并继续保留同一进程以复用索引。
 
 候选最多 50 条；路径相对启动根目录，返回序为路径匹配得分降序及路径顺序，界面另做文件名排序。关闭 stdin、非法/过大输入帧或终止进程会结束会话。目录变化、重试或重开窗口时建立新会话；已完成索引不自动监听之后的文件系统变化。实现与验收见[增量搜索记录](../docs/156-file-search-incremental-session.md)。
+
+## Core 后台终端清理
+
+`codex.thread.backgroundTerminals.clean` 接收严格的 `{"taskId":"..."}`，只对该 Agent 已绑定的任务调用 Core `Op::CleanBackgroundTerminals`；不存在的任务返回领域错误，额外线程/项目范围参数拒绝解析。
+
+返回 `{"submitted":true}` 表示 Core 已收到清理操作，不表示操作系统进程已经退出。最终命令事件或实际进程状态确认退出。`codex.turn.interrupt` 只中断回合，Core 可以保留统一执行后台进程；清理后台终端是独立操作，不关闭线程、不清空历史，也不影响同项目其他任务。当前前台后台任务列表和输出标签仍需接续实现。

@@ -252,6 +252,14 @@ async fn dispatch(
                 codex.interrupt(&p.task_id).await.map_err(failed)?;
                 Ok(json!({"interrupted":true}))
             }
+            "codex.thread.backgroundTerminals.clean" => {
+                let p: CodexTask = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex
+                    .clean_background_terminals(&p.task_id)
+                    .await
+                    .map_err(failed)?;
+                Ok(json!({"submitted":true}))
+            }
             "codex.turn.approve" => {
                 let p: CodexApproval = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.approve(p).await.map_err(failed)?;
@@ -461,6 +469,41 @@ mod tests {
             .await
             .is_none()
         );
+        assert!(service.list()?.is_empty());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn background_terminal_cleanup_rejects_unbound_tasks_and_extra_scope() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let service = Arc::new(Service::new(Config::load(
+            &temp.path().join("data"),
+            temp.path(),
+            false,
+            Layer::default(),
+        )?)?);
+        let codex = Arc::new(CodexBridge::new(
+            service.config.data_dir.clone(),
+            service.config.project.clone(),
+        ));
+        let mut ready = true;
+        for (params, expected) in [
+            (json!({}), -32602),
+            (json!({"taskId": 1}), -32602),
+            (
+                json!({"taskId": "00000000-0000-0000-0000-000000000001", "threadId": "another-thread"}),
+                -32602,
+            ),
+            (
+                json!({"taskId": "00000000-0000-0000-0000-000000000001"}),
+                -32010,
+            ),
+        ] {
+            let reply = dispatch(&service, &codex, json!({
+                "jsonrpc":"2.0", "id":1, "method":"codex.thread.backgroundTerminals.clean", "params":params
+            }), &mut ready).await.unwrap();
+            assert_eq!(reply["error"]["code"], expected, "{reply}");
+            assert!(reply.get("result").is_none());
+        }
         assert!(service.list()?.is_empty());
         Ok(())
     }

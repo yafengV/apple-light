@@ -371,6 +371,13 @@ final class CodexChatTransport {
     streams.removeValue(forKey: taskID)?.finish()
   }
 
+  /// Interrupt ends a model turn while unified-exec sessions can stay alive.
+  /// Explicit cleanup targets that task's Core session, preserving its history.
+  func cleanBackgroundTerminals(taskID: String) async throws {
+    guard activeThreads.contains(taskID) else { throw AgentFailure(message: "Codex 会话未连接") }
+    _ = try await client(for: taskID).request("codex.thread.backgroundTerminals.clean", ["taskId": .string(taskID)])
+  }
+
   /// Releases an ephemeral thread's local identity after the Core thread stops.
   func discard(taskID: String) async {
     await stop(taskID: taskID)

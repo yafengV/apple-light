@@ -337,6 +337,7 @@ enum Command {
     ResolveElicitation(CodexElicitation, oneshot::Sender<Result<()>>),
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
+    CleanBackgroundTerminals(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
 }
 
@@ -1116,6 +1117,16 @@ impl CodexBridge {
         result.await.context("Codex thread stopped")?
     }
 
+    pub async fn clean_background_terminals(&self, task_id: &str) -> Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender(task_id)
+            .await?
+            .send(Command::CleanBackgroundTerminals(reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
     pub async fn shutdown(&self) {
         let task_ids = self
             .sessions
@@ -1196,6 +1207,9 @@ async fn run_thread(
                 }
                 Some(Command::Interrupt(reply)) => {
                     let _ = reply.send(live.interrupt_turn().await);
+                }
+                Some(Command::CleanBackgroundTerminals(reply)) => {
+                    let _ = reply.send(live.clean_background_terminals().await);
                 }
                 Some(Command::Stop(reply)) => {
                     let _ = live.interrupt_turn().await;

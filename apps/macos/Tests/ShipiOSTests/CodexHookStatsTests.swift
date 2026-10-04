@@ -231,6 +231,129 @@ final class CodexHookStatsTests: XCTestCase {
     }, uniquingKeysWith: { a, _ in a }))])
   }
 
+  @MainActor private func toolModelFixture(store: WorkspaceStore, server: GitGenerationFixture) throws -> Process {
+    let model = Process(); model.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("Fixtures/model_server.py")
+    model.arguments = ["-u", script.path]; let output = Pipe()
+    model.standardOutput = output; model.standardError = FileHandle.nullDevice; try model.run()
+    do {
+      let port = String(decoding: output.fileHandleForReading.availableData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+      _ = try XCTUnwrap(Int(port)); var config = server.config; config.baseURL = "http://127.0.0.1:\(port)/v1"
+      try store.saveModelConfiguration(config)
+      return model
+    } catch { model.terminate(); model.waitUntilExit(); throw error }
+  }
+
+  @MainActor func testRealInterruptKeepsBackgroundCommandUntilExplicitCleanupAndAllowsContinuation() async throws {
+    let (store, server, root) = try await liveFixture(definitions([
+      ("Interrupt", #"cat > "$PLUGIN_DATA/interrupt-input.json"; printf '{"systemMessage":"INTERRUPT-RECORDED"}\n'"#)]))
+    let model = try toolModelFixture(store: store, server: server)
+    defer { server.stop(); if model.isRunning { model.terminate(); model.waitUntilExit() }; try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    await store.open(project); XCTAssertTrue(store.connected, store.error ?? "")
+    let peerStarted = await store.startChat("slow-codex codex-interrupt-command-probe-peer")
+    let peerRun = try XCTUnwrap(peerStarted)
+    let peerTask = try XCTUnwrap(store.library.task(containing: peerRun))
+    for _ in 0..<1500 {
+      if FileManager.default.fileExists(atPath: project.appendingPathComponent("peer-interrupt-started").path) { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let peerPID = try XCTUnwrap(Int32(String(contentsOf: project.appendingPathComponent("peer-interrupt-pid.txt"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)))
+    XCTAssertEqual(kill(peerPID, 0), 0)
+    store.newTask()
+    store.draft = "slow-codex codex-interrupt-command-probe"; await store.sendDraft()
+    let task = try XCTUnwrap(store.selectedTask), id = try XCTUnwrap(task.runIDs.first)
+    let running = try XCTUnwrap(store.modelTask(runID: id))
+    let started = project.appendingPathComponent("interrupt-started")
+    for _ in 0..<1000 {
+      if FileManager.default.fileExists(atPath: started.path),
+        store.library.chatRuns.first(where: { $0.id == id })?.toolExecutions.contains(where: { $0.output?.contains("partial-command-output") == true }) == true { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: started.path))
+    let pid = try XCTUnwrap(Int32(String(contentsOf: project.appendingPathComponent("interrupt-pid.txt"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)))
+    XCTAssertEqual(kill(pid, 0), 0, "The actual command must be alive before pressing Stop")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == id }?.status, "running",
+      "Stop must be tested before the interrupted turn completes")
+    await store.cancel(taskID: task.id); await running.value
+    for _ in 0..<1000 {
+      if store.library.chatRuns.first(where: { $0.id == id })?.codexHookStats != nil { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let ended = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    XCTAssertEqual(ended.status, "cancelled")
+    XCTAssertTrue(ended.toolExecutions.contains { $0.status == .cancelled && $0.output?.contains("partial-command-output") == true })
+    let hook = try XCTUnwrap(ended.codexHookRuns.first { $0.eventName == "interrupt" })
+    XCTAssertEqual(hook.status, "completed"); XCTAssertEqual(hook.scope, "turn")
+    XCTAssertEqual(hook.runtimeTurnID, ended.result?["codex_turn_id"].text)
+    XCTAssertTrue(hook.visibleEntries.contains { $0.kind == "warning" && $0.text == "INTERRUPT-RECORDED" })
+    XCTAssertEqual(kill(pid, 0), 0, "Native Core deliberately preserves a unified-exec session when its turn is interrupted")
+    try await store.codexTransport.cleanBackgroundTerminals(taskID: task.id)
+    for _ in 0..<300 { if kill(pid, 0) != 0 { break }; try await Task.sleep(for: .milliseconds(10)) }
+    XCTAssertNotEqual(kill(pid, 0), 0, "Explicit cleanup must terminate the real process without closing its Core thread")
+    XCTAssertEqual(kill(peerPID, 0), 0, "Cleanup must not touch another task's actual process in the same project Agent")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("interrupt-finished").path))
+    let inputURL = try XCTUnwrap(FileManager.default.enumerator(at: store.dataRoot.appendingPathComponent("Hooks/PluginData"),
+      includingPropertiesForKeys: nil)?.allObjects.compactMap { $0 as? URL }.first { $0.lastPathComponent == "interrupt-input.json" })
+    let input = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: inputURL))
+    XCTAssertEqual(input["hook_event_name"].text, "Interrupt")
+    XCTAssertEqual(input["turn_id"].text, hook.runtimeTurnID)
+    try await store.codexTransport.cleanBackgroundTerminals(taskID: peerTask.id)
+    await store.cancel(taskID: peerTask.id); await store.modelTask(runID: peerRun)?.value
+    let nextStarted = await store.startChat("Continue after interrupted command", taskID: task.id)
+    let next = try XCTUnwrap(nextStarted); await store.modelTask(runID: next)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == next }?.status, "succeeded")
+    XCTAssertTrue(store.library.chatRuns.first { $0.id == next }?.codexHookRuns.isEmpty == true)
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: store.dataRoot); await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == id }?.codexHookRuns, ended.codexHookRuns)
+    await restored.shutdown()
+  }
+
+  @MainActor func testRealInterruptWhileAwaitingApprovalClearsCardWithoutExecutingAndResumes() async throws {
+    let (store, server, root) = try await liveFixture(definitions([
+      ("Interrupt", "printf 'interrupt warning\\n' >&2; exit 1")]))
+    let model = try toolModelFixture(store: store, server: server)
+    defer { server.stop(); if model.isRunning { model.terminate(); model.waitUntilExit() }; try? FileManager.default.removeItem(at: root) }
+    let project = root.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    await store.open(project); XCTAssertTrue(store.connected, store.error ?? "")
+    let started = await store.startChat("codex-approval")
+    let id = try XCTUnwrap(started), task = try XCTUnwrap(store.library.task(containing: id))
+    let running = try XCTUnwrap(store.modelTask(runID: id))
+    for _ in 0..<1500 {
+      if store.mcpPendingApprovals.values.contains(where: { $0.runID == id }) { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let approval = try XCTUnwrap(store.mcpPendingApprovals.values.first { $0.runID == id })
+    XCTAssertEqual(approval.execution.status, .awaitingApproval)
+    await store.cancel(taskID: task.id); await running.value
+    for _ in 0..<1000 {
+      if store.library.chatRuns.first(where: { $0.id == id })?.codexHookRuns.contains(where: { $0.eventName == "interrupt" && $0.status == "failed" }) == true { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let ended = try XCTUnwrap(store.library.chatRuns.first { $0.id == id })
+    XCTAssertEqual(ended.status, "cancelled")
+    XCTAssertFalse(store.mcpPendingApprovals.values.contains { $0.runID == id })
+    XCTAssertTrue(ended.toolExecutions.contains { $0.id == approval.execution.id && $0.status == .cancelled })
+    let hook = try XCTUnwrap(ended.codexHookRuns.first { $0.eventName == "interrupt" })
+    XCTAssertEqual(hook.status, "failed")
+    XCTAssertEqual(hook.runtimeTurnID, ended.result?["codex_turn_id"].text)
+    XCTAssertTrue(hook.visibleEntries.contains { $0.kind == "error" && $0.text.contains("code 1") })
+    // An old approval response cannot authorize a command after Stop.
+    store.resolveMCPApproval(approval.execution.id, decision: .allowOnce)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("approval-proof.txt").path))
+    let nextStarted = await store.startChat("Continue after cancelled approval", taskID: task.id)
+    let next = try XCTUnwrap(nextStarted); await store.modelTask(runID: next)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == next }?.status, "succeeded")
+    XCTAssertTrue(store.library.chatRuns.first { $0.id == next }?.codexHookRuns.isEmpty == true)
+    XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("approval-proof.txt").path))
+    await store.shutdown()
+  }
+
   @MainActor func testRealCorePromptAndStopEventsPersistAndExcludeContextFromStats() async throws {
     let (store, server, root) = try await liveFixture(definitions([
       ("SessionStart", "printf 'SESSION-CONTEXT\\n'"), ("UserPromptSubmit", "printf 'PRIVATE-HOOK-CONTEXT\\n'"), ("Stop", "printf 'stop warning\\n' >&2; exit 1")]))
