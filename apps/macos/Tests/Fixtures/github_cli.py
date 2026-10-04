@@ -76,6 +76,32 @@ elif args[:2] == ["pr", "view"]:
         details["url"] = "https://github.com/other/project/pull/42"
     print(json.dumps(details))
 elif args and args[0] == "api":
+    if args[1].endswith("/requested_reviewers"):
+        assert args[1] == "repos/sample/project/pulls/42/requested_reviewers"
+        assert arg("--hostname") == "github.com"
+        fields, method = log["input"], arg("--method")
+        assert method in ("POST", "DELETE")
+        if state.get("reviewerMutationRejected"):
+            sys.exit("HTTP 422: Reviewer is not a collaborator")
+        pending = state.get("reviewerRequested", [])
+        if method == "POST":
+            for login in fields["reviewers"]:
+                if not any(x.get("login", "").lower() == login.lower() for x in pending):
+                    pending.append({"__typename": "User", "login": login})
+        else:
+            pending = [x for x in pending if x.get("login", "").lower() not in
+                       [y.lower() for y in fields["reviewers"]] and x.get("slug", "") not in fields["team_reviewers"]]
+        state["reviewerRequested"], state["reviewerActionAccepted"] = pending, True
+        if method == "POST" and state.get("reviewerImmediateReview"):
+            for login in fields["reviewers"]:
+                state.setdefault("reviewerReviews", []).append({"id": "immediate-" + login,
+                    "state": "APPROVED", "author": {"login": login}})
+            state["reviewerRequested"] = [x for x in pending if x.get("login", "") not in fields["reviewers"]]
+        state_path.write_text(json.dumps(state))
+        if state.get("reviewerLostResponse"):
+            sys.exit("Connection interrupted after request")
+        print(json.dumps({"number": 42, "url": "https://api.github.com/repos/sample/project/pulls/42"}))
+        sys.exit(0)
     if "--method" in args and arg("--method") == "POST" and args[1].endswith("/pulls/42/comments"):
         assert args[1] == "repos/sample/project/pulls/42/comments"
         fields = log["input"]
@@ -117,6 +143,46 @@ elif args and args[0] == "api":
         import time
         payload = log["input"]
         query, variables = payload["query"], payload["variables"]
+        if "ShipiOSPRReviewers" in query or "ShipiOSPRReviewerCandidates" in query:
+            if state.get("reviewerReadFailure") or (state.get("reviewerReadFailureAfterAction") and state.get("reviewerActionAccepted")):
+                sys.exit("Reviewers unavailable")
+            if state.get("reviewerSearchFailure") and "Candidates" in query:
+                sys.exit("Reviewer search unavailable")
+            if state.get("reviewerSearchDelay") and "Candidates" in query:
+                time.sleep(state["reviewerSearchDelay"])
+            count = state.get("reviewerReadCount", 0) + 1
+            state["reviewerReadCount"] = count
+            state_path.write_text(json.dumps(state))
+            current_viewer = state.get("reviewerViewerAtRead", {}).get(str(count), state.get("viewer", "fixture-author"))
+            item = next(x for x in state["pullRequests"] if x["number"] == variables["number"])
+            pr = {"id": "pr-node", "number": item["number"], "url": item["url"],
+                  "state": state.get("detailState", "OPEN"), "author": {"login": state.get("author", "fixture-author")}}
+            if state.get("reviewerMismatch"):
+                pr["url"] = "https://github.com/other/project/pull/42"
+            repo = {"nameWithOwner": state.get("metadataRepository", "sample/project"), "pullRequest": pr}
+            if "Candidates" in query:
+                term = variables["search"].lower()
+                users = [x for x in state.get("reviewerCandidates", []) if term in x["login"].lower() or term in x.get("name", "").lower()]
+                repo["collaborators"] = {"nodes": users[:100]}
+            else:
+                for name, key, cursor_key in [("reviewRequests", "reviewerRequested", "requestsAfter"), ("latestReviews", "reviewerReviews", "reviewsAfter")]:
+                    items = state.get(key, [])
+                    if name == "reviewRequests":
+                        items = [{"requestedReviewer": x} for x in items]
+                    size = state.get("reviewerPageSize", 100)
+                    start = int(variables.get(cursor_key) or 0)
+                    nodes = items[start:start + size]
+                    if start and state.get("reviewerDuplicatePage"):
+                        nodes = items[:size]
+                    total = len(items) + (1 if start and state.get("reviewerCountDrift") else 0)
+                    more = start + size < len(items)
+                    pr[name] = {"totalCount": total, "nodes": nodes, "pageInfo": {
+                        "hasNextPage": more, "endCursor": "1" if state.get("reviewerRepeatCursor") and more else str(start + size) if more else None}}
+            response = {"data": {"viewer": {"login": current_viewer}, "repository": repo}}
+            if state.get("reviewerGraphQLError"):
+                response["errors"] = [{"message": "Reviewer GraphQL error"}]
+            print(json.dumps(response))
+            sys.exit(0)
         if "ShipiOSPRMarkdownImage" in query:
             expression = variables["expression"]
             assert expression.startswith(state["head"] + ":")

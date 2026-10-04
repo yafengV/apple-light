@@ -21,6 +21,7 @@ struct TaskPullRequestDetailView: View {
   @State private var editorOwner = UUID()
   @State private var checks = GitHubPRChecksState()
   @State private var discussion = GitHubPRDiscussionState()
+  @State private var reviewers = GitHubPRReviewerState()
   @State private var code = GitHubPRCodeState()
   @FocusState private var focusedPRPage: GitHubPRCodeState.Page?
   @State private var fixBranch: String?
@@ -120,6 +121,9 @@ struct TaskPullRequestDetailView: View {
                 .foregroundStyle(.orange)
             }
           }
+          TaskPullRequestReviewersView(state: reviewers, request: request, writable: writable,
+            search: { reviewers.setQuery($0, request: request, at: root, valid: { valid }) },
+            retry: { Task { await loadReviewers() } }, apply: applyReviewers)
           Divider()
           TaskPullRequestDescriptionView(editor: editor, snapshot: state.snapshot, request: request,
             writable: writable, loading: state.loading, save: { save(.body) },
@@ -153,7 +157,7 @@ struct TaskPullRequestDetailView: View {
             Text(notice).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
           }
           HStack {
-            Button("刷新状态") { Task { await refresh(); await loadDiscussion() } }
+            Button("刷新状态") { Task { await refresh(); await loadDiscussion(); await loadReviewers() } }
               .disabled(state.loading || state.busy(for: request))
             Spacer()
             Menu {
@@ -255,18 +259,26 @@ struct TaskPullRequestDetailView: View {
       await loadDiscussion()
     }
     .onChange(of: GitHubPRDiscussionUpdates.shared.revision(dataRoot: store.dataRoot, request: request)) { _, _ in
-      if valid, !discussion.busy { Task { await refresh(); await loadDiscussion() } }
+      if valid, !discussion.busy { Task { await refresh(); await loadDiscussion(); await loadReviewers() } }
     }
     .onChange(of: state.snapshot) { _, value in
       if let value, let current = discussion.snapshot,
         current.head != value.headRevision || current.state != value.details.state.uppercased() {
-        Task { await loadDiscussion() }
+        Task { await loadDiscussion(); await loadReviewers() }
       }
     }
   }
 
-  var body: some View {
+  private var reviewerContent: some View {
     discussionContent
+      .task(id: taskID + root.path + request.url) {
+        reviewers.cancel(); reviewers = GitHubPRReviewerState()
+        await loadReviewers()
+      }
+  }
+
+  var body: some View {
+    reviewerContent
     .task(id: code.page == .code && !compact ? codeRequest : nil) {
       guard code.page == .code, !compact else { return }
       let captured = codeRequest
@@ -293,6 +305,7 @@ struct TaskPullRequestDetailView: View {
     }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       if valid, !checks.loading { Task { await retryChecks() } }
+      if valid, !reviewers.loading, !reviewers.busy { Task { await loadReviewers() } }
     }
     .onChange(of: checks.snapshot?.pullRequestState) { _, latest in
       if let latest, valid, !state.loading, latest.uppercased() != details?.state.uppercased() {
@@ -305,7 +318,7 @@ struct TaskPullRequestDetailView: View {
     .onChange(of: root) { _, _ in presentations?.clear(tabID) }
     .onDisappear {
       if let request = codeRequest { store.prCodePresentationCache.save(request, from: code) }
-      presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel(); code.cancel()
+      presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel(); reviewers.cancel(); code.cancel()
     }
     .sheet(isPresented: $state.showingMergeConfirmation) {
       TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
@@ -329,6 +342,13 @@ struct TaskPullRequestDetailView: View {
 
   private func loadDiscussion() async {
     await discussion.load(request, at: root, valid: { valid })
+  }
+  private func loadReviewers() async {
+    await reviewers.load(request, at: root, valid: { valid })
+  }
+  private func applyReviewers(_ action: GitHubPRReviewerAction) {
+    reviewers.apply(action, request: request, at: root, valid: { valid }, writable: { writable },
+      changed: { GitHubPRDiscussionUpdates.shared.publish(dataRoot: store.dataRoot, request: request) })
   }
   private func retryCode() {
     Task {
