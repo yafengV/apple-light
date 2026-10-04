@@ -209,7 +209,11 @@ struct PullRequestDiscussionDialogPresenter: NSViewRepresentable {
         resize.frame = .init(x: scroll.frame.maxX - 14, y: scroll.frame.maxY - 14, width: 14, height: 14); y += editorHeight
         if errorHeight > 0 {
           y += 16; errorFrame = .init(x: title.frame.minX, y: y, width: inner, height: errorHeight)
-          errorScroll.frame = errorFrame.insetBy(dx: 10, dy: 10)
+          // A validation error may already exist during initial zero-size layout.
+          // Keep the native scroll frame finite when its padding cannot fit.
+          let insetX = min(10, errorFrame.width / 2), insetY = min(10, errorFrame.height / 2)
+          errorScroll.frame = .init(x: errorFrame.minX + insetX, y: errorFrame.minY + insetY,
+            width: max(0, errorFrame.width - 20), height: max(0, errorFrame.height - 20))
           error.frame = .init(x: 0, y: 0, width: max(0, inner - 24), height: height(error, width: max(0, inner - 24)))
         } else { errorFrame = .zero }
       }

@@ -118,6 +118,28 @@ import XCTest
     XCTAssertTrue(try writes(directory).isEmpty)
   }
 
+  func testReviewErrorViewportRemainsFiniteAtZeroAndSubPaddingWidths() async throws {
+    let (_, state) = try await fixture(); state.openReview()
+    let (_, _, _, _, form) = try host(state)
+    XCTAssertTrue(form.submit.accessibilityPerformPress())
+    XCTAssertFalse(form.errorScroll.isHidden)
+    let validation = state.message(for: .review)
+    for size in [NSSize.zero, .init(width: 60, height: 700), .init(width: 90, height: 700),
+      .init(width: 900, height: 700), .zero] {
+      form.setFrameSize(size); form.needsLayout = true; form.layoutSubtreeIfNeeded()
+      let viewport = form.errorScroll.frame
+      XCTAssertFalse(viewport.isNull)
+      XCTAssertTrue([viewport.minX, viewport.minY, viewport.width, viewport.height].allSatisfy(\.isFinite))
+      XCTAssertGreaterThanOrEqual(viewport.minX, form.title.frame.minX)
+      XCTAssertGreaterThanOrEqual(viewport.minY, form.scroll.frame.maxY)
+      XCTAssertLessThanOrEqual(viewport.maxX, form.title.frame.maxX)
+      XCTAssertGreaterThanOrEqual(viewport.height, 0); XCTAssertLessThanOrEqual(viewport.height, 120)
+      XCTAssertEqual(viewport.width, max(0, form.title.frame.width - 20))
+      XCTAssertEqual(state.message(for: .review), validation)
+      XCTAssertTrue(state.showingReview)
+    }
+  }
+
   func testTabUsesSelectedRadioAndArrowsWrapWithoutSubmitting() async throws {
     let (_, state) = try await fixture(); state.openReview(); var submissions = 0
     let (window, _, _, owner, form) = try host(state, submit: { submissions += 1 })

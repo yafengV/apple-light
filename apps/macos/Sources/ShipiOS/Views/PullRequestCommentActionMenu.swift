@@ -106,7 +106,14 @@ struct PullRequestCommentMenuSurface: NSViewRepresentable {
       rows.forEach { $0.active = false; $0.activate = nil; $0.hover = nil; $0.removeFromSuperview() }; rows = []
     }
     override func layout() {
-      super.layout(); scroll.frame = bounds.insetBy(dx: 4, dy: 4)
+      super.layout()
+      // SwiftUI first configures the representable at zero size. CGRect.insetBy
+      // produces .null below eight points, which would become huge origin
+      // constants when AppKit converts the scroll view's autoresizing mask.
+      let insetX = min(4, max(0, bounds.width) / 2)
+      let insetY = min(4, max(0, bounds.height) / 2)
+      scroll.frame = .init(x: bounds.minX + insetX, y: bounds.minY + insetY,
+        width: max(0, bounds.width - 8), height: max(0, bounds.height - 8))
       document.frame = .init(x: 0, y: 0, width: scroll.contentSize.width, height: CGFloat(rows.count) * rowHeight)
       for (index, row) in rows.enumerated() { row.frame = .init(x: 0, y: CGFloat(index) * rowHeight, width: document.bounds.width, height: rowHeight) }
     }

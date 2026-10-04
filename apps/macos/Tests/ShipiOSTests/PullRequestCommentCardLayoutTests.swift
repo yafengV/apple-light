@@ -210,6 +210,26 @@ import XCTest
     XCTAssertEqual(native.border, preferences.resolvedColors["border"].nativeColor)
   }
 
+  func testMenuViewportStaysInsideSurfaceDuringZeroAndSubPaddingSizes() {
+    _ = NSApplication.shared
+    let surface = PullRequestCommentMenuSurface.Surface()
+    surface.configure([.edit, .quote, .delete], highlighted: nil, enabled: true,
+      appearance: .init(), hover: { _ in }, choose: { _ in })
+    for size in [NSSize.zero, .init(width: 3, height: 4), .init(width: 8, height: 8),
+      .init(width: 160, height: 94), .init(width: 0, height: 38),
+      .init(width: 300, height: 94), .zero] {
+      surface.setFrameSize(size); surface.needsLayout = true; surface.layoutSubtreeIfNeeded()
+      let viewport = surface.scroll.frame
+      XCTAssertFalse(viewport.isNull)
+      XCTAssertTrue([viewport.minX, viewport.minY, viewport.width, viewport.height].allSatisfy(\.isFinite))
+      XCTAssertGreaterThanOrEqual(viewport.minX, 0); XCTAssertGreaterThanOrEqual(viewport.minY, 0)
+      XCTAssertLessThanOrEqual(viewport.maxX, size.width); XCTAssertLessThanOrEqual(viewport.maxY, size.height)
+      XCTAssertEqual(viewport.width, max(0, size.width - 8))
+      XCTAssertEqual(viewport.height, max(0, size.height - 8))
+      XCTAssertEqual(surface.rows.map(\.item), [.edit, .quote, .delete])
+    }
+  }
+
   func testNativeMenuSurfaceUsesFiniteFramesAcrossResizing() throws {
     let diagnostics = ProcessInfo.processInfo.environment["SHIPIOS_COMMENT_LAYOUT_DIAGNOSTICS"] == "1"
     func checkpoint(_ message: String) { if diagnostics { print(message); fflush(stdout) } }
