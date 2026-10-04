@@ -1,0 +1,44 @@
+{
+  "version": "26.930.21537",
+  "sources": {
+    "app-initial-60d038a052d7.js": "8c7725f402d87efcecbfaae599f96074d126ab03f1d9acb8edf7244043666ff3",
+    "app-shared-59042e7300f7.js": "f788f64c401215fae493ac1e235869ed583b37b3468d037de080ca3d796450d9"
+  },
+  "toolbar": {
+    "height": 40,
+    "padding": 2,
+    "buttonSize": 36,
+    "alignment": "top trailing",
+    "visibleWhen": [
+      "table hover",
+      "toolbar focus within"
+    ],
+    "copiedDurationMilliseconds": 2000,
+    "repeatWhileCopied": false
+  },
+  "clipboard": {
+    "plain": "original table token raw.trim(); overrides sanitized DOM plainText",
+    "html": "<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>Alpha</td><td><strong>12</strong></td></tr><tr><td>Beta</td><td><code dir=\"ltr\">345</code></td></tr></tbody></table>",
+    "sanitizedDOMPlain": "Name\tValue\nAlpha\t12\nBeta\t345",
+    "scope": "Actual public Nnr/Inr/Bnr/Vnr DOM-copy functions executed in a local fixture. File-mention resolver stubbed; no file mentions, math or media in fixture."
+  },
+  "keyboardFixture": [
+    "keydown:Space",
+    "keyup:Space",
+    "click",
+    "keydown:Enter",
+    "click",
+    "keyup:Enter"
+  ],
+  "scroll": {
+    "arrowStep": 40,
+    "optionArrow": "viewport width",
+    "commandControlShiftArrow": "not handled"
+  },
+  "remaining": [
+    "overflow expand preview",
+    "full media/fallback and complex HTML copy",
+    "glyph and surface pixels",
+    "full paired frontend acceptance"
+  ]
+}

@@ -28,11 +28,11 @@ enum MessageDocument {
   static func parse(_ source: String, githubMedia: Bool = false,
     prContext: GitHubPRMarkdownContext? = nil) -> [MessageBlock] {
     blocks(Document(parsing: source), prefix: "",
-      githubMedia: githubMedia && GitHubPRCommentMedia.mightContainURL(source), prContext: prContext)
+      githubMedia: githubMedia && GitHubPRCommentMedia.mightContainURL(source), prContext: prContext, originalSource: source)
   }
 
   private static func blocks(_ markup: any Markup, prefix: String, githubMedia: Bool,
-    prContext: GitHubPRMarkdownContext?) -> [MessageBlock] {
+    prContext: GitHubPRMarkdownContext?, originalSource: String) -> [MessageBlock] {
     markup.children.enumerated().flatMap { index, child -> [MessageBlock] in
       let id = prefix + "\(index)"
       if githubMedia || prContext != nil, let paragraph = child as? Paragraph {
@@ -48,12 +48,12 @@ enum MessageDocument {
         let media = GitHubPRCommentMedia.html(html.rawHTML) {
         return [MessageBlock(id: id, kind: .media(media))]
       }
-      return [block(child, id: id, githubMedia: githubMedia, prContext: prContext)]
+      return [block(child, id: id, githubMedia: githubMedia, prContext: prContext, originalSource: originalSource)]
     }
   }
 
   private static func block(_ markup: any Markup, id: String, githubMedia: Bool,
-    prContext: GitHubPRMarkdownContext?) -> MessageBlock {
+    prContext: GitHubPRMarkdownContext?, originalSource: String) -> MessageBlock {
     switch markup {
     case let heading as Heading:
       return MessageBlock(id: id, kind: .heading(heading.level), text: inline(heading, prContext: prContext))
@@ -61,7 +61,7 @@ enum MessageDocument {
       return MessageBlock(id: id, kind: .code(code.language ?? ""), source: code.code)
     case is BlockQuote:
       return MessageBlock(id: id, kind: .quote,
-        children: blocks(markup, prefix: id + ".", githubMedia: githubMedia, prContext: prContext))
+        children: blocks(markup, prefix: id + ".", githubMedia: githubMedia, prContext: prContext, originalSource: originalSource))
     case is UnorderedList, is OrderedList:
       let start = (markup as? OrderedList)?.startIndex
       let items = markup.children.enumerated().map { offset, child in
@@ -70,7 +70,7 @@ enum MessageDocument {
           id: id + ".\(offset)",
           kind: .item(
             start.map { "\($0 + UInt(offset))." } ?? "•", item?.checkbox.map { $0 == .checked }),
-          children: blocks(child, prefix: id + ".\(offset).", githubMedia: githubMedia, prContext: prContext))
+          children: blocks(child, prefix: id + ".\(offset).", githubMedia: githubMedia, prContext: prContext, originalSource: originalSource))
       }
       return MessageBlock(id: id, kind: .list, children: items)
     case let table as Markdown.Table:
@@ -88,7 +88,7 @@ enum MessageDocument {
         : []
       let hasMedia = richRows.flatMap { $0 }.flatMap { $0 }.contains(where: hasMedia)
       return MessageBlock(
-        id: id, kind: .table, rows: rows, mediaRows: hasMedia ? richRows : [],
+        id: id, kind: .table, source: MarkdownTableSource.extract(table, from: originalSource), rows: rows, mediaRows: hasMedia ? richRows : [],
         alignments: table.columnAlignments.map {
           switch $0 {
           case .center: 0

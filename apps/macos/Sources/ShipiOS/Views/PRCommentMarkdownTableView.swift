@@ -7,6 +7,8 @@ struct PRCommentMarkdownTableView: View {
   let source: String
   @Environment(\.appAppearance) private var appearance
   @State private var measuredHeight: CGFloat?
+  @State private var hovered = false
+  @State private var scrollTarget = PRCommentTableScrollTarget()
   private var metrics: PRCommentTableMetrics { .init(appearance: appearance) }
   var body: some View {
     GeometryReader { geometry in
@@ -19,10 +21,15 @@ struct PRCommentMarkdownTableView: View {
           }
         }
         .fixedSize(horizontal: false, vertical: true)
+        .background { PRCommentTableScrollAnchor(target: scrollTarget) }
         .background { GeometryReader { inner in Color.clear.preference(key: PRCommentTableHeightKey.self, value: inner.size.height) } }
+      }
+      .overlay(alignment: .topTrailing) {
+        PRCommentTableCopyToolbar(block: block, hovered: hovered, scroll: { scrollTarget.scroll($0, page: $1) }).frame(width: 40, height: 40)
       }
     }
     .frame(height: measuredHeight ?? metrics.plan(block, width: nil).height)
+    .onHover { hovered = $0 }
     .onPreferenceChange(PRCommentTableHeightKey.self) { height in
       if height.isFinite, height > 0, measuredHeight != height { measuredHeight = height }
     }

@@ -131,4 +131,23 @@ import XCTest
     XCTAssertEqual(typography.gap([paragraph, table], before: 1, in: .root), 13)
     XCTAssertEqual(typography.gap([table], before: 0, in: .item), 0)
   }
+  func testMountedToolbarUsesCurrentTableAndActualSwiftUIScrollContainer() async throws {
+    let input = Input(); input.width = 220
+    input.source = "| " + String(repeating: "W", count: 100) + " | Value |\n|---|---|\n| Cell | 123 |"
+    let (window, root, _) = try await host(input)
+    func find(_ view: NSView) -> PRCommentTableCopyToolbar.CopyButton? {
+      if let button = view as? PRCommentTableCopyToolbar.CopyButton { return button }
+      return view.subviews.lazy.compactMap { find($0) }.first
+    }
+    let button = try XCTUnwrap(find(root))
+    XCTAssertEqual(button.frame.size, .init(width: 36, height: 36))
+    XCTAssertEqual(button.payload?.markdown, input.source)
+    XCTAssertTrue(window.makeFirstResponder(button))
+    XCTAssertTrue(button.surface?.visible == true)
+    XCTAssertTrue(button.scroll?(40, false) == true, "The real mounted horizontal scroller must be reachable")
+    input.source = short; try await settle(root)
+    let replacement = try XCTUnwrap(find(root))
+    XCTAssertEqual(replacement.payload?.markdown, short)
+    XCTAssertFalse(replacement.scroll?(40, false) == true)
+  }
 }
