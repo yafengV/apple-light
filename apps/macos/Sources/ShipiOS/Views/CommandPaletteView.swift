@@ -108,6 +108,7 @@ struct CommandPaletteView: View {
             query = $0; selectedID = nil; themeMenu.selectedID = nil; cyclingSearchSections = false; pointerSelection = false
           })).textFieldStyle(.plain).focused($focus, equals: .query).accessibilityLabel(themeMenu.entered ? "搜索主题" : "搜索命令与任务")
           Button("取消", action: cancel).settingsActionFocus($focus, equals: .cancel, activate: cancel)
+            .accessibilityElement(children: .combine).accessibilityLabel("取消")
         }.padding(18)
         Divider()
         ScrollViewReader { reader in
@@ -115,11 +116,12 @@ struct CommandPaletteView: View {
             if let value, selectable.contains(value) { select(value) }
           })) {
             ForEach(groups) { group in
-              Section(group.title) {
-                ForEach(group.themes) { item in themeRow(item) }
-                ForEach(group.commands, id: \.paletteID) { item in commandRow(item) }
-                ForEach(group.browsers) { result in browserRow(result) }
-                ForEach(group.tasks, id: \.paletteID) { result in taskRow(result) }
+              if group.title.isEmpty {
+                resultRows(group)
+              } else {
+                Section { resultRows(group) } header: {
+                  Text(group.title).accessibilityLabel(group.title).accessibilityAddTraits(.isHeader)
+                }
               }
             }
           }.onChange(of: selection) { _, id in if !pointerSelection, let id { reader.scrollTo(id) } }
@@ -166,6 +168,12 @@ struct CommandPaletteView: View {
     .task(id: request) { await catalog.search(request) }
   }
 
+  @ViewBuilder private func resultRows(_ group: ResultGroup) -> some View {
+    ForEach(group.themes) { item in themeRow(item) }
+    ForEach(group.commands, id: \.paletteID) { item in commandRow(item) }
+    ForEach(group.browsers) { result in browserRow(result) }
+    ForEach(group.tasks, id: \.paletteID) { result in taskRow(result) }
+  }
   private func commandRow(_ item: DesktopCommand) -> some View {
     let id = "command:" + item.id
     return Button { invoke(id) } label: {
@@ -179,6 +187,9 @@ struct CommandPaletteView: View {
     }.buttonStyle(.plain).disabled(!commandEnabled(item.id))
       .searchResultPointer(enabled: commandEnabled(item.id)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
+      .accessibilityElement(children: .ignore).accessibilityLabel(item.title)
+      .accessibilityValue(store.shortcuts.label(item.id)).accessibilityIdentifier(id)
+      .accessibilityAction { invoke(id) }
       .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
   }
   private func resetSearch(focusQuery: Bool = true) {
@@ -196,10 +207,12 @@ struct CommandPaletteView: View {
         if item.selected { Image(systemName: "checkmark").foregroundStyle(.secondary) }
       }.padding(.vertical, 6).contentShape(Rectangle())
     }.buttonStyle(.plain)
-      .accessibilityLabel(item.action == .back ? "返回命令菜单" : item.title)
-      .accessibilityIdentifier(item.id)
       .searchResultPointer(enabled: true) { selectFromPointer(item.id) }
       .listRowBackground(item.id == selection ? Color.primary.opacity(0.08) : .clear)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(item.action == .back ? "返回命令菜单" : item.title)
+      .accessibilityValue([item.description ?? "", item.selected ? "已应用" : ""].filter { !$0.isEmpty }.joined(separator: "，"))
+      .accessibilityIdentifier(item.id).accessibilityAction { invoke(item.id) }
       .accessibilityAddTraits(item.id == selection ? .isSelected : []).tag(item.id).id(item.id)
   }
   private func taskRow(_ result: TaskSearchResult) -> some View {
@@ -216,6 +229,11 @@ struct CommandPaletteView: View {
     }.buttonStyle(.plain).disabled(!canSelectTask(result.task))
       .searchResultPointer(enabled: canSelectTask(result.task)) { selectFromPointer(id) }
       .listRowBackground(id == selection ? Color.primary.opacity(0.08) : .clear)
+      .accessibilityElement(children: .ignore).accessibilityLabel(result.task.title)
+      .accessibilityValue([result.projectTitle, result.task.archived ? "已归档" : "",
+        store.library.unreadTasks.contains(result.id) ? "未读" : "", result.source ?? "", result.snippet ?? ""]
+        .filter { !$0.isEmpty }.joined(separator: "，"))
+      .accessibilityIdentifier(id).accessibilityAction { invoke(id) }
       .accessibilityAddTraits(id == selection ? .isSelected : []).tag(id).id(id)
   }
   private func browserRow(_ result: CommandBrowserResult) -> some View {
@@ -234,6 +252,9 @@ struct CommandPaletteView: View {
     }.buttonStyle(.plain).disabled(!canOpenBrowser(result))
       .searchResultPointer(enabled: canOpenBrowser(result)) { selectFromPointer(result.id) }
       .listRowBackground(result.id == selection ? Color.primary.opacity(0.08) : .clear)
+      .accessibilityElement(children: .ignore).accessibilityLabel(result.title.isEmpty ? result.url : result.title)
+      .accessibilityValue([result.title.isEmpty ? "" : result.url, result.ownerTitle].filter { !$0.isEmpty }.joined(separator: "，"))
+      .accessibilityIdentifier(result.id).accessibilityAction { invoke(result.id) }
       .accessibilityAddTraits(result.id == selection ? .isSelected : []).tag(result.id).id(result.id)
   }
   private func selectFromPointer(_ id: String) {

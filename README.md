@@ -98,6 +98,7 @@ python3 script/smoke_ipc.py
 | [图片附件与会话上下文](docs/35-image-attachments.md) | 图片选择/粘贴/预览、队列与分叉附件、实际多模态请求及生命周期测试 |
 | [Git 分支选择与主窗口导航](docs/36-git-branch-selection.md) | 分支搜索、切换和创建、远程跟踪、修改保护与真实仓库测试 |
 | [当前页面与交互验收清单](docs/37-current-page-status.md) | 各页面与全部现有设置分类的最新实现、缺失能力及待配对项 |
+| [核心功能与全部页面对齐矩阵](docs/599-core-function-parity-matrix.md) | 29 项核心流程、21 类主窗口及 26 类设置范围；区分实现、测试、前台与完整配对证据 |
 | [永久工作树与主窗口设置](docs/38-permanent-worktrees.md) | 项目菜单创建独立 Git 工作树、根目录配置、创建恢复、真实 Agent 与任务持久化 |
 | [任务终端归属、退出与焦点](docs/39-task-terminal-sessions.md) | 任务间 Shell 隔离、首次提交接续、退出/重启、前台进程处理和焦点路由 |
 | [浏览器标签与主窗口设置路由](docs/40-browser-tabs-and-settings-routing.md) | 真实网页历史、标签生命周期、地址与快捷键，以及全部设置入口复核 |
