@@ -188,11 +188,13 @@ struct GitHubPRService: Sendable {
     let repository = try GitHubRepository.parse("https://github.com/\(parts[1])/\(parts[2])")
     let output = try await run(["pr", "view", String(pullRequest.number), "--repo",
       repository.fullName, "--json",
-      "number,url,title,body,state,isDraft,headRefName,baseRefName,reviewDecision,mergeable,statusCheckRollup,headRefOid,mergeStateStatus"], at: root)
+      "number,url,title,body,state,isDraft,headRefName,baseRefName,reviewDecision,mergeable,statusCheckRollup,headRefOid,mergeStateStatus,additions,deletions"], at: root)
     let details = try JSONDecoder().decode(GitHubPRDetails.self, from: Data(output.utf8))
     guard details.number == pullRequest.number,
       repository.pullRequestURL(details.url) == url,
-      ["OPEN", "CLOSED", "MERGED"].contains(details.state.uppercased()) else {
+      ["OPEN", "CLOSED", "MERGED"].contains(details.state.uppercased()),
+      details.additions.map({ $0 >= 0 }) ?? true,
+      details.deletions.map({ $0 >= 0 }) ?? true else {
       throw AgentFailure(message: "GitHub 返回的 PR 与当前任务记录不一致。")
     }
     return details

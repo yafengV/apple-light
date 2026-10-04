@@ -69,7 +69,8 @@ elif args[:2] == ["pr", "view"]:
                "mergeable": state.get("mergeable"),
                "statusCheckRollup": state.get("statusCheckRollup", []),
                "headRefOid": state.get("detailHead", state.get("head")),
-               "mergeStateStatus": state.get("mergeStateStatus", "CLEAN")}
+               "mergeStateStatus": state.get("mergeStateStatus", "CLEAN"),
+               "additions": state.get("additions", 1234), "deletions": state.get("deletions", 56)}
     if state.get("detailFailureAfterAction") and state.get("actionAccepted"):
         sys.exit("Cannot refresh after action")
     if state.get("detailMismatch"):

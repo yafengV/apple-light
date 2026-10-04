@@ -94,37 +94,25 @@ struct TaskPullRequestDetailView: View {
           metadataError: codeRequest == nil ? state.error : nil, store: store)
       } else {
       ScrollView {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 24) {
           TaskPullRequestTitleView(editor: editor, snapshot: state.snapshot, request: request,
             writable: writable, save: { save(.title) }, open: openExternal)
-          HStack {
-            Label(details?.statusLabel ?? (request.isDraft ? "草稿" : "最后记录为开放"),
-              systemImage: details?.state.uppercased() == "MERGED" ? "checkmark.circle.fill"
-                : "arrow.triangle.pullrequest")
-            Spacer()
-            if compact, discussion.snapshot?.canReview == true {
-              Button("提交审查") { discussion.openReview() }
-                .disabled(!discussion.canWrite(request, writable: writable))
-            }
-            if state.loading { ProgressView().controlSize(.small) }
-          }.appFont(.caption).foregroundStyle(.secondary)
-          Text("\(details?.headRefName ?? request.headRefName) → \(details?.baseRefName ?? request.baseRefName)")
-            .appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-          if let details {
-            if let decision = details.reviewDecision, !decision.isEmpty {
-              LabeledContent("审查", value: reviewLabel(decision))
-            }
-            LabeledContent("检查", value: checks.loading ? "读取中…"
-              : checks.error != nil ? "无法读取检查" : checks.snapshot?.statusLabel ?? "等待检查详情")
-            if let mergeable = details.mergeable, mergeable.uppercased() == "CONFLICTING" {
-              Label("存在合并冲突", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-            }
+            .padding(.horizontal, 8)
+          TaskPullRequestOverviewView(snapshot: state.snapshot, request: request, loading: state.loading,
+            error: state.error, checks: checks, discussion: discussion, reviewers: reviewers, writable: writable,
+            searchReviewers: { reviewers.setQuery($0, request: request, at: root, valid: { valid }) },
+            retryReviewers: { Task { await loadReviewers() } }, applyReviewers: applyReviewers,
+            openCode: compact || codeRequest == nil ? nil : { code.page = .code })
+          if compact, discussion.snapshot?.canReview == true {
+            Button("提交审查") { discussion.openReview() }
+              .disabled(!discussion.canWrite(request, writable: writable))
           }
-          TaskPullRequestReviewersView(state: reviewers, request: request, writable: writable,
-            search: { reviewers.setQuery($0, request: request, at: root, valid: { valid }) },
-            retry: { Task { await loadReviewers() } }, apply: applyReviewers)
-          Divider()
+          if let snapshot = state.snapshot, snapshot.showsActions {
+            TaskPullRequestActionsView(state: state, request: request, writable: writable, apply: apply)
+          }
+          if details?.state.uppercased() == "OPEN" || store.pullRequestWatch(for: request) != nil {
+            pullRequestWatchControls
+          }
           TaskPullRequestDescriptionView(editor: editor, snapshot: state.snapshot, request: request,
             writable: writable, loading: state.loading, save: { save(.body) },
             generate: generateDescription, open: openExternal)
@@ -136,12 +124,9 @@ struct TaskPullRequestDetailView: View {
               fix: attachChecks, remove: removeChecks)
             if let fixError { Text(fixError).foregroundStyle(.orange).appFont(.caption).textSelection(.enabled) }
           }
-          if let snapshot = state.snapshot, snapshot.showsActions {
-            TaskPullRequestActionsView(state: state, request: request, writable: writable,
-              apply: apply)
-          }
-          if details?.state.uppercased() == "OPEN" || store.pullRequestWatch(for: request) != nil {
-            pullRequestWatchControls
+          if details?.mergeable?.uppercased() == "CONFLICTING" {
+            Label("存在合并冲突", systemImage: "exclamationmark.triangle")
+              .foregroundStyle(.orange)
           }
           Divider()
           TaskPullRequestActivityView(state: discussion,
@@ -175,8 +160,9 @@ struct TaskPullRequestDetailView: View {
           }
         }
         .appFont(.callout)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .frame(maxWidth: 768, alignment: .leading)
+        .padding(.horizontal, 20).padding(.bottom, 20)
+        .frame(maxWidth: .infinity, alignment: .top)
       }
       }
     }
@@ -481,14 +467,5 @@ struct TaskPullRequestDetailView: View {
         preferences.pullRequestMergeMethod = .squash
         return store.saveGitPreferences(preferences)
       })
-  }
-
-  private func reviewLabel(_ decision: String) -> String {
-    switch decision.uppercased() {
-    case "APPROVED": "已批准"
-    case "CHANGES_REQUESTED": "要求修改"
-    case "REVIEW_REQUIRED": "等待审查"
-    default: decision
-    }
   }
 }

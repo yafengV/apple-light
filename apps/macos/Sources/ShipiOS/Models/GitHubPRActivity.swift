@@ -41,6 +41,13 @@ enum GitHubPRActivityDate {
 }
 
 extension GitHubPRDiscussionSnapshot {
+  /// Count displayed conversation cards, rather than replies or timeline events.
+  var overviewCommentCount: Int {
+    activity.reduce(0) { count, item in
+      switch item { case .comment, .thread: count + 1; case .event, .commitGroup: count }
+    }
+  }
+
   var activity: [GitHubPRActivityItem] {
     var items: [GitHubPRActivityItem] = []
     if let createdAt {

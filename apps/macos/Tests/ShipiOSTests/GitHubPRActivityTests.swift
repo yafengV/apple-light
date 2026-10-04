@@ -98,4 +98,17 @@ final class GitHubPRActivityTests: XCTestCase {
     let decoded = try JSONDecoder().decode(GitHubPRComment.self, from: JSONSerialization.data(withJSONObject: object))
     XCTAssertNil(decoded.submittedAt); XCTAssertEqual(decoded.activityDate, day)
   }
+
+  func testOverviewCountsCardsRatherThanRepliesDecisionsOrCommitEvents() {
+    var value = snapshot(); value.createdAt = day; value.mergedAt = day
+    value.events = [commit("a"), commit("b")]
+    value.comments = [comment("issue"), comment("blank", body: "\n"),
+      comment("review", state: "APPROVED"), comment("decision", body: "", state: "CHANGES_REQUESTED")]
+    var discussion = thread(comment("root"))
+    discussion.comments += [comment("reply-1"), comment("reply-2")]
+    value.threads = [discussion]
+    XCTAssertEqual(value.overviewCommentCount, 3)
+    value.comments = []; value.threads = []
+    XCTAssertEqual(value.overviewCommentCount, 0)
+  }
 }

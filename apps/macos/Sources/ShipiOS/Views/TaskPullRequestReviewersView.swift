@@ -11,40 +11,44 @@ struct TaskPullRequestReviewersView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      HStack(spacing: 8) {
-        Label("审查者", systemImage: "person.2").foregroundStyle(.secondary)
-        Spacer(minLength: 0)
-        if let snapshot = state.snapshot {
-          if snapshot.reviewers.isEmpty && !state.canManage(request, writable: writable) {
-            Text("无审查者").foregroundStyle(.secondary)
-          } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-              HStack(spacing: 8) {
-                ForEach(snapshot.reviewers) { reviewer in
-                  PullRequestReviewerAvatar(reviewer: reviewer)
-                    .help(reviewer.label + "，" + reviewer.status.label)
+      PullRequestOverviewRow(label: "审查者", icon: "person.2") {
+        HStack(spacing: 8) {
+          if let snapshot = state.snapshot {
+            if snapshot.reviewers.isEmpty && !state.canManage(request, writable: writable) {
+              Text("无审查者").foregroundStyle(.secondary)
+            } else if !snapshot.reviewers.isEmpty {
+              ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                  ForEach(snapshot.reviewers) { reviewer in
+                    PullRequestReviewerAvatar(reviewer: reviewer)
+                      .help(reviewer.label + "，" + reviewer.status.label)
+                  }
+                }.padding(.vertical, 2).padding(.trailing, 2)
+              }.frame(maxWidth: CGFloat(snapshot.reviewers.count) * 28)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if snapshot.canManage && writable {
+              Button { state.showingPicker = true } label: {
+                if snapshot.reviewers.isEmpty { Label("请求", systemImage: "plus") }
+                else { Image(systemName: "plus") }
+              }.buttonStyle(.plain).focused($triggerFocused)
+                .disabled(!state.canManage(request, writable: writable))
+                .accessibilityLabel(snapshot.reviewers.isEmpty ? "请求审查者" : "管理审查者")
+                .popover(isPresented: Binding(get: { state.showingPicker }, set: {
+                  if $0 { state.showingPicker = true } else { state.closePicker() }
+                }), arrowEdge: .bottom) {
+                  PullRequestReviewerPicker(state: state, request: request, writable: writable,
+                    search: search, apply: apply)
+                    .onDisappear { state.closePicker(); triggerFocused = true }
                 }
-              }.padding(.vertical, 2).padding(.trailing, 2)
-            }.fixedSize(horizontal: false, vertical: true)
+            }
+          } else if state.error != nil { Text("无法读取审查者").foregroundStyle(.secondary) }
+          else {
+            RoundedRectangle(cornerRadius: 4).fill(.primary.opacity(0.06)).frame(width: 96, height: 16)
+              .accessibilityLabel("正在读取审查者")
           }
-          if snapshot.canManage && writable {
-            Button { state.showingPicker = true } label: {
-              if snapshot.reviewers.isEmpty { Label("请求", systemImage: "plus") }
-              else { Image(systemName: "plus") }
-            }.buttonStyle(.plain).focused($triggerFocused)
-              .disabled(!state.canManage(request, writable: writable))
-              .accessibilityLabel(snapshot.reviewers.isEmpty ? "请求审查者" : "管理审查者")
-              .popover(isPresented: Binding(get: { state.showingPicker }, set: {
-                if $0 { state.showingPicker = true } else { state.closePicker() }
-              }), arrowEdge: .bottom) {
-                PullRequestReviewerPicker(state: state, request: request, writable: writable,
-                  search: search, apply: apply)
-                  .onDisappear { state.closePicker(); triggerFocused = true }
-              }
-          }
-        } else if state.loading { ProgressView().controlSize(.small) }
-        else { Text("无法读取审查者").foregroundStyle(.secondary) }
-        if state.busy { ProgressView().controlSize(.small).accessibilityLabel("正在更新审查者") }
+          if state.busy { ProgressView().controlSize(.small).accessibilityLabel("正在更新审查者") }
+        }
       }
       if let error = state.error {
         HStack(alignment: .top) {
