@@ -24,7 +24,7 @@ struct GitHubPRMergeSnapshot: Equatable, Sendable {
     return value
   }
 
-  var showsActions: Bool { isAuthor && details.state.uppercased() != "MERGED" }
+  var showsActions: Bool { isAuthor && details.state.uppercased() == "OPEN" }
 
   var mergeDisabledReason: String? {
     if !isAuthor { return "只有 PR 作者可使用此入口。" }

@@ -150,6 +150,12 @@ final class SettingsMenuControl: NSPopUpButton {
     }
   }
 
+  override func drawFocusRingMask() {
+    if isTransparent { NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8).fill() }
+    else { super.drawFocusRingMask() }
+  }
+  override var focusRingMaskBounds: NSRect { isTransparent ? bounds : super.focusRingMaskBounds }
+
   override func mouseDown(with event: NSEvent) {
     guard acceptsFirstResponder else { return }
     window?.makeFirstResponder(self)
