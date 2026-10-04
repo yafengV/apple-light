@@ -1,5 +1,7 @@
 # 核心功能与全部页面对齐矩阵
 
+当前接续[第 614 篇](614-native-subagent-monitor-and-overview.md)：实际原生 spawn 子树状态已接到持久历史、主/任务窗口摘要和右侧概览，父回合结束后的实际子任务停止与身份保护已有 Core/IPC 验证。审批 Stop 后立即续聊的终止边界竞争已复现、修复并连续 12 次复测。最终 172 项 Rust、221 项 Swift 关联集、包内 Agent 49 项复测和正式构建/签名/IPC 通过（Swift 两组重叠）。完整子会话详情、行点击/返回、精确头像/摘要/等待/时间和其他矩阵缺口仍在；新包前台被 Mac 锁定，完整配对保持 **0/47**。旧全量 handle 16667 已 exit 1：`acd3b67` 的 2,621 项 Swift、2 跳过、一个分叉用例三条失败断言；当前 7 项原生分叉复测通过，不据此宣称最新全量通过。以下记录按当时源码保留。
+
 当前接续[第 613 篇原生子任务中断与关闭](613-native-descendant-interrupt-and-shutdown.md)：根中断在后台发现并停止活动 spawn 后代；完成/冷历史和无关根会话保持，私有 manager 的剩余线程在认证/目录锁释放前关闭。真实 Core 子/孙、续聊与跨会话隔离已有两项验证；170 项 Rust、严格 fmt/Clippy、125 项 Swift 关联及最终包 39 项复测、正式构建/签名/IPC 通过。前台仍锁定，完整配对保持 **0/47**。独立 Node executor、子任务完整呈现及父回合结束后的子任务停止入口仍缺；保留全量 16667 编译于 `acd3b67`，不覆盖本阶段 Rust 变更。
 
 当前接续[第 612 篇空闲停止与操作身份](612-idle-stop-background-cleanup.md)：没有活动回合时的停止命令已接入任务后台终端清理；主/任务/侧聊入口同步捕获身份，拒绝旧回合、新回合及线程替换竞争，停止前暂停所属目标。200 项关联回归与最后保护变更后的 45 项复测、包内 Agent 21 项复测、正式构建/严格签名及 IPC 冒烟通过（各组有重叠）；新包前台仍锁定，完整配对保持 **0/47**。保留的全量 handle 42865 已确认 exit 0：`7af567a` 的 2,601 项 Swift、0 失败、2 跳过与 IPC 通过，不覆盖第 611/612 篇；下文“仍在运行”是历史记录。Node REPL/子代理与全部执行类型、完整前台配对继续未完成。
@@ -61,7 +63,7 @@
 | C01 | 独立数据、模型/API、认证和 Core 配置；自有 Agent 而非调用个人 Codex | `crates/shipios-codex/src/lib.rs`、配置/RPC 隔离测试；本阶段捆绑 Agent 冒烟 | 真实用户服务、所有继承环境边界和服务切换前台验收；保持不读取个人 Codex 配置 |
 | C02 | 项目及项目外任务、独立输出目录和任务历史 | WorkspaceRestorationTests；ModelTransportTests 的项目及项目外真实 HTTP 流程 | 全部入口、空状态、目录失效和完整自主编码闭环 |
 | C03 | 流式输出、UTF-8、模型列表及任务协议快照 | `testStreamingUTF8AndModelList`、`testCodexResponsesChatUsesAgentAndKeepsTaskReply` | 真实服务断流/延迟/模型能力；页面渲染与全部输出类型 |
-| C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest`；第 603 篇真实延迟启动的独立取消、无请求、PID 退出和立即重试 | 第 612 篇补齐空闲后台停止、捕获身份与目标暂停，第 613 篇验证原生子/孙中断及关闭隔离；Node REPL、完整子任务呈现/空闲父停止、连续操作配对及全部取消边界仍缺 |
+| C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest`；第 603 篇真实启动独立取消，第 612/613 篇后台与子/孙中断；第 614 篇实际空闲父子任务停止、400ms 终止边界/重复取消/旧 token 保护及真实审批续聊压力验证 | Node REPL、完整子任务交互、全部子目标/权限边界、连续操作与前台配对仍缺 |
 | C05 | 等待下一轮、引导优先于旧队列；Core 同回合引导 | `testSteeringRunsBeforeMessagesAlreadyWaitingInQueue`、`testSteeringCancelsCurrentStreamAndContinuesWithPartialReply`、Core steering/detached draft 两项及 RPC 冒烟 | 全部入口、按键和并发焦点；不同协议保持其实际执行语义 |
 | C06 | 重试状态、终止错误和外部中断收尾 | `testCodexRetryStatusAppearsThenClearsOnReply`、`testCodexTerminalProviderErrorFailsRun`、`testCodexExternalInterruptEndsActiveRunWithoutSpinner`；第 610 篇实际运行/审批等待中断、Hook 失败收尾及原任务续聊 | 真实服务重连、审批/提问期间断联及前台错误恢复 |
 | C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 601 篇实际失败输出→补丁→再验证连续用例及恢复；第 610 篇独立后台清理、实际 PID 与同项目任务隔离；第 611 篇主/任务窗口后台摘要、只读输出、迟到通知及恢复 | 真实模型复杂需求、多工具/多回合完整自主编码、复杂失败恢复、后台终端全部前台操作、所有运行卡片和前台配对 |
@@ -98,7 +100,7 @@
 | --- | --- | --- | --- |
 | M01 | 无项目新任务 | 草稿、独立目录、发送/停止/队列/恢复 | 首屏、全部入口和环境选择 |
 | M02 | 项目新任务 | 项目、构建、模型和工作树/环境选择 | 自主编码与云环境完整流程 |
-| M03 | 已有会话 | 历史、时间线、审批/提问/计划/目标、分叉/并行 | 富文本、全部输出与摘要、错误和运行交互 |
+| M03 | 已有会话 | 历史、时间线、审批/提问/计划/目标、分叉/并行、真实子任务状态与摘要入口 | 富文本、全部输出与摘要、完整子会话/交互、错误和运行交互 |
 | M04 | 侧栏及项目 | 分组、排序、置顶、归档、未读、关联目录 | 全部菜单/手势、attention、多仓库失败 |
 | M05 | Activity | 优先/近期/计划、审查、批量处理 | 其他来源、远程停止、布局/键盘/焦点 |
 | M06 | 模型选择 | 列表、搜索、手动 ID、能力等级 | 当前预设、滑杆和全部键盘行为 |
@@ -109,7 +111,7 @@
 | M11 | 文件树与预览 | 编辑/保存/冲突/监控/恢复/查找替换、选区 AI 编辑和行内/完整文件审阅 | 1 MiB 编辑上限差异、复杂编辑器、拖排/多面板及选区前台配对 |
 | M12 | 文件搜索 | 模糊索引、关联目录、键盘及错误恢复 | 超时、大项目延迟、结果与打开方式 |
 | M13 | 终端 | PTY、多标签、拆分、迁移和恢复新 shell | 比例/焦点、选择、菜单/快捷键 |
-| M14 | 内容标签与浏览器 | 拖放/迁移、浏览器、计划、来源、后台命令输出、下载 | 特殊 iframe/CDP/WebMCP、跨重启登录/前台确认 |
+| M14 | 内容标签与浏览器 | 拖放/迁移、浏览器、计划、来源、后台命令输出、子任务只读概览及恢复、下载 | 子会话详情/行点击/返回/精确头像和摘要、特殊 iframe/CDP/WebMCP、跨重启登录/前台确认 |
 | M15 | 审查页与 PR | 差异、Git 写入、PR 概览/Activity/Code/评论 | 真实远端闭环、上下文/编辑/媒体、全布局焦点 |
 | M16 | 分支弹层 | 搜索、切换/创建、跟踪、冲突/占用 | 全工作树流程与实际菜单/键盘 |
 | M17 | 永久工作树面板 | 分支、独立项目、失败恢复 | 完整环境与前台操作 |

@@ -4,6 +4,7 @@ import OSLog
 enum WorkspaceStopTarget: Equatable {
   case run(runID: String, taskID: String?)
   case background(taskID: String, terminalID: UUID, threadID: String)
+  case descendants(taskID: String, threadID: String, childIDs: Set<String>)
 }
 
 extension WorkspaceStore {
@@ -17,6 +18,11 @@ extension WorkspaceStore {
         let terminal = backgroundTerminals(taskID: owner).first(where: { $0.threadID == threadID }) {
         guard !backgroundTerminalCleanupRequests.contains(owner) else { return nil }
         return .background(taskID: owner, terminalID: terminal.id, threadID: terminal.threadID)
+      }
+      if let threadID = library.tasks.first(where: { $0.id == owner })?.codexThreadID {
+        let children = activeSubagents(taskID: owner)
+        if !children.isEmpty { return .descendants(taskID: owner, threadID: threadID,
+          childIDs: Set(children.map(\.threadID))) }
       }
     }
     // The main window can also stop its local build/diagnostic run. A task
@@ -60,6 +66,7 @@ extension WorkspaceStore {
           $0.id == terminalID && $0.threadID == threadID
         }) else { return }
       pauseGoal(taskID)
+      let childIDs = Set(activeSubagents(taskID: taskID).map(\.threadID))
       do { try await submitBackgroundTerminalCleanup(taskID: taskID) }
       catch {
         // The reference shortcut fallback logs failure; explicit row cleanup
@@ -67,6 +74,22 @@ extension WorkspaceStore {
         Logger(subsystem: "dev.shipios.desktop", category: "TaskStop")
           .warning("Background terminal stop fallback failed: \(error.localizedDescription, privacy: .private)")
       }
+      await stopIdleDescendants(taskID: taskID, threadID: threadID,
+        childIDs: childIDs)
+    case let .descendants(taskID, threadID, childIDs):
+      await stopIdleDescendants(taskID: taskID, threadID: threadID, childIDs: childIDs)
+    }
+  }
+
+  private func stopIdleDescendants(taskID: String, threadID: String, childIDs: Set<String>) async {
+    guard !childIDs.isEmpty, activeRun(taskID: taskID) == nil,
+      library.tasks.first(where: { $0.id == taskID })?.codexThreadID == threadID,
+      !childIDs.isDisjoint(with: activeSubagents(taskID: taskID).map(\.threadID)) else { return }
+    pauseGoal(taskID)
+    do { try await codexTransport.interruptDescendants(taskID: taskID, expectedThreadID: threadID) }
+    catch {
+      Logger(subsystem: "dev.shipios.desktop", category: "TaskStop")
+        .warning("Subagent stop fallback failed: \(error.localizedDescription, privacy: .private)")
     }
   }
 }

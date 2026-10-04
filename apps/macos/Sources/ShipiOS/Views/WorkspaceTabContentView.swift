@@ -61,6 +61,8 @@ struct WorkspaceTabContentView: View {
             ownerRunID: store.library.tasks.first { $0.id == owner }?.runIDs.last,
             click: WebLinkClick(event: NSApp.currentEvent))
         })
+    case .subagents(let owner):
+      SubagentsPanelView(agents: store.subagents(taskID: owner))
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)

@@ -1,7 +1,7 @@
 use super::*;
 use codex_protocol::protocol::{AgentStatus, SubAgentSource};
 use std::time::Duration;
-use wiremock::matchers::{body_string_contains, method};
+use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn run_native_test(work: impl Future<Output = Result<()>> + Send + 'static) -> Result<()> {
@@ -34,7 +34,14 @@ async fn server() -> MockServer {
         })
         .collect::<String>();
     Mock::given(method("POST"))
-        .and(body_string_contains("complete-child"))
+        .and(|request: &wiremock::Request| {
+            let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap_or_default();
+            body["input"]
+                .as_array()
+                .and_then(|items| items.iter().rev().find(|item| item["role"] == "user"))
+                .and_then(|item| item["content"].as_array())
+                .is_some_and(|parts| parts.iter().any(|part| part["text"] == "complete-child"))
+        })
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("Content-Type", "text/event-stream")
@@ -118,6 +125,21 @@ async fn status(thread: &CodexThread, expected: fn(&AgentStatus) -> bool) -> Res
     .context("native child status timeout")
 }
 
+async fn drain_root_terminal(session: &CodexSession) -> Result<()> {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if matches!(
+                session.next_event().await?,
+                EventMsg::TurnComplete(_) | EventMsg::TurnAborted(_)
+            ) {
+                session.flush_rollout().await?;
+                return Ok(());
+            }
+        }
+    })
+    .await?
+}
+
 #[test]
 fn interrupt_stops_native_child_and_grandchild_preserves_peer_and_cold_history_and_allows_resume()
 -> Result<()> {
@@ -158,6 +180,34 @@ fn interrupt_stops_native_child_and_grandchild_preserves_peer_and_cold_history_a
         ensure!(
             !tree.contains(&peer.thread_id),
             "unrelated root was included in subtree"
+        );
+        let snapshot = session.descendant_source().snapshot().await?;
+        assert!(
+            snapshot
+                .iter()
+                .any(|row| row.thread_id == child.thread_id.to_string()
+                    && row.loaded
+                    && row.status == "running"
+                    && row.depth == Some(1))
+        );
+        assert!(
+            snapshot
+                .iter()
+                .any(|row| row.thread_id == grandchild.thread_id.to_string()
+                    && row.parent_thread_id == Some(child.thread_id.to_string())
+                    && row.depth == Some(2))
+        );
+        assert!(
+            snapshot
+                .iter()
+                .any(|row| row.thread_id == completed.thread_id.to_string()
+                    && !row.loaded
+                    && row.status == "notLoaded")
+        );
+        assert!(
+            !snapshot
+                .iter()
+                .any(|row| row.thread_id == peer.thread_id.to_string())
         );
         // Wait for real HTTP requests, rather than only a locally queued state.
         tokio::time::timeout(Duration::from_secs(10), async {
@@ -202,6 +252,58 @@ fn interrupt_stops_native_child_and_grandchild_preserves_peer_and_cold_history_a
         status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
         session.shutdown().await?;
         assert_eq!(peer.thread.agent_status().await, AgentStatus::Shutdown);
+        Ok(())
+    })
+}
+
+#[test]
+fn idle_parent_snapshot_tracks_child_completion_and_stop_cannot_interrupt_a_new_parent_turn()
+-> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let server = server().await;
+        let session = session(root.path(), &server, "IdleParent").await?;
+        let source = session.descendant_source();
+        let child = spawn_child(&session, session.thread_id, 1).await?;
+        start(&session.thread, "complete-child").await?;
+        status(&session.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        drain_root_terminal(&session).await?;
+        start(&child.thread, "hold-native-child").await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Running)).await?;
+        let rows = source.snapshot().await?;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].status, "running");
+        session.interrupt_idle_descendants().await;
+        while let Some(result) = session.descendant_interrupts.lock().await.join_next().await {
+            result?;
+        }
+        status(&child.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
+        assert!(matches!(
+            session.thread.agent_status().await,
+            AgentStatus::Completed(_)
+        ));
+        start(&session.thread, "hold-native-root").await?;
+        start(&child.thread, "hold-native-child").await?;
+        status(&session.thread, |s| matches!(s, AgentStatus::Running)).await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Running)).await?;
+        session.interrupt_idle_descendants().await;
+        while let Some(result) = session.descendant_interrupts.lock().await.join_next().await {
+            result?;
+        }
+        assert_eq!(session.thread.agent_status().await, AgentStatus::Running);
+        assert_eq!(child.thread.agent_status().await, AgentStatus::Running);
+        session.interrupt_turn().await?;
+        while let Some(result) = session.descendant_interrupts.lock().await.join_next().await {
+            result?;
+        }
+        status(&child.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
+        drain_root_terminal(&session).await?;
+        start(&child.thread, "complete-child").await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        let rows = source.snapshot().await?;
+        assert_eq!(rows[0].status, "completed");
+        assert_eq!(rows[0].preview.as_deref(), Some("Completed native child"));
+        session.shutdown().await?;
         Ok(())
     })
 }

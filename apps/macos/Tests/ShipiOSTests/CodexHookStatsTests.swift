@@ -347,7 +347,8 @@ final class CodexHookStatsTests: XCTestCase {
     XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("approval-proof.txt").path))
     let nextStarted = await store.startChat("Continue after cancelled approval", taskID: task.id)
     let next = try XCTUnwrap(nextStarted); await store.modelTask(runID: next)?.value
-    XCTAssertEqual(store.library.chatRuns.first { $0.id == next }?.status, "succeeded")
+    let resumed = try XCTUnwrap(store.library.chatRuns.first { $0.id == next })
+    XCTAssertEqual(resumed.status, "succeeded", resumed.result?["message"].text ?? store.error ?? "")
     XCTAssertTrue(store.library.chatRuns.first { $0.id == next }?.codexHookRuns.isEmpty == true)
     XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
     XCTAssertFalse(FileManager.default.fileExists(atPath: project.appendingPathComponent("approval-proof.txt").path))

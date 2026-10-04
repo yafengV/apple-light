@@ -12,6 +12,7 @@ struct WorkspaceTask: Codable, Identifiable, Equatable {
   var modelSelection: TaskModelSelection?
   /// The actual Codex Core thread ID, present after a Responses thread starts.
   var codexThreadID: String?
+  var codexSubagents: [CodexSubagent]?
   /// Canonical directory of the actual Core transport, including projectless task directories.
   var codexWorkspacePath: String?
   /// Current branch recorded by explicit branch preparation; historical run branches remain intact.
@@ -777,7 +778,13 @@ struct WorkspaceLibrary: Codable {
 
   static func load(from url: URL) throws -> Self {
     guard FileManager.default.fileExists(atPath: url.path) else { return Self() }
-    return try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+    var restored = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+    for task in restored.tasks.indices {
+      guard var agents = restored.tasks[task].codexSubagents else { continue }
+      for index in agents.indices { agents[index].disconnect() }
+      restored.tasks[task].codexSubagents = agents
+    }
+    return restored
   }
 
   func save(to url: URL) throws {

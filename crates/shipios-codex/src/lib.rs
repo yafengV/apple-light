@@ -4,6 +4,8 @@ mod automation_tool;
 mod browser_tool;
 mod confetti_tool;
 mod descendant_interrupts;
+mod descendants;
+pub use descendants::{DescendantSource, NativeSubagent};
 #[cfg(test)]
 mod descendant_interrupts_tests;
 mod hook_plugins;
@@ -1063,6 +1065,24 @@ impl CodexSession {
 
     pub async fn interrupt_turn(&self) -> Result<()> {
         let result = self.thread.submit(Op::Interrupt).await;
+        self.interrupt_descendants().await;
+        result.map(|_| ()).map_err(Into::into)
+    }
+
+    pub fn descendant_source(&self) -> DescendantSource {
+        DescendantSource::new(Arc::clone(&self.manager), self.thread_id)
+    }
+
+    /// Idle-parent Stop must not submit an interrupt to a newly-started root turn.
+    pub async fn interrupt_descendants(&self) {
+        self.schedule_descendant_interrupt(false).await;
+    }
+
+    pub async fn interrupt_idle_descendants(&self) {
+        self.schedule_descendant_interrupt(true).await;
+    }
+
+    async fn schedule_descendant_interrupt(&self, idle_only: bool) {
         let manager = Arc::clone(&self.manager);
         let parent = self.thread_id;
         let mut jobs = self.descendant_interrupts.lock().await;
@@ -1072,7 +1092,11 @@ impl CodexSession {
             }
         }
         jobs.spawn(async move {
-            let report = descendant_interrupts::interrupt_active_descendants(manager, parent).await;
+            let report = if idle_only {
+                descendant_interrupts::interrupt_idle_descendants(manager, parent).await
+            } else {
+                descendant_interrupts::interrupt_active_descendants(manager, parent).await
+            };
             if report.failed != 0 || report.timed_out {
                 // Counts only: never print model/provider errors or credentials.
                 eprintln!(
@@ -1081,7 +1105,6 @@ impl CodexSession {
                 );
             }
         });
-        result.map(|_| ()).map_err(Into::into)
     }
 
     pub async fn clean_background_terminals(&self) -> Result<()> {

@@ -111,6 +111,7 @@ import Observation
     case .review: return "审查"
     case .plan(let runID, _): return planDocument?(runID)?.title ?? "计划"
     case .sources: return "来源"
+    case .subagents: return "子任务"
     case .pullRequest(let url, _):
       if let request = pullRequest?(url) {
         let title = request.title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -189,6 +190,13 @@ import Observation
     let tab = WorkspaceContentTab.file(normalizedPath, owner: taskID)
     if !tabs.contains(tab) { tabs.append(tab) }
     move(tab.id, to: place)
+    return true
+  }
+  @discardableResult func openSubagents(in place: WorkspaceTabPlacement = .right) -> Bool {
+    guard place != .bottom, place != .detached else { return false }
+    let tab = WorkspaceContentTab.subagents(owner: taskID)
+    if tabs.contains(tab) { activate(tab.id) }
+    else { tabs.append(tab); move(tab.id, to: place) }
     return true
   }
   @discardableResult func openBackgroundTerminal(_ id: UUID, in place: WorkspaceTabPlacement = .right) -> Bool {
@@ -352,6 +360,7 @@ import Observation
       if let request = pullRequest?(url) { _ = openPullRequest(request, in: state.placement) }
     case .pullRequestWatch(let id, let target, _):
       if let watch = watchAutomation?(id, target) { _ = openPullRequestWatch(watch, in: state.placement) }
+    case .subagents: _ = openSubagents(in: state.placement)
     case .backgroundTerminal(let id, _): _ = openBackgroundTerminal(id, in: state.placement)
     case .terminal: newTerminal(in: state.placement)
     }
@@ -462,6 +471,9 @@ import Observation
         let candidate = WorkspaceContentTab.pullRequestWatch(id, task: target, owner: taskID)
         guard candidate.id == entry.id else { continue }
         tab = candidate; tabs.append(tab)
+      case .subagents:
+        guard entry.id == WorkspaceContentTab.subagents(owner: taskID).id else { continue }
+        tab = .subagents(owner: taskID); tabs.append(tab)
       case .backgroundTerminal:
         guard let id = WorkspaceContentTab.backgroundTerminalID(entry.id, owner: taskID),
           backgroundTerminalTitle?(id) != nil else { continue }

@@ -1,4 +1,5 @@
 mod codex_bridge;
+mod descendant_monitor;
 mod local_environment;
 mod rpc;
 mod service;

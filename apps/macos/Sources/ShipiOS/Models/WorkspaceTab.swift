@@ -54,6 +54,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
   case pullRequest(String, owner: String)
   case pullRequestWatch(UUID, task: String, owner: String)
   case backgroundTerminal(UUID, owner: String)
+  case subagents(owner: String)
   case terminal(UUID, owner: String)
 
   var id: String {
@@ -66,13 +67,14 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .pullRequest(let url, let owner): "pull-request:\(owner):\(url)"
     case .pullRequestWatch(_, let task, let owner): "pull-request-auto-fix:\(owner):\(task)"
     case .backgroundTerminal(let id, let owner): "background-terminal:\(owner):\(id.uuidString)"
+    case .subagents(let owner): "subagents:\(owner)"
     case .terminal(let id, _): "terminal:\(id.uuidString)"
     }
   }
 
   var owner: String {
     switch self {
-    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .pullRequestWatch(_, _, let owner), .terminal(_, let owner), .backgroundTerminal(_, let owner): owner
+    case .browser(_, let owner), .file(_, let owner), .review(let owner), .plan(_, let owner), .sources(let owner), .pullRequest(_, let owner), .pullRequestWatch(_, _, let owner), .terminal(_, let owner), .backgroundTerminal(_, let owner), .subagents(let owner): owner
     }
   }
 
@@ -118,6 +120,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .pullRequest: "arrow.triangle.pullrequest"
     case .pullRequestWatch: "bolt.horizontal.circle"
     case .backgroundTerminal: "terminal"
+    case .subagents: "person.2"
     case .terminal: "terminal"
     }
   }
@@ -132,6 +135,7 @@ enum WorkspaceContentTab: Hashable, Identifiable {
     case .pullRequest: .pullRequest
     case .pullRequestWatch: .pullRequestWatch
     case .backgroundTerminal: .backgroundTerminal
+    case .subagents: .subagents
     case .terminal: .terminal
     }
   }
@@ -146,6 +150,7 @@ enum PinnedWorkspaceTabKind: String, Codable {
   case pullRequest
   case pullRequestWatch
   case backgroundTerminal
+  case subagents
   case terminal
 }
 

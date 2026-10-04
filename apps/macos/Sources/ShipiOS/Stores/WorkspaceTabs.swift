@@ -53,6 +53,7 @@ extension WorkspaceStore {
     case .plan(let runID, let owner):
       return taskWindowRuns(owner).first(where: { $0.id == runID })?.codexPlanDocument?.title ?? "计划"
     case .sources: return "来源"
+    case .subagents: return "子任务"
     case .pullRequest:
       guard let request = pullRequestContent(tab) else { return "Pull Request" }
       let title = request.title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,6 +104,9 @@ extension WorkspaceStore {
       reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
         kind: .pullRequestWatch, title: workspaceTabTitle(tab), restoreURL: nil,
         watchAutomationID: id, watchTaskID: target)
+    case .subagents(let owner):
+      reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
+        kind: .subagents, title: "子任务", restoreURL: nil)
     case .backgroundTerminal(_, let owner):
       reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: owner,
         kind: .backgroundTerminal, title: workspaceTabTitle(tab), restoreURL: nil)
@@ -270,6 +274,11 @@ extension WorkspaceStore {
         library.pinnedContentTabs[index].sourceWindowID = nil
         saveLibrary()
       }
+    case .subagents:
+      guard pin.sourceTabID == WorkspaceContentTab.subagents(owner: pin.owner).id, openSubagents() else { return }
+      if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }) {
+        library.pinnedContentTabs[index].sourceWindowID = nil; saveLibrary()
+      }
     case .backgroundTerminal:
       guard let id = WorkspaceContentTab.backgroundTerminalID(pin.sourceTabID, owner: pin.owner),
         openBackgroundTerminal(id) else {
@@ -329,7 +338,7 @@ extension WorkspaceStore {
     case .file: break
     case .review:
       Task { await workspace.refreshGit() }
-    case .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal: break
+    case .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal, .subagents: break
     case .terminal:
       focusTerminal()
     }
@@ -413,10 +422,10 @@ extension WorkspaceStore {
       return
     }
     if tab.kind == .file { closedFilePlacements[tab.id] = workspaceTabPlacement(tab.id) }
-    if tab.kind == .pullRequest || tab.kind == .pullRequestWatch || tab.kind == .backgroundTerminal { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
+    if tab.kind == .pullRequest || tab.kind == .pullRequestWatch || tab.kind == .backgroundTerminal || tab.kind == .subagents { closedPullRequestPlacements[tab.id] = workspaceTabPlacement(tab.id) }
     switch tab {
     case .browser(let browserID, _): workspace.browser.close(browserID)
-    case .file, .review, .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal:
+    case .file, .review, .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal, .subagents:
       pullRequestTabPresentations.clear(tab.id)
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
@@ -519,6 +528,9 @@ extension WorkspaceStore {
       }
       migrated = .file(path, owner: newOwner)
     case .review: migrated = .review(owner: newOwner)
+    case .subagents:
+      error = "子任务属于原会话，不能移到其他任务。"
+      return nil
     case .backgroundTerminal:
       error = "后台终端输出属于原任务，不能移到其他任务。"
       return nil
@@ -693,6 +705,9 @@ extension WorkspaceStore {
       reopeningWorkspaceTabOwner = owner
       _ = workspace.browser.reopenClosedTab(originalID: originalID)
       reopeningWorkspaceTabOwner = nil
+    case .subagents(let owner):
+      let placement = closedPullRequestPlacements.removeValue(forKey: tab.id) ?? .right
+      if owner == currentWorkspaceTabOwner { _ = openSubagents(in: placement == .detached ? .right : placement) }
     case .backgroundTerminal(let id, let owner):
       let placement = closedPullRequestPlacements.removeValue(forKey: tab.id) ?? .right
       if owner == currentWorkspaceTabOwner { _ = openBackgroundTerminal(id, in: placement == .detached ? .right : placement) }
@@ -778,6 +793,7 @@ extension WorkspaceStore {
       case .review: migrated = .review(owner: newOwner)
       case .plan(let runID, _): migrated = .plan(runID, owner: newOwner)
       case .sources: migrated = .sources(owner: newOwner)
+      case .subagents: migrated = .subagents(owner: newOwner)
       case .pullRequest(let url, _): migrated = .pullRequest(url, owner: newOwner)
       case .pullRequestWatch(let id, let target, _): migrated = .pullRequestWatch(id, task: target, owner: newOwner)
       case .backgroundTerminal(let id, _): migrated = .backgroundTerminal(id, owner: newOwner)

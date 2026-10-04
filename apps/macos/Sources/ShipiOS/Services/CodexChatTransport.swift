@@ -6,6 +6,7 @@ import CryptoKit
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
   var onRuntimeCommandEvent: ((String, String?, JSONValue) -> Void)?
+  var onSubagentSnapshot: ((String, String?, JSONValue) -> Void)?
   var onThreadDisconnected: ((String) -> Void)?
   var onHookEvent: ((String, String?, JSONValue) -> Void)?
   var onThreadStarted: ((String, String, String) -> Void)?
@@ -56,6 +57,8 @@ final class CodexChatTransport {
   private var preparingTasks: Set<String> = []
   private var streams: [String: AsyncThrowingStream<JSONValue, Error>.Continuation] = [:]
   private var activeTurnIDs: [String: String] = [:]
+  private var turnTokens: [String: UUID] = [:]
+  private var interruptingTurns: [String: (token: UUID, task: Task<Void, Never>)] = [:]
   private var browserTurnTokens: [String: UUID] = [:]
 
   init(dataRoot: URL) {
@@ -190,10 +193,15 @@ final class CodexChatTransport {
     resumeOrigin: CodexResumeOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     try Task.checkCancellation()
-    guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
+    guard preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
     defer { preparingTasks.remove(taskID) }
+    if let interruption = interruptingTurns[taskID] { await interruption.task.value }
+    try Task.checkCancellation()
+    guard streams[taskID] == nil else {
+      throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
+    }
     let folders = try ProjectFolders.canonical([workspace.path] + additionalFolders)
     let path = workspace.resolvingSymlinksInPath().standardizedFileURL.path
     if let previous = taskProjects[taskID], previous != path {
@@ -229,6 +237,7 @@ final class CodexChatTransport {
     defer { if let staged { try? FileManager.default.removeItem(at: staged.url) } }
     let (stream, continuation) = AsyncThrowingStream<JSONValue, Error>.makeStream()
     streams[taskID] = continuation
+    turnTokens[taskID] = UUID()
     browserTurnTokens[taskID] = UUID()
     do {
       let firstTurn = !activeThreads.contains(taskID)
@@ -276,6 +285,8 @@ final class CodexChatTransport {
         serviceIdentities[taskID] = service
         if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
           onThreadStarted?(taskID, threadID, thread["historyWorkspace"].text ?? path)
+          _ = try? await client.request("codex.thread.descendants.refresh", [
+            "taskId": .string(taskID), "expectedThreadId": .string(threadID)])
         }
         if compact && sendFullContext {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")
@@ -320,6 +331,7 @@ final class CodexChatTransport {
     } catch {
       if Task.isCancelled { await interrupt(taskID: taskID) }
       browserTurnTokens.removeValue(forKey: taskID)
+      turnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
       throw error
     }
@@ -358,10 +370,38 @@ final class CodexChatTransport {
     streams[taskID] != nil && activeTurnIDs[taskID] != nil
   }
 
+  func turnToken(taskID: String) -> UUID? { turnTokens[taskID] }
+
   func interrupt(taskID: String) async {
+    guard let token = turnTokens[taskID] else { return }
+    await interrupt(taskID: taskID, expectedToken: token)
+  }
+
+  /// Core acknowledges submission before TurnAborted is published. Keep the
+  /// transport occupied until that boundary, and coalesce cancellation paths.
+  func interrupt(taskID: String, expectedToken: UUID) async {
+    guard turnTokens[taskID] == expectedToken, activeThreads.contains(taskID) else { return }
     browserTurnTokens.removeValue(forKey: taskID)
-    guard activeThreads.contains(taskID) else { return }
-    _ = try? await client(for: taskID).request("codex.turn.interrupt", ["taskId": .string(taskID)])
+    if let pending = interruptingTurns[taskID], pending.token == expectedToken {
+      await pending.task.value
+      return
+    }
+    let cleanup = Task { @MainActor [weak self] in
+      guard let self, self.turnTokens[taskID] == expectedToken else { return }
+      _ = try? await self.client(for: taskID).request("codex.turn.interrupt", ["taskId": .string(taskID)])
+      let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+      while self.turnTokens[taskID] == expectedToken, ContinuousClock.now < deadline {
+        try? await Task.sleep(for: .milliseconds(10))
+      }
+      // A missing terminal notification must not leave an unusable stream or
+      // let another turn reuse an uncertain runtime. Closing preserves rollout.
+      if self.turnTokens[taskID] == expectedToken { await self.stop(taskID: taskID) }
+    }
+    interruptingTurns[taskID] = (expectedToken, cleanup)
+    await cleanup.value
+    if interruptingTurns[taskID]?.token == expectedToken {
+      interruptingTurns.removeValue(forKey: taskID)
+    }
   }
 
   func stop(taskID: String) async {
@@ -372,6 +412,7 @@ final class CodexChatTransport {
     activeThreads.remove(taskID)
     serviceIdentities.removeValue(forKey: taskID)
     activeTurnIDs.removeValue(forKey: taskID)
+    turnTokens.removeValue(forKey: taskID)
     streams.removeValue(forKey: taskID)?.finish()
   }
 
@@ -380,6 +421,12 @@ final class CodexChatTransport {
   func cleanBackgroundTerminals(taskID: String) async throws {
     guard activeThreads.contains(taskID) else { throw AgentFailure(message: "Codex 会话未连接") }
     _ = try await client(for: taskID).request("codex.thread.backgroundTerminals.clean", ["taskId": .string(taskID)])
+  }
+
+  func interruptDescendants(taskID: String, expectedThreadID: String) async throws {
+    guard activeThreads.contains(taskID) else { throw AgentFailure(message: "Codex 会话未连接") }
+    _ = try await client(for: taskID).request("codex.thread.descendants.interrupt", [
+      "taskId": .string(taskID), "expectedThreadId": .string(expectedThreadID)])
   }
 
   /// Releases an ephemeral thread's local identity after the Core thread stops.
@@ -459,6 +506,7 @@ final class CodexChatTransport {
     activeThreads.removeAll()
     serviceIdentities.removeAll()
     activeTurnIDs.removeAll()
+    turnTokens.removeAll()
     browserTurnTokens.removeAll()
     taskProjects.removeAll()
     let pending = Array(streams.values)
@@ -476,6 +524,7 @@ final class CodexChatTransport {
       activeThreads.remove(taskID)
       serviceIdentities.removeValue(forKey: taskID)
       activeTurnIDs.removeValue(forKey: taskID)
+      turnTokens.removeValue(forKey: taskID)
       browserTurnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
     }
@@ -529,6 +578,11 @@ final class CodexChatTransport {
   private func receive(_ payload: JSONValue) {
     guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
+    if event["type"].text == "shipios_subagent_snapshot" {
+      guard activeThreads.contains(taskID) else { return }
+      onSubagentSnapshot?(taskID, payload["threadId"].text, event)
+      return
+    }
     if ["task_started", "turn_started", "exec_command_begin", "exec_command_end",
       "exec_command_output_delta", "raw_response_item", "shutdown_complete"].contains(event["type"].text ?? "") {
       onRuntimeCommandEvent?(taskID, payload["threadId"].text, event)
@@ -557,6 +611,7 @@ final class CodexChatTransport {
     switch event["type"].text {
     case "task_complete", "turn_aborted", "error":
       activeTurnIDs.removeValue(forKey: taskID)
+      turnTokens.removeValue(forKey: taskID)
       browserTurnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish()
     default: break

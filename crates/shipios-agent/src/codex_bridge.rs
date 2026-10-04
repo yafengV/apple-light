@@ -337,6 +337,8 @@ enum Command {
     ResolveElicitation(CodexElicitation, oneshot::Sender<Result<()>>),
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
+    InterruptDescendants(oneshot::Sender<Result<()>>),
+    RefreshDescendants(oneshot::Sender<Result<()>>),
     CleanBackgroundTerminals(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
 }
@@ -1117,6 +1119,47 @@ impl CodexBridge {
         result.await.context("Codex thread stopped")?
     }
 
+    async fn descendant_sender(
+        &self,
+        task_id: &str,
+        expected_thread_id: &str,
+    ) -> Result<mpsc::Sender<Command>> {
+        let key = Uuid::parse_str(task_id)
+            .context("invalid task ID")?
+            .to_string();
+        let sessions = self.sessions.lock().await;
+        let handle = sessions.get(&key).context("Codex thread not started")?;
+        ensure!(
+            handle.thread_id == expected_thread_id,
+            "Codex thread identity changed"
+        );
+        Ok(handle.sender.clone())
+    }
+
+    pub async fn interrupt_descendants(
+        &self,
+        task_id: &str,
+        expected_thread_id: &str,
+    ) -> Result<()> {
+        let sender = self.descendant_sender(task_id, expected_thread_id).await?;
+        let (reply, result) = oneshot::channel();
+        sender
+            .send(Command::InterruptDescendants(reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
+    pub async fn refresh_descendants(&self, task_id: &str, expected_thread_id: &str) -> Result<()> {
+        let sender = self.descendant_sender(task_id, expected_thread_id).await?;
+        let (reply, result) = oneshot::channel();
+        sender
+            .send(Command::RefreshDescendants(reply))
+            .await
+            .context("Codex thread stopped")?;
+        result.await.context("Codex thread stopped")?
+    }
+
     pub async fn clean_background_terminals(&self, task_id: &str) -> Result<()> {
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
@@ -1164,6 +1207,12 @@ async fn run_thread(
     task_id: String,
     thread_id: String,
 ) {
+    let mut monitor = Some(crate::descendant_monitor::DescendantMonitor::start(
+        session.descendant_source(),
+        events.clone(),
+        task_id.clone(),
+        thread_id.clone(),
+    ));
     let mut session = Some(session);
     while let Some(live) = session.as_ref() {
         tokio::select! {
@@ -1208,11 +1257,20 @@ async fn run_thread(
                 Some(Command::Interrupt(reply)) => {
                     let _ = reply.send(live.interrupt_turn().await);
                 }
+                Some(Command::InterruptDescendants(reply)) => {
+                    live.interrupt_idle_descendants().await;
+                    let _ = reply.send(Ok(()));
+                }
+                Some(Command::RefreshDescendants(reply)) => {
+                    if let Some(monitor) = &monitor { monitor.refresh(); }
+                    let _ = reply.send(Ok(()));
+                }
                 Some(Command::CleanBackgroundTerminals(reply)) => {
                     let _ = reply.send(live.clean_background_terminals().await);
                 }
                 Some(Command::Stop(reply)) => {
                     let _ = live.interrupt_turn().await;
+                    if let Some(monitor) = monitor.take() { monitor.stop().await; }
                     let shutdown = session.take().expect("live session").shutdown_with_events(|event| {
                         let _ = events.send(json!({"taskId":task_id,"threadId":thread_id,"event":event}));
                     }).await;
@@ -1236,6 +1294,16 @@ async fn run_thread(
                                 "event":{"type":"error","message":error.to_string()}}));
                             break;
                     }
+                    if matches!(event, codex_core_api::EventMsg::TurnComplete(_)
+                        | codex_core_api::EventMsg::TurnAborted(_)
+                        | codex_core_api::EventMsg::CollabAgentSpawnEnd(_)
+                        | codex_core_api::EventMsg::CollabAgentInteractionEnd(_)
+                        | codex_core_api::EventMsg::CollabWaitingBegin(_)
+                        | codex_core_api::EventMsg::CollabWaitingEnd(_)
+                        | codex_core_api::EventMsg::CollabCloseEnd(_)
+                        | codex_core_api::EventMsg::CollabResumeEnd(_)
+                        | codex_core_api::EventMsg::SubAgentActivity(_))
+                        && let Some(monitor) = &monitor { monitor.refresh(); }
                     let _ = events.send(json!({
                         "taskId":task_id,"threadId":thread_id,"event":event
                     }));
@@ -1249,6 +1317,9 @@ async fn run_thread(
                 }
             }
         }
+    }
+    if let Some(monitor) = monitor {
+        monitor.stop().await;
     }
     if let Some(live) = session {
         let _ = live

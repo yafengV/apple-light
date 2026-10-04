@@ -66,6 +66,9 @@ extension WorkspaceStore {
       guard saved.id == candidate.id, pullRequestWatchContent(candidate) != nil else { return .close }
     case .browser:
       guard saved.id.hasPrefix("browser:"), UUID(uuidString: String(saved.id.dropFirst(8))) != nil else { return .close }
+    case .subagents:
+      guard saved.id == WorkspaceContentTab.subagents(owner: owner).id,
+        library.tasks.contains(where: { $0.id == owner }) else { return .close }
     case .backgroundTerminal:
       guard let id = WorkspaceContentTab.backgroundTerminalID(saved.id, owner: owner),
         backgroundTerminalDocument(id, taskID: owner) != nil else { return .close }

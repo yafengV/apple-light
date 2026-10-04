@@ -243,6 +243,13 @@ struct WorkspaceView: View {
                     }
                   },
                   cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: task.id, selectedID: id) },
+                  openSubagents: {
+                    taskSummary.dismissPopover()
+                    if store.openSubagents(taskID: task.id),
+                      let route = store.detachedWorkspaceTabRoute(WorkspaceContentTab.subagents(owner: task.id).id) {
+                      openWindow(value: route)
+                    }
+                  },
                   openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                   openFile: { taskSummary.dismissPopover(); store.preview($0) },
@@ -414,6 +421,13 @@ struct WorkspaceView: View {
                     }
                   },
                   cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: task.id, selectedID: id) },
+                  openSubagents: {
+                    taskSummary.dismissPopover()
+                    if store.openSubagents(taskID: task.id),
+                      let route = store.detachedWorkspaceTabRoute(WorkspaceContentTab.subagents(owner: task.id).id) {
+                      openWindow(value: route)
+                    }
+                  },
                 openPlan: { taskSummary.dismissPopover(); _ = store.openPlanDocument(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); _ = store.openTaskSources() },
                 openFile: { taskSummary.dismissPopover(); store.preview($0) },

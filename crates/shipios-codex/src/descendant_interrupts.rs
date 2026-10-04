@@ -17,6 +17,21 @@ pub(crate) async fn interrupt_active_descendants(
     manager: Arc<ThreadManager>,
     parent: ThreadId,
 ) -> DescendantInterruptReport {
+    interrupt_descendants(manager, parent, false).await
+}
+
+pub(crate) async fn interrupt_idle_descendants(
+    manager: Arc<ThreadManager>,
+    parent: ThreadId,
+) -> DescendantInterruptReport {
+    interrupt_descendants(manager, parent, true).await
+}
+
+async fn interrupt_descendants(
+    manager: Arc<ThreadManager>,
+    parent: ThreadId,
+    idle_only: bool,
+) -> DescendantInterruptReport {
     let mut report = DescendantInterruptReport::default();
     let mut jobs = JoinSet::new();
     let work = async {
@@ -30,6 +45,17 @@ pub(crate) async fn interrupt_active_descendants(
         for id in descendants.into_iter().filter(|id| *id != parent) {
             let manager = Arc::clone(&manager);
             jobs.spawn(async move {
+                if idle_only {
+                    let Ok(root) = manager.get_thread(parent).await else {
+                        return Ok(false);
+                    };
+                    if matches!(
+                        root.agent_status().await,
+                        AgentStatus::Running | AgentStatus::PendingInit
+                    ) {
+                        return Ok(false);
+                    }
+                }
                 let Ok(thread) = manager.get_thread(id).await else {
                     return Ok(false);
                 };

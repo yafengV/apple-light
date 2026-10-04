@@ -241,6 +241,8 @@ final class WorkspaceStore {
   var mcpRefreshingServers: Set<UUID> = []
   var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]
   var backgroundTerminalCleanup: [String: UUID] = [:]
+  @ObservationIgnored var subagentSnapshotAssemblers: [String: CodexSubagentSnapshotAssembler] = [:]
+  @ObservationIgnored var subagentSnapshotRevisions: [String: Int] = [:]
   @ObservationIgnored var backgroundTerminalCleanupRequests: Set<String> = []
   var mcpPendingApprovals: [UUID: MCPApprovalContext] = [:] { didSet { synchronizeActivityPriority() } }
   @ObservationIgnored var mcpApprovalContinuations: [UUID: CheckedContinuation<MCPApprovalDecision, Never>] = [:]
@@ -539,6 +541,10 @@ final class WorkspaceStore {
     }
     codexTransport.onThreadDisconnected = { [weak self] taskID in
       self?.disconnectBackgroundTerminals(taskID: taskID)
+      self?.disconnectSubagents(taskID: taskID)
+    }
+    codexTransport.onSubagentSnapshot = { [weak self] taskID, threadID, event in
+      self?.recordSubagentSnapshot(taskID: taskID, threadID: threadID, event: event)
     }
     codexTransport.onHookEvent = { [weak self] taskID, threadID, event in
       self?.recordCodexHook(taskID: taskID, threadID: threadID, event: event)

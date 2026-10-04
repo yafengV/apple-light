@@ -260,6 +260,27 @@ async fn dispatch(
                     .map_err(failed)?;
                 Ok(json!({"submitted":true}))
             }
+            "codex.thread.descendants.interrupt" | "codex.thread.descendants.refresh" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase", deny_unknown_fields)]
+                struct Target {
+                    task_id: String,
+                    expected_thread_id: String,
+                }
+                let p: Target = serde_json::from_value(params).map_err(|_| invalid())?;
+                if method == "codex.thread.descendants.interrupt" {
+                    codex
+                        .interrupt_descendants(&p.task_id, &p.expected_thread_id)
+                        .await
+                        .map_err(failed)?;
+                } else {
+                    codex
+                        .refresh_descendants(&p.task_id, &p.expected_thread_id)
+                        .await
+                        .map_err(failed)?;
+                }
+                Ok(json!({"submitted":true}))
+            }
             "codex.turn.approve" => {
                 let p: CodexApproval = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.approve(p).await.map_err(failed)?;

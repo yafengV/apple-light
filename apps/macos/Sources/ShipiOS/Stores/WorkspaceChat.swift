@@ -458,6 +458,7 @@ extension WorkspaceStore {
       compact: compact,
       forkOrigin: library.tasks.first(where: { $0.id == taskID })?.codexForkOrigin,
       resumeOrigin: library.tasks.first(where: { $0.id == taskID }).flatMap(CodexResumeOrigin.init(task:)))
+    let interruptionToken = codexTransport.turnToken(taskID: taskID)
     do {
       let usage: ModelTokenUsage? = try await withTaskCancellationHandler {
       var rendered = ""
@@ -584,11 +585,15 @@ extension WorkspaceStore {
       } catch {
         expirePendingCodexBrowserCalls(runID: runID,
           status: error is CancellationError ? .cancelled : .failed)
-        await codexTransport.interrupt(taskID: taskID)
+        if let interruptionToken { await codexTransport.interrupt(taskID: taskID, expectedToken: interruptionToken) }
         throw error
       }
       } onCancel: {
-        Task { @MainActor [weak self] in await self?.codexTransport.interrupt(taskID: taskID) }
+        if let interruptionToken {
+          Task { @MainActor [weak self] in
+            await self?.codexTransport.interrupt(taskID: taskID, expectedToken: interruptionToken)
+          }
+        }
       }
       if review != nil { await codexTransport.stop(taskID: taskID) }
       return usage

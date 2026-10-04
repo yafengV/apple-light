@@ -200,6 +200,7 @@ struct TaskWindowView: View {
                   cleaningBackgroundTerminal: store.backgroundTerminalCleanup[taskID],
                   openBackgroundTerminal: { id in taskSummary.dismissPopover(); _ = tabs.openBackgroundTerminal(id) },
                   cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: taskID, selectedID: id, notices: resources.notices) },
+                  openSubagents: { taskSummary.dismissPopover(); _ = tabs.openSubagents() },
                   openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                   openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                   openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -290,6 +291,7 @@ struct TaskWindowView: View {
                   cleaningBackgroundTerminal: store.backgroundTerminalCleanup[taskID],
                   openBackgroundTerminal: { id in taskSummary.dismissPopover(); _ = tabs.openBackgroundTerminal(id) },
                   cleanBackgroundTerminal: { id in await store.cleanBackgroundTerminals(taskID: taskID, selectedID: id, notices: resources.notices) },
+                  openSubagents: { taskSummary.dismissPopover(); _ = tabs.openSubagents() },
                 openPlan: { taskSummary.dismissPopover(); tabs.openPlan(runID: $0) },
                 openAllSources: { taskSummary.dismissPopover(); tabs.openSources() },
                 openFile: { taskSummary.dismissPopover(); previewFile = $0 },
@@ -1237,6 +1239,8 @@ struct TaskWindowView: View {
               click: WebLinkClick(event: NSApp.currentEvent),
               openInApp: { tabs.openBrowser($0, presentation: $1) })
           })
+      case .subagents:
+        SubagentsPanelView(agents: store.subagents(taskID: taskID))
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

@@ -97,6 +97,7 @@ extension WorkspaceStore {
       let index = library.tasks.firstIndex(where: { $0.id == taskID }),
       library.tasks[index].codexThreadID != threadID
         || (workspace != nil && library.tasks[index].codexWorkspacePath != workspace) else { return }
+    if library.tasks[index].codexThreadID != threadID { disconnectSubagents(taskID: taskID) }
     library.tasks[index].codexThreadID = threadID
     if let workspace { library.tasks[index].codexWorkspacePath = workspace }
     saveLibrary()

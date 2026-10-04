@@ -23,6 +23,7 @@ struct TaskSummaryView: View {
   var cleaningBackgroundTerminal: UUID? = nil
   var openBackgroundTerminal: (UUID) -> Void = { _ in }
   var cleanBackgroundTerminal: (UUID) async -> Void = { _ in }
+  var openSubagents: () -> Void = {}
   let openPlan: (String) -> Void
   let openAllSources: () -> Void
   let openFile: (FileAttachment) -> Void
@@ -120,6 +121,10 @@ struct TaskSummaryView: View {
             Divider()
             BackgroundTerminalSummarySection(terminals: backgroundTerminals,
               cleaning: cleaningBackgroundTerminal, open: openBackgroundTerminal, clean: cleanBackgroundTerminal)
+          }
+          if let subagents = task.codexSubagents, !subagents.isEmpty {
+            Divider()
+            SubagentsSummaryButton(agents: subagents, open: openSubagents)
           }
           if let latestPlanDocument {
             Divider()
