@@ -73,6 +73,9 @@ struct AppContentView: View {
             .accessibilityHidden(store.destination != .settings)
         }
       }
+      // Keep the hidden workspace's accessibility boundary separate from the
+      // active settings page and the outer modal boundary.
+      .accessibilityElement(children: .contain)
       .disabled(((store.hasSettingsConfirmation || store.appshotIntroRequest != nil)
         && store.appearanceThemeImport == nil)
         || store.presentedOverlay == .imagePreview || store.presentedOverlay?.isSearchDialog == true)
