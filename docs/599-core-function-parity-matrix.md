@@ -4,6 +4,8 @@
 
 后续更新：C28 的设置隐藏工作区已由[第 600 篇](600-settings-accessibility-isolation.md)修复并实机验证。当前 24 个可见顶层分类的导航/隔离、MCP/技能切换及设置内命令弹层获得前台证据；矩阵 26 项设置范围包含单列子分类。各页完整交互和双端配对仍未完成，不能将这次导航核对算为 24 页完全对齐。
 
+核心验证更新见[第 601 篇](601-core-coding-workflow-verification.md)：新增真实 Swift 验证失败 → Core 补丁修复 → 再编译运行 → 应用审查/提交/本地推送 → 恢复的连续用例，18 项工具/审查/MCP/自动化关联集成及 2 项原生 Core 目标集成通过。真实模型、用户服务、GitHub 和完整前台配对的边界保持不变。
+
 ## 验收口径
 
 - **实现**：当前代码存在相应行为；声明、按钮、配置字段不能代替运行闭环。
@@ -38,16 +40,16 @@
 | C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest` | 主/独立窗口连续操作配对及工具执行期间的完整取消边界 |
 | C05 | 等待下一轮、引导优先于旧队列；Core 同回合引导 | `testSteeringRunsBeforeMessagesAlreadyWaitingInQueue`、`testSteeringCancelsCurrentStreamAndContinuesWithPartialReply`、Core steering/detached draft 两项及 RPC 冒烟 | 全部入口、按键和并发焦点；不同协议保持其实际执行语义 |
 | C06 | 重试状态、终止错误和外部中断收尾 | `testCodexRetryStatusAppearsThenClearsOnReply`、`testCodexTerminalProviderErrorFailsRun`、`testCodexExternalInterruptEndsActiveRunWithoutSpinner` | 真实服务重连、审批/提问期间断联及前台错误恢复 |
-| C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 195—198、218、221—223 篇 | 多工具/多回合完整自主编码、复杂失败恢复、所有运行卡片和前台配对 |
+| C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 601 篇实际失败输出→补丁→再验证连续用例及恢复 | 真实模型复杂需求、多工具/多回合完整自主编码、复杂失败恢复、所有运行卡片和前台配对 |
 | C08 | 人工允许/拒绝、作用域授权、任务权限和自动审核 | RPC 审批冒烟、SkillDiscoveryTransportTests；`testChangingTaskPermissionAppliesToNextCoreTurn` | 所有审批变体、跨窗口投递、持久 Core 逐工具权限和管理策略 |
 | C09 | 结构化提问及 MCP 类型化表单/URL 请求 | CodexElicitationSchemaTests、MCPApprovalRoutingTests、RPC 提问；第 199、211—213 篇 | 所有前台表单/焦点/键盘/取消；真实 OAuth 与 HTTP 后台通知 |
-| C10 | 只读计划回合、计划进度、完成计划文档及次轮恢复 | CodexPlanDocumentTests；`testPlanModeReachesActualRequestAndResetsAfterSubmission`；第 200、205、259 篇 | Core 只读回合专项本阶段未重跑；计划标签全交互与 Codex 配对 |
-| C11 | 持久目标、自动续轮、未给状态时暂停及迭代上限 | 四项 ModelTransportTests goal 集成用例、GoalModeTests | 真实模型完成判定、暂停/继续/取消组合及 Codex 目标生命周期配对 |
+| C10 | 只读计划回合、计划进度、完成计划文档及次轮恢复 | CodexPlanDocumentTests；`testPlanModeReachesActualRequestAndResetsAfterSubmission`；第 601 篇 Core 实际拒绝写入和次轮恢复写入复测 | 计划标签全交互与 Codex 配对 |
+| C11 | 持久目标、自动续轮、未给状态时暂停及迭代上限 | 四项 ModelTransportTests goal 集成、GoalModeTests；第 601 篇两项原生 Core 完成/指令清理与缺少信号暂停集成 | 真实模型完成判定、暂停/继续/取消组合及 Codex 目标生命周期配对 |
 | C12 | 恢复会话、草稿、队列；失败区别于空历史 | WorkspaceRestorationTests、`testProjectlessStoreStreamsQueuesAndRestoresRealConversation`、CodexNativeForkTests | 杀进程/磁盘失败/并发保存组合及所有窗口恢复 |
 | C13 | 原生历史分叉、同检出共享任务及新工作树分叉 | CodexNativeForkTests 的实际 Agent、Git 和恢复路径 | 历史运行中分叉前台流程、所有归档共享成员、完整环境及跨提交脏状态 Handoff |
 | C14 | 文件、图片和文本/PDF 附件进入请求及保留归属 | 第 44、193、194 篇及既有测试；本阶段未全量复测 | 更多二进制格式、媒体、复杂粘贴/拖放及全部前台入口 |
 | C15 | 文件编辑、冲突、查找替换、监控和恢复；选区 AI 编辑、行内/大建议审阅、原生接受/拒绝和撤销 | FileEditorSession、FileSelectionEditSession 及第 440—450 篇；本阶段两种协议选区生成集成测试 | 复杂编辑器行为、拖排和多面板；文件 1 MiB 编辑上限及选区审阅尺寸/颜色/滚动/键盘前台配对 |
-| C16 | Git 差异、暂存/撤销、提交/推送、PR 创建与审查 | 现有 Git 服务/夹具及逐页清单，PR 页面阶段文档 | 真实 GitHub 闭环、跨仓库/其他托管来源、所有写入入口的前台配对 |
+| C16 | Git 差异、暂存/撤销、提交/推送、PR 创建与审查 | 现有 Git 服务/夹具及逐页清单；第 601 篇编译修复到应用提交/本地裸仓库推送、只读大差异及快照/引用恢复 | 真实 GitHub 闭环、跨仓库/其他托管来源、所有写入入口的前台配对 |
 | C17 | 工作树创建、归档快照、恢复、清理和同提交 Handoff | WorktreeService、CodexNativeForkTests、既有真实 Git 测试 | 跨提交脏状态、完整工作树环境及远端迁移 |
 | C18 | 独立技能自动发现、按需读取、调用、启停和预算 | SkillDiscoveryTransportTests 14 项：两种协议、本机 Core 原生读文件、来源、路径别名、预算及超时 | 在线来源、系统作用域/OAuth、全部技能页和依赖表单前台配对 |
 | C19 | MCP 握手、连接取消/重试、工具、任务审批与历史 | MCPApprovalRoutingTests；第 88—90、209—213、439 篇 | Core 持久逐工具授权、OAuth、HTTP 后台通知、插件内逐服务器运行 |

@@ -233,6 +233,31 @@ class Handler(BaseHTTPRequestHandler):
                         'options': [{'label': 'Provided value', 'description': 'Use a saved value.'}],
                     }]}),
                 }
+            elif 'codex-core-build-repair' in request_text:
+                outputs = {entry.get('call_id'): entry.get('output', '')
+                           for entry in body.get('input', []) if isinstance(entry, dict)
+                           and entry.get('type') in ('function_call_output', 'custom_tool_call_output')}
+                verify = ('mkdir -p .core-verification && xcrun swiftc '
+                          '-module-cache-path .core-verification/ModuleCache '
+                          'Sources/Main.swift -o .core-verification/probe '
+                          '&& .core-verification/probe')
+                if 'core-build-first' not in outputs:
+                    item = {'type': 'function_call', 'call_id': 'core-build-first', 'name': 'exec_command',
+                            'arguments': json.dumps({'cmd': verify, 'yield_time_ms': 30000})}
+                elif 'core-workflow-failed: expected 42, got 41' not in str(outputs['core-build-first']):
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'core-build-unexpected',
+                            'content': [{'type': 'output_text', 'text': 'Initial verification did not reach the expected failure.'}]}
+                elif 'core-build-patch' not in outputs:
+                    item = {'type': 'custom_tool_call', 'call_id': 'core-build-patch', 'name': 'apply_patch',
+                            'input': '*** Begin Patch\n*** Update File: Sources/Main.swift\n@@\n-func answer() -> Int { 41 }\n+func answer() -> Int { 42 }\n*** End Patch'}
+                elif 'core-build-verified' not in outputs:
+                    item = {'type': 'function_call', 'call_id': 'core-build-verified', 'name': 'exec_command',
+                            'arguments': json.dumps({'cmd': verify, 'yield_time_ms': 30000})}
+                else:
+                    passed = 'core-workflow-verified' in str(outputs['core-build-verified'])
+                    item = {'type': 'message', 'role': 'assistant', 'id': 'core-build-reply',
+                            'content': [{'type': 'output_text', 'text': 'Repair verified by Swift compiler and executable.'
+                                         if passed else 'Repair verification failed.'}]}
             elif 'codex-patch' in request_text and 'custom_tool_call_output' not in request_text:
                 item = {
                     'type': 'custom_tool_call', 'call_id': 'swift-patch-call',

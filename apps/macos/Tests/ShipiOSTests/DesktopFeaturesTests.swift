@@ -1681,6 +1681,96 @@ final class ModelTransportTests: XCTestCase {
       encoding: .utf8), "approved")
     await store.shutdown()
   }
+  @MainActor func testCoreRepairsActualSwiftFailureThenReviewsCommitsAndPushesLocally() async throws {
+    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let project = root.appendingPathComponent("Project", isDirectory: true)
+    let remote = root.appendingPathComponent("remote.git", isDirectory: true)
+    try FileManager.default.createDirectory(at: project.appendingPathComponent("Sources"),
+      withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = #"""
+      import Foundation
+      func answer() -> Int { 41 }
+      guard answer() == 42 else {
+        print("core-workflow-failed: expected 42, got \(answer())")
+        exit(1)
+      }
+      print("core-workflow-verified")
+
+      """#
+    let sourceFile = project.appendingPathComponent("Sources/Main.swift")
+    try source.write(to: sourceFile, atomically: true, encoding: .utf8)
+    try ".core-verification/\n".write(to: project.appendingPathComponent(".gitignore"),
+      atomically: true, encoding: .utf8)
+    _ = try await GitReviewService.checked(["init", "-q", "-b", "main"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.name", "ShipiOS Test"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.email", "qa@example.invalid"], at: project)
+    _ = try await GitReviewService.checked(["add", "Sources/Main.swift", ".gitignore"], at: project)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial failing verification"], at: project)
+    _ = try await GitReviewService.checked(["init", "-q", "--bare", remote.path], at: project)
+    _ = try await GitReviewService.checked(["remote", "add", "origin", remote.path], at: project)
+
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    await store.restore()
+    config.apiProtocol = .codexResponses
+    config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent did not connect")
+    await store.startChat("codex-core-build-repair")
+    let original = try XCTUnwrap(store.library.chatRuns.last)
+    await store.modelTask(runID: original.id)?.value
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == original.id })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.result?["response"].text, "Repair verified by Swift compiler and executable.")
+    XCTAssertEqual(finished.toolExecutions.count, 3, "\(finished.toolExecutions)")
+    XCTAssertTrue(finished.toolExecutions.contains {
+      $0.status == .failed && $0.output?.contains("core-workflow-failed: expected 42, got 41") == true
+    })
+    XCTAssertTrue(finished.toolExecutions.contains { $0.toolName == "补丁" && $0.status == .succeeded })
+    XCTAssertTrue(finished.toolExecutions.contains {
+      $0.status == .succeeded && $0.output?.contains("core-workflow-verified") == true
+    })
+    XCTAssertEqual(try String(contentsOf: sourceFile), source.replacingOccurrences(
+      of: "func answer() -> Int { 41 }", with: "func answer() -> Int { 42 }"))
+
+    await store.workspace.refreshGit()
+    store.workspace.reviewScope = .lastTurn
+    await store.workspace.loadDiff()
+    let review = try XCTUnwrap(store.workspace.lastTurnReview)
+    XCTAssertEqual(review.files.map(\.path), ["Sources/Main.swift"])
+    XCTAssertTrue(review.unifiedDiff.contains("-func answer() -> Int { 41 }"))
+    XCTAssertTrue(review.unifiedDiff.contains("+func answer() -> Int { 42 }"))
+    store.workspace.reviewScope = .unstaged
+    await store.workspace.loadDiff()
+    store.workspace.commitMessage = "Fix verified answer"
+    let committed = await store.performGitAction(.commit, in: store.workspace, includeUnstaged: true)
+    XCTAssertTrue(committed, store.workspace.error ?? "Commit failed")
+    let pushed = await store.workspace.push(remote: "origin", destination: "main", forceWithLease: false)
+    XCTAssertTrue(pushed, store.workspace.error ?? "Push failed")
+    let localHead = try await GitReviewService.checked(["rev-parse", "HEAD"], at: project)
+    let remoteHead = try await GitReviewService.checked(["rev-parse", "refs/heads/main"], at: remote)
+    XCTAssertEqual(localHead, remoteHead)
+    let files = try await GitReviewService.checked(["ls-tree", "-r", "--name-only", "HEAD"], at: remote)
+    XCTAssertEqual(Set(files.split(separator: "\n").map(String.init)), [".gitignore", "Sources/Main.swift"])
+    let status = try await GitReviewService.checked(["status", "--porcelain"], at: project)
+    XCTAssertTrue(status.isEmpty, status)
+    let owner = try XCTUnwrap(store.library.task(containing: original.id)?.id)
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == original.id }?.toolExecutions,
+      finished.toolExecutions)
+    XCTAssertEqual(restored.lastTurnReviewSource(taskID: owner)?.runID, original.id)
+    await restored.shutdown()
+  }
+
   @MainActor func testCodexPatchAppearsInTimelineAndWritesProjectFile() async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
