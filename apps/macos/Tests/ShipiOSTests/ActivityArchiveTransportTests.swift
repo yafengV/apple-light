@@ -29,14 +29,24 @@ final class ActivityArchiveTransportTests: XCTestCase {
   }
 
   private enum Surface { case activityBatch, activityRow, sidebar, command, taskWindow }
-  @MainActor private func checkArchive(_ api: ModelAPIProtocol, surface: Surface = .activityBatch) async throws {
+  @MainActor private func checkArchive(_ api: ModelAPIProtocol, surface: Surface = .activityBatch,
+    delayedAgentStartup: Bool = false) async throws {
     let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
       .deletingLastPathComponent()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("archive-transport-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
-    let store = WorkspaceStore(dataRoot: root,
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    var executable = repository.appendingPathComponent("target/debug/shipios-agent")
+    if delayedAgentStartup {
+      try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+      let wrapper = root.appendingPathComponent("delayed-agent.sh")
+      let quoted = "'" + executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+      try "#!/bin/sh\n/bin/sleep 6\nexec \(quoted) \"$@\"\n".write(to: wrapper,
+        atomically: true, encoding: .utf8)
+      try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: wrapper.path)
+      executable = wrapper
+    }
+    let store = WorkspaceStore(dataRoot: root, agentExecutable: executable)
     await store.restore()
     var config = ModelConfiguration()
     config.baseURL = endpoint
@@ -48,17 +58,28 @@ final class ActivityArchiveTransportTests: XCTestCase {
     let started = await store.startChat(prompt)
     let runID = try XCTUnwrap(started, store.error ?? "No run")
     let owner = try XCTUnwrap(store.library.task(containing: runID)?.id)
-    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    // Launching Core is a prerequisite, not part of the fixture's stream delay.
+    // Keep both phases bounded and retain the stricter stream readiness check.
+    let startupDeadline = ContinuousClock.now.advanced(by: .seconds(15))
+    var streamDeadline: ContinuousClock.Instant?
     while store.library.chatRuns.first(where: { $0.id == runID })?.result?["response"].text?.isEmpty != false {
-      guard ContinuousClock.now < deadline else {
-        let run = store.library.chatRuns.first(where: { $0.id == runID })
-        let phases = (try? String(contentsOf: trace)) ?? "No model fixture requests"
-        XCTFail("No actual streamed response: \(run?.status ?? "missing") \(run?.result?.pretty ?? "")\n\(phases)")
+      let run = store.library.chatRuns.first(where: { $0.id == runID })
+      let phases = (try? String(contentsOf: trace)) ?? "No model fixture requests"
+      if streamDeadline == nil, phases.split(separator: "\n").contains(where: { line in
+        guard let event = try? JSONDecoder().decode(JSONValue.self, from: Data(line.utf8)) else { return false }
+        return event["phase"].text == "post" && event["path"].text == (api == .codexResponses
+          ? "/v1/responses" : "/v1/chat/completions")
+      }) { streamDeadline = ContinuousClock.now.advanced(by: .seconds(5)) }
+      guard run?.status == "running", ContinuousClock.now < (streamDeadline ?? startupDeadline) else {
+        let phase = streamDeadline == nil ? "Agent startup / request preparation" : "model stream"
+        XCTFail("No actual streamed response during \(phase): \(run?.status ?? "missing") \(run?.result?.pretty ?? "")\n\(phases)")
         await store.shutdown()
         return
       }
       try await Task.sleep(for: .milliseconds(25))
     }
+    XCTAssertEqual(store.library.chatRuns.first(where: { $0.id == runID })?.status, "running",
+      "Archive verification must operate on a live stream, not an already completed response")
     let queue = QueuedMessage(taskID: owner, text: "follow up")
     store.library.queuedMessages.append(queue)
     store.draft = "unsent draft"
@@ -140,6 +161,9 @@ final class ActivityArchiveTransportTests: XCTestCase {
   }
   @MainActor func testCoreArchiveCommandStopsActualStream() async throws {
     try await checkArchive(.codexResponses, surface: .command)
+  }
+  @MainActor func testCoreArchiveAfterSlowAgentStartupStillStopsActualStream() async throws {
+    try await checkArchive(.codexResponses, surface: .command, delayedAgentStartup: true)
   }
   @MainActor func testBasicChatTaskWindowArchiveStopsActualStream() async throws {
     try await checkArchive(.chatCompletions, surface: .taskWindow)
