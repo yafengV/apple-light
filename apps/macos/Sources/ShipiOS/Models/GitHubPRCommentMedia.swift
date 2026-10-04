@@ -5,6 +5,10 @@ struct GitHubPRCommentMedia: Sendable, Equatable {
   let url: URL
   let kind: Kind
   let alt: String
+  let title: String?
+  init(url: URL, kind: Kind, alt: String, title: String? = nil) {
+    self.url = url; self.kind = kind; self.alt = alt; self.title = title
+  }
 
   static func mightContainURL(_ source: String) -> Bool {
     let text = source.lowercased()
@@ -47,7 +51,7 @@ struct GitHubPRCommentMedia: Sendable, Equatable {
     let kind: Kind = opening.lowercased().hasPrefix("<img") ? .image : .video
     guard remaining.isEmpty || (kind == .video && remaining.lowercased() == "</video>") else { return nil }
     guard let sourceURL = attribute("src", in: opening), let url = allowedURL(sourceURL) else { return nil }
-    return .init(url: url, kind: kind, alt: attribute("alt", in: opening) ?? "")
+    return .init(url: url, kind: kind, alt: attribute("alt", in: opening) ?? "", title: attribute("title", in: opening))
   }
 
   private static func attribute(_ name: String, in tag: String) -> String? {

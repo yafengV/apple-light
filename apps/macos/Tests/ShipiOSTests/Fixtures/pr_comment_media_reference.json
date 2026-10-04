@@ -1,0 +1,192 @@
+{
+  "version": "26.930.21537",
+  "sources": {
+    "pull-request-comment-ae0822c719d2.js": "75f3614a2d5537a334dda26896e87ed89bf35e3bcb6698f93eeb00699d3a56c4",
+    "app-shared-59042e7300f7.js": "f788f64c401215fae493ac1e235869ed583b37b3468d037de080ca3d796450d9",
+    "app-shared-6fb15e58cd7f.css": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  },
+  "playableMedia": false,
+  "branches": [
+    {
+      "name": "loading",
+      "kind": "image",
+      "mime": "image/png",
+      "loading": true,
+      "status": "success",
+      "failed": false,
+      "result": "loading",
+      "external": false,
+      "classes": "inline-flex min-h-24 min-w-40 items-center justify-center gap-2 rounded-md bg-primary-ghost-hover px-4 py-3 text-sm text-codex-description",
+      "title": null
+    },
+    {
+      "name": "image",
+      "kind": "image",
+      "mime": "image/png",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "image",
+      "external": false,
+      "classes": "block h-auto max-h-[min(70vh,40rem)] max-w-full rounded-md object-contain shadow-md my-3",
+      "title": "Image title"
+    },
+    {
+      "name": "svg",
+      "kind": "image",
+      "mime": "image/svg+xml",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "image",
+      "external": false,
+      "classes": "block h-auto max-h-[min(70vh,40rem)] max-w-full rounded-md object-contain shadow-md my-3",
+      "title": "Image title"
+    },
+    {
+      "name": "binary-image",
+      "kind": "image",
+      "mime": "application/octet-stream",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "image",
+      "external": false,
+      "classes": "block h-auto max-h-[min(70vh,40rem)] max-w-full rounded-md object-contain shadow-md my-3",
+      "title": "Image title"
+    },
+    {
+      "name": "video",
+      "kind": "video",
+      "mime": "video/mp4",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "unavailable",
+      "external": true,
+      "classes": null,
+      "title": null
+    },
+    {
+      "name": "binary-video",
+      "kind": "video",
+      "mime": "application/octet-stream",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "unavailable",
+      "external": true,
+      "classes": null,
+      "title": null
+    },
+    {
+      "name": "video-image",
+      "kind": "video",
+      "mime": "image/png",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "image",
+      "external": false,
+      "classes": "block h-auto max-h-[min(70vh,40rem)] max-w-full rounded-md object-contain shadow-md my-3",
+      "title": "Image title"
+    },
+    {
+      "name": "invalid-type",
+      "kind": "image",
+      "mime": "text/html",
+      "loading": false,
+      "status": "success",
+      "failed": false,
+      "result": "unavailable",
+      "external": false,
+      "classes": null,
+      "title": null
+    },
+    {
+      "name": "fetch-failure",
+      "kind": "video",
+      "mime": "video/mp4",
+      "loading": false,
+      "status": "error",
+      "failed": false,
+      "result": "unavailable",
+      "external": false,
+      "classes": null,
+      "title": null
+    },
+    {
+      "name": "image-error",
+      "kind": "image",
+      "mime": "image/png",
+      "loading": false,
+      "status": "success",
+      "failed": true,
+      "result": "unavailable",
+      "external": false,
+      "classes": null,
+      "title": null
+    }
+  ],
+  "loadingClass": "inline-flex min-h-24 min-w-40 items-center justify-center gap-2 rounded-md bg-primary-ghost-hover px-4 py-3 text-sm text-codex-description",
+  "fallbackClass": "my-3 flex min-h-24 min-w-40 flex-col items-center justify-center gap-2 rounded-lg bg-primary-ghost-hover px-4 py-3 text-sm text-codex-description",
+  "button": {
+    "color": "outline",
+    "size": "default",
+    "classes": "px-2 py-0.5 text-sm leading-[18px]",
+    "radius": "rounded-full",
+    "colorClasses": "border-default bg-primary-soft-alpha hover:bg-primary-ghost-hover",
+    "height": 24,
+    "font": 13
+  },
+  "image": {
+    "maximumViewportRatio": 0.7,
+    "maximumHeight": 640,
+    "radius": 10,
+    "marginY": 12,
+    "intrinsic": true,
+    "shadow": [
+      {
+        "x": 0,
+        "y": 4,
+        "blur": 6,
+        "spread": -1,
+        "alpha": 0.1
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "blur": 4,
+        "spread": -2,
+        "alpha": 0.1
+      }
+    ]
+  },
+  "loading": {
+    "minimumWidth": 160,
+    "minimumHeight": 96,
+    "radius": 10
+  },
+  "fallback": {
+    "minimumWidth": 160,
+    "minimumHeight": 96,
+    "radius": 12.5,
+    "marginY": 12
+  },
+  "aliases": {
+    "background": "buttonSecondaryBackgroundHover",
+    "description": "textForegroundTertiary",
+    "buttonBackground": "elevatedSecondary",
+    "buttonBorder": "border"
+  },
+  "corners": {
+    "mdBase": 8,
+    "lgBase": 10,
+    "scale": 1.25,
+    "shape": "superellipse(1.5)",
+    "measuredLoadingRadius": 10,
+    "measuredFallbackRadius": 12.5,
+    "rendererFrameworkVersion": "154.0.8037.93",
+    "note": "Computed CSS in an isolated public-style fixture, not paired frontend acceptance"
+  }
+}

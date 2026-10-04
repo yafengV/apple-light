@@ -24,6 +24,7 @@ struct AppearanceActionButton: NSViewRepresentable {
     var active = true
     var preferences = AppearancePreferences()
     var primary = false
+    var outlinedPill = false
     var closeIcon = false
     var hovered = false { didSet { needsDisplay = true } }
     var canAct: () -> Bool = { true }
@@ -38,7 +39,7 @@ struct AppearanceActionButton: NSViewRepresentable {
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize {
       if closeIcon { return .init(width: 22, height: 22) }
-      return .init(width: ceil((title as NSString).size(withAttributes: [.font: font ?? .systemFont(ofSize: 13)]).width) + 18, height: 28)
+      return .init(width: ceil((title as NSString).size(withAttributes: [.font: font ?? .systemFont(ofSize: 13)]).width) + 18, height: outlinedPill ? 24 : 28)
     }
     @objc private func pressed() { guard acceptsFirstResponder, window != nil, canAct() else { return }; activate?() }
     override func accessibilityPerformPress() -> Bool {
@@ -70,9 +71,12 @@ struct AppearanceActionButton: NSViewRepresentable {
     override func draw(_ dirtyRect: NSRect) {
       let roles = preferences.resolvedColors
       let alpha: Double = isEnabled ? 1 : 0.4
-      let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: closeIcon ? 4 : 10, yRadius: closeIcon ? 4 : 10)
+      let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: closeIcon ? 4 : outlinedPill ? bounds.height / 2 : 10, yRadius: closeIcon ? 4 : outlinedPill ? bounds.height / 2 : 10)
       if primary {
         roles["textForeground"].opacity(alpha * (hovered ? 0.8 : 1)).nativeColor.setFill(); path.fill()
+        roles["border"].opacity(alpha).nativeColor.setStroke(); path.lineWidth = 1; path.stroke()
+      } else if outlinedPill {
+        roles[hovered && isEnabled ? "buttonSecondaryBackgroundHover" : "elevatedSecondary"].opacity(alpha).nativeColor.setFill(); path.fill()
         roles["border"].opacity(alpha).nativeColor.setStroke(); path.lineWidth = 1; path.stroke()
       } else if hovered && isEnabled { roles["buttonSecondaryBackgroundHover"].nativeColor.setFill(); path.fill() }
       let foreground = roles[primary ? "controlBackgroundOpaque" : closeIcon ? "textForeground" : "textForegroundTertiary"].opacity(alpha * (closeIcon ? 0.8 : 1)).nativeColor

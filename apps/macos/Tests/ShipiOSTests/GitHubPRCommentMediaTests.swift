@@ -102,7 +102,7 @@ final class GitHubPRCommentMediaTests: XCTestCase {
 
   func testResponseMIMEIsCheckedBeforePreview() {
     XCTAssertTrue(GitHubPRCommentMediaLoader.accepts("image/png", kind: .image))
-    XCTAssertFalse(GitHubPRCommentMediaLoader.accepts("image/svg+xml", kind: .image))
+    XCTAssertTrue(GitHubPRCommentMediaLoader.accepts("image/svg+xml", kind: .image))
     XCTAssertFalse(GitHubPRCommentMediaLoader.accepts("text/html", kind: .image))
     XCTAssertTrue(GitHubPRCommentMediaLoader.accepts("video/mp4", kind: .video))
     XCTAssertTrue(GitHubPRCommentMediaLoader.accepts("application/octet-stream", kind: .video))

@@ -29,17 +29,22 @@ enum GitHubPRMediaRequestPolicy {
 enum GitHubPRCommentMediaLoader {
   static let maximumBytes = 10 * 1_048_576
 
-  static func accepts(_ mimeType: String?, kind: GitHubPRCommentMedia.Kind) -> Bool {
-    guard let mimeType else { return false }
-    let type = mimeType.split(separator: ";", maxSplits: 1).first?
+  struct Payload: Sendable {
+    let data: Data
+    let mimeType: String
+  }
+  static func normalizedMIME(_ mimeType: String?) -> String {
+    mimeType?.split(separator: ";", maxSplits: 1).first?
       .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-    switch kind {
-    case .image: return type.hasPrefix("image/") && type != "image/svg+xml"
-    case .video: return type.hasPrefix("video/") || type == "application/octet-stream"
-    }
+  }
+  static func accepts(_ mimeType: String?, kind: GitHubPRCommentMedia.Kind) -> Bool {
+    let type = normalizedMIME(mimeType)
+    return type.hasPrefix("image/") || type == "application/octet-stream" ||
+      (kind == .video && type.hasPrefix("video/"))
   }
 
-  static func load(_ media: GitHubPRCommentMedia) async throws -> Data {
+  static func load(_ media: GitHubPRCommentMedia, session suppliedSession: URLSession? = nil,
+    tokenProvider: @Sendable () async -> String? = { await authenticationToken() }) async throws -> Payload {
     guard GitHubPRCommentMedia.allowedURL(media.url.absoluteString) != nil else {
       throw AgentFailure(message: "GitHub 媒体地址无效。")
     }
@@ -48,9 +53,10 @@ enum GitHubPRCommentMediaLoader {
     options.timeoutIntervalForResource = 60
     options.httpShouldSetCookies = false
     options.urlCache = nil
-    let session = URLSession(configuration: options, delegate: GitHubPRMediaRedirectDelegate(), delegateQueue: nil)
-    defer { session.invalidateAndCancel() }
-    let request = mediaRequest(media, token: await authenticationToken())
+    let session = suppliedSession ?? URLSession(configuration: options, delegate: GitHubPRMediaRedirectDelegate(), delegateQueue: nil)
+    defer { if suppliedSession == nil { session.invalidateAndCancel() } }
+    let request = mediaRequest(media, token: await tokenProvider())
+    try Task.checkCancellation()
     let (bytes, response) = try await session.bytes(for: request)
     guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode),
       accepts(response.value(forHTTPHeaderField: "Content-Type"), kind: media.kind),
@@ -64,7 +70,7 @@ enum GitHubPRCommentMediaLoader {
       data.append(byte)
     }
     guard !data.isEmpty else { throw AgentFailure(message: "GitHub 媒体为空。") }
-    return data
+    return Payload(data: data, mimeType: normalizedMIME(response.value(forHTTPHeaderField: "Content-Type")))
   }
 
   static func mediaRequest(_ media: GitHubPRCommentMedia, token: String?) -> URLRequest {

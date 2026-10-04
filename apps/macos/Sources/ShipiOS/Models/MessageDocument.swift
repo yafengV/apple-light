@@ -121,7 +121,7 @@ enum MessageDocument {
     if paragraph.childCount == 1, let link = paragraph.children.first as? Markdown.Link,
       let destination = link.destination, let url = GitHubPRCommentMedia.videoURL(destination),
       link.plainText == destination {
-      return [MessageBlock(id: id, kind: .media(.init(url: url, kind: .video, alt: link.plainText)))]
+      return [MessageBlock(id: id, kind: .media(.init(url: url, kind: .video, alt: link.plainText, title: link.title)))]
     }
     let result = inlineBlocks(paragraph, id: id, prContext: prContext)
     return result.contains(where: hasMedia)
@@ -156,7 +156,7 @@ enum MessageDocument {
     prContext: GitHubPRMarkdownContext?) -> [InlinePart] {
     if let image = markup as? Markdown.Image, let source = image.source,
       let url = GitHubPRCommentMedia.allowedURL(source) {
-      return [.media(.init(url: url, kind: .image, alt: image.plainText))]
+      return [.media(.init(url: url, kind: .image, alt: image.plainText, title: image.title))]
     }
     if let image = markup as? Markdown.Image, let source = image.source,
       let path = prContext?.path(for: source) {

@@ -1,5 +1,7 @@
 # PR 媒体账户认证与失败回退
 
+后续更正：认证与 10 MiB 边界仍保留；视频不再落盘或内联播放，有效视频响应使用外部打开回退，图片与失败表面布局也继续修正，见[第 593 篇](593-pr-comment-media-presentation.md)。本页的播放器描述属于历史阶段。
+
 Codex Mac 当前 PR 媒体组件会经本机已登录的 GitHub CLI 读取令牌，以 Bearer 请求 GitHub 附件，并把预览限制为 10 MiB。ShipiOS 现沿用 PR 功能所依赖的 `gh auth token --hostname github.com` 账户来源；没有可用令牌时仍尝试公开 URL。令牌只用于允许的 GitHub 媒体原始请求，跨主机重定向清除认证头，且只接受 HTTPS 的 GitHub/GitHubusercontent 目标。客户端不持久保存令牌；命令工具使用权限为 0600 的临时输出文件，读完即删。
 
 预览上限收紧至 10 MiB。加载时是居中的进度占位，成功时只显示媒体，失败时显示“预览不可用”和“在 GitHub 中打开”。视频落盘后先检查系统播放器是否可播放，不能播放则走失败回退。
