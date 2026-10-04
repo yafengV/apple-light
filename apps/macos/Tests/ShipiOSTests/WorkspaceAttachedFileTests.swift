@@ -102,8 +102,8 @@ import XCTest
   func testRealSearchReturnsDistinctRootsAndReadsTheSelectedAttachedResult() async throws {
     let (root, primary, attached) = try fixture()
     defer { try? FileManager.default.removeItem(at: root) }
-    let agent = try XCTUnwrap(ProcessInfo.processInfo.environment["SHIPIOS_TEST_AGENT"])
-    let request = WorkspaceFileSearchRequest(root: primary, query: "same", executable: URL(fileURLWithPath: agent), additionalRoots: [attached])
+    let request = WorkspaceFileSearchRequest(root: primary, query: "same",
+      executable: try AgentTestExecutable.url(), additionalRoots: [attached])
     let catalog = WorkspaceFileSearchCatalog()
     await catalog.search(request)
     defer { catalog.close() }

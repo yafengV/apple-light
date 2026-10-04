@@ -145,10 +145,12 @@ final class ProjectlessConversationTests: XCTestCase {
     }
   }
 
-  @MainActor func testRunningStandaloneChatSurvivesProjectSwitchAndAllowsParallelTask() async {
+  @MainActor func testRunningStandaloneChatSurvivesProjectSwitchAndAllowsParallelTask() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
-    let store = WorkspaceStore(dataRoot: root)
+    let project = root.appendingPathComponent("Other").resolvingSymlinksInPath()
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root, agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     let run = sampleRun(status: "running")
     store.library.chatRuns = [run]
@@ -158,10 +160,11 @@ final class ProjectlessConversationTests: XCTestCase {
     let request = Task<Void, Never> { try? await Task.sleep(for: .seconds(5)) }
     store.installModelTask(request, runID: run.id)
     XCTAssertFalse(store.connected)
-    let task = WorkspaceTask(id: "other", project: "/other", title: "other", runIDs: [])
+    let task = WorkspaceTask(id: "other", project: project.path, title: "other", runIDs: [])
     XCTAssertTrue(store.canSelectTask(task))
-    await store.open(URL(fileURLWithPath: "/other"))
-    XCTAssertEqual(store.project?.path, "/other")
+    await store.open(project)
+    XCTAssertTrue(store.connected, store.error ?? "Agent not connected after project switch")
+    XCTAssertEqual(store.project?.path, project.path)
     XCTAssertEqual(store.library.chatRuns.first?.id, "standalone")
     XCTAssertEqual(store.library.chatRuns.first?.status, "running")
     XCTAssertNotNil(store.modelTask(runID: run.id))

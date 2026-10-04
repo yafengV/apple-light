@@ -184,7 +184,7 @@ final class TaskSearchTests: XCTestCase {
     XCTAssertTrue(try JSONDecoder().decode(WorkspaceLibrary.self, from: Data("{}".utf8)).runBranches.isEmpty)
   }
 
-  @MainActor func testBranchCaptureReadsActualRepositoryAndIgnoresNonGitProject() async throws {
+  @MainActor func testBranchCaptureReadsActualRepositoryNestedProjectsAndIgnoresNonGitProject() async throws {
     let root = try temporaryRoot()
     _ = try await LocalWorkspaceService.git(["init", "-q", "-b", "first"], at: root)
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"))
@@ -197,8 +197,12 @@ final class TaskSearchTests: XCTestCase {
     let child = root.appendingPathComponent("child")
     try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
     store.project = child
-    let noParentBranch = await store.branchForTaskHistory()
-    XCTAssertNil(noParentBranch)
+    let inheritedBranch = await store.branchForTaskHistory()
+    XCTAssertEqual(inheritedBranch, "changed-outside-app")
+    XCTAssertEqual(store.project, child, "Reading the repository branch must retain the task directory")
+    store.project = try temporaryRoot()
+    let nonGitBranch = await store.branchForTaskHistory()
+    XCTAssertNil(nonGitBranch)
     store.project = nil
     let projectless = await store.branchForTaskHistory()
     XCTAssertNil(projectless)

@@ -100,6 +100,7 @@ python3 script/smoke_ipc.py
 | [当前页面与交互验收清单](docs/37-current-page-status.md) | 各页面与全部现有设置分类的最新实现、缺失能力及待配对项 |
 | [核心功能与全部页面对齐矩阵](docs/599-core-function-parity-matrix.md) | 29 项核心流程、21 类主窗口及 26 类设置范围；区分实现、测试、前台与完整配对证据 |
 | [原生 Hook 信任与生命周期](docs/604-native-hook-trust-and-lifecycle.md) | Core 信任/实际命令与查询接口、尚未连接的应用设置，以及全量回归失败终态 |
+| [全量失败项与测试 Agent 发现](docs/605-full-regression-fixtures-and-agent-discovery.md) | 8 个失败用例的前置条件修正、47 项专项和实际搜索/IPC 证明；全量仍需复测 |
 | [永久工作树与主窗口设置](docs/38-permanent-worktrees.md) | 项目菜单创建独立 Git 工作树、根目录配置、创建恢复、真实 Agent 与任务持久化 |
 | [任务终端归属、退出与焦点](docs/39-task-terminal-sessions.md) | 任务间 Shell 隔离、首次提交接续、退出/重启、前台进程处理和焦点路由 |
 | [浏览器标签与主窗口设置路由](docs/40-browser-tabs-and-settings-routing.md) | 真实网页历史、标签生命周期、地址与快捷键，以及全部设置入口复核 |

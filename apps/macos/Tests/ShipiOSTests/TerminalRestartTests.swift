@@ -21,7 +21,10 @@ import XCTest
     store.selection = "a"
     store.restoreWorkspaceTabLayout()
     store.newTerminalTab(in: .detached)
-    let tab = try XCTUnwrap(store.focusedWorkspaceContentTab)
+    let tab = try XCTUnwrap(store.workspaceTabs.first { $0.id == store.focusedWorkspaceTabID })
+    XCTAssertEqual(store.workspaceTabPlacement(tab.id), .detached)
+    XCTAssertNil(store.focusedWorkspaceContentTab,
+      "Detached content must not become the main window's focused command target")
     let session = try XCTUnwrap(store.terminalSession(try XCTUnwrap(tab.terminalID)))
     addTeardownBlock { @MainActor in
       store.workspace.terminals.shutdown()

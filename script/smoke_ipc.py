@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the real local agent: events, cancellation, persistence, and oversized frames."""
 import json
+import os
 import queue
 import subprocess
 import tempfile
@@ -9,7 +10,7 @@ import time
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
-binary = root / "target/debug/shipios-agent"
+binary = Path(os.environ.get("SHIPIOS_TEST_AGENT", root / "target/debug/shipios-agent"))
 project = root / "fixtures/HelloShipiOS"
 
 

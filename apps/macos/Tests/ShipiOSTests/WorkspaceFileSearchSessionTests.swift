@@ -92,14 +92,12 @@ import XCTest
   }
 
   func testBundledAgentCompletesARealSearchWhenProvided() async throws {
-    guard let path = ProcessInfo.processInfo.environment["SHIPIOS_TEST_AGENT"] else {
-      throw XCTSkip("Set SHIPIOS_TEST_AGENT to run the Swift-to-Rust file search integration test")
-    }
+    let executable = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     try Data().write(to: root.appendingPathComponent("AlphaBeta.swift"))
-    let session = try WorkspaceFileSearchSession(root: root, executable: URL(fileURLWithPath: path))
+    let session = try WorkspaceFileSearchSession(root: root, executable: executable)
     defer { session.close() }
     var updates: [WorkspaceFileSearchUpdate] = []
     for try await update in try session.query("ab") { updates.append(update) }
