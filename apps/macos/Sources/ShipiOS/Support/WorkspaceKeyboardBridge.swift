@@ -20,7 +20,7 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
         MainActor.assumeIsolated {
           guard let window = view?.window, window.isKeyWindow,
             event.window == nil || event.window === window,
-            window.attachedSheet == nil, let store else { return event }
+            window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window), let store else { return event }
           if event.keyCode == 53,
             event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
             store.closeSettingsFromKeyboard(in: window) { return nil }

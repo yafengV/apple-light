@@ -307,9 +307,10 @@ struct TaskPullRequestDetailView: View {
       if let request = codeRequest { store.prCodePresentationCache.save(request, from: code) }
       presentations?.clear(tabID); editor.detach(editorOwner); state.cancel(); checks.cancel(); discussion.cancel(); reviewers.cancel(); code.cancel()
     }
-    .sheet(isPresented: $state.showingMergeConfirmation) {
-      TaskPullRequestMergeConfirmation(state: state, request: request, writable: writable,
-        confirm: { apply(.merge(state.selectedMethod)) })
+    .background {
+      PullRequestMergeDialogPresenter(state: state, request: request, writable: writable,
+        valid: { valid }, confirm: { apply(.merge(state.selectedMethod)) })
+        .frame(width: 0, height: 0)
     }
     .sheet(isPresented: $discussion.showingReview) {
       TaskPullRequestReviewDialog(state: discussion, enabled: discussion.canWrite(request, writable: writable),

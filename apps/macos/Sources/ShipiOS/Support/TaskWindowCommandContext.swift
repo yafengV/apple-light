@@ -79,7 +79,7 @@ struct TaskWindowCommandKeyboardBridge: NSViewRepresentable {
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak view] event in
         MainActor.assumeIsolated {
           guard let window = view?.window, window.isKeyWindow, event.window === window,
-            window.attachedSheet == nil, NSApp.modalWindow == nil,
+            window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window), NSApp.modalWindow == nil,
             (window.firstResponder as? NSTextView)?.hasMarkedText() != true,
             let binding = ShortcutBinding(event: event) else { return event }
           return self?.handle?(binding) == true ? nil : event

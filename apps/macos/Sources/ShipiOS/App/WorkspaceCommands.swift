@@ -134,6 +134,7 @@ struct WorkspaceCommands: Commands {
     }
   }
   private func performUndo(redo: Bool) {
+    guard !WindowModalInteraction.blocksCommands(in: NSApp.keyWindow) else { return }
     if let taskRenameUndo { taskRenameUndo.perform(redo) }
     else { NSApp.sendAction(NSSelectorFromString(redo ? "redo:" : "undo:"), to: nil, from: nil) }
   }
@@ -150,7 +151,8 @@ struct WorkspaceCommands: Commands {
       .disabled(!commandEnabled(id))
   }
   private func commandEnabled(_ id: String) -> Bool {
-    guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return false }
+    guard !WindowModalInteraction.blocksCommands(in: NSApp.keyWindow),
+      searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return false }
     if GitWorkflowCommandContext.owns(id) { return gitCommands?.enabled(id) == true }
     if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       return taskWindowCommands.enabled.contains(id)
@@ -175,7 +177,8 @@ struct WorkspaceCommands: Commands {
   private func performApproval(_ action: () -> Void) {
     // Focused scene values may outlive the presentation of a sheet.
     guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true, !store.hasSettingsConfirmation, let window = NSApp.keyWindow, window.attachedSheet == nil,
-      window.sheetParent == nil, NSApp.modalWindow == nil else { return }
+      window.sheetParent == nil, NSApp.modalWindow == nil,
+      !WindowModalInteraction.blocksCommands(in: window) else { return }
     action()
   }
 }

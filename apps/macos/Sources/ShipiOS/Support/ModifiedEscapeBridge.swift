@@ -18,7 +18,7 @@ struct ModifiedEscapeBridge: NSViewRepresentable {
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak view, weak store] event in
         MainActor.assumeIsolated {
           guard let window = view?.window, window.isKeyWindow, event.window === window,
-            window.attachedSheet == nil, let store, let binding = ShortcutBinding(event: event),
+            window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window), let store, let binding = ShortcutBinding(event: event),
             store.handleModifiedEscape(binding) else { return event }
           return nil
         }

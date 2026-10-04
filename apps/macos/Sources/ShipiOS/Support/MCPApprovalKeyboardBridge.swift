@@ -33,7 +33,7 @@ struct MCPApprovalKeyboardBridge: NSViewRepresentable {
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak view] event in
         MainActor.assumeIsolated {
           guard let window = view?.window, window.isKeyWindow, event.window === window,
-            let binding = ShortcutBinding(event: event) else { return event }
+            !WindowModalInteraction.blocksCommands(in: window), let binding = ShortcutBinding(event: event) else { return event }
           let editor = window.firstResponder as? NSTextView
           var panelInput = false
           var ancestor = window.firstResponder as? NSView
@@ -70,7 +70,7 @@ struct MCPApprovalFocusBridge: NSViewRepresentable {
     context.coordinator.pending = pending
     guard pending else { return }
     DispatchQueue.main.async { [weak view] in
-      guard let window = view?.window, window.isKeyWindow, window.attachedSheet == nil,
+      guard let window = view?.window, window.isKeyWindow, window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window),
         context.coordinator.pending else { return }
       if let composer = window.firstResponder as? ComposerNativeTextView {
         guard composer.string.isEmpty, !composer.hasMarkedText() else { return }

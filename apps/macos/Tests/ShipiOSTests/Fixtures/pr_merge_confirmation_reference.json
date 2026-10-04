@@ -1,0 +1,146 @@
+{
+  "version": "26.930.21537",
+  "build": "12776",
+  "asset": "webview/assets/pull-request-detail-actions-2a146b8f0011.js",
+  "sha256": "e72f55755ce74c0dafef2af133be03b96b0ae5ccc1d31bcf913d8696221238db",
+  "cssAsset": "webview/assets/app-shared-6fb15e58cd7f.css",
+  "cssSHA256": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+  "defaultWidth": 520,
+  "bodyPadding": 20,
+  "sectionGap": 12,
+  "closeButton": false,
+  "methodButtonsIndividuallyTabbable": true,
+  "cases": [
+    {
+      "name": "both",
+      "allowedMethods": [
+        "squash",
+        "merge"
+      ],
+      "pending": false,
+      "error": null,
+      "selected": "squash",
+      "showDialogClose": false,
+      "formBusy": false,
+      "bodySections": 3,
+      "methodOptions": [
+        "squash",
+        "merge"
+      ],
+      "confirmLabel": "Squash and merge",
+      "cancelDisabled": false,
+      "confirmLoading": false,
+      "prevented": true,
+      "calls": {
+        "merge": 1,
+        "closed": [
+          false
+        ],
+        "selected": []
+      }
+    },
+    {
+      "name": "single",
+      "allowedMethods": [
+        "merge"
+      ],
+      "pending": false,
+      "error": null,
+      "selected": "merge",
+      "showDialogClose": false,
+      "formBusy": false,
+      "bodySections": 2,
+      "methodOptions": [],
+      "confirmLabel": "Create merge commit",
+      "cancelDisabled": false,
+      "confirmLoading": false,
+      "prevented": true,
+      "calls": {
+        "merge": 1,
+        "closed": [
+          false
+        ],
+        "selected": []
+      }
+    },
+    {
+      "name": "unknown",
+      "allowedMethods": null,
+      "pending": false,
+      "error": null,
+      "selected": "merge",
+      "showDialogClose": false,
+      "formBusy": false,
+      "bodySections": 3,
+      "methodOptions": [
+        "squash",
+        "merge"
+      ],
+      "confirmLabel": "Create merge commit",
+      "cancelDisabled": false,
+      "confirmLoading": false,
+      "prevented": true,
+      "calls": {
+        "merge": 1,
+        "closed": [
+          false
+        ],
+        "selected": []
+      }
+    },
+    {
+      "name": "pending",
+      "allowedMethods": [
+        "squash",
+        "merge"
+      ],
+      "pending": true,
+      "error": null,
+      "selected": "squash",
+      "showDialogClose": false,
+      "formBusy": true,
+      "bodySections": 3,
+      "methodOptions": [
+        "squash",
+        "merge"
+      ],
+      "confirmLabel": "Squash and merge",
+      "cancelDisabled": true,
+      "confirmLoading": true,
+      "prevented": true,
+      "calls": {
+        "merge": 0,
+        "closed": [],
+        "selected": []
+      }
+    },
+    {
+      "name": "error",
+      "allowedMethods": [
+        "squash",
+        "merge"
+      ],
+      "pending": false,
+      "error": "fixture error",
+      "selected": "merge",
+      "showDialogClose": false,
+      "formBusy": false,
+      "bodySections": 4,
+      "methodOptions": [
+        "squash",
+        "merge"
+      ],
+      "confirmLabel": "Create merge commit",
+      "cancelDisabled": false,
+      "confirmLoading": false,
+      "prevented": true,
+      "calls": {
+        "merge": 1,
+        "closed": [
+          false
+        ],
+        "selected": []
+      }
+    }
+  ]
+}

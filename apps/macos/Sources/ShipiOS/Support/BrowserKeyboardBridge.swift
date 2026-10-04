@@ -17,7 +17,7 @@ struct BrowserKeyboardBridge: NSViewRepresentable {
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak store, weak view] event in
         MainActor.assumeIsolated {
         guard let store, let window = view?.window, window.isKeyWindow,
-          event.window === window, window.attachedSheet == nil, NSApp.modalWindow == nil, store.browserFocused,
+          event.window === window, window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window), NSApp.modalWindow == nil, store.browserFocused,
           let binding = ShortcutBinding(event: event) else { return event }
         if binding == ShortcutBinding("⌘W") {
           store.closeActiveWorkspaceTab(); return nil

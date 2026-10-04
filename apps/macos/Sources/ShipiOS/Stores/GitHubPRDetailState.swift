@@ -121,7 +121,10 @@ import Observation
   }
 
   func selectMethod(_ method: GitHubPRMergeMethod) {
-    guard action == nil, statusAction == nil, snapshot?.allowedMethods.contains(method) == true else { return }
+    // The confirmation form permits changing its choice while a submitted operation
+    // continues with the method captured by start(_:).
+    guard (action == nil || showingMergeConfirmation), statusAction == nil,
+      snapshot?.allowedMethods.contains(method) == true else { return }
     selectedMethod = method; fallbackToSquash = false
   }
   func openConfirmation(for request: GitHubPullRequest, writable: Bool) {
