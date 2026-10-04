@@ -1,0 +1,43 @@
+{
+  "version": "26.930.21537",
+  "sources": {
+    "app-initial-60d038a052d7.js": "8c7725f402d87efcecbfaae599f96074d126ab03f1d9acb8edf7244043666ff3"
+  },
+  "component": "LJc ordinary table; allowWideBlocks unset",
+  "overflow": {
+    "condition": "scrollWidth > clientWidth",
+    "ariaLabel": "Scrollable table",
+    "role": "region",
+    "tabIndex": 0,
+    "noOverflow": "all three attributes absent; expand absent"
+  },
+  "keyboard": {
+    "region": "Browser default plain Left/Right scroll by 40; Option+Right did not change scrollLeft in the local Mac browser fixture",
+    "copy": "LJc V handler only: Left/Right 40, Mac Option+Left/Right clientWidth; ignore defaultPrevented/Meta/Ctrl/Shift",
+    "expand": "no V handler; aria-haspopup=dialog, aria-expanded tracks preview"
+  },
+  "localFixtureObserved": {
+    "regionArrowRightX": 40,
+    "regionOptionArrowRightX": 40,
+    "copyOptionArrowRightX": 240,
+    "viewportWidth": 200,
+    "tableWidth": 640,
+    "overflowTabOrder": [
+      "before",
+      "region",
+      "copy",
+      "expand",
+      "after"
+    ],
+    "noOverflowTabFromBefore": "copy",
+    "expandAX": "pop up button (collapsed), Secondary Actions: Expand"
+  },
+  "scope": "Public shipped LJc attributes and copied V handler exercised in a local DOM fixture through CUA; no live Codex frontend, clipboard or account accessed.",
+  "native": "AXGroup for named region; AXPopUpButton for expand; nonoverflow container is not an AX element; table text remains selectable. Linked cells retain their pre-existing native text keyboard stop.",
+  "remaining": [
+    "Per-link focus and complex media/HTML semantics",
+    "Horizontal fade mask and focus-outline pixels",
+    "Natural-font shaping difference",
+    "All-page paired acceptance"
+  ]
+}

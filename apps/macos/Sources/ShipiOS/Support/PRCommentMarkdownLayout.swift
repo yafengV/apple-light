@@ -73,6 +73,7 @@ struct PRCommentMarkdownText: NSViewRepresentable {
   let layout: PRCommentMarkdownLayout?
   var trailing: CGFloat = 0
   var alignment: NSTextAlignment = .left
+  var tabFocus = true
   @Environment(\.appAppearance) private var appearance
   @Environment(\.openURL) private var openURL
   func makeNSView(context: Context) -> TextView {
@@ -97,7 +98,7 @@ struct PRCommentMarkdownText: NSViewRepresentable {
       view.setSelectedRange(.init(location: start, length: min(selected.length, content.length - start)))
       view.invalidateIntrinsicContentSize()
     }
-    view.owner = layout; view.source = source; view.trailing = trailing; view.open = { openURL($0) }
+    view.owner = layout; view.source = source; view.trailing = trailing; view.open = { openURL($0) }; view.tabFocus = tabFocus
     view.needsLayout = true
   }
   func sizeThatFits(_ proposal: ProposedViewSize, nsView: TextView, context: Context) -> CGSize? {
@@ -116,6 +117,8 @@ struct PRCommentMarkdownText: NSViewRepresentable {
     weak var owner: PRCommentMarkdownLayout?
     var source = "", trailing: CGFloat = 0
     var open: ((URL) -> Void)?
+    var tabFocus = true
+    override var canBecomeKeyView: Bool { tabFocus && super.canBecomeKeyView }
     override func layout() {
       super.layout()
       guard bounds.width > 0, let manager = layoutManager, let container = textContainer else { return }

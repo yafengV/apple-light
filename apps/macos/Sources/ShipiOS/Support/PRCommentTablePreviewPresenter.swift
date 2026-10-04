@@ -111,7 +111,7 @@ struct PRCommentTablePreviewPresenter: NSViewRepresentable {
       scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
       scroll.autohidesScrollers = true; scroll.scrollerStyle = .overlay; scroll.horizontalScroller?.controlSize = .small
       scroll.verticalScroller?.controlSize = .small
-      scroll.setAccessibilityRole(.scrollArea); scroll.setAccessibilityLabel("可滚动表格")
+      scroll.setAccessibilityRole(.group); scroll.setAccessibilityLabel("可滚动表格")
       document.sizingOptions = []; scroll.documentView = document
       addSubview(scroll); addSubview(edges); addSubview(close)
     }

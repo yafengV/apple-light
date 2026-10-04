@@ -14,12 +14,11 @@ struct PRCommentMarkdownTableView: View {
   private var metrics: PRCommentTableMetrics { .init(appearance: appearance) }
   var body: some View {
     GeometryReader { geometry in
-      SearchHorizontalScroll {
-        PRCommentTableContent(block: block, source: source, metrics: metrics, availableWidth: geometry.size.width)
-        .fixedSize(horizontal: false, vertical: true)
-        .background { PRCommentTableScrollAnchor(target: scrollTarget) }
-        .background { GeometryReader { inner in Color.clear.preference(key: PRCommentTableHeightKey.self, value: .init(content: inner.size, viewportWidth: geometry.size.width)) } }
-      }
+      PRCommentTableScrollView(block: block, source: source, metrics: metrics, width: geometry.size.width,
+        target: scrollTarget) { size, width in
+          if size.height.isFinite, size.height > 0, measuredHeight != size.height { measuredHeight = size.height }
+          overflowing = size.width.isFinite && width > 0 && size.width > width + 0.5
+        }
       .overlay(alignment: .topTrailing) {
         PRCommentTableCopyToolbar(block: block, hovered: hovered, scroll: { scrollTarget.scroll($0, page: $1) },
           showExpand: overflowing, expanded: expanded, expand: { expanded = true }).frame(width: overflowing ? 80 : 40, height: 40)
@@ -27,11 +26,6 @@ struct PRCommentMarkdownTableView: View {
     }
     .frame(height: measuredHeight ?? metrics.plan(block, width: nil).height)
     .onHover { hovered = $0 }
-    .onPreferenceChange(PRCommentTableHeightKey.self) { value in
-      let height = value.content.height
-      if height.isFinite, height > 0, measuredHeight != height { measuredHeight = height }
-      overflowing = value.content.width.isFinite && value.viewportWidth > 0 && value.content.width > value.viewportWidth + 0.5
-    }
     .background { PRCommentTablePreviewPresenter(block: block, source: source, open: $expanded) }
 
   }
@@ -59,7 +53,8 @@ struct PRCommentTableContent: View {
       } else {
         PRCommentMarkdownText(text: block.rows[row][column], font: metrics.font,
           lineHeight: row == 0 ? metrics.baseSize : metrics.baseSize * 1.625, weight: row == 0 ? .semibold : .regular,
-          source: source, layout: nil, alignment: metrics.alignment(block, column: column))
+          source: source, layout: nil, alignment: metrics.alignment(block, column: column),
+          tabFocus: block.rows[row][column].runs.contains { $0.link != nil })
       }
     }
     .padding(.top, padding.top).padding(.bottom, padding.bottom + (row == 0 || row < block.rows.count - 1 ? 1 : 0))
@@ -180,10 +175,4 @@ struct PRCommentTableLayout: Layout {
       y += plan.rows[row]
     }
   }
-}
-
-private struct PRCommentTableHeightKey: PreferenceKey {
-  struct Value: Equatable { var content: CGSize = .zero; var viewportWidth: CGFloat = 0 }
-  static var defaultValue = Value()
-  static func reduce(value: inout Value, nextValue: () -> Value) { let next = nextValue(); if next.content.height > value.content.height { value = next } }
 }

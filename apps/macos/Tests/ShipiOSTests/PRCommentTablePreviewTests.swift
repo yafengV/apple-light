@@ -60,8 +60,9 @@ import XCTest
     defer { window.contentView = nil; window.close() }
     try await settle(root)
     let expand = try XCTUnwrap(descendants(root, PRCommentTableCopyToolbar.CopyButton.self).first { $0.mode == .expand })
+    XCTAssertEqual(expand.accessibilityRole(), .popUpButton)
     XCTAssertFalse(expand.isHidden); XCTAssertEqual(try XCTUnwrap(expand.surface).bounds.width, 80, accuracy: 0.1)
-    XCTAssertTrue(window.makeFirstResponder(expand)); XCTAssertTrue(expand.accessibilityPerformPress())
+    XCTAssertTrue(window.makeFirstResponder(expand)); XCTAssertTrue(expand.accessibilityPerformShowMenu())
     try await settle(root)
     let preview = try XCTUnwrap(descendants(root, PRCommentTablePreviewPresenter.Surface.self).first)
     XCTAssertTrue(preview.superview === root); XCTAssertEqual(preview.bounds.size, root.bounds.size)

@@ -90,10 +90,14 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
     func retire() { active = false; spaceArmed = false; reset?.cancel(); reset = nil; generation = UUID(); write = nil; scroll = nil; activate = nil; surface?.refresh() }
     private func updateLabel() {
       let label = mode == .expand ? "展开表格" : mode == .close ? "关闭表格预览" : copied ? "已复制" : "复制表格"
+      setAccessibilityRole(mode == .expand ? .popUpButton : .button)
       setAccessibilityLabel(label); toolTip = label; surface?.refresh(); needsDisplay = true
     }
     override func accessibilityPerformPress() -> Bool {
       guard acceptsFirstResponder, window != nil else { return false }; pressed(); return true
+    }
+    override func accessibilityPerformShowMenu() -> Bool {
+      mode == .expand && accessibilityPerformPress()
     }
     override func becomeFirstResponder() -> Bool { let result = super.becomeFirstResponder(); surface?.refresh(); return result }
     override func resignFirstResponder() -> Bool {
@@ -168,7 +172,8 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
 @MainActor final class PRCommentTableScrollTarget {
   weak var anchor: NSView?
   func scroll(_ amount: CGFloat, page: Bool) -> Bool {
-    guard let anchor, let scroll = anchor.enclosingScrollView, let document = scroll.documentView else { return false }
+    guard let anchor, let window = anchor.window, window.attachedSheet == nil, WindowModalInteraction.allows(anchor),
+      let scroll = anchor.enclosingScrollView, let document = scroll.documentView else { return false }
     let clip = scroll.contentView, visible = clip.bounds
     guard document.bounds.width > visible.width else { return false }
     let step = page ? (amount < 0 ? -1.0 : 1.0) * visible.width : amount

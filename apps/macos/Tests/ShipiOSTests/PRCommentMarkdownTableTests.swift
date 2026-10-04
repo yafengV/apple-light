@@ -131,7 +131,7 @@ import XCTest
     XCTAssertEqual(typography.gap([paragraph, table], before: 1, in: .root), 13)
     XCTAssertEqual(typography.gap([table], before: 0, in: .item), 0)
   }
-  func testMountedToolbarUsesCurrentTableAndActualSwiftUIScrollContainer() async throws {
+  func testMountedToolbarUsesCurrentTableAndActualHorizontalScrollContainer() async throws {
     let input = Input(); input.width = 220
     input.source = "| " + String(repeating: "W", count: 100) + " | Value |\n|---|---|\n| Cell | 123 |"
     let (window, root, _) = try await host(input)
