@@ -9,7 +9,7 @@ import Observation
     drafts.contains { id, draft in
       guard card.allIDs.contains(id) else { return false }
       if case .edit = draft.target { return true }
-      return !draft.text.isEmpty
+      return !JavaScriptText.trimmed(draft.text).isEmpty
     }
   }
   func isCollapsed(_ card: GitHubPRCommentCard, drafts: [String: GitHubPRCommentDraft]) -> Bool {

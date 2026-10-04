@@ -41,11 +41,11 @@ import XCTest
   }
   func testBulkCollapseSkipsEmptyEditsAndNonemptyReplies() {
     let a = card("a"), b = card("b"), c = card("c"), state = GitHubPRCommentCollapseState()
-    let drafts = ["b": edit(b.comment), "c": reply("c", text: " ")]
+    let drafts = ["b": edit(b.comment), "c": reply("c", text: "\u{85}")]
     state.toggle(a, all: true, cards: [a, b, c], drafts: drafts)
     XCTAssertTrue(state.isCollapsed(a, drafts: drafts))
     XCTAssertFalse(state.isCollapsed(b, drafts: drafts)); XCTAssertFalse(state.isCollapsed(c, drafts: drafts))
-    XCTAssertEqual(drafts["c"]?.text, " ")
+    XCTAssertEqual(drafts["c"]?.text, "\u{85}")
   }
   func testDirtyInitiatingCardCannotCollapseEntireGroup() {
     let a = card("a"), b = card("b"), state = GitHubPRCommentCollapseState(), drafts = ["a": reply("a", text: "Draft")]
@@ -88,7 +88,7 @@ import XCTest
     XCTAssertEqual(a.replies.map(\.id), ["visible"]); XCTAssertEqual(a.thread?.comments.count, 3)
     XCTAssertTrue(a.allIDs.contains("blank"))
   }
-  func testLongCommentBodyUsesThreeLinePreviewWithoutExpandingTheCard() async throws {
+  func testLongCommentBodyUsesSixLineRichPreviewWithoutExpandingTheCard() async throws {
     _ = NSApplication.shared
     let state = GitHubPRDiscussionState()
     let long = comment("long", body: Array(repeating: "一段较长的评论正文。", count: 15)
@@ -102,8 +102,8 @@ import XCTest
     window.contentView = host
     try await Task.sleep(for: .milliseconds(400))
     host.layoutSubtreeIfNeeded()
-    XCTAssertLessThan(host.fittingSize.height, 120)
-    XCTAssertGreaterThan(host.fittingSize.height, 60)
+    XCTAssertLessThan(host.fittingSize.height, 180)
+    XCTAssertGreaterThan(host.fittingSize.height, 120)
     XCTAssertFalse(window.isVisible)
   }
   func testSnapshotBuildsOnlyVisibleCardsWithThreadIdentityAndOrder() {

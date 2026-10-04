@@ -114,10 +114,10 @@ struct TaskPullRequestCodeView: View {
     .onChange(of: state.snapshot) { _, snapshot in
       if let snapshot { discussion.codeReloaded(snapshot) }
     }
-    .onChange(of: discussion.snapshot?.commentCards, initial: true) { _, cards in
+    .onChange(of: discussion.snapshot?.inlineCommentCards, initial: true) { _, cards in
       comments.sync(cards ?? [], drafts: discussion.drafts)
     }
-    .onChange(of: discussion.drafts) { _, drafts in comments.sync(discussion.snapshot?.commentCards ?? [], drafts: drafts) }
+    .onChange(of: discussion.drafts) { _, drafts in comments.sync(discussion.snapshot?.inlineCommentCards ?? [], drafts: drafts) }
     .onChange(of: store?.reviewDiffSplit, initial: true) { _, split in
       if let split { state.split = split }
     }
@@ -192,7 +192,7 @@ struct TaskPullRequestCodeView: View {
                 showsHeader: false, viewportWidth: width, wordDiffsEnabled: store?.reviewWordDiffs ?? false,
                 richPreviewEnabled: richPreviewEnabled, openLink: open) { thread in
                 if let root = thread.comments.first {
-                  TaskPullRequestCommentView(card: .init(comment: root, thread: thread), collapse: comments,
+                  TaskPullRequestCommentView(card: .init(comment: root, thread: thread, isInline: true), collapse: comments,
                     state: discussion, enabled: enabled, writable: writable, mentionRequest: mentionRequest,
                     open: open, submit: submit, showsCodeContext: false)
                 }

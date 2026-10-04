@@ -1,0 +1,291 @@
+{
+  "version": "26.930.21537",
+  "build": "12776",
+  "shellAsset": "diff-comment-card-12aa48949ea5.js",
+  "shellSHA256": "7a4c054876e1535be217b63d0c65bb63e051caf9b5ca87597693fa13ef5d1284",
+  "readonlyAsset": "pull-request-readonly-comment-5934b5e08be0.js",
+  "readonlySHA256": "d48e88a03c1fbb283abb6344b90099a9e3a78af5bd087eda235db7981b2d1c28",
+  "shellCases": [
+    {
+      "name": "collapsed",
+      "rootClass": "group/comment overflow-hidden rounded-lg border border-default bg-primary-soft-alpha",
+      "headerClass": "flex items-center justify-between gap-2 px-3 pt-2 select-none flex-wrap pb-2 cursor-interaction",
+      "identityClass": "flex min-h-6 min-w-0 items-center gap-2.5",
+      "body": null,
+      "footerClass": null
+    },
+    {
+      "name": "body",
+      "rootClass": "group/comment overflow-hidden rounded-lg border border-default bg-primary-soft-alpha",
+      "headerClass": "flex items-center justify-between gap-2 px-3 pt-2 select-none flex-wrap pb-0.5 cursor-interaction",
+      "identityClass": "flex min-h-6 min-w-0 items-center gap-2.5",
+      "body": "Body",
+      "footerClass": null
+    },
+    {
+      "name": "suffix",
+      "rootClass": "group/comment overflow-hidden rounded-lg border border-default bg-primary-soft-alpha",
+      "headerClass": "flex items-center justify-between gap-2 px-3 pt-2 select-none flex-wrap pb-0.5 cursor-interaction",
+      "identityClass": "flex min-h-6 min-w-0 items-center gap-2.5",
+      "body": null,
+      "footerClass": null
+    },
+    {
+      "name": "footer",
+      "rootClass": "group/comment overflow-hidden rounded-lg border border-default bg-primary-soft-alpha",
+      "headerClass": "flex items-center justify-between gap-2 px-3 pt-2 select-none flex-wrap pb-0.5 cursor-interaction",
+      "identityClass": "flex min-h-6 min-w-0 items-center gap-2.5",
+      "body": "Body",
+      "footerClass": "Footer flex items-center justify-end px-3 py-2 text-sm leading-5 text-codex-description"
+    },
+    {
+      "name": "inline",
+      "rootClass": "group/comment overflow-hidden rounded-lg",
+      "headerClass": "flex items-center justify-between gap-2 px-3 pt-2 select-none flex-wrap pb-0.5 cursor-interaction",
+      "identityClass": "flex min-h-6 min-w-0 items-center gap-2.5",
+      "body": "Body",
+      "footerClass": null
+    },
+    {
+      "name": "truncate",
+      "rootClass": "group/comment overflow-hidden rounded-lg border border-default bg-primary-soft-alpha",
+      "headerClass": "flex items-center justify-between gap-2 px-3 pt-2 select-none pb-0.5 cursor-interaction",
+      "identityClass": "flex min-h-6 min-w-0 items-center gap-2.5 flex-1",
+      "body": "Body",
+      "footerClass": null
+    }
+  ],
+  "bodyCases": [
+    {
+      "name": "plain",
+      "contentClass": "line-clamp-3",
+      "moreClass": "mt-1.5 inline-flex cursor-interaction items-center gap-1 self-start text-base text-codex-description hover:text-default"
+    },
+    {
+      "name": "rich",
+      "contentClass": "line-clamp-6",
+      "moreClass": "mt-1.5 inline-flex cursor-interaction items-center gap-1 self-start text-base text-codex-description hover:text-default"
+    },
+    {
+      "name": "protected",
+      "contentClass": "",
+      "moreClass": null
+    }
+  ],
+  "replyFacts": {
+    "headerClass": "flex min-w-0 items-center gap-2.5 px-3 pt-1.5",
+    "bodyClass": "ps-11.5 pe-3 pb-1.5 text-size-chat break-words text-default",
+    "body": "Rich"
+  },
+  "layout": {
+    "radius": 8,
+    "headerX": 12,
+    "headerTop": 8,
+    "headerWithBodyBottom": 2,
+    "headerCollapsedBottom": 8,
+    "headerMinimumRow": 24,
+    "avatar": 24,
+    "avatarGap": 10,
+    "rootBodyX": 12,
+    "rootBodyTop": 4,
+    "rootBodyBottom": 8,
+    "richBodyLines": 6,
+    "replyHeaderX": 12,
+    "replyHeaderTop": 6,
+    "replyBodyLeading": 46,
+    "replyBodyTrailing": 12,
+    "replyBodyBottom": 6,
+    "replyTruncated": false,
+    "authorFont": 12,
+    "replyAuthorFont": 14,
+    "metadataFont": 13,
+    "bodyFont": 13,
+    "rootEditLeading": 58,
+    "rootEditTrailing": 24,
+    "rootEditTop": 12,
+    "rootEditBottom": 18,
+    "rootReplyLeading": 12,
+    "rootReplyTrailing": 12,
+    "rootReplyVertical": 8
+  },
+  "wrapperAsset": "pull-request-comment-ae0822c719d2.js",
+  "wrapperSHA256": "75f3614a2d5537a334dda26896e87ed89bf35e3bcb6698f93eeb00699d3a56c4",
+  "wrapperCases": [
+    {
+      "name": "activity-bot",
+      "defaultCollapsed": true,
+      "preventCollapse": false,
+      "surfaceVariant": "default",
+      "rootEditWrapper": "[&_details]:mt-3 [&_details]:rounded-[14px] [&_details]:border [&_details]:border-border/16 [&_details]:bg-surface-secondary/40 [&_details]:px-3.5 [&_details]:py-3 [&_summary]:cursor-interaction [&_summary]:font-medium [&_summary]:text-default"
+    },
+    {
+      "name": "inline-bot",
+      "defaultCollapsed": false,
+      "preventCollapse": false,
+      "surfaceVariant": "inline",
+      "rootEditWrapper": "[&_details]:mt-3 [&_details]:rounded-[14px] [&_details]:border [&_details]:border-border/16 [&_details]:bg-surface-secondary/40 [&_details]:px-3.5 [&_details]:py-3 [&_summary]:cursor-interaction [&_summary]:font-medium [&_summary]:text-default"
+    },
+    {
+      "name": "resolved-inline",
+      "defaultCollapsed": true,
+      "preventCollapse": false,
+      "surfaceVariant": "inline",
+      "rootEditWrapper": "[&_details]:mt-3 [&_details]:rounded-[14px] [&_details]:border [&_details]:border-border/16 [&_details]:bg-surface-secondary/40 [&_details]:px-3.5 [&_details]:py-3 [&_summary]:cursor-interaction [&_summary]:font-medium [&_summary]:text-default"
+    },
+    {
+      "name": "activity-user",
+      "defaultCollapsed": false,
+      "preventCollapse": false,
+      "surfaceVariant": "default",
+      "rootEditWrapper": "[&_details]:mt-3 [&_details]:rounded-[14px] [&_details]:border [&_details]:border-border/16 [&_details]:bg-surface-secondary/40 [&_details]:px-3.5 [&_details]:py-3 [&_summary]:cursor-interaction [&_summary]:font-medium [&_summary]:text-default"
+    },
+    {
+      "name": "dirty-reply",
+      "defaultCollapsed": false,
+      "preventCollapse": true,
+      "surfaceVariant": "default",
+      "rootEditWrapper": "[&_details]:mt-3 [&_details]:rounded-[14px] [&_details]:border [&_details]:border-border/16 [&_details]:bg-surface-secondary/40 [&_details]:px-3.5 [&_details]:py-3 [&_summary]:cursor-interaction [&_summary]:font-medium [&_summary]:text-default"
+    },
+    {
+      "name": "root-edit",
+      "defaultCollapsed": false,
+      "preventCollapse": true,
+      "surfaceVariant": "default",
+      "rootEditWrapper": "ps-11.5 pe-3 pt-2 pb-2.5"
+    }
+  ],
+  "cssAsset": "app-shared-6fb15e58cd7f.css",
+  "cssSHA256": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+  "cssDeclarations": [
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": ":where(:root),:where([data-theme])",
+      "value": "var(--lightningcss-light,var(--alpha-08))var(--lightningcss-dark,var(--alpha-12))"
+    },
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": ":where(:root,[data-theme])",
+      "value": "var(--app-color-text-foreground)"
+    },
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": "@supports (color:color-mix(in lab, red, red)){:where(:root,[data-theme])",
+      "value": "color-mix(in oklab, var(--app-color-text-foreground) 2.5%, transparent)"
+    },
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": ":root[data-codex-window-type=extension],:root[data-codex-window-type=extension] :where([data-theme])",
+      "value": "var(--vscode-foreground)"
+    },
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": "@supports (color:color-mix(in lab, red, red)){:root[data-codex-window-type=extension],:root[data-codex-window-type=extension] :where([data-theme])",
+      "value": "color-mix(in oklab, var(--vscode-foreground) 2.5%, transparent)"
+    },
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": ":where(:root:not([data-codex-window-type=extension])),:where(:root:not([data-codex-window-type=extension]) [data-theme])",
+      "value": "var(--app-color-background-elevated-secondary)"
+    },
+    {
+      "key": "--color-background-primary-soft-alpha",
+      "selector": ":is([data-codex-window-type=browser],[data-codex-window-type=chrome-extension],[data-codex-window-type=electron]) body",
+      "value": "var(--app-color-background-elevated-secondary)"
+    },
+    {
+      "key": "--color-surface-elevated-secondary",
+      "selector": ":where(:root),:where([data-theme])",
+      "value": "var(--lightningcss-light,var(--gray-50))var(--lightningcss-dark,var(--gray-400))"
+    },
+    {
+      "key": "--color-surface-elevated-secondary",
+      "selector": ":where(:root,[data-theme])",
+      "value": "var(--color-background-control-opaque,var(--app-color-background-surface))"
+    },
+    {
+      "key": "--color-surface-elevated-secondary",
+      "selector": ":root[data-codex-window-type=extension],:root[data-codex-window-type=extension] :where([data-theme])",
+      "value": "var(--vscode-dropdown-background)"
+    },
+    {
+      "key": "--color-surface-elevated-secondary",
+      "selector": ".\\[--color-surface-elevated-secondary\\:theme\\(--color-surface-elevated-secondary\\)\\]",
+      "value": "var(--color-surface-elevated-secondary)"
+    },
+    {
+      "key": "--color-surface-elevated-secondary",
+      "selector": ".\\[--color-surface-elevated-secondary\\:var\\(--app-shell-sidebar-popover-background\\)\\]",
+      "value": "var(--app-shell-sidebar-popover-background)"
+    },
+    {
+      "key": "--color-border-overlay",
+      "selector": ":where(:root,[data-theme])",
+      "value": "var(--color-border)"
+    },
+    {
+      "key": "--text-base",
+      "selector": "@layer theme{:root,:host",
+      "value": "14px"
+    },
+    {
+      "key": "--text-base",
+      "selector": ".comment-typography",
+      "value": "var(--comment-font-size)"
+    },
+    {
+      "key": "--text-base",
+      "selector": ".sidebar-navigation:where([data-codex-window-type=browser] .sidebar-navigation)",
+      "value": "var(--text-sm)"
+    },
+    {
+      "key": "--text-base",
+      "selector": "[data-codex-window-type=browser]",
+      "value": "1rem"
+    },
+    {
+      "key": "--text-sm",
+      "selector": "@layer theme{:root,:host",
+      "value": "12px"
+    },
+    {
+      "key": "--text-sm",
+      "selector": ".\\[--text-sm\\:var\\(--font-text-sm-size\\)\\]",
+      "value": "var(--font-text-sm-size)"
+    },
+    {
+      "key": "--text-sm",
+      "selector": ":is([data-codex-window-type=browser],[data-codex-window-type=chrome-extension])",
+      "value": "13px"
+    },
+    {
+      "key": "--text-sm",
+      "selector": "[data-codex-window-type=browser]",
+      "value": ".875rem"
+    },
+    {
+      "key": "--text-sm",
+      "selector": "[data-codex-window-type=electron]",
+      "value": "13px"
+    },
+    {
+      "key": "--text-xs",
+      "selector": "@layer theme{:root,:host",
+      "value": "11px"
+    },
+    {
+      "key": "--text-xs",
+      "selector": ":is([data-codex-window-type=browser],[data-codex-window-type=chrome-extension])",
+      "value": "12px"
+    },
+    {
+      "key": "--text-xs",
+      "selector": "[data-codex-window-type=browser]",
+      "value": ".75rem"
+    },
+    {
+      "key": "--text-xs",
+      "selector": "[data-codex-window-type=electron]",
+      "value": "12px"
+    }
+  ]
+}

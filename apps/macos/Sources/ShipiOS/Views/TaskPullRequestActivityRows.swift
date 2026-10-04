@@ -98,16 +98,17 @@ struct TaskPullRequestCommitGroupView: View {
 
 struct TaskPullRequestActivityDateView: View {
   let value: String
+  var fontSize: CGFloat = 14
   var body: some View {
     if let date = GitHubPRActivityDate.parse(value) {
       TimelineView(.periodic(from: .now, by: 60)) { context in
         let formatter = RelativeDateTimeFormatter()
         let _ = formatter.unitsStyle = .abbreviated
-        Text(formatter.localizedString(for: date, relativeTo: context.date)).appFont(size: 14)
+        Text(formatter.localizedString(for: date, relativeTo: context.date)).appFont(size: fontSize)
           .foregroundStyle(.tertiary).lineLimit(1).fixedSize(horizontal: true, vertical: false)
           .help(date.formatted(date: .abbreviated, time: .standard))
           .accessibilityLabel(date.formatted(date: .complete, time: .standard))
       }
-    } else { Text(value).appFont(size: 14).foregroundStyle(.tertiary).lineLimit(1) }
+    } else { Text(value).appFont(size: fontSize).foregroundStyle(.tertiary).lineLimit(1) }
   }
 }

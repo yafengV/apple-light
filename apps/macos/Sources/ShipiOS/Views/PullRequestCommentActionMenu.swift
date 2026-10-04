@@ -49,6 +49,13 @@ struct PullRequestCommentMenuSurface: NSViewRepresentable {
   let hover: (String?) -> Void
   let choose: (String) -> Void
   static func rowHeight(_ font: NSFont) -> CGFloat { max(16, font.pointSize * 10 / 7) + 10 }
+  func sizeThatFits(_ proposal: ProposedViewSize, nsView: Surface, context: Context) -> CGSize? {
+    // Keep the native scroll viewport finite for unspecified or unbounded proposals.
+    let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? 160
+    let height = proposal.height.flatMap { $0.isFinite ? $0 : nil }
+      ?? 8 + CGFloat(options.count) * Self.rowHeight(appearance.nativeFont(size: 13))
+    return .init(width: max(0, width), height: max(0, height))
+  }
   func makeNSView(context: Context) -> Surface { Surface() }
   func updateNSView(_ view: Surface, context: Context) {
     view.configure(options, highlighted: highlighted, enabled: enabled, appearance: appearance, hover: hover, choose: choose)
@@ -75,8 +82,8 @@ struct PullRequestCommentMenuSurface: NSViewRepresentable {
     func configure(_ options: [PullRequestCommentMenuAction], highlighted: String?, enabled: Bool,
       appearance: AppearancePreferences, hover: @escaping (String?) -> Void, choose: @escaping (String) -> Void) {
       let font = appearance.nativeFont(size: 13); rowHeight = PullRequestCommentMenuSurface.rowHeight(font)
-      surface = appearance.resolvedColors["elevatedSecondaryOpaque"].opacity(0.9).nativeColor
-      border = appearance.resolvedColors["borderHeavy"].nativeColor
+      surface = appearance.resolvedColors["controlBackgroundOpaque"].opacity(0.9).nativeColor
+      border = appearance.resolvedColors["border"].nativeColor
       if rows.map(\.item) != options {
         deactivate(); rows = options.map { Row($0) }; rows.forEach { document.addSubview($0) }
       }

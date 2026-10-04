@@ -8,6 +8,7 @@ struct MessageMarkdownView: View {
   var partPrefix = "response"
   var linkActions: MessageLinkActions?
   var githubMedia = false
+  var compactPRComment = false
   var prContext: GitHubPRMarkdownContext?
   var prImageLoader: ((String) async throws -> Data)?
   let openLink: (URL) -> Void
@@ -20,7 +21,7 @@ struct MessageMarkdownView: View {
       .environment(\.messageLinkActions, linkActions)
       .environment(\.prMarkdownImageLoader, prImageLoader)
       .environment(\.prMarkdownRevision, prContext?.head ?? "")
-      .appContentFont(size: 14).lineSpacing(5).textSelection(.enabled)
+      .appContentFont(size: compactPRComment ? 13 : 14).lineSpacing(5).textSelection(.enabled)
       .tint(appearance.accentColor)
       .environment(
         \.openURL,

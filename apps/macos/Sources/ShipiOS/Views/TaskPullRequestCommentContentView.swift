@@ -9,13 +9,17 @@ struct TaskPullRequestCommentContentView: View {
   let mentionRequest: GitHubPRMentionRequest?
   let open: (URL) -> Void
   let submit: (GitHubPRDiscussionAction, String?) -> Void
+  var isReply = false
+  var preventsTruncation = false
+  var showsReplyComposer = true
   @State private var expanded = false
   @State private var contentHeight: CGFloat = 0
-  private let collapsedHeight: CGFloat = 60
+  private let collapsedHeight: CGFloat = 120
+  private var truncates: Bool { !isReply && !preventsTruncation }
   private var draft: GitHubPRCommentDraft? { state.drafts[comment.id] }
   private var commentBody: String { comment.displayBody }
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(alignment: .leading, spacing: 6) {
       if let draft, case .edit = draft.target { composer(draft, label: "保存更改") }
       else {
         commentContent
@@ -26,30 +30,30 @@ struct TaskPullRequestCommentContentView: View {
                 value: proxy.size.height)
             }
           }
-          .frame(height: contentHeight > collapsedHeight + 1 && !expanded ? collapsedHeight : nil,
+          .frame(height: truncates && contentHeight > collapsedHeight + 1 && !expanded ? collapsedHeight : nil,
             alignment: .top)
           .clipped()
-        if contentHeight > collapsedHeight + 1 {
+        if truncates && contentHeight > collapsedHeight + 1 {
           Button {
             expanded.toggle()
           } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
               Text(expanded ? "收起" : "展开更多")
-              Image(systemName: "chevron.down").rotationEffect(.degrees(expanded ? 180 : 0))
-            }.appFont(.caption).foregroundStyle(.secondary)
+              Image(systemName: "chevron.down").appFont(size: 12).frame(width: 12, height: 12).rotationEffect(.degrees(expanded ? 180 : 0))
+            }.appFont(size: 14).foregroundStyle(.secondary)
           }.buttonStyle(.plain)
             .accessibilityLabel(expanded ? "收起评论" : "展开完整评论")
             .accessibilityValue(expanded ? "已展开" : "已收起")
         }
       }
-      if let draft, case .reply = draft.target { composer(draft, label: "发布回复") }
+      if showsReplyComposer, let draft, case .reply = draft.target { composer(draft, label: "发布回复") }
     }
     .onPreferenceChange(PullRequestCommentContentHeight.self) { contentHeight = $0 }
     .onChange(of: comment.body) { _, _ in expanded = false }
   }
   @ViewBuilder private var commentContent: some View {
     MessageMarkdownView(source: commentBody, partPrefix: "pr-comment-" + comment.id,
-      githubMedia: true, openLink: open)
+      githubMedia: true, compactPRComment: true, openLink: open)
   }
   private func composer(_ draft: GitHubPRCommentDraft, label: String) -> some View {
     TaskPullRequestCommentComposer(text: Binding(get: { state.drafts[comment.id]?.text ?? "" }, set: {

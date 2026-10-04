@@ -37,29 +37,33 @@ struct TaskPullRequestCommentView: View {
           TaskPullRequestThreadDiffView(thread: thread)
         }
         TaskPullRequestCommentContentView(comment: comment, state: state, enabled: enabled, writable: writable,
-          mentionRequest: mentionRequest, open: open, submit: submit)
-          .padding(.leading, 46).padding(.trailing, 12).padding(.top, 8).padding(.bottom, 10)
+          mentionRequest: mentionRequest, open: open, submit: submit,
+          preventsTruncation: collapse.preventsCollapse(card, drafts: state.drafts), showsReplyComposer: false)
+          .padding(.leading, isEditing(comment) ? 58 : 12)
+          .padding(.trailing, isEditing(comment) ? 24 : 12)
+          .padding(.top, isEditing(comment) ? 12 : 4).padding(.bottom, isEditing(comment) ? 18 : 8)
         ForEach(card.replies) { reply in replyView(reply) }
         footer
       }
-    }.background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
-      .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+    }.background(card.isInline ? .clear : appearance.resolvedColors["elevatedSecondary"].color, in: RoundedRectangle(cornerRadius: 8))
+      .overlay(RoundedRectangle(cornerRadius: 8).stroke(card.isInline ? .clear : appearance.resolvedColors["border"].color))
+      .clipShape(RoundedRectangle(cornerRadius: 8))
       .onHover { hovered = $0 }
       .accessibilityIdentifier("pr-comment-card-" + card.id)
   }
   private var header: some View {
-    HStack(spacing: 8) {
+    PullRequestCommentHeaderLayout(minimumIdentityWidth: minimumIdentityWidth) {
       Button(action: toggle) {
         HStack(spacing: 10) {
           TaskPullRequestCommentAvatar(comment: comment)
           HStack(spacing: 6) {
-            Text(comment.author).appFont(size: 16, weight: .medium).lineLimit(1)
-            if thread?.isResolved == true { Text("已解决").appFont(size: 14).foregroundStyle(.secondary) }
+            Text(comment.author).appFont(size: 12).foregroundStyle(.secondary).lineLimit(1)
+            if thread?.isResolved == true { Text("已解决").appFont(size: 13).foregroundStyle(.secondary).fixedSize() }
             if !card.replies.isEmpty {
               Text((thread?.isResolved == true ? "· " : "") + "\(card.replies.count) 条回复")
-                .appFont(size: 14).foregroundStyle(.secondary).lineLimit(1)
+                .appFont(size: 13).foregroundStyle(.secondary).fixedSize()
             }
-            Image(systemName: "chevron.right").appFont(size: 10).foregroundStyle(.tertiary)
+            Image(systemName: "chevron.right").appFont(size: 12).frame(width: 12, height: 12).foregroundStyle(.tertiary)
               .rotationEffect(.degrees(collapsed ? 0 : 90))
               .opacity(hovered || focusedControl != nil || hasEditor || hasReply ? 1 : 0)
               .animation(appearance.shouldReduceMotion ? nil : .easeInOut(duration: 0.15), value: collapsed)
@@ -72,16 +76,26 @@ struct TaskPullRequestCommentView: View {
         .accessibilityValue(collapsed ? "已收起" : "已展开")
         .accessibilityHint("按住 Option 同时展开或收起本活动页的评论")
         .accessibilityIdentifier("pr-comment-toggle-" + card.id)
-      if let raw = comment.url, let url = Self.link(raw) {
-        Button { open(url) } label: { Image(systemName: "arrow.up.right") }
-          .buttonStyle(.plain).focused($focusedControl, equals: "link")
-          .onKeyPress(.return) { open(url); return .handled }
-          .opacity(hovered || focusedControl != nil ? 1 : 0)
-          .help("在 GitHub 查看评论").accessibilityLabel("在 GitHub 打开评论")
+      HStack(spacing: 8) {
+        if let raw = comment.url, let url = Self.link(raw) {
+          Button { open(url) } label: { Image(systemName: "arrow.up.right") }
+            .buttonStyle(.plain).focused($focusedControl, equals: "link")
+            .onKeyPress(.return) { open(url); return .handled }
+            .opacity(hovered || focusedControl != nil ? 1 : 0)
+            .help("在 GitHub 查看评论").accessibilityLabel("在 GitHub 打开评论")
+        }
+        TaskPullRequestActivityDateView(value: comment.activityDate, fontSize: 13).onTapGesture(perform: toggle)
+        if showsActions(comment) { actions(comment).focused($focusedControl, equals: "actions") }
       }
-      TaskPullRequestActivityDateView(value: comment.activityDate).onTapGesture(perform: toggle)
-      if showsActions(comment) { actions(comment).focused($focusedControl, equals: "actions") }
-    }.padding(.horizontal, 12).padding(.vertical, 10)
+    }.frame(minHeight: 24).padding(.horizontal, 12).padding(.top, 8)
+      .padding(.bottom, !collapsed || thread != nil && showsCodeContext ? 2 : 8)
+      .background { Color.clear.contentShape(Rectangle()).onTapGesture(perform: toggle) }
+  }
+  private var minimumIdentityWidth: CGFloat {
+    let font = appearance.nativeFont(size: 13)
+    let resolved = thread?.isResolved == true ? ("已解决" as NSString).size(withAttributes: [.font: font]).width + 6 : 0
+    let count = card.replies.isEmpty ? 0 : ((thread?.isResolved == true ? "· " : "") + "\(card.replies.count) 条回复" as NSString).size(withAttributes: [.font: font]).width + 6
+    return 52 + resolved + count
   }
   @ViewBuilder private func fileLocation(_ thread: GitHubPRReviewThread) -> some View {
     HStack(spacing: 8) {
@@ -105,21 +119,31 @@ struct TaskPullRequestCommentView: View {
       .padding(.leading, 46).padding(.trailing, 12).padding(.bottom, collapsed ? 10 : 4)
   }
   private func replyView(_ reply: GitHubPRComment) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 0) {
       HStack(spacing: 10) {
         TaskPullRequestCommentAvatar(comment: reply)
-        Text(reply.author).appFont(size: 16, weight: .medium).lineLimit(1)
-        TaskPullRequestActivityDateView(value: reply.createdAt)
+        Text(reply.author).appFont(size: 14, weight: .medium).lineLimit(1)
+        TaskPullRequestActivityDateView(value: reply.createdAt, fontSize: 13)
         Spacer(minLength: 0)
         if showsActions(reply, isReply: true) { actions(reply, isReply: true).focused($focusedControl, equals: reply.id) }
-      }.padding(.leading, 46).padding(.trailing, 12)
+      }.frame(minHeight: 24).padding(.horizontal, 12).padding(.top, 6)
       TaskPullRequestCommentContentView(comment: reply, state: state, enabled: enabled, writable: writable,
-        mentionRequest: mentionRequest, open: open, submit: submit)
-        .padding(.leading, 80).padding(.trailing, 12)
-    }.padding(.top, 6).padding(.bottom, 6)
+        mentionRequest: mentionRequest, open: open, submit: submit, isReply: true, showsReplyComposer: false)
+        .padding(.leading, 46).padding(.trailing, 12).padding(.bottom, 6)
+    }
   }
   @ViewBuilder private var footer: some View {
-    if let thread {
+    if let draft = state.drafts[comment.id], case .reply = draft.target {
+      TaskPullRequestCommentComposer(text: Binding(get: { state.drafts[comment.id]?.text ?? "" }, set: {
+        state.drafts[comment.id]?.text = $0; state.clearError(.draft(comment.id))
+      }), label: "发布回复", focus: draft.focus, enabled: enabled, busy: state.pendingOwner == .draft(comment.id),
+        cancel: { state.cancelDraft(comment.id) }, inputEnabled: state.canEdit(.draft(comment.id), writable: writable),
+        error: state.message(for: .draft(comment.id)), mentionRequest: mentionRequest, kind: .reply(author: comment.author)) {
+          if let action = state.draftAction(comment.id) { submit(action, comment.id) }
+        }.padding(.horizontal, 12).padding(.vertical, 8)
+    }
+    if let thread, fixes != nil || actionsVisible && (thread.canReply || (thread.isResolved ? thread.canUnresolve : thread.canResolve))
+      || state.message(for: .thread(thread.id)) != nil {
       VStack(alignment: .leading, spacing: 8) {
         HStack(alignment: .top) {
           if let fixes {
@@ -148,8 +172,11 @@ struct TaskPullRequestCommentView: View {
         if let error = state.message(for: .thread(thread.id)) {
           Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
         }
-      }.padding(.leading, 46).padding(.trailing, 12).padding(.bottom, 10)
+      }.padding(.horizontal, 12).padding(.vertical, 8)
     }
+  }
+  private func isEditing(_ target: GitHubPRComment) -> Bool {
+    if let draft = state.drafts[target.id], case .edit = draft.target { return true }; return false
   }
   private func showsActions(_ target: GitHubPRComment, isReply: Bool = false) -> Bool {
     actionsVisible && (target.canUpdate || target.canDelete || (!isReply && (thread == nil || thread?.canReply == true)))
@@ -171,7 +198,7 @@ struct TaskPullRequestCommentView: View {
   }
   private func toggle() {
     collapse.toggle(card, all: NSApp.currentEvent?.modifierFlags.contains(.option) == true,
-      cards: state.snapshot?.commentCards ?? [card], drafts: state.drafts)
+      cards: (card.isInline ? state.snapshot?.inlineCommentCards : state.snapshot?.commentCards) ?? [card], drafts: state.drafts)
   }
   static func link(_ raw: String) -> URL? {
     guard let parts = URLComponents(string: raw), parts.scheme == "https", parts.host?.lowercased() == "github.com",
