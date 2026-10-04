@@ -47,10 +47,18 @@ pub struct StartThread {
     #[serde(default)]
     pub mcp_servers: Vec<ShipMcpServer>,
     #[serde(default)]
+    pub hooks: Vec<shipios_codex::SessionHookSource>,
+    #[serde(default)]
     pub confetti_enabled: bool,
     pub pause_automation_id: Option<String>,
     pub fork_origin: Option<ForkThreadOrigin>,
     pub resume_origin: Option<ResumeThreadOrigin>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HookInventoryRequest {
+    pub sources: Vec<shipios_codex::SessionHookSource>,
 }
 
 #[derive(Deserialize)]
@@ -445,6 +453,14 @@ impl CodexBridge {
         }
     }
 
+    pub fn hook_inventory(
+        &self,
+        request: HookInventoryRequest,
+    ) -> Result<shipios_codex::SessionHookInventory> {
+        let home = private_dir(&self.data_dir.join("Codex/HookInventory"))?;
+        shipios_codex::session_hook_inventory(&home, &request.sources)
+    }
+
     pub fn resolve_browser(&self, response: CodexBrowserResolution) -> Result<()> {
         ensure!(
             self.browser
@@ -591,6 +607,7 @@ impl CodexBridge {
             responses,
             web_search,
             mcp_servers: request.mcp_servers,
+            hooks: request.hooks,
             browser_bridge: Some(self.browser.for_task(task_id.clone())),
             automation_control: request
                 .pause_automation_id
@@ -1197,6 +1214,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    hooks: Vec::new(),
                     confetti_enabled: false,
                     pause_automation_id: None,
                     fork_origin: None,
@@ -1225,6 +1243,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    hooks: Vec::new(),
                     confetti_enabled: false,
                     pause_automation_id: None,
                     fork_origin: None,
@@ -1255,6 +1274,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    hooks: Vec::new(),
                     confetti_enabled: false,
                     pause_automation_id: None,
                     fork_origin: None,
@@ -1536,6 +1556,7 @@ mod tests {
                         responses: SessionResponsePreferences::default(),
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
+                        hooks: Vec::new(),
                         confetti_enabled: false,
                     pause_automation_id: None,
                     })
@@ -1693,6 +1714,7 @@ mod tests {
                         responses: SessionResponsePreferences::default(),
                         web_search: SessionWebSearch::default(),
                         mcp_servers: Vec::new(),
+                        hooks: Vec::new(),
                         confetti_enabled: true,
                         pause_automation_id: None,
                         fork_origin: None,
@@ -1822,6 +1844,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    hooks: Vec::new(),
                     confetti_enabled: false,
                     pause_automation_id: None,
                 })
@@ -1857,6 +1880,7 @@ mod tests {
                     responses: SessionResponsePreferences::default(),
                     web_search: SessionWebSearch::default(),
                     mcp_servers: Vec::new(),
+                    hooks: Vec::new(),
                     confetti_enabled: false,
                     pause_automation_id: None,
                 })
@@ -1884,6 +1908,7 @@ mod tests {
                 responses: custom_responses,
                 web_search: custom_web_search,
                 mcp_servers: Vec::new(),
+                hooks: Vec::new(),
                 confetti_enabled: false,
                 pause_automation_id: None,
             })
@@ -1955,6 +1980,7 @@ mod tests {
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
+            hooks: Vec::new(),
             confetti_enabled: false,
             pause_automation_id: None,
         };
@@ -2014,6 +2040,7 @@ mod tests {
                 responses: SessionResponsePreferences::default(),
                 web_search: SessionWebSearch::default(),
                 mcp_servers: Vec::new(),
+                hooks: Vec::new(),
                 confetti_enabled: false,
                 pause_automation_id: None,
             })

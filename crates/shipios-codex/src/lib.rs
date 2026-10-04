@@ -3,11 +3,13 @@
 mod automation_tool;
 mod browser_tool;
 mod confetti_tool;
+mod hooks;
 pub use automation_tool::AutomationToolBridge;
 use automation_tool::AutomationToolContributor;
 pub use browser_tool::BrowserToolBridge;
 use browser_tool::BrowserToolContributor;
 use confetti_tool::ConfettiToolContributor;
+pub use hooks::{SessionHookInventory, SessionHookSource, session_hook_inventory};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use codex_config::{LoaderOverrides, McpServerConfig, RawMcpServerConfig};
@@ -61,6 +63,7 @@ pub struct SessionOptions {
     pub responses: SessionResponsePreferences,
     pub web_search: SessionWebSearch,
     pub mcp_servers: Vec<ShipMcpServer>,
+    pub hooks: Vec<SessionHookSource>,
     pub browser_bridge: Option<BrowserToolBridge>,
     pub automation_control: Option<(AutomationToolBridge, String, String)>,
     pub confetti: Option<(String, tokio::sync::broadcast::Sender<serde_json::Value>)>,
@@ -649,6 +652,7 @@ impl CodexSession {
         };
         options.additional_folders.clear();
         options.mcp_servers.clear();
+        options.hooks.clear();
         options.browser_bridge = None;
         options.web_search = SessionWebSearch::default();
         Self::open(options, SessionHistory::New, true).await
@@ -730,6 +734,7 @@ impl CodexSession {
         config.model = Some(options.model.clone());
         config.mcp_servers = Constrained::allow_any(configured_mcp_servers(options.mcp_servers)?);
         config.update_plan_enabled = true;
+        hooks::apply_session_hooks(&mut config, &options.hooks)?;
         config
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;
@@ -1519,6 +1524,7 @@ mod tests {
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
             mcp_servers: Vec::new(),
+            hooks: Vec::new(),
             browser_bridge: None,
             confetti: None,
             automation_control: None,

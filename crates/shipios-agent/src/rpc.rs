@@ -1,7 +1,7 @@
 use crate::{
     codex_bridge::{
         CodexApproval, CodexBridge, CodexBrowserResolution, CodexElicitation, CodexImage,
-        CodexSubmit, CodexTextAttachment, CodexUserInputAnswer, StartThread,
+        CodexSubmit, CodexTextAttachment, CodexUserInputAnswer, HookInventoryRequest, StartThread,
     },
     local_environment,
     service::{RunRequest, Service},
@@ -206,6 +206,14 @@ async fn dispatch(
                     .map(|e| e.sequence)
                     .unwrap_or(p.after_sequence);
                 Ok(json!({"events":events,"nextSequence":cursor}))
+            }
+            "codex.hooks.list" => {
+                let request: HookInventoryRequest =
+                    serde_json::from_value(params).map_err(|_| invalid())?;
+                Ok(
+                    serde_json::to_value(codex.hook_inventory(request).map_err(failed)?)
+                        .map_err(|error| failed(error.into()))?,
+                )
             }
             "codex.thread.start" => {
                 let p: StartThread = serde_json::from_value(params).map_err(|_| invalid())?;

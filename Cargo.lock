@@ -10684,6 +10684,7 @@ dependencies = [
  "codex-extension-api",
  "codex-guardian-v2",
  "codex-history",
+ "codex-hooks",
  "codex-login",
  "codex-protocol",
  "codex-rollout",
