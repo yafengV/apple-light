@@ -8,6 +8,8 @@
 
 [第 602 篇](602-archive-stream-startup-regression.md)记录全量回归的一次归档等待失败及专项修正：分别限制启动和流式输出，新增 6 秒延迟启动后归档，共 11 项专项通过。全量回归不能记为通过；启动中的任务及时取消仍待验证和修复。
 
+上述启动取消已由[第 603 篇](603-core-startup-cancellation.md)复现并修复：按任务取消共享等待、最后等待者终止初始化及关闭清理，包含立即重试竞争；129 项关联回归、独立缓存的正式构建运行、严格签名及 IPC 冒烟通过。前台仍锁定，旧提交全量仍有失败，完整配对不变。
+
 ## 验收口径
 
 - **实现**：当前代码存在相应行为；声明、按钮、配置字段不能代替运行闭环。
@@ -39,7 +41,7 @@
 | C01 | 独立数据、模型/API、认证和 Core 配置；自有 Agent 而非调用个人 Codex | `crates/shipios-codex/src/lib.rs`、配置/RPC 隔离测试；本阶段捆绑 Agent 冒烟 | 真实用户服务、所有继承环境边界和服务切换前台验收；保持不读取个人 Codex 配置 |
 | C02 | 项目及项目外任务、独立输出目录和任务历史 | WorkspaceRestorationTests；ModelTransportTests 的项目及项目外真实 HTTP 流程 | 全部入口、空状态、目录失效和完整自主编码闭环 |
 | C03 | 流式输出、UTF-8、模型列表及任务协议快照 | `testStreamingUTF8AndModelList`、`testCodexResponsesChatUsesAgentAndKeepsTaskReply` | 真实服务断流/延迟/模型能力；页面渲染与全部输出类型 |
-| C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest` | 主/独立窗口连续操作配对及工具执行期间的完整取消边界 |
+| C04 | 停止当前任务，保留部分回复和等待消息；另一任务继续 | `testCancellationPreservesPartialOutput`、`testProjectlessStoreCancellationRetainsQueueAndPartialReply`、`testStoppingOneTaskDoesNotCancelAnotherModelRequest`；第 603 篇真实延迟启动的独立取消、无请求、PID 退出和立即重试 | 主/独立窗口连续操作配对及工具执行期间的完整取消边界 |
 | C05 | 等待下一轮、引导优先于旧队列；Core 同回合引导 | `testSteeringRunsBeforeMessagesAlreadyWaitingInQueue`、`testSteeringCancelsCurrentStreamAndContinuesWithPartialReply`、Core steering/detached draft 两项及 RPC 冒烟 | 全部入口、按键和并发焦点；不同协议保持其实际执行语义 |
 | C06 | 重试状态、终止错误和外部中断收尾 | `testCodexRetryStatusAppearsThenClearsOnReply`、`testCodexTerminalProviderErrorFailsRun`、`testCodexExternalInterruptEndsActiveRunWithoutSpinner` | 真实服务重连、审批/提问期间断联及前台错误恢复 |
 | C07 | Core 命令执行、补丁、输出时间线及执行详情 | Agent RPC 真实临时工作区写入；Rust/SkillDiscoveryTransportTests；第 601 篇实际失败输出→补丁→再验证连续用例及恢复 | 真实模型复杂需求、多工具/多回合完整自主编码、复杂失败恢复、所有运行卡片和前台配对 |
@@ -47,7 +49,7 @@
 | C09 | 结构化提问及 MCP 类型化表单/URL 请求 | CodexElicitationSchemaTests、MCPApprovalRoutingTests、RPC 提问；第 199、211—213 篇 | 所有前台表单/焦点/键盘/取消；真实 OAuth 与 HTTP 后台通知 |
 | C10 | 只读计划回合、计划进度、完成计划文档及次轮恢复 | CodexPlanDocumentTests；`testPlanModeReachesActualRequestAndResetsAfterSubmission`；第 601 篇 Core 实际拒绝写入和次轮恢复写入复测 | 计划标签全交互与 Codex 配对 |
 | C11 | 持久目标、自动续轮、未给状态时暂停及迭代上限 | 四项 ModelTransportTests goal 集成、GoalModeTests；第 601 篇两项原生 Core 完成/指令清理与缺少信号暂停集成 | 真实模型完成判定、暂停/继续/取消组合及 Codex 目标生命周期配对 |
-| C12 | 恢复会话、草稿、队列；失败区别于空历史 | WorkspaceRestorationTests、`testProjectlessStoreStreamsQueuesAndRestoresRealConversation`、CodexNativeForkTests | 杀进程/磁盘失败/并发保存组合及所有窗口恢复 |
+| C12 | 恢复会话、草稿、队列；失败区别于空历史 | WorkspaceRestorationTests、`testProjectlessStoreStreamsQueuesAndRestoresRealConversation`、CodexNativeForkTests；第 603 篇关闭初始化等待者和实际进程清理 | 杀进程/磁盘失败/并发保存组合及所有窗口恢复 |
 | C13 | 原生历史分叉、同检出共享任务及新工作树分叉 | CodexNativeForkTests 的实际 Agent、Git 和恢复路径 | 历史运行中分叉前台流程、所有归档共享成员、完整环境及跨提交脏状态 Handoff |
 | C14 | 文件、图片和文本/PDF 附件进入请求及保留归属 | 第 44、193、194 篇及既有测试；本阶段未全量复测 | 更多二进制格式、媒体、复杂粘贴/拖放及全部前台入口 |
 | C15 | 文件编辑、冲突、查找替换、监控和恢复；选区 AI 编辑、行内/大建议审阅、原生接受/拒绝和撤销 | FileEditorSession、FileSelectionEditSession 及第 440—450 篇；本阶段两种协议选区生成集成测试 | 复杂编辑器行为、拖排和多面板；文件 1 MiB 编辑上限及选区审阅尺寸/颜色/滚动/键盘前台配对 |

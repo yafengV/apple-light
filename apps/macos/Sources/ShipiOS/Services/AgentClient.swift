@@ -76,7 +76,8 @@ final class AgentClient {
     }
   }
 
-  func request(_ method: String, _ params: [String: JSONValue] = [:]) async throws -> JSONValue {
+  func request(_ method: String, _ params: [String: JSONValue] = [:],
+    cancelOnTaskCancellation: Bool = false) async throws -> JSONValue {
     guard let input, process?.isRunning == true, !stopping else {
       throw AgentFailure(message: "Agent 未连接")
     }
@@ -90,29 +91,44 @@ final class AgentClient {
     bytes.append(10)
     guard bytes.count <= 65536 else { throw AgentFailure(message: "请求超过 64 KiB") }
     let token = generation
-    return try await withCheckedThrowingContinuation { continuation in
-      pending[id] = continuation
-      do { try input.write(contentsOf: bytes) } catch {
-        pending.removeValue(forKey: id)?.resume(throwing: error)
+    return try await withTaskCancellationHandler {
+      if cancelOnTaskCancellation { try Task.checkCancellation() }
+      return try await withCheckedThrowingContinuation { continuation in
+        if cancelOnTaskCancellation, Task.isCancelled {
+          continuation.resume(throwing: CancellationError())
+          return
+        }
+        pending[id] = continuation
+        do { try input.write(contentsOf: bytes) } catch {
+          pending.removeValue(forKey: id)?.resume(throwing: error)
+        }
+        Task { [weak self] in
+          try? await Task.sleep(for: .seconds(30))
+          guard let self, self.generation == token else { return }
+          self.pending.removeValue(forKey: id)?.resume(
+            throwing: AgentFailure(message: "Agent 请求超时：\(method)"))
+        }
       }
-      Task { [weak self] in
-        try? await Task.sleep(for: .seconds(30))
+    } onCancel: {
+      guard cancelOnTaskCancellation else { return }
+      Task { @MainActor [weak self] in
         guard let self, self.generation == token else { return }
-        self.pending.removeValue(forKey: id)?.resume(
-          throwing: AgentFailure(message: "Agent 请求超时：\(method)"))
+        self.pending.removeValue(forKey: id)?.resume(throwing: CancellationError())
       }
     }
   }
 
-  func stop() async {
+  func stop(waitForEOF: Bool = true) async {
     guard let child = process else { return }
     stopping = true
     try? input?.close()
     input = nil
     // EOF requests cancellation. Wait without blocking the UI before falling back to SIGTERM.
-    for _ in 0..<100 {
-      if !child.isRunning { break }
-      try? await Task.sleep(for: .milliseconds(50))
+    if waitForEOF {
+      for _ in 0..<100 {
+        if !child.isRunning { break }
+        try? await Task.sleep(for: .milliseconds(50))
+      }
     }
     if child.isRunning { child.terminate() }
     for _ in 0..<100 {

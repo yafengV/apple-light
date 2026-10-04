@@ -36,7 +36,14 @@ final class CodexChatTransport {
 
   private let dataRoot: URL
   private var clients: [String: AgentClient] = [:]
-  private var startingClients: [String: Task<AgentClient, Error>] = [:]
+  private final class ClientStartup {
+    let id = UUID()
+    var task: Task<Void, Never>?
+    var waiters: [UUID: CheckedContinuation<AgentClient, Error>] = [:]
+  }
+  private var startingClients: [String: ClientStartup] = [:]
+  // Includes cancelled startups until their process cleanup finishes.
+  private var startupTasks: [UUID: Task<Void, Never>] = [:]
   private var taskProjects: [String: String] = [:]
   private var generation = UUID()
   private var activeThreads: Set<String> = []
@@ -59,6 +66,7 @@ final class CodexChatTransport {
 
   private func prepareClient(taskID: String, workspace: URL,
     executable: URL) async throws -> AgentClient {
+    try Task.checkCancellation()
     let canonical = workspace.resolvingSymlinksInPath().standardizedFileURL
     var directory: ObjCBool = false
     guard canonical.isFileURL, canonical.path.hasPrefix("/"),
@@ -74,26 +82,61 @@ final class CodexChatTransport {
       taskProjects[taskID] = path
       return client
     }
-    let token = generation
-    if let starting = startingClients[path] {
-      let client = try await starting.value
-      guard generation == token else { throw CancellationError() }
-      clients[path] = client
-      taskProjects[taskID] = path
-      return client
+    let token = generation, waiterID = UUID()
+    let startup = startingClients[path] ?? ClientStartup()
+    let client: AgentClient = try await withTaskCancellationHandler {
+      try Task.checkCancellation()
+      return try await withCheckedThrowingContinuation { continuation in
+        if Task.isCancelled { continuation.resume(throwing: CancellationError()); return }
+        startingClients[path] = startup
+        startup.waiters[waiterID] = continuation
+        if startup.task == nil {
+          let task = Task {
+            defer { startup.task = nil; startupTasks.removeValue(forKey: startup.id) }
+            let result: Result<AgentClient, Error>
+            do {
+              result = .success(try await launchClient(path: path, workspace: canonical, executable: executable))
+            } catch { result = .failure(error) }
+            await finishStartup(startup, path: path, token: token, result: result)
+          }
+          startup.task = task
+          startupTasks[startup.id] = task
+        }
+      }
+    } onCancel: {
+      Task { @MainActor [weak self] in self?.cancelStartupWaiter(startup, path: path, id: waiterID) }
     }
-    let starting = Task { try await launchClient(path: path, workspace: canonical,
-      executable: executable) }
-    startingClients[path] = starting
-    defer { startingClients.removeValue(forKey: path) }
-    let client = try await starting.value
-    guard generation == token else {
-      await client.stop()
-      throw CancellationError()
-    }
-    clients[path] = client
+    try Task.checkCancellation()
+    guard generation == token else { throw CancellationError() }
     taskProjects[taskID] = path
     return client
+  }
+
+  private func cancelStartupWaiter(_ startup: ClientStartup, path: String, id: UUID) {
+    guard let waiter = startup.waiters.removeValue(forKey: id) else { return }
+    if startup.waiters.isEmpty {
+      if startingClients[path] === startup { startingClients.removeValue(forKey: path) }
+      startup.task?.cancel()
+    }
+    waiter.resume(throwing: CancellationError())
+  }
+
+  private func finishStartup(_ startup: ClientStartup, path: String, token: UUID,
+    result: Result<AgentClient, Error>) async {
+    guard generation == token, startingClients[path] === startup else {
+      if case .success(let client) = result { await Task { await client.stop() }.value }
+      return
+    }
+    startingClients.removeValue(forKey: path)
+    let waiters = Array(startup.waiters.values)
+    startup.waiters.removeAll()
+    switch result {
+    case .success(let client):
+      clients[path] = client
+      for waiter in waiters { waiter.resume(returning: client) }
+    case .failure(let error):
+      for waiter in waiters { waiter.resume(throwing: error) }
+    }
   }
 
   private func launchClient(path: String, workspace: URL,
@@ -111,15 +154,20 @@ final class CodexChatTransport {
     client.onDisconnect = { [weak self] message in
       self?.reset(project: path, error: AgentFailure(message: message))
     }
+    try Task.checkCancellation()
     try client.start(executable: executable, project: workspace,
       dataDirectory: processData, codexDataDirectory: projectData)
     do {
-      let hello = try await client.request("initialize", ["protocolVersion": .number(1)])
+      let hello = try await client.request("initialize", ["protocolVersion": .number(1)],
+        cancelOnTaskCancellation: true)
       guard hello["protocolVersion"].int == 1 else {
         throw AgentFailure(message: "不支持的 Agent 协议版本")
       }
     } catch {
-      await client.stop()
+      // An uninitialized process cannot handle EOF yet. Use an uncancelled
+      // cleanup task so termination still waits for the actual process exit.
+      let cancelled = Task.isCancelled
+      await Task { await client.stop(waitForEOF: !cancelled) }.value
       throw error
     }
     return client
@@ -136,6 +184,7 @@ final class CodexChatTransport {
     compact: Bool = false, forkOrigin: CodexForkOrigin? = nil,
     resumeOrigin: CodexResumeOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
+    try Task.checkCancellation()
     guard streams[taskID] == nil, preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
@@ -411,9 +460,19 @@ final class CodexChatTransport {
   }
 
   func shutdown() async {
+    let starting = Array(startingClients.values)
+    startingClients.removeAll()
+    for startup in starting {
+      startup.task?.cancel()
+      let waiters = Array(startup.waiters.values)
+      startup.waiters.removeAll()
+      for waiter in waiters { waiter.resume(throwing: CancellationError()) }
+    }
     reset(CancellationError())
     let running = Array(clients.values)
     clients.removeAll()
+    let pendingStartups = Array(startupTasks.values)
+    for startup in pendingStartups { await startup.value }
     for client in running { await client.stop() }
   }
 

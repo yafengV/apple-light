@@ -4,7 +4,7 @@ ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工�
 
 当前阶段：**原生 macOS 工作台已实现**。SwiftUI 客户端连接独立 Rust Agent，支持本地诊断与构建、任务组织、项目内及无项目的独立 API 文字/图片/文件会话、按任务并行模型回合、持久目标模式、运行中引导与消息队列、命令面板、文件预览、Git 审查、PTY 终端和内置浏览器。Codex Core 已通过独立的 Responses RPC 通道接入 Rust Agent；Swift 设置可显式选择 Responses，已连接项目中的文字、图片和文本/PDF 附件会话可使用这条通道并在应用重启后继续原线程。原生计划模式、写入审批、MCP 工具与手动上下文整理已有自动化验证；完整 Codex 交互对齐仍未完成。目录名 `apple-light` 暂时保留；产品名、许可证与公开仓库名尚未定案。
 
-固定上游版本的 `codex-core-api` 已完成配置隔离、本地假服务回合、Agent RPC、Swift 文字/图片/文本文件会话与重启续接验证，见[最新验证记录](docs/194-codex-file-input.md)。
+固定上游版本的 `codex-core-api` 已完成配置隔离、本机服务夹具、Agent RPC、Swift 文字/图片/文本文件会话与重启续接验证。命令执行、补丁及从实际 Swift 验证失败到修复、审查、提交和本地推送的连续验证见[核心闭环记录](docs/601-core-coding-workflow-verification.md)；所有页面、核心要求和剩余缺口见[对齐矩阵](docs/599-core-function-parity-matrix.md)。这些验证不代表真实模型或全部 UI 已验收。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 
@@ -41,7 +41,7 @@ python3 script/smoke_ipc.py
 
 构建会执行所选项目的构建阶段，应针对自己信任的工程运行。Git 项目的新任务可选择托管工作树及起始分支；当前分支的未提交文件和 `.worktreeinclude` 指定的忽略文件可传递，详见[创建流程](docs/225-managed-worktree-new-task.md)。托管检出归档后的清理和快照恢复见[干净检出](docs/226-clean-managed-worktree-archive.md)与[脏检出](docs/227-dirty-managed-worktree-archive.md)；删除归档任务时的工作树资源处理见[第 228 篇](docs/228-managed-worktree-archive-deletion.md)，数量上限见[第 229 篇](docs/229-managed-worktree-retention-limit.md)。干净检出中的已有任务可在[本地与关联工作树之间往返移交](docs/231-worktree-local-handoff.md)。不会将构建成功标为 UI 验证通过。
 
-桌面快捷键：`⌘N` 新任务、`⌘K` / `⌘⇧P` 命令菜单、`⌘O` 打开项目、`⌘↵` 发送、`⌘.` 停止、`⌘B` 侧栏、`⌘P` 文件搜索、`⌘J` 终端、`⌘⌥B` 审查、`⌘⇧B` 浏览器。全局“新任务”可不选文件夹直接对话；项目菜单中的“新任务”使用该项目。设置 → 模型与 API 可填写独立服务，密钥保存在 ShipiOS 专属 Keychain 中；设置 → 通用可选择模型运行时“引导当前运行”或“等待下一轮”。输入 `/chat`、`/doctor`、`/build`、`/plan` 或 `/goal` 选择会话、诊断、构建、计划或持久目标。Chat Completions 会话支持文字、图片和文本/PDF 文件附件，不自动读写项目；Codex Responses 当前支持项目内相同的输入类型，线程权限为只读。输入区加号可选择文件或图片；PDF 仅提取文字。图片需要所选模型与服务支持视觉输入。界面记录、队列与目标状态写入 `workspace.json`，非敏感模型配置写入 `model.json`，本地执行记录仍由 Agent 数据库保存。
+桌面快捷键：`⌘N` 新任务、`⌘K` / `⌘⇧P` 命令菜单、`⌘O` 打开项目、`⌘↵` 发送、`⌘.` 停止、`⌘B` 侧栏、`⌘P` 文件搜索、`⌘J` 终端、`⌘⌥B` 审查、`⌘⇧B` 浏览器。全局“新任务”可不选文件夹直接对话；项目菜单中的“新任务”使用该项目。设置 → 模型与 API 可填写独立服务，密钥保存在 ShipiOS 专属 Keychain 中；设置 → 通用可选择模型运行时“引导当前运行”或“等待下一轮”。输入 `/chat`、`/doctor`、`/build`、`/plan` 或 `/goal` 选择会话、诊断、构建、计划或持久目标。Chat Completions 会话支持文字、图片和文本/PDF 文件附件，不自动读写项目；Codex Responses 支持项目内及项目外相同的输入类型，并提供实际命令和补丁工具；线程权限由任务配置控制，计划、侧聊与代码审查保持只读。输入区加号可选择文件或图片；PDF 仅提取文字。图片需要所选模型与服务支持视觉输入。界面记录、队列与目标状态写入 `workspace.json`，非敏感模型配置写入 `model.json`，本地执行记录仍由 Agent 数据库保存。
 
 ## 已实现的代码
 
@@ -52,7 +52,7 @@ python3 script/smoke_ipc.py
 | `crates/shipios-core` | 显式配置、来源追踪、SQLite 运行与事件存储、实例锁 |
 | `crates/shipios-tools` | 有界项目扫描、参数化 Xcode 命令、进程组取消、日志与诊断 |
 | `crates/shipios-agent` | CLI、JSON-RPC、任务调度、状态查询与事件重放 |
-| `crates/shipios-codex` | 固定上游版本的独立配置、内存认证与线程适配；通过 Agent RPC 支持 Swift 文字、图片和文本/PDF 附件会话，完整工具与 UI 流程待接入 |
+| `crates/shipios-codex` | 固定上游版本的独立配置、内存认证与线程适配；通过 Agent RPC 支持 Swift 会话、命令/补丁、审批/提问、MCP、计划和历史恢复；完整工具生命周期与 UI 对齐仍未完成 |
 | `apps/macos` | SwiftUI/AppKit 原生工作台、Agent 生命周期、Swift 测试 |
 | `clients/swift` | 可运行的 Foundation IPC 客户端探针 |
 | `fixtures/HelloShipiOS` | 无外部依赖的 iOS 构建 fixture |

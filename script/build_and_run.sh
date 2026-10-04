@@ -12,16 +12,18 @@ if [ "$mode" != "--build-app" ]; then
     pkill -TERM -x ShipiOS 2>/dev/null || true
 fi
 cargo build --locked -p shipios-agent
-mkdir -p "$PWD/.cache/clang-module-cache" "$PWD/.cache/swiftpm-cache"
-export CLANG_MODULE_CACHE_PATH="$PWD/.cache/clang-module-cache"
-swift build --package-path apps/macos --scratch-path "$PWD/.cache/macos-build" --cache-path "$PWD/.cache/swiftpm-cache" --disable-sandbox
+# Allow an isolated native build while another test runner owns the default cache.
+build_cache="${SHIPIOS_BUILD_CACHE_ROOT:-$PWD/.cache}"
+mkdir -p "$build_cache/clang-module-cache" "$build_cache/swiftpm-cache"
+export CLANG_MODULE_CACHE_PATH="$build_cache/clang-module-cache"
+swift build --package-path apps/macos --scratch-path "$build_cache/macos-build" --cache-path "$build_cache/swiftpm-cache" --disable-sandbox
 app="$PWD/dist/ShipiOS.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
-cp .cache/macos-build/debug/ShipiOS "$app/Contents/MacOS/ShipiOS"
+cp "$build_cache/macos-build/debug/ShipiOS" "$app/Contents/MacOS/ShipiOS"
 cp target/debug/shipios-agent "$app/Contents/Helpers/shipios-agent"
-ditto .cache/macos-build/debug/SwiftTerm_SwiftTerm.bundle "$app/Contents/Resources/SwiftTerm_SwiftTerm.bundle"
-ditto .cache/macos-build/debug/ShipiOS_ShipiOS.bundle "$app/Contents/Resources/ShipiOS_ShipiOS.bundle"
-install -m 644 .cache/macos-build/checkouts/SwiftTerm/LICENSE "$app/Contents/Resources/SwiftTerm-LICENSE.txt"
+ditto "$build_cache/macos-build/debug/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/SwiftTerm_SwiftTerm.bundle"
+ditto "$build_cache/macos-build/debug/ShipiOS_ShipiOS.bundle" "$app/Contents/Resources/ShipiOS_ShipiOS.bundle"
+install -m 644 "$build_cache/macos-build/checkouts/SwiftTerm/LICENSE" "$app/Contents/Resources/SwiftTerm-LICENSE.txt"
 ditto licenses "$app/Contents/Resources/Licenses"
 ditto fixtures/HelloShipiOS "$app/Contents/Resources/HelloShipiOS"
 cat > "$app/Contents/Info.plist" <<'PLIST'
