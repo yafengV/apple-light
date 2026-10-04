@@ -8,6 +8,7 @@ import AppKit
   var dialogFrame: NSRect { .zero }
   var focusTargets: [NSView] { [] }
   var initialFocus: NSView? { focusTargets.first }
+  func retainsContentFocus(_ view: NSView) -> Bool { false }
   var modalRoot: NSView { self }
   var modalScopeActive: Bool { active && host?.isCurrent(self) == true }
   var blocksWorkspaceCommands: Bool { true }
@@ -87,6 +88,7 @@ import AppKit
     let responder = window.firstResponder
     if let editor = responder as? NSTextView, editor.isFieldEditor, let field = editor.delegate as? NSView,
       field.isDescendant(of: surface) { return }
+    if let view = responder as? NSView, surface.retainsContentFocus(view) { return }
     if let view = responder as? NSView, surface.focusTargets.contains(where: { $0 === view }) { lastFocus = view; return }
     let target = lastFocus.flatMap { previous in surface.focusTargets.first { $0 === previous } }
       ?? surface.initialFocus ?? surface.focusTargets.first

@@ -5,6 +5,9 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
   let block: MessageBlock
   let hovered: Bool
   let scroll: (CGFloat, Bool) -> Bool
+  var showExpand = false
+  var expanded = false
+  var expand: (() -> Void)? = nil
   var write: (PRCommentTableClipboard) -> Bool = { $0.write(to: .general) }
   @Environment(\.appAppearance) private var appearance
   @Environment(\.isEnabled) private var enabled
@@ -13,22 +16,27 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
     view.preferences = appearance; view.tableHovered = hovered
     view.button.preferences = appearance; view.button.isEnabled = enabled; view.button.active = true
     view.button.scroll = scroll; view.button.write = write
-    view.button.configure(PRCommentTableClipboard(block: block)); view.refresh()
+    view.button.configure(PRCommentTableClipboard(block: block))
+    if !showExpand, view.window?.firstResponder === view.expand { view.window?.makeFirstResponder(nil) }
+    view.showExpand = showExpand; view.expand.preferences = appearance; view.expand.isEnabled = enabled
+    view.expand.active = true; view.expand.activate = expand; view.expand.expanded = expanded
+    view.needsLayout = true; view.refresh()
   }
-  func sizeThatFits(_ proposal: ProposedViewSize, nsView: Surface, context: Context) -> CGSize? { .init(width: 40, height: 40) }
-  static func dismantleNSView(_ view: Surface, coordinator: ()) { view.button.retire() }
+  func sizeThatFits(_ proposal: ProposedViewSize, nsView: Surface, context: Context) -> CGSize? { .init(width: showExpand ? 80 : 40, height: 40) }
+  static func dismantleNSView(_ view: Surface, coordinator: ()) { view.button.retire(); view.expand.retire() }
 
   final class Surface: NSView {
-    let button = CopyButton()
+    let button = CopyButton(), expand = CopyButton()
+    var showExpand = false { didSet { expand.isHidden = !showExpand } }
     var preferences = AppearancePreferences()
     var tableHovered = false
     override var isFlipped: Bool { true }
-    var visible: Bool { tableHovered || window?.firstResponder === button }
-    override init(frame: NSRect) { super.init(frame: frame); addSubview(button); button.surface = self }
+    var visible: Bool { tableHovered || window?.firstResponder === button || window?.firstResponder === expand }
+    override init(frame: NSRect) { super.init(frame: frame); addSubview(button); button.surface = self; addSubview(expand); expand.surface = self; expand.mode = .expand; expand.isHidden = true }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override func layout() { super.layout(); button.frame = .init(x: 2, y: 2, width: 36, height: 36) }
+    override func layout() { super.layout(); button.frame = .init(x: 2, y: 2, width: 36, height: 36); expand.frame = .init(x: 42, y: 2, width: 36, height: 36) }
     override func hitTest(_ point: NSPoint) -> NSView? { visible && button.active ? super.hitTest(point) : nil }
-    func refresh() { needsDisplay = true; button.needsDisplay = true }
+    func refresh() { needsDisplay = true; button.needsDisplay = true; expand.needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
       guard visible else { return }
       preferences.resolvedColors["surface"].nativeColor.setFill()
@@ -37,6 +45,12 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
   }
 
   final class CopyButton: NSButton {
+    enum Mode { case copy, expand, close }
+    var mode = Mode.copy { didSet { updateLabel() } }
+    var alwaysVisible = false
+    var expanded = false { didSet { if mode == .expand { setAccessibilityExpanded(expanded) } } }
+    var activate: (() -> Void)?
+    var available: () -> Bool = { true }
     weak var surface: Surface?
     var active = true
     var preferences = AppearancePreferences()
@@ -55,14 +69,16 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
       target = self; action = #selector(pressed); updateLabel()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
+    override var acceptsFirstResponder: Bool { active && isEnabled && available() && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     func configure(_ value: PRCommentTableClipboard?) {
       guard payload != value else { return }
       payload = value; reset?.cancel(); reset = nil; generation = UUID(); copied = false; spaceArmed = false; updateLabel()
     }
     @objc private func pressed() {
-      guard acceptsFirstResponder, window != nil, !copied, let payload, write?(payload) == true else { return }
+      guard acceptsFirstResponder, window != nil else { return }
+      if mode != .copy { activate?(); return }
+      guard !copied, let payload, write?(payload) == true else { return }
       copied = true; updateLabel(); let id = UUID(); generation = id
       reset?.cancel()
       reset = Task { [weak self] in
@@ -71,9 +87,9 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
         self.copied = false; self.reset = nil; self.updateLabel()
       }
     }
-    func retire() { active = false; spaceArmed = false; reset?.cancel(); reset = nil; generation = UUID(); write = nil; scroll = nil; surface?.refresh() }
+    func retire() { active = false; spaceArmed = false; reset?.cancel(); reset = nil; generation = UUID(); write = nil; scroll = nil; activate = nil; surface?.refresh() }
     private func updateLabel() {
-      let label = copied ? "已复制" : "复制表格"
+      let label = mode == .expand ? "展开表格" : mode == .close ? "关闭表格预览" : copied ? "已复制" : "复制表格"
       setAccessibilityLabel(label); toolTip = label; surface?.refresh(); needsDisplay = true
     }
     override func accessibilityPerformPress() -> Bool {
@@ -104,8 +120,8 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
       super.keyUp(with: event)
     }
     override func mouseDown(with event: NSEvent) {
-      guard acceptsFirstResponder, surface?.visible == true else { return }
-      window?.makeFirstResponder(self); super.mouseDown(with: event)
+      guard acceptsFirstResponder, surface?.visible == true || alwaysVisible else { return }
+      window?.makeFirstResponder(self); if mode == .close { pressed() } else { super.mouseDown(with: event) }
     }
     override func resetCursorRects() {
       super.resetCursorRects()
@@ -119,13 +135,22 @@ struct PRCommentTableCopyToolbar: NSViewRepresentable {
     override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true }
     override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
-      guard surface?.visible == true else { return }
+      guard surface?.visible == true || alwaysVisible else { return }
       let roles = preferences.resolvedColors, alpha = isEnabled ? 1.0 : 0.4
       let circle = NSBezierPath(ovalIn: bounds)
       if hovered { roles["buttonSecondaryBackgroundHover"].opacity(alpha).nativeColor.setFill(); circle.fill() }
-      roles[copied || hovered ? "textForeground" : "textForegroundTertiary"].opacity(alpha).nativeColor.setStroke()
+      roles[mode == .close || copied || hovered ? "textForeground" : "textForegroundTertiary"].opacity(alpha).nativeColor.setStroke()
       let glyph = NSBezierPath(); glyph.lineWidth = 1.5; glyph.lineCapStyle = .round; glyph.lineJoinStyle = .round
-      if copied {
+      if mode == .close {
+        let center = NSPoint(x: bounds.midX, y: bounds.midY)
+        glyph.move(to: .init(x: center.x - 6, y: center.y - 6)); glyph.line(to: .init(x: center.x + 6, y: center.y + 6))
+        glyph.move(to: .init(x: center.x - 6, y: center.y + 6)); glyph.line(to: .init(x: center.x + 6, y: center.y - 6))
+      } else if mode == .expand {
+        glyph.move(to: .init(x: 12, y: 8)); glyph.line(to: .init(x: 8, y: 8)); glyph.line(to: .init(x: 8, y: 12))
+        glyph.move(to: .init(x: 24, y: 8)); glyph.line(to: .init(x: 28, y: 8)); glyph.line(to: .init(x: 28, y: 12))
+        glyph.move(to: .init(x: 8, y: 24)); glyph.line(to: .init(x: 8, y: 28)); glyph.line(to: .init(x: 12, y: 28))
+        glyph.move(to: .init(x: 24, y: 28)); glyph.line(to: .init(x: 28, y: 28)); glyph.line(to: .init(x: 28, y: 24))
+      } else if copied {
         glyph.move(to: .init(x: 11, y: 18)); glyph.line(to: .init(x: 16, y: 23)); glyph.line(to: .init(x: 25, y: 13))
       } else {
         glyph.appendRoundedRect(.init(x: 14, y: 12, width: 12, height: 15), xRadius: 2, yRadius: 2)

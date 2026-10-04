@@ -123,7 +123,7 @@ private struct PRMarkdownRevisionKey: EnvironmentKey {
   static let defaultValue = ""
 }
 
-private extension EnvironmentValues {
+extension EnvironmentValues {
   var prMarkdownImageLoader: ((String) async throws -> Data)? {
     get { self[PRMarkdownImageLoaderKey.self] }
     set { self[PRMarkdownImageLoaderKey.self] = newValue }

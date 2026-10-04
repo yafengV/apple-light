@@ -8,41 +8,57 @@ struct PRCommentMarkdownTableView: View {
   @Environment(\.appAppearance) private var appearance
   @State private var measuredHeight: CGFloat?
   @State private var hovered = false
+  @State private var overflowing = false
+  @State private var expanded = false
   @State private var scrollTarget = PRCommentTableScrollTarget()
   private var metrics: PRCommentTableMetrics { .init(appearance: appearance) }
   var body: some View {
     GeometryReader { geometry in
       SearchHorizontalScroll {
-        PRCommentTableLayout(block: block, metrics: metrics, availableWidth: geometry.size.width) {
-          ForEach(block.rows.indices, id: \.self) { row in
-            ForEach(block.rows[row].indices, id: \.self) { column in
-              cell(row, column)
-            }
-          }
-        }
+        PRCommentTableContent(block: block, source: source, metrics: metrics, availableWidth: geometry.size.width)
         .fixedSize(horizontal: false, vertical: true)
         .background { PRCommentTableScrollAnchor(target: scrollTarget) }
-        .background { GeometryReader { inner in Color.clear.preference(key: PRCommentTableHeightKey.self, value: inner.size.height) } }
+        .background { GeometryReader { inner in Color.clear.preference(key: PRCommentTableHeightKey.self, value: .init(content: inner.size, viewportWidth: geometry.size.width)) } }
       }
       .overlay(alignment: .topTrailing) {
-        PRCommentTableCopyToolbar(block: block, hovered: hovered, scroll: { scrollTarget.scroll($0, page: $1) }).frame(width: 40, height: 40)
+        PRCommentTableCopyToolbar(block: block, hovered: hovered, scroll: { scrollTarget.scroll($0, page: $1) },
+          showExpand: overflowing, expanded: expanded, expand: { expanded = true }).frame(width: overflowing ? 80 : 40, height: 40)
       }
     }
     .frame(height: measuredHeight ?? metrics.plan(block, width: nil).height)
     .onHover { hovered = $0 }
-    .onPreferenceChange(PRCommentTableHeightKey.self) { height in
+    .onPreferenceChange(PRCommentTableHeightKey.self) { value in
+      let height = value.content.height
       if height.isFinite, height > 0, measuredHeight != height { measuredHeight = height }
+      overflowing = value.content.width.isFinite && value.viewportWidth > 0 && value.content.width > value.viewportWidth + 0.5
+    }
+    .background { PRCommentTablePreviewPresenter(block: block, source: source, open: $expanded) }
+
+  }
+}
+
+struct PRCommentTableContent: View {
+  let block: MessageBlock
+  let source: String
+  let metrics: PRCommentTableMetrics
+  let availableWidth: CGFloat
+  @Environment(\.appAppearance) private var appearance
+  var body: some View {
+    PRCommentTableLayout(block: block, metrics: metrics, availableWidth: availableWidth) {
+      ForEach(block.rows.indices, id: \.self) { row in
+        ForEach(block.rows[row].indices, id: \.self) { column in cell(row, column) }
+      }
     }
   }
   @ViewBuilder private func cell(_ row: Int, _ column: Int) -> some View {
     let padding = metrics.padding(row: row, column: column, rows: block.rows.count, columns: block.rows[row].count)
     Group {
       if block.mediaRows.indices.contains(row), block.mediaRows[row].indices.contains(column),
-        block.mediaRows[row][column].contains(where: { if case .media = $0.kind { true } else { false } }) {
+        block.mediaRows[row][column].contains(where: { switch $0.kind { case .media, .prImage: true; default: false } }) {
         PRCommentMarkdownBlocksView(blocks: block.mediaRows[row][column], source: source, layout: nil)
       } else {
         PRCommentMarkdownText(text: block.rows[row][column], font: metrics.font,
-          lineHeight: row == 0 ? 13 : 21.125, weight: row == 0 ? .semibold : .regular,
+          lineHeight: row == 0 ? metrics.baseSize : metrics.baseSize * 1.625, weight: row == 0 ? .semibold : .regular,
           source: source, layout: nil, alignment: metrics.alignment(block, column: column))
       }
     }
@@ -59,8 +75,12 @@ struct PRCommentMarkdownTableView: View {
 
 struct PRCommentTableMetrics {
   let appearance: AppearancePreferences
+  var baseSize: CGFloat = 13
+  var tabularDigits = true
+  var preferredLimit: CGFloat = 480
   var font: NSFont {
-    let base = appearance.nativeFont(size: 13, content: true).withSize(max(CGFloat(appearance.codeSize), 13 * 0.875))
+    let base = appearance.nativeFont(size: baseSize, content: true).withSize(max(CGFloat(appearance.codeSize), baseSize * 0.875))
+    guard tabularDigits else { return base }
     return NSFont(descriptor: base.fontDescriptor.addingAttributes([.featureSettings: [[
       NSFontDescriptor.FeatureKey.typeIdentifier: kNumberSpacingType,
       NSFontDescriptor.FeatureKey.selectorIdentifier: kMonospacedNumbersSelector
@@ -69,9 +89,9 @@ struct PRCommentTableMetrics {
   struct Padding { let top: CGFloat; let right: CGFloat; let bottom: CGFloat }
   struct Plan { let columns: [CGFloat]; let rows: [CGFloat]; var height: CGFloat { rows.reduce(0, +) }; var width: CGFloat { columns.reduce(0, +) } }
   func padding(row: Int, column: Int, rows: Int, columns: Int) -> Padding {
-    .init(top: row == 0 ? 6.5 : 8.125,
-      right: column == columns - 1 ? (row == 0 ? 32.5 : 0) : 19.5,
-      bottom: row == 0 ? 6.5 : row == rows - 1 ? 19.5 : 8.125)
+    .init(top: row == 0 ? baseSize * 0.5 : baseSize * 0.625,
+      right: column == columns - 1 ? (row == 0 ? baseSize * 2.5 : 0) : baseSize * 1.5,
+      bottom: row == 0 ? baseSize * 0.5 : row == rows - 1 ? baseSize * 1.5 : baseSize * 0.625)
   }
   func alignment(_ block: MessageBlock, column: Int) -> NSTextAlignment {
     guard block.alignments.indices.contains(column) else { return .left }
@@ -80,7 +100,7 @@ struct PRCommentTableMetrics {
   func attributed(_ text: AttributedString, header: Bool) -> NSAttributedString {
     LegacyMessageLinkText.attributedText(text, appearance: appearance, size: font.pointSize,
       weight: header ? .semibold : .regular, lineSpacing: 0, fontOverride: font,
-      lineHeight: header ? 13 : 21.125, inlineCodeScale: 0.92)
+      lineHeight: header ? baseSize : baseSize * 1.625, inlineCodeScale: 0.92)
   }
   func measure(_ text: NSAttributedString, width: CGFloat) -> CGSize {
     let storage = NSTextStorage(attributedString: text), manager = NSLayoutManager()
@@ -96,14 +116,14 @@ struct PRCommentTableMetrics {
       for (column, text) in cells.enumerated() {
         let pad = padding(row: row, column: column, rows: block.rows.count, columns: cells.count)
         let content = attributed(text, header: row == 0)
-        preferred[column] = max(preferred[column], min(480, measure(content, width: 10_000).width + pad.right))
+        preferred[column] = max(preferred[column], min(preferredLimit, measure(content, width: 10_000).width + pad.right))
         let plain = String(text.characters)
         let words = plain.split(whereSeparator: { $0.isWhitespace })
         var narrow = words.map { measure(attributed(AttributedString(String($0)), header: row == 0), width: 10_000).width }.max() ?? 0
         if row > 0, !plain.isEmpty, plain.utf8.allSatisfy({ (48...57).contains($0) }) {
-          narrow = max(narrow, measure(attributed(AttributedString("000"), header: false), width: 10_000).width + 19.5 - pad.right)
+          narrow = max(narrow, measure(attributed(AttributedString("000"), header: false), width: 10_000).width + baseSize * 1.5 - pad.right)
         }
-        minimum[column] = max(minimum[column], min(480, narrow + pad.right))
+        minimum[column] = max(minimum[column], min(preferredLimit, narrow + pad.right))
       }
     }
     let low = minimum.reduce(0, +), high = preferred.reduce(0, +)
@@ -163,6 +183,7 @@ struct PRCommentTableLayout: Layout {
 }
 
 private struct PRCommentTableHeightKey: PreferenceKey {
-  static var defaultValue: CGFloat = 0
-  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+  struct Value: Equatable { var content: CGSize = .zero; var viewportWidth: CGFloat = 0 }
+  static var defaultValue = Value()
+  static func reduce(value: inout Value, nextValue: () -> Value) { let next = nextValue(); if next.content.height > value.content.height { value = next } }
 }

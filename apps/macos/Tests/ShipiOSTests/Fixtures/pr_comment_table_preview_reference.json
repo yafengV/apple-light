@@ -1,0 +1,59 @@
+{
+  "version": "26.930.21537",
+  "sources": {
+    "app-initial-60d038a052d7.js": "8c7725f402d87efcecbfaae599f96074d126ab03f1d9acb8edf7244043666ff3",
+    "app-initial-341eb5dd9ad5.css": "b9602ce3f1d278f45bb058f5004c769a741b43acb08b987aec3ae57781fc709f",
+    "app-shared-6fb15e58cd7f.css": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  },
+  "scope": "Public LJc/HKc/eUc structure reconstructed with actual public stylesheets. CSS layer order fixed before stylesheet loading; app-global chat fonts explicitly set to 14/12. No Codex frontend, state or assets beyond static CSS loaded. All border color variables supplied; missing variables would invalidate borders and cannot be used for geometry.",
+  "toolbar": {
+    "expandOnlyOnOverflow": true,
+    "copyAndExpandWidth": 80,
+    "gap": 4,
+    "button": 36
+  },
+  "preview": {
+    "backdropAlpha": 0.9,
+    "top": 48,
+    "bottom": 52,
+    "sideAt640": 32,
+    "sideBelow640": 16,
+    "maxWidthFraction": 0.8,
+    "padding": 32,
+    "border": 1,
+    "cornerRadius": 20,
+    "edgeCover": 8,
+    "closeSize": 40,
+    "closeTop": 12,
+    "closeRight": 12,
+    "showDownload": false,
+    "showZoom": false,
+    "stickyHeader": false
+  },
+  "longGeometry": {
+    "windowWidth": 1280,
+    "windowHeight": 720,
+    "tableWidth": 548.3515625,
+    "tableHeight": 865.25,
+    "cardX": 328.828125,
+    "cardY": 48,
+    "cardWidth": 622.3515625,
+    "cardHeight": 620,
+    "viewportWidth": 556.3515625,
+    "viewportHeight": 554,
+    "tableFont": 12.25,
+    "headerLine": 14,
+    "bodyLine": 22.75
+  },
+  "remaining": [
+    "complete paired frontend acceptance",
+    "media/mixed-content natural-size constraints",
+    "native shadow and glyph pixels"
+  ],
+  "nativeComparison": {
+    "tableWidth": 549.4281903207302,
+    "browserTableWidth": 548.3515625,
+    "difference": 1.0766278207302,
+    "status": "Font shaping remains unmatched; not treated as pixel acceptance."
+  }
+}
