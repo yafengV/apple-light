@@ -86,6 +86,7 @@ struct ExecutionMessageView: View {
   var railSpace: String? = nil
   @State private var expanded = false
   @State private var copied = false
+  @State private var showingHookStats = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 23) {
@@ -251,6 +252,13 @@ struct ExecutionMessageView: View {
             }.disabled(actions.map { !$0.canFork(run) } ?? !store.canForkConversation)
               .help("从此处分叉到新任务")
               .accessibilityLabel("从此处分叉到新任务")
+            if let stats = run.codexHookStats {
+              Button { showingHookStats = true } label: {
+                HookIcon()
+                  .foregroundStyle(stats.hasWarnings ? Color.orange : Color.secondary)
+              }.help("Hook 统计").accessibilityLabel("Hook 统计")
+                .accessibilityIdentifier("hook-stats-button-" + run.id)
+            }
             if run.kind != "chat" {
               Button("查看日志") {
                 if let actions { actions.inspect(run, "logs") }
@@ -264,7 +272,9 @@ struct ExecutionMessageView: View {
           }.buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
         }
       }
-    }.task(id: copied) {
+    }.background(HookStatsDialogPresenter(showing: $showingHookStats, run: run).frame(width: 0, height: 0))
+    .onChange(of: run.codexHookStats == nil) { _, empty in if empty { showingHookStats = false } }
+    .task(id: copied) {
       guard copied else { return }
       try? await Task.sleep(for: .seconds(2))
       if !Task.isCancelled { copied = false }

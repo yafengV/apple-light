@@ -463,6 +463,10 @@ extension WorkspaceStore {
           switch event["type"].text {
           case "task_started", "turn_started":
             recordCodexTurnBoundary(runID: runID, taskID: taskID, event: event)
+          case "hook_started", "hook_completed":
+            if let threadID = event["shipios_hook_thread_id"].text {
+              recordCodexHook(runID: runID, taskID: taskID, threadID: threadID, event: event)
+            }
           case "context_compacted":
             contextCompacted = true
             recordCodexCompaction(runID: runID, manual: compact)

@@ -5,6 +5,7 @@ import CryptoKit
 @MainActor
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
+  var onHookEvent: ((String, String?, JSONValue) -> Void)?
   var onThreadStarted: ((String, String, String) -> Void)?
   private struct ServiceIdentity: Equatable {
     let endpoint: String
@@ -514,6 +515,14 @@ final class CodexChatTransport {
       guard let token = browserTurnTokens[taskID], let stream = streams[taskID] else { return }
       stream.yield(event)
       onBrowserRequest?(taskID, token, event)
+      return
+    }
+    if ["hook_started", "hook_completed"].contains(event["type"].text ?? "") {
+      onHookEvent?(taskID, payload["threadId"].text, event)
+      guard let continuation = streams[taskID], let threadID = payload["threadId"].text,
+        case .object(var fields) = event else { return }
+      fields["shipios_hook_thread_id"] = .string(threadID)
+      continuation.yield(.object(fields))
       return
     }
     guard let continuation = streams[taskID] else { return }

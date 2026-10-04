@@ -532,6 +532,9 @@ final class WorkspaceStore {
     codexTransport.onThreadStarted = { [weak self] taskID, threadID, workspace in
       self?.recordCodexThreadID(taskID: taskID, threadID: threadID, workspace: workspace)
     }
+    codexTransport.onHookEvent = { [weak self] taskID, threadID, event in
+      self?.recordCodexHook(taskID: taskID, threadID: threadID, event: event)
+    }
     codexTransport.onBrowserRequest = { [weak self] taskID, token, request in
       Task { @MainActor [weak self] in
         await self?.handleCodexBrowserRequest(taskID: taskID, token: token, request: request)
