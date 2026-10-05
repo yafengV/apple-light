@@ -14,6 +14,7 @@ final class CodexSubagentIntegrationTests: XCTestCase {
     server.arguments = ["-u", fixture.path]
     server.environment = ProcessInfo.processInfo.environment.merging([
       "SHIPIOS_SUBAGENT_COMPLETE_GATE": root.appendingPathComponent("complete-gate").path,
+      "SHIPIOS_SUBAGENT_PARENT_GATE": root.appendingPathComponent("parent-gate").path,
       "SHIPIOS_SUBAGENT_REQUEST_LOG": root.appendingPathComponent("requests.jsonl").path
     ]) { _, new in new }
     let output = Pipe(); server.standardOutput = output; server.standardError = FileHandle.nullDevice
@@ -118,6 +119,71 @@ final class CodexSubagentIntegrationTests: XCTestCase {
     await store.cancel(taskID: peer)
     await store.modelTask(runID: peerRun)?.value
     await store.shutdown()
+  }
+
+  @MainActor func testChildCompletionCannotFinishStillRunningParentStream() async throws {
+    let store = try await store()
+    let started = await store.startChat("subagent-parent-stream-active")
+    let runID = try XCTUnwrap(started, store.error ?? "Parent did not start")
+    let owner = try XCTUnwrap(store.library.task(containing: runID)?.id)
+    try await waitFor("Actual child not discovered") { store.activeSubagents(taskID: owner).count == 1 }
+    let child = try XCTUnwrap(store.activeSubagents(taskID: owner).first)
+    try await waitFor("Child partial output missing during active parent") {
+      SubagentTranscript(events: store.subagentLiveStates[child.id]?.merged(with: []) ?? [])
+        .entries.contains { $0.text == "子任务实时🙂" }
+    }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == runID }?.isActive, true)
+    try Data().write(to: root.appendingPathComponent("complete-gate"))
+    try await waitFor("Child terminal event missing during active parent") {
+      let transcript = SubagentTranscript(events: store.subagentLiveStates[child.id]?.merged(with: []) ?? [])
+      return transcript.activeTurnID == nil && transcript.entries.contains { $0.text == "子任务实时🙂 完整回复" }
+    }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == runID }?.isActive, true,
+      "A child terminal event must not finish its parent's continuation")
+    XCTAssertNotEqual(store.library.chatRuns.first { $0.id == runID }?.result?["response"].text,
+      "子任务实时🙂 完整回复")
+    try Data().write(to: root.appendingPathComponent("parent-gate"))
+    try await waitFor("Parent could not continue after child completed") {
+      store.library.chatRuns.first { $0.id == runID }?.isActive == false
+    }
+    await store.modelTask(runID: runID)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == runID }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == runID }?.result?["response"].text,
+      "Parent finished while child continues")
+    await store.shutdown()
+  }
+
+  @MainActor func testChildDeltaIsVisibleBeforeCompletionWithoutHistoryPollingAndCannotEndParent() async throws {
+    let store = try await store()
+    let (owner, runID) = try await finishedParent(store, text: "subagent-parent-stream")
+    try await waitFor("No actual child") { store.activeSubagents(taskID: owner).count == 1 }
+    let child = try XCTUnwrap(store.activeSubagents(taskID: owner).first)
+    try await waitFor("Child delta missing while model response is still gated") {
+      let live = store.subagentLiveStates[child.id]
+      return SubagentTranscript(events: live?.merged(with: []) ?? []).entries.contains {
+        $0.kind == .assistant && $0.text == "子任务实时🙂"
+      }
+    }
+    let state = SubagentDetailState(); state.select(child)
+    state.updateLive(store.subagentLiveStates[child.id])
+    XCTAssertEqual(state.transcript.entries.filter { $0.kind == .assistant }.map(\.text), ["子任务实时🙂"])
+    XCTAssertNotNil(state.transcript.activeTurnID)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == runID }?.status, "succeeded")
+    try Data().write(to: root.appendingPathComponent("complete-gate"))
+    try await waitFor("Child live final event missing") {
+      let transcript = SubagentTranscript(events: store.subagentLiveStates[child.id]?.merged(with: []) ?? [])
+      return transcript.activeTurnID == nil && transcript.entries.contains { $0.text == "子任务实时🙂 完整回复" }
+    }
+    let history = try await store.codexTransport.readSubagentHistory(taskID: owner,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    state.updateLive(store.subagentLiveStates[child.id])
+    await state.load { _ in history }
+    XCTAssertEqual(state.transcript.entries.filter { $0.kind == .assistant }.map(\.text), ["子任务实时🙂 完整回复"])
+    XCTAssertNil(store.subagentLiveStates[child.id]?.error)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == runID }?.result?["response"].text,
+      "Parent finished while child continues")
+    await store.shutdown()
+    XCTAssertNil(store.subagentLiveStates[child.id])
   }
 
   @MainActor func testActualChildHistoryPagesAndFollowupStayInChildAndPreserveParent() async throws {

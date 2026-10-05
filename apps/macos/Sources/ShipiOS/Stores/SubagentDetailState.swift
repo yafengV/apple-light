@@ -9,9 +9,19 @@ import Observation
   private(set) var error: String?
   var draft = ""
   private var generation = UUID()
+  private var history: [JSONValue] = []
+  private var live: SubagentLiveState?
+
+  func updateLive(_ state: SubagentLiveState?) {
+    live = state; rebuild()
+  }
+
+  private func rebuild() {
+    transcript = .init(events: live?.merged(with: history) ?? history)
+  }
 
   func select(_ agent: CodexSubagent?) {
-    generation = UUID(); selected = agent; transcript = .init()
+    generation = UUID(); selected = agent; transcript = .init(); history = []; live = nil
     draft = ""; loading = false; sending = false; error = nil
   }
 
@@ -27,7 +37,7 @@ import Observation
     do {
       let events = try await read(agent)
       guard token == generation, !Task.isCancelled else { return }
-      transcript = .init(events: events); error = nil
+      history = events; rebuild(); error = nil
     } catch {
       guard token == generation, !Task.isCancelled, !(error is CancellationError) else { return }
       self.error = error.localizedDescription

@@ -9,6 +9,7 @@ struct SubagentWorkspacePanel: View {
   @State private var reload = 0
   private var agents: [CodexSubagent] { store.subagents(taskID: taskID) }
   private var current: CodexSubagent? { agents.first { $0.id == detail.selected?.id } }
+  private var live: SubagentLiveState? { detail.selected.flatMap { store.subagentLiveStates[$0.id] } }
   private var parentRoot: String? { store.library.tasks.first { $0.id == taskID }?.codexThreadID }
   private var refreshKey: String {
     [detail.selected?.id ?? "", String(reload), current?.status.rawValue ?? "",
@@ -24,7 +25,7 @@ struct SubagentWorkspacePanel: View {
       if let selected = detail.selected {
         header(selected)
         Divider()
-        SubagentTranscriptView(transcript: detail.transcript, loading: detail.loading, error: detail.error,
+        SubagentTranscriptView(transcript: detail.transcript, loading: detail.loading, error: detail.error ?? live?.error,
           retry: { reload += 1 }, openLink: openLink)
         if current?.acceptsInput == true && parentRoot == selected.rootThreadID {
           composer
@@ -35,6 +36,7 @@ struct SubagentWorkspacePanel: View {
     }
     .task(id: refreshKey) {
       guard detail.selected != nil else { return }
+      detail.updateLive(live)
       repeat {
         await detail.load(using: read)
         guard !Task.isCancelled, detail.selected != nil else { return }
@@ -44,6 +46,7 @@ struct SubagentWorkspacePanel: View {
         do { try await Task.sleep(for: .seconds(1)) } catch { return }
       } while !Task.isCancelled
     }
+    .onChange(of: live) { _, state in detail.updateLive(state) }
     .onChange(of: parentRoot) { _, _ in detail.select(nil) }
     .onChange(of: current) { _, agent in if let agent { detail.update(agent) } }
   }

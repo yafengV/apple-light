@@ -6,6 +6,7 @@ import CryptoKit
 final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
   var onRuntimeCommandEvent: ((String, String?, JSONValue) -> Void)?
+  var onSubagentEvent: ((String, String?, JSONValue) -> Void)?
   var onSubagentSnapshot: ((String, String?, JSONValue) -> Void)?
   var onThreadDisconnected: ((String) -> Void)?
   var onHookEvent: ((String, String?, JSONValue) -> Void)?
@@ -622,6 +623,11 @@ final class CodexChatTransport {
   private func receive(_ payload: JSONValue) {
     guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
+    if event["type"].text == "shipios_subagent_event" {
+      guard activeThreads.contains(taskID) else { return }
+      onSubagentEvent?(taskID, payload["threadId"].text, event)
+      return
+    }
     if event["type"].text == "shipios_subagent_snapshot" {
       guard activeThreads.contains(taskID) else { return }
       onSubagentSnapshot?(taskID, payload["threadId"].text, event)

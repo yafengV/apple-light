@@ -5,7 +5,7 @@ mod browser_tool;
 mod confetti_tool;
 mod descendant_interrupts;
 mod descendants;
-pub use descendants::{DescendantSource, NativeSubagent};
+pub use descendants::{DescendantSource, NativeSubagent, public_descendant_event};
 #[cfg(test)]
 mod descendant_interrupts_tests;
 mod hook_plugins;

@@ -241,6 +241,7 @@ final class WorkspaceStore {
   var mcpRefreshingServers: Set<UUID> = []
   var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]
   var backgroundTerminalCleanup: [String: UUID] = [:]
+  var subagentLiveStates: [String: SubagentLiveState] = [:]
   @ObservationIgnored var subagentSnapshotAssemblers: [String: CodexSubagentSnapshotAssembler] = [:]
   @ObservationIgnored var subagentSnapshotRevisions: [String: Int] = [:]
   @ObservationIgnored var backgroundTerminalCleanupRequests: Set<String> = []
@@ -542,6 +543,9 @@ final class WorkspaceStore {
     codexTransport.onThreadDisconnected = { [weak self] taskID in
       self?.disconnectBackgroundTerminals(taskID: taskID)
       self?.disconnectSubagents(taskID: taskID)
+    }
+    codexTransport.onSubagentEvent = { [weak self] taskID, threadID, event in
+      self?.recordSubagentEvent(taskID: taskID, threadID: threadID, event: event)
     }
     codexTransport.onSubagentSnapshot = { [weak self] taskID, threadID, event in
       self?.recordSubagentSnapshot(taskID: taskID, threadID: threadID, event: event)

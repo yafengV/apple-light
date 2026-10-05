@@ -49,11 +49,21 @@ extension WorkspaceStore {
     saveLibrary()
   }
 
+  func recordSubagentEvent(taskID: String, threadID: String?, event: JSONValue) {
+    guard let threadID, library.tasks.first(where: { $0.id == taskID })?.codexThreadID == threadID,
+      let child = event["childThreadId"].text,
+      let agent = subagents(taskID: taskID).first(where: { $0.rootThreadID == threadID && $0.threadID == child }) else { return }
+    var state = subagentLiveStates[agent.id] ?? .init()
+    state.append(event, child: child)
+    subagentLiveStates[agent.id] = state
+  }
+
   func disconnectSubagents(taskID: String) {
     subagentSnapshotAssemblers.removeValue(forKey: taskID)
     subagentSnapshotRevisions.removeValue(forKey: taskID)
     guard let index = library.tasks.firstIndex(where: { $0.id == taskID }),
       var rows = library.tasks[index].codexSubagents else { return }
+    for row in rows { subagentLiveStates.removeValue(forKey: row.id) }
     let before = rows
     for i in rows.indices { rows[i].disconnect() }
     guard before != rows else { return }

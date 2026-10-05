@@ -1,14 +1,18 @@
 use serde_json::{Value, json};
 use shipios_codex::{DescendantSource, NativeSubagent};
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use tokio::{
     sync::{broadcast, watch},
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
 };
 use uuid::Uuid;
 
 /// Owned by the root actor, but status discovery never delays its commands or
-/// consumes child events. After a root turn ends, active children keep polling.
+/// competes with the root event reader. One host reader fans out each loaded
+/// child; native completion watchers use their independent status subscription.
 pub(crate) struct DescendantMonitor {
     refresh: watch::Sender<Refresh>,
     worker: Option<JoinHandle<()>>,
@@ -17,6 +21,7 @@ pub(crate) struct DescendantMonitor {
 #[derive(Clone, Default)]
 struct Refresh {
     revision: u64,
+    stopping: bool,
     submissions: HashMap<String, String>,
 }
 
@@ -31,22 +36,38 @@ impl DescendantMonitor {
         let (refresh, mut changes) = watch::channel(Refresh::default());
         let completed = refresh.clone();
         let worker = tokio::spawn(async move {
+            let mut readers = JoinSet::new();
+            let mut claimed = HashSet::new();
             let mut previous = None;
             let mut revision = 0_u64;
             let mut retry_or_active = true;
             let mut tick = tokio::time::interval(Duration::from_millis(500));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
+                if changes.borrow().stopping {
+                    // Shutdown has already asked native descendants to close.
+                    // Give their final queued events a bounded drain, then drop
+                    // JoinSet to abort any reader whose native shutdown failed.
+                    let _ = tokio::time::timeout(Duration::from_secs(2), async {
+                        while readers.join_next().await.is_some() {}
+                    })
+                    .await;
+                    break;
+                }
                 tokio::select! {
                     _ = tick.tick(), if retry_or_active => {},
                     result = changes.changed() => {
                         if result.is_err() { break; }
                         previous = None;
                     },
+                    _ = readers.join_next(), if !readers.is_empty() => { continue; },
                     result = created.recv() => {
                         if matches!(result, Err(broadcast::error::RecvError::Closed)) { break; }
                         // Lagged notifications require a complete rescan too.
                     },
+                }
+                if changes.borrow().stopping {
+                    continue;
                 }
                 let pending = changes.borrow().submissions.clone();
                 for (child, turn) in pending {
@@ -79,13 +100,57 @@ impl DescendantMonitor {
                 retry_or_active = rows.iter().any(|row| {
                     row.loaded && matches!(row.status.as_str(), "running" | "pendingInit")
                 }) || !changes.borrow().submissions.is_empty();
-                if previous.as_ref() == Some(&rows) {
-                    continue;
+                if previous.as_ref() != Some(&rows) {
+                    revision += 1;
+                    // Publish membership before any child reader can fan out.
+                    for event in snapshot_frames(&rows, revision) {
+                        let _ = events.send(json!({"taskId":task_id,
+                            "threadId":root_thread_id,"event":event}));
+                    }
                 }
-                revision += 1;
-                for event in snapshot_frames(&rows, revision) {
-                    let _ = events.send(json!({"taskId":task_id,
-                        "threadId":root_thread_id,"event":event}));
+                claimed.retain(|id| rows.iter().any(|r| &r.thread_id == id && r.loaded));
+                for row in &rows {
+                    if !row.loaded || row.status == "shutdown" || claimed.contains(&row.thread_id) {
+                        continue;
+                    }
+                    if let Ok(Ok(thread)) = tokio::time::timeout(
+                        Duration::from_secs(10),
+                        source.event_thread(&row.thread_id),
+                    )
+                    .await
+                    {
+                        claimed.insert(row.thread_id.clone());
+                        let events = events.clone();
+                        let task_id = task_id.clone();
+                        let root_thread_id = root_thread_id.clone();
+                        let child = row.thread_id.clone();
+                        readers.spawn(async move {
+                            let stream = Uuid::new_v4().to_string();
+                            let mut sequence = 0_u64;
+                            while let Ok(event) = thread.next_event().await {
+                                let closed =
+                                    matches!(event.msg, codex_core_api::EventMsg::ShutdownComplete);
+                                if let Ok(Some(value)) =
+                                    shipios_codex::public_descendant_event(event.msg)
+                                {
+                                    sequence += 1;
+                                    for frame in live_event_frames(
+                                        &child, &stream, sequence, &event.id, &value,
+                                    ) {
+                                        let _ = events.send(json!({"taskId":task_id,
+                                            "threadId":root_thread_id,"event":frame}));
+                                    }
+                                }
+                                if closed {
+                                    break;
+                                }
+                            }
+                        });
+                    } else {
+                        // A completion can race discovery. Keep retrying until
+                        // this loaded queue is actually claimed or becomes cold.
+                        retry_or_active = true;
+                    }
                 }
                 previous = Some(rows);
             }
@@ -110,8 +175,15 @@ impl DescendantMonitor {
 
     pub async fn stop(mut self) {
         if let Some(worker) = self.worker.take() {
-            worker.abort();
-            let _ = worker.await;
+            self.refresh.send_modify(|v| v.stopping = true);
+            let mut worker = worker;
+            if tokio::time::timeout(Duration::from_secs(3), &mut worker)
+                .await
+                .is_err()
+            {
+                worker.abort();
+                let _ = worker.await;
+            }
         }
     }
 }
@@ -122,6 +194,34 @@ impl Drop for DescendantMonitor {
             worker.abort();
         }
     }
+}
+
+fn live_event_frames(
+    child: &str,
+    stream: &str,
+    sequence: u64,
+    event_id: &str,
+    event: &Value,
+) -> Vec<Value> {
+    use sha2::{Digest, Sha256};
+    let bytes = serde_json::to_string(event).expect("JSON value serializes");
+    let digest = format!("{:x}", Sha256::digest(bytes.as_bytes()));
+    let mut offset = 0;
+    let mut frames = Vec::new();
+    while offset < bytes.len() {
+        let mut end = offset.saturating_add(48 * 1024).min(bytes.len());
+        while !bytes.is_char_boundary(end) {
+            end -= 1;
+        }
+        frames.push(
+            json!({"type":"shipios_subagent_event", "childThreadId":child,
+            "streamId":stream,"sequence":sequence,"eventId":event_id,
+            "offset":offset,"totalBytes":bytes.len(),"sha256":digest,
+            "done":end == bytes.len(),"chunk":&bytes[offset..end]}),
+        );
+        offset = end;
+    }
+    frames
 }
 
 fn snapshot_frames(rows: &[NativeSubagent], revision: u64) -> Vec<Value> {
@@ -152,6 +252,39 @@ fn snapshot_frames(rows: &[NativeSubagent], revision: u64) -> Vec<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn live_frames_keep_child_event_identity_and_all_unicode_bytes() {
+        let event = json!({"type":"agent_message","message":"中文🙂\\\"".repeat(30000)});
+        let frames = live_event_frames(
+            "child",
+            &Uuid::new_v4().to_string(),
+            42,
+            "native-id",
+            &event,
+        );
+        assert!(frames.len() > 1);
+        let mut bytes = String::new();
+        for frame in &frames {
+            assert_eq!(frame["childThreadId"], "child");
+            assert_eq!(frame["eventId"], "native-id");
+            assert_eq!(frame["sequence"], 42);
+            assert_eq!(frame["streamId"], frames[0]["streamId"]);
+            assert_eq!(frame["offset"], bytes.len());
+            assert!(serde_json::to_vec(frame).unwrap().len() < 512 * 1024);
+            bytes.push_str(frame["chunk"].as_str().unwrap());
+            assert_eq!(
+                frame["done"],
+                bytes.len() == frame["totalBytes"].as_u64().unwrap() as usize
+            );
+        }
+        assert_eq!(serde_json::from_str::<Value>(&bytes).unwrap(), event);
+        use sha2::{Digest, Sha256};
+        assert_eq!(
+            frames[0]["sha256"],
+            format!("{:x}", Sha256::digest(bytes.as_bytes()))
+        );
+    }
 
     #[test]
     fn snapshots_include_every_descendant_and_have_one_atomic_identity() {

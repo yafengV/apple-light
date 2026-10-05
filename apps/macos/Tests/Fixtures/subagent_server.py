@@ -29,6 +29,8 @@ class Handler(BaseHTTPRequestHandler):
         if 'subagent-child-' in text or 'subagent-peer-hold' in text:
             if 'subagent-child-followup' in text or 'subagent-child-long-history' in text:
                 pass
+            elif 'subagent-child-stream' in text:
+                pass
             elif 'subagent-child-complete' in text:
                 gate = Path(os.environ['SHIPIOS_SUBAGENT_COMPLETE_GATE'])
                 deadline = time.monotonic() + 25
@@ -36,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
                     time.sleep(.02)
             else:
                 time.sleep(30)
-            reply = ('子会话完整记录🙂' * 20_000 if 'subagent-child-long-history' in text else
+            reply = ('子任务实时🙂 完整回复' if 'subagent-child-stream' in text else '子会话完整记录🙂' * 20_000 if 'subagent-child-long-history' in text else
                      'Child followup only' if 'subagent-child-followup' in text else 'Native child finished')
             item = {'type': 'message', 'role': 'assistant', 'id': 'child-reply',
                     'content': [{'type': 'output_text', 'text': reply}]}
@@ -51,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
             item = {'type': 'message', 'role': 'assistant', 'id': 'parent-reply',
                     'content': [{'type': 'output_text', 'text': text}]}
         else:
-            mode = 'hold' if 'subagent-parent-stop' in text else 'complete'
+            mode = 'stream' if 'subagent-parent-stream' in text else 'hold' if 'subagent-parent-stop' in text else 'complete'
             item = {'type': 'function_call', 'call_id': 'spawn-fixture-child',
                     'name': 'spawn_agent', 'arguments': json.dumps({
                         'message': 'subagent-child-' + mode, 'agent_type': 'default'})}
@@ -71,6 +73,11 @@ class Handler(BaseHTTPRequestHandler):
                 item = {'type': 'message', 'role': 'assistant', 'id': 'missing-spawn',
                         'content': [{'type': 'output_text', 'text': 'Spawn tool was not discovered: ' +
                                      json.dumps(discovery.get('tools', []))[:512]}]}
+        if 'subagent-parent-stream-active' in request_text and item.get('id') == 'parent-reply':
+            parent_gate = Path(os.environ['SHIPIOS_SUBAGENT_PARENT_GATE'])
+            deadline = time.monotonic() + 30
+            while not parent_gate.exists() and time.monotonic() < deadline:
+                time.sleep(.02)
         trace = os.environ.get('SHIPIOS_SUBAGENT_REQUEST_LOG')
         if trace:
             parts = item.get('content', [])
@@ -91,6 +98,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
             self.end_headers()
+            if 'subagent-child-stream' in request_text:
+                streaming = [events[0],
+                    {'type': 'response.output_item.added', 'output_index': 0,
+                     'item': {'type': 'message', 'role': 'assistant', 'id': 'child-reply', 'content': []}},
+                    {'type': 'response.content_part.added', 'item_id': 'child-reply', 'output_index': 0,
+                     'content_index': 0, 'part': {'type': 'output_text', 'text': ''}},
+                    {'type': 'response.output_text.delta', 'item_id': 'child-reply', 'output_index': 0,
+                     'content_index': 0, 'delta': '子任务实时🙂'}]
+                for event in streaming:
+                    self.wfile.write(('event: ' + event['type'] + '\ndata: ' + json.dumps(event) + '\n\n').encode())
+                    self.wfile.flush()
+                gate = Path(os.environ['SHIPIOS_SUBAGENT_COMPLETE_GATE'])
+                deadline = time.monotonic() + 25
+                while not gate.exists() and time.monotonic() < deadline:
+                    time.sleep(.02)
+                events = events[1:]
             for event in events:
                 self.wfile.write(('event: ' + event['type'] + '\ndata: ' +
                                   json.dumps(event) + '\n\n').encode())

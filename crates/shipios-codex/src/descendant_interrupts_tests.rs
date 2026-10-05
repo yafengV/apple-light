@@ -269,6 +269,17 @@ fn descendant_history_reads_full_durable_and_cold_records_and_input_rejects_peer
             .start_thread(StartThreadOptions::new(parent.test_config.clone()))
             .await?;
         let source = parent.descendant_source();
+        assert!(source.event_thread(&parent.thread_id()).await.is_err());
+        assert!(
+            source
+                .event_thread(&peer.thread_id.to_string())
+                .await
+                .is_err()
+        );
+        assert!(std::sync::Arc::ptr_eq(
+            &source.event_thread(&child.thread_id.to_string()).await?,
+            &child.thread
+        ));
         assert!(source.history(&parent.thread_id()).await.is_err());
         assert!(source.history(&peer.thread_id.to_string()).await.is_err());
         assert!(
@@ -283,11 +294,16 @@ fn descendant_history_reads_full_durable_and_cold_records_and_input_rejects_peer
         assert!(!steered);
         assert!(!turn.is_empty());
         status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
-        assert!(
-            source
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !source
                 .submission_finished(&child.thread_id.to_string(), &turn)
                 .await?
-        );
+            {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            Ok::<_, anyhow::Error>(())
+        })
+        .await??;
         assert!(
             !source
                 .submission_finished(&child.thread_id.to_string(), "unknown")
@@ -367,11 +383,18 @@ fn descendant_history_reads_full_durable_and_cold_records_and_input_rejects_peer
         assert!(did_steer);
         child.thread.submit(Op::Interrupt).await?;
         status(&child.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
-        assert!(
-            source
+        // AgentStatus is published before the terminal rollout event. Wait
+        // for the same durable boundary that production monitoring requires.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !source
                 .submission_finished(&child.thread_id.to_string(), &busy)
                 .await?
-        );
+            {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            Ok::<_, anyhow::Error>(())
+        })
+        .await??;
         child.thread.flush_rollout().await?;
         parent.manager.remove_thread(&child.thread_id).await;
         let before = parent.manager.list_thread_ids().await;

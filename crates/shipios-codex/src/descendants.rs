@@ -27,7 +27,8 @@ pub struct NativeSubagent {
     pub preview: Option<String>,
 }
 
-/// A task-private manager view; never consumes a child or root event stream.
+/// A task-private manager view. The host owns one event reader per loaded child;
+/// durable history and status discovery do not consume events.
 #[derive(Clone)]
 pub struct DescendantSource {
     manager: Arc<ThreadManager>,
@@ -62,6 +63,13 @@ impl DescendantSource {
         Ok(id)
     }
 
+    /// Only the root-owned descendant monitor may claim this receiver. Native
+    /// completion watchers subscribe to status, not this host event queue.
+    pub async fn event_thread(&self, child: &str) -> Result<Arc<codex_core_api::CodexThread>> {
+        let id = self.validate_member(child).await?;
+        Ok(self.manager.get_thread(id).await?)
+    }
+
     /// Durable replay history, including pre-compaction messages. This does not
     /// reload a cold child or compete with any child event consumer.
     pub async fn history(&self, child: &str) -> Result<Vec<serde_json::Value>> {
@@ -85,25 +93,10 @@ impl DescendantSource {
         let mut events = Vec::new();
         for item in stored.items {
             match item {
-                codex_history::RolloutItem::EventMsg(
-                    codex_core_api::EventMsg::AgentReasoningRawContent(_)
-                    | codex_core_api::EventMsg::ReasoningRawContentDelta(_),
-                ) => {}
                 codex_history::RolloutItem::EventMsg(event) => {
-                    let mut value = serde_json::to_value(event)?;
-                    if value["type"] == "raw_response_item" {
-                        if !sanitize_response(&mut value["item"]) {
-                            continue;
-                        }
-                    } else if matches!(
-                        value["type"].as_str(),
-                        Some("item_started" | "item_completed")
-                    ) && value["item"]["type"] == "Reasoning"
-                        && let Some(fields) = value["item"].as_object_mut()
-                    {
-                        fields.remove("raw_content");
+                    if let Some(value) = public_descendant_event(event)? {
+                        events.push(value);
                     }
-                    events.push(value);
                 }
                 codex_history::RolloutItem::ResponseItem(entry) => {
                     let mut value = serde_json::to_value(entry.item)?;
@@ -299,6 +292,36 @@ impl DescendantSource {
     }
 }
 
+/// Shared by durable replay and live fanout so private context cannot leak via
+/// a different presentation channel.
+pub fn public_descendant_event(
+    event: codex_core_api::EventMsg,
+) -> Result<Option<serde_json::Value>> {
+    use codex_core_api::EventMsg;
+    if matches!(
+        event,
+        EventMsg::AgentReasoningRawContent(_)
+            | EventMsg::ReasoningRawContentDelta(_)
+            | EventMsg::SessionConfigured(_)
+    ) {
+        return Ok(None);
+    }
+    let mut value = serde_json::to_value(event)?;
+    if value["type"] == "raw_response_item" {
+        if !sanitize_response(&mut value["item"]) {
+            return Ok(None);
+        }
+    } else if matches!(
+        value["type"].as_str(),
+        Some("item_started" | "item_completed")
+    ) && value["item"]["type"] == "Reasoning"
+        && let Some(fields) = value["item"].as_object_mut()
+    {
+        fields.remove("raw_content");
+    }
+    Ok(Some(value))
+}
+
 fn sanitize_response(value: &mut serde_json::Value) -> bool {
     if matches!(value["role"].as_str(), Some("developer" | "system"))
         || matches!(
@@ -316,4 +339,45 @@ fn sanitize_response(value: &mut serde_json::Value) -> bool {
         }
     }
     true
+}
+
+#[cfg(test)]
+mod presentation_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn live_projection_preserves_public_summary_and_removes_private_response_content() -> Result<()>
+    {
+        let hidden =
+            serde_json::from_value(json!({"type":"agent_reasoning_raw_content","text":"private"}))?;
+        assert!(public_descendant_event(hidden)?.is_none());
+        let public = serde_json::from_value(json!({"type":"agent_reasoning","text":"public"}))?;
+        assert_eq!(public_descendant_event(public)?.unwrap()["text"], "public");
+        let item = serde_json::from_value(
+            json!({"type":"item_completed","thread_id":"00000000-0000-4000-8000-000000000001",
+            "turn_id":"turn","item":{"type":"Reasoning","id":"r",
+            "summary_text":["public item"],"raw_content":["private item"]}}),
+        )?;
+        let projected = public_descendant_event(item)?.unwrap();
+        assert_eq!(projected["item"]["summary_text"][0], "public item");
+        assert!(projected["item"].get("raw_content").is_none());
+        for role in ["system", "developer"] {
+            let mut response = json!({"type":"message","role":role,"content":[]});
+            assert!(!sanitize_response(&mut response));
+        }
+        let mut response = json!({"type":"reasoning","summary":[{"text":"public"}],
+            "content":[{"text":"private"}],"encrypted_content":"encrypted private",
+            "internal_chat_message_metadata_passthrough":"private metadata"});
+        assert!(sanitize_response(&mut response));
+        assert_eq!(response["summary"][0]["text"], "public");
+        assert!(response.get("content").is_none());
+        assert!(response.get("encrypted_content").is_none());
+        assert!(
+            response
+                .get("internal_chat_message_metadata_passthrough")
+                .is_none()
+        );
+        Ok(())
+    }
 }

@@ -1341,10 +1341,10 @@ async fn run_thread(
                 }
                 Some(Command::Stop(reply)) => {
                     let _ = live.interrupt_turn().await;
-                    if let Some(monitor) = monitor.take() { monitor.stop().await; }
                     let shutdown = session.take().expect("live session").shutdown_with_events(|event| {
                         let _ = events.send(json!({"taskId":task_id,"threadId":thread_id,"event":event}));
                     }).await;
+                    if let Some(monitor) = monitor.take() { monitor.stop().await; }
                     let mut active = sessions.lock().await;
                     if active.get(&task_key).is_some_and(|handle| handle.thread_id == thread_id) {
                         active.remove(&task_key);
@@ -1389,15 +1389,15 @@ async fn run_thread(
             }
         }
     }
-    if let Some(monitor) = monitor {
-        monitor.stop().await;
-    }
     if let Some(live) = session {
         let _ = live
             .shutdown_with_events(|event| {
                 let _ = events.send(json!({"taskId":task_id,"threadId":thread_id,"event":event}));
             })
             .await;
+    }
+    if let Some(monitor) = monitor {
+        monitor.stop().await;
     }
     let mut active = sessions.lock().await;
     if active
