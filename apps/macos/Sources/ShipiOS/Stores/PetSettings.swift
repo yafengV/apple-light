@@ -6,7 +6,9 @@ extension WorkspaceStore {
     if attentionTasks.contains(where: { taskAttentionKind(for: $0)?.requiresAction == true }) {
       return .needsInput
     }
-    if activeRun != nil || hasLiveModelRequests { return .running }
+    if activeRun != nil || hasLiveModelRequests || library.tasks.contains(where: {
+      !$0.archived && !activeSubagents(taskID: $0.id).isEmpty
+    }) { return .running }
     if let selectedRun, selectedRun.status == "failed" { return .blocked }
     if !library.unreadTasks.isEmpty { return .ready }
     return .idle

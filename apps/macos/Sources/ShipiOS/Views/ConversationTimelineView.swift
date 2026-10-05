@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConversationTimelineView: View {
   @Bindable var store: WorkspaceStore
+  @State private var childProjection = ChildElicitationProjection()
   @State private var scrolling = ConversationScrollState()
   @State private var mountedTexts: Set<ConversationTextID> = []
   @State private var pendingText: ConversationTextID?
@@ -17,6 +18,14 @@ struct ConversationTimelineView: View {
       orderedIDs: railItems.map(\.id), viewportHeight: railViewportHeight)
     return visible.isEmpty ? Set(railItems.suffix(1).map(\.id)) : visible
   }
+
+  private var childRequests: [SubagentElicitationPresentation] {
+    store.selectedTask.map { store.subagentElicitations(taskID: $0.id) } ?? []
+  }
+  private var childProjectionInput: ChildElicitationProjection.Input {
+    .init(root: store.selectedTask?.codexThreadID, turns: store.conversationRuns.map(\.id), requests: childRequests.map(\.id))
+  }
+  private var projectedEntries: [ChildElicitationProjection.Entry] { childProjection.projected(childProjectionInput) }
 
   private struct Revision: Equatable {
     let id: String
@@ -47,9 +56,18 @@ struct ConversationTimelineView: View {
             }.buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
               .disabled(!store.canSelectTask(source))
           }
-          ForEach(store.conversationRuns) { run in
-            ExecutionMessageView(store: store, run: run, railSpace: railSpace).id(run.id).padding(4)
-              .conversationRailPosition(run.id, in: railSpace)
+          ForEach(projectedEntries) { entry in
+            switch entry {
+            case .turn(let id):
+              if let run = store.conversationRuns.first(where: { $0.id == id }) {
+                ExecutionMessageView(store: store, run: run, railSpace: railSpace).id(run.id).padding(4)
+                  .conversationRailPosition(run.id, in: railSpace)
+              }
+            case .child(let id, _):
+              if let taskID = store.selectedTask?.id, let request = childRequests.first(where: { $0.id == id }) {
+                ProjectedSubagentElicitationView(store: store, taskID: taskID, presentation: request).id(entry.id)
+              }
+            }
           }
           Color.clear.frame(height: 1).id("conversation-end")
         }.frame(maxWidth: 760).padding(.horizontal, 32).padding(.vertical, 28)
@@ -122,12 +140,24 @@ struct ConversationTimelineView: View {
             .accessibilityLabel(scrolling.hasNewContent ? "有新内容，返回底部" : "返回底部")
         }
       }
+      .onChange(of: childProjectionInput, initial: true) { _, input in
+        let old = Set(childProjection.entries.map(\.id))
+        childProjection.update(input)
+        if childProjection.entries.contains(where: { !old.contains($0.id) }), scrolling.contentChanged() { scrollToLatest(reader) }
+      }
       .onChange(of: revisions) { _, _ in
         if scrolling.contentChanged() { scrollToLatest(reader) }
       }
       .onChange(of: store.findRequest) { _, _ in findMatch(reader) }
       .onChange(of: store.conversationReveal, initial: true) { _, request in
-        guard let request, store.conversationRuns.contains(where: { $0.id == request.runID }) else { return }
+        guard let request else { return }
+        if let child = request.childRequestID,
+          projectedEntries.contains(where: { $0.id == "child-elicitation:" + child }) {
+          pendingText = nil; pendingMatch = nil; scrolling.pauseFollowing()
+          reader.scrollTo("child-elicitation:" + child, anchor: .top)
+          return
+        }
+        guard store.conversationRuns.contains(where: { $0.id == request.runID }) else { return }
         pendingText = nil
         pendingMatch = nil
         scrolling.pauseFollowing()

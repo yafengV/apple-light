@@ -18,6 +18,7 @@ struct TaskWindowView: View {
   var onBackgroundAgentFocus: (() -> Void)? = nil
   @Environment(\.openWindow) private var openWindow
   @Environment(\.dismiss) private var dismiss
+  @State private var childProjection = ChildElicitationProjection()
   @State private var forkError: String?
   @State private var handoffError: String?
   @State private var actionError: String?
@@ -1257,6 +1258,12 @@ struct TaskWindowView: View {
     }.simultaneousGesture(TapGesture().onEnded { tabs.activate(tab.id, focus: false) })
   }
 
+  private var childRequests: [SubagentElicitationPresentation] { store.subagentElicitations(taskID: taskID) }
+  private var childProjectionInput: ChildElicitationProjection.Input {
+    .init(root: task?.codexThreadID, turns: taskRuns.map(\.id), requests: childRequests.map(\.id))
+  }
+  private var projectedEntries: [ChildElicitationProjection.Entry] { childProjection.projected(childProjectionInput) }
+
   private var taskTimeline: some View {
     ScrollViewReader { reader in
       ScrollView {
@@ -1267,19 +1274,28 @@ struct TaskWindowView: View {
               Label("分叉自 \(source.title)", systemImage: "arrow.triangle.branch").lineLimit(2)
             }.buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
           }
-          ForEach(taskRuns) { run in
-            TaskWindowMessageView(
-              store: store, run: run,
-              onPreviewFile: { previewFile = $0 },
-              onInspect: { selected in
-                tabs.activate(nil, focus: false)
-                executionRunID = selected.id
-                executionInspectorTab = "overview"
-              },
-              canFork: !windowCommandsBlocked && store.canForkTaskWindow(taskID, through: run.id),
-              onFork: { forkTask(through: run.id) },
-              railSpace: railSpace
-            ).id(run.id).conversationRailPosition(run.id, in: railSpace)
+          ForEach(projectedEntries) { entry in
+            switch entry {
+            case .turn(let id):
+              if let run = taskRuns.first(where: { $0.id == id }) {
+                TaskWindowMessageView(
+                  store: store, run: run,
+                  onPreviewFile: { previewFile = $0 },
+                  onInspect: { selected in
+                    tabs.activate(nil, focus: false)
+                    executionRunID = selected.id
+                    executionInspectorTab = "overview"
+                  },
+                  canFork: !windowCommandsBlocked && store.canForkTaskWindow(taskID, through: run.id),
+                  onFork: { forkTask(through: run.id) },
+                  railSpace: railSpace
+                ).id(run.id).conversationRailPosition(run.id, in: railSpace)
+              }
+            case .child(let id, _):
+              if let request = childRequests.first(where: { $0.id == id }) {
+                ProjectedSubagentElicitationView(store: store, taskID: taskID, presentation: request).id(entry.id)
+              }
+            }
           }
           Color.clear.frame(height: 1).id("task-window-end")
         }
@@ -1317,6 +1333,9 @@ struct TaskWindowView: View {
         railPositions = positions
       }
       .onPreferenceChange(ConversationRailViewportHeight.self) { railViewportHeight = $0 }
+      .onChange(of: childProjectionInput, initial: true) { _, input in
+        childProjection.update(input)
+      }
       .onChange(of: taskRuns.map(\.updatedAt)) { _, _ in
         guard !showingFind else { return }
         withAnimation(.easeOut(duration: 0.15)) { reader.scrollTo("task-window-end", anchor: .bottom) }

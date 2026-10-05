@@ -35,7 +35,7 @@ extension WorkspaceStore {
       guard !task.archived, !task.isTransient, !task.runIDs.isEmpty else { return nil }
       let kind = taskAttentionKind(for: task)
       let attention = kind?.requiresAction == true ? kind : nil
-      let running = task.runIDs.contains { knownRuns[$0]?.isActive == true }
+      let running = task.runIDs.contains { knownRuns[$0]?.isActive == true } || !activeSubagents(taskID: task.id).isEmpty
       let unread = library.unreadTasks.contains(task.id)
       let scheduled = scheduledIDs.contains(task.id)
         || task.runIDs.contains { knownRuns[$0]?.request["automation_id"].text != nil }

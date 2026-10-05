@@ -47,6 +47,7 @@ extension WorkspaceStore {
     guard next != previous else { return }
     library.tasks[index].codexSubagents = next
     saveLibrary()
+    notifySubagentRequests(taskID: taskID)
   }
 
   func recordSubagentEvent(taskID: String, threadID: String?, event: JSONValue) {
@@ -58,6 +59,7 @@ extension WorkspaceStore {
     else if event["type"].text == "shipios_subagent_elicitation_state" { state.receiveElicitation(event, child: child) }
     else { state.append(event, child: child) }
     subagentLiveStates[agent.id] = state
+    notifySubagentRequests(taskID: taskID)
   }
 
   func resolveSubagentApproval(taskID: String, agent: CodexSubagent, request: SubagentApprovalRequest, choice: Int) async {
@@ -129,6 +131,7 @@ extension WorkspaceStore {
         subagentElicitationBusy.remove(token); subagentElicitationErrors.removeValue(forKey: token)
       }
       subagentLiveStates.removeValue(forKey: row.id)
+      subagentNotifiedRequests = subagentNotifiedRequests.filter { !$0.hasPrefix(row.id + ":") }
     }
     let before = rows
     for i in rows.indices { rows[i].disconnect() }

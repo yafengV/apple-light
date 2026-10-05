@@ -89,15 +89,16 @@ final class SubagentElicitationIntegrationTests: XCTestCase {
     if server?.isRunning == true { server.terminate(); server.waitUntilExit() }
     try? FileManager.default.removeItem(at: root)
   }
-  @MainActor private func waitFor(_ condition: @escaping @MainActor () -> Bool) async throws {
+  @MainActor func waitFor(_ condition: @escaping @MainActor () -> Bool) async throws {
     let deadline = ContinuousClock.now.advanced(by: .seconds(20))
     while !condition() { guard ContinuousClock.now < deadline else { throw AgentFailure(message: "Child MCP timed out") }; try await Task.sleep(for: .milliseconds(20)) }
   }
-  @MainActor private func setup(mode: String) async throws -> (WorkspaceStore, String, String, CodexSubagent, SubagentElicitationRequest, URL) {
+  @MainActor func setup(mode: String, delivery: (any NotificationDelivery)? = nil) async throws -> (WorkspaceStore, String, String, CodexSubagent, SubagentElicitationRequest, URL) {
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: try AgentTestExecutable.url())
     await store.restore(); await store.openProjectless()
     var config = ModelConfiguration(); config.apiProtocol = .codexResponses; config.baseURL = endpoint; config.model = "gpt-5.4"
     try store.saveModelConfiguration(config); store.notificationPreferences = .init(timing: .never)
+    if let delivery { store.notifications = CompletionNotificationCenter(delivery: delivery) }
     addTeardownBlock { await store.shutdown() }
     let log = root.appendingPathComponent("mcp-answer.jsonl")
     var mcp = MCPServerConfiguration(); mcp.name = "shipios_capture"; mcp.command = "/usr/bin/python3"

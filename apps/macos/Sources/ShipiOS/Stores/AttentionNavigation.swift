@@ -25,13 +25,14 @@ extension WorkspaceStore {
   func taskAttentionKind(for task: WorkspaceTask) -> TaskAttentionKind? {
     guard !task.archived, !task.runIDs.isEmpty else { return nil }
     let runIDs = Set(task.runIDs)
-    if mcpPendingApprovals.values.contains(where: { runIDs.contains($0.runID) }) {
+    let child = subagentAttention(taskID: task.id)
+    if child == .approval || mcpPendingApprovals.values.contains(where: { runIDs.contains($0.runID) }) {
       return .approval
     }
     if codexPendingQuestions.values.contains(where: { runIDs.contains($0.runID) }) {
       return .question
     }
-    if codexPendingElicitations.values.contains(where: { runIDs.contains($0.runID) }) {
+    if child == .elicitation || codexPendingElicitations.values.contains(where: { runIDs.contains($0.runID) }) {
       return .elicitation
     }
     return library.unreadTasks.contains(task.id) ? .unread : nil

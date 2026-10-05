@@ -48,16 +48,28 @@ struct CompletionNotificationPreferences: Codable, Equatable {
   }
 }
 
+struct SubagentNotificationTarget: Equatable {
+  let rootThreadID: String
+  let childThreadID: String
+  let requestToken: String
+}
+
 struct NotificationDestination: Equatable {
   let dataRoot: String
   let project: String
   let taskID: String
   let runID: String
+  let subagent: SubagentNotificationTarget?
   var userInfo: [String: String] {
-    ["dataRoot": dataRoot, "project": project, "taskID": taskID, "runID": runID]
+    var info = ["dataRoot": dataRoot, "project": project, "taskID": taskID, "runID": runID]
+    if let subagent {
+      info["subagentRootThreadID"] = subagent.rootThreadID; info["subagentThreadID"] = subagent.childThreadID
+      info["subagentRequestToken"] = subagent.requestToken
+    }
+    return info
   }
-  init(dataRoot: String, project: String, taskID: String, runID: String) {
-    self.dataRoot = dataRoot; self.project = project; self.taskID = taskID; self.runID = runID
+  init(dataRoot: String, project: String, taskID: String, runID: String, subagent: SubagentNotificationTarget? = nil) {
+    self.dataRoot = dataRoot; self.project = project; self.taskID = taskID; self.runID = runID; self.subagent = subagent
   }
   init?(userInfo: [AnyHashable: Any]) {
     guard let root = userInfo["dataRoot"] as? String,
@@ -66,7 +78,16 @@ struct NotificationDestination: Equatable {
       let run = userInfo["runID"] as? String,
       !root.isEmpty, !task.isEmpty, !run.isEmpty
     else { return nil }
-    self.init(dataRoot: root, project: project, taskID: task, runID: run)
+    let keys = ["subagentRootThreadID", "subagentThreadID", "subagentRequestToken"]
+    var subagent: SubagentNotificationTarget?
+    if keys.contains(where: { userInfo[$0] != nil }) {
+      guard let parent = userInfo[keys[0]] as? String, let child = userInfo[keys[1]] as? String,
+        let token = userInfo[keys[2]] as? String, UUID(uuidString: parent) != nil,
+        UUID(uuidString: child) != nil, UUID(uuidString: token) != nil,
+        UUID(uuidString: parent) != UUID(uuidString: child) else { return nil }
+      subagent = .init(rootThreadID: parent, childThreadID: child, requestToken: token)
+    }
+    self.init(dataRoot: root, project: project, taskID: task, runID: run, subagent: subagent)
   }
 }
 
@@ -86,12 +107,12 @@ struct CompletionNotice: Equatable {
       destination: NotificationDestination(dataRoot: root.path, project: run.project, taskID: task.id, runID: run.id))
   }
   static func attention(_ kind: TaskNotificationKind, eventID: UUID,
-    run: AgentRun, task: WorkspaceTask, root: URL) -> Self {
+    run: AgentRun, task: WorkspaceTask, root: URL, subagent: SubagentNotificationTarget? = nil) -> Self {
     Self(id: "\(scope(root)):\(run.id):\(kind.rawValue):\(eventID.uuidString)",
       title: kind == .approval ? "需要批准操作" : "需要回答问题",
       body: task.title,
       destination: NotificationDestination(dataRoot: root.path, project: run.project,
-        taskID: task.id, runID: run.id), kind: kind)
+        taskID: task.id, runID: run.id, subagent: subagent), kind: kind)
   }
 }
 

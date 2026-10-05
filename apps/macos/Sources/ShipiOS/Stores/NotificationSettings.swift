@@ -3,6 +3,7 @@ import AppKit
 struct ConversationRevealRequest: Equatable {
   let id = UUID()
   let runID: String
+  var childRequestID: String? = nil
 }
 
 extension WorkspaceStore {
@@ -42,17 +43,24 @@ extension WorkspaceStore {
     }
   }
 
-  func notifyAttention(runID: String, kind: TaskNotificationKind, eventID: UUID) {
+  func notifyAttention(runID: String, kind: TaskNotificationKind, eventID: UUID, subagent: SubagentNotificationTarget? = nil) {
     guard kind != .completion,
       let run = library.chatRuns.first(where: { $0.id == runID }),
       let task = library.task(containing: runID), !task.archived,
       task.project == run.project else { return }
     let notice = CompletionNotice.attention(kind, eventID: eventID,
-      run: run, task: task, root: dataRoot)
+      run: run, task: task, root: dataRoot, subagent: subagent)
     Task { [weak self] in
       guard let self else { return }
       await notifications.deliver(notice) {
-        (self.notificationPreferences, NSApp?.isActive ?? false)
+        var preferences = self.notificationPreferences
+        if let subagent, !self.subagentElicitations(taskID: task.id, includeResolving: false).contains(where: {
+          $0.agent.rootThreadID == subagent.rootThreadID && $0.agent.threadID == subagent.childThreadID
+            && $0.request.id == subagent.requestToken
+        }) {
+          preferences.approvalAlertsEnabled = false; preferences.questionAlertsEnabled = false
+        }
+        return (preferences, NSApp?.isActive ?? false)
       }
     }
   }
@@ -73,7 +81,11 @@ extension WorkspaceStore {
     selection = target.runID
     rememberProjectSelection()
     saveLibrary()
-    conversationReveal = ConversationRevealRequest(runID: target.runID)
+    let childRequestID = target.subagent.flatMap { identity in
+      subagentElicitations(taskID: task.id).first { $0.agent.rootThreadID == identity.rootThreadID
+        && $0.agent.threadID == identity.childThreadID && $0.request.id == identity.requestToken }?.id
+    }
+    conversationReveal = ConversationRevealRequest(runID: target.runID, childRequestID: childRequestID)
     return true
   }
 }

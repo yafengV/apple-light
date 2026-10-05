@@ -247,7 +247,8 @@ final class WorkspaceStore {
   var subagentStopBusy: [String: String] = [:]
   var subagentStopErrors: [String: String] = [:]
   var subagentApprovalErrors: [String: String] = [:]
-  var subagentLiveStates: [String: SubagentLiveState] = [:]
+  var subagentLiveStates: [String: SubagentLiveState] = [:] { didSet { synchronizeActivityPriority() } }
+  @ObservationIgnored var subagentNotifiedRequests: Set<String> = []
   @ObservationIgnored var subagentSnapshotAssemblers: [String: CodexSubagentSnapshotAssembler] = [:]
   @ObservationIgnored var subagentSnapshotRevisions: [String: Int] = [:]
   @ObservationIgnored var backgroundTerminalCleanupRequests: Set<String> = []

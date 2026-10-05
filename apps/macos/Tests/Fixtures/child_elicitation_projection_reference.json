@@ -1,0 +1,341 @@
+{
+  "moduleSHA256": "33464c6a3248722495ae5b9b3d78b2fff0095ff83024fa12d49207ff3387f431",
+  "functionSHA256": "ab259c2a4df346835c86e8e63d1fa68f19f62db2bb7916e5c44a1fe8fdca0529",
+  "scope": "ordinary loaded turn entries only; no placeholder, voice or compact Aeon fixtures",
+  "cases": [
+    {
+      "name": "new-after-last",
+      "turns": [
+        "a",
+        "b"
+      ],
+      "requests": [
+        "q1"
+      ],
+      "previous": [],
+      "expected": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        }
+      ]
+    },
+    {
+      "name": "retain-anchor-after-new-turn",
+      "turns": [
+        "a",
+        "b",
+        "c"
+      ],
+      "requests": [
+        "q1"
+      ],
+      "previous": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        }
+      ],
+      "expected": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        },
+        {
+          "type": "turn",
+          "id": "c"
+        }
+      ]
+    },
+    {
+      "name": "remove-settled",
+      "turns": [
+        "a",
+        "b"
+      ],
+      "requests": [],
+      "previous": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        }
+      ],
+      "expected": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        }
+      ]
+    },
+    {
+      "name": "removed-anchor-falls-back",
+      "turns": [
+        "a",
+        "c"
+      ],
+      "requests": [
+        "q1"
+      ],
+      "previous": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        },
+        {
+          "type": "turn",
+          "id": "c"
+        }
+      ],
+      "expected": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "a"
+        },
+        {
+          "type": "turn",
+          "id": "c"
+        }
+      ]
+    },
+    {
+      "name": "removed-all-earlier-turns",
+      "turns": [
+        "c"
+      ],
+      "requests": [
+        "q1"
+      ],
+      "previous": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        }
+      ],
+      "expected": [
+        {
+          "type": "child",
+          "id": "q1",
+          "after": null
+        },
+        {
+          "type": "turn",
+          "id": "c"
+        }
+      ]
+    },
+    {
+      "name": "old-order-before-new",
+      "turns": [
+        "a",
+        "b"
+      ],
+      "requests": [
+        "q1",
+        "q2",
+        "q3"
+      ],
+      "previous": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "child",
+          "id": "q2",
+          "after": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        }
+      ],
+      "expected": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "child",
+          "id": "q2",
+          "after": "a"
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "b"
+        },
+        {
+          "type": "child",
+          "id": "q3",
+          "after": "b"
+        }
+      ]
+    },
+    {
+      "name": "no-base-does-not-create",
+      "turns": [],
+      "requests": [
+        "q1"
+      ],
+      "previous": [],
+      "expected": []
+    },
+    {
+      "name": "no-base-retains-existing-only",
+      "turns": [],
+      "requests": [
+        "q2",
+        "q3"
+      ],
+      "previous": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "child",
+          "id": "q1",
+          "after": "a"
+        },
+        {
+          "type": "child",
+          "id": "q2",
+          "after": "a"
+        }
+      ],
+      "expected": [
+        {
+          "type": "child",
+          "id": "q2",
+          "after": "a"
+        }
+      ]
+    },
+    {
+      "name": "same-request-different-child",
+      "turns": [
+        "a"
+      ],
+      "requests": [
+        "first:shared",
+        "second:shared"
+      ],
+      "previous": [],
+      "expected": [
+        {
+          "type": "turn",
+          "id": "a"
+        },
+        {
+          "type": "child",
+          "id": "first:shared",
+          "after": "a"
+        },
+        {
+          "type": "child",
+          "id": "second:shared",
+          "after": "a"
+        }
+      ]
+    },
+    {
+      "name": "retain-unanchored-before-new-base",
+      "turns": [
+        "b"
+      ],
+      "requests": [
+        "q1"
+      ],
+      "previous": [
+        {
+          "type": "child",
+          "id": "q1",
+          "after": null
+        }
+      ],
+      "expected": [
+        {
+          "type": "child",
+          "id": "q1",
+          "after": null
+        },
+        {
+          "type": "turn",
+          "id": "b"
+        }
+      ]
+    }
+  ]
+}
