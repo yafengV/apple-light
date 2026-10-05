@@ -1,5 +1,8 @@
-use anyhow::Result;
-use codex_core_api::{SessionSource, ThreadId, ThreadManager};
+use anyhow::{Result, bail, ensure};
+use codex_core_api::{
+    SessionSource, StartIfIdleSubmission, SteerSubmission, ThreadId, ThreadManager,
+    TurnInputRequest, UserInput,
+};
 use codex_protocol::protocol::{AgentStatus, SubAgentSource};
 use serde::Serialize;
 use std::{
@@ -29,15 +32,174 @@ pub struct NativeSubagent {
 pub struct DescendantSource {
     manager: Arc<ThreadManager>,
     parent: ThreadId,
+    store: Arc<dyn codex_thread_store::ThreadStore>,
 }
 
 impl DescendantSource {
-    pub(crate) fn new(manager: Arc<ThreadManager>, parent: ThreadId) -> Self {
-        Self { manager, parent }
+    pub(crate) fn new(
+        manager: Arc<ThreadManager>,
+        parent: ThreadId,
+        store: Arc<dyn codex_thread_store::ThreadStore>,
+    ) -> Self {
+        Self {
+            manager,
+            parent,
+            store,
+        }
+    }
+
+    pub async fn validate_member(&self, child: &str) -> Result<ThreadId> {
+        let id = ThreadId::from_string(child)?;
+        ensure!(
+            id != self.parent
+                && self
+                    .snapshot()
+                    .await?
+                    .iter()
+                    .any(|row| row.thread_id == id.to_string()),
+            "thread is not a descendant of this task"
+        );
+        Ok(id)
+    }
+
+    /// Durable replay history, including pre-compaction messages. This does not
+    /// reload a cold child or compete with any child event consumer.
+    pub async fn history(&self, child: &str) -> Result<Vec<serde_json::Value>> {
+        let id = self.validate_member(child).await?;
+        if let Ok(thread) = self.manager.get_thread(id).await {
+            thread.flush_rollout().await?;
+        }
+        let stored = self
+            .store
+            .load_history(codex_thread_store::LoadThreadHistoryParams {
+                thread_id: id,
+                include_archived: true,
+            })
+            .await?;
+        ensure!(
+            stored.thread_id == id,
+            "descendant history identity changed"
+        );
+        // Host configuration, private developer context and encrypted reasoning
+        // are not presentation records. Keep every persisted public event.
+        let mut events = Vec::new();
+        for item in stored.items {
+            match item {
+                codex_history::RolloutItem::EventMsg(
+                    codex_core_api::EventMsg::AgentReasoningRawContent(_)
+                    | codex_core_api::EventMsg::ReasoningRawContentDelta(_),
+                ) => {}
+                codex_history::RolloutItem::EventMsg(event) => {
+                    let mut value = serde_json::to_value(event)?;
+                    if value["type"] == "raw_response_item" {
+                        if !sanitize_response(&mut value["item"]) {
+                            continue;
+                        }
+                    } else if matches!(
+                        value["type"].as_str(),
+                        Some("item_started" | "item_completed")
+                    ) && value["item"]["type"] == "Reasoning"
+                        && let Some(fields) = value["item"].as_object_mut()
+                    {
+                        fields.remove("raw_content");
+                    }
+                    events.push(value);
+                }
+                codex_history::RolloutItem::ResponseItem(entry) => {
+                    let mut value = serde_json::to_value(entry.item)?;
+                    if !sanitize_response(&mut value) {
+                        continue;
+                    }
+                    events.push(serde_json::json!({"type":"raw_response_item","item":value}));
+                }
+                codex_history::RolloutItem::Compacted(_) => {
+                    events.push(serde_json::json!({"type":"context_compacted"}))
+                }
+                _ => {}
+            }
+        }
+        Ok(events)
+    }
+
+    /// Use the child's own settings and atomic native start/steer routing. No
+    /// implicit permission, model or runtime changes accompany a UI message.
+    pub async fn submit(
+        &self,
+        child: &str,
+        text: String,
+        expected_turn: Option<String>,
+    ) -> Result<(String, bool)> {
+        ensure!(
+            !text.trim().is_empty() && text.len() <= 48_000,
+            "invalid child message"
+        );
+        let id = self.validate_member(child).await?;
+        let thread = self.manager.get_thread(id).await?;
+        let input = TurnInputRequest::user_input(vec![UserInput::Text {
+            text,
+            text_elements: Vec::new(),
+        }]);
+        if let Some(expected) = expected_turn {
+            ensure!(!expected.is_empty(), "expected child turn is empty");
+            match thread.steer_turn(input, expected.clone()).await? {
+                SteerSubmission::Steered { .. } => Ok((expected, true)),
+                SteerSubmission::NotSubmitted { .. } => bail!("child turn identity changed"),
+            }
+        } else {
+            match thread.start_turn_if_idle(input).await? {
+                StartIfIdleSubmission::Started { turn_id } => Ok((turn_id, false)),
+                StartIfIdleSubmission::NotSubmitted { .. } => bail!("child is already running"),
+            }
+        }
     }
 
     pub fn subscribe_created(&self) -> broadcast::Receiver<ThreadId> {
         self.manager.subscribe_thread_created()
+    }
+
+    /// A start acknowledgement can precede TurnStarted/status publication.
+    /// Observe the accepted turn's durable terminal marker before allowing a
+    /// completed subtree monitor to sleep again, including same-text replies.
+    pub async fn submission_finished(&self, child: &str, turn: &str) -> Result<bool> {
+        let id = ThreadId::from_string(child)?;
+        let Ok(thread) = self.manager.get_thread(id).await else {
+            return Ok(true);
+        };
+        if matches!(thread.agent_status().await, AgentStatus::Shutdown) {
+            return Ok(true);
+        }
+        thread.flush_rollout().await?;
+        let history = self
+            .store
+            .load_history(codex_thread_store::LoadThreadHistoryParams {
+                thread_id: id,
+                include_archived: true,
+            })
+            .await?;
+        let status = thread.agent_status().await;
+        for item in history.items.iter().rev() {
+            match item {
+                codex_history::RolloutItem::EventMsg(codex_core_api::EventMsg::TurnComplete(
+                    event,
+                )) if event.turn_id == turn => {
+                    return Ok(match (&status, &event.error) {
+                        (AgentStatus::Completed(reply), None) => reply == &event.last_agent_message,
+                        (AgentStatus::Errored(message), Some(error)) => message == &error.message,
+                        _ => false,
+                    });
+                }
+                codex_history::RolloutItem::EventMsg(codex_core_api::EventMsg::TurnAborted(
+                    event,
+                )) if event.turn_id.as_deref() == Some(turn) => {
+                    return Ok(matches!(
+                        status,
+                        AgentStatus::Interrupted | AgentStatus::Errored(_)
+                    ));
+                }
+                _ => {}
+            }
+        }
+        Ok(false)
     }
 
     pub async fn snapshot(&self) -> Result<Vec<NativeSubagent>> {
@@ -135,4 +297,23 @@ impl DescendantSource {
         rows.sort_by(|a, b| a.thread_id.cmp(&b.thread_id));
         Ok(rows)
     }
+}
+
+fn sanitize_response(value: &mut serde_json::Value) -> bool {
+    if matches!(value["role"].as_str(), Some("developer" | "system"))
+        || matches!(
+            value["type"].as_str(),
+            Some("configuration_update" | "compaction_trigger")
+        )
+    {
+        return false;
+    }
+    if let Some(fields) = value.as_object_mut() {
+        fields.remove("encrypted_content");
+        fields.remove("internal_chat_message_metadata_passthrough");
+        if fields.get("type").and_then(|v| v.as_str()) == Some("reasoning") {
+            fields.remove("content");
+        }
+    }
+    true
 }

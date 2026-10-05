@@ -429,6 +429,50 @@ final class CodexChatTransport {
       "taskId": .string(taskID), "expectedThreadId": .string(expectedThreadID)])
   }
 
+  func readSubagentHistory(taskID: String, rootThreadID: String, childThreadID: String) async throws -> [JSONValue] {
+    guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接，恢复会话后可重新加载子任务。") }
+    let client = try client(for: taskID), token = generation
+    var snapshot: String?, digest: String?, total: Int?, bytes = Data(), offset = 0
+    repeat {
+      try Task.checkCancellation()
+      let page = try await client.request("codex.subagent.history.read", [
+        "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID),
+        "childThreadId": .string(childThreadID), "offset": .number(Double(offset)),
+        "snapshotId": snapshot.map(JSONValue.string) ?? .null])
+      guard token == generation, activeThreads.contains(taskID) else { throw CancellationError() }
+      guard page["rootThreadId"].text == rootThreadID, page["childThreadId"].text == childThreadID,
+        let id = page["snapshotId"].text, UUID(uuidString: id) != nil,
+        let hash = page["sha256"].text, hash.count == 64,
+        let count = page["totalBytes"].int, count >= 0,
+        page["offset"].int == offset, let next = page["nextOffset"].int,
+        let done = page["done"].boolean, let chunk = page["chunk"].text,
+        chunk.utf8.count <= 48 * 1024, next == offset + chunk.utf8.count,
+        next <= count, done == (next == count), done || next > offset,
+        snapshot == nil || (snapshot == id && digest == hash && total == count) else {
+        throw AgentFailure(message: "子任务历史分块不完整或身份已变化，请重新加载。")
+      }
+      snapshot = id; digest = hash; total = count
+      bytes.append(contentsOf: chunk.utf8); offset = next
+      if done { break }
+    } while true
+    guard SHA256.hash(data: bytes).map({ String(format: "%02x", $0) }).joined() == digest else {
+      throw AgentFailure(message: "子任务历史校验失败，请重新加载。")
+    }
+    try Task.checkCancellation()
+    return try JSONDecoder().decode([JSONValue].self, from: bytes)
+  }
+
+  func submitSubagent(taskID: String, rootThreadID: String, childThreadID: String,
+    text: String, expectedTurnID: String?) async throws -> String {
+    guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接。") }
+    let response = try await client(for: taskID).request("codex.subagent.submit", [
+      "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID),
+      "childThreadId": .string(childThreadID), "text": .string(text),
+      "expectedTurnId": expectedTurnID.map(JSONValue.string) ?? .null])
+    guard let turn = response["turnId"].text, !turn.isEmpty else { throw AgentFailure(message: "子任务没有确认输入。") }
+    return turn
+  }
+
   /// Releases an ephemeral thread's local identity after the Core thread stops.
   func discard(taskID: String) async {
     await stop(taskID: taskID)

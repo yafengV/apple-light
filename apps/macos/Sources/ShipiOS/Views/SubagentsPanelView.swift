@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SubagentsPanelView: View {
   let agents: [CodexSubagent]
+  var onSelect: ((CodexSubagent) -> Void)? = nil
   @State private var showAllActive = false
   @State private var showAllDone = false
   private var active: [CodexSubagent] { agents.filter { $0.status != .completed && $0.status != .shutdown } }
@@ -38,19 +39,11 @@ struct SubagentsPanelView: View {
       if rows.isEmpty { Text(empty).appFont(size: 14).foregroundStyle(.secondary).padding(.horizontal, 8) }
       VStack(spacing: 4) {
         ForEach(rows.prefix(limit)) { agent in
-          HStack(alignment: .top, spacing: 12) {
-            SubagentAvatar(agent: agent)
-            VStack(alignment: .leading, spacing: 4) {
-              HStack {
-                Text(agent.displayName).lineLimit(1)
-                Spacer()
-                Text(agent.status.label).foregroundStyle(.secondary).lineLimit(1)
-              }
-              Text(agent.preview ?? agent.status.label).foregroundStyle(.secondary).lineLimit(1)
-            }.appFont(size: 14)
-          }.padding(8).frame(minHeight: 40)
-          .accessibilityElement(children: .combine)
-          .accessibilityIdentifier("subagent:\(agent.threadID)")
+          if let onSelect {
+            Button { onSelect(agent) } label: { row(agent) }.buttonStyle(.plain)
+              .accessibilityLabel("打开子任务 \(agent.displayName)")
+              .accessibilityIdentifier("subagent:\(agent.threadID)")
+          } else { row(agent).accessibilityIdentifier("subagent:\(agent.threadID)") }
         }
         if rows.count > limit {
           Button("显示更多（\(rows.count - limit)）", action: showAll)
@@ -59,6 +52,20 @@ struct SubagentsPanelView: View {
         }
       }
     }
+  }
+
+  private func row(_ agent: CodexSubagent) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+      SubagentAvatar(agent: agent)
+      VStack(alignment: .leading, spacing: 4) {
+        HStack {
+          Text(agent.displayName).lineLimit(1); Spacer()
+          Text(agent.status.label).foregroundStyle(.secondary).lineLimit(1)
+        }
+        Text(agent.preview ?? agent.status.label).foregroundStyle(.secondary).lineLimit(1)
+      }.appFont(size: 14)
+    }.padding(8).frame(minHeight: 40).contentShape(Rectangle())
+      .accessibilityElement(children: .combine)
   }
 }
 

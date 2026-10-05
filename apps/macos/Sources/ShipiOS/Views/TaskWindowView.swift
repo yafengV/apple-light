@@ -1240,7 +1240,7 @@ struct TaskWindowView: View {
               openInApp: { tabs.openBrowser($0, presentation: $1) })
           })
       case .subagents:
-        SubagentsPanelView(agents: store.subagents(taskID: taskID))
+        SubagentWorkspacePanel(store: store, taskID: taskID).id(taskID)
       case .terminal(let id, _):
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,

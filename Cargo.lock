@@ -10691,6 +10691,7 @@ dependencies = [
  "codex-plugin",
  "codex-protocol",
  "codex-rollout",
+ "codex-thread-store",
  "libc",
  "serde",
  "serde_json",

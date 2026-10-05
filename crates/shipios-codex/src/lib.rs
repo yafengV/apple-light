@@ -565,6 +565,7 @@ impl Drop for SessionHomeGuard {
 
 pub struct CodexSession {
     manager: Arc<ThreadManager>,
+    thread_store: Arc<dyn codex_thread_store::ThreadStore>,
     thread_id: ThreadId,
     thread: Arc<CodexThread>,
     model: String,
@@ -854,7 +855,7 @@ impl CodexSession {
                 )),
                 None,
                 passthrough_image_store(),
-                thread_store,
+                Arc::clone(&thread_store),
                 local_agent_graph_store_from_state_db(state_db.as_ref()),
                 installation_id,
                 None,
@@ -902,6 +903,7 @@ impl CodexSession {
         };
         Ok(Self {
             manager,
+            thread_store,
             thread_id,
             thread,
             model: options.model,
@@ -1070,7 +1072,11 @@ impl CodexSession {
     }
 
     pub fn descendant_source(&self) -> DescendantSource {
-        DescendantSource::new(Arc::clone(&self.manager), self.thread_id)
+        DescendantSource::new(
+            Arc::clone(&self.manager),
+            self.thread_id,
+            Arc::clone(&self.thread_store),
+        )
     }
 
     /// Idle-parent Stop must not submit an interrupt to a newly-started root turn.

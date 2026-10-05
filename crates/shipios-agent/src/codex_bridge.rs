@@ -338,7 +338,10 @@ enum Command {
     Answer(CodexUserInputAnswer, oneshot::Sender<Result<()>>),
     Interrupt(oneshot::Sender<Result<()>>),
     InterruptDescendants(oneshot::Sender<Result<()>>),
-    RefreshDescendants(oneshot::Sender<Result<()>>),
+    RefreshDescendants {
+        submission: Option<(String, String)>,
+        reply: oneshot::Sender<Result<()>>,
+    },
     CleanBackgroundTerminals(oneshot::Sender<Result<()>>),
     Stop(oneshot::Sender<Result<()>>),
 }
@@ -346,6 +349,8 @@ enum Command {
 struct ThreadHandle {
     thread_id: String,
     sender: mpsc::Sender<Command>,
+    descendants: shipios_codex::DescendantSource,
+    history: Arc<crate::subagent_history::HistorySnapshots>,
 }
 
 pub struct CodexBridge {
@@ -682,6 +687,8 @@ impl CodexBridge {
             ThreadHandle {
                 thread_id: thread_id.clone(),
                 sender,
+                descendants: session.descendant_source(),
+                history: Arc::default(),
             },
         );
         tokio::spawn(run_thread(
@@ -1136,6 +1143,57 @@ impl CodexBridge {
         Ok(handle.sender.clone())
     }
 
+    async fn descendant_access(
+        &self,
+        task_id: &str,
+        expected: &str,
+    ) -> Result<(
+        shipios_codex::DescendantSource,
+        Arc<crate::subagent_history::HistorySnapshots>,
+    )> {
+        let key = Uuid::parse_str(task_id)?.to_string();
+        let sessions = self.sessions.lock().await;
+        let handle = sessions.get(&key).context("Codex thread not started")?;
+        ensure!(
+            handle.thread_id == expected,
+            "Codex thread identity changed"
+        );
+        Ok((handle.descendants.clone(), Arc::clone(&handle.history)))
+    }
+
+    pub async fn read_subagent_history(
+        &self,
+        request: crate::subagent_history::HistoryRequest,
+    ) -> Result<Value> {
+        let (source, history) = self
+            .descendant_access(&request.task_id, &request.expected_thread_id)
+            .await?;
+        history.read(source, request).await
+    }
+
+    pub async fn submit_subagent(
+        &self,
+        task_id: &str,
+        expected: &str,
+        child: &str,
+        text: String,
+        turn: Option<String>,
+    ) -> Result<Value> {
+        let (source, _) = self.descendant_access(task_id, expected).await?;
+        let (turn_id, steered) = source.submit(child, text, turn).await?;
+        // A completed subtree sleeps until a root activity/creation/refresh.
+        // Direct child input must wake it as well. The input is already
+        // accepted: a concurrent root close must not report it as unsent.
+        let _ = self
+            .refresh_descendant_submission(
+                task_id,
+                expected,
+                Some((child.to_owned(), turn_id.clone())),
+            )
+            .await;
+        Ok(json!({"turnId":turn_id,"steered":steered}))
+    }
+
     pub async fn interrupt_descendants(
         &self,
         task_id: &str,
@@ -1151,10 +1209,20 @@ impl CodexBridge {
     }
 
     pub async fn refresh_descendants(&self, task_id: &str, expected_thread_id: &str) -> Result<()> {
+        self.refresh_descendant_submission(task_id, expected_thread_id, None)
+            .await
+    }
+
+    async fn refresh_descendant_submission(
+        &self,
+        task_id: &str,
+        expected_thread_id: &str,
+        submission: Option<(String, String)>,
+    ) -> Result<()> {
         let sender = self.descendant_sender(task_id, expected_thread_id).await?;
         let (reply, result) = oneshot::channel();
         sender
-            .send(Command::RefreshDescendants(reply))
+            .send(Command::RefreshDescendants { submission, reply })
             .await
             .context("Codex thread stopped")?;
         result.await.context("Codex thread stopped")?
@@ -1261,8 +1329,11 @@ async fn run_thread(
                     live.interrupt_idle_descendants().await;
                     let _ = reply.send(Ok(()));
                 }
-                Some(Command::RefreshDescendants(reply)) => {
-                    if let Some(monitor) = &monitor { monitor.refresh(); }
+                Some(Command::RefreshDescendants { submission, reply }) => {
+                    if let Some(monitor) = &monitor {
+                        if let Some((child, turn)) = submission { monitor.observe_submission(child, turn); }
+                        else { monitor.refresh(); }
+                    }
                     let _ = reply.send(Ok(()));
                 }
                 Some(Command::CleanBackgroundTerminals(reply)) => {

@@ -8,7 +8,7 @@ ShipiOS（暂定名）是一款面向已有 iOS 项目的 AI 开发与交付工�
 
 Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 606 篇](docs/606-hook-settings-review-and-session-bindings.md)；原生插件环境、资源刷新与跨任务持久数据见[第 607 篇](docs/607-native-plugin-hook-environment.md)。会话运行统计及窗口内历史弹层见[第 608 篇](docs/608-hook-run-statistics-and-history.md)。SessionEnd 完整收尾、服务变更历史归属及多会话关闭见[第 609 篇](docs/609-session-end-event-drain-and-history.md)。中断、审批取消及 Core 后台终端的独立清理通道见[第 610 篇](docs/610-interrupt-and-background-terminal-cleanup.md)。主/独立任务窗口的后台摘要、清理反馈、只读输出标签和历史恢复见[第 611 篇](docs/611-background-terminal-summary-and-output-tabs.md)，完整前台配对仍未完成。 空闲停止回退、跨选择/回合/线程的操作身份与目标暂停见[第 612 篇](docs/612-idle-stop-background-cleanup.md)；原生子任务树中断与会话关闭收尾见[第 613 篇](docs/613-native-descendant-interrupt-and-shutdown.md)。Node REPL、完整子任务交互及全部执行类型仍待接续。其他生命周期、全部来源、插件包兼容性及前台对齐仍未完成。
 
-实际子任务状态、父回合结束后的停止、主/任务窗口概览与标签恢复见[第 614 篇](docs/614-native-subagent-monitor-and-overview.md)。本轮还修复审批 Stop 后立即续聊的终止边界竞争；172 项 Rust、221 项 Swift 关联回归、包内 Agent 49 项复测及正式构建/签名/IPC 通过（Swift 两组重叠）。子任务完整会话详情、精确概览交互和最新全量仍未完成；新包前台验收遇到 Mac 锁定，完整配对保持 0/47。
+子任务概览行的详情/返回、完整持久历史分页、模型标题、续聊/引导和错误恢复见[第 615 篇](docs/615-native-subagent-history-and-detail.md)。本轮同时修复子续聊的状态发布竞争，验证父回复保持与长历史完整；最终回归与包内验证范围见该篇。子任务暂态流式、审批、完整输入和最新全量仍未完成；新包前台验收遇到 Mac 锁定，完整配对保持 0/47。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 

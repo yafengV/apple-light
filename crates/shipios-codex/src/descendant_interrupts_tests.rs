@@ -257,6 +257,144 @@ fn interrupt_stops_native_child_and_grandchild_preserves_peer_and_cold_history_a
 }
 
 #[test]
+fn descendant_history_reads_full_durable_and_cold_records_and_input_rejects_peer_and_busy_turns()
+-> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let server = server().await;
+        let parent = session(root.path(), &server, "History").await?;
+        let child = spawn_child(&parent, parent.thread_id, 1).await?;
+        let peer = parent
+            .manager
+            .start_thread(StartThreadOptions::new(parent.test_config.clone()))
+            .await?;
+        let source = parent.descendant_source();
+        assert!(source.history(&parent.thread_id()).await.is_err());
+        assert!(source.history(&peer.thread_id.to_string()).await.is_err());
+        assert!(
+            source
+                .submit(&peer.thread_id.to_string(), "complete-child".into(), None)
+                .await
+                .is_err()
+        );
+        let (turn, steered) = source
+            .submit(&child.thread_id.to_string(), "complete-child".into(), None)
+            .await?;
+        assert!(!steered);
+        assert!(!turn.is_empty());
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        assert!(
+            source
+                .submission_finished(&child.thread_id.to_string(), &turn)
+                .await?
+        );
+        assert!(
+            !source
+                .submission_finished(&child.thread_id.to_string(), "unknown")
+                .await?
+        );
+        let history = source.history(&child.thread_id.to_string()).await?;
+        assert!(
+            history.iter().any(
+                |event| event["type"] == "user_message" && event["message"] == "complete-child"
+            )
+        );
+        assert!(history.iter().any(|event| event["type"] == "agent_message"
+            && event["message"] == "Completed native child"));
+        let long = "子会话完整回复🙂".repeat(20_000);
+        let event = serde_json::from_value(json!({"type":"agent_message","message":long}))?;
+        child
+            .thread
+            .append_rollout_items(&[codex_history::RolloutItem::EventMsg(event)])
+            .await?;
+        child.thread.flush_rollout().await?;
+        let hidden = serde_json::from_value(json!({"type":"agent_reasoning_raw_content",
+            "text":"private reasoning must remain hidden"}))?;
+        let public =
+            serde_json::from_value(json!({"type":"agent_reasoning","text":"public summary"}))?;
+        child
+            .thread
+            .append_rollout_items(&[
+                codex_history::RolloutItem::EventMsg(hidden),
+                codex_history::RolloutItem::EventMsg(public),
+            ])
+            .await?;
+        let full = source.history(&child.thread_id.to_string()).await?;
+        let wire = serde_json::to_string(&full)?;
+        assert!(wire.contains("public summary"));
+        assert!(!wire.contains("private reasoning must remain hidden"));
+        assert!(
+            full.iter()
+                .any(|event| event["message"].as_str() == Some(&long))
+        );
+        let (busy, _) = source
+            .submit(
+                &child.thread_id.to_string(),
+                "hold-native-child".into(),
+                None,
+            )
+            .await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Running)).await?;
+        assert!(
+            !source
+                .submission_finished(&child.thread_id.to_string(), &busy)
+                .await?
+        );
+        assert!(
+            source
+                .submit(&child.thread_id.to_string(), "second".into(), None)
+                .await
+                .is_err()
+        );
+        assert!(
+            source
+                .submit(
+                    &child.thread_id.to_string(),
+                    "second".into(),
+                    Some("wrong".into())
+                )
+                .await
+                .is_err()
+        );
+        let (same, did_steer) = source
+            .submit(
+                &child.thread_id.to_string(),
+                "child steering".into(),
+                Some(busy.clone()),
+            )
+            .await?;
+        assert_eq!(same, busy);
+        assert!(did_steer);
+        child.thread.submit(Op::Interrupt).await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
+        assert!(
+            source
+                .submission_finished(&child.thread_id.to_string(), &busy)
+                .await?
+        );
+        child.thread.flush_rollout().await?;
+        parent.manager.remove_thread(&child.thread_id).await;
+        let before = parent.manager.list_thread_ids().await;
+        let cold = source.history(&child.thread_id.to_string()).await?;
+        assert!(
+            cold.iter()
+                .any(|event| event["message"].as_str() == Some(&long))
+        );
+        assert_eq!(before, parent.manager.list_thread_ids().await);
+        assert!(
+            source
+                .submit(&child.thread_id.to_string(), "cold cannot run".into(), None)
+                .await
+                .is_err()
+        );
+        child.thread.submit(Op::Shutdown).await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Shutdown)).await?;
+        parent.shutdown().await?;
+        Ok(())
+    })
+}
+
+#[test]
 fn idle_parent_snapshot_tracks_child_completion_and_stop_cannot_interrupt_a_new_parent_turn()
 -> Result<()> {
     run_native_test(async {

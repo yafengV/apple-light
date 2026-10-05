@@ -62,7 +62,7 @@ struct WorkspaceTabContentView: View {
             click: WebLinkClick(event: NSApp.currentEvent))
         })
     case .subagents(let owner):
-      SubagentsPanelView(agents: store.subagents(taskID: owner))
+      SubagentWorkspacePanel(store: store, taskID: owner).id(owner)
     case .terminal(let id, _):
       if let scope = store.terminalScope(for: tab) {
         TerminalTabPanel(store: store, scope: scope, terminalID: id)

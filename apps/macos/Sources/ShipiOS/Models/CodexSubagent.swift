@@ -31,6 +31,7 @@ struct CodexSubagent: Codable, Equatable, Identifiable {
   var observedAtMs: Int
   var id: String { rootThreadID + ":" + threadID }
   var working: Bool { loaded && status.working }
+  var acceptsInput: Bool { loaded && status != .shutdown && status != .notLoaded }
   var displayName: String {
     [nickname, role].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
       .first { !$0.isEmpty } ?? "子任务"

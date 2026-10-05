@@ -3,6 +3,7 @@ mod descendant_monitor;
 mod local_environment;
 mod rpc;
 mod service;
+mod subagent_history;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};

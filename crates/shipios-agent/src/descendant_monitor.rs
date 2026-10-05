@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 use shipios_codex::{DescendantSource, NativeSubagent};
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 use tokio::{
     sync::{broadcast, watch},
     task::JoinHandle,
@@ -10,8 +10,14 @@ use uuid::Uuid;
 /// Owned by the root actor, but status discovery never delays its commands or
 /// consumes child events. After a root turn ends, active children keep polling.
 pub(crate) struct DescendantMonitor {
-    refresh: watch::Sender<u64>,
+    refresh: watch::Sender<Refresh>,
     worker: Option<JoinHandle<()>>,
+}
+
+#[derive(Clone, Default)]
+struct Refresh {
+    revision: u64,
+    submissions: HashMap<String, String>,
 }
 
 impl DescendantMonitor {
@@ -22,7 +28,8 @@ impl DescendantMonitor {
         root_thread_id: String,
     ) -> Self {
         let mut created = source.subscribe_created();
-        let (refresh, mut changes) = watch::channel(0_u64);
+        let (refresh, mut changes) = watch::channel(Refresh::default());
+        let completed = refresh.clone();
         let worker = tokio::spawn(async move {
             let mut previous = None;
             let mut revision = 0_u64;
@@ -41,6 +48,26 @@ impl DescendantMonitor {
                         // Lagged notifications require a complete rescan too.
                     },
                 }
+                let pending = changes.borrow().submissions.clone();
+                for (child, turn) in pending {
+                    if matches!(
+                        tokio::time::timeout(
+                            Duration::from_secs(10),
+                            source.submission_finished(&child, &turn)
+                        )
+                        .await,
+                        Ok(Ok(true))
+                    ) {
+                        // Preserve a newer submission to this same child. Do
+                        // not notify ourselves merely to remove a finished one.
+                        completed.send_if_modified(|state| {
+                            if state.submissions.get(&child) == Some(&turn) {
+                                state.submissions.remove(&child);
+                            }
+                            false
+                        });
+                    }
+                }
                 let rows =
                     match tokio::time::timeout(Duration::from_secs(10), source.snapshot()).await {
                         Ok(Ok(rows)) => rows,
@@ -51,7 +78,7 @@ impl DescendantMonitor {
                     };
                 retry_or_active = rows.iter().any(|row| {
                     row.loaded && matches!(row.status.as_str(), "running" | "pendingInit")
-                });
+                }) || !changes.borrow().submissions.is_empty();
                 if previous.as_ref() == Some(&rows) {
                     continue;
                 }
@@ -70,7 +97,15 @@ impl DescendantMonitor {
     }
 
     pub fn refresh(&self) {
-        self.refresh.send_modify(|v| *v = v.wrapping_add(1));
+        self.refresh
+            .send_modify(|v| v.revision = v.revision.wrapping_add(1));
+    }
+
+    pub fn observe_submission(&self, child: String, turn: String) {
+        self.refresh.send_modify(|state| {
+            state.revision = state.revision.wrapping_add(1);
+            state.submissions.insert(child, turn);
+        });
     }
 
     pub async fn stop(mut self) {

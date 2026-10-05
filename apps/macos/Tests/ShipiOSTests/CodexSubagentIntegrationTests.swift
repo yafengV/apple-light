@@ -13,7 +13,8 @@ final class CodexSubagentIntegrationTests: XCTestCase {
       .appendingPathComponent("Fixtures/subagent_server.py")
     server.arguments = ["-u", fixture.path]
     server.environment = ProcessInfo.processInfo.environment.merging([
-      "SHIPIOS_SUBAGENT_COMPLETE_GATE": root.appendingPathComponent("complete-gate").path
+      "SHIPIOS_SUBAGENT_COMPLETE_GATE": root.appendingPathComponent("complete-gate").path,
+      "SHIPIOS_SUBAGENT_REQUEST_LOG": root.appendingPathComponent("requests.jsonl").path
     ]) { _, new in new }
     let output = Pipe(); server.standardOutput = output; server.standardError = FileHandle.nullDevice
     try server.run()
@@ -116,6 +117,68 @@ final class CodexSubagentIntegrationTests: XCTestCase {
     XCTAssertTrue(store.activeSubagents(taskID: owner).isEmpty)
     await store.cancel(taskID: peer)
     await store.modelTask(runID: peerRun)?.value
+    await store.shutdown()
+  }
+
+  @MainActor func testActualChildHistoryPagesAndFollowupStayInChildAndPreserveParent() async throws {
+    let store = try await store()
+    let (owner, parentRun) = try await finishedParent(store, text: "subagent-parent-complete")
+    try await waitFor("Child not discovered") { store.activeSubagents(taskID: owner).count == 1 }
+    let child = try XCTUnwrap(store.activeSubagents(taskID: owner).first)
+    try Data().write(to: root.appendingPathComponent("complete-gate"))
+    try await waitFor("Child did not finish") {
+      store.subagents(taskID: owner).contains { $0.threadID == child.threadID && $0.status == .completed }
+    }
+    func read() async throws -> [JSONValue] {
+      try await store.codexTransport.readSubagentHistory(taskID: owner,
+        rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    }
+    let initial = try await read()
+    XCTAssertTrue(SubagentTranscript(events: initial).entries.contains { $0.kind == .assistant && $0.text == "Native child finished" })
+    let turn = try await store.codexTransport.submitSubagent(taskID: owner, rootThreadID: child.rootThreadID,
+      childThreadID: child.threadID, text: "subagent-child-long-history", expectedTurnID: nil)
+    XCTAssertFalse(turn.isEmpty)
+    do {
+      try await waitFor("Long child followup did not finish") {
+        store.subagents(taskID: owner).contains { $0.threadID == child.threadID && $0.preview?.hasPrefix("子会话完整记录") == true }
+      }
+    } catch {
+      let state = store.subagents(taskID: owner).map { "\($0.status.rawValue):\($0.preview ?? "")" }.joined(separator: ";")
+      let history = (try? await read())?.suffix(10).map { "\($0["type"].text ?? ""):\(($0["message"].text ?? "").prefix(80))" }.joined(separator: ";") ?? "unavailable"
+      let requests = (try? String(contentsOf: root.appendingPathComponent("requests.jsonl"))) ?? "no requests"
+      throw AgentFailure(message: "\(error.localizedDescription); state=\(state); history=\(history); fixture=\(requests)")
+    }
+    let transcript = SubagentTranscript(events: try await read())
+    XCTAssertEqual(transcript.entries.last { $0.kind == .assistant }?.text, String(repeating: "子会话完整记录🙂", count: 20_000))
+    XCTAssertTrue(transcript.entries.contains { $0.kind == .user && $0.text == "subagent-child-long-history" })
+    XCTAssertNil(transcript.activeTurnID)
+    async let left = read()
+    async let right = read()
+    let (leftHistory, rightHistory) = try await (left, right)
+    XCTAssertEqual(leftHistory, rightHistory, "Two window reads must retain independent complete snapshots")
+    XCTAssertEqual(SubagentTranscript(events: leftHistory), transcript)
+    _ = try await store.codexTransport.submitSubagent(taskID: owner, rootThreadID: child.rootThreadID,
+      childThreadID: child.threadID, text: "subagent-child-followup", expectedTurnID: nil)
+    try await waitFor("Completed monitor did not wake for another child turn") {
+      store.subagents(taskID: owner).contains { $0.threadID == child.threadID && $0.preview == "Child followup only" }
+    }
+    let continued = SubagentTranscript(events: try await read())
+    XCTAssertEqual(continued.entries.last { $0.kind == .assistant }?.text, "Child followup only")
+    XCTAssertTrue(continued.entries.contains { $0.text == String(repeating: "子会话完整记录🙂", count: 20_000) })
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == parentRun }?.result?["response"].text,
+      "Parent finished while child continues")
+    for (rootID, childID) in [(UUID().uuidString, child.threadID), (child.rootThreadID, child.rootThreadID),
+      (child.rootThreadID, UUID().uuidString)] {
+      do {
+        _ = try await store.codexTransport.readSubagentHistory(taskID: owner, rootThreadID: rootID, childThreadID: childID)
+        XCTFail("Foreign history accepted")
+      } catch { XCTAssertFalse(error.localizedDescription.isEmpty) }
+    }
+    do {
+      _ = try await store.codexTransport.submitSubagent(taskID: owner, rootThreadID: child.rootThreadID,
+        childThreadID: child.threadID, text: "stale steering", expectedTurnID: "wrong-turn")
+      XCTFail("Stale child steering accepted")
+    } catch { XCTAssertFalse(error.localizedDescription.isEmpty) }
     await store.shutdown()
   }
 }

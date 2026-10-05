@@ -25,16 +25,21 @@ class Handler(BaseHTTPRequestHandler):
         inputs = body.get('input', [])
         users = [item for item in inputs if item.get('role') == 'user']
         text = ' '.join(part.get('text', '') for part in users[-1].get('content', [])) if users else ''
+        request_text = text
         if 'subagent-child-' in text or 'subagent-peer-hold' in text:
-            if 'subagent-child-complete' in text:
+            if 'subagent-child-followup' in text or 'subagent-child-long-history' in text:
+                pass
+            elif 'subagent-child-complete' in text:
                 gate = Path(os.environ['SHIPIOS_SUBAGENT_COMPLETE_GATE'])
                 deadline = time.monotonic() + 25
                 while not gate.exists() and time.monotonic() < deadline:
                     time.sleep(.02)
             else:
                 time.sleep(30)
+            reply = ('子会话完整记录🙂' * 20_000 if 'subagent-child-long-history' in text else
+                     'Child followup only' if 'subagent-child-followup' in text else 'Native child finished')
             item = {'type': 'message', 'role': 'assistant', 'id': 'child-reply',
-                    'content': [{'type': 'output_text', 'text': 'Native child finished'}]}
+                    'content': [{'type': 'output_text', 'text': reply}]}
         elif any(item.get('type') == 'function_call_output' and
                  item.get('call_id') == 'spawn-fixture-child' for item in inputs):
             output = next(item.get('output', '') for item in inputs
@@ -66,6 +71,13 @@ class Handler(BaseHTTPRequestHandler):
                 item = {'type': 'message', 'role': 'assistant', 'id': 'missing-spawn',
                         'content': [{'type': 'output_text', 'text': 'Spawn tool was not discovered: ' +
                                      json.dumps(discovery.get('tools', []))[:512]}]}
+        trace = os.environ.get('SHIPIOS_SUBAGENT_REQUEST_LOG')
+        if trace:
+            parts = item.get('content', [])
+            reply = ' '.join(part.get('text', '') for part in parts)
+            with open(trace, 'a', encoding='utf-8') as log:
+                log.write(json.dumps({'text': request_text[:512], 'type': item['type'],
+                                      'reply': reply[:40], 'replyLength': len(reply)}, ensure_ascii=False) + '\n')
         response = {'id': 'fixture-response', 'object': 'response', 'status': 'completed',
                     'output': [item], 'usage': {'input_tokens': 10, 'output_tokens': 5,
                                                'total_tokens': 15}}
