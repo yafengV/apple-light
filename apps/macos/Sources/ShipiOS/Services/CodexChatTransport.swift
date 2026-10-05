@@ -486,6 +486,16 @@ final class CodexChatTransport {
     }
   }
 
+  func resolveSubagentElicitation(taskID: String, rootThreadID: String, childThreadID: String,
+    request: SubagentElicitationRequest, choice: SubagentElicitationRequest.Choice, content: JSONValue?) async throws {
+    guard activeThreads.contains(taskID), request.allows(choice, content: content) else { throw AgentFailure(message: "MCP 请求已断开或响应无效。") }
+    let response = try await client(for: taskID).request("codex.subagent.elicitation.resolve", [
+      "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID), "childThreadId": .string(childThreadID),
+      "turnId": .string(request.turnID), "requestToken": .string(request.id), "choice": .string(choice.rawValue),
+      "content": content ?? .null])
+    guard response["resolved"].boolean == true else { throw AgentFailure(message: "子任务 MCP 请求已结束。") }
+  }
+
   func resolveSubagentApproval(taskID: String, rootThreadID: String, childThreadID: String,
     request: SubagentApprovalRequest, choice: Int) async throws {
     guard activeThreads.contains(taskID), request.decisions.indices.contains(choice) else {
@@ -647,7 +657,7 @@ final class CodexChatTransport {
   private func receive(_ payload: JSONValue) {
     guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
-    if ["shipios_subagent_event", "shipios_subagent_approval_state"].contains(event["type"].text ?? "") {
+    if ["shipios_subagent_event", "shipios_subagent_approval_state", "shipios_subagent_elicitation_state"].contains(event["type"].text ?? "") {
       guard activeThreads.contains(taskID) else { return }
       onSubagentEvent?(taskID, payload["threadId"].text, event)
       return

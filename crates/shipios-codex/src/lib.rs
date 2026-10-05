@@ -7,6 +7,7 @@ mod descendant_interrupts;
 mod descendants;
 pub use codex_core::CapturedApproval as NativeApproval;
 pub use codex_core::CapturedElicitation as NativeElicitation;
+pub use codex_core::NATIVE_ELICITATION_GENERATION_KEY;
 pub use descendants::{DescendantSource, NativeSubagent, public_descendant_event};
 #[cfg(test)]
 mod approval_capture_tests;

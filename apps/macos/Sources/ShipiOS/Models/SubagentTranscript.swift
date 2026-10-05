@@ -1,12 +1,13 @@
 import Foundation
 
 struct SubagentTranscriptEntry: Identifiable, Equatable {
-  enum Kind: Equatable { case user, assistant, reasoning, tool, notice, approval }
+  enum Kind: Equatable { case user, assistant, reasoning, tool, notice, approval, elicitation }
   let id: String
   let kind: Kind
   let title: String?
   let text: String
   var approval: SubagentApprovalRequest? = nil
+  var elicitation: SubagentElicitationRequest? = nil
 }
 
 struct SubagentTranscript: Equatable {
@@ -89,6 +90,10 @@ struct SubagentTranscript: Equatable {
         if let approval = SubagentApprovalRequest(event) {
           entries.append(.init(id: "approval:" + approval.id, kind: .approval, title: approval.title, text: "", approval: approval))
         } else { append(.notice, "历史审批记录", title: "审批") }
+      case "elicitation_request":
+        if let request = SubagentElicitationRequest(event) {
+          entries.append(.init(id: "elicitation:" + request.id, kind: .elicitation, title: "MCP", text: "", elicitation: request))
+        } else { append(.notice, "MCP 请求已结束或暂不支持此表单。", title: "MCP") }
       case "request_user_input": append(.notice, "子任务正在等待操作。", title: "等待")
       case "agent_reasoning":
         if let text = event["text"].text, let key = pendingReasoning.max(by: { $0.value < $1.value })?.key {

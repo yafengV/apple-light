@@ -4,6 +4,7 @@ import CryptoKit
 /// One child stream is shared by its windows; selections and drafts remain local.
 /// Frames become visible only after complete UTF-8, identity and digest validation.
 struct SubagentLiveState: Equatable {
+  private(set) var elicitations: [String: SubagentElicitationStatus] = [:]
   private(set) var approvals: [String: SubagentApprovalStatus] = [:]
   private(set) var events: [JSONValue] = []
   private(set) var error: String?
@@ -37,6 +38,20 @@ struct SubagentLiveState: Equatable {
         ![.resolved, .expired].contains(old.phase) || [.resolved, .expired].contains(phase) else { return }
     }
     approvals[token] = .init(turnID: turn, revision: revision, phase: phase)
+  }
+
+  mutating func receiveElicitation(_ event: JSONValue, child: String) {
+    guard event["type"].text == "shipios_subagent_elicitation_state", event["childThreadId"].text == child,
+      let token = event["requestToken"].text, UUID(uuidString: token) != nil,
+      let turn = event["turnId"].text, !turn.isEmpty,
+      let revision = event["revision"].int, revision > 0,
+      let phase = event["state"].text.flatMap(SubagentElicitationStatus.Phase.init(rawValue:)) else { return }
+    if let old = elicitations[token] {
+      guard old.turnID == turn, revision > old.revision,
+        ![.resolved, .expired].contains(old.phase) || [.resolved, .expired].contains(phase) else { return }
+    }
+    elicitations[token] = .init(turnID: turn, revision: revision, phase: phase,
+      choice: event["choice"].text.flatMap(SubagentElicitationRequest.Choice.init(rawValue:)))
   }
 
   private mutating func receive(_ frame: JSONValue, child: String) throws {

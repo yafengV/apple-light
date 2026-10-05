@@ -4,16 +4,40 @@ struct CodexElicitationView: View {
   @Bindable var store: WorkspaceStore
   let run: AgentRun
   let request: CodexElicitationRequest
+  private var pending: Bool { run.isActive && request.status == .awaiting && store.codexPendingElicitations[request.id] != nil }
+  var body: some View {
+    CodexElicitationCard(request: request, pending: pending, busy: false, statusLabel: statusLabel,
+      verificationURL: store.codexPendingElicitations[request.id]?.verificationURL,
+      openURL: { store.performMessageLinkAction(.openExternal, url: $0, ownerRunID: run.id) },
+      submit: { store.submitCodexElicitation(request.id, accepted: $0, content: $1) })
+  }
+  private var statusLabel: String {
+    switch request.status {
+    case .awaiting: pending ? (request.isURLRequest ? "等待验证" : "等待填写") : "已结束"
+    case .accepted: request.isURLRequest ? "已完成" : "已提交"
+    case .declined: "已拒绝"
+    case .cancelled: "已取消"
+    case .expired: "已过期"
+    }
+  }
+}
+
+struct CodexElicitationCard: View {
+  let request: CodexElicitationRequest
+  let pending: Bool
+  let busy: Bool
+  let statusLabel: String
+  var error: String? = nil
+  let verificationURL: URL?
+  let openURL: (URL) -> Void
+  let submit: (Bool, JSONValue?) -> Void
   @State private var drafts: [String: String] = [:]
   @State private var toggles: [String: Bool] = [:]
   @State private var selections: [String: Int] = [:]
   @State private var multiSelections: [String: Set<Int>] = [:]
 
   private enum FieldValue { case omitted, value(JSONValue), invalid }
-  private var pending: Bool {
-    run.isActive && request.status == .awaiting
-      && store.codexPendingElicitations[request.id] != nil
-  }
+
 
   private func draftValue(_ field: CodexElicitationField) -> String {
     if let value = drafts[field.id] { return value }
@@ -90,20 +114,21 @@ struct CodexElicitationView: View {
       if let host = request.urlDisplay {
         Label(host, systemImage: "globe").appFont(.caption).foregroundStyle(.secondary)
       }
+      if let error { Text(error).appFont(.caption).foregroundStyle(.red) }
       if pending {
         if request.isURLRequest {
-          if let url = store.codexPendingElicitations[request.id]?.verificationURL {
+          if let url = verificationURL {
             Button("在浏览器中打开验证页面") {
-              store.performMessageLinkAction(.openExternal, url: url, ownerRunID: run.id)
+              openURL(url)
             }
           }
           HStack {
             Button("取消") {
-              store.submitCodexElicitation(request.id, accepted: false, content: nil)
+              submit(false, nil)
             }
             Spacer()
             Button("已完成验证，继续") {
-              store.submitCodexElicitation(request.id, accepted: true, content: nil)
+              submit(true, nil)
             }
             .buttonStyle(.borderedProminent)
           }
@@ -155,10 +180,10 @@ struct CodexElicitationView: View {
             }
           }
           HStack {
-            Button("拒绝") { store.submitCodexElicitation(request.id, accepted: false, content: nil) }
+            Button("拒绝") { submit(false, nil) }
             Spacer()
             Button("提交") {
-              store.submitCodexElicitation(request.id, accepted: true, content: content)
+              submit(true, content)
             }
             .buttonStyle(.borderedProminent)
             .disabled(content == nil)
@@ -166,21 +191,16 @@ struct CodexElicitationView: View {
         }
       }
     }
+    .disabled(busy)
+    .onChange(of: pending) { _, active in
+      if !active { drafts = [:]; toggles = [:]; selections = [:]; multiSelections = [:] }
+    }
     .padding(12)
     .background(.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 9))
     .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(
       pending ? Color.accentColor.opacity(0.5) : .primary.opacity(0.06)))
   }
 
-  private var statusLabel: String {
-    switch request.status {
-    case .awaiting: pending ? (request.isURLRequest ? "等待验证" : "等待填写") : "已结束"
-    case .accepted: request.isURLRequest ? "已完成" : "已提交"
-    case .declined: "已拒绝"
-    case .cancelled: "已取消"
-    case .expired: "已过期"
-    }
-  }
 
   private func binding(for id: String) -> Binding<String> {
     Binding(get: {

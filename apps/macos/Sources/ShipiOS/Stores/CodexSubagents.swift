@@ -55,6 +55,7 @@ extension WorkspaceStore {
       let agent = subagents(taskID: taskID).first(where: { $0.rootThreadID == threadID && $0.threadID == child }) else { return }
     var state = subagentLiveStates[agent.id] ?? .init()
     if event["type"].text == "shipios_subagent_approval_state" { state.receiveApproval(event, child: child) }
+    else if event["type"].text == "shipios_subagent_elicitation_state" { state.receiveElicitation(event, child: child) }
     else { state.append(event, child: child) }
     subagentLiveStates[agent.id] = state
   }
@@ -75,6 +76,26 @@ extension WorkspaceStore {
       guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
         subagentLiveStates[agent.id] != nil else { return }
       subagentApprovalErrors[request.id] = error.localizedDescription
+    }
+  }
+
+  func resolveSubagentElicitation(taskID: String, agent: CodexSubagent, request: SubagentElicitationRequest,
+    choice: SubagentElicitationRequest.Choice, content: JSONValue?) async {
+    guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
+      subagents(taskID: taskID).contains(where: { $0.id == agent.id && $0.loaded }),
+      subagentLiveStates[agent.id]?.error == nil,
+      let status = subagentLiveStates[agent.id]?.elicitations[request.id], status.turnID == request.turnID,
+      status.phase == .pending, request.allows(choice, content: content),
+      !subagentElicitationBusy.contains(request.id) else { return }
+    subagentElicitationBusy.insert(request.id); subagentElicitationErrors.removeValue(forKey: request.id)
+    defer { subagentElicitationBusy.remove(request.id) }
+    do {
+      try await codexTransport.resolveSubagentElicitation(taskID: taskID, rootThreadID: agent.rootThreadID,
+        childThreadID: agent.threadID, request: request, choice: choice, content: content)
+    } catch {
+      guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
+        subagentLiveStates[agent.id] != nil else { return }
+      subagentElicitationErrors[request.id] = error.localizedDescription
     }
   }
 
@@ -103,6 +124,9 @@ extension WorkspaceStore {
       subagentStopBusy.removeValue(forKey: row.id); subagentStopErrors.removeValue(forKey: row.id)
       for token in subagentLiveStates[row.id]?.approvals.keys ?? Dictionary<String, SubagentApprovalStatus>().keys {
         subagentApprovalBusy.remove(token); subagentApprovalErrors.removeValue(forKey: token)
+      }
+      for token in subagentLiveStates[row.id]?.elicitations.keys ?? Dictionary<String, SubagentElicitationStatus>().keys {
+        subagentElicitationBusy.remove(token); subagentElicitationErrors.removeValue(forKey: token)
       }
       subagentLiveStates.removeValue(forKey: row.id)
     }

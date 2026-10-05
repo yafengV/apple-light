@@ -20,6 +20,8 @@ Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 60
 
 子 MCP 原始回复绑定及两种原生请求路径见[第 621 篇](docs/621-native-subagent-mcp-reply-capture.md)。186 项 Rust、正式包 126 项关联回归通过；固定 Core/MCP 来源已审计。Agent 令牌/RPC 和子详情表单尚未接入，完整 UI 继续未完成。统一前的全量已通过 2,660 项、0 失败、2 跳过，不能覆盖此后阶段。
 
+子任务 MCP 工具审批、类型化表单和 URL 详情交互见[第 622 篇](docs/622-subagent-mcp-actions-and-forms.md)。186 项 Rust、正式包 135 项关联回归及构建/签名/IPC/Core 冒烟通过；根请求汇总、空闲服务器请求、其他权限与完整前台配对继续未完成。第 621 篇固定 helper 的全量正在运行，不能冒充覆盖此后源码。
+
 ## 本地运行
 
 需要 macOS 14+、Swift 6.2+、Rust 1.95+；构建 iOS fixture 需要完整 Xcode 与 iOS Simulator SDK。已在 Rust 1.97.1、Xcode 26.3 上验证。首次构建需要下载依赖；无需 API Key。Markdown 解析依赖要求 Swift 6.2 工具链，应用仍支持 macOS 14。

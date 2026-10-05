@@ -290,6 +290,10 @@ async fn dispatch(
                 let p = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.resolve_subagent_approval(p).await.map_err(failed)
             }
+            "codex.subagent.elicitation.resolve" => {
+                let p = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.resolve_subagent_elicitation(p).await.map_err(failed)
+            }
             "codex.subagent.history.read" => {
                 let p = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.read_subagent_history(p).await.map_err(failed)

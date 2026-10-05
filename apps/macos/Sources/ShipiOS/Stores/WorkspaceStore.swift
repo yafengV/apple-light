@@ -241,6 +241,8 @@ final class WorkspaceStore {
   var mcpRefreshingServers: Set<UUID> = []
   var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]
   var backgroundTerminalCleanup: [String: UUID] = [:]
+  var subagentElicitationBusy: Set<String> = []
+  var subagentElicitationErrors: [String: String] = [:]
   var subagentApprovalBusy: Set<String> = []
   var subagentStopBusy: [String: String] = [:]
   var subagentStopErrors: [String: String] = [:]

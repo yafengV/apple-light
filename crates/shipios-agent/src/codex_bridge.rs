@@ -352,6 +352,7 @@ struct ThreadHandle {
     descendants: shipios_codex::DescendantSource,
     history: Arc<crate::subagent_history::HistorySnapshots>,
     approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
+    elicitations: Arc<crate::subagent_elicitations::SubagentElicitations>,
 }
 
 pub struct CodexBridge {
@@ -688,6 +689,11 @@ impl CodexBridge {
             task_id.clone(),
             thread_id.clone(),
         );
+        let elicitations = crate::subagent_elicitations::SubagentElicitations::new(
+            self.events.clone(),
+            task_id.clone(),
+            thread_id.clone(),
+        );
         sessions.insert(
             task_key.clone(),
             ThreadHandle {
@@ -696,6 +702,7 @@ impl CodexBridge {
                 descendants: session.descendant_source(),
                 history: Arc::default(),
                 approvals: Arc::clone(&approvals),
+                elicitations: Arc::clone(&elicitations),
             },
         );
         tokio::spawn(run_thread(
@@ -708,6 +715,7 @@ impl CodexBridge {
                 task_id: task_id.clone(),
                 thread_id: thread_id.clone(),
                 approvals,
+                elicitations,
             },
         ));
         Ok(ThreadInfo {
@@ -1188,6 +1196,23 @@ impl CodexBridge {
         approvals.resolve(request).await
     }
 
+    pub async fn resolve_subagent_elicitation(
+        &self,
+        request: crate::subagent_elicitations::Reply,
+    ) -> Result<Value> {
+        let key = Uuid::parse_str(&request.task_id)?.to_string();
+        let elicitations = {
+            let sessions = self.sessions.lock().await;
+            let handle = sessions.get(&key).context("Codex thread not started")?;
+            ensure!(
+                handle.thread_id == request.expected_thread_id,
+                "Codex thread identity changed"
+            );
+            Arc::clone(&handle.elicitations)
+        };
+        elicitations.resolve(request).await
+    }
+
     pub async fn read_subagent_history(
         &self,
         request: crate::subagent_history::HistoryRequest,
@@ -1311,6 +1336,7 @@ struct RootActorContext {
     task_id: String,
     thread_id: String,
     approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
+    elicitations: Arc<crate::subagent_elicitations::SubagentElicitations>,
 }
 
 async fn run_thread(
@@ -1325,6 +1351,7 @@ async fn run_thread(
         task_id,
         thread_id,
         approvals,
+        elicitations,
     } = context;
     let mut monitor = Some(crate::descendant_monitor::DescendantMonitor::start(
         session.descendant_source(),
@@ -1332,6 +1359,7 @@ async fn run_thread(
         task_id.clone(),
         thread_id.clone(),
         approvals,
+        elicitations,
     ));
     let mut session = Some(session);
     while let Some(live) = session.as_ref() {

@@ -32,6 +32,13 @@ struct SubagentWorkspacePanel: View {
           approvalError: { store.subagentApprovalErrors[$0] }, approve: { request, choice in
             guard let current else { return }
             Task { await store.resolveSubagentApproval(taskID: taskID, agent: current, request: request, choice: choice) }
+          }, elicitationStatus: { live?.error == nil ? live?.elicitations[$0] : nil },
+          elicitationBusy: { store.subagentElicitationBusy.contains($0) }, elicitationError: { store.subagentElicitationErrors[$0] },
+          openVerificationURL: { url in
+            store.performMessageLinkAction(.openExternal, url: url, ownerRunID: store.library.tasks.first { $0.id == taskID }?.runIDs.last)
+          }, elicit: { request, choice, content in
+            guard let current else { return }
+            Task { await store.resolveSubagentElicitation(taskID: taskID, agent: current, request: request, choice: choice, content: content) }
           })
         if current?.acceptsInput == true && parentRoot == selected.rootThreadID {
           composer
@@ -125,6 +132,11 @@ struct SubagentTranscriptView: View {
   var approvalBusy: (String) -> Bool = { _ in false }
   var approvalError: (String) -> String? = { _ in nil }
   var approve: (SubagentApprovalRequest, Int) -> Void = { _, _ in }
+  var elicitationStatus: (String) -> SubagentElicitationStatus? = { _ in nil }
+  var elicitationBusy: (String) -> Bool = { _ in false }
+  var elicitationError: (String) -> String? = { _ in nil }
+  var openVerificationURL: ((URL) -> Void)? = nil
+  var elicit: (SubagentElicitationRequest, SubagentElicitationRequest.Choice, JSONValue?) -> Void = { _, _, _ in }
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 24) {
@@ -156,6 +168,11 @@ struct SubagentTranscriptView: View {
                 SubagentApprovalCard(request: request, status: approvalStatus(request.id),
                   busy: approvalBusy(request.id), error: approvalError(request.id),
                   choose: { approve(request, $0) })
+              }
+            case .elicitation:
+              if let request = entry.elicitation {
+                SubagentElicitationCard(request: request, status: elicitationStatus(request.id), busy: elicitationBusy(request.id),
+                  error: elicitationError(request.id), openURL: openVerificationURL ?? openLink, submit: { elicit(request, $0, $1) })
               }
             case .notice: Text(entry.text).foregroundStyle(.secondary).appFont(size: 12)
             }

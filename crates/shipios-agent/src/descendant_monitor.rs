@@ -33,6 +33,7 @@ impl DescendantMonitor {
         task_id: String,
         root_thread_id: String,
         approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
+        elicitations: Arc<crate::subagent_elicitations::SubagentElicitations>,
     ) -> Self {
         let mut created = source.subscribe_created();
         let (refresh, mut changes) = watch::channel(Refresh::default());
@@ -72,6 +73,7 @@ impl DescendantMonitor {
                     continue;
                 }
                 approvals.expire_closed(None).await;
+                elicitations.expire_closed(None).await;
                 let pending = changes.borrow().submissions.clone();
                 for (child, turn) in pending {
                     if matches!(
@@ -128,12 +130,22 @@ impl DescendantMonitor {
                         let root_thread_id = root_thread_id.clone();
                         let child = row.thread_id.clone();
                         let approvals = Arc::clone(&approvals);
+                        let elicitations = Arc::clone(&elicitations);
                         readers.spawn(async move {
                             let stream = Uuid::new_v4().to_string();
                             let mut sequence = 0_u64;
+                            let mut active_turn: Option<String> = None;
                             while let Ok(event) = thread.next_event().await {
                                 let closed =
                                     matches!(event.msg, codex_core_api::EventMsg::ShutdownComplete);
+                                if let codex_core_api::EventMsg::TurnStarted(started) = &event.msg {
+                                    active_turn = Some(started.turn_id.clone());
+                                }
+                                let elicitation = elicitations
+                                    .capture(&thread, &child, active_turn.as_deref(), &event.msg)
+                                    .await
+                                    .ok()
+                                    .flatten();
                                 let metadata = approvals
                                     .capture(&thread, &child, &event.msg)
                                     .await
@@ -146,12 +158,17 @@ impl DescendantMonitor {
                                         | codex_core_api::EventMsg::ShutdownComplete
                                 ) {
                                     approvals.expire_closed(Some(&child)).await;
+                                    elicitations.expire_closed(Some(&child)).await;
+                                    active_turn = None;
                                 }
                                 if let Ok(Some(mut value)) =
                                     shipios_codex::public_descendant_event(event.msg)
                                 {
                                     if let Some(metadata) = metadata {
                                         value["shipios_approval"] = metadata;
+                                    }
+                                    if let Some(metadata) = elicitation {
+                                        value["shipios_elicitation"] = metadata;
                                     }
                                     sequence += 1;
                                     for frame in live_event_frames(

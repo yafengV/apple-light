@@ -4,6 +4,7 @@ mod local_environment;
 mod rpc;
 mod service;
 mod subagent_approvals;
+mod subagent_elicitations;
 mod subagent_history;
 
 use anyhow::{Context, Result};
