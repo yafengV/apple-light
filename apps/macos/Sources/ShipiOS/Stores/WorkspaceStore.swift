@@ -579,8 +579,8 @@ final class WorkspaceStore {
       if self.pane == "browser" { self.showingInspector = false }
       if wasVisible { self.activateChatTab() }
     }
-    workspace.browser.onVisit = { [weak self] url, title in
-      self?.recordBrowserVisit(url, title: title)
+    workspace.browser.onVisit = { [weak self] url, title, newVisit in
+      self?.recordBrowserVisit(url, title: title, newVisit: newVisit)
     }
     workspace.browser.chooseDownloadDestination = { [weak self] source, filename, completion in
       self?.chooseBrowserDownloadDestination(source: source, filename: filename, completion: completion)

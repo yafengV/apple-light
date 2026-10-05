@@ -20,12 +20,16 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   private var currentID = 0
   private var continuation: AsyncThrowingStream<WorkspaceFileSearchUpdate, Error>.Continuation?
   private var deadline: Task<Void, Never>?
+  private var deadlineRevision = UUID()
   private var closed = false
   private let timeout: Duration
+  private let timeoutSleep: @Sendable (Duration) async throws -> Void
   var processIdentifier: Int32 { process.processIdentifier }
 
-  init(root: URL, executable: URL, timeout: Duration = .seconds(20), additionalRoots: [URL] = []) throws {
+  init(root: URL, executable: URL, timeout: Duration = .seconds(20), additionalRoots: [URL] = [],
+    timeoutSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) throws {
     self.timeout = timeout
+    self.timeoutSleep = timeoutSleep
     let child = Process(), stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
     process = child; input = stdin.fileHandleForWriting
     child.executableURL = executable
@@ -126,9 +130,11 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   }
   private func armDeadline(for id: Int) {
     deadline?.cancel()
-    deadline = Task { [weak self, timeout] in
-      do { try await Task.sleep(for: timeout) } catch { return }
-      guard let self, self.currentID == id, self.continuation != nil else { return }
+    let revision = UUID(); deadlineRevision = revision
+    deadline = Task { [weak self, timeout, timeoutSleep] in
+      do { try await timeoutSleep(timeout) } catch { return }
+      guard !Task.isCancelled, let self, self.deadlineRevision == revision,
+        self.currentID == id, self.continuation != nil else { return }
       self.fail(AgentFailure(message: "文件搜索超时，请重试。"))
     }
   }

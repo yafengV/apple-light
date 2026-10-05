@@ -1929,6 +1929,45 @@ final class BrowserTests: XCTestCase {
     XCTAssertEqual(store.library.browserHistory.map(\.id), [older.id])
     XCTAssertNotEqual(recent.id, older.id)
   }
+  @MainActor func testBrowserTitleChangesDoNotBecomeNewVisitsOrChangeHistoryOrder() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root); await store.restore()
+    defer { store.workspace.browser.shutdown() }
+    let first = store.workspace.browser.newTab(), second = store.workspace.browser.newTab()
+    try await load(first, "/one", title: "One")
+    let original = try XCTUnwrap(store.library.browserHistory.first)
+    try await load(second, "/two", title: "Two")
+    _ = try await first.view.evaluateJavaScript("document.title = 'Updated One'")
+    try await eventually("Page title notification did not arrive") { first.title == "Updated One" }
+    XCTAssertEqual(store.library.browserHistory.map(\.title), ["Two", "Updated One"])
+    XCTAssertEqual(store.library.browserHistory.last?.id, original.id)
+    XCTAssertEqual(store.library.browserHistory.last?.visitedAt, original.visitedAt)
+  }
+  @MainActor func testClearedHistoryCannotReturnFromTitleNotificationsInAnyWindowButReloadRecordsVisit() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root); await store.restore()
+    let extra = BrowserSession(); store.registerBrowserSession(extra)
+    defer { store.workspace.browser.shutdown(); extra.shutdown() }
+    let main = store.workspace.browser.newTab(), child = extra.newTab()
+    try await load(main, "/one", title: "One"); try await load(child, "/two", title: "Two")
+    let originalIDs = Set(store.library.browserHistory.map(\.id))
+    await store.clearBrowserData(.init(range: .allTime, history: true, cookies: false,
+      cache: false, otherWebsiteData: false))
+    _ = try await main.view.evaluateJavaScript("document.title = 'After clear One'")
+    _ = try await child.view.evaluateJavaScript("document.title = 'After clear Two'")
+    try await eventually("Cleared pages did not update titles") { main.title == "After clear One" && child.title == "After clear Two" }
+    XCTAssertTrue(store.library.browserHistory.isEmpty)
+    XCTAssertTrue(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json")).browserHistory.isEmpty)
+    main.reload()
+    try await eventually("Reload did not record a real visit") {
+      !main.loading && main.title == "One" && store.library.browserHistory.count == 1
+    }
+    let refreshed = try XCTUnwrap(store.library.browserHistory.first)
+    XCTAssertEqual(refreshed.url, base + "/one"); XCTAssertFalse(originalIDs.contains(refreshed.id))
+    XCTAssertEqual(store.library.browserHistory.map(\.title), ["One"])
+  }
   @MainActor func testStyleFeedbackPreviewsAndRestoresTheSelectedPageElement() async throws {
     let session = BrowserSession()
     defer { session.shutdown() }

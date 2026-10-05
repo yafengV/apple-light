@@ -73,8 +73,8 @@ import Observation
         capturePins()
         store.saveLibrary()
       }
-      tasks[taskID]?.browser.session.onVisit = { [weak self, weak store] url, title in
-        store?.recordBrowserVisit(url, title: title)
+      tasks[taskID]?.browser.session.onVisit = { [weak self, weak store] url, title, newVisit in
+        store?.recordBrowserVisit(url, title: title, newVisit: newVisit)
         self?.capturePins()
       }
       if store.libraryLoaded, let layout = store.library.taskWindowTabLayouts[id]?[taskID] {

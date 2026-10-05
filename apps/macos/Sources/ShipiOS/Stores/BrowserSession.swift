@@ -25,7 +25,7 @@ final class BrowserSession {
   @ObservationIgnored var onTabsReordered: (([UUID]) -> Void)?
   /// Content-tab owners choose the fallback within the closing tab's own pane.
   @ObservationIgnored var selectsAdjacentTabOnClose = true
-  @ObservationIgnored var onVisit: ((URL, String) -> Void)?
+  @ObservationIgnored var onVisit: ((URL, String, Bool) -> Void)?
   @ObservationIgnored var chooseDownloadDestination:
     ((URL, String, @escaping (BrowserDownloadDestination) -> Void) -> Void)?
   @ObservationIgnored var onDownloadEvent: ((BrowserDownloadEvent) -> Void)?
@@ -50,7 +50,7 @@ final class BrowserSession {
       tab.navigate()
     }
     tab.closeWindow = { [weak self, weak tab] in if let tab { self?.close(tab.id) } }
-    tab.didVisit = { [weak self] url, title in self?.onVisit?(url, title) }
+    tab.didVisit = { [weak self] url, title, newVisit in self?.onVisit?(url, title, newVisit) }
     configureDownloads(tab)
     tabs.append(tab)
     onTabOpened?(tab.id)

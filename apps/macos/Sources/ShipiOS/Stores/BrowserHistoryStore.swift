@@ -46,10 +46,18 @@ extension WorkspaceStore {
     } catch { browserSettingsError = error.localizedDescription }
   }
 
-  func recordBrowserVisit(_ url: URL, title: String) {
+  func recordBrowserVisit(_ url: URL, title: String, newVisit: Bool = true) {
     guard BrowserAddress.permits(url) else { return }
     do {
       var candidate = library
+      if !newVisit {
+        guard let index = candidate.browserHistory.firstIndex(where: { $0.url == url.absoluteString }),
+          candidate.browserHistory[index].title != title else { return }
+        candidate.browserHistory[index].title = title
+        try commitLibrary(candidate)
+        browserSettingsError = nil
+        return
+      }
       let existingID = candidate.browserHistory.first { $0.url == url.absoluteString }?.id
       candidate.browserHistory.removeAll { $0.url == url.absoluteString }
       candidate.browserHistory.insert(

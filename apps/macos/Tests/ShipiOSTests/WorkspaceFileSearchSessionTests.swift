@@ -139,6 +139,49 @@ import XCTest
     }
   }
 
+  func testReadyOldDeadlineCannotFailAQueryThatAlreadyReceivedProgress() async throws {
+    let root = try fixture("""
+    read query
+    while [ ! -e progress ]; do /bin/sleep 0.01; done
+    printf '{"id":1,"files":[],"complete":false}\\n'
+    while [ ! -e complete ]; do /bin/sleep 0.01; done
+    printf '{"id":1,"files":[],"complete":true}\\n'
+    while read query; do :; done
+    """)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let clock = SearchDeadlineFixture()
+    addTeardownBlock { await clock.releaseAll() }
+    let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
+      timeoutSleep: { await clock.sleep($0) })
+    defer { session.close() }
+    let partial = expectation(description: "real helper progress")
+    var finished = false
+    let pending = Task { () -> Result<[Bool], Error> in
+      defer { finished = true }
+      do {
+        var updates: [Bool] = []
+        for try await update in try session.query("value") {
+          updates.append(update.complete)
+          if !update.complete { partial.fulfill() }
+        }
+        return .success(updates)
+      } catch { return .failure(error) }
+    }
+    try await clock.started(1)
+    try Data().write(to: root.appendingPathComponent("progress"))
+    await fulfillment(of: [partial], timeout: 3)
+    try await clock.started(2)
+    // Model a sleep whose deadline was ready before cancellation, but whose
+    // task resumes on the main actor after the new progress was processed.
+    await clock.release(0)
+    try await Task.sleep(for: .milliseconds(50))
+    XCTAssertFalse(finished, "An obsolete timeout must not terminate the current search")
+    try Data().write(to: root.appendingPathComponent("complete"))
+    let updates = try await pending.value.get()
+    XCTAssertEqual(updates, [false, true])
+    await clock.releaseAll()
+  }
+
   private func fixture(_ body: String) throws -> URL {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -147,6 +190,24 @@ import XCTest
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: helper.path)
     return root
   }
+}
+
+private actor SearchDeadlineFixture {
+  private var count = 0
+  private var waiters: [Int: CheckedContinuation<Void, Never>] = [:]
+  func sleep(_ duration: Duration) async {
+    let index = count; count += 1
+    await withCheckedContinuation { waiters[index] = $0 }
+  }
+  func started(_ expected: Int) async throws {
+    let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+    while count < expected {
+      guard ContinuousClock.now < deadline else { throw AgentFailure(message: "Search deadline did not start") }
+      try await Task.sleep(for: .milliseconds(1))
+    }
+  }
+  func release(_ index: Int) { waiters.removeValue(forKey: index)?.resume() }
+  func releaseAll() { let pending = waiters; waiters = [:]; for waiter in pending.values { waiter.resume() } }
 }
 
 @MainActor private final class SearchSessionFixture: FileSearchSession {

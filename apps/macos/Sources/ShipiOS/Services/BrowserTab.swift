@@ -60,7 +60,8 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   @ObservationIgnored var openWindow: ((WKWebViewConfiguration) -> BrowserTab?)?
   @ObservationIgnored var openURLInNewTab: ((URL) -> Void)?
   @ObservationIgnored var closeWindow: (() -> Void)?
-  @ObservationIgnored var didVisit: ((URL, String) -> Void)?
+  @ObservationIgnored var didVisit: ((URL, String, Bool) -> Void)?
+  @ObservationIgnored private var recordedVisitURL: URL?
   @ObservationIgnored var chooseDownloadDestination:
     ((URL, String, @escaping (BrowserDownloadDestination) -> Void) -> Void)?
   @ObservationIgnored var didUpdateDownload: ((BrowserDownloadEvent) -> Void)?
@@ -513,11 +514,14 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     title = view.title.flatMap { $0.isEmpty ? nil : $0 } ?? view.url?.host ?? "新标签页"
   }
   private func recordVisit() {
-    guard !loading, let url = committedURL else { return }
-    didVisit?(url, title)
+    guard !closed, !loading, error == nil, let url = committedURL else { return }
+    let newVisit = recordedVisitURL != url
+    recordedVisitURL = url
+    didVisit?(url, title, newVisit)
   }
   func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
     guard !closed else { return }
+    recordedVisitURL = nil
     invalidateSiteTools()
     resetPageEditableFocus()
     agentFrames.removeAll(); agentScanID = nil
