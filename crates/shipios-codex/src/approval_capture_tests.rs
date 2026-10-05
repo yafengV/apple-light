@@ -7,6 +7,13 @@ use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn fixture(root: &std::path::Path) -> Result<(MockServer, CodexSession)> {
+    fixture_with_mcp(root, None).await
+}
+
+async fn fixture_with_mcp(
+    root: &std::path::Path,
+    mcp_mode: Option<&str>,
+) -> Result<(MockServer, CodexSession)> {
     let server = MockServer::start().await;
     let patch_path = root.join("Outside/patch-proof.txt");
     std::fs::create_dir_all(patch_path.parent().unwrap())?;
@@ -22,6 +29,14 @@ async fn fixture(root: &std::path::Path) -> Result<(MockServer, CodexSession)> {
             let item = if finished {
                 json!({"type":"message","id":"final","role":"assistant",
                     "content":[{"type":"output_text","text":"Approval fixture complete"}]})
+            } else if prompt.contains("native-mcp") {
+                if items[start..].iter().any(|item| item["type"] == "tool_search_output") {
+                    json!({"type":"function_call","call_id":"reused-mcp-call","namespace":"mcp__shipios_capture",
+                        "name":"first","arguments":"{}"})
+                } else {
+                    json!({"type":"tool_search_call","call_id":"native-mcp-search", "execution":"client",
+                        "arguments":{"query":"shipios_capture first MCP tool", "limit":8}})
+                }
             } else if prompt.contains("native-patch") {
                 json!({"type":"custom_tool_call","call_id":"reused-patch","name":"apply_patch",
                     "input":format!("*** Begin Patch\n*** Add File: {}\n+patched\n*** End Patch", patch_path.display())})
@@ -75,7 +90,54 @@ async fn fixture(root: &std::path::Path) -> Result<(MockServer, CodexSession)> {
         permission_profile_id: None,
         responses: SessionResponsePreferences::default(),
         web_search: SessionWebSearch::default(),
-        mcp_servers: vec![],
+        mcp_servers: mcp_mode
+            .map(|mode| {
+                vec![ShipMcpServer {
+                    name: "shipios_capture".into(),
+                    enabled: true,
+                    transport: ShipMcpTransport::Stdio,
+                    command: "/usr/bin/python3".into(),
+                    arguments: vec![
+                        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join(if mode == "capture_url" {
+                                "../../apps/macos/Tests/Fixtures/subagent_mcp_server.py"
+                            } else {
+                                "../../apps/macos/Tests/Fixtures/mcp_server.py"
+                            })
+                            .to_string_lossy()
+                            .into_owned(),
+                        if mode == "native_gate" {
+                            "stdio".into()
+                        } else {
+                            mode.into()
+                        },
+                    ],
+                    environment: vec![
+                        ShipMcpKeyValue {
+                            key: "SHIPIOS_CODEX_PROBE".into(),
+                            value: if mode == "native_gate" {
+                                String::new()
+                            } else {
+                                "1".into()
+                            },
+                        },
+                        ShipMcpKeyValue {
+                            key: "CALL_LOG".into(),
+                            value: root
+                                .join("mcp-replies.jsonl")
+                                .to_string_lossy()
+                                .into_owned(),
+                        },
+                    ],
+                    environment_passthrough: vec![],
+                    working_directory: String::new(),
+                    url: String::new(),
+                    bearer_token_environment_variable: String::new(),
+                    headers: vec![],
+                    environment_headers: vec![],
+                }]
+            })
+            .unwrap_or_default(),
         hooks: vec![],
         browser_bridge: None,
         confetti: None,
@@ -126,6 +188,272 @@ async fn ticket(
             request.started_at_ms,
         )
         .await
+}
+
+async fn mcp_request(
+    thread: &CodexThread,
+    prompt: Option<&str>,
+    previous_turn: Option<&str>,
+) -> Result<(codex_protocol::approvals::ElicitationRequestEvent, String)> {
+    let observed_turn = if let Some(prompt) = prompt {
+        match thread
+            .start_turn_if_idle(TurnInputRequest::user_input(vec![UserInput::Text {
+                text: prompt.into(),
+                text_elements: vec![],
+            }]))
+            .await?
+        {
+            StartIfIdleSubmission::Started { turn_id } => turn_id,
+            _ => bail!("MCP child is not idle"),
+        }
+    } else {
+        previous_turn
+            .context("missing observed MCP turn")?
+            .to_owned()
+    };
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            let event = thread.next_event().await?;
+            if let EventMsg::ElicitationRequest(request) = event.msg {
+                return Ok((request, observed_turn));
+            }
+            if let EventMsg::TurnComplete(_) | EventMsg::Error(_) = event.msg {
+                bail!("MCP request did not arrive: {:?}", event.msg);
+            }
+        }
+    })
+    .await
+    .context("native MCP request timeout")?
+}
+
+#[test]
+fn native_child_mcp_capture_rejects_reused_generation_root_peer_and_ordinary_reply() -> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let (_server, parent) = fixture_with_mcp(root.path(), Some("stdio_form")).await?;
+        let child = spawn_child(&parent, parent.thread_id, 1).await?;
+        let peer = parent
+            .manager
+            .start_thread(StartThreadOptions::new(parent.test_config.clone()))
+            .await?;
+        let source = parent.descendant_source();
+        let (first, first_turn) =
+            mcp_request(&child.thread, Some("native-mcp native-repeat"), None).await?;
+        assert!(
+            first.turn_id.is_none(),
+            "Actual server forms use the runtime router"
+        );
+        for id in [parent.thread_id, peer.thread_id] {
+            assert!(
+                source
+                    .claim_elicitation(&id.to_string(), &first_turn, &first)
+                    .await
+                    .is_err()
+            );
+        }
+        for identity in ["turn", "server", "request-id"] {
+            let mut wrong = first.clone();
+            match identity {
+                "turn" => wrong.turn_id = Some("wrong-turn".into()),
+                "server" => wrong.server_name = "wrong-server".into(),
+                _ => wrong.id = serde_json::from_value(json!("wrong-request"))?,
+            }
+            assert!(
+                source
+                    .claim_elicitation(&child.thread_id.to_string(), &first_turn, &wrong)
+                    .await
+                    .is_err()
+            );
+        }
+        let reply = source
+            .claim_elicitation(&child.thread_id.to_string(), &first_turn, &first)
+            .await?;
+        assert!(
+            source
+                .claim_elicitation(&child.thread_id.to_string(), &first_turn, &first)
+                .await
+                .is_err()
+        );
+        // An ID-only legacy reply cannot fulfill a waiter claimed by the host.
+        child
+            .thread
+            .submit(Op::ResolveElicitation {
+                server_name: first.server_name.clone(),
+                request_id: serde_json::from_value(serde_json::to_value(&first.id)?)?,
+                decision: codex_protocol::approvals::ElicitationAction::Decline,
+                content: None,
+                meta: None,
+            })
+            .await?;
+        // This acknowledged no-op follows the legacy reply in the same native
+        // queue, so the test does not race response delivery against submission.
+        let (barrier, processed) = tokio::sync::oneshot::channel();
+        child
+            .thread
+            .submit(Op::TurnSettings {
+                turn_id: first_turn.clone(),
+                update: Default::default(),
+                reply: barrier,
+            })
+            .await?;
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(5), processed).await??,
+            codex_protocol::protocol::TurnSettingsUpdateOutcome::Rejected {
+                reason: "turn settings updates require the step_model_switching feature".into(),
+            }
+        );
+        assert!(!reply.is_closed());
+        assert!(
+            reply
+                .resolve(
+                    codex_protocol::approvals::ElicitationAction::Accept,
+                    Some(json!({"reason":"Approved original child", "count":2})),
+                    None
+                )
+                .await
+        );
+        let (second, second_turn) = mcp_request(&child.thread, None, Some(&first_turn)).await?;
+        assert_eq!(first_turn, second_turn);
+        assert_ne!(
+            first.id, second.id,
+            "Core router IDs remain distinct when the server reuses its raw ID"
+        );
+        assert!(
+            source
+                .claim_elicitation(&child.thread_id.to_string(), &first_turn, &first)
+                .await
+                .is_err()
+        );
+        let reply = source
+            .claim_elicitation(&child.thread_id.to_string(), &second_turn, &second)
+            .await?;
+        assert!(
+            reply
+                .resolve(
+                    codex_protocol::approvals::ElicitationAction::Accept,
+                    Some(json!({"reason":"Approved original child", "count":2})),
+                    None
+                )
+                .await
+        );
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        let log = std::fs::read_to_string(root.path().join("mcp-replies.jsonl"))?;
+        let responses: Vec<serde_json::Value> = log
+            .lines()
+            .map(serde_json::from_str)
+            .collect::<std::result::Result<_, _>>()?;
+        assert_eq!(responses.len(), 2);
+        assert!(responses.iter().all(|response| response["action"] == "accept" && response["content"]["count"] == 2));
+        peer.thread.submit(Op::Shutdown).await?;
+        parent.shutdown().await?;
+        Ok(())
+    })
+}
+
+#[test]
+fn native_child_url_capture_closes_on_stop_and_cannot_reply_to_replacement_turn() -> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let (_server, parent) = fixture_with_mcp(root.path(), Some("capture_url")).await?;
+        let child = spawn_child(&parent, parent.thread_id, 1).await?;
+        let source = parent.descendant_source();
+        let (first, first_turn) = mcp_request(&child.thread, Some("native-mcp"), None).await?;
+        let reply = source
+            .claim_elicitation(&child.thread_id.to_string(), &first_turn, &first)
+            .await?;
+        assert!(
+            source
+                .interrupt(&child.thread_id.to_string(), &first_turn)
+                .await?
+        );
+        status(&child.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
+        assert!(reply.is_closed());
+        let (second, second_turn) = mcp_request(&child.thread, Some("native-mcp"), None).await?;
+        assert_ne!(first_turn, second_turn);
+        assert!(
+            !reply
+                .resolve(
+                    codex_protocol::approvals::ElicitationAction::Accept,
+                    Some(json!({"reason":"Approved original child", "count":2})),
+                    None
+                )
+                .await
+        );
+        assert!(
+            source
+                .claim_elicitation(&child.thread_id.to_string(), &first_turn, &first)
+                .await
+                .is_err()
+        );
+        let next = source
+            .claim_elicitation(&child.thread_id.to_string(), &second_turn, &second)
+            .await?;
+        assert!(
+            next.resolve(
+                codex_protocol::approvals::ElicitationAction::Cancel,
+                None,
+                None
+            )
+            .await
+        );
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        let log = std::fs::read_to_string(root.path().join("mcp-replies.jsonl"))?;
+        let responses: Vec<serde_json::Value> = log
+            .lines()
+            .map(serde_json::from_str)
+            .collect::<std::result::Result<_, _>>()?;
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0]["action"], "cancel");
+        parent.shutdown().await?;
+        Ok(())
+    })
+}
+
+#[test]
+fn native_child_mcp_tool_gate_capture_checks_native_generation_then_executes() -> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let (_server, parent) = fixture_with_mcp(root.path(), Some("native_gate")).await?;
+        let child = spawn_child(&parent, parent.thread_id, 1).await?;
+        let source = parent.descendant_source();
+        let (request, turn) = mcp_request(&child.thread, Some("native-mcp"), None).await?;
+        assert_eq!(request.turn_id.as_deref(), Some(turn.as_str()));
+        let native = serde_json::to_value(&request.request)?;
+        assert!(
+            native["_meta"][codex_core::NATIVE_ELICITATION_GENERATION_KEY]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
+        let mut wrong = request.clone();
+        let mut changed = native;
+        changed["_meta"][codex_core::NATIVE_ELICITATION_GENERATION_KEY] = json!(999999);
+        wrong.request = serde_json::from_value(changed)?;
+        assert!(
+            source
+                .claim_elicitation(&child.thread_id.to_string(), &turn, &wrong)
+                .await
+                .is_err()
+        );
+        let reply = source
+            .claim_elicitation(&child.thread_id.to_string(), &turn, &request)
+            .await?;
+        assert!(
+            reply
+                .resolve(
+                    codex_protocol::approvals::ElicitationAction::Accept,
+                    Some(json!({})),
+                    None
+                )
+                .await
+        );
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        let log = std::fs::read_to_string(root.path().join("mcp-replies.jsonl"))?;
+        let call: serde_json::Value = serde_json::from_str(log.trim())?;
+        assert_eq!(call["name"], "first");
+        parent.shutdown().await?;
+        Ok(())
+    })
 }
 
 #[test]

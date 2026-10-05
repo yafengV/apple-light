@@ -1,7 +1,7 @@
 [workspace]
 members = ["crates/shipios-core", "crates/shipios-tools", "crates/shipios-agent", "crates/shipios-codex", "vendor/codex-sandboxing"]
 resolver = "3"
-exclude = ["vendor/codex-core"]
+exclude = ["vendor/codex-core", "vendor/codex-mcp"]
 
 [workspace.package]
 version = "0.1.0"
@@ -33,3 +33,4 @@ tungstenite = { git = "https://github.com/openai-oss-forks/tungstenite-rs", rev 
 [patch."https://github.com/openai/codex.git"]
 codex-sandboxing = { path = "vendor/codex-sandboxing" }
 codex-core = { path = "vendor/codex-core" }
+codex-mcp = { path = "vendor/codex-mcp" }

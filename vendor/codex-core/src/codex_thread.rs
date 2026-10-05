@@ -544,6 +544,49 @@ impl CodexThread {
         })
     }
 
+    /// Capture one original MCP waiter, including its Core-generated generation.
+    #[expect(
+        clippy::await_holding_invalid_type,
+        reason = "bind one active turn and original waiter atomically"
+    )]
+    pub async fn claim_elicitation_for_turn(
+        &self,
+        expected_turn_id: &str,
+        server: &str,
+        request_id: &rmcp::model::RequestId,
+        generation: Option<u64>,
+    ) -> Option<CapturedElicitation> {
+        if generation == Some(0) {
+            return None;
+        }
+        let active = self.session.active_turn.lock().await;
+        let turn = active.as_ref()?;
+        if turn.task.as_ref()?.turn_context.sub_id != expected_turn_id {
+            return None;
+        }
+        let reply = if let Some(generation) = generation {
+            CapturedElicitationReply::Turn(
+                turn.turn_state
+                    .lock()
+                    .await
+                    .claim_pending_elicitation(server, request_id, generation)?,
+            )
+        } else {
+            CapturedElicitationReply::Runtime(
+                self.session
+                    .services
+                    .mcp_runtime
+                    .claim_elicitation(server, request_id)?,
+            )
+        };
+        Some(CapturedElicitation {
+            reply: Some(reply),
+            cancellation: turn.task.as_ref()?.cancellation_token.clone(),
+            session: Arc::clone(&self.session),
+            turn_id: expected_turn_id.to_owned(),
+        })
+    }
+
     /// Interrupt only the selected active turn. An old UI action must never
     /// select the next turn through an unscoped queued Op::Interrupt.
     pub async fn interrupt_turn_if_active(&self, expected_turn_id: &str) -> bool {
@@ -1154,5 +1197,85 @@ impl CapturedApproval {
             .expect("approval reply lock")
             .take()
             .is_some_and(|sender| sender.send(decision).is_ok()))
+    }
+}
+
+/// One-use response to the original MCP future; cancellation and overwrite close it.
+pub struct CapturedElicitation {
+    reply: Option<CapturedElicitationReply>,
+    cancellation: CancellationToken,
+    session: Arc<Session>,
+    turn_id: String,
+}
+
+enum CapturedElicitationReply {
+    Turn(Arc<std::sync::Mutex<Option<oneshot::Sender<codex_rmcp_client::ElicitationResponse>>>>),
+    Runtime(codex_mcp::CapturedMcpElicitation),
+}
+
+impl Drop for CapturedElicitation {
+    fn drop(&mut self) {
+        if let Some(CapturedElicitationReply::Turn(reply)) = self.reply.take() {
+            reply.lock().expect("elicitation reply lock").take();
+        }
+    }
+}
+
+impl CapturedElicitation {
+    pub fn is_closed(&self) -> bool {
+        self.cancellation.is_cancelled()
+            || self.reply.as_ref().is_none_or(|reply| match reply {
+                CapturedElicitationReply::Turn(reply) => reply
+                    .lock()
+                    .expect("elicitation reply lock")
+                    .as_ref()
+                    .is_none_or(|sender| sender.is_closed()),
+                CapturedElicitationReply::Runtime(reply) => reply.is_closed(),
+            })
+    }
+    #[expect(
+        clippy::await_holding_invalid_type,
+        reason = "original reply and active-turn identity stay atomic"
+    )]
+    pub async fn resolve(
+        mut self,
+        action: codex_protocol::approvals::ElicitationAction,
+        content: Option<serde_json::Value>,
+        meta: Option<serde_json::Value>,
+    ) -> bool {
+        let action = match action {
+            codex_protocol::approvals::ElicitationAction::Accept => {
+                codex_rmcp_client::ElicitationAction::Accept
+            }
+            codex_protocol::approvals::ElicitationAction::Decline => {
+                codex_rmcp_client::ElicitationAction::Decline
+            }
+            codex_protocol::approvals::ElicitationAction::Cancel => {
+                codex_rmcp_client::ElicitationAction::Cancel
+            }
+        };
+        let response = codex_rmcp_client::ElicitationResponse {
+            action,
+            content,
+            meta,
+        };
+        let active = self.session.active_turn.lock().await;
+        if self.is_closed()
+            || !active
+                .as_ref()
+                .and_then(|turn| turn.task.as_ref())
+                .is_some_and(|task| task.turn_context.sub_id == self.turn_id)
+        {
+            return false;
+        }
+        match self.reply.take() {
+            Some(CapturedElicitationReply::Turn(reply)) => reply
+                .lock()
+                .expect("elicitation reply lock")
+                .take()
+                .is_some_and(|sender| sender.send(response).is_ok()),
+            Some(CapturedElicitationReply::Runtime(reply)) => reply.resolve(response),
+            None => false,
+        }
     }
 }

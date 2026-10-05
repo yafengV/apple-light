@@ -1,0 +1,51 @@
+# Pinned upstream manifest normalized for a standalone Cargo patch.
+[package]
+"edition" = "2024"
+"license" = "Apache-2.0"
+"name" = "codex-mcp"
+"version" = "0.0.0"
+"publish" = false
+
+[lib]
+name = "codex_mcp"
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+"anyhow" = { "version" = "1" }
+"arc-swap" = { "version" = "1.9.0" }
+"async-channel" = { "version" = "2.3.1" }
+"codex-async-utils" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-api" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-config" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-connectors" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-diagnostics" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-exec-server" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-login" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-model-provider" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-otel" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-protocol" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-rmcp-client" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-utils-path-uri" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-utils-plugins" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"futures" = { "version" = "0.3", "default-features" = false }
+"lru" = { "version" = "0.18.2" }
+"regex-lite" = { "version" = "0.1.8" }
+"rmcp" = { "version" = "=3.2.0", "default-features" = false, "features" = ["base64", "macros", "schemars", "server"] }
+"serde" = { "version" = "1", "features" = ["rc", "derive"] }
+"serde_json" = { "version" = "1" }
+"sha1" = { "version" = "0.10.6" }
+"thiserror" = { "version" = "2.0.17" }
+"tokio" = { "version" = "1", "features" = ["io-util", "macros", "rt-multi-thread"] }
+"tokio-util" = { "version" = "0.7.18", "features" = ["rt"] }
+"tracing" = { "version" = "0.1.44" }
+"url" = { "version" = "2" }
+
+[dev-dependencies]
+"assert_matches" = { "version" = "1.5.0" }
+"codex-exec-server-test-support" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"codex-plugin" = { "git" = "https://github.com/openai/codex.git", "rev" = "50d77959bf927293c4b5ddcca81d05331ae582ea" }
+"insta" = { "version" = "1.46.3" }
+"pretty_assertions" = { "version" = "1.4.1" }
+"rmcp" = { "version" = "=3.2.0", "default-features" = false, "features" = ["base64", "macros", "schemars", "server"] }
+"tempfile" = { "version" = "3.23.0" }

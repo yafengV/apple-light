@@ -11,7 +11,8 @@ import tomllib
 
 REVISION = '50d77959bf927293c4b5ddcca81d05331ae582ea'
 REPO = Path(__file__).resolve().parent.parent
-PATCHED = ['src/codex_thread.rs', 'src/lib.rs', 'src/session/mod.rs', 'src/state/turn.rs']
+PATCHED = ['src/codex_thread.rs', 'src/lib.rs', 'src/session/mod.rs', 'src/session/mcp.rs', 'src/state/turn.rs']
+MCP_PATCHED = ['src/elicitation.rs', 'src/lib.rs', 'src/runtime.rs', 'src/user_verification_elicitation.rs']
 
 
 def toml_value(value):
@@ -29,8 +30,8 @@ def toml_value(value):
     raise TypeError(value)
 
 
-def normalized_manifest(upstream):
-    original = tomllib.loads((upstream / 'core/Cargo.toml').read_text())
+def normalized_manifest(upstream, component='core'):
+    original = tomllib.loads((upstream / component / 'Cargo.toml').read_text())
     workspace = tomllib.loads((upstream / 'Cargo.toml').read_text())['workspace']
     package = {key: workspace['package'][key]
                if isinstance(value, dict) and value.get('workspace') else value
@@ -38,7 +39,7 @@ def normalized_manifest(upstream):
     package['publish'] = False
     lines = ['# Pinned upstream manifest normalized for a standalone Cargo patch.', '[package]']
     lines += [json.dumps(key) + ' = ' + toml_value(value) for key, value in package.items()]
-    lines += ['', '[lib]', 'name = "codex_core"', 'path = "src/lib.rs"', 'doctest = false']
+    lines += ['', '[lib]', 'name = ' + json.dumps(original['lib']['name']), 'path = "src/lib.rs"', 'doctest = false']
 
     def dependencies(section, entries):
         lines.extend(['', section])
@@ -68,34 +69,37 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('upstream', type=Path, help='pinned Codex repository checkout or its codex-rs directory')
     parser.add_argument('--write-patch', action='store_true', help='refresh the reviewable patch before verification')
+    parser.add_argument('--component', choices=['core', 'codex-mcp'], default='core')
     arguments = parser.parse_args()
+    component = arguments.component
+    patched = PATCHED if component == 'core' else MCP_PATCHED
     upstream = arguments.upstream.resolve()
     if (upstream / 'codex-rs').is_dir():
         upstream /= 'codex-rs'
     revision = subprocess.check_output(['git', '-C', str(upstream), 'rev-parse', 'HEAD'], text=True).strip()
     if revision != REVISION:
         raise SystemExit(f'wrong upstream revision: {revision}')
-    subprocess.run(['git', '-C', str(upstream), 'diff', '--exit-code', 'HEAD', '--', 'core', 'Cargo.toml'], check=True)
-    local = REPO / 'vendor/codex-core'
-    patch = REPO / 'upstream/codex-core-approval-capture.patch'
+    subprocess.run(['git', '-C', str(upstream), 'diff', '--exit-code', 'HEAD', '--', component, 'Cargo.toml'], check=True)
+    local = REPO / ('vendor/codex-core' if component == 'core' else 'vendor/codex-mcp')
+    patch = REPO / ('upstream/codex-core-approval-capture.patch' if component == 'core' else 'upstream/codex-mcp-elicitation-capture.patch')
     if arguments.write_patch:
         patch.write_text(''.join(''.join(difflib.unified_diff(
-            (upstream / 'core' / name).read_text().splitlines(keepends=True),
+            (upstream / component / name).read_text().splitlines(keepends=True),
             (local / name).read_text().splitlines(keepends=True),
-            fromfile='a/' + name, tofile='b/' + name)) for name in PATCHED))
-    if (local / 'Cargo.toml').read_text() != normalized_manifest(upstream):
+            fromfile='a/' + name, tofile='b/' + name)) for name in patched))
+    if (local / 'Cargo.toml').read_text() != normalized_manifest(upstream, component):
         raise SystemExit('Core manifest differs from pinned workspace normalization')
     tracked = subprocess.check_output(['git', '-C', str(upstream), 'ls-tree', '-r',
-        '--name-only', 'HEAD', '--', 'core'], text=True).splitlines()
+        '--name-only', 'HEAD', '--', component], text=True).splitlines()
     # Git runs ls-tree relative to codex-rs; use only committed upstream files.
-    originals = {name.removeprefix('core/'): upstream / name for name in tracked}
+    originals = {name.removeprefix(component + '/'): upstream / name for name in tracked}
     actual = {str(path.relative_to(local)): path for path in local.rglob('*') if path.is_file()}
-    extras = {'UPSTREAM_README.md', 'LICENSE', 'NOTICE'}
+    extras = {'UPSTREAM_README.md', 'LICENSE', 'NOTICE'} if component == 'core' else {'README.md', 'LICENSE', 'NOTICE'}
     if actual.keys() != originals.keys() | extras:
         raise SystemExit(f'file set changed: {actual.keys() ^ (originals.keys() | extras)}')
     with tempfile.TemporaryDirectory(prefix='shipios-core-patch-') as directory:
         replay = Path(directory)
-        for name in PATCHED:
+        for name in patched:
             path = replay / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(originals[name].read_bytes())
@@ -103,15 +107,15 @@ def main():
         for name, original in originals.items():
             if name in {'Cargo.toml', 'README.md'}:
                 continue
-            expected = replay / name if name in PATCHED else original
+            expected = replay / name if name in patched else original
             if expected.read_bytes() != actual[name].read_bytes():
                 raise SystemExit(f'unreviewed source/asset change: {name}')
-    if actual['UPSTREAM_README.md'].read_bytes() != originals['README.md'].read_bytes():
+    if component == 'core' and actual['UPSTREAM_README.md'].read_bytes() != originals['README.md'].read_bytes():
         raise SystemExit('upstream README changed')
     for name in ['LICENSE', 'NOTICE']:
         if actual[name].read_bytes() != (upstream.parent / name).read_bytes():
             raise SystemExit(f'upstream {name} changed')
-    print(f'Core {REVISION}: {len(originals)} upstream files, four-file patch and manifest verified')
+    print(f'{component} {REVISION}: {len(originals)} upstream files, {len(patched)}-file patch and manifest verified')
 
 
 if __name__ == '__main__':

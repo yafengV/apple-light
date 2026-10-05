@@ -90,7 +90,8 @@ pub(crate) struct TurnState {
     pending_approvals: HashMap<String, PendingApproval>,
     pending_request_permissions: HashMap<String, PendingRequestPermissions>,
     pending_user_input: HashMap<String, oneshot::Sender<AcceptedUserInputResponse>>,
-    pending_elicitations: HashMap<(String, RequestId), oneshot::Sender<ElicitationResponse>>,
+    pending_elicitations: HashMap<(String, RequestId), PendingElicitation>,
+    elicitation_generation: u64,
     pending_dynamic_tools: HashMap<String, oneshot::Sender<DynamicToolResponse>>,
     pub(crate) pending_input: TurnInputQueue,
     mailbox_delivery_phase: MailboxDeliveryPhase,
@@ -109,6 +110,18 @@ struct PendingApproval {
     started_at_ms: Option<i64>,
     claimed: bool,
     reply: std::sync::Arc<std::sync::Mutex<Option<oneshot::Sender<ReviewDecision>>>>,
+}
+
+struct PendingElicitation {
+    generation: u64,
+    claimed: bool,
+    reply: Arc<std::sync::Mutex<Option<oneshot::Sender<ElicitationResponse>>>>,
+}
+
+impl Drop for PendingElicitation {
+    fn drop(&mut self) {
+        self.reply.lock().expect("elicitation reply lock").take();
+    }
 }
 
 impl Drop for PendingApproval {
@@ -240,9 +253,47 @@ impl TurnState {
         server_name: String,
         request_id: RequestId,
         tx: oneshot::Sender<ElicitationResponse>,
-    ) -> Option<oneshot::Sender<ElicitationResponse>> {
+    ) -> (Option<oneshot::Sender<ElicitationResponse>>, u64) {
+        self.elicitation_generation = self
+            .elicitation_generation
+            .checked_add(1)
+            .expect("elicitation generation exhausted");
+        let generation = self.elicitation_generation;
+        let previous = self
+            .pending_elicitations
+            .remove(&(server_name.clone(), request_id.clone()))
+            .and_then(|entry| entry.reply.lock().expect("elicitation reply lock").take());
+        self.pending_elicitations.insert(
+            (server_name, request_id),
+            PendingElicitation {
+                generation,
+                claimed: false,
+                reply: Arc::new(std::sync::Mutex::new(Some(tx))),
+            },
+        );
+        (previous, generation)
+    }
+
+    pub(crate) fn claim_pending_elicitation(
+        &mut self,
+        server: &str,
+        id: &RequestId,
+        generation: u64,
+    ) -> Option<Arc<std::sync::Mutex<Option<oneshot::Sender<ElicitationResponse>>>>> {
+        let entry = self
+            .pending_elicitations
+            .get_mut(&(server.to_owned(), id.clone()))?;
+        if entry.generation != generation || entry.claimed {
+            return None;
+        }
+        entry.claimed = true;
+        Some(Arc::clone(&entry.reply))
+    }
+
+    pub(crate) fn elicitation_is_claimed(&self, server: &str, id: &RequestId) -> bool {
         self.pending_elicitations
-            .insert((server_name, request_id), tx)
+            .get(&(server.to_owned(), id.clone()))
+            .is_some_and(|entry| entry.claimed)
     }
 
     pub(crate) fn remove_pending_elicitation(
@@ -250,8 +301,12 @@ impl TurnState {
         server_name: &str,
         request_id: &RequestId,
     ) -> Option<oneshot::Sender<ElicitationResponse>> {
+        if self.elicitation_is_claimed(server_name, request_id) {
+            return None;
+        }
         self.pending_elicitations
             .remove(&(server_name.to_string(), request_id.clone()))
+            .and_then(|entry| entry.reply.lock().expect("elicitation reply lock").take())
     }
 
     pub(crate) fn insert_pending_dynamic_tool(

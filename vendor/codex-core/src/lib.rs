@@ -44,6 +44,9 @@ pub use codex_protocol::mcp_policy::EnvironmentMcpPolicy;
 pub use codex_protocol::protocol::EnvironmentConfig;
 pub use codex_thread::BackgroundTerminalInfo;
 pub use codex_thread::CapturedApproval;
+pub use codex_thread::CapturedElicitation;
+/// Receipt generation reserved by Core; server-provided values are overwritten.
+pub const NATIVE_ELICITATION_GENERATION_KEY: &str = "shipios.core/elicitation-generation";
 pub use codex_thread::CodexThread;
 pub use codex_thread::CodexThreadSettingsOverrides;
 pub use codex_thread::GuardianAuthorizationVersion;

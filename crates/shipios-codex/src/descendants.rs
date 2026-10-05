@@ -90,6 +90,44 @@ impl DescendantSource {
             .ok_or_else(|| anyhow::anyhow!("child approval is no longer available"))
     }
 
+    /// Bind an MCP form/URL request to its native turn and request generation.
+    pub async fn claim_elicitation(
+        &self,
+        child: &str,
+        observed_turn: &str,
+        request: &codex_protocol::approvals::ElicitationRequestEvent,
+    ) -> Result<codex_core::CapturedElicitation> {
+        ensure!(
+            !observed_turn.is_empty()
+                && request
+                    .turn_id
+                    .as_deref()
+                    .is_none_or(|turn| turn == observed_turn),
+            "child elicitation turn changed"
+        );
+        ensure!(
+            !request.server_name.is_empty(),
+            "missing elicitation server"
+        );
+        let data = serde_json::to_value(&request.request)?;
+        let generation = if request.turn_id.is_some() {
+            Some(
+                data["_meta"][codex_core::NATIVE_ELICITATION_GENERATION_KEY]
+                    .as_u64()
+                    .filter(|value| *value > 0)
+                    .ok_or_else(|| anyhow::anyhow!("missing native elicitation generation"))?,
+            )
+        } else {
+            None
+        };
+        let id = serde_json::from_value(serde_json::to_value(&request.id)?)?;
+        self.event_thread(child)
+            .await?
+            .claim_elicitation_for_turn(observed_turn, &request.server_name, &id, generation)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("child elicitation is no longer available"))
+    }
+
     /// Durable replay history, including pre-compaction messages. This does not
     /// reload a cold child or compete with any child event consumer.
     pub async fn history(&self, child: &str) -> Result<Vec<serde_json::Value>> {

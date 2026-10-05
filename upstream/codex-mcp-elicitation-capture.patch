@@ -1,0 +1,166 @@
+--- a/src/elicitation.rs
++++ b/src/elicitation.rs
+@@ -108,6 +108,42 @@
+     key: (String, RequestId),
+ }
+ 
++struct Responder {
++    claimed: bool,
++    reply: Arc<StdMutex<Option<oneshot::Sender<ElicitationResponse>>>>,
++}
++impl Drop for Responder {
++    fn drop(&mut self) {
++        self.reply.lock().expect("MCP reply lock").take();
++    }
++}
++
++/// One original runtime callback, even if an MCP connection reuses its request ID.
++pub struct CapturedMcpElicitation {
++    reply: Arc<StdMutex<Option<oneshot::Sender<ElicitationResponse>>>>,
++}
++impl Drop for CapturedMcpElicitation {
++    fn drop(&mut self) {
++        self.reply.lock().expect("MCP reply lock").take();
++    }
++}
++impl CapturedMcpElicitation {
++    pub fn is_closed(&self) -> bool {
++        self.reply
++            .lock()
++            .expect("MCP reply lock")
++            .as_ref()
++            .is_none_or(|sender| sender.is_closed())
++    }
++    pub fn resolve(self, response: ElicitationResponse) -> bool {
++        self.reply
++            .lock()
++            .expect("MCP reply lock")
++            .take()
++            .is_some_and(|sender| sender.send(response).is_ok())
++    }
++}
++
+ impl Drop for PendingElicitationRequest {
+     fn drop(&mut self) {
+         let responder = self
+@@ -121,6 +157,17 @@
+ }
+ 
+ impl ElicitationRequestRouter {
++    pub(crate) fn claim(&self, server: &str, id: &RequestId) -> Option<CapturedMcpElicitation> {
++        let mut requests = self.requests.lock().ok()?;
++        let responder = requests.get_mut(&(server.to_owned(), id.clone()))?;
++        if responder.claimed {
++            return None;
++        }
++        responder.claimed = true;
++        Some(CapturedMcpElicitation {
++            reply: Arc::clone(&responder.reply),
++        })
++    }
+     pub(crate) fn auto_deny(&self) -> bool {
+         self.auto_deny.load(Ordering::Relaxed)
+     }
+@@ -144,13 +191,27 @@
+         id: RequestId,
+         response: ElicitationResponse,
+     ) -> Result<()> {
+-        let responder = self
+-            .requests
++        let responder = {
++            let mut requests = self
++                .requests
++                .lock()
++                .map_err(|_| anyhow!("elicitation request router unavailable"))?;
++            let key = (server_name, id);
++            anyhow::ensure!(
++                !requests.get(&key).is_some_and(|r| r.claimed),
++                "elicitation is owned by a captured reply"
++            );
++            requests
++                .remove(&key)
++                .ok_or_else(|| anyhow!("elicitation request not found"))?
++        };
++        let sender = responder
++            .reply
+             .lock()
+-            .map_err(|_| anyhow!("elicitation request router unavailable"))?
+-            .remove(&(server_name, id))
+-            .ok_or_else(|| anyhow!("elicitation request not found"))?;
+-        responder
++            .expect("MCP reply lock")
++            .take()
++            .ok_or_else(|| anyhow!("elicitation response no longer available"))?;
++        sender
+             .send(response)
+             .map_err(|_| anyhow!("elicitation response receiver closed"))
+     }
+@@ -481,7 +542,13 @@
+                     .requests
+                     .lock()
+                     .map_err(|_| anyhow!("elicitation request router unavailable"))?
+-                    .insert(request_key.clone(), tx);
++                    .insert(
++                        request_key.clone(),
++                        Responder {
++                            claimed: false,
++                            reply: Arc::new(StdMutex::new(Some(tx))),
++                        },
++                    );
+                 let _pending_request = PendingElicitationRequest {
+                     router: router.clone(),
+                     key: request_key,
+@@ -525,7 +592,7 @@
+     }
+ }
+ 
+-type ResponderMap = HashMap<(String, RequestId), oneshot::Sender<ElicitationResponse>>;
++type ResponderMap = HashMap<(String, RequestId), Responder>;
+ 
+ fn can_auto_accept_elicitation(elicitation: &Elicitation) -> bool {
+     match elicitation {
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -4,6 +4,7 @@
+ pub use client_tool_catalog::CodexAppsToolSnapshot;
+ pub use codex_rmcp_client::McpProtocolMode;
+ pub use connection_manager::tool_is_model_visible;
++pub use elicitation::CapturedMcpElicitation;
+ pub use elicitation::ElicitationLifecycle;
+ pub use elicitation::ElicitationReviewRequest;
+ pub use elicitation::ElicitationReviewer;
+--- a/src/runtime.rs
++++ b/src/runtime.rs
+@@ -549,6 +549,15 @@
+             .await
+     }
+ 
++    /// Claim the original responder from this exact thread runtime's router.
++    pub fn claim_elicitation(
++        &self,
++        server: &str,
++        id: &RequestId,
++    ) -> Option<crate::CapturedMcpElicitation> {
++        self.elicitation_router.claim(server, id)
++    }
++
+     pub async fn latest_hard_refresh_codex_apps_tools_cache(
+         &self,
+     ) -> anyhow::Result<Vec<ToolInfo>> {
+--- a/src/user_verification_elicitation.rs
++++ b/src/user_verification_elicitation.rs
+@@ -41,7 +41,13 @@
+         .requests
+         .lock()
+         .map_err(|_| anyhow!("elicitation request router unavailable"))?
+-        .insert(key.clone(), response);
++        .insert(
++            key.clone(),
++            super::Responder {
++                claimed: false,
++                reply: Arc::new(StdMutex::new(Some(response))),
++            },
++        );
+     let _pending = PendingElicitationRequest { router, key };
+     let _active = authority
+         .as_ref()

@@ -1,6 +1,6 @@
 --- a/src/codex_thread.rs
 +++ b/src/codex_thread.rs
-@@ -515,6 +515,46 @@
+@@ -515,6 +515,89 @@
          self.session.inject_if_running(items).await
      }
  
@@ -33,6 +33,49 @@
 +        })
 +    }
 +
++    /// Capture one original MCP waiter, including its Core-generated generation.
++    #[expect(
++        clippy::await_holding_invalid_type,
++        reason = "bind one active turn and original waiter atomically"
++    )]
++    pub async fn claim_elicitation_for_turn(
++        &self,
++        expected_turn_id: &str,
++        server: &str,
++        request_id: &rmcp::model::RequestId,
++        generation: Option<u64>,
++    ) -> Option<CapturedElicitation> {
++        if generation == Some(0) {
++            return None;
++        }
++        let active = self.session.active_turn.lock().await;
++        let turn = active.as_ref()?;
++        if turn.task.as_ref()?.turn_context.sub_id != expected_turn_id {
++            return None;
++        }
++        let reply = if let Some(generation) = generation {
++            CapturedElicitationReply::Turn(
++                turn.turn_state
++                    .lock()
++                    .await
++                    .claim_pending_elicitation(server, request_id, generation)?,
++            )
++        } else {
++            CapturedElicitationReply::Runtime(
++                self.session
++                    .services
++                    .mcp_runtime
++                    .claim_elicitation(server, request_id)?,
++            )
++        };
++        Some(CapturedElicitation {
++            reply: Some(reply),
++            cancellation: turn.task.as_ref()?.cancellation_token.clone(),
++            session: Arc::clone(&self.session),
++            turn_id: expected_turn_id.to_owned(),
++        })
++    }
++
 +    /// Interrupt only the selected active turn. An old UI action must never
 +    /// select the next turn through an unscoped queued Op::Interrupt.
 +    pub async fn interrupt_turn_if_active(&self, expected_turn_id: &str) -> bool {
@@ -47,7 +90,7 @@
      /// Captures a regular turn only after its input is recorded. The caller must flush the rollout.
      pub async fn interrupted_turn(
          &self,
-@@ -1036,3 +1076,83 @@
+@@ -1036,3 +1119,163 @@
          Ok(elicitations.count)
      }
  }
@@ -131,13 +174,96 @@
 +            .is_some_and(|sender| sender.send(decision).is_ok()))
 +    }
 +}
++
++/// One-use response to the original MCP future; cancellation and overwrite close it.
++pub struct CapturedElicitation {
++    reply: Option<CapturedElicitationReply>,
++    cancellation: CancellationToken,
++    session: Arc<Session>,
++    turn_id: String,
++}
++
++enum CapturedElicitationReply {
++    Turn(Arc<std::sync::Mutex<Option<oneshot::Sender<codex_rmcp_client::ElicitationResponse>>>>),
++    Runtime(codex_mcp::CapturedMcpElicitation),
++}
++
++impl Drop for CapturedElicitation {
++    fn drop(&mut self) {
++        if let Some(CapturedElicitationReply::Turn(reply)) = self.reply.take() {
++            reply.lock().expect("elicitation reply lock").take();
++        }
++    }
++}
++
++impl CapturedElicitation {
++    pub fn is_closed(&self) -> bool {
++        self.cancellation.is_cancelled()
++            || self.reply.as_ref().is_none_or(|reply| match reply {
++                CapturedElicitationReply::Turn(reply) => reply
++                    .lock()
++                    .expect("elicitation reply lock")
++                    .as_ref()
++                    .is_none_or(|sender| sender.is_closed()),
++                CapturedElicitationReply::Runtime(reply) => reply.is_closed(),
++            })
++    }
++    #[expect(
++        clippy::await_holding_invalid_type,
++        reason = "original reply and active-turn identity stay atomic"
++    )]
++    pub async fn resolve(
++        mut self,
++        action: codex_protocol::approvals::ElicitationAction,
++        content: Option<serde_json::Value>,
++        meta: Option<serde_json::Value>,
++    ) -> bool {
++        let action = match action {
++            codex_protocol::approvals::ElicitationAction::Accept => {
++                codex_rmcp_client::ElicitationAction::Accept
++            }
++            codex_protocol::approvals::ElicitationAction::Decline => {
++                codex_rmcp_client::ElicitationAction::Decline
++            }
++            codex_protocol::approvals::ElicitationAction::Cancel => {
++                codex_rmcp_client::ElicitationAction::Cancel
++            }
++        };
++        let response = codex_rmcp_client::ElicitationResponse {
++            action,
++            content,
++            meta,
++        };
++        let active = self.session.active_turn.lock().await;
++        if self.is_closed()
++            || !active
++                .as_ref()
++                .and_then(|turn| turn.task.as_ref())
++                .is_some_and(|task| task.turn_context.sub_id == self.turn_id)
++        {
++            return false;
++        }
++        match self.reply.take() {
++            Some(CapturedElicitationReply::Turn(reply)) => reply
++                .lock()
++                .expect("elicitation reply lock")
++                .take()
++                .is_some_and(|sender| sender.send(response).is_ok()),
++            Some(CapturedElicitationReply::Runtime(reply)) => reply.resolve(response),
++            None => false,
++        }
++    }
++}
 --- a/src/lib.rs
 +++ b/src/lib.rs
-@@ -43,6 +43,7 @@
+@@ -43,6 +43,10 @@
  pub use codex_protocol::mcp_policy::EnvironmentMcpPolicy;
  pub use codex_protocol::protocol::EnvironmentConfig;
  pub use codex_thread::BackgroundTerminalInfo;
 +pub use codex_thread::CapturedApproval;
++pub use codex_thread::CapturedElicitation;
++/// Receipt generation reserved by Core; server-provided values are overwritten.
++pub const NATIVE_ELICITATION_GENERATION_KEY: &str = "shipios.core/elicitation-generation";
  pub use codex_thread::CodexThread;
  pub use codex_thread::CodexThreadSettingsOverrides;
  pub use codex_thread::GuardianAuthorizationVersion;
@@ -218,9 +344,68 @@
              changes,
              reason,
              grant_root,
+--- a/src/session/mcp.rs
++++ b/src/session/mcp.rs
+@@ -554,7 +554,7 @@
+         turn_context: &TurnContext,
+         server_name: String,
+         request_id: RequestId,
+-        request: ElicitationRequest,
++        mut request: ElicitationRequest,
+     ) -> McpServerElicitationOutcome {
+         if self.services.mcp_runtime.elicitations_auto_deny() {
+             return McpServerElicitationOutcome {
+@@ -569,7 +569,7 @@
+ 
+         let _elicitation = self.services.elicitations.register();
+         let (tx_response, rx_response) = oneshot::channel();
+-        let prev_entry = {
++        let (prev_entry, generation) = {
+             let mut active = self.active_turn.lock().await;
+             match active.as_mut() {
+                 Some(at) => {
+@@ -580,9 +580,26 @@
+                         tx_response,
+                     )
+                 }
+-                None => None,
++                None => (None, 0),
+             }
+         };
++        // Host identity is generated by Core, never accepted from the server.
++        // Preserve all valid server metadata and leave unsupported modes uncaptured.
++        if let ElicitationRequest::Form { meta, .. }
++        | ElicitationRequest::OpenAiForm { meta, .. }
++        | ElicitationRequest::OpenAiElicitationForm { meta, .. }
++        | ElicitationRequest::Url { meta, .. } = &mut request
++        {
++            if meta.is_none() {
++                *meta = Some(serde_json::json!({}));
++            }
++            if let Some(fields) = meta.as_mut().and_then(serde_json::Value::as_object_mut) {
++                fields.insert(
++                    crate::NATIVE_ELICITATION_GENERATION_KEY.into(),
++                    generation.into(),
++                );
++            }
++        }
+         if prev_entry.is_some() {
+             warn!(
+                 "Overwriting existing pending elicitation for server_name: {server_name}, request_id: {request_id}"
+@@ -637,6 +654,10 @@
+             match active.as_mut() {
+                 Some(at) => {
+                     let mut ts = at.turn_state.lock().await;
++                    anyhow::ensure!(
++                        !ts.elicitation_is_claimed(&server_name, &id),
++                        "elicitation is owned by a captured reply"
++                    );
+                     ts.remove_pending_elicitation(&server_name, &id)
+                 }
+                 None => None,
 --- a/src/state/turn.rs
 +++ b/src/state/turn.rs
-@@ -87,7 +87,7 @@
+@@ -87,10 +87,11 @@
  /// Mutable state for a single turn.
  #[derive(Default)]
  pub(crate) struct TurnState {
@@ -228,8 +413,13 @@
 +    pending_approvals: HashMap<String, PendingApproval>,
      pending_request_permissions: HashMap<String, PendingRequestPermissions>,
      pending_user_input: HashMap<String, oneshot::Sender<AcceptedUserInputResponse>>,
-     pending_elicitations: HashMap<(String, RequestId), oneshot::Sender<ElicitationResponse>>,
-@@ -105,6 +105,19 @@
+-    pending_elicitations: HashMap<(String, RequestId), oneshot::Sender<ElicitationResponse>>,
++    pending_elicitations: HashMap<(String, RequestId), PendingElicitation>,
++    elicitation_generation: u64,
+     pending_dynamic_tools: HashMap<String, oneshot::Sender<DynamicToolResponse>>,
+     pub(crate) pending_input: TurnInputQueue,
+     mailbox_delivery_phase: MailboxDeliveryPhase,
+@@ -105,6 +106,31 @@
      pub(crate) last_known_step_context: Option<Arc<StepContext>>,
  }
  
@@ -237,6 +427,18 @@
 +    started_at_ms: Option<i64>,
 +    claimed: bool,
 +    reply: std::sync::Arc<std::sync::Mutex<Option<oneshot::Sender<ReviewDecision>>>>,
++}
++
++struct PendingElicitation {
++    generation: u64,
++    claimed: bool,
++    reply: Arc<std::sync::Mutex<Option<oneshot::Sender<ElicitationResponse>>>>,
++}
++
++impl Drop for PendingElicitation {
++    fn drop(&mut self) {
++        self.reply.lock().expect("elicitation reply lock").take();
++    }
 +}
 +
 +impl Drop for PendingApproval {
@@ -249,7 +451,7 @@
  /// Host receipt metadata follows the response through the asynchronous tool waiter.
  pub(crate) struct AcceptedUserInputResponse {
      pub(crate) response: RequestUserInputResponse,
-@@ -119,19 +132,68 @@
+@@ -119,19 +145,68 @@
  }
  
  impl TurnState {
@@ -320,3 +522,66 @@
      }
  
      pub(crate) fn clear_pending_waiters(&mut self) {
+@@ -178,9 +253,47 @@
+         server_name: String,
+         request_id: RequestId,
+         tx: oneshot::Sender<ElicitationResponse>,
+-    ) -> Option<oneshot::Sender<ElicitationResponse>> {
++    ) -> (Option<oneshot::Sender<ElicitationResponse>>, u64) {
++        self.elicitation_generation = self
++            .elicitation_generation
++            .checked_add(1)
++            .expect("elicitation generation exhausted");
++        let generation = self.elicitation_generation;
++        let previous = self
++            .pending_elicitations
++            .remove(&(server_name.clone(), request_id.clone()))
++            .and_then(|entry| entry.reply.lock().expect("elicitation reply lock").take());
++        self.pending_elicitations.insert(
++            (server_name, request_id),
++            PendingElicitation {
++                generation,
++                claimed: false,
++                reply: Arc::new(std::sync::Mutex::new(Some(tx))),
++            },
++        );
++        (previous, generation)
++    }
++
++    pub(crate) fn claim_pending_elicitation(
++        &mut self,
++        server: &str,
++        id: &RequestId,
++        generation: u64,
++    ) -> Option<Arc<std::sync::Mutex<Option<oneshot::Sender<ElicitationResponse>>>>> {
++        let entry = self
++            .pending_elicitations
++            .get_mut(&(server.to_owned(), id.clone()))?;
++        if entry.generation != generation || entry.claimed {
++            return None;
++        }
++        entry.claimed = true;
++        Some(Arc::clone(&entry.reply))
++    }
++
++    pub(crate) fn elicitation_is_claimed(&self, server: &str, id: &RequestId) -> bool {
+         self.pending_elicitations
+-            .insert((server_name, request_id), tx)
++            .get(&(server.to_owned(), id.clone()))
++            .is_some_and(|entry| entry.claimed)
+     }
+ 
+     pub(crate) fn remove_pending_elicitation(
+@@ -188,8 +301,12 @@
+         server_name: &str,
+         request_id: &RequestId,
+     ) -> Option<oneshot::Sender<ElicitationResponse>> {
++        if self.elicitation_is_claimed(server_name, request_id) {
++            return None;
++        }
+         self.pending_elicitations
+             .remove(&(server_name.to_string(), request_id.clone()))
++            .and_then(|entry| entry.reply.lock().expect("elicitation reply lock").take())
+     }
+ 
+     pub(crate) fn insert_pending_dynamic_tool(
