@@ -4,7 +4,9 @@ use std::time::Duration;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn run_native_test(work: impl Future<Output = Result<()>> + Send + 'static) -> Result<()> {
+pub(super) fn run_native_test(
+    work: impl Future<Output = Result<()>> + Send + 'static,
+) -> Result<()> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .thread_stack_size(16 * 1024 * 1024)
@@ -58,7 +60,11 @@ async fn server() -> MockServer {
     server
 }
 
-async fn session(root: &std::path::Path, server: &MockServer, name: &str) -> Result<CodexSession> {
+pub(super) async fn session(
+    root: &std::path::Path,
+    server: &MockServer,
+    name: &str,
+) -> Result<CodexSession> {
     let project = root.join("Project");
     std::fs::create_dir_all(&project)?;
     CodexSession::start(SessionOptions {
@@ -86,7 +92,11 @@ async fn session(root: &std::path::Path, server: &MockServer, name: &str) -> Res
     .await
 }
 
-async fn spawn_child(session: &CodexSession, parent: ThreadId, depth: i32) -> Result<NewThread> {
+pub(super) async fn spawn_child(
+    session: &CodexSession,
+    parent: ThreadId,
+    depth: i32,
+) -> Result<NewThread> {
     let mut options = StartThreadOptions::new(session.test_config.clone());
     options.session_source = Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
         parent_thread_id: parent,
@@ -112,7 +122,7 @@ async fn start(thread: &CodexThread, text: &str) -> Result<()> {
     Ok(())
 }
 
-async fn status(thread: &CodexThread, expected: fn(&AgentStatus) -> bool) -> Result<()> {
+pub(super) async fn status(thread: &CodexThread, expected: fn(&AgentStatus) -> bool) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(10), async {
         loop {
             if expected(&thread.agent_status().await) {

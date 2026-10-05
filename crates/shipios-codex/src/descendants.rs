@@ -70,6 +70,26 @@ impl DescendantSource {
         Ok(self.manager.get_thread(id).await?)
     }
 
+    /// Bind the child's original native waiter. No Op carrying a reused call ID
+    /// is submitted, and a failed claim leaves the current request untouched.
+    pub async fn claim_approval(
+        &self,
+        child: &str,
+        turn: &str,
+        approval_id: &str,
+        started_at_ms: i64,
+    ) -> Result<codex_core::CapturedApproval> {
+        ensure!(
+            !turn.is_empty() && !approval_id.is_empty(),
+            "invalid approval identity"
+        );
+        self.event_thread(child)
+            .await?
+            .claim_approval_for_turn(turn, approval_id, started_at_ms)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("child approval is no longer available"))
+    }
+
     /// Durable replay history, including pre-compaction messages. This does not
     /// reload a cold child or compete with any child event consumer.
     pub async fn history(&self, child: &str) -> Result<Vec<serde_json::Value>> {

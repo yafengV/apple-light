@@ -2071,7 +2071,6 @@ dependencies = [
 [[package]]
 name = "codex-core"
 version = "0.0.0"
-source = "git+https://github.com/openai/codex.git?rev=50d77959bf927293c4b5ddcca81d05331ae582ea#50d77959bf927293c4b5ddcca81d05331ae582ea"
 dependencies = [
  "anyhow",
  "arc-swap",

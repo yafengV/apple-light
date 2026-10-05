@@ -7,6 +7,8 @@ mod descendant_interrupts;
 mod descendants;
 pub use descendants::{DescendantSource, NativeSubagent, public_descendant_event};
 #[cfg(test)]
+mod approval_capture_tests;
+#[cfg(test)]
 mod descendant_interrupts_tests;
 mod hook_plugins;
 mod hooks;

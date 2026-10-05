@@ -1,0 +1,311 @@
+--- a/src/codex_thread.rs
++++ b/src/codex_thread.rs
+@@ -515,6 +515,35 @@
+         self.session.inject_if_running(items).await
+     }
+ 
++    /// Takes the original approval waiter exactly once. A later request with
++    /// the same call ID cannot receive a reply intended for this instance.
++    #[expect(
++        clippy::await_holding_invalid_type,
++        reason = "claim binds one active turn and one waiter atomically"
++    )]
++    pub async fn claim_approval_for_turn(
++        &self,
++        expected_turn_id: &str,
++        approval_id: &str,
++        started_at_ms: i64,
++    ) -> Option<CapturedApproval> {
++        let active = self.session.active_turn.lock().await;
++        let turn = active.as_ref()?;
++        if turn.task.as_ref()?.turn_context.sub_id != expected_turn_id {
++            return None;
++        }
++        let reply = turn
++            .turn_state
++            .lock()
++            .await
++            .claim_timed_pending_approval(approval_id, started_at_ms)?;
++        Some(CapturedApproval {
++            reply,
++            session: Arc::clone(&self.session),
++            turn_id: expected_turn_id.to_owned(),
++        })
++    }
++
+     /// Captures a regular turn only after its input is recorded. The caller must flush the rollout.
+     pub async fn interrupted_turn(
+         &self,
+@@ -1036,3 +1065,83 @@
+         Ok(elicitations.count)
+     }
+ }
++
++/// Non-cloneable reply capability for one original Core approval future.
++/// Dropping it cancels that request; it never falls back to call-ID routing.
++pub struct CapturedApproval {
++    reply: Arc<std::sync::Mutex<Option<oneshot::Sender<codex_protocol::protocol::ReviewDecision>>>>,
++    session: Arc<Session>,
++    turn_id: String,
++}
++
++impl Drop for CapturedApproval {
++    fn drop(&mut self) {
++        self.reply.lock().expect("approval reply lock").take();
++    }
++}
++
++impl CapturedApproval {
++    pub fn is_closed(&self) -> bool {
++        self.reply
++            .lock()
++            .expect("approval reply lock")
++            .as_ref()
++            .is_none_or(|sender| sender.is_closed())
++    }
++
++    #[expect(
++        clippy::await_holding_invalid_type,
++        reason = "cancelled turns must not persist a later policy amendment"
++    )]
++    pub async fn resolve(
++        self,
++        decision: codex_protocol::protocol::ReviewDecision,
++    ) -> anyhow::Result<bool> {
++        let active = self.session.active_turn.lock().await;
++        if self.is_closed()
++            || !active
++                .as_ref()
++                .and_then(|turn| turn.task.as_ref())
++                .is_some_and(|task| task.turn_context.sub_id == self.turn_id)
++        {
++            return Ok(false);
++        }
++        if matches!(decision, codex_protocol::protocol::ReviewDecision::Abort) {
++            drop(active);
++            return Ok(self
++                .session
++                .abort_turn_if_active(
++                    &self.turn_id,
++                    codex_protocol::protocol::TurnAbortReason::Interrupted,
++                )
++                .await);
++        }
++        if let codex_protocol::protocol::ReviewDecision::ApprovedExecpolicyAmendment {
++            proposed_execpolicy_amendment,
++        } = &decision
++        {
++            if let Err(error) = self
++                .session
++                .persist_execpolicy_amendment(proposed_execpolicy_amendment)
++                .await
++            {
++                let message = format!("Failed to apply execpolicy amendment: {error}");
++                tracing::warn!("{message}");
++                self.session
++                    .send_event_raw(codex_protocol::protocol::Event {
++                        id: self.turn_id.clone(),
++                        msg: codex_protocol::protocol::EventMsg::Warning(
++                            codex_protocol::protocol::WarningEvent { message },
++                        ),
++                    })
++                    .await;
++            }
++        }
++        Ok(self
++            .reply
++            .lock()
++            .expect("approval reply lock")
++            .take()
++            .is_some_and(|sender| sender.send(decision).is_ok()))
++    }
++}
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -43,6 +43,7 @@
+ pub use codex_protocol::mcp_policy::EnvironmentMcpPolicy;
+ pub use codex_protocol::protocol::EnvironmentConfig;
+ pub use codex_thread::BackgroundTerminalInfo;
++pub use codex_thread::CapturedApproval;
+ pub use codex_thread::CodexThread;
+ pub use codex_thread::CodexThreadSettingsOverrides;
+ pub use codex_thread::GuardianAuthorizationVersion;
+--- a/src/session/mod.rs
++++ b/src/session/mod.rs
+@@ -505,6 +505,20 @@
+ const CYBER_VERIFY_URL: &str = "https://chatgpt.com/cyber";
+ const CYBER_SAFETY_URL: &str = "https://developers.openai.com/codex/concepts/cyber-safety";
+ 
++// Also identifies one original approval instance. Monotonic milliseconds avoid
++// same-turn call-ID reuse aliasing a different callback in the same millisecond.
++fn next_approval_started_at_ms() -> i64 {
++    use std::sync::atomic::{AtomicI64, Ordering};
++    static LAST: AtomicI64 = AtomicI64::new(0);
++    let now = now_unix_timestamp_ms();
++    let previous = LAST
++        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |old| {
++            Some(now.max(old.saturating_add(1)))
++        })
++        .expect("approval timestamp update");
++    now.max(previous.saturating_add(1))
++}
++
+ impl Session {
+     /// Spawn and initialize a new session.
+     /// Hide the concrete startup future from callers while keeping initialization lazy.
+@@ -2882,6 +2896,7 @@
+         //  command-level approvals use `call_id`.
+         // `approval_id` identifies subcommand callbacks and stdin writes.
+         let effective_approval_id = approval_id.clone().unwrap_or_else(|| call_id.clone());
++        let started_at_ms = next_approval_started_at_ms();
+         // Add the tx_approve callback to the map before sending the request.
+         let (tx_approve, rx_approve) = oneshot::channel();
+         let prev_entry = {
+@@ -2889,7 +2904,11 @@
+             match active.as_mut() {
+                 Some(at) => {
+                     let mut ts = at.turn_state.lock().await;
+-                    ts.insert_pending_approval(effective_approval_id.clone(), tx_approve)
++                    ts.insert_timed_pending_approval(
++                        effective_approval_id.clone(),
++                        started_at_ms,
++                        tx_approve,
++                    )
+                 }
+                 None => None,
+             }
+@@ -2937,7 +2956,7 @@
+             approval_id,
+             turn_id: turn_context.sub_id.clone(),
+             environment_id,
+-            started_at_ms: now_unix_timestamp_ms(),
++            started_at_ms,
+             command,
+             cwd: cwd.into(),
+             reason,
+@@ -2968,12 +2987,13 @@
+         // Add the tx_approve callback to the map before sending the request.
+         let (tx_approve, rx_approve) = oneshot::channel();
+         let approval_id = call_id.clone();
++        let started_at_ms = next_approval_started_at_ms();
+         let prev_entry = {
+             let mut active = self.active_turn.lock().await;
+             match active.as_mut() {
+                 Some(at) => {
+                     let mut ts = at.turn_state.lock().await;
+-                    ts.insert_pending_approval(approval_id.clone(), tx_approve)
++                    ts.insert_timed_pending_approval(approval_id.clone(), started_at_ms, tx_approve)
+                 }
+                 None => None,
+             }
+@@ -2985,7 +3005,7 @@
+         let event = EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+             call_id,
+             turn_id: turn_context.sub_id.clone(),
+-            started_at_ms: now_unix_timestamp_ms(),
++            started_at_ms,
+             changes,
+             reason,
+             grant_root,
+--- a/src/state/turn.rs
++++ b/src/state/turn.rs
+@@ -87,7 +87,7 @@
+ /// Mutable state for a single turn.
+ #[derive(Default)]
+ pub(crate) struct TurnState {
+-    pending_approvals: HashMap<String, oneshot::Sender<ReviewDecision>>,
++    pending_approvals: HashMap<String, PendingApproval>,
+     pending_request_permissions: HashMap<String, PendingRequestPermissions>,
+     pending_user_input: HashMap<String, oneshot::Sender<AcceptedUserInputResponse>>,
+     pending_elicitations: HashMap<(String, RequestId), oneshot::Sender<ElicitationResponse>>,
+@@ -105,6 +105,19 @@
+     pub(crate) last_known_step_context: Option<Arc<StepContext>>,
+ }
+ 
++struct PendingApproval {
++    started_at_ms: Option<i64>,
++    claimed: bool,
++    reply: std::sync::Arc<std::sync::Mutex<Option<oneshot::Sender<ReviewDecision>>>>,
++}
++
++impl Drop for PendingApproval {
++    fn drop(&mut self) {
++        // Core cancellation/overwrite still closes a captured waiter.
++        self.reply.lock().expect("approval reply lock").take();
++    }
++}
++
+ /// Host receipt metadata follows the response through the asynchronous tool waiter.
+ pub(crate) struct AcceptedUserInputResponse {
+     pub(crate) response: RequestUserInputResponse,
+@@ -119,19 +132,68 @@
+ }
+ 
+ impl TurnState {
++    #[cfg(test)]
+     pub(crate) fn insert_pending_approval(
+         &mut self,
+         key: String,
+         tx: oneshot::Sender<ReviewDecision>,
+     ) -> Option<oneshot::Sender<ReviewDecision>> {
+-        self.pending_approvals.insert(key, tx)
++        self.insert_approval(key, None, tx)
++    }
++
++    fn insert_approval(
++        &mut self,
++        key: String,
++        started_at_ms: Option<i64>,
++        sender: oneshot::Sender<ReviewDecision>,
++    ) -> Option<oneshot::Sender<ReviewDecision>> {
++        let previous = self
++            .pending_approvals
++            .remove(&key)
++            .and_then(|entry| entry.reply.lock().expect("approval reply lock").take());
++        self.pending_approvals.insert(
++            key,
++            PendingApproval {
++                started_at_ms,
++                claimed: false,
++                reply: std::sync::Arc::new(std::sync::Mutex::new(Some(sender))),
++            },
++        );
++        previous
++    }
++
++    pub(crate) fn insert_timed_pending_approval(
++        &mut self,
++        key: String,
++        started_at_ms: i64,
++        sender: oneshot::Sender<ReviewDecision>,
++    ) -> Option<oneshot::Sender<ReviewDecision>> {
++        self.insert_approval(key, Some(started_at_ms), sender)
++    }
++
++    pub(crate) fn claim_timed_pending_approval(
++        &mut self,
++        key: &str,
++        started_at_ms: i64,
++    ) -> Option<std::sync::Arc<std::sync::Mutex<Option<oneshot::Sender<ReviewDecision>>>>> {
++        let entry = self.pending_approvals.get_mut(key)?;
++        if entry.started_at_ms != Some(started_at_ms) || entry.claimed {
++            return None;
++        }
++        entry.claimed = true;
++        Some(std::sync::Arc::clone(&entry.reply))
+     }
+ 
+     pub(crate) fn remove_pending_approval(
+         &mut self,
+         key: &str,
+     ) -> Option<oneshot::Sender<ReviewDecision>> {
+-        self.pending_approvals.remove(key)
++        if self.pending_approvals.get(key)?.claimed {
++            return None;
++        }
++        self.pending_approvals
++            .remove(key)
++            .and_then(|entry| entry.reply.lock().expect("approval reply lock").take())
+     }
+ 
+     pub(crate) fn clear_pending_waiters(&mut self) {
