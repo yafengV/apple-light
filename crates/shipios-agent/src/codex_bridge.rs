@@ -137,6 +137,19 @@ pub struct CodexSubmit {
     pub permissions: Option<SessionPermissions>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexSubagentSubmit {
+    pub task_id: String,
+    pub expected_thread_id: String,
+    pub child_thread_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub images: Vec<CodexImage>,
+    pub text_attachment: Option<CodexTextAttachment>,
+    pub expected_turn_id: Option<String>,
+}
+
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CodexApprovalKind {
@@ -1223,16 +1236,22 @@ impl CodexBridge {
         history.read(source, request).await
     }
 
-    pub async fn submit_subagent(
-        &self,
-        task_id: &str,
-        expected: &str,
-        child: &str,
-        text: String,
-        turn: Option<String>,
-    ) -> Result<Value> {
+    pub async fn submit_subagent(&self, request: CodexSubagentSubmit) -> Result<Value> {
+        let CodexSubagentSubmit {
+            task_id,
+            expected_thread_id: expected,
+            child_thread_id: child,
+            text,
+            images,
+            text_attachment,
+            expected_turn_id: turn,
+        } = request;
+        ensure!(text.len() <= 48_000, "child prompt is too large");
+        let (task_id, expected, child) = (task_id.as_str(), expected.as_str(), child.as_str());
         let (source, _) = self.descendant_access(task_id, expected).await?;
-        let (turn_id, steered) = source.submit(child, text, turn).await?;
+        source.validate_member(child).await?;
+        let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
+        let (turn_id, steered) = source.submit_inputs(child, inputs, turn).await?;
         // A completed subtree sleeps until a root activity/creation/refresh.
         // Direct child input must wake it as well. The input is already
         // accepted: a concurrent root close must not report it as unsent.

@@ -7,6 +7,7 @@ struct SubagentWorkspacePanel: View {
   let taskID: String
   @State private var detail = SubagentDetailState()
   @State private var reload = 0
+  @State private var previewFile: FileAttachment?
   @AppStorage(ComposerSendShortcut.storageKey) private var shortcutRaw = ComposerSendShortcut.commandEnter.rawValue
   private var agents: [CodexSubagent] { store.subagents(taskID: taskID) }
   private var current: CodexSubagent? { agents.first { $0.id == detail.selected?.id } }
@@ -17,7 +18,7 @@ struct SubagentWorkspacePanel: View {
       String(current?.loaded ?? false)].joined(separator: ":")
   }
   private var sendDisabled: Bool {
-    detail.sending || detail.loading || detail.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    detail.sending || detail.loading || detail.importing || !detail.hasInput
       || (current?.working == true && detail.transcript.activeTurnID == nil)
   }
 
@@ -39,7 +40,7 @@ struct SubagentWorkspacePanel: View {
           }, elicit: { request, choice, content in
             guard let current else { return }
             Task { await store.resolveSubagentElicitation(taskID: taskID, agent: current, request: request, choice: choice, content: content) }
-          })
+          }, store: store)
         if current?.acceptsInput == true && parentRoot == selected.rootThreadID {
           composer
         }
@@ -62,6 +63,7 @@ struct SubagentWorkspacePanel: View {
     .onChange(of: live) { _, state in detail.updateLive(state) }
     .onChange(of: parentRoot) { _, _ in detail.select(nil) }
     .onChange(of: current) { _, agent in if let agent { detail.update(agent) } }
+    .sheet(item: $previewFile) { file in FileAttachmentPreview(file: file, root: store.dataRoot) }
   }
 
   private func header(_ selected: CodexSubagent) -> some View {
@@ -96,7 +98,7 @@ struct SubagentWorkspacePanel: View {
       send: { Task { await send() } }, stop: {
         guard let current, let turn = detail.transcript.activeTurnID else { return }
         Task { await store.stopSubagent(taskID: taskID, agent: current, expectedTurnID: turn) }
-      }).id(detail.selected?.id)
+      }, store: store, detail: detail, onPreviewFile: { previewFile = $0 }).id(detail.selected?.id)
   }
 
   private func openLink(_ url: URL) {
@@ -115,9 +117,10 @@ struct SubagentWorkspacePanel: View {
 
   private func send() async {
     guard let current, current.acceptsInput, parentRoot == current.rootThreadID else { return }
-    if await detail.send(working: current.working, using: { agent, text, turn in
+    if await detail.sendMessage(working: current.working, using: { agent, message, turn in
       try await store.codexTransport.submitSubagent(taskID: taskID, rootThreadID: agent.rootThreadID,
-        childThreadID: agent.threadID, text: text, expectedTurnID: turn)
+        childThreadID: agent.threadID, text: message.content, expectedTurnID: turn,
+        images: message.images, files: message.files)
     }) { reload += 1 }
   }
 }
@@ -137,6 +140,7 @@ struct SubagentTranscriptView: View {
   var elicitationError: (String) -> String? = { _ in nil }
   var openVerificationURL: ((URL) -> Void)? = nil
   var elicit: (SubagentElicitationRequest, SubagentElicitationRequest.Choice, JSONValue?) -> Void = { _, _, _ in }
+  var store: WorkspaceStore? = nil
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 24) {
@@ -156,7 +160,10 @@ struct SubagentTranscriptView: View {
             case .assistant:
               MessageMarkdownView(source: entry.text, partPrefix: "subagent:" + entry.id, openLink: openLink)
             case .user:
-              Text(entry.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+              VStack(alignment: .leading, spacing: 10) {
+                if let store, !entry.localImagePaths.isEmpty { SubagentHistoryImagesView(store: store, paths: entry.localImagePaths) }
+                if !entry.text.isEmpty { Text(entry.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+              }
                 .padding(12).background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
             case .tool, .reasoning:
               DisclosureGroup(entry.title ?? "工具") {

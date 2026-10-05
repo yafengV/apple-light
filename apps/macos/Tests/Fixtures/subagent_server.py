@@ -24,9 +24,15 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
         inputs = body.get('input', [])
         users = [item for item in inputs if item.get('role') == 'user']
-        text = ' '.join(part.get('text', '') for part in users[-1].get('content', [])) if users else ''
+        user_parts = users[-1].get('content', []) if users else []
+        image_urls = [part.get('image_url', '') for part in user_parts if part.get('type') == 'input_image']
+        text = ' '.join(part.get('text', '') for part in user_parts)
         request_text = text
-        if 'subagent-child-' in text or 'subagent-peer-hold' in text:
+        if (image_urls or 'Attached file contents (reference data):' in text) and 'subagent-child-' not in text:
+            text = 'subagent-child-followup ' + text
+        if 'subagent-child-' in text or 'subagent-peer-hold' in text or image_urls:
+            if image_urls and not text.strip():
+                text = 'subagent-child-followup'
             if 'subagent-child-followup' in text or 'subagent-child-long-history' in text:
                 pass
             elif 'subagent-child-stream' in text:
@@ -83,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
             parts = item.get('content', [])
             reply = ' '.join(part.get('text', '') for part in parts)
             with open(trace, 'a', encoding='utf-8') as log:
-                log.write(json.dumps({'text': request_text[:512], 'type': item['type'],
+                log.write(json.dumps({'text': request_text[:512], 'imageUrls': image_urls, 'type': item['type'],
                                       'reply': reply[:40], 'replyLength': len(reply)}, ensure_ascii=False) + '\n')
         response = {'id': 'fixture-response', 'object': 'response', 'status': 'completed',
                     'output': [item], 'usage': {'input_tokens': 10, 'output_tokens': 5,

@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import ImageIO
 import UniformTypeIdentifiers
 import XCTest
@@ -6,6 +7,16 @@ import XCTest
 @testable import ShipiOS
 
 enum AttachmentFixture {
+  static func pdf(_ text: String) throws -> Data {
+    let data = NSMutableData()
+    let output = try XCTUnwrap(CGDataConsumer(data: data))
+    var box = CGRect(x: 0, y: 0, width: 300, height: 200)
+    let context = try XCTUnwrap(CGContext(consumer: output, mediaBox: &box, nil))
+    context.beginPDFPage(nil); context.textPosition = CGPoint(x: 20, y: 100)
+    CTLineDraw(CTLineCreateWithAttributedString(NSAttributedString(string: text)), context)
+    context.endPDFPage(); context.closePDF()
+    return data as Data
+  }
   static func png() throws -> Data {
     let context = try XCTUnwrap(
       CGContext(

@@ -184,12 +184,43 @@ impl DescendantSource {
             !text.trim().is_empty() && text.len() <= 48_000,
             "invalid child message"
         );
+        self.submit_inputs(
+            child,
+            vec![UserInput::Text {
+                text,
+                text_elements: Vec::new(),
+            }],
+            expected_turn,
+        )
+        .await
+    }
+
+    pub async fn submit_inputs(
+        &self,
+        child: &str,
+        inputs: Vec<UserInput>,
+        expected_turn: Option<String>,
+    ) -> Result<(String, bool)> {
+        ensure!(
+            inputs.len() <= 9
+                && inputs.iter().all(|input| match input {
+                    UserInput::Text { text, .. } => text.len() <= 1 << 20,
+                    UserInput::LocalImage { .. } => true,
+                    _ => false,
+                }),
+            "invalid child input"
+        );
+        ensure!(
+            inputs.iter().any(|input| match input {
+                UserInput::Text { text, .. } => !text.trim().is_empty(),
+                UserInput::LocalImage { .. } => true,
+                _ => false,
+            }),
+            "child message is empty"
+        );
         let id = self.validate_member(child).await?;
         let thread = self.manager.get_thread(id).await?;
-        let input = TurnInputRequest::user_input(vec![UserInput::Text {
-            text,
-            text_elements: Vec::new(),
-        }]);
+        let input = TurnInputRequest::user_input(inputs);
         if let Some(expected) = expected_turn {
             ensure!(!expected.is_empty(), "expected child turn is empty");
             match thread.steer_turn(input, expected.clone()).await? {

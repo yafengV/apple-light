@@ -72,6 +72,9 @@ enum ImageAttachmentStorage {
     try FileManager.default.createDirectory(
       at: directory, withIntermediateDirectories: true,
       attributes: [.posixPermissions: 0o700])
+    guard try directory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
+      throw AgentFailure(message: "图片附件目录无效。")
+    }
     let file = url(attachment, root: root)
     do {
       try stored.write(to: file, options: .atomic)
@@ -86,6 +89,24 @@ enum ImageAttachmentStorage {
   static func url(_ image: ImageAttachment, root: URL) -> URL {
     root.appendingPathComponent("Attachments", isDirectory: true)
       .appendingPathComponent(image.id.uuidString + "." + image.fileExtension)
+  }
+  static func storedImage(path: String, root: URL) throws -> ImageAttachment {
+    let file = URL(fileURLWithPath: path).standardizedFileURL
+    let directory = root.appendingPathComponent("Attachments", isDirectory: true).resolvingSymlinksInPath().standardizedFileURL
+    let parent = file.deletingLastPathComponent()
+    guard parent.resolvingSymlinksInPath() == directory,
+      let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent),
+      ["png", "jpg", "webp", "gif"].contains(file.pathExtension),
+      try parent.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true,
+      try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]).isRegularFile == true,
+      try file.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
+      throw AgentFailure(message: "历史图片不属于此工作区。")
+    }
+    let bytes = try readBounded(file)
+    let mime = file.pathExtension == "jpg" ? "image/jpeg" : "image/" + file.pathExtension
+    let image = ImageAttachment(id: id, name: "图片", mimeType: mime, byteCount: bytes.count, sha256: digest(bytes))
+    _ = try thumbnail(image, root: root, size: 120)
+    return image
   }
   static func data(_ image: ImageAttachment, root: URL) throws -> Data {
     let file = url(image, root: root)

@@ -299,26 +299,8 @@ async fn dispatch(
                 codex.read_subagent_history(p).await.map_err(failed)
             }
             "codex.subagent.submit" => {
-                #[derive(Deserialize)]
-                #[serde(rename_all = "camelCase", deny_unknown_fields)]
-                struct Input {
-                    task_id: String,
-                    expected_thread_id: String,
-                    child_thread_id: String,
-                    text: String,
-                    expected_turn_id: Option<String>,
-                }
-                let p: Input = serde_json::from_value(params).map_err(|_| invalid())?;
-                codex
-                    .submit_subagent(
-                        &p.task_id,
-                        &p.expected_thread_id,
-                        &p.child_thread_id,
-                        p.text,
-                        p.expected_turn_id,
-                    )
-                    .await
-                    .map_err(failed)
+                let p = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.submit_subagent(p).await.map_err(failed)
             }
             "codex.subagent.interrupt" => {
                 #[derive(Deserialize)]

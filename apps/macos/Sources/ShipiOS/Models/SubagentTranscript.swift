@@ -8,6 +8,7 @@ struct SubagentTranscriptEntry: Identifiable, Equatable {
   let text: String
   var approval: SubagentApprovalRequest? = nil
   var elicitation: SubagentElicitationRequest? = nil
+  var localImagePaths: [String] = []
 }
 
 struct SubagentTranscript: Equatable {
@@ -55,13 +56,18 @@ struct SubagentTranscript: Equatable {
         guard let text, !text.isEmpty else { return }
         entries.append(.init(id: String(index), kind: kind, title: title, text: text))
       }
+      func user(_ text: String?, images: [String]) {
+        let text = text ?? ""
+        guard !text.isEmpty || !images.isEmpty else { return }
+        entries.append(.init(id: String(index), kind: .user, title: nil, text: text, localImagePaths: images))
+      }
       switch event["type"].text {
       case "task_started", "turn_started":
         activeTurnID = event["turn_id"].text
         pendingAssistant = [:]; pendingReasoning = [:]; pendingCommands = [:]
       case "task_complete", "turn_aborted":
         if event["turn_id"].text == nil || event["turn_id"].text == activeTurnID { activeTurnID = nil }
-      case "user_message": append(.user, event["message"].text)
+      case "user_message": user(event["message"].text, images: event["local_images"].decodeArray.compactMap(\.text))
       case "agent_message_content_delta", "agent_message_delta":
         guard event["turn_id"].text == nil || event["turn_id"].text == activeTurnID,
           let delta = event["delta"].text else { continue }
@@ -125,7 +131,9 @@ struct SubagentTranscript: Equatable {
         switch item["type"].text {
         case "UserMessage":
           guard !legacyUsers.contains(scope) else { continue }
-          append(.user, item["content"].decodeArray.compactMap { $0["text"].text }.joined(separator: "\n"))
+          let parts = item["content"].decodeArray
+          user(parts.compactMap { $0["text"].text }.joined(separator: "\n"),
+            images: parts.filter { $0["type"].text == "local_image" }.compactMap { $0["path"].text })
         case "AgentMessage":
           guard !legacyAssistants.contains(scope) else { continue }
           let text = item["content"].decodeArray.compactMap { $0["text"].text }.joined(separator: "\n")

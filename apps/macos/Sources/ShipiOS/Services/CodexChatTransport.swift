@@ -464,12 +464,33 @@ final class CodexChatTransport {
   }
 
   func submitSubagent(taskID: String, rootThreadID: String, childThreadID: String,
-    text: String, expectedTurnID: String?) async throws -> String {
+    text: String, expectedTurnID: String?, images: [ImageAttachment] = [], files: [FileAttachment] = []) async throws -> String {
     guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接。") }
-    let response = try await client(for: taskID).request("codex.subagent.submit", [
+    guard text.utf8.count <= 48_000, images.count <= ImageAttachmentStorage.maxCount else {
+      throw AgentFailure(message: "子任务文字超过 48 KiB 或图片超过 8 张。")
+    }
+    var imageBytes = 0
+    for image in images {
+      imageBytes += try ImageAttachmentStorage.data(image, root: dataRoot).count
+      guard imageBytes <= ImageAttachmentStorage.maxRequestBytes else { throw AgentFailure(message: "图片上下文超过 32 MiB。") }
+    }
+    var fileBytes = 0
+    let appendix = try FileAttachmentStorage.content(.init(role: "user",
+      content: AppshotContext.modelContent("", images: images), files: files), root: dataRoot, total: &fileBytes,
+      includeLocalPaths: true)
+    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty || !files.isEmpty else {
+      throw AgentFailure(message: "子任务消息为空。")
+    }
+    let staged = appendix.isEmpty ? nil : try stageText(appendix)
+    defer { if let staged { try? FileManager.default.removeItem(at: staged.url) } }
+    var request: [String: JSONValue] = [
       "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID),
       "childThreadId": .string(childThreadID), "text": .string(text),
-      "expectedTurnId": expectedTurnID.map(JSONValue.string) ?? .null])
+      "expectedTurnId": expectedTurnID.map(JSONValue.string) ?? .null,
+      "images": .array(images.map { .object(["id": .string($0.id.uuidString),
+        "fileExtension": .string($0.fileExtension), "byteCount": .number(Double($0.byteCount))]) })]
+    if let staged { request["textAttachment"] = .object(["id": .string(staged.id.uuidString), "byteCount": .number(Double(staged.byteCount))]) }
+    let response = try await client(for: taskID).request("codex.subagent.submit", request)
     guard let turn = response["turnId"].text, !turn.isEmpty else { throw AgentFailure(message: "子任务没有确认输入。") }
     return turn
   }
