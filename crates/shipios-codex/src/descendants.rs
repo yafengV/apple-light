@@ -170,6 +170,17 @@ impl DescendantSource {
         self.manager.subscribe_thread_created()
     }
 
+    /// A detail-view Stop targets one loaded child and its observed native turn.
+    /// No idle/cold child is loaded, and no peer/root or later turn is selected.
+    pub async fn interrupt(&self, child: &str, expected_turn: &str) -> Result<bool> {
+        ensure!(
+            !expected_turn.is_empty() && expected_turn.len() <= 256,
+            "invalid child turn identity"
+        );
+        let thread = self.event_thread(child).await?;
+        Ok(thread.interrupt_turn_if_active(expected_turn).await)
+    }
+
     /// A start acknowledgement can precede TurnStarted/status publication.
     /// Observe the accepted turn's durable terminal marker before allowing a
     /// completed subtree monitor to sleep again, including same-text replies.

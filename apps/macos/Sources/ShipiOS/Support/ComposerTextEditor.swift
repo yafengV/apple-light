@@ -92,6 +92,7 @@ struct ComposerTextEditor: NSViewRepresentable {
   let onKey: (ComposerEditorKey, NSEvent.ModifierFlags, Bool) -> Bool
   let onPasteAttachments: ([NSItemProvider]) -> Void
   var onSelectionChange: ((NSRange) -> Void)? = nil
+  var localCommands: ComposerCommandContext? = nil
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
 

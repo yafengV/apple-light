@@ -7,6 +7,7 @@ struct SubagentWorkspacePanel: View {
   let taskID: String
   @State private var detail = SubagentDetailState()
   @State private var reload = 0
+  @AppStorage(ComposerSendShortcut.storageKey) private var shortcutRaw = ComposerSendShortcut.commandEnter.rawValue
   private var agents: [CodexSubagent] { store.subagents(taskID: taskID) }
   private var current: CodexSubagent? { agents.first { $0.id == detail.selected?.id } }
   private var live: SubagentLiveState? { detail.selected.flatMap { store.subagentLiveStates[$0.id] } }
@@ -76,13 +77,19 @@ struct SubagentWorkspacePanel: View {
   }
 
   private var composer: some View {
-    HStack(alignment: .bottom, spacing: 8) {
-      TextEditor(text: $detail.draft).frame(minHeight: 40, maxHeight: 100)
-        .appContentFont(size: 14).accessibilityLabel("子任务消息")
-        .accessibilityIdentifier("subagent-composer")
-      Button(current?.working == true ? "引导" : "发送") { Task { await send() } }
-        .disabled(sendDisabled).accessibilityIdentifier("subagent-send")
-    }.padding(12)
+    SubagentComposerView(text: $detail.draft, plainTextMode: store.composerPlainTextMode,
+      sendShortcut: UserDefaults.standard.object(forKey: ComposerSendShortcut.storageKey) == nil
+        ? ComposerSendShortcut.stored() : ComposerSendShortcut(rawValue: shortcutRaw) ?? .commandEnter,
+      working: current?.working == true, sending: detail.sending,
+      stopping: current.flatMap { store.subagentStopBusy[$0.id] } != nil,
+      canSend: !sendDisabled,
+      canStop: current?.working == true && detail.transcript.activeTurnID != nil,
+      stopError: current.flatMap { store.subagentStopErrors[$0.id] },
+      previousPrompt: detail.transcript.entries.last(where: { $0.kind == .user })?.text,
+      send: { Task { await send() } }, stop: {
+        guard let current, let turn = detail.transcript.activeTurnID else { return }
+        Task { await store.stopSubagent(taskID: taskID, agent: current, expectedTurnID: turn) }
+      }).id(detail.selected?.id)
   }
 
   private func openLink(_ url: URL) {

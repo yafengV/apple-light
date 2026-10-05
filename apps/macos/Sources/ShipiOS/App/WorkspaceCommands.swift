@@ -157,6 +157,9 @@ struct WorkspaceCommands: Commands {
   private func commandEnabled(_ id: String) -> Bool {
     guard !WindowModalInteraction.blocksCommands(in: NSApp.keyWindow),
       searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return false }
+    if let local = ComposerCommandContext.focused(in: NSApp.keyWindow), ComposerCommandContext.owned.contains(id) {
+      return local.enabled.contains(id)
+    }
     if GitWorkflowCommandContext.owns(id) { return gitCommands?.enabled(id) == true }
     if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       return taskWindowCommands.enabled.contains(id)
@@ -166,7 +169,9 @@ struct WorkspaceCommands: Commands {
   }
   private func perform(_ id: String) {
     guard commandEnabled(id) else { return }
-    if GitWorkflowCommandContext.owns(id) {
+    if let local = ComposerCommandContext.focused(in: NSApp.keyWindow), ComposerCommandContext.owned.contains(id) {
+      _ = local.execute(id)
+    } else if GitWorkflowCommandContext.owns(id) {
       gitCommands?.execute(id)
     } else if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       taskWindowCommands.execute(id)

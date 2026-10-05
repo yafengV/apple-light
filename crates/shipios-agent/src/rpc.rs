@@ -316,6 +316,26 @@ async fn dispatch(
                     .await
                     .map_err(failed)
             }
+            "codex.subagent.interrupt" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase", deny_unknown_fields)]
+                struct Input {
+                    task_id: String,
+                    expected_thread_id: String,
+                    child_thread_id: String,
+                    expected_turn_id: String,
+                }
+                let p: Input = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex
+                    .interrupt_subagent(
+                        &p.task_id,
+                        &p.expected_thread_id,
+                        &p.child_thread_id,
+                        &p.expected_turn_id,
+                    )
+                    .await
+                    .map_err(failed)
+            }
             "codex.elicitation.resolve" => {
                 let p: CodexElicitation = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.resolve_elicitation(p).await.map_err(failed)?;

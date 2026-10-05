@@ -129,6 +129,93 @@ async fn ticket(
 }
 
 #[test]
+fn exact_child_stop_preserves_parent_sibling_peer_and_rejects_a_later_turn() -> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let (_server, parent) = fixture(root.path()).await?;
+        let child = spawn_child(&parent, parent.thread_id, 1).await?;
+        let sibling = spawn_child(&parent, parent.thread_id, 1).await?;
+        let peer = parent
+            .manager
+            .start_thread(StartThreadOptions::new(parent.test_config.clone()))
+            .await?;
+        let parent_req = request(&parent.thread).await?;
+        let req = request(&child.thread).await?;
+        let sibling_req = request(&sibling.thread).await?;
+        let source = parent.descendant_source();
+        let reply = ticket(&source, child.thread_id, &req).await?;
+        for id in [parent.thread_id, peer.thread_id] {
+            assert!(
+                source
+                    .interrupt(&id.to_string(), &req.turn_id)
+                    .await
+                    .is_err()
+            );
+        }
+        assert!(
+            !source
+                .interrupt(&child.thread_id.to_string(), "old-turn")
+                .await?
+        );
+        assert!(!reply.is_closed());
+        assert!(
+            source
+                .interrupt(&child.thread_id.to_string(), &req.turn_id)
+                .await?
+        );
+        status(&child.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
+        assert!(reply.is_closed());
+        assert!(matches!(
+            parent.thread.agent_status().await,
+            AgentStatus::Running
+        ));
+        assert!(matches!(
+            sibling.thread.agent_status().await,
+            AgentStatus::Running
+        ));
+        assert!(!root.path().join("Project/captured-proof.txt").exists());
+        let next = request(&child.thread).await?;
+        assert_ne!(req.turn_id, next.turn_id);
+        assert!(
+            !source
+                .interrupt(&child.thread_id.to_string(), &req.turn_id)
+                .await?
+        );
+        let next_reply = ticket(&source, child.thread_id, &next).await?;
+        assert!(!next_reply.is_closed());
+        assert!(next_reply.resolve(ReviewDecision::Approved).await?);
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        assert_eq!(
+            std::fs::read_to_string(root.path().join("Project/captured-proof.txt"))?,
+            "approved"
+        );
+        assert!(
+            source
+                .interrupt(&sibling.thread_id.to_string(), &sibling_req.turn_id)
+                .await?
+        );
+        assert!(
+            parent
+                .thread
+                .interrupt_turn_if_active(&parent_req.turn_id)
+                .await
+        );
+        peer.thread.submit(Op::Shutdown).await?;
+        child.thread.submit(Op::Shutdown).await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Shutdown)).await?;
+        parent.manager.remove_thread(&child.thread_id).await;
+        assert!(
+            source
+                .interrupt(&child.thread_id.to_string(), &next.turn_id)
+                .await
+                .is_err()
+        );
+        parent.shutdown().await?;
+        Ok(())
+    })
+}
+
+#[test]
 fn child_approval_claim_is_exact_once_rejects_root_peer_and_wrong_identity_then_executes()
 -> Result<()> {
     run_native_test(async {

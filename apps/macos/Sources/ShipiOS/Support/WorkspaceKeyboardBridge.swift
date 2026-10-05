@@ -24,8 +24,8 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
           if event.keyCode == 53,
             event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
             store.closeSettingsFromKeyboard(in: window) { return nil }
-          guard let binding = ShortcutBinding(event: event),
-            store.handleWorkspaceShortcut(binding) else { return event }
+          guard let binding = ShortcutBinding(event: event) else { return event }
+          guard store.handleWorkspaceShortcut(binding, in: window) else { return event }
           return nil
         }
       }
@@ -36,6 +36,14 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
 }
 
 extension WorkspaceStore {
+  func handleWorkspaceShortcut(_ binding: ShortcutBinding, in window: NSWindow?) -> Bool {
+    if destination == .workspace, !restoringLibrary, !showingModelPicker,
+      !showingBranchPicker, presentedOverlay == nil, !hasSettingsConfirmation,
+      shortcutCaptureCount == 0,
+      ComposerCommandContext.route(binding, shortcuts: shortcuts, in: window) { return true }
+    return handleWorkspaceShortcut(binding)
+  }
+
   func handleWorkspaceShortcut(_ binding: ShortcutBinding) -> Bool {
     guard !restoringLibrary, shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
       !showingModelPicker, !showingBranchPicker else { return false }

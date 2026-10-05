@@ -242,6 +242,8 @@ final class WorkspaceStore {
   var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]
   var backgroundTerminalCleanup: [String: UUID] = [:]
   var subagentApprovalBusy: Set<String> = []
+  var subagentStopBusy: [String: String] = [:]
+  var subagentStopErrors: [String: String] = [:]
   var subagentApprovalErrors: [String: String] = [:]
   var subagentLiveStates: [String: SubagentLiveState] = [:]
   @ObservationIgnored var subagentSnapshotAssemblers: [String: CodexSubagentSnapshotAssembler] = [:]

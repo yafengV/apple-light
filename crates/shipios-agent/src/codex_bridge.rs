@@ -1221,6 +1221,19 @@ impl CodexBridge {
         Ok(json!({"turnId":turn_id,"steered":steered}))
     }
 
+    pub async fn interrupt_subagent(
+        &self,
+        task_id: &str,
+        expected_root: &str,
+        child: &str,
+        expected_turn: &str,
+    ) -> Result<Value> {
+        let (source, _) = self.descendant_access(task_id, expected_root).await?;
+        let interrupted = source.interrupt(child, expected_turn).await?;
+        let _ = self.refresh_descendants(task_id, expected_root).await;
+        Ok(json!({"interrupted":interrupted}))
+    }
+
     pub async fn interrupt_descendants(
         &self,
         task_id: &str,

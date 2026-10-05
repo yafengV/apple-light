@@ -121,6 +121,61 @@ final class CodexSubagentIntegrationTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testDetailStopRetainsPartialReplyAndDraftWhileParentAndPeerContinueThenRejectsOldTurn() async throws {
+    let store = try await store()
+    let started = await store.startChat("subagent-parent-stream-active")
+    let run = try XCTUnwrap(started), owner = try XCTUnwrap(store.library.task(containing: run)?.id)
+    try await waitFor("No actual child") { store.activeSubagents(taskID: owner).count == 1 }
+    let child = try XCTUnwrap(store.activeSubagents(taskID: owner).first)
+    let detail = SubagentDetailState(); detail.select(child); detail.draft = "Keep child draft"
+    try await waitFor("No child partial stream") {
+      detail.updateLive(store.subagentLiveStates[child.id])
+      return detail.transcript.entries.contains { $0.text == "子任务实时🙂" } && detail.transcript.activeTurnID != nil
+    }
+    let originalTurn = try XCTUnwrap(detail.transcript.activeTurnID)
+    store.newTask()
+    let peerStarted = await store.startChat("subagent-peer-hold")
+    let peerRun = try XCTUnwrap(peerStarted), peer = try XCTUnwrap(store.library.task(containing: peerRun)?.id)
+    try await waitFor("No peer turn") { store.library.chatRuns.first { $0.id == peerRun }?.result?["codex_turn_id"].text != nil }
+    for (root, id) in [(UUID().uuidString, child.threadID), (child.rootThreadID, child.rootThreadID)] {
+      do {
+        try await store.codexTransport.interruptSubagent(taskID: owner, rootThreadID: root,
+          childThreadID: id, expectedTurnID: originalTurn)
+        XCTFail("A changed root or root-as-child identity was accepted")
+      } catch { XCTAssertFalse(error.localizedDescription.isEmpty) }
+    }
+    await store.stopSubagent(taskID: owner, agent: child, expectedTurnID: originalTurn)
+    try await waitFor("Child did not stop") { store.subagents(taskID: owner).contains { $0.id == child.id && $0.status == .interrupted } }
+    detail.updateLive(store.subagentLiveStates[child.id])
+    XCTAssertTrue(detail.transcript.entries.contains { $0.text == "子任务实时🙂" })
+    XCTAssertEqual(detail.draft, "Keep child draft"); XCTAssertNil(store.subagentStopBusy[child.id])
+    XCTAssertNil(store.subagentStopErrors[child.id])
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.isActive, true)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == peerRun }?.isActive, true)
+    let next = try await store.codexTransport.submitSubagent(taskID: owner, rootThreadID: child.rootThreadID,
+      childThreadID: child.threadID, text: "subagent-child-stream", expectedTurnID: nil)
+    XCTAssertNotEqual(originalTurn, next)
+    try await waitFor("New child turn missing") {
+      detail.updateLive(store.subagentLiveStates[child.id]); return detail.transcript.activeTurnID == next
+    }
+    do {
+      try await store.codexTransport.interruptSubagent(taskID: owner, rootThreadID: child.rootThreadID,
+        childThreadID: child.threadID, expectedTurnID: originalTurn)
+      XCTFail("An old Stop selected the replacement child turn")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("回合")) }
+    XCTAssertEqual(detail.transcript.activeTurnID, next)
+    try Data().write(to: root.appendingPathComponent("complete-gate"))
+    try await waitFor("Child could not finish after old Stop was refused") { store.subagents(taskID: owner).contains { $0.id == child.id && $0.status == .completed } }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.isActive, true)
+    try Data().write(to: root.appendingPathComponent("parent-gate"))
+    await store.modelTask(runID: run)?.value
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.status, "succeeded")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.result?["response"].text, "Parent finished while child continues")
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == peerRun }?.isActive, true)
+    await store.cancel(taskID: peer); await store.modelTask(runID: peerRun)?.value
+    await store.shutdown()
+  }
+
   @MainActor func testChildCompletionCannotFinishStillRunningParentStream() async throws {
     let store = try await store()
     let started = await store.startChat("subagent-parent-stream-active")

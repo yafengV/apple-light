@@ -474,6 +474,18 @@ final class CodexChatTransport {
     return turn
   }
 
+  func interruptSubagent(taskID: String, rootThreadID: String, childThreadID: String, expectedTurnID: String) async throws {
+    guard activeThreads.contains(taskID), !expectedTurnID.isEmpty else {
+      throw AgentFailure(message: "子任务已断开或当前回合不可用。")
+    }
+    let response = try await client(for: taskID).request("codex.subagent.interrupt", [
+      "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID),
+      "childThreadId": .string(childThreadID), "expectedTurnId": .string(expectedTurnID)])
+    guard response["interrupted"].boolean == true else {
+      throw AgentFailure(message: "子任务回合已结束或发生变化，请重新加载。")
+    }
+  }
+
   func resolveSubagentApproval(taskID: String, rootThreadID: String, childThreadID: String,
     request: SubagentApprovalRequest, choice: Int) async throws {
     guard activeThreads.contains(taskID), request.decisions.indices.contains(choice) else {

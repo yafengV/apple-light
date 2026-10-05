@@ -162,6 +162,23 @@ final class SubagentApprovalIntegrationTests: XCTestCase {
     await store.shutdown(); XCTAssertNil(store.subagentLiveStates[child.id])
   }
 
+  @MainActor func testDetailStopExpiresOriginalApprovalAndCannotApproveOrExecuteIt() async throws {
+    let (store, task, run, child, request) = try await setup()
+    await store.stopSubagent(taskID: task, agent: child, expectedTurnID: request.turnID)
+    try await waitFor { store.subagents(taskID: task).contains { $0.id == child.id && $0.status == .interrupted }
+      && store.subagentLiveStates[child.id]?.approvals[request.id]?.phase == .expired }
+    XCTAssertNil(store.subagentStopBusy[child.id]); XCTAssertNil(store.subagentStopErrors[child.id])
+    do {
+      try await store.codexTransport.resolveSubagentApproval(taskID: task, rootThreadID: child.rootThreadID,
+        childThreadID: child.threadID, request: request, choice: 0)
+      XCTFail("A stopped original approval still executed")
+    } catch { XCTAssertFalse(error.localizedDescription.isEmpty) }
+    let directory = URL(fileURLWithPath: try XCTUnwrap(store.library.task(containing: run)?.codexWorkspacePath))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("child-approval-proof.txt").path))
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.result?["response"].text, "Parent is complete")
+    await store.shutdown(); XCTAssertNil(store.subagentStopErrors[child.id])
+  }
+
   @MainActor func testActualReadOnlyChildPatchApprovalForSessionWritesOnlyAfterAction() async throws {
     let (store, task, run, child, request) = try await setup(patch: true)
     XCTAssertEqual(request.event["type"].text, "apply_patch_approval_request")

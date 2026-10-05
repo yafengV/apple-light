@@ -1,6 +1,6 @@
 --- a/src/codex_thread.rs
 +++ b/src/codex_thread.rs
-@@ -515,6 +515,35 @@
+@@ -515,6 +515,46 @@
          self.session.inject_if_running(items).await
      }
  
@@ -33,10 +33,21 @@
 +        })
 +    }
 +
++    /// Interrupt only the selected active turn. An old UI action must never
++    /// select the next turn through an unscoped queued Op::Interrupt.
++    pub async fn interrupt_turn_if_active(&self, expected_turn_id: &str) -> bool {
++        self.session
++            .abort_turn_if_active(
++                expected_turn_id,
++                codex_protocol::protocol::TurnAbortReason::Interrupted,
++            )
++            .await
++    }
++
      /// Captures a regular turn only after its input is recorded. The caller must flush the rollout.
      pub async fn interrupted_turn(
          &self,
-@@ -1036,3 +1065,83 @@
+@@ -1036,3 +1076,83 @@
          Ok(elicitations.count)
      }
  }

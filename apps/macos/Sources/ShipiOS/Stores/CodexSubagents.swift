@@ -78,12 +78,29 @@ extension WorkspaceStore {
     }
   }
 
+  func stopSubagent(taskID: String, agent: CodexSubagent, expectedTurnID: String) async {
+    guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
+      subagents(taskID: taskID).contains(where: { $0.id == agent.id && $0.working }),
+      !expectedTurnID.isEmpty, subagentStopBusy[agent.id] == nil else { return }
+    subagentStopBusy[agent.id] = expectedTurnID; subagentStopErrors.removeValue(forKey: agent.id)
+    defer { if subagentStopBusy[agent.id] == expectedTurnID { subagentStopBusy.removeValue(forKey: agent.id) } }
+    do {
+      try await codexTransport.interruptSubagent(taskID: taskID, rootThreadID: agent.rootThreadID,
+        childThreadID: agent.threadID, expectedTurnID: expectedTurnID)
+    } catch {
+      guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
+        subagentStopBusy[agent.id] == expectedTurnID else { return }
+      subagentStopErrors[agent.id] = error.localizedDescription
+    }
+  }
+
   func disconnectSubagents(taskID: String) {
     subagentSnapshotAssemblers.removeValue(forKey: taskID)
     subagentSnapshotRevisions.removeValue(forKey: taskID)
     guard let index = library.tasks.firstIndex(where: { $0.id == taskID }),
       var rows = library.tasks[index].codexSubagents else { return }
     for row in rows {
+      subagentStopBusy.removeValue(forKey: row.id); subagentStopErrors.removeValue(forKey: row.id)
       for token in subagentLiveStates[row.id]?.approvals.keys ?? Dictionary<String, SubagentApprovalStatus>().keys {
         subagentApprovalBusy.remove(token); subagentApprovalErrors.removeValue(forKey: token)
       }

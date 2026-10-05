@@ -65,8 +65,11 @@ struct TaskWindowCommandKeyboardBridge: NSViewRepresentable {
     return view
   }
   func updateNSView(_ view: NSView, context: Context) {
-    context.coordinator.handle = { binding in
-      guard !blocked, let id = commands.command(for: binding, shortcuts: shortcuts) else { return false }
+    context.coordinator.handle = { [weak view] binding in
+      guard !blocked else { return false }
+      if ComposerCommandContext.route(binding, shortcuts: shortcuts, in: view?.window) { return true }
+      guard (view?.window?.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }
+      guard let id = commands.command(for: binding, shortcuts: shortcuts) else { return false }
       return commands.execute(id)
     }
   }
@@ -80,7 +83,6 @@ struct TaskWindowCommandKeyboardBridge: NSViewRepresentable {
         MainActor.assumeIsolated {
           guard let window = view?.window, window.isKeyWindow, event.window === window,
             window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window), NSApp.modalWindow == nil,
-            (window.firstResponder as? NSTextView)?.hasMarkedText() != true,
             let binding = ShortcutBinding(event: event) else { return event }
           return self?.handle?(binding) == true ? nil : event
         }

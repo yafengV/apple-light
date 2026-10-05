@@ -12,7 +12,11 @@ The reviewable source delta is `upstream/codex-core-approval-capture.patch` (fou
 
 `CapturedApproval` is not cloneable. Resolving checks the original turn and reply channel, delivers only to that waiter, and never looks up a replacement by call ID. Core retains shared cancellation ownership: cancellation, waiter clearing and overwrite close a captured reply. Dropping the host capability closes the original waiter. ID-only ordinary replies cannot fulfill a waiter claimed by the host. Explicit Abort interrupts only the expected native turn through Core's existing guarded abort path. Prefix amendments retain the native persistence/warning behavior; their persistence occurs under the expected active-turn guard. The host must expose and validate the request's native available decisions before invoking this trusted API.
 
-This foundation does not itself add child approval buttons, MCP elicitation, request-user-input, permission requests or standalone child Stop controls. Those integrations and complete page pairing remain pending.
+The ShipiOS host now connects exec/patch claims to child approval cards and one-use RPC tokens. MCP elicitation, request-user-input and permission requests are separate capabilities; this API does not add them or prove complete page pairing.
+
+## Guarded child interruption
+
+`CodexThread.interrupt_turn_if_active(expected_turn_id)` exposes Core's existing guarded abort path. It interrupts only the matching active turn and returns false after completion or replacement; it never queues an unscoped interrupt that could stop a later turn. ShipiOS validates the task, root and actual loaded child subtree before calling it. Idle/cold children are not loaded by this operation. It does not promise recursive descendant or standalone Node executor interruption.
 
 ## Source audit
 
