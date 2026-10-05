@@ -4,6 +4,7 @@ import CryptoKit
 /// One child stream is shared by its windows; selections and drafts remain local.
 /// Frames become visible only after complete UTF-8, identity and digest validation.
 struct SubagentLiveState: Equatable {
+  private(set) var approvals: [String: SubagentApprovalStatus] = [:]
   private(set) var events: [JSONValue] = []
   private(set) var error: String?
   private var streamID: String?
@@ -23,6 +24,19 @@ struct SubagentLiveState: Equatable {
     guard error == nil else { return }
     do { try receive(frame, child: child) }
     catch { self.error = "子任务实时事件不完整，请重新加载历史。"; pending = nil }
+  }
+
+  mutating func receiveApproval(_ event: JSONValue, child: String) {
+    guard event["type"].text == "shipios_subagent_approval_state", event["childThreadId"].text == child,
+      let token = event["requestToken"].text, UUID(uuidString: token) != nil,
+      let turn = event["turnId"].text, !turn.isEmpty,
+      let revision = event["revision"].int, revision > 0,
+      let phase = event["state"].text.flatMap(SubagentApprovalStatus.Phase.init(rawValue:)) else { return }
+    if let old = approvals[token] {
+      guard old.turnID == turn, revision > old.revision,
+        ![.resolved, .expired].contains(old.phase) || [.resolved, .expired].contains(phase) else { return }
+    }
+    approvals[token] = .init(turnID: turn, revision: revision, phase: phase)
   }
 
   private mutating func receive(_ frame: JSONValue, child: String) throws {

@@ -54,8 +54,28 @@ extension WorkspaceStore {
       let child = event["childThreadId"].text,
       let agent = subagents(taskID: taskID).first(where: { $0.rootThreadID == threadID && $0.threadID == child }) else { return }
     var state = subagentLiveStates[agent.id] ?? .init()
-    state.append(event, child: child)
+    if event["type"].text == "shipios_subagent_approval_state" { state.receiveApproval(event, child: child) }
+    else { state.append(event, child: child) }
     subagentLiveStates[agent.id] = state
+  }
+
+  func resolveSubagentApproval(taskID: String, agent: CodexSubagent, request: SubagentApprovalRequest, choice: Int) async {
+    guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
+      subagents(taskID: taskID).contains(where: { $0.id == agent.id && $0.loaded }),
+      subagentLiveStates[agent.id]?.error == nil,
+      let status = subagentLiveStates[agent.id]?.approvals[request.id], status.turnID == request.turnID,
+      status.phase == .pending, request.decisions.indices.contains(choice),
+      !subagentApprovalBusy.contains(request.id) else { return }
+    subagentApprovalBusy.insert(request.id); subagentApprovalErrors.removeValue(forKey: request.id)
+    defer { subagentApprovalBusy.remove(request.id) }
+    do {
+      try await codexTransport.resolveSubagentApproval(taskID: taskID, rootThreadID: agent.rootThreadID,
+        childThreadID: agent.threadID, request: request, choice: choice)
+    } catch {
+      guard library.tasks.first(where: { $0.id == taskID })?.codexThreadID == agent.rootThreadID,
+        subagentLiveStates[agent.id] != nil else { return }
+      subagentApprovalErrors[request.id] = error.localizedDescription
+    }
   }
 
   func disconnectSubagents(taskID: String) {
@@ -63,7 +83,12 @@ extension WorkspaceStore {
     subagentSnapshotRevisions.removeValue(forKey: taskID)
     guard let index = library.tasks.firstIndex(where: { $0.id == taskID }),
       var rows = library.tasks[index].codexSubagents else { return }
-    for row in rows { subagentLiveStates.removeValue(forKey: row.id) }
+    for row in rows {
+      for token in subagentLiveStates[row.id]?.approvals.keys ?? Dictionary<String, SubagentApprovalStatus>().keys {
+        subagentApprovalBusy.remove(token); subagentApprovalErrors.removeValue(forKey: token)
+      }
+      subagentLiveStates.removeValue(forKey: row.id)
+    }
     let before = rows
     for i in rows.indices { rows[i].disconnect() }
     guard before != rows else { return }

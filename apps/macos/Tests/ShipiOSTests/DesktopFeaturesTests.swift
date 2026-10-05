@@ -1633,10 +1633,7 @@ final class ModelTransportTests: XCTestCase {
     await store.shutdown()
   }
   @MainActor func testCodexApprovalCardResumesCommandAndPersistsTimeline() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let project = root.appendingPathComponent("Project", isDirectory: true)
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
@@ -1772,10 +1769,7 @@ final class ModelTransportTests: XCTestCase {
   }
 
   @MainActor func testCodexPatchAppearsInTimelineAndWritesProjectFile() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let project = root.appendingPathComponent("Project", isDirectory: true)
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
@@ -1840,10 +1834,7 @@ final class ModelTransportTests: XCTestCase {
     await restored.shutdown()
   }
   @MainActor func testCodexStructuredQuestionResumesAndPersistsWithoutAnswer() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let project = root.appendingPathComponent("Project", isDirectory: true)
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
@@ -2185,10 +2176,7 @@ final class ModelTransportTests: XCTestCase {
     await store.shutdown()
   }
   @MainActor func testCodexResponsesMCPApprovalResumesToolCall() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -2325,10 +2313,7 @@ final class ModelTransportTests: XCTestCase {
     await store.shutdown()
   }
   @MainActor func testCodexResponsesMCPFormElicitationReturnsTypedContent() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -2474,10 +2459,7 @@ final class ModelTransportTests: XCTestCase {
     await store.shutdown()
   }
   @MainActor func testCodexResponsesMCPURLElicitationCanCompleteOrCancel() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py")
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

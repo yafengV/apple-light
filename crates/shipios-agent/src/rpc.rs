@@ -286,6 +286,10 @@ async fn dispatch(
                 codex.approve(p).await.map_err(failed)?;
                 Ok(json!({"resolved":true}))
             }
+            "codex.subagent.approval.resolve" => {
+                let p = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex.resolve_subagent_approval(p).await.map_err(failed)
+            }
             "codex.subagent.history.read" => {
                 let p = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.read_subagent_history(p).await.map_err(failed)

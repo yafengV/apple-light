@@ -44,3 +44,5 @@ Core 被排除出 ShipiOS workspace，`cargo test --workspace` 不运行上游�
 2. Swift 子详情显示可操作命令/补丁审批，支持失败保留、过期禁用、重复点击、窗口焦点和完整键盘；根回复和子草稿保持各自归属。
 3. 结构化提问、权限请求和 MCP elicitation 各自的原始等待绑定、类型化表单及取消/过期行为。
 4. 子任务全部工具/附件、单独停止、冷恢复、精确布局及前台、多窗口、双端完整配对；其他矩阵缺口继续逐项完成。
+
+后续第 618 篇复核发现：本篇 76 项中的六项 ModelTransportTests 显式使用默认 target/debug Agent，不遵循 SHIPIOS_TEST_AGENT。因此它们的通过证明该版本 Swift 与旧 helper 的行为，不能算本篇新 Core 的完整后端证据；其他关联组及正式包 Core 冒烟的记录保持。第 618 篇把六项入口改为显式发现指定 Agent 并单独重跑，以实际新/包内 helper 确认后端来源。

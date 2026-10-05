@@ -351,6 +351,7 @@ struct ThreadHandle {
     sender: mpsc::Sender<Command>,
     descendants: shipios_codex::DescendantSource,
     history: Arc<crate::subagent_history::HistorySnapshots>,
+    approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
 }
 
 pub struct CodexBridge {
@@ -682,6 +683,11 @@ impl CodexBridge {
             !sessions.contains_key(&task_key),
             "Codex thread already exists for task"
         );
+        let approvals = crate::subagent_approvals::SubagentApprovals::new(
+            self.events.clone(),
+            task_id.clone(),
+            thread_id.clone(),
+        );
         sessions.insert(
             task_key.clone(),
             ThreadHandle {
@@ -689,6 +695,7 @@ impl CodexBridge {
                 sender,
                 descendants: session.descendant_source(),
                 history: Arc::default(),
+                approvals: Arc::clone(&approvals),
             },
         );
         tokio::spawn(run_thread(
@@ -696,9 +703,12 @@ impl CodexBridge {
             receiver,
             Arc::clone(&self.sessions),
             self.events.clone(),
-            task_key,
-            task_id.clone(),
-            thread_id.clone(),
+            RootActorContext {
+                task_key,
+                task_id: task_id.clone(),
+                thread_id: thread_id.clone(),
+                approvals,
+            },
         ));
         Ok(ThreadInfo {
             task_id,
@@ -1161,6 +1171,23 @@ impl CodexBridge {
         Ok((handle.descendants.clone(), Arc::clone(&handle.history)))
     }
 
+    pub async fn resolve_subagent_approval(
+        &self,
+        request: crate::subagent_approvals::ApprovalReply,
+    ) -> Result<Value> {
+        let key = Uuid::parse_str(&request.task_id)?.to_string();
+        let approvals = {
+            let sessions = self.sessions.lock().await;
+            let handle = sessions.get(&key).context("Codex thread not started")?;
+            ensure!(
+                handle.thread_id == request.expected_thread_id,
+                "Codex thread identity changed"
+            );
+            Arc::clone(&handle.approvals)
+        };
+        approvals.resolve(request).await
+    }
+
     pub async fn read_subagent_history(
         &self,
         request: crate::subagent_history::HistoryRequest,
@@ -1266,20 +1293,32 @@ impl CodexBridge {
     }
 }
 
+struct RootActorContext {
+    task_key: String,
+    task_id: String,
+    thread_id: String,
+    approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
+}
+
 async fn run_thread(
     session: CodexSession,
     mut receiver: mpsc::Receiver<Command>,
     sessions: Arc<Mutex<HashMap<String, ThreadHandle>>>,
     events: broadcast::Sender<Value>,
-    task_key: String,
-    task_id: String,
-    thread_id: String,
+    context: RootActorContext,
 ) {
+    let RootActorContext {
+        task_key,
+        task_id,
+        thread_id,
+        approvals,
+    } = context;
     let mut monitor = Some(crate::descendant_monitor::DescendantMonitor::start(
         session.descendant_source(),
         events.clone(),
         task_id.clone(),
         thread_id.clone(),
+        approvals,
     ));
     let mut session = Some(session);
     while let Some(live) = session.as_ref() {

@@ -26,7 +26,12 @@ struct SubagentWorkspacePanel: View {
         header(selected)
         Divider()
         SubagentTranscriptView(transcript: detail.transcript, loading: detail.loading, error: detail.error ?? live?.error,
-          retry: { reload += 1 }, openLink: openLink)
+          retry: { reload += 1 }, openLink: openLink,
+          approvalStatus: { live?.error == nil ? live?.approvals[$0] : nil }, approvalBusy: { store.subagentApprovalBusy.contains($0) },
+          approvalError: { store.subagentApprovalErrors[$0] }, approve: { request, choice in
+            guard let current else { return }
+            Task { await store.resolveSubagentApproval(taskID: taskID, agent: current, request: request, choice: choice) }
+          })
         if current?.acceptsInput == true && parentRoot == selected.rootThreadID {
           composer
         }
@@ -109,6 +114,10 @@ struct SubagentTranscriptView: View {
   let error: String?
   let retry: () -> Void
   let openLink: (URL) -> Void
+  var approvalStatus: (String) -> SubagentApprovalStatus? = { _ in nil }
+  var approvalBusy: (String) -> Bool = { _ in false }
+  var approvalError: (String) -> String? = { _ in nil }
+  var approve: (SubagentApprovalRequest, Int) -> Void = { _, _ in }
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 24) {
@@ -135,6 +144,12 @@ struct SubagentTranscriptView: View {
                 Text(entry.text).textSelection(.enabled).font(.system(size: 12, design: .monospaced))
                   .frame(maxWidth: .infinity, alignment: .leading)
               }.foregroundStyle(.secondary)
+            case .approval:
+              if let request = entry.approval {
+                SubagentApprovalCard(request: request, status: approvalStatus(request.id),
+                  busy: approvalBusy(request.id), error: approvalError(request.id),
+                  choose: { approve(request, $0) })
+              }
             case .notice: Text(entry.text).foregroundStyle(.secondary).appFont(size: 12)
             }
           }.accessibilityIdentifier("subagent-entry:" + entry.id)

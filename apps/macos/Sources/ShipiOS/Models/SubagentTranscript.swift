@@ -1,11 +1,12 @@
 import Foundation
 
 struct SubagentTranscriptEntry: Identifiable, Equatable {
-  enum Kind: Equatable { case user, assistant, reasoning, tool, notice }
+  enum Kind: Equatable { case user, assistant, reasoning, tool, notice, approval }
   let id: String
   let kind: Kind
   let title: String?
   let text: String
+  var approval: SubagentApprovalRequest? = nil
 }
 
 struct SubagentTranscript: Equatable {
@@ -84,8 +85,11 @@ struct SubagentTranscript: Equatable {
         streamed(event["call_id"].text ?? "command", event["aggregated_output"].text ?? "",
           kind: .tool, title: "命令输出", into: &pendingCommands, final: true)
       case "error", "warning": append(.notice, event["message"].text)
-      case "exec_approval_request", "apply_patch_approval_request", "request_user_input":
-        append(.notice, "子任务正在等待操作。", title: "等待")
+      case "exec_approval_request", "apply_patch_approval_request":
+        if let approval = SubagentApprovalRequest(event) {
+          entries.append(.init(id: "approval:" + approval.id, kind: .approval, title: approval.title, text: "", approval: approval))
+        } else { append(.notice, "历史审批记录", title: "审批") }
+      case "request_user_input": append(.notice, "子任务正在等待操作。", title: "等待")
       case "agent_reasoning":
         if let text = event["text"].text, let key = pendingReasoning.max(by: { $0.value < $1.value })?.key {
           streamed(key, text, kind: .reasoning, title: "思考摘要", into: &pendingReasoning, final: true)

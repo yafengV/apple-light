@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 use shipios_codex::{DescendantSource, NativeSubagent};
 use std::{
     collections::{HashMap, HashSet},
+    sync::Arc,
     time::Duration,
 };
 use tokio::{
@@ -31,6 +32,7 @@ impl DescendantMonitor {
         events: broadcast::Sender<Value>,
         task_id: String,
         root_thread_id: String,
+        approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
     ) -> Self {
         let mut created = source.subscribe_created();
         let (refresh, mut changes) = watch::channel(Refresh::default());
@@ -69,6 +71,7 @@ impl DescendantMonitor {
                 if changes.borrow().stopping {
                     continue;
                 }
+                approvals.expire_closed(None).await;
                 let pending = changes.borrow().submissions.clone();
                 for (child, turn) in pending {
                     if matches!(
@@ -124,15 +127,32 @@ impl DescendantMonitor {
                         let task_id = task_id.clone();
                         let root_thread_id = root_thread_id.clone();
                         let child = row.thread_id.clone();
+                        let approvals = Arc::clone(&approvals);
                         readers.spawn(async move {
                             let stream = Uuid::new_v4().to_string();
                             let mut sequence = 0_u64;
                             while let Ok(event) = thread.next_event().await {
                                 let closed =
                                     matches!(event.msg, codex_core_api::EventMsg::ShutdownComplete);
-                                if let Ok(Some(value)) =
+                                let metadata = approvals
+                                    .capture(&thread, &child, &event.msg)
+                                    .await
+                                    .ok()
+                                    .flatten();
+                                if matches!(
+                                    event.msg,
+                                    codex_core_api::EventMsg::TurnComplete(_)
+                                        | codex_core_api::EventMsg::TurnAborted(_)
+                                        | codex_core_api::EventMsg::ShutdownComplete
+                                ) {
+                                    approvals.expire_closed(Some(&child)).await;
+                                }
+                                if let Ok(Some(mut value)) =
                                     shipios_codex::public_descendant_event(event.msg)
                                 {
+                                    if let Some(metadata) = metadata {
+                                        value["shipios_approval"] = metadata;
+                                    }
                                     sequence += 1;
                                     for frame in live_event_frames(
                                         &child, &stream, sequence, &event.id, &value,

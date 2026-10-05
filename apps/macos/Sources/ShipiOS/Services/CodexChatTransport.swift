@@ -474,6 +474,18 @@ final class CodexChatTransport {
     return turn
   }
 
+  func resolveSubagentApproval(taskID: String, rootThreadID: String, childThreadID: String,
+    request: SubagentApprovalRequest, choice: Int) async throws {
+    guard activeThreads.contains(taskID), request.decisions.indices.contains(choice) else {
+      throw AgentFailure(message: "子任务审批已断开或选项已失效。")
+    }
+    let response = try await client(for: taskID).request("codex.subagent.approval.resolve", [
+      "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID),
+      "childThreadId": .string(childThreadID), "turnId": .string(request.turnID),
+      "requestToken": .string(request.id), "choice": .number(Double(choice))])
+    guard response["resolved"].boolean == true else { throw AgentFailure(message: "审批未被确认，请重新加载。") }
+  }
+
   /// Releases an ephemeral thread's local identity after the Core thread stops.
   func discard(taskID: String) async {
     await stop(taskID: taskID)
@@ -623,7 +635,7 @@ final class CodexChatTransport {
   private func receive(_ payload: JSONValue) {
     guard let taskID = payload["taskId"].text else { return }
     let event = payload["event"]
-    if event["type"].text == "shipios_subagent_event" {
+    if ["shipios_subagent_event", "shipios_subagent_approval_state"].contains(event["type"].text ?? "") {
       guard activeThreads.contains(taskID) else { return }
       onSubagentEvent?(taskID, payload["threadId"].text, event)
       return
