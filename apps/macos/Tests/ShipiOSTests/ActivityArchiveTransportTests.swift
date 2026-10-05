@@ -31,12 +31,9 @@ final class ActivityArchiveTransportTests: XCTestCase {
   private enum Surface { case activityBatch, activityRow, sidebar, command, taskWindow }
   @MainActor private func checkArchive(_ api: ModelAPIProtocol, surface: Surface = .activityBatch,
     delayedAgentStartup: Bool = false) async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("archive-transport-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
-    var executable = repository.appendingPathComponent("target/debug/shipios-agent")
+    var executable = try AgentTestExecutable.url()
     if delayedAgentStartup {
       try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
       let wrapper = root.appendingPathComponent("delayed-agent.sh")

@@ -176,7 +176,7 @@ final class GitCommitGenerationTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     store.library.gitPreferences.commitInstructions = "fixture-echo-generation Keep Chinese subjects"
     try "unstaged-only-excluded".write(to: root.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
@@ -199,7 +199,7 @@ final class GitCommitGenerationTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     store.library.gitPreferences.commitInstructions = "fixture-slow-generation"
     try "working version".write(to: root.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
@@ -222,7 +222,7 @@ final class GitCommitGenerationTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     store.library.gitPreferences.commitInstructions = "fixture-slow-generation"
     store.generateCommitMessage(in: workspace)
@@ -246,7 +246,7 @@ final class GitCommitGenerationTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     store.library.gitPreferences.commitInstructions = "fixture-partial-generation"
     workspace.commitMessage = "Original draft"

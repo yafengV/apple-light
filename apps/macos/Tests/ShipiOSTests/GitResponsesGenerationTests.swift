@@ -6,11 +6,6 @@ final class GitGenerationFixture {
   let log: URL
   let phaseLog: URL
   var config = ModelConfiguration()
-  static var binary: URL {
-    URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .appendingPathComponent("target/debug/shipios-agent")
-  }
   init(root: URL) throws {
     let git = root.appendingPathComponent(".git")
     log = (FileManager.default.fileExists(atPath: git.path) ? git : root).appendingPathComponent("generation-requests.jsonl")
@@ -65,7 +60,7 @@ final class GitResponsesGenerationTests: XCTestCase {
   private var dataRoot: URL { root.appendingPathComponent("private-generation-data") }
   @MainActor private func generate(_ instruction: String, content: String = "Captured Git diff") async throws -> String {
     try await GitTextGenerator.make(config: fixture.config, key: nil, repository: root,
-      dataRoot: dataRoot, executable: GitGenerationFixture.binary)([
+      dataRoot: dataRoot, executable: try AgentTestExecutable.url())([
         ChatMessage(role: "system", content: instruction), ChatMessage(role: "user", content: content)])
   }
   private func assertCleaned(file: StaticString = #filePath, line: UInt = #line) throws {
@@ -117,7 +112,7 @@ final class GitResponsesGenerationTests: XCTestCase {
     let operation = Task {
       try await CodexTextGeneration.generate(config: fixture.config, key: nil,
         messages: [ChatMessage(role: "system", content: "fixture-slow-generation")],
-        repository: root, dataRoot: dataRoot, executable: GitGenerationFixture.binary, timeout: .seconds(3))
+        repository: root, dataRoot: dataRoot, executable: try AgentTestExecutable.url(), timeout: .seconds(3))
     }
     try await fixture.waitForRequest()
     do { _ = try await operation.value; XCTFail("Timed out generation must not return text") }
@@ -140,7 +135,7 @@ final class GitResponsesGenerationTests: XCTestCase {
     do {
       for round in 0..<2 {
         let stream = try await transport.startTurn(taskID: taskID, workspace: root,
-          executable: GitGenerationFixture.binary, config: fixture.config, key: nil,
+          executable: try AgentTestExecutable.url(), config: fixture.config, key: nil,
           initialText: "normal-chat-proof", continuationText: "normal-chat-proof continued",
           images: [], fileAppendix: nil, mcpServers: [], permissions: AgentRuntimePreferences(),
           responses: AgentResponsePreferences(), webSearchMode: .disabled)

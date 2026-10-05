@@ -149,13 +149,11 @@ import XCTest
     let port = String(decoding: pipe.fileHandleForReading.availableData, as: UTF8.self)
       .trimmingCharacters(in: .whitespacesAndNewlines)
     guard Int(port) != nil else { throw AgentFailure(message: "Local fixture could not bind") }
-    let repository = fixture.deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     for api in [ModelAPIProtocol.chatCompletions, .codexResponses] {
       let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
       defer { try? FileManager.default.removeItem(at: root) }
       let store = WorkspaceStore(dataRoot: root,
-        agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+        agentExecutable: try AgentTestExecutable.url())
       await store.restore()
       var config = ModelConfiguration()
       config.baseURL = "http://127.0.0.1:\(port)/v1"

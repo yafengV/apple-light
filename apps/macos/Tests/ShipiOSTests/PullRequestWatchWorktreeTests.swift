@@ -31,11 +31,8 @@ import XCTest
     _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: source)
     try "user edit\n".write(to: source.appendingPathComponent("file"), atomically: true, encoding: .utf8)
     try "private note\n".write(to: source.appendingPathComponent("extra"), atomically: true, encoding: .utf8)
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
     let store = WorkspaceStore(dataRoot: base.appendingPathComponent("Data"),
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     store.library.visit(source.path)
     store.notificationPreferences = .init(timing: .never)

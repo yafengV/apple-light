@@ -18,10 +18,8 @@ import XCTest
       .appendingPathComponent("pr-fix-\(UUID())")
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     _ = try await GitReviewService.checked(["init", "-q", "-b", "feature"], at: root)
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"),
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     store.libraryLoaded = true; store.scopeLoaded = true; store.connected = true; store.project = root
     store.library.tasks = [.init(id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", project: root.path, title: "A", runIDs: ["a-run"]),
       .init(id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", project: root.path, title: "B", runIDs: ["b-run"])]

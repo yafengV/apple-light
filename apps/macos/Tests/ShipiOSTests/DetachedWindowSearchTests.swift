@@ -78,7 +78,7 @@ import XCTest
     try FileManager.default.createDirectory(at: projectA, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: projectB, withIntermediateDirectories: true)
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"),
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     await store.open(projectA)
     XCTAssertTrue(store.connected, store.error ?? "")

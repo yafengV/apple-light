@@ -899,7 +899,7 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     try write("Responses local content\n", in: fixture)
     let responses = try GitGenerationFixture(root: fixture.root)
     defer { responses.stop() }
-    let (store, workspace) = await workspace(fixture, agentExecutable: GitGenerationFixture.binary)
+    let (store, workspace) = await workspace(fixture, agentExecutable: try AgentTestExecutable.url())
     // This test needs the real Core executable rather than the production app bundle in XCTest.
     store.modelConfiguration = responses.config
     store.library.gitPreferences.pullRequestInstructions = "Responses PR guidance"
@@ -934,7 +934,7 @@ final class GitPullRequestWorkflowTests: XCTestCase {
     try write("Responses browser local content\n", in: fixture)
     let responses = try GitGenerationFixture(root: fixture.root)
     defer { responses.stop() }
-    let (store, workspace) = await workspace(fixture, agentExecutable: GitGenerationFixture.binary)
+    let (store, workspace) = await workspace(fixture, agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     workspace.pullRequestDraft.title = "Manual browser title"
     workspace.pullRequestDraft.body = ""; workspace.commitMessage = ""

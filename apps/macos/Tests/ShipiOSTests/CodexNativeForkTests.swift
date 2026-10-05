@@ -28,9 +28,7 @@ final class CodexNativeForkTests: XCTestCase {
     addTeardownBlock { try? FileManager.default.removeItem(at: root) }
     let project = root.appendingPathComponent("Project")
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
-    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let agent = try AgentTestExecutable.url()
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"), agentExecutable: agent)
     await store.restore(); await store.open(project)
     var config = ModelConfiguration()

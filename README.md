@@ -12,7 +12,7 @@ Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 60
 
 实际子任务事件队列与文字流式显示、历史/实时到达竞争和所属线程隔离见[第 616 篇](docs/616-native-subagent-live-events.md)。可操作审批/提问、完整子工具卡与前台配对仍缺；旧提交全量已通过，验证范围见该篇，不能代替本轮源码全量。
 
-子任务审批的原始请求绑定、固定 Core 四文件补丁和真实命令/补丁/取消隔离验证见[第 617 篇](docs/617-native-approval-reply-capture.md)。回复绑定基础已实现。本阶段后续[第 618 篇](docs/618-native-subagent-approval-actions.md)已接入命令/补丁审批的请求令牌/RPC 和子详情按钮；提问及其他审批类型、完整 UI 对齐继续未完成。
+子任务审批的原始请求绑定、固定 Core 四文件补丁和真实命令/补丁/取消隔离验证见[第 617 篇](docs/617-native-approval-reply-capture.md)。回复绑定基础已实现。本阶段后续[第 618 篇](docs/618-native-subagent-approval-actions.md)已接入命令/补丁审批的请求令牌/RPC 和子详情按钮；提问及其他审批类型、完整 UI 对齐继续未完成。集成测试统一 Agent 来源、正式包会话全组及扩大回归见[第 619 篇](docs/619-integration-agent-source-unification.md)；统一前的全量不能当成所有用例均使用当前 Core 的证明。
 
 文档依据：[赚钱项目建议](chatgpt-conversation://6aaa387e-5e60-83ee-a9bb-31cbc449ec8f) 的全部 7 轮对话。整理与有限技术核对日期：2026-09-16。
 

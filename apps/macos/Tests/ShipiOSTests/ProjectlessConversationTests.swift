@@ -6,9 +6,7 @@ final class ProjectlessConversationTests: XCTestCase {
   @MainActor func testRealAgentProjectSwitchKeepsBothHistoriesAndRestoresProjectlessSelection()
     async throws
   {
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
-    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let agent = try AgentTestExecutable.url()
     guard FileManager.default.isExecutableFile(atPath: agent.path) else {
       throw XCTSkip("Build shipios-agent before running the project-switch integration test")
     }

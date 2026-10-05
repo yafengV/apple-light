@@ -111,10 +111,7 @@ final class DeepLinkTests: XCTestCase {
   }
 
   @MainActor func testNewTaskLinksPrefillIndependentDraftAndResolveProject() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-link-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }

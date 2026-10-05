@@ -408,13 +408,11 @@ final class TerminalSessionTests: XCTestCase {
   }
 
   @MainActor func testLocalAgentSubmissionAdoptsDraftTerminal() async throws {
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
     let root = try folder()
     let data = root.appendingPathComponent("data")
     let project = root.appendingPathComponent("project")
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
-    let store = WorkspaceStore(dataRoot: data, agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+    let store = WorkspaceStore(dataRoot: data, agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     store.notificationPreferences = .init(timing: .never)
     await store.open(project)

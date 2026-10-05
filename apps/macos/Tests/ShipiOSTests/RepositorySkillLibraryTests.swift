@@ -83,10 +83,8 @@ final class RepositorySkillLibraryTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let first = try project(root.appendingPathComponent("First"))
     let second = try project(root.appendingPathComponent("Second"))
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     await store.open(first)
     XCTAssertTrue(store.connected, store.error ?? "No connection")

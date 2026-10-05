@@ -24,13 +24,10 @@ final class TaskDeletionTransportTests: XCTestCase {
   }
 
   @MainActor private func checkDeletion(_ api: ModelAPIProtocol) async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("delete-stream-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root,
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     var config = ModelConfiguration()
     config.baseURL = endpoint; config.apiProtocol = api

@@ -18,7 +18,7 @@ import XCTest
     var repo = URL(fileURLWithPath: #filePath)
     for _ in 0..<5 { repo.deleteLastPathComponent() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"),
-      agentExecutable: repo.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     store.library.visit(source.path)
     store.library.newTaskEnvironmentSelections[source.path] = WorktreeEnvironmentChoice.none
@@ -138,7 +138,7 @@ import XCTest
     var repo = URL(fileURLWithPath: #filePath)
     for _ in 0..<5 { repo.deleteLastPathComponent() }
     let reopened = WorkspaceStore(dataRoot: store.dataRoot,
-      agentExecutable: repo.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await reopened.restore()
     let resumed = await reopened.resumeWorktreeFork(fork.id, openTask: false)
     XCTAssertEqual(resumed?.id, fork.id, reopened.error ?? "")

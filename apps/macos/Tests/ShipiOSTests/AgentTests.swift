@@ -36,10 +36,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testRealAgentHandshakeInspectionErrorsAndReconnect() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     XCTAssertTrue(
       FileManager.default.isExecutableFile(atPath: binary.path),
       "Build the Rust agent before swift test")
@@ -87,10 +84,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testSharedCodexEnvironmentLoadsSavesAndRejectsExternalChanges() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-env-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -141,10 +135,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testAutomationEnvironmentResolvesEachProjectAndPreservesRetrySnapshot() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-auto-env-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -187,10 +178,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testMultipleCodexEnvironmentsCanBeSelectedAndCreated() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-envs-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let project = root.appendingPathComponent("project")
@@ -255,10 +243,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testParentEnvironmentAppearsAndCanBeUsedForNewTask() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-inherited-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let project = root.appendingPathComponent("repo/app")
@@ -291,10 +276,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testEnvironmentCatalogListsOtherProjectsWithoutSwitchingWorkspace() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-catalog-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let first = root.appendingPathComponent("first")
@@ -329,10 +311,7 @@ final class AgentTests: XCTestCase {
   }
 
   @MainActor func testEnvironmentEditorChangesOtherProjectWithoutSwitchingActiveTask() async throws {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("shipios-editor-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let active = root.appendingPathComponent("active")

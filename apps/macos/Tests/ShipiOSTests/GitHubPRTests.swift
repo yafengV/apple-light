@@ -544,7 +544,7 @@ final class GitHubPRTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.libraryLoaded = true
     store.library.tasks = [WorkspaceTask(id: "owner", project: root.path, title: "Owner", runIDs: [])]
     store.modelConfiguration = responses.config
@@ -573,7 +573,7 @@ final class GitHubPRTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     store.library.gitPreferences.pullRequestInstructions = "fixture-invalid-generation"
     let workspace = DeveloperWorkspace(); workspace.root = root
@@ -593,7 +593,7 @@ final class GitHubPRTests: XCTestCase {
     let responses = try GitGenerationFixture(root: root)
     defer { responses.stop() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent(".git/responses-state"),
-      agentExecutable: GitGenerationFixture.binary)
+      agentExecutable: try AgentTestExecutable.url())
     store.modelConfiguration = responses.config
     store.library.gitPreferences.pullRequestInstructions = "fixture-slow-generation"
     let workspace = DeveloperWorkspace(); workspace.root = root

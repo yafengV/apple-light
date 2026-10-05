@@ -38,7 +38,7 @@ final class ProjectFolderTransportTests: XCTestCase {
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore(); await store.open(primary)
     var config = ModelConfiguration()
     config.baseURL = endpoint

@@ -24,11 +24,8 @@ final class SkillDiscoveryTransportTests: XCTestCase {
   }
 
   @MainActor private func prepare(protocol api: ModelAPIProtocol, root: URL) async throws -> WorkspaceStore {
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     let project = root.appendingPathComponent("Project", isDirectory: true)
     try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)

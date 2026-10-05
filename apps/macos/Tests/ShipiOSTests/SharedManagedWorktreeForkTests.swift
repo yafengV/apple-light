@@ -18,7 +18,7 @@ import XCTest
     var repo = URL(fileURLWithPath: #filePath)
     for _ in 0..<5 { repo.deleteLastPathComponent() }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("data"),
-      agentExecutable: repo.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     store.library.visit(source.path)
     let id = UUID().uuidString

@@ -15,7 +15,7 @@ import XCTest
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("archive-local-agent-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root,
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     store.notificationPreferences = .init(timing: .never)
     await store.open(repository.appendingPathComponent("fixtures/HelloShipiOS"))

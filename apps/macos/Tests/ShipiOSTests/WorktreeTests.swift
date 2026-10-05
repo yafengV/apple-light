@@ -27,10 +27,7 @@ final class WorktreeTests: XCTestCase {
 
   @MainActor func testPopoutEnvironmentChoiceRunsSelectedCheckoutSetup() async throws {
     let (base, source) = try await fixture()
-    let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
-    let binary = repository.appendingPathComponent("target/debug/shipios-agent")
+    let binary = try AgentTestExecutable.url()
     XCTAssertTrue(FileManager.default.isExecutableFile(atPath: binary.path))
     let file = source.appendingPathComponent(".codex/environments/environment.toml")
     try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
@@ -222,9 +219,7 @@ final class WorktreeTests: XCTestCase {
 
   @MainActor func testChosenEnvironmentSnapshotControlsSetupCleanupAndWorktreeActions() async throws {
     let (base, source) = try await fixture()
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
-    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let agent = try AgentTestExecutable.url()
     let store = WorkspaceStore(dataRoot: base.appendingPathComponent("data"), agentExecutable: agent)
     await store.restore()
     store.library.visit(source.path)
@@ -778,10 +773,8 @@ final class WorktreeTests: XCTestCase {
   @MainActor func testArchiveAndRestoreManagedTasksKeepsTrackedAndUntrackedChanges() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
     var store = WorkspaceStore(dataRoot: data,
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     await store.open(source)
     XCTAssertTrue(store.connected, store.error ?? "")
@@ -806,7 +799,7 @@ final class WorktreeTests: XCTestCase {
     XCTAssertEqual(beforeRestore.status, 0)
     await store.shutdown()
     store = WorkspaceStore(dataRoot: data,
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     XCTAssertEqual(store.library.managedWorktrees.first { $0.taskID == cleanID }?.archivedPruned, true)
     await store.restoreArchivedTaskWithFeedback(cleanID)
@@ -844,7 +837,7 @@ final class WorktreeTests: XCTestCase {
       ["ignored", "untracked"])
     await store.shutdown()
     store = WorkspaceStore(dataRoot: data,
-      agentExecutable: repository.appendingPathComponent("target/debug/shipios-agent"))
+      agentExecutable: try AgentTestExecutable.url())
     await store.restore()
     XCTAssertEqual(store.library.managedWorktrees.first { $0.taskID == dirtyID }?.archivedPruned,
       true)
@@ -1176,9 +1169,7 @@ final class WorktreeTests: XCTestCase {
   }
 
   @MainActor func testRealAgentOpenRestoreMultipleTasksAndArchivePreserveWorktree() async throws {
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
-    let executable = repository.appendingPathComponent("target/debug/shipios-agent")
+    let executable = try AgentTestExecutable.url()
     XCTAssertTrue(FileManager.default.isExecutableFile(atPath: executable.path))
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
@@ -1249,9 +1240,7 @@ final class WorktreeTests: XCTestCase {
   @MainActor func testManagedWorktreeLimitPrunesOldCheckoutAndRestoresActiveTaskOnSelection() async throws {
     let (base, source) = try await fixture()
     let data = base.appendingPathComponent("data")
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
-    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let agent = try AgentTestExecutable.url()
     let store = WorkspaceStore(dataRoot: data, agentExecutable: agent)
     await store.restore()
     await store.open(source)

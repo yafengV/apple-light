@@ -344,7 +344,7 @@ final class GitHubPREditTests: XCTestCase {
     for api: ModelAPIProtocol in [.chatCompletions, .codexResponses] {
       var config = server.config; config.apiProtocol = api
       let generate = GitTextGenerator.make(config: config, key: nil, repository: root,
-        dataRoot: root.appendingPathComponent("private"), executable: GitGenerationFixture.binary)
+        dataRoot: root.appendingPathComponent("private"), executable: try AgentTestExecutable.url())
       let (text, _) = try await service.generateDescription(request: request, expected: snapshot,
         body: "Preserve these tests", instructions: "Use Chinese", at: root, generate: generate)
       XCTAssertEqual(text, "## Summary\n\nGenerated PR description.")

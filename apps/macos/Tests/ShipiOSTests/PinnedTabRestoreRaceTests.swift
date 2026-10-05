@@ -13,7 +13,7 @@ import XCTest
     _ = NSApplication.shared
     var repository = URL(fileURLWithPath: #filePath)
     for _ in 0..<5 { repository.deleteLastPathComponent() }
-    let agent = repository.appendingPathComponent("target/debug/shipios-agent")
+    let agent = try AgentTestExecutable.url()
     XCTAssertTrue(FileManager.default.isExecutableFile(atPath: agent.path))
     let base = FileManager.default.temporaryDirectory.appendingPathComponent("pin-restore-race-\(UUID())")
     try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
