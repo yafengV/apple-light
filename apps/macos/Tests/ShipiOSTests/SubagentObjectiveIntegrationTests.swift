@@ -45,6 +45,17 @@ final class SubagentObjectiveIntegrationTests: XCTestCase {
     await original.modelTask(runID: run)?.value
     try await waitFor { original.subagents(taskID: task).first?.status == .completed }
     let child = try XCTUnwrap(original.subagents(taskID: task).first)
+    func timing(_ row: CodexSubagent, _ key: String) throws -> Int? {
+      try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(row))[key].int
+    }
+    let firstStart = try timing(child, "startedAtMs")
+    let firstAssistant = try timing(child, "lastAssistantMessageAtMs")
+    XCTAssertNotNil(firstStart); XCTAssertNotNil(firstAssistant)
+    let firstHistory = try await original.codexTransport.readSubagentHistory(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    let nativeStart = try XCTUnwrap(firstHistory.last { $0["type"].text == "task_started" }?["started_at"].int)
+    XCTAssertEqual(firstStart, nativeStart * 1000, "Use Core's recorded seconds, not snapshot observation time")
+    XCTAssertEqual(firstStart, firstAssistant, "Legacy assistant timing falls back to its native turn start")
     XCTAssertEqual(try objective(child), "state-child-hold", "The delegated prompt must not be replaced by the parent's prompt or child's final reply")
     XCTAssertEqual(child.preview, "Late child response")
     let parents = original.library.tasks.first { $0.id == task }?.runIDs
@@ -56,14 +67,25 @@ final class SubagentObjectiveIntegrationTests: XCTestCase {
     try await restored.refreshSubagents(taskID: task, expectedRoot: child.rootThreadID)
     try await waitFor { !restored.subagents(taskID: task).isEmpty }
     let cold = try XCTUnwrap(restored.subagents(taskID: task).first)
+    XCTAssertEqual(try timing(cold, "startedAtMs"), firstStart)
+    XCTAssertEqual(try timing(cold, "lastAssistantMessageAtMs"), firstAssistant)
     XCTAssertFalse(cold.loaded); XCTAssertEqual(try objective(cold), "state-child-hold")
     XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("requests.jsonl"), encoding: .utf8).split(separator: "\n").count, requests)
     try await restored.prepareSubagent(taskID: task, agent: cold)
+    // Core turn starts have second precision. Cross that boundary so this proves
+    // the retry selects a new turn rather than retaining its predecessor's time.
+    try await Task.sleep(for: .milliseconds(1100))
     _ = try await restored.codexTransport.submitSubagent(taskID: task, rootThreadID: child.rootThreadID,
       childThreadID: child.threadID, text: "state-child-retry", expectedTurnID: nil)
     try await waitFor { restored.subagents(taskID: task).first?.preview == "Child recovered on the same thread" }
     let retried = try XCTUnwrap(restored.subagents(taskID: task).first)
+    XCTAssertGreaterThan(try timing(retried, "startedAtMs") ?? 0, firstStart ?? 0)
+    XCTAssertEqual(try timing(retried, "lastAssistantMessageAtMs"), try timing(retried, "startedAtMs"))
     XCTAssertEqual(try objective(retried), "state-child-hold")
+    let retryHistory = try await restored.codexTransport.readSubagentHistory(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    let retryNativeStart = try XCTUnwrap(retryHistory.last { $0["type"].text == "task_started" }?["started_at"].int)
+    XCTAssertEqual(try timing(retried, "startedAtMs"), retryNativeStart * 1000)
     XCTAssertEqual(retried.id, child.id)
     XCTAssertEqual(restored.library.tasks.first { $0.id == task }?.runIDs, parents)
     await restored.shutdown()

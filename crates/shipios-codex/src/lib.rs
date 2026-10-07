@@ -4,6 +4,7 @@ mod automation_tool;
 mod browser_tool;
 mod confetti_tool;
 mod descendant_interrupts;
+mod descendant_timing;
 mod descendants;
 pub use codex_core::CapturedApproval as NativeApproval;
 pub use codex_core::CapturedElicitation as NativeElicitation;

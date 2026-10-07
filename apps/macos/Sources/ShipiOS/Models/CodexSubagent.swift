@@ -31,6 +31,8 @@ struct CodexSubagent: Codable, Equatable, Identifiable {
   var observedAtMs: Int
   var recencyAtMs: Int? = nil
   var objective: String? = nil
+  var startedAtMs: Int? = nil
+  var lastAssistantMessageAtMs: Int? = nil
   var overviewStatus: SubagentOverviewStatus {
     switch status {
     case .pendingInit: .waiting
@@ -88,6 +90,8 @@ struct CodexSubagentSnapshotAssembler {
     let preview: String?
     let recencyAtMs: Int?
     let objective: String?
+    let startedAtMs: Int?
+    let lastAssistantMessageAtMs: Int?
   }
   private var snapshotID: String?
   private var rootID: String?
@@ -110,7 +114,8 @@ struct CodexSubagentSnapshotAssembler {
       decoded.allSatisfy({ UUID(uuidString: $0.threadId) != nil && $0.threadId != root
         && ($0.parentThreadId == nil || UUID(uuidString: $0.parentThreadId!) != nil)
         && ($0.loaded || !$0.status.working)
-        && ($0.recencyAtMs.map { $0 >= 0 } ?? true) }) else { self = .init(); return nil }
+        && ([$0.recencyAtMs, $0.startedAtMs, $0.lastAssistantMessageAtMs]
+          .allSatisfy { $0.map { $0 >= 0 } ?? true }) }) else { self = .init(); return nil }
     if offset == 0 {
       self = .init(); snapshotID = id; rootID = root; total = count; observedAt = timestamp; revision = version
     }
@@ -124,7 +129,8 @@ struct CodexSubagentSnapshotAssembler {
       CodexSubagent(rootThreadID: root, threadID: row.threadId, parentThreadID: row.parentThreadId,
         nickname: row.nickname, role: row.role, depth: row.depth, model: row.model,
         reasoningEffort: row.reasoningEffort, status: row.status, loaded: row.loaded,
-        preview: row.preview, observedAtMs: timestamp, recencyAtMs: row.recencyAtMs, objective: row.objective)
+        preview: row.preview, observedAtMs: timestamp, recencyAtMs: row.recencyAtMs, objective: row.objective,
+        startedAtMs: row.startedAtMs, lastAssistantMessageAtMs: row.lastAssistantMessageAtMs)
     }
     let ids = rows.map(\.id) + incoming.map(\.id)
     guard Set(ids).count == ids.count else { self = .init(); return nil }

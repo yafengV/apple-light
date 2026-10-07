@@ -752,7 +752,15 @@ fn patch_approval_uses_its_original_waiter_and_writes_only_after_approval() -> R
         );
         assert!(!root.path().join("Outside/patch-proof.txt").exists());
         assert!(reply.resolve(ReviewDecision::Approved).await?);
-        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        if let Err(error) = status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await
+        {
+            let state = child.thread.agent_status().await;
+            let events = source.history(&child.thread_id.to_string()).await?;
+            return Err(error.context(format!(
+                "observed status {state:?}; last public events {:?}",
+                events.iter().rev().take(8).collect::<Vec<_>>()
+            )));
+        }
         assert_eq!(
             std::fs::read_to_string(root.path().join("Outside/patch-proof.txt"))?,
             "patched\n"

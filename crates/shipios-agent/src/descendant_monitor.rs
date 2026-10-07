@@ -338,6 +338,8 @@ mod tests {
                 loaded: true,
                 preview: None,
                 recency_at_ms: None,
+                started_at_ms: None,
+                last_assistant_message_at_ms: None,
                 objective: None,
             })
             .collect::<Vec<_>>();

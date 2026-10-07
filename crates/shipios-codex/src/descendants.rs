@@ -48,6 +48,8 @@ pub struct NativeSubagent {
     pub objective: Option<String>,
     /// Product recency, never the time this snapshot happened to be polled.
     pub recency_at_ms: Option<i64>,
+    pub started_at_ms: Option<i64>,
+    pub last_assistant_message_at_ms: Option<i64>,
 }
 
 /// A task-private manager view. The host owns one event reader per loaded child;
@@ -446,6 +448,21 @@ impl DescendantSource {
                 AgentStatus::Shutdown => ("shutdown", None),
                 AgentStatus::NotFound => ("notLoaded", None),
             };
+            thread.flush_rollout().await?;
+            let stored = self
+                .store
+                .read_thread(codex_thread_store::ReadThreadParams {
+                    thread_id: id,
+                    include_archived: true,
+                    include_history: true,
+                })
+                .await
+                .ok();
+            let timing = if let Some(stored) = &stored {
+                crate::descendant_timing::Timing::from_stored(stored).await
+            } else {
+                crate::descendant_timing::Timing::default()
+            };
             loaded.insert(
                 id,
                 (
@@ -462,16 +479,11 @@ impl DescendantSource {
                         loaded: status != "notLoaded",
                         preview,
                         objective: None,
-                        recency_at_ms: self
-                            .store
-                            .read_thread(codex_thread_store::ReadThreadParams {
-                                thread_id: id,
-                                include_archived: true,
-                                include_history: false,
-                            })
-                            .await
-                            .ok()
+                        recency_at_ms: stored
+                            .as_ref()
                             .map(|thread| thread.recency_at.timestamp_millis()),
+                        started_at_ms: timing.started_at_ms,
+                        last_assistant_message_at_ms: timing.last_assistant_message_at_ms,
                     },
                 ),
             );
@@ -526,6 +538,7 @@ impl DescendantSource {
                     .as_ref()
                     .and_then(|history| durable_summary(&history.items, "notLoaded"))
                     .unwrap_or(("notLoaded", None));
+                let timing = crate::descendant_timing::Timing::from_stored(&stored).await;
                 NativeSubagent {
                     thread_id: id.to_string(),
                     parent_thread_id: Some(parent_thread_id.to_string()),
@@ -539,6 +552,8 @@ impl DescendantSource {
                     preview,
                     objective: None,
                     recency_at_ms: Some(stored.recency_at.timestamp_millis()),
+                    started_at_ms: timing.started_at_ms,
+                    last_assistant_message_at_ms: timing.last_assistant_message_at_ms,
                 }
             };
             if closed.contains(&id) {

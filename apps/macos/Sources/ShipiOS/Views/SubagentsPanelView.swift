@@ -44,7 +44,6 @@ struct SubagentsPanelView: View {
           if let onSelect {
             Button { onSelect(agent) } label: { row(agent) }.buttonStyle(.plain)
               .accessibilityLabel("打开子任务 \(agent.displayName)")
-              .accessibilityValue(SubagentOverviewPreview.text(for: agent, liveEvents: liveEvents(agent)) ?? "")
               .accessibilityIdentifier("subagent:\(agent.threadID)")
           } else { row(agent).accessibilityIdentifier("subagent:\(agent.threadID)") }
         }
@@ -58,20 +57,24 @@ struct SubagentsPanelView: View {
   }
 
   private func row(_ agent: CodexSubagent) -> some View {
-    HStack(alignment: .top, spacing: 12) {
-      SubagentAvatar(agent: agent)
-      VStack(alignment: .leading, spacing: 4) {
-        HStack {
-          Text(agent.displayName).lineLimit(1); Spacer()
-          Text(agent.overviewStatus == .waiting ? "等待中" : agent.overviewStatus == .done ? "已完成" : agent.status.label)
-            .foregroundStyle(.secondary).lineLimit(1)
-        }
-        if let preview = SubagentOverviewPreview.text(for: agent, liveEvents: liveEvents(agent)) {
-          Text(preview).foregroundStyle(.secondary).lineLimit(1)
-        }
-      }.appFont(size: 14)
-    }.padding(8).frame(minHeight: 40).contentShape(Rectangle())
-      .accessibilityElement(children: .combine)
+    TimelineView(.periodic(from: .now, by: agent.overviewStatus == .done ? 60 : 1)) { context in
+      let trailing = SubagentOverviewTime.trailing(for: agent, now: context.date)
+      let preview = SubagentOverviewPreview.text(for: agent, liveEvents: liveEvents(agent))
+      HStack(alignment: .top, spacing: 12) {
+        SubagentAvatar(agent: agent)
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: 12) {
+            Text(agent.displayName).lineLimit(1); Spacer()
+            ForEach(Array(trailing.enumerated()), id: \.offset) { _, label in
+              Text(label).appFont(size: 12).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+            }
+          }
+          if let preview { Text(preview).foregroundStyle(.secondary).lineLimit(1) }
+        }.appFont(size: 14)
+      }.padding(8).frame(minHeight: 40).contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(([preview].compactMap { $0 } + trailing).joined(separator: "，"))
+    }
   }
 }
 
