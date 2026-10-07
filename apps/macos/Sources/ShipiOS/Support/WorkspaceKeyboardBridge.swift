@@ -37,7 +37,7 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
 
 extension WorkspaceStore {
   func handleWorkspaceShortcut(_ binding: ShortcutBinding, in window: NSWindow?) -> Bool {
-    if destination == .workspace, !restoringLibrary, !showingModelPicker,
+    if destination == .workspace, !libraryRecoveryBlocksInteraction, !showingModelPicker,
       !showingBranchPicker, presentedOverlay == nil, !hasSettingsConfirmation,
       shortcutCaptureCount == 0,
       ComposerCommandContext.route(binding, shortcuts: shortcuts, in: window) { return true }
@@ -45,7 +45,7 @@ extension WorkspaceStore {
   }
 
   func handleWorkspaceShortcut(_ binding: ShortcutBinding) -> Bool {
-    guard !restoringLibrary, shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
+    guard !libraryRecoveryBlocksInteraction, shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
       !showingModelPicker, !showingBranchPicker else { return false }
     if destination == .settings, settingsPage == .personalization,
       binding == ShortcutBinding("⌘S"), canSavePersonalizationEdits {

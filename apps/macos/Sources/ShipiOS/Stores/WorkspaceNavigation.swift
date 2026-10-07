@@ -202,7 +202,7 @@ extension WorkspaceStore {
   }
 
   private func commandAvailable(_ id: String) -> Bool {
-    guard renameTaskID == nil, editingProject == nil, !restoringLibrary, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
+    guard renameTaskID == nil, editingProject == nil, !libraryRecoveryBlocksInteraction, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
     switch id {
     case "git.commit", "git.createPullRequest", "git.createDraftPullRequest", "git.createBranch", "git.openPullRequest", "git.mergePullRequest": return false
     case "approval-approve":

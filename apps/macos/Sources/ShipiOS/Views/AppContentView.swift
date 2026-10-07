@@ -7,6 +7,7 @@ struct AppContentView: View {
   @Bindable var store: WorkspaceStore
   @State private var imagePreviewReturnFocus: (() -> Void)?
   @State private var noticeHostTracker = NoticeHostBoundsTracker()
+  @FocusState private var restorationRetryFocused: Bool
   @Environment(\.noticeHostBoundsTracker) private var suppliedNoticeHostTracker
   @Environment(\.openWindow) private var openWindow
 
@@ -179,11 +180,24 @@ struct AppContentView: View {
           EmptyView()
         }
       }
-      .disabled(store.restoringLibrary)
+      .disabled(store.libraryRecoveryBlocksInteraction)
       .overlay {
         if store.restoringLibrary {
           ProgressView("正在恢复工作区…").padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        } else if !store.libraryLoaded, let message = store.libraryReadError {
+          VStack(alignment: .leading, spacing: 16) {
+            Label("无法恢复工作区", systemImage: "exclamationmark.triangle")
+              .font(.headline)
+            Text(message).textSelection(.enabled)
+            Button("重试恢复") { Task { await store.restore() } }
+              .keyboardShortcut(.defaultAction)
+              .focused($restorationRetryFocused)
+              .onAppear { restorationRetryFocused = true }
+          }
+          .padding(24).frame(maxWidth: 440)
+          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+          .accessibilityIdentifier("workspace-restoration-error")
         }
       }
       .overlay {

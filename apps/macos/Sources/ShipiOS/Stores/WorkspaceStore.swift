@@ -356,6 +356,7 @@ final class WorkspaceStore {
   var focusComposer = UUID()
   var blurComposer = UUID()
   @ObservationIgnored var libraryLoaded = false
+  @ObservationIgnored let libraryReader: WorkspaceLibraryReader
   var libraryLoading = false
   var libraryReadError: String?
   @ObservationIgnored var scopeLoaded = false
@@ -414,6 +415,9 @@ final class WorkspaceStore {
   var recoveringHandoffTaskIDs: Set<String> = []
   var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
+  var libraryRecoveryBlocksInteraction: Bool {
+    restoringLibrary || (!libraryLoaded && libraryReadError != nil)
+  }
   var error: String?
   var logText = ""
   var logName = "stdout.log"
@@ -456,7 +460,7 @@ final class WorkspaceStore {
   var currentDraftProjectKey: String { library.projectOwner(for: currentProjectKey) }
   var canStartChat: Bool { canStartChat(taskID: selectedTask?.id) }
   var canStart: Bool {
-    project != nil && connected && !busy && !managedTaskPreparing
+    project != nil && connected && !busy && !libraryRecoveryBlocksInteraction && !managedTaskPreparing
       && !handoffBlocksProject(currentProjectKey)
       && activeLocalRun == nil && !shuttingDown
       && (selectedTask.map { !$0.archived && !activityArchivingTaskIDs.contains($0.id) } ?? true)
@@ -490,7 +494,7 @@ final class WorkspaceStore {
   }
 
   func canStartChat(taskID: String?, continuingWatchInspectionRunID: String? = nil) -> Bool {
-    guard !busy, !managedTaskPreparing, !shuttingDown else { return false }
+    guard !busy, !libraryRecoveryBlocksInteraction, !managedTaskPreparing, !shuttingDown else { return false }
     if let taskID {
       if let preparation = watchWorktreePreparationRun(taskID: taskID),
         preparation.id != continuingWatchInspectionRunID { return false }
@@ -530,8 +534,9 @@ final class WorkspaceStore {
   func modelTask(runID: String) -> Task<Void, Never>? { modelTasks[runID] }
 
   init(dataRoot: URL? = nil, agentExecutable: URL? = nil,
-    browserDataStore: WKWebsiteDataStore? = nil) {
+    browserDataStore: WKWebsiteDataStore? = nil, libraryReader: WorkspaceLibraryReader? = nil) {
     root = dataRoot ?? Self.defaultDataRoot
+    self.libraryReader = libraryReader ?? WorkspaceLibraryReader(url: root.appendingPathComponent("workspace.json"))
     hookSettings = HookSettingsState(root: root)
     voiceRecordingHistory = VoiceRecordingHistory(dataRoot: root)
     self.agentExecutable = agentExecutable
@@ -1276,17 +1281,17 @@ final class WorkspaceStore {
 
   private func loadLibrary() async -> Bool {
     if libraryLoaded { return true }
+    guard !libraryLoading else { return false }
     let previousReadError = libraryReadError
     libraryReadError = nil
     libraryLoading = true
     defer { libraryLoading = false }
     do {
-      let url = dataRoot.appendingPathComponent("workspace.json")
       busy = true
       defer { busy = false }
-      library = try await Task.detached(priority: .userInitiated) {
-        try WorkspaceLibrary.load(from: url)
-      }.value
+      let restored = try await libraryReader.load()
+      try Task.checkCancellation()
+      library = restored
       if library.appearance == nil {
         var appearance = AppearancePreferences()
         appearance.theme = UserDefaults.standard.string(forKey: "shipios.appearance") ?? "system"

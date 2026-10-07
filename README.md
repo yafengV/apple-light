@@ -32,6 +32,8 @@ Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 60
 
 窗口测试生命周期与同文档片段历史见[第 627 篇](docs/627-window-lifetime-and-fragment-history.md)。184 项关联、正式构建/签名/IPC/Core 冒烟通过，片段导航/原历史/同窗口设置有前台证据；第 626 篇全量已终态失败，当前源码全量仍待验证，完整配对 0/47。
 
+工作区读取期限与同窗口重试见[第 628 篇](docs/628-bounded-workspace-restoration.md)。38 项关联、正式构建/签名/IPC/Core 冒烟通过，原桌面读取停滞已实际验证转为超时提示，Return 重试与修复后恢复草稿可操作；底层读取根因仍待处理，完整对齐未完成。
+
 ## 本地运行
 
 需要 macOS 14+、Swift 6.2+、Rust 1.95+；构建 iOS fixture 需要完整 Xcode 与 iOS Simulator SDK。已在 Rust 1.97.1、Xcode 26.3 上验证。首次构建需要下载依赖；无需 API Key。Markdown 解析依赖要求 Swift 6.2 工具链，应用仍支持 macOS 14。
