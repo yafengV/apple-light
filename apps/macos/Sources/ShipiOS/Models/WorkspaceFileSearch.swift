@@ -79,6 +79,7 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
 
   func search(_ request: WorkspaceFileSearchRequest,
     loader: Loader? = nil) async {
+    let replacingSearch = searching
     let token = UUID()
     version = token
     if self.request?.root != request.root || self.request?.additionalRoots != request.additionalRoots
@@ -91,6 +92,9 @@ struct WorkspaceFileSearchRequest: Equatable, Sendable {
     guard request.root != nil, !request.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       results = []; resultsRequest = nil; session?.cancelQuery(); return
     }
+    // The old transport must not expire and close our shared index while this
+    // replacement is debouncing. Cancel its query now, retaining the process.
+    if replacingSearch { session?.cancelQuery() }
     searching = true
     defer { if version == token { searching = false } }
     do {

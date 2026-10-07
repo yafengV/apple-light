@@ -182,6 +182,63 @@ import XCTest
     await clock.releaseAll()
   }
 
+  func testReplacementQueryCancelsOldDeadlineBeforeDebouncingWithoutRestartingIndex() async throws {
+    let root = try fixture("exit 0")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let helper = root.appendingPathComponent("helper")
+    try Data("""
+    #!/usr/bin/python3
+    import json, sys
+    for line in sys.stdin:
+        query = json.loads(line)
+        with open('queries.jsonl', 'a') as log:
+            log.write(json.dumps(query) + '\\n')
+        if query['query'] == 'next':
+            print(json.dumps({'id': query['id'], 'files': [
+                {'path': 'Next.swift', 'isDirectory': False, 'score': 10}
+            ], 'complete': True}), flush=True)
+    """.utf8).write(to: helper)
+    let clock = SearchDeadlineFixture()
+    addTeardownBlock { await clock.releaseAll() }
+    let session = try WorkspaceFileSearchSession(root: root, executable: helper,
+      timeoutSleep: { await clock.sleep($0) })
+    let pid = session.processIdentifier
+    var creations = 0
+    let catalog = WorkspaceFileSearchCatalog { _ in creations += 1; return session }
+    defer { catalog.close() }
+    let firstRequest = request("first", root: root.path)
+    let nextRequest = request("next", root: root.path)
+    let first = Task { await catalog.search(firstRequest) }
+    try await clock.started(1)
+    let ready = ContinuousClock.now.advanced(by: .seconds(3))
+    while !FileManager.default.fileExists(atPath: root.appendingPathComponent("queries.jsonl").path),
+      ContinuousClock.now < ready { try await Task.sleep(for: .milliseconds(1)) }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("queries.jsonl").path),
+      "Observe the helper accepting the first query before testing replacement")
+    let complete = expectation(description: "replacement query completes")
+    let next = Task { await catalog.search(nextRequest); complete.fulfill() }
+    let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+    while catalog.request != nextRequest, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(1))
+    }
+    XCTAssertEqual(catalog.request, nextRequest)
+    // Expire the original real transport while the replacement is still in its
+    // debounce. It must already have cancelled the original query and deadline.
+    await clock.release(0)
+    await fulfillment(of: [complete], timeout: 3)
+    XCTAssertNil(catalog.error)
+    XCTAssertEqual(catalog.results(for: nextRequest).map(\.path), ["Next.swift"])
+    XCTAssertFalse(catalog.searching)
+    XCTAssertEqual(creations, 1, "Typing must retain the existing read-only index")
+    XCTAssertEqual(session.processIdentifier, pid)
+    let log = try String(contentsOf: root.appendingPathComponent("queries.jsonl"), encoding: .utf8)
+      .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+    XCTAssertEqual(log.compactMap { $0?["query"] as? String }, ["first", "", "next"])
+    catalog.close()
+    await first.value; await next.value
+    await clock.releaseAll()
+  }
+
   private func fixture(_ body: String) throws -> URL {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
