@@ -4,6 +4,77 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsReturnFocusTests: XCTestCase {
+  func testChildComposerReturnWaitsForRetainedEditorToBecomeEnabled() async throws {
+    let fixture = try await ChildComposerFixture()
+    defer { fixture.close() }
+    let editor = try XCTUnwrap(fixture.editor)
+    editor.setSelectedRange(.init(location: 2, length: 3))
+    XCTAssertTrue(fixture.window.makeFirstResponder(editor))
+    let focus = fixture.store.focusComposer
+    fixture.store.openSettings(.general)
+    fixture.state.enabled = false
+    try await fixture.settle()
+    XCTAssertFalse(editor.isEditable)
+    XCTAssertTrue(fixture.window.makeFirstResponder(fixture.query))
+    fixture.store.closeSettings()
+    // Settings routing completes before SwiftUI reenables the retained page.
+    // A one-shot makeFirstResponder during that interval silently fails.
+    try await fixture.settle()
+    fixture.state.enabled = true
+    try await fixture.settle()
+    XCTAssertTrue(fixture.window.firstResponder === editor)
+    XCTAssertEqual(editor.selectedRange(), .init(location: 2, length: 3))
+    XCTAssertEqual(fixture.state.text, "中文 child draft🙂")
+    XCTAssertEqual(fixture.store.focusComposer, focus)
+    XCTAssertNotNil(ComposerCommandContext.focused(in: fixture.window))
+  }
+
+  func testPendingChildReturnCannotStealFocusAfterTaskChangeOrSettingsReentry() async throws {
+    for change in ["task", "settings", "overlay"] {
+      let fixture = try await ChildComposerFixture()
+      defer { fixture.close() }
+      let editor = try XCTUnwrap(fixture.editor)
+      XCTAssertTrue(fixture.window.makeFirstResponder(editor))
+      fixture.store.openSettings(.general)
+      fixture.state.enabled = false
+      try await fixture.settle()
+      XCTAssertTrue(fixture.window.makeFirstResponder(fixture.query))
+      fixture.store.closeSettings()
+      try await fixture.settle()
+      switch change {
+      case "task": fixture.store.selection = "other"
+      case "settings": fixture.store.openSettings(.voice)
+      default: fixture.store.presentedOverlay = .commands
+      }
+      XCTAssertTrue(fixture.window.makeFirstResponder(fixture.query))
+      fixture.state.enabled = true
+      try await fixture.settle()
+      XCTAssertFalse(fixture.window.firstResponder === editor, change)
+      XCTAssertTrue(fixture.window.firstResponder === fixture.query.currentEditor(), change)
+    }
+  }
+
+  func testPendingChildReturnDoesNotRestoreAnEditorRemovedWithItsPanel() async throws {
+    let fixture = try await ChildComposerFixture()
+    defer { fixture.close() }
+    let editor = try XCTUnwrap(fixture.editor)
+    XCTAssertTrue(fixture.window.makeFirstResponder(editor))
+    fixture.store.openSettings(.general)
+    fixture.state.enabled = false
+    try await fixture.settle()
+    XCTAssertTrue(fixture.window.makeFirstResponder(fixture.query))
+    fixture.store.closeSettings()
+    try await fixture.settle()
+    fixture.host.rootView = AnyView(Text("The child panel was closed"))
+    try await fixture.settle()
+    XCTAssertNil(editor.window)
+    XCTAssertTrue(fixture.window.makeFirstResponder(fixture.query))
+    fixture.state.enabled = true
+    try await fixture.settle()
+    XCTAssertTrue(fixture.window.firstResponder === fixture.query.currentEditor())
+    XCTAssertEqual(fixture.state.text, "中文 child draft🙂")
+  }
+
   func testSettingsReturnRestoresContentAndInspectorFileEditors() async throws {
     for location in ["left", "right", "inspector"] {
       let fixture = try await Fixture(location: location)
@@ -196,6 +267,46 @@ import XCTest
       try await Task.sleep(for: .milliseconds(100))
       host.layoutSubtreeIfNeeded()
     }
+  }
+}
+
+@MainActor private final class ChildComposerFixture {
+  @Observable final class State { var enabled = true; var text = "中文 child draft🙂" }
+  let state = State()
+  let store: WorkspaceStore
+  let window: SettingsReturnTestWindow
+  let host: NSHostingView<AnyView>
+  let query = NSTextField(frame: .init(x: 0, y: 0, width: 100, height: 24))
+  var editor: ComposerNativeTextView? {
+    func find(_ view: NSView) -> ComposerNativeTextView? {
+      (view as? ComposerNativeTextView) ?? view.subviews.compactMap(find).first
+    }
+    return find(host)
+  }
+  init() async throws {
+    _ = NSApplication.shared
+    store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    store.libraryLoaded = true; store.scopeLoaded = true; store.connected = true
+    store.library.tasks = [.init(id: "task", project: "", title: "Parent", runIDs: [])]
+    store.selection = "task"
+    window = SettingsReturnTestWindow(contentRect: .init(x: 0, y: 0, width: 500, height: 350),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    window.identifier = .init("main")
+    host = NSHostingView(rootView: AnyView(ChildComposerFixtureView(state: state)))
+    window.contentView = host; host.addSubview(query)
+    try await settle()
+  }
+  func settle() async throws { try await Task.sleep(for: .milliseconds(100)); host.layoutSubtreeIfNeeded() }
+  func close() { window.contentView = nil; window.close(); try? FileManager.default.removeItem(at: store.dataRoot) }
+}
+
+private struct ChildComposerFixtureView: View {
+  @Bindable var state: ChildComposerFixture.State
+  var body: some View {
+    SubagentComposerView(text: $state.text, plainTextMode: true, sendShortcut: .commandEnter,
+      working: false, sending: false, stopping: false, canSend: true, canStop: false,
+      stopError: nil, previousPrompt: nil, send: {}, stop: {}).disabled(!state.enabled)
   }
 }
 

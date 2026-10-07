@@ -20,11 +20,16 @@ import AppKit
       window.isKeyWindow, window.attachedSheet == nil, view.window === window,
       !view.isHiddenOrHasHiddenAncestor else { return false }
     let revision = store.settingsFocusRevision
-    target.restore { [weak store] in
+    let allowed: @MainActor () -> Bool = { [weak store, weak window, weak view] in
       guard let store else { return false }
       return store.settingsFocusRevision == revision && matches(store)
         && store.presentedOverlay == nil
+        && window?.isKeyWindow == true && view?.window === window
     }
+    if let editor = view as? ComposerNativeTextView,
+      let coordinator = editor.coordinator, coordinator.active {
+      coordinator.restoreFocus(in: editor, when: allowed)
+    } else { target.restore(when: allowed) }
     return true
   }
 

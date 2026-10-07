@@ -133,6 +133,7 @@ struct ComposerTextEditor: NSViewRepresentable {
       if editor.window?.firstResponder === editor { editor.window?.makeFirstResponder(nil) }
       return
     }
+    if context.coordinator.applyPendingReturnFocus(in: editor) { return }
     if context.coordinator.focusRequest != focusRequest {
       context.coordinator.focusRequest = focusRequest
       context.coordinator.requestFocus(in: editor)
@@ -153,6 +154,7 @@ struct ComposerTextEditor: NSViewRepresentable {
     var focusRequest: UUID
     var appliedFocus: Bool
     var active = true
+    private var pendingReturnFocus: (@MainActor () -> Bool)?
     private var applying = false
     init(_ parent: ComposerTextEditor) {
       self.parent = parent
@@ -182,6 +184,28 @@ struct ComposerTextEditor: NSViewRepresentable {
           NSApp.modalWindow == nil else { return }
         window.makeFirstResponder(editor)
       }
+    }
+
+    /// A retained workspace is still disabled when settings routing changes.
+    /// Restore on its enabling update rather than losing a one-shot AppKit call.
+    func restoreFocus(in editor: ComposerNativeTextView, when allowed: @escaping @MainActor () -> Bool) {
+      pendingReturnFocus = allowed
+      _ = applyPendingReturnFocus(in: editor)
+    }
+
+    @discardableResult func applyPendingReturnFocus(in editor: ComposerNativeTextView) -> Bool {
+      guard let allowed = pendingReturnFocus else { return false }
+      guard active, allowed() else { pendingReturnFocus = nil; return false }
+      guard parent.isEnabled, editor.isEditable else { return true }
+      pendingReturnFocus = nil
+      DispatchQueue.main.async { [weak self, weak editor] in
+        guard let self, self.active, self.parent.isEnabled, allowed(),
+          let editor, editor.isEditable, let window = editor.window,
+          window.isKeyWindow, window.attachedSheet == nil, NSApp.modalWindow == nil,
+          !editor.isHiddenOrHasHiddenAncestor else { return }
+        window.makeFirstResponder(editor)
+      }
+      return true
     }
 
     func install(_ value: String, in editor: NSTextView) {
