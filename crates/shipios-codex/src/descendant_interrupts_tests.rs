@@ -596,6 +596,86 @@ fn cold_child_reloads_through_its_owner_without_a_parent_turn_and_keeps_native_i
 }
 
 #[test]
+fn native_resume_lifecycle_distinguishes_idle_reloads_from_fresh_inherited_history() -> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let server = server().await;
+        let session = session(root.path(), &server, "ResumeIdentity").await?;
+        start(&session.thread, "complete-child").await?;
+        drain_root_terminal(&session).await?;
+        let history = session
+            .thread_store
+            .load_history(codex_thread_store::LoadThreadHistoryParams {
+                thread_id: session.thread_id,
+                include_archived: true,
+            })
+            .await?;
+        let mut options = StartThreadOptions::new(session.test_config.clone());
+        options.initial_history = InitialHistory::Forked(history.items);
+        options.session_source = Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
+            parent_thread_id: session.thread_id,
+            depth: 1,
+            agent_path: None,
+            agent_nickname: None,
+            agent_role: None,
+        }));
+        let child = session.manager.start_thread(options).await?;
+        let child_id = child.thread_id.to_string();
+        let source = session.descendant_source();
+        assert_eq!(
+            source
+                .snapshot()
+                .await?
+                .iter()
+                .find(|row| row.thread_id == child_id)
+                .context("missing fresh child")?
+                .status,
+            "pendingInit",
+            "A fresh fork must not borrow its parent's completed status"
+        );
+        start(&child.thread, "complete-child").await?;
+        status(&child.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        child.thread.flush_rollout().await?;
+        child.thread.shutdown_and_wait().await?;
+        session.manager.remove_thread(&child.thread_id).await;
+        let before = server.received_requests().await.unwrap_or_default().len();
+        // Bypass the UI automatic-loader's registration, as native resume_agent does.
+        session.manager.ensure_child_loaded(child.thread_id).await?;
+        let fresh_source = session.descendant_source();
+        assert_eq!(
+            fresh_source
+                .snapshot()
+                .await?
+                .iter()
+                .find(|row| row.thread_id == child_id)
+                .context("missing resumed child")?
+                .status,
+            "completed"
+        );
+        assert_eq!(
+            server.received_requests().await.unwrap_or_default().len(),
+            before
+        );
+        let loaded = fresh_source.event_thread(&child_id).await?;
+        start(&loaded, "blocked-child").await?;
+        status(&loaded, |s| matches!(s, AgentStatus::Running)).await?;
+        assert_eq!(
+            fresh_source
+                .snapshot()
+                .await?
+                .iter()
+                .find(|row| row.thread_id == child_id)
+                .context("missing running child")?
+                .status,
+            "running",
+            "Actual live status must override old completed history after a resume"
+        );
+        session.shutdown().await?;
+        Ok(())
+    })
+}
+
+#[test]
 fn closed_spawn_edges_block_automatic_reload_below_closed_ancestors_but_keep_history() -> Result<()>
 {
     run_native_test(async {

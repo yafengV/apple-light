@@ -49,6 +49,72 @@ final class SubagentCloseIntegrationTests: XCTestCase {
     try String(contentsOf: root.appendingPathComponent("requests.jsonl"), encoding: .utf8)
       .split(separator: "\n").map { try JSONDecoder().decode(JSONValue.self, from: Data($0.utf8)) }
   }
+  @MainActor func testExplicitNativeResumeRestoresIdleInputAndSavedDraftThenContinuesSameChild() async throws {
+    try await verifyExplicitResume(restart: false)
+  }
+  @MainActor func testColdClosedChildCanBeExplicitlyResumedWithItsDraftAndContinueSameThread() async throws {
+    try await verifyExplicitResume(restart: true)
+  }
+  @MainActor private func verifyExplicitResume(restart: Bool) async throws {
+    var store = try await store()
+    let run = try await turn("parent-spawn", in: store)
+    let task = try XCTUnwrap(store.library.task(containing: run)?.id)
+    try await waitFor("child completed") { store.subagents(taskID: task).first?.status == .completed }
+    let child = try XCTUnwrap(store.subagents(taskID: task).first)
+    let detail = SubagentDetailState(); detail.bindDrafts(to: store, taskID: task); detail.select(child)
+    detail.draft = "resumed-child-followup 保留草稿🙂"
+    _ = try await turn("parent-close:" + child.threadID, in: store)
+    try await waitFor("child closed") { store.subagents(taskID: task).first?.loaded == false }
+    XCTAssertEqual(store.subagents(taskID: task).first?.status, .shutdown)
+    if restart {
+      await store.shutdown()
+      let before = try requests().count
+      store = try await self.store()
+      let selected = await store.selectTaskAwaitingScope(try XCTUnwrap(store.library.tasks.first { $0.id == task }))
+      XCTAssertTrue(selected)
+      XCTAssertEqual(store.subagents(taskID: task).first?.status, .shutdown)
+      XCTAssertEqual(try requests().count, before, "Restoring a closed child must not implicitly resume it")
+    }
+    // Do not call automatic load: only the actual native resume tool may reopen it.
+    let resumedRun = try await turn("parent-resume:" + child.threadID, in: store)
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == resumedRun }?.result?["response"].text, "Parent resumed child")
+    XCTAssertTrue(try requests().contains { $0["item"]["name"].text == "resume_agent" })
+    try await waitFor("explicit resume publishes loaded child") { store.subagents(taskID: task).first?.loaded == true }
+    let reopened = try XCTUnwrap(store.subagents(taskID: task).first)
+    XCTAssertEqual(reopened.id, child.id); XCTAssertEqual(reopened.status, .completed)
+    XCTAssertTrue(reopened.acceptsInput); XCTAssertFalse(reopened.working, "An idle resumed queue is not a new agent still starting")
+    let fresh = SubagentDetailState(); fresh.bindDrafts(to: store, taskID: task); fresh.select(reopened)
+    XCTAssertEqual(fresh.draft, "resumed-child-followup 保留草稿🙂")
+    let runs = store.library.tasks.first { $0.id == task }?.runIDs
+    let sent = await fresh.sendMessage(working: reopened.working) { agent, message, expectedTurn in
+      try await store.codexTransport.submitSubagent(taskID: task, rootThreadID: agent.rootThreadID,
+        childThreadID: agent.threadID, text: message.content, expectedTurnID: expectedTurn)
+    }
+    XCTAssertTrue(sent, fresh.error ?? "Idle child input was not enabled")
+    guard sent else { return }
+    let accepted = try XCTUnwrap(store.subagentSubmissions(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID).last?.turnID)
+    try await waitFor("resumed child followup completes its own turn") {
+      store.subagentLiveStates[child.id]?.events.contains {
+        $0["type"].text == "task_complete" && $0["turn_id"].text == accepted
+      } == true
+    }
+    let history = try await store.codexTransport.readSubagentHistory(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    XCTAssertTrue(SubagentTranscript(events: history).entries.contains { $0.text == "Resumed child followed up" })
+    XCTAssertEqual(store.library.tasks.first { $0.id == task }?.runIDs, runs)
+    XCTAssertFalse(fresh.hasInput)
+    let priorCloseCalls = try requests().filter { $0["item"]["name"].text == "close_agent" }.count
+    _ = try await turn("parent-close:" + child.threadID, in: store)
+    try await waitFor("same child closed again") { store.subagents(taskID: task).first?.loaded == false }
+    XCTAssertEqual(store.subagents(taskID: task).first?.status, .shutdown)
+    XCTAssertEqual(try requests().filter { $0["item"]["name"].text == "close_agent" }.count, priorCloseCalls + 1)
+    _ = try await turn("parent-resume:" + child.threadID, in: store)
+    try await waitFor("same child explicitly resumed again") {
+      store.subagents(taskID: task).first?.loaded == true && store.subagents(taskID: task).first?.status == .completed
+    }
+    XCTAssertEqual(store.subagents(taskID: task).first?.id, child.id)
+  }
   @MainActor func testActualCloseRemainsClosedAcrossColdHistoryNavigationAndRejectsAutomaticReload() async throws {
     let original = try await store()
     let parentRun = try await turn("parent-spawn", in: original)

@@ -11,6 +11,24 @@ use std::{
 };
 use tokio::sync::{Mutex, RwLock, broadcast};
 
+/// Runtime-local proof from Core, rather than an inference from inherited history
+/// or a tool's requested target. Fresh forks never receive this callback.
+pub(crate) struct NativeResumeObserver;
+struct ResumedRuntime;
+
+impl codex_extension_api::ThreadLifecycleContributor<codex_core_api::Config>
+    for NativeResumeObserver
+{
+    fn on_thread_resume<'a>(
+        &'a self,
+        input: codex_extension_api::ThreadResumeInput<'a>,
+    ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+        Box::pin(async move {
+            input.thread_store.insert(ResumedRuntime);
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeSubagent {
@@ -390,7 +408,11 @@ impl DescendantSource {
             else {
                 continue;
             };
-            let reloaded = self.reloaded.read().await.contains(&id);
+            let reloaded = self.reloaded.read().await.contains(&id)
+                || thread
+                    .thread_extension_data()
+                    .get::<ResumedRuntime>()
+                    .is_some();
             let (status, preview) = match thread.agent_status().await {
                 AgentStatus::PendingInit if reloaded => {
                     // A resumed idle Core queue starts PendingInit even when its

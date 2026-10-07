@@ -1,4 +1,4 @@
-"""Loopback model fixture: actual Core spawn_agent/close_agent, no external API."""
+"""Loopback model fixture: actual Core spawn/close/resume, no external API."""
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,18 +13,23 @@ class Handler(BaseHTTPRequestHandler):
         inputs = body.get('input', [])
         users = [entry for entry in inputs if entry.get('role') == 'user']
         text = ' '.join(part.get('text', '') for part in users[-1].get('content', [])) if users else ''
-        if 'closed-child-message' in text:
+        if 'resumed-child-followup' in text:
+            item = self.message('Resumed child followed up')
+        elif 'closed-child-message' in text:
             reply = 'Native child history remains readable'
             item = self.message(reply)
         else:
             closing = 'parent-close:' in text
-            target = text.rsplit('parent-close:', 1)[1].strip() if closing else None
-            name = 'close_agent' if closing else 'spawn_agent'
-            call = 'close-fixture-' + target if closing else 'spawn-fixture'
+            resuming = 'parent-resume:' in text
+            prefix = 'parent-close:' if closing else 'parent-resume:'
+            target = text.rsplit(prefix, 1)[1].strip() if closing or resuming else None
+            name = 'close_agent' if closing else 'resume_agent' if resuming else 'spawn_agent'
+            # Distinguish repeated tools on the same child in later parent turns.
+            call = name + '-fixture-' + target + '-' + str(len(users)) if target else 'spawn-fixture'
             result = next((entry for entry in inputs if entry.get('type') == 'function_call_output'
                            and entry.get('call_id') == call), None)
             if result:
-                reply = 'Parent closed child' if closing else 'Parent spawned child'
+                reply = 'Parent closed child' if closing else 'Parent resumed child' if resuming else 'Parent spawned child'
                 item = self.message(reply)
             else:
                 discovery = next((entry for entry in reversed(inputs)
@@ -33,7 +38,8 @@ class Handler(BaseHTTPRequestHandler):
                 namespace = next((tool.get('name') for tool in offered if tool.get('type') == 'namespace'
                                   and any(fn.get('name') == name for fn in tool.get('tools', []))), None)
                 if namespace:
-                    arguments = {'target': target} if closing else {'message': 'closed-child-message', 'agent_type': 'default'}
+                    arguments = ({'target': target} if closing else {'id': target} if resuming
+                                 else {'message': 'closed-child-message', 'agent_type': 'default'})
                     item = {'type': 'function_call', 'call_id': call, 'name': name,
                             'namespace': namespace, 'arguments': json.dumps(arguments)}
                 else:

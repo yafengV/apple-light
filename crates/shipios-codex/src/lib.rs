@@ -836,6 +836,7 @@ impl CodexSession {
         let installation_id = resolve_installation_id(&config.codex_home).await?;
         let manager = Arc::new_cyclic(|weak_manager| {
             let mut extensions = ExtensionRegistryBuilder::<Config>::new();
+            extensions.thread_lifecycle_contributor(Arc::new(descendants::NativeResumeObserver));
             codex_guardian_v2::install_reviewer(&mut extensions, weak_manager.clone());
             if let Some(browser) = options.browser_bridge {
                 extensions.tool_contributor(Arc::new(BrowserToolContributor::new(browser)));
