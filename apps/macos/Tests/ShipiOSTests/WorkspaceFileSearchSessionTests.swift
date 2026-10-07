@@ -106,7 +106,16 @@ import XCTest
   }
 
   func testPartialResultsKeepAWorkingSearchAlive() async throws {
+    try await verifyPartialResultsKeepAlive(delayedStartup: false)
+  }
+
+  func testPartialResultsKeepAliveAfterSlowFixtureStartup() async throws {
+    try await verifyPartialResultsKeepAlive(delayedStartup: true)
+  }
+
+  private func verifyPartialResultsKeepAlive(delayedStartup: Bool) async throws {
     let root = try fixture("""
+    \(delayedStartup ? "/bin/sleep 0.6" : ":")
     printf '' > boot
     read query
     printf '' > query-read
@@ -124,6 +133,18 @@ import XCTest
     let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
       timeout: .milliseconds(400))
     defer { session.close() }
+    // This verifies progress renewing a query deadline, not how quickly macOS
+    // schedules the new shell. Keep fixture readiness separately bounded and
+    // leave the transport's 400 ms query timeout unchanged.
+    let boot = root.appendingPathComponent("boot").path
+    let readyDeadline = ContinuousClock.now.advanced(by: .seconds(3))
+    while !FileManager.default.fileExists(atPath: boot), ContinuousClock.now < readyDeadline {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    guard FileManager.default.fileExists(atPath: boot) else {
+      XCTFail("File-search fixture did not become ready within 3 seconds")
+      return
+    }
     let queryStarted = Date()
     var updates: [WorkspaceFileSearchUpdate] = []
     var received: [TimeInterval] = []
@@ -137,7 +158,7 @@ import XCTest
         let time = (attributes?[.modificationDate] as? Date)?.timeIntervalSince(queryStarted)
         return name + "=" + (time.map { String(format: "%.4f", $0) } ?? "missing")
       }
-      XCTFail("\(error); query elapsed=\(Date().timeIntervalSince(queryStarted)), launch=\(queryStarted.timeIntervalSince(launchStarted)), received=\(received), child=\(milestones)")
+      XCTFail("\(error); query elapsed=\(Date().timeIntervalSince(queryStarted)), launchAndReadiness=\(queryStarted.timeIntervalSince(launchStarted)), received=\(received), child=\(milestones)")
       return
     }
     XCTAssertEqual(updates.map(\.complete), [false, false, false, false, false, true])
