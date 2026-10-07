@@ -27,6 +27,7 @@ extension WorkspaceStore {
     fileFocusAfterOverlay = nil
     guard presentedOverlay == nil else { return }
     guard destination == .workspace else { returnFocus?.restore(store: self); return }
+    if returnFocus?.restoreFileFocus(store: self) == true { return }
     if let target, filesVisible, workspace.root == target.root, workspace.selectedFile == target.path {
       workspace.fileFocusRequest = UUID()
     } else {

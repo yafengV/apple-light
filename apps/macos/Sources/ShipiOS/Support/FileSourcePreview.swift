@@ -118,6 +118,13 @@ struct FileSourcePreview: NSViewRepresentable {
           !workspace.showingFileLine, workspace.fileFocusRequest == request, let window = text.window,
           window.isKeyWindow, window.attachedSheet == nil else { return }
         if workspace === store.workspace, !store.fileCommandsAvailable { return }
+        // Revalidate after SwiftUI schedules the request: another modal or tab
+        // can replace the original source before this native callback runs.
+        if window.identifier?.rawValue == "main" {
+          guard store.destination == .workspace, store.presentedOverlay == nil,
+            !store.hasSettingsConfirmation, store.appshotIntroRequest == nil else { return }
+          if workspace !== store.workspace, store.commandFileWorkspace !== workspace { return }
+        }
         window.makeFirstResponder(text)
       }
     }

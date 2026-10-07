@@ -6,6 +6,9 @@ import AppKit
   weak var view: NSView?
   weak var window: NSWindow?
   let destination: AppDestination
+  private weak var fileWorkspace: DeveloperWorkspace?
+  private let fileRoot: URL?
+  private let filePath: String?
 
   init(window: NSWindow?, destination: AppDestination) {
     self.window = window
@@ -13,6 +16,22 @@ import AppKit
     if let editor = window?.firstResponder as? NSTextView, editor.isFieldEditor {
       view = editor.delegate as? NSView
     } else { view = window?.firstResponder as? NSView }
+    let source = (view as? FilePreviewTextView)?.workspace
+    fileWorkspace = source
+    fileRoot = source?.root
+    filePath = source?.selectedFile
+  }
+
+  /// File previews may be recreated while a modal is visible. Route a fresh
+  /// request through the original editor's model instead of retaining its view.
+  func restoreFileFocus(store: WorkspaceStore) -> Bool {
+    guard destination == .workspace, store.destination == destination,
+      store.presentedOverlay == nil, let window, window.isKeyWindow,
+      window.attachedSheet == nil, let source = fileWorkspace,
+      let fileRoot, let filePath, source.root == fileRoot, source.selectedFile == filePath,
+      store.commandFileWorkspace === source else { return false }
+    source.fileFocusRequest = UUID()
+    return true
   }
 
   func restore(store: WorkspaceStore) {
