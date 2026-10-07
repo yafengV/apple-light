@@ -32,11 +32,19 @@ struct PullRequestCodeScrollAnchor: NSViewRepresentable {
     positioning?.cancel(); positioning = nil
     guard let request else { return }
     positioning = Task { [weak self] in
-      // Settle lazy section layout without retaining a removed target or window.
-      for _ in 0..<4 {
+      // Match the reference's 200 attempts at 50 ms intervals: a lazy file can
+      // take longer than the first layout passes to materialize its target.
+      // Retry waits do not retain a removed target or window.
+      for _ in 0..<200 {
         do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
         guard let self, self.request == request, !Task.isCancelled, self.window != nil else { return }
-        if self.position() { return }
+        if self.position() {
+          // The reference positions again on the next animation frame. Allow
+          // AppKit/SwiftUI one frame to settle before accepting the location.
+          do { try await Task.sleep(for: .milliseconds(16)) } catch { return }
+          guard self.request == request, !Task.isCancelled, self.window != nil else { return }
+          if self.position() { return }
+        }
       }
     }
   }
@@ -53,7 +61,11 @@ struct PullRequestCodeScrollAnchor: NSViewRepresentable {
         let maximum = max(minimum, document.bounds.maxY - clip.bounds.height)
         clip.scroll(to: NSPoint(x: clip.bounds.minX, y: min(maximum, max(minimum, wanted))))
         scroll.reflectScrolledClipView(clip)
-        return true
+        // A positive target frame alone is insufficient: a still-growing lazy
+        // document can clamp the requested offset before the line is reachable.
+        // A gutter may be outside the horizontal viewport; only vertical
+        // visibility determines whether this vertical navigation is complete.
+        return rect.maxY > clip.bounds.minY && rect.minY < clip.bounds.maxY
       }
       ancestor = view.superview
     }

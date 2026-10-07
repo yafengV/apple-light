@@ -72,6 +72,18 @@ import XCTest
   private func frame(_ node: NSView) -> NSRect {
     node.convert(node.bounds, to: nil)
   }
+  private func waitForVisibleTarget(in host: NSView, target: () -> NSView?) async throws {
+    let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+    repeat {
+      // A hidden split page can spend most of a fixed delay constructing its
+      // native hierarchy. Give its actual navigation task time after attachment.
+      try await Task.sleep(for: .milliseconds(10))
+      host.layoutSubtreeIfNeeded()
+      if let vertical = scrolls(host).first(where: { $0.hasVerticalScroller }),
+        let target = target(), frame(vertical.contentView).intersects(frame(target)) { return }
+    } while ContinuousClock.now < deadline
+    // The caller retains the original visibility and offset assertions.
+  }
   private func press(_ node: PullRequestCodeHeaderButtonView) -> Bool {
     node.accessibilityPerformPress()
   }
@@ -322,14 +334,18 @@ import XCTest
     for split in [false, true] {
       state.split = split
       state.open(.init(path: state.files[0].path, line: 80, side: .right, startLine: nil, startSide: nil))
-      try await Task.sleep(for: .milliseconds(400)); host.layoutSubtreeIfNeeded()
+      try await waitForVisibleTarget(in: host) {
+        gutters(host).first { $0.path == state.files[0].path && $0.point.side == .right && $0.point.line == 80 }
+      }
       let vertical = try XCTUnwrap(scrolls(host).first { $0.hasVerticalScroller })
       let viewport = frame(vertical.contentView)
       let row = try XCTUnwrap(gutters(host).first { $0.path == state.files[0].path && $0.point.side == .right && $0.point.line == 80 })
-      XCTAssertTrue(viewport.intersects(frame(row)), "Comment line must be visible after its file is materialized")
-      XCTAssertGreaterThan(vertical.contentView.bounds.origin.y, 500)
+      XCTAssertTrue(viewport.intersects(frame(row)), "Comment line must be visible after its file is materialized (split: \(split))")
+      XCTAssertGreaterThan(vertical.contentView.bounds.origin.y, 500, "split: \(split)")
       state.select(state.files[1].path)
-      try await Task.sleep(for: .milliseconds(400)); host.layoutSubtreeIfNeeded()
+      try await waitForVisibleTarget(in: host) {
+        buttons(host).first { $0.identifier?.rawValue == "pull-request-code-header-" + state.files[1].path }
+      }
       let next = try frame(header(host, path: state.files[1].path))
       XCTAssertTrue(frame(vertical.contentView).intersects(next), "Selected file header must be visible")
       XCTAssertNil(state.position)
