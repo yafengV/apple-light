@@ -200,6 +200,8 @@ struct RuntimeSettingsView: View {
       }
     case .appearance:
       AppearanceSettingsView(store: store)
+        .id(AppearanceSettingsRouteKey(active: store.destination == .settings && store.settingsPage == .appearance,
+          entry: store.settingsFocusRevision, search: store.settingsSearchRequest?.token))
     case .pets:
       PetSettingsView(store: store)
     case .personalization:
@@ -243,4 +245,10 @@ struct RuntimeSettingsView: View {
   private var sendShortcut: ComposerSendShortcut {
     ComposerSendShortcut(rawValue: sendShortcutRaw) ?? .commandEnter
   }
+}
+
+private struct AppearanceSettingsRouteKey: Hashable {
+  let active: Bool
+  let entry: UUID
+  let search: UUID?
 }

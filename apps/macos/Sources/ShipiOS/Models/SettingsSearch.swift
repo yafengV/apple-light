@@ -20,8 +20,10 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     generalDefaultPermissions, generalAutoReview, generalNamedPermissions,
     projectlessFolder, popoutHotkey, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
     preventSleep, confetti, audioVisualizer, enablePlugins, openSourceLicenses
+  case appearanceAdvanced, appearanceSeparateModes
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
     pointer, diffMarkers, reduceMotion, importTheme, exportTheme
+  case lightUIFontStyle, darkUIFontStyle
   case lightUIFont, darkUIFont, lightContentFont, darkContentFont, lightCodeFont, darkCodeFont, lightThemeShare, darkThemeShare
   case apiURL, modelID, apiKey, reasoning, tokenUsage
 
@@ -128,9 +130,9 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   var id: String { "setting:" + rawValue }
   var appearanceVariant: AppearanceMode? {
     switch self {
-    case .lightPalette, .lightCodeTheme, .lightUIFont, .lightContentFont, .lightCodeFont, .lightThemeShare,
+    case .lightUIFontStyle, .lightPalette, .lightCodeTheme, .lightUIFont, .lightContentFont, .lightCodeFont, .lightThemeShare,
       .uiFont, .codeFont, .importTheme, .exportTheme: .light
-    case .darkPalette, .darkCodeTheme, .darkUIFont, .darkContentFont, .darkCodeFont, .darkThemeShare: .dark
+    case .darkUIFontStyle, .darkPalette, .darkCodeTheme, .darkUIFont, .darkContentFont, .darkCodeFont, .darkThemeShare: .dark
     default: nil
     }
   }
@@ -155,7 +157,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   }
   var page: SettingsPage {
     switch self {
-    case .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
+    case .lightUIFontStyle, .darkUIFontStyle, .appearanceAdvanced, .appearanceSeparateModes, .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
       .pointer, .diffMarkers, .reduceMotion, .importTheme, .exportTheme,
       .lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont, .lightThemeShare, .darkThemeShare: .appearance
     case .apiURL, .modelID, .voiceModel, .apiKey, .reasoning, .tokenUsage: .model
@@ -370,12 +372,16 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .audioVisualizer: "音频可视化"
     case .enablePlugins: "插件"
     case .openSourceLicenses: "开源许可"
-    case .theme: "基础主题"
+    case .appearanceAdvanced: "高级外观设置"
+    case .appearanceSeparateModes: "分别设置浅色和深色模式"
+    case .theme: "模式"
     case .lightPalette: "浅色主题颜色、侧栏透明度与对比度"
     case .lightCodeTheme: "浅色代码主题"
     case .darkCodeTheme: "深色代码主题"
     case .darkPalette: "深色主题颜色、侧栏透明度与对比度"
     case .uiFont: "界面字体"
+    case .lightUIFontStyle: "浅色界面字体样式"
+    case .darkUIFontStyle: "深色界面字体样式"
     case .lightUIFont: "浅色界面字体"
     case .darkUIFont: "深色界面字体"
     case .lightContentFont: "浅色内容字体"
@@ -552,7 +558,7 @@ enum SettingsSearch {
     shortcutBindings: [String: [ShortcutBinding]]? = nil,
     pluginSections: Set<PluginSettingsSection> = Set(PluginSettingsSection.allCases),
     agentSandboxMode: AgentSandboxMode = .workspaceWrite,
-    appearanceTheme: String = "system"
+    appearanceTheme: String = "system", systemDark: Bool = false
   ) -> [SettingsSearchResult] {
     let terms = query.split(whereSeparator: \.isWhitespace).map(String.init)
     guard !terms.isEmpty else { return [] }
@@ -565,7 +571,7 @@ enum SettingsSearch {
           && (!$0.requiresProject || hasProject)
           && ($0.pluginSection.map { pluginSections.contains($0) } ?? true)
           && ($0 != .agentNetwork || agentSandboxMode == .workspaceWrite)
-          && ($0.appearanceVariant.map { AppearanceMode(preference: appearanceTheme).variants.contains($0) } ?? true)
+          && ($0.appearanceVariant.map { AppearancePagePresentation.effectiveVariant(theme: appearanceTheme, systemDark: systemDark) == $0 } ?? true)
           && matches([page.title, $0.title, $0.aliases].joined(separator: " "))
       }.map { SettingsSearchResult(page: page, field: $0) }
       let commands = page == .shortcuts ? DesktopCommand.all.filter { command in
@@ -606,8 +612,14 @@ extension WorkspaceStore {
       pluginSettingsQuery = ""
       pluginSettingsSection = section
     }
-    let visibleField = result.field.flatMap { field in
-      field.appearanceVariant.map { AppearanceMode(preference: appearance.theme).variants.contains($0) } == false ? nil : field
+    let visibleField = result.field.flatMap { field -> SettingsSearchField? in
+      switch field {
+      case .uiFont: return appearance.isDark ? .darkUIFont : .lightUIFont
+      case .codeFont: return appearance.isDark ? .darkCodeFont : .lightCodeFont
+      case .importTheme, .exportTheme: return appearance.isDark ? .darkThemeShare : .lightThemeShare
+      default: break
+      }
+      return field.appearanceVariant.map { AppearancePagePresentation.effectiveVariant(theme: appearance.theme, systemDark: appearance.isDark) == $0 } == false ? nil : field
     }
     settingsSearchRequest = SettingsSearchRequest(result: SettingsSearchResult(
       page: settingsPage, field: visibleField, commandID: result.commandID))

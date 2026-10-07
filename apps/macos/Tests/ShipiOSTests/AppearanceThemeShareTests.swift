@@ -150,7 +150,8 @@ import XCTest
     let (store, root) = store(); var appearance = AppearancePreferences(); appearance.theme = "system"; store.appearance = appearance
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 2000), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
-    let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance)); window.contentView = host
+    let presentation = AppearancePagePresentation(advancedExpanded: true); presentation.separateModes = true
+    let host = NSHostingView(rootView: AppearanceSettingsView(store: store, presentation: presentation).environment(\.appAppearance, store.appearance)); window.contentView = host
     func controls(_ view: NSView) -> [SettingsPopupMenuButton.Control] { (view as? SettingsPopupMenuButton.Control).map { [$0] } ?? view.subviews.flatMap(controls) }
     try await Task.sleep(for: .milliseconds(200)); host.layoutSubtreeIfNeeded()
     for variant in ["浅色", "深色"] { for role in AppearanceFontRole.allCases {
@@ -182,9 +183,9 @@ import XCTest
     XCTAssertFalse(style.isEnabled); XCTAssertNotNil(store.generalSettingsError); XCTAssertFalse(window.isVisible)
   }
   func testSearchHasIndependentFontAndThemeShareRoutesForBothVariants() {
-    let fonts = Set(SettingsSearch.results(for: "字体").compactMap(\.field))
+    let fonts = Set((["light", "dark"].flatMap { SettingsSearch.results(for: "字体", appearanceTheme: $0) }).compactMap(\.field))
     for field in [SettingsSearchField.lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont] { XCTAssertTrue(fonts.contains(field)); XCTAssertEqual(field.page, .appearance) }
-    let share = Set(SettingsSearch.results(for: "主题导入").compactMap(\.field))
+    let share = Set((["light", "dark"].flatMap { SettingsSearch.results(for: "主题导入", appearanceTheme: $0) }).compactMap(\.field))
     XCTAssertTrue(share.contains(.lightThemeShare)); XCTAssertTrue(share.contains(.darkThemeShare))
   }
 }

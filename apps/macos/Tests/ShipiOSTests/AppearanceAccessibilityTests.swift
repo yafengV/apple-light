@@ -95,7 +95,8 @@ import XCTest
     await AppearanceFontCatalogSource.shared.load()
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 816, height: 1600), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
-    let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance))
+    let presentation = AppearancePagePresentation(advancedExpanded: true); presentation.separateModes = true
+    let host = NSHostingView(rootView: AppearanceSettingsView(store: store, presentation: presentation).environment(\.appAppearance, store.appearance))
     window.contentView = host; try await settle(host)
     return .init(root: root, store: store, window: window, host: host)
   }

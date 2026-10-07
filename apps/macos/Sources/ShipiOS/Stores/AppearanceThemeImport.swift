@@ -5,16 +5,16 @@ extension WorkspaceStore {
     libraryLoaded && !restoringLibrary && destination == .settings && settingsPage == .appearance
       && !hasSettingsConfirmation && presentedOverlay == nil
   }
-  func beginAppearanceImport(dark: Bool, source: NSView? = nil) {
+  func beginAppearanceImport(dark: Bool, source: NSView? = nil, independentVariant: Bool = false) {
     guard canOpenAppearanceImport,
-      AppearanceMode(preference: appearance.theme).variants.contains(dark ? .dark : .light),
+      (independentVariant && source?.window != nil) || AppearanceMode(preference: appearance.theme).variants.contains(dark ? .dark : .light),
       source == nil || (source?.window != nil && source?.window?.attachedSheet == nil) else { return }
-    appearanceThemeImport = AppearanceThemeImportSession(dark: dark)
+    appearanceThemeImport = AppearanceThemeImportSession(dark: dark, independentMode: independentVariant ? appearance.theme : nil)
   }
   func canEditAppearanceImport(_ session: AppearanceThemeImportSession) -> Bool {
     appearanceThemeImport === session && libraryLoaded && !restoringLibrary
       && destination == .settings && settingsPage == .appearance
-      && AppearanceMode(preference: appearance.theme).variants.contains(session.dark ? .dark : .light)
+      && session.allows(theme: appearance.theme)
   }
   func dismissAppearanceImport(_ session: AppearanceThemeImportSession) {
     guard appearanceThemeImport === session else { return }

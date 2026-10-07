@@ -19,7 +19,7 @@ struct SettingsNavigationView: View {
       shortcutBindings: Dictionary(uniqueKeysWithValues: DesktopCommand.all.map {
         ($0.id, store.shortcuts.bindings($0.id))
       }), pluginSections: Set(store.visiblePluginSettingsSections),
-      agentSandboxMode: store.library.agentRuntimePreferences.sandboxMode, appearanceTheme: store.appearance.theme)
+      agentSandboxMode: store.library.agentRuntimePreferences.sandboxMode, appearanceTheme: store.appearance.theme, systemDark: store.appearance.isDark)
   }
 
   var body: some View {

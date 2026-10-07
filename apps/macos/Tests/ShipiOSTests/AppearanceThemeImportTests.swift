@@ -207,13 +207,14 @@ import XCTest
     XCTAssertEqual(view.field.placeholderAttributedString?.string, try store.appearance.themeShare(dark: false).encoded())
     XCTAssertFalse(window.isVisible)
   }
-  func testMainRootOwnsModalBlocksBackgroundNavigationAndUsesTextHeaderButtons() async throws {
+  func testMainRootOwnsModalBlocksBackgroundNavigationAndUsesIconHeaderButtons() async throws {
     let (store, _) = makeStore()
+    var appearance = store.appearance; appearance.theme = "light"; XCTAssertTrue(store.commitAppearance(appearance))
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: MainProbe(store: store)); window.contentView = host; try await settle(host)
     let action = try XCTUnwrap(find(host, AppearanceActionButton.Control.self).first { $0.accessibilityLabel() == "导入浅色主题" })
-    XCTAssertEqual(action.title, "导入"); XCTAssertEqual(action.frame.height, 28)
+    XCTAssertEqual(action.title, ""); XCTAssertEqual(action.symbolName, "square.and.arrow.down"); XCTAssertEqual(action.frame.height, 28)
     XCTAssertTrue(action.accessibilityPerformPress()); try await settle(host)
     let session = try XCTUnwrap(store.appearanceThemeImport), view = try XCTUnwrap(find(host, AppearanceThemeImportView.Surface.self).first)
     XCTAssertEqual(view.bounds.width, host.bounds.width, accuracy: 1); XCTAssertEqual(view.bounds.height, host.bounds.height, accuracy: 1)
@@ -226,16 +227,19 @@ import XCTest
   }
   func testMainPageRetainsEnabledAppearanceWhileNativeBackgroundActionsAreInert() async throws {
     let (store, _) = makeStore()
+    var appearance = store.appearance; appearance.theme = "light"; XCTAssertTrue(store.commitAppearance(appearance))
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
     let host = NSHostingView(rootView: MainProbe(store: store)); window.contentView = host; try await settle(host)
+    let advanced = try XCTUnwrap(find(host, AppearanceActionButton.Control.self).first { $0.accessibilityLabel() == "高级" })
+    XCTAssertTrue(advanced.accessibilityPerformPress()); try await settle(host)
     let colors = find(host, AppearanceColorInput.Control.self), numbers = find(host, AppearanceFontSizeInput.Control.self)
     let menus = find(host, SettingsPopupMenuButton.Control.self), radios = find(host, AppearanceModePicker.Radio.self)
     let sliders = find(host, AppearanceContrastSlider.Control.self), headers = find(host, AppearanceActionButton.Control.self)
     var controls: [NSControl] = colors.flatMap { [$0.field, $0.swatch] as [NSControl] }
     controls.append(contentsOf: numbers); controls.append(contentsOf: menus); controls.append(contentsOf: radios)
     controls.append(contentsOf: sliders); controls.append(contentsOf: headers)
-    XCTAssertEqual(colors.count, 6); XCTAssertEqual(numbers.count, 2); XCTAssertEqual(radios.count, 3); XCTAssertEqual(sliders.count, 2)
+    XCTAssertEqual(colors.count, 3); XCTAssertEqual(numbers.count, 2); XCTAssertEqual(radios.count, 3); XCTAssertEqual(sliders.count, 1)
     let enabled = controls.map(\.isEnabled), original = store.appearance
     let color = try XCTUnwrap(colors.first), before = try drawnColor(color)
     store.beginAppearanceImport(dark: false)
@@ -255,12 +259,12 @@ import XCTest
     XCTAssertTrue(view.field.acceptsFirstResponder); XCTAssertTrue(view.cancel.acceptsFirstResponder)
     let search = try XCTUnwrap(find(host, SettingsSearchInput.Field.self).first)
     XCTAssertTrue(search.isEnabled); XCTAssertFalse(search.acceptsFirstResponder)
-    let web = try XCTUnwrap(find(host, AppearanceCodeSurface.WebView.self).first)
-    XCTAssertTrue(web.available); XCTAssertFalse(web.acceptsFirstResponder); XCTAssertNil(web.hitTest(.init(x: 5, y: 5)))
+    XCTAssertTrue(find(host, AppearanceCodeSurface.WebView.self).isEmpty, "The current page has no code preview")
+    XCTAssertFalse(advanced.accessibilityPerformPress())
     XCTAssertTrue(view.close.accessibilityPerformPress()); try await settle(host)
     XCTAssertEqual(controls.map(\.isEnabled), enabled)
     XCTAssertTrue(headers.filter(\.isEnabled).allSatisfy(\.acceptsFirstResponder))
-    XCTAssertTrue(search.acceptsFirstResponder); XCTAssertTrue(WindowModalInteraction.allows(web)); XCTAssertFalse(window.isVisible)
+    XCTAssertTrue(search.acceptsFirstResponder); XCTAssertFalse(window.isVisible)
   }
   func testModalRemovesExistingMenuAndColorPopupWithoutRestoringBackgroundFocus() async throws {
     let (store, _) = makeStore()

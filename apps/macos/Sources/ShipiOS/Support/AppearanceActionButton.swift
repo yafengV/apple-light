@@ -5,6 +5,8 @@ import SwiftUI
 struct AppearanceActionButton: NSViewRepresentable {
   let title: String
   let label: String
+  var symbolName: String?
+  var accessibilityValue: String?
   let available: () -> Bool
   var interactionAvailable: () -> Bool = { true }
   let action: (Control) -> Void
@@ -13,6 +15,7 @@ struct AppearanceActionButton: NSViewRepresentable {
   func makeNSView(context: Context) -> Control { Control() }
   func updateNSView(_ view: Control, context: Context) {
     view.title = title; view.setAccessibilityLabel(label)
+    view.symbolName = symbolName; view.setAccessibilityValue(accessibilityValue)
     view.font = appearance.nativeFont(size: 13); view.preferences = appearance
     view.canAct = { enabled && available() && interactionAvailable() }; view.activate = { [weak view] in if let view { action(view) } }
     view.isEnabled = enabled && available(); view.invalidateIntrinsicContentSize(); view.needsDisplay = true
@@ -26,6 +29,7 @@ struct AppearanceActionButton: NSViewRepresentable {
     var primary = false
     var outlinedPill = false
     var closeIcon = false
+    var symbolName: String?
     var hovered = false { didSet { needsDisplay = true } }
     var canAct: () -> Bool = { true }
     var activate: (() -> Void)?
@@ -39,7 +43,7 @@ struct AppearanceActionButton: NSViewRepresentable {
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize {
       if closeIcon { return .init(width: 22, height: 22) }
-      return .init(width: ceil((title as NSString).size(withAttributes: [.font: font ?? .systemFont(ofSize: 13)]).width) + 18, height: outlinedPill ? 24 : 28)
+      return .init(width: ceil((title as NSString).size(withAttributes: [.font: font ?? .systemFont(ofSize: 13)]).width) + 18 + (symbolName == nil ? 0 : 18), height: outlinedPill ? 24 : 28)
     }
     @objc private func pressed() { guard acceptsFirstResponder, window != nil, canAct() else { return }; activate?() }
     override func accessibilityPerformPress() -> Bool {
@@ -85,7 +89,16 @@ struct AppearanceActionButton: NSViewRepresentable {
         x.move(to: .init(x: bounds.midX - 4, y: bounds.midY + 4)); x.line(to: .init(x: bounds.midX + 4, y: bounds.midY - 4)); foreground.setStroke(); x.lineWidth = 1.2; x.stroke()
       } else {
         let text = NSAttributedString(string: title, attributes: [.font: font ?? .systemFont(ofSize: 13), .foregroundColor: foreground])
-        text.draw(at: .init(x: (bounds.width - text.size().width) / 2, y: (bounds.height - text.size().height) / 2))
+        let iconWidth: CGFloat = symbolName == nil ? 0 : 18
+        let textX = (bounds.width - text.size().width - iconWidth) / 2
+        text.draw(at: .init(x: textX, y: (bounds.height - text.size().height) / 2))
+        if let symbolName, let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+          let rect = NSRect(x: textX + text.size().width + (title.isEmpty ? 0 : 6), y: bounds.midY - 6, width: 12, height: 12)
+          let tinted = NSImage(size: rect.size, flipped: false) { bounds in
+            image.draw(in: bounds); foreground.setFill(); bounds.fill(using: .sourceAtop); return true
+          }
+          tinted.draw(in: rect)
+        }
       }
       if window?.firstResponder === self && isEnabled {
         roles["borderFocus"].nativeColor.setStroke(); path.lineWidth = 2; path.stroke()

@@ -145,7 +145,8 @@ import XCTest
     var appearance = AppearancePreferences(); appearance.theme = "system"; store.appearance = appearance
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 1400), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
-    let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, appearance).frame(width: 1000, height: 1400))
+    let presentation = AppearancePagePresentation(advancedExpanded: true); presentation.separateModes = true
+    let host = NSHostingView(rootView: AppearanceSettingsView(store: store, presentation: presentation).environment(\.appAppearance, appearance).frame(width: 1000, height: 1400))
     window.contentView = host; try await settle(host)
     let controls = find(host, as: AppearanceColorInput.Control.self); XCTAssertEqual(controls.count, 6)
     XCTAssertEqual(controls.filter { ["浅色背景色", "深色背景色", "浅色前景色", "深色前景色"].contains($0.field.accessibilityLabel() ?? "") }.count, 4)

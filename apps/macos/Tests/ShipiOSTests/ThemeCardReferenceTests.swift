@@ -49,8 +49,13 @@ import XCTest
       } }
       let image = try XCTUnwrap(AppearanceModeArtwork.image(name, accent: accent))
       XCTAssertEqual(image.size, .init(width: width, height: 60)); XCTAssertFalse(image.isTemplate)
-      XCTAssertTrue(image === AppearanceModeArtwork.image(name, accent: accent))
-      XCTAssertFalse(image === AppearanceModeArtwork.image(name, accent: .init(hex: "#df3758")))
+      // NSCache may evict under memory pressure even while a caller retains an
+      // image. Verify rendered output, not an identity guarantee it does not make.
+      let repeated = try XCTUnwrap(AppearanceModeArtwork.image(name, accent: accent))
+      let other = try XCTUnwrap(AppearanceModeArtwork.image(name, accent: .init(hex: "#df3758")))
+      let pixels = try XCTUnwrap(image.tiffRepresentation)
+      XCTAssertEqual(pixels, try XCTUnwrap(repeated.tiffRepresentation))
+      XCTAssertNotEqual(pixels, try XCTUnwrap(other.tiffRepresentation))
     }
   }
 

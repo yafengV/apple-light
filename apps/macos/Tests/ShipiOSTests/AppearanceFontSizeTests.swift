@@ -253,7 +253,7 @@ import XCTest
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     store.library.drafts["keep"] = "draft"; store.library.preferredEditor = "xcode"
-    let (window, host) = try await makeHost(AnyView(AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance)))
+    let (window, host) = try await makeHost(AnyView(AppearanceSettingsView(store: store, presentation: AppearancePagePresentation(advancedExpanded: true)).environment(\.appAppearance, store.appearance)))
     defer { window.close() }
     let code = try XCTUnwrap(fields(host).first { $0.accessibilityLabel() == "代码字号" })
     let owner = try XCTUnwrap(code.owner), editor = try begin(code, window: window)

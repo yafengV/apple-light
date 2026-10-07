@@ -4,6 +4,9 @@ struct AppearanceFontPicker: View {
   @Bindable var store: WorkspaceStore
   let role: AppearanceFontRole
   let dark: Bool
+  enum Controls { case family, style, both }
+  var controls = Controls.both
+  var rowTitle: String?
   var catalog: AppearanceFontCatalogSource = .shared
   @State private var familyMenu = AppearanceFontMenuState(.family)
   @State private var styleMenu = AppearanceFontMenuState(.style)
@@ -23,11 +26,15 @@ struct AppearanceFontPicker: View {
       if !catalog.loaded { ProgressView().controlSize(.mini).task { await catalog.load() } }
       else {
         HStack(spacing: 8) {
-          button(familyMenu, title: label, label: variant + role.title, width: 240, enabled: available)
-          button(styleMenu, title: resolved?.face.style ?? "常规", label: variant + role.title + "样式", width: 208, enabled: styleAvailable)
+          if controls != .style {
+            button(familyMenu, title: label, label: variant + role.title, width: 240, enabled: available)
+          }
+          if controls != .family {
+            button(styleMenu, title: resolved?.face.style ?? "常规", label: variant + role.title + "样式", width: 208, enabled: styleAvailable)
+          }
         }
       }
-    } label: { Text(role.title) }
+    } label: { Text(rowTitle ?? role.title) }
     .onDisappear { familyMenu.dismiss(); styleMenu.dismiss() }
   }
   private func button(_ menu: AppearanceFontMenuState, title: String, label: String, width: CGFloat, enabled: Bool) -> some View {

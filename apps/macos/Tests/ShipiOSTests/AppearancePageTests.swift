@@ -91,16 +91,16 @@ import XCTest
     XCTAssertFalse(window.isVisible)
   }
 
-  func testFullHiddenPageModeVisibilityAndNoHorizontalPageOverflow() async throws {
-    let (store, _) = makeStore(); let (window, host) = try await page(store); defer { window.close() }
+  func testExpandedPageUsesOneEffectivePaletteAndNoHorizontalPageOverflow() async throws {
+    let (store, _) = makeStore(); let (window, host) = try await page(store, advanced: true); defer { window.close() }
     for mode in AppearanceMode.allCases {
       var next = store.appearance; next.theme = mode.rawValue; XCTAssertTrue(store.commitAppearance(next)); try await settle(host)
       let colors = find(host, AppearanceColorInput.Control.self), contrast = find(host, AppearanceContrastSlider.Control.self)
-      XCTAssertEqual(colors.count, mode.variants.count * 3, mode.rawValue); XCTAssertEqual(contrast.count, mode.variants.count)
+      XCTAssertEqual(colors.count, 3, mode.rawValue); XCTAssertEqual(contrast.count, 1)
       let labels = Set(colors.compactMap { $0.field.accessibilityLabel() })
-      for variant in mode.variants { XCTAssertTrue(labels.contains(variant == .dark ? "深色背景色" : "浅色背景色")) }
+      XCTAssertTrue(labels.contains(store.appearance.isDark ? "深色背景色" : "浅色背景色"))
       XCTAssertEqual(find(host, AppearanceModePicker.Group.self).count, 1)
-      XCTAssertEqual(find(host, WKWebView.self).count, 1)
+      XCTAssertEqual(find(host, WKWebView.self).count, 0)
       for width in [816.0, 550.0] {
         window.setContentSize(.init(width: width, height: 600)); host.frame.size = .init(width: width, height: 600); try await settle(host)
         let scrolls = find(host, NSScrollView.self).filter { ($0.documentView?.frame.height ?? 0) > $0.contentSize.height + 200 }
@@ -123,10 +123,10 @@ import XCTest
     for mode in AppearanceMode.allCases {
       var next = store.appearance; next.theme = mode.rawValue; XCTAssertTrue(store.commitAppearance(next))
       for field in SettingsSearchField.allCases where field.appearanceVariant != nil && ![.uiFont, .codeFont, .importTheme, .exportTheme].contains(field) {
-        let results = SettingsSearch.results(for: field.title, appearanceTheme: mode.rawValue)
-        XCTAssertEqual(results.contains { $0.field == field }, mode.variants.contains(try XCTUnwrap(field.appearanceVariant)), field.rawValue)
+        let results = SettingsSearch.results(for: field.title, appearanceTheme: mode.rawValue, systemDark: store.appearance.isDark)
+        XCTAssertEqual(results.contains { $0.field == field }, (store.appearance.isDark ? AppearanceMode.dark : .light) == (try XCTUnwrap(field.appearanceVariant)), field.rawValue)
         store.revealSetting(.init(page: .appearance, field: field))
-        XCTAssertEqual(store.settingsSearchRequest?.result.field, mode.variants.contains(field.appearanceVariant!) ? field : nil)
+        XCTAssertEqual(store.settingsSearchRequest?.result.field, (store.appearance.isDark ? AppearanceMode.dark : .light) == field.appearanceVariant! ? field : nil)
         XCTAssertEqual(store.appearance.theme, mode.rawValue)
       }
     }
@@ -146,8 +146,8 @@ import XCTest
     XCTAssertEqual(store.library.drafts["fixture"], "keep draft"); XCTAssertFalse(window.isVisible)
   }
 
-  func testActualFullPageHighlightsAfterAsyncLoadAndUpdatesFontSizeWithoutReplacingWebView() async throws {
-    let (store, _) = makeStore(); let (window, host) = try await page(store); defer { window.close() }
+  func testStandalonePreviewHighlightsAfterAsyncLoadAndUpdatesFontSizeWithoutReplacingWebView() async throws {
+    let (store, _) = makeStore(); let (window, host) = try await page(store, preview: true); defer { window.close() }
     let web = try XCTUnwrap(find(host, WKWebView.self).first); try await ready(web)
     var colored = 0
     for _ in 0..<100 {
@@ -229,7 +229,13 @@ import XCTest
 
   private struct Page: View {
     @Bindable var store: WorkspaceStore
-    var body: some View { AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance) }
+    var advanced = false
+    var preview = false
+    @ViewBuilder var body: some View {
+      if preview { AppearanceCodePreview(appearance: store.appearance) }
+      else { AppearanceSettingsView(store: store, presentation: AppearancePagePresentation(advancedExpanded: advanced))
+          .environment(\.appAppearance, store.appearance).environment(\.colorScheme, store.appearance.isDark ? .dark : .light) }
+    }
   }
   private func makeStore() -> (WorkspaceStore, URL) {
     _ = NSApplication.shared
@@ -238,9 +244,9 @@ import XCTest
     store.settingsPage = .appearance; store.library.drafts["fixture"] = "keep draft"
     addTeardownBlock { try? FileManager.default.removeItem(at: root) }; return (store, root)
   }
-  private func page(_ store: WorkspaceStore) async throws -> (NSWindow, NSHostingView<Page>) {
+  private func page(_ store: WorkspaceStore, advanced: Bool = false, preview: Bool = false) async throws -> (NSWindow, NSHostingView<Page>) {
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 816, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false; let host = NSHostingView(rootView: Page(store: store)); window.contentView = host
+    window.isReleasedWhenClosed = false; let host = NSHostingView(rootView: Page(store: store, advanced: advanced, preview: preview)); window.contentView = host
     try await settle(host); XCTAssertFalse(window.isVisible); return (window, host)
   }
   private func find<T: NSView>(_ view: NSView, _ type: T.Type) -> [T] { (view as? T).map { [$0] } ?? view.subviews.flatMap { find($0, type) } }

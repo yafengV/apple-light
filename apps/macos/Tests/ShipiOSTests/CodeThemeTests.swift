@@ -160,7 +160,8 @@ import XCTest
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 850, height: 1600),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false; defer { window.close() }
-    let host = NSHostingView(rootView: AppearanceSettingsView(store: store).environment(\.appAppearance, store.appearance))
+    let presentation = AppearancePagePresentation(advancedExpanded: true); presentation.separateModes = true
+    let host = NSHostingView(rootView: AppearanceSettingsView(store: store, presentation: presentation).environment(\.appAppearance, store.appearance))
     window.contentView = host
     func controls(_ view: NSView) -> [CodeThemeMenuButton.Control] {
       (view as? CodeThemeMenuButton.Control).map { [$0] } ?? view.subviews.flatMap(controls)
