@@ -337,6 +337,7 @@ mod tests {
                 status: "running".into(),
                 loaded: true,
                 preview: None,
+                recency_at_ms: None,
             })
             .collect::<Vec<_>>();
         let frames = snapshot_frames(&rows, 17);

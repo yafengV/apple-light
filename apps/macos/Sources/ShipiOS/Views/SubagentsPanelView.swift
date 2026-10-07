@@ -34,8 +34,8 @@ struct SubagentsPanelView: View {
       HStack(spacing: 6) {
         Text(title); Text("· \(rows.count)")
         Spacer()
-        let waiting = rows.filter { !$0.working && $0.status != .completed && $0.status != .shutdown }.count
-        if waiting > 0 { Text("\(waiting) 个未运行") }
+        let waiting = rows.filter { $0.overviewStatus == .waiting }.count
+        if waiting > 0 { Text("\(waiting) 个等待中") }
       }.appFont(size: 14).foregroundStyle(.secondary).padding(.horizontal, 8)
       if rows.isEmpty { Text(empty).appFont(size: 14).foregroundStyle(.secondary).padding(.horizontal, 8) }
       VStack(spacing: 4) {
@@ -61,9 +61,14 @@ struct SubagentsPanelView: View {
       VStack(alignment: .leading, spacing: 4) {
         HStack {
           Text(agent.displayName).lineLimit(1); Spacer()
-          Text(agent.status.label).foregroundStyle(.secondary).lineLimit(1)
+          Text(agent.overviewStatus == .waiting ? "等待中" : agent.overviewStatus == .done ? "已完成" : agent.status.label)
+            .foregroundStyle(.secondary).lineLimit(1)
         }
-        Text(agent.preview ?? agent.status.label).foregroundStyle(.secondary).lineLimit(1)
+        if let preview = agent.preview {
+          Text(preview).foregroundStyle(.secondary).lineLimit(1)
+        } else if agent.overviewStatus != .done {
+          Text("正在工作").foregroundStyle(.secondary).lineLimit(1)
+        }
       }.appFont(size: 14)
     }.padding(8).frame(minHeight: 40).contentShape(Rectangle())
       .accessibilityElement(children: .combine)
@@ -84,8 +89,9 @@ struct SubagentsSummaryButton: View {
   let agents: [CodexSubagent]
   let open: () -> Void
   private var visible: [CodexSubagent] { SubagentOverview(agents).visible }
-  private var working: [CodexSubagent] { visible.filter(\.working) }
-  private var done: [CodexSubagent] { visible.filter { $0.status == .completed } }
+  private var working: [CodexSubagent] { visible.filter { $0.overviewStatus == .active } }
+  private var waiting: [CodexSubagent] { visible.filter { $0.overviewStatus == .waiting } }
+  private var done: [CodexSubagent] { visible.filter { $0.overviewStatus == .done } }
   var body: some View {
     if !visible.isEmpty {
       Button(action: open) {
@@ -95,6 +101,7 @@ struct SubagentsSummaryButton: View {
           }
           Text(working.isEmpty ? (done.isEmpty ? "\(visible.count) 个子任务" : "\(done.count) 个已完成") : "\(working.count) 个正在工作")
           Spacer()
+          if !waiting.isEmpty { Text("\(waiting.count) 个等待中").foregroundStyle(.secondary) }
           if !working.isEmpty && !done.isEmpty { Text("\(done.count) 个已完成").foregroundStyle(.secondary) }
         }.appFont(size: 13)
       }.buttonStyle(.plain).accessibilityLabel("打开子任务")

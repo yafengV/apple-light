@@ -215,7 +215,7 @@ fn interrupt_stops_native_child_and_grandchild_preserves_peer_and_cold_history_a
                 .iter()
                 .any(|row| row.thread_id == completed.thread_id.to_string()
                     && !row.loaded
-                    && row.status == "notLoaded")
+                    && row.status == "completed")
         );
         assert!(
             !snapshot
@@ -549,6 +549,17 @@ fn cold_child_reloads_through_its_owner_without_a_parent_turn_and_keeps_native_i
                     .context("missing cold child")?
                     .loaded
             );
+            let cold_rows = source.snapshot().await?;
+            for row in &cold_rows {
+                assert_eq!(
+                    row.status, "completed",
+                    "Cold status must come from durable history, without a UI snapshot"
+                );
+                assert_eq!(row.model.as_deref(), Some("gpt-5.4"));
+                assert!(row.parent_thread_id.is_some());
+                assert!(row.depth.is_some());
+                assert_eq!(row.preview.as_deref(), Some("Completed native child"));
+            }
             let target = if load_grandchild {
                 &grandchild_id
             } else {
@@ -728,7 +739,7 @@ fn closed_spawn_edges_block_automatic_reload_below_closed_ancestors_but_keep_his
                 if close_ancestor {
                     "shutdown"
                 } else {
-                    "notLoaded"
+                    "completed"
                 }
             );
             assert!(
@@ -771,6 +782,102 @@ fn closed_spawn_edges_block_automatic_reload_below_closed_ancestors_but_keep_his
             );
             session.shutdown().await?;
         }
+        Ok(())
+    })
+}
+
+#[test]
+fn cold_discovery_recovers_terminal_history_and_metadata_without_reloading_or_model_requests()
+-> Result<()> {
+    run_native_test(async {
+        let root = tempfile::tempdir()?;
+        let server = server().await;
+        Mock::given(method("POST"))
+            .and(|request: &wiremock::Request| {
+                String::from_utf8_lossy(&request.body).contains("fail-native-child")
+            })
+            .respond_with(ResponseTemplate::new(400).set_body_json(json!({"error":{
+                "message":"Native cold fixture failure", "type":"invalid_request_error"}})))
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        let parent = session(root.path(), &server, "ColdProjection").await?;
+        let completed = spawn_child(&parent, parent.thread_id, 1).await?;
+        let failed = spawn_child(&parent, parent.thread_id, 1).await?;
+        let stopped = spawn_child(&parent, parent.thread_id, 1).await?;
+        start(&parent.thread, "complete-child").await?;
+        status(&parent.thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+        drain_root_terminal(&parent).await?;
+        start(&completed.thread, "complete-child").await?;
+        status(&completed.thread, |s| {
+            matches!(s, AgentStatus::Completed(_))
+        })
+        .await?;
+        start(&failed.thread, "fail-native-child").await?;
+        status(&failed.thread, |s| matches!(s, AgentStatus::Errored(_))).await?;
+        start(&stopped.thread, "hold-native-child").await?;
+        status(&stopped.thread, |s| matches!(s, AgentStatus::Running)).await?;
+        // AgentStatus::Running precedes recording the turn context. Wait for
+        // the actual HTTP request so this case has a persisted model to recover.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if server
+                    .received_requests()
+                    .await
+                    .unwrap_or_default()
+                    .iter()
+                    .any(|request| {
+                        String::from_utf8_lossy(&request.body).contains("hold-native-child")
+                    })
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await?;
+        stopped.thread.submit(Op::Interrupt).await?;
+        status(&stopped.thread, |s| matches!(s, AgentStatus::Interrupted)).await?;
+        for thread in [&completed.thread, &failed.thread, &stopped.thread] {
+            thread.flush_rollout().await?;
+        }
+        let rollout = parent.rollout_path().context("missing parent rollout")?;
+        let expected = [
+            (completed.thread_id.to_string(), "completed"),
+            (failed.thread_id.to_string(), "failed"),
+            (stopped.thread_id.to_string(), "interrupted"),
+        ];
+        parent.shutdown().await?;
+        let requests = server.received_requests().await.unwrap_or_default().len();
+        let restored =
+            CodexSession::resume(options(root.path(), &server, "ColdProjection")?, rollout).await?;
+        let source = restored.descendant_source();
+        let rows = source.snapshot().await?;
+        assert_eq!(rows.len(), 3);
+        for (id, terminal) in expected {
+            let row = rows
+                .iter()
+                .find(|row| row.thread_id == id)
+                .context("missing cold row")?;
+            assert_eq!(row.status, terminal);
+            assert!(!row.loaded);
+            assert_eq!(row.model.as_deref(), Some("gpt-5.4"));
+            assert_eq!(
+                row.parent_thread_id.as_deref(),
+                Some(restored.thread_id().as_str())
+            );
+            assert_eq!(row.depth, Some(1));
+            assert!(row.recency_at_ms.is_some_and(|timestamp| timestamp > 0));
+        }
+        assert_eq!(
+            server.received_requests().await.unwrap_or_default().len(),
+            requests
+        );
+        assert_eq!(
+            restored.manager.list_thread_ids().await,
+            vec![restored.thread_id]
+        );
+        restored.shutdown().await?;
         Ok(())
     })
 }

@@ -29,6 +29,15 @@ struct CodexSubagent: Codable, Equatable, Identifiable {
   var loaded: Bool
   var preview: String?
   var observedAtMs: Int
+  var recencyAtMs: Int? = nil
+  var overviewStatus: SubagentOverviewStatus {
+    switch status {
+    case .pendingInit: .waiting
+    case .running: .active
+    case .completed, .notLoaded: .done
+    case .failed, .interrupted, .shutdown: .hidden
+    }
+  }
   var id: String { rootThreadID + ":" + threadID }
   var working: Bool { loaded && status.working }
   var acceptsInput: Bool { loaded && status != .shutdown && status != .notLoaded }
@@ -45,17 +54,20 @@ struct CodexSubagent: Codable, Equatable, Identifiable {
 
 /// Overview membership is presentation only. Keep terminal children in the task
 /// so an already-open detail can retain history, drafts and a retry composer.
+enum SubagentOverviewStatus { case active, waiting, done, hidden }
+
 struct SubagentOverview {
   let visible: [CodexSubagent]
-  var active: [CodexSubagent] { visible.filter { $0.status != .completed } }
-  var done: [CodexSubagent] { visible.filter { $0.status == .completed } }
+  var active: [CodexSubagent] { visible.filter { $0.overviewStatus != .done } }
+  var waiting: [CodexSubagent] { visible.filter { $0.overviewStatus == .waiting } }
+  var running: [CodexSubagent] { visible.filter { $0.overviewStatus == .active } }
+  var done: [CodexSubagent] { visible.filter { $0.overviewStatus == .done } }
   init(_ agents: [CodexSubagent]) {
-    visible = agents.filter {
-      switch $0.status {
-      case .failed, .interrupted, .shutdown: false
-      default: true
-      }
-    }
+    visible = agents.enumerated().filter { $0.element.overviewStatus != .hidden }
+      .sorted {
+        let left = $0.element.recencyAtMs ?? 0, right = $1.element.recencyAtMs ?? 0
+        return left == right ? $0.offset < $1.offset : left > right
+      }.map(\.element)
   }
 }
 
@@ -73,6 +85,7 @@ struct CodexSubagentSnapshotAssembler {
     let status: CodexSubagentStatus
     let loaded: Bool
     let preview: String?
+    let recencyAtMs: Int?
   }
   private var snapshotID: String?
   private var rootID: String?
@@ -94,7 +107,8 @@ struct CodexSubagentSnapshotAssembler {
       let decoded = try? event["agents"].decode([Wire].self),
       decoded.allSatisfy({ UUID(uuidString: $0.threadId) != nil && $0.threadId != root
         && ($0.parentThreadId == nil || UUID(uuidString: $0.parentThreadId!) != nil)
-        && ($0.loaded || !$0.status.working) }) else { self = .init(); return nil }
+        && ($0.loaded || !$0.status.working)
+        && ($0.recencyAtMs.map { $0 >= 0 } ?? true) }) else { self = .init(); return nil }
     if offset == 0 {
       self = .init(); snapshotID = id; rootID = root; total = count; observedAt = timestamp; revision = version
     }
@@ -108,7 +122,7 @@ struct CodexSubagentSnapshotAssembler {
       CodexSubagent(rootThreadID: root, threadID: row.threadId, parentThreadID: row.parentThreadId,
         nickname: row.nickname, role: row.role, depth: row.depth, model: row.model,
         reasoningEffort: row.reasoningEffort, status: row.status, loaded: row.loaded,
-        preview: row.preview, observedAtMs: timestamp)
+        preview: row.preview, observedAtMs: timestamp, recencyAtMs: row.recencyAtMs)
     }
     let ids = rows.map(\.id) + incoming.map(\.id)
     guard Set(ids).count == ids.count else { self = .init(); return nil }

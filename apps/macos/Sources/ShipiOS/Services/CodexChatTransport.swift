@@ -445,6 +445,15 @@ final class CodexChatTransport {
     try Task.checkCancellation()
   }
 
+  func refreshSubagents(taskID: String, rootThreadID: String) async throws {
+    guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接。") }
+    let token = generation
+    _ = try await client(for: taskID).request("codex.thread.descendants.refresh", [
+      "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID)])
+    guard generation == token, activeThreads.contains(taskID) else { throw CancellationError() }
+    try Task.checkCancellation()
+  }
+
   func loadSubagent(taskID: String, rootThreadID: String, childThreadID: String) async throws -> JSONValue {
     guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接。") }
     let token = generation

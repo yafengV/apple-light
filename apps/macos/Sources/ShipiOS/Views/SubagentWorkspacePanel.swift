@@ -7,6 +7,9 @@ struct SubagentWorkspacePanel: View {
   let taskID: String
   @State private var detail = SubagentDetailState()
   @State private var reload = 0
+  @State private var discoveryRetry = 0
+  @State private var discoveryToken = UUID()
+  @State private var discoveryError: String?
   @State private var previewFile: FileAttachment?
   @AppStorage(ComposerSendShortcut.storageKey) private var shortcutRaw = ComposerSendShortcut.commandEnter.rawValue
   private var agents: [CodexSubagent] { store.subagents(taskID: taskID) }
@@ -46,7 +49,23 @@ struct SubagentWorkspacePanel: View {
           composer
         }
       } else {
+        if let discoveryError {
+          HStack {
+            Text(discoveryError).appFont(size: 12).foregroundStyle(.secondary)
+            Spacer()
+            Button("重新加载") { discoveryRetry += 1 }.buttonStyle(.plain)
+          }.padding(12).accessibilityIdentifier("subagents-discovery-error")
+        }
         SubagentsPanelView(agents: agents, onSelect: { detail.select($0) })
+      }
+    }
+    .task(id: (parentRoot ?? "") + ":" + String(discoveryRetry)) {
+      let token = UUID(); discoveryToken = token; discoveryError = nil
+      guard let root = parentRoot else { return }
+      do { try await store.refreshSubagents(taskID: taskID, expectedRoot: root) }
+      catch {
+        guard !Task.isCancelled, discoveryToken == token, parentRoot == root else { return }
+        discoveryError = error.localizedDescription
       }
     }
     .task(id: refreshKey) {

@@ -43,6 +43,8 @@ pub struct NativeSubagent {
     pub loaded: bool,
     /// Summary only. The full child transcript must be read separately.
     pub preview: Option<String>,
+    /// Product recency, never the time this snapshot happened to be polled.
+    pub recency_at_ms: Option<i64>,
 }
 
 /// A task-private manager view. The host owns one event reader per loaded child;
@@ -428,30 +430,7 @@ impl DescendantSource {
                         .ok();
                     history
                         .as_ref()
-                        .and_then(|history| {
-                            history.items.iter().rev().find_map(|item| match item {
-                                codex_history::RolloutItem::EventMsg(
-                                    codex_core_api::EventMsg::TurnComplete(event),
-                                ) => Some((
-                                    if event.error.is_some() {
-                                        "failed"
-                                    } else {
-                                        "completed"
-                                    },
-                                    event
-                                        .last_agent_message
-                                        .as_ref()
-                                        .map(|text| text.chars().take(1024).collect()),
-                                )),
-                                codex_history::RolloutItem::EventMsg(
-                                    codex_core_api::EventMsg::TurnAborted(_),
-                                ) => Some(("interrupted", None)),
-                                codex_history::RolloutItem::EventMsg(
-                                    codex_core_api::EventMsg::TurnStarted(_),
-                                ) => Some(("interrupted", None)),
-                                _ => None,
-                            })
-                        })
+                        .and_then(|history| durable_summary(&history.items, "interrupted"))
                         .unwrap_or(("pendingInit", None))
                 }
                 AgentStatus::PendingInit => ("pendingInit", None),
@@ -479,6 +458,16 @@ impl DescendantSource {
                         status: status.to_owned(),
                         loaded: status != "notLoaded",
                         preview,
+                        recency_at_ms: self
+                            .store
+                            .read_thread(codex_thread_store::ReadThreadParams {
+                                thread_id: id,
+                                include_archived: true,
+                                include_history: false,
+                            })
+                            .await
+                            .ok()
+                            .map(|thread| thread.recency_at.timestamp_millis()),
                     },
                 ),
             );
@@ -495,30 +484,63 @@ impl DescendantSource {
             }
         }
         members.remove(&self.parent);
-        let mut rows = members
-            .into_iter()
-            .map(|id| {
-                let mut row = loaded
-                    .remove(&id)
-                    .map(|(_, row)| row)
-                    .unwrap_or(NativeSubagent {
-                        thread_id: id.to_string(),
-                        parent_thread_id: None,
-                        nickname: None,
-                        role: None,
-                        depth: None,
-                        model: None,
-                        reasoning_effort: None,
-                        status: "notLoaded".to_owned(),
-                        loaded: false,
-                        preview: None,
-                    });
-                if closed.contains(&id) {
-                    row.status = "shutdown".to_owned();
-                }
+        let mut rows = Vec::with_capacity(members.len());
+        for id in members {
+            let mut row = if let Some((_, row)) = loaded.remove(&id) {
                 row
-            })
-            .collect::<Vec<_>>();
+            } else {
+                // Discovery must carry its own metadata and durable last turn;
+                // a previously saved UI snapshot is not an authoritative source.
+                // Reading this contract never loads the child or submits a turn.
+                let stored = self
+                    .store
+                    .read_thread(codex_thread_store::ReadThreadParams {
+                        thread_id: id,
+                        include_archived: true,
+                        include_history: true,
+                    })
+                    .await?;
+                ensure!(stored.thread_id == id, "cold child identity changed");
+                let SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
+                    parent_thread_id,
+                    depth,
+                    agent_nickname,
+                    agent_role,
+                    ..
+                }) = &stored.source
+                else {
+                    bail!("cold child has no spawn owner")
+                };
+                ensure!(
+                    stored
+                        .parent_thread_id
+                        .is_none_or(|parent| parent == *parent_thread_id),
+                    "cold child owner is inconsistent"
+                );
+                let (status, preview) = stored
+                    .history
+                    .as_ref()
+                    .and_then(|history| durable_summary(&history.items, "notLoaded"))
+                    .unwrap_or(("notLoaded", None));
+                NativeSubagent {
+                    thread_id: id.to_string(),
+                    parent_thread_id: Some(parent_thread_id.to_string()),
+                    nickname: stored.agent_nickname.or_else(|| agent_nickname.clone()),
+                    role: stored.agent_role.or_else(|| agent_role.clone()),
+                    depth: Some(*depth),
+                    model: stored.model,
+                    reasoning_effort: stored.reasoning_effort.map(|value| value.to_string()),
+                    status: status.to_owned(),
+                    loaded: false,
+                    preview,
+                    recency_at_ms: Some(stored.recency_at.timestamp_millis()),
+                }
+            };
+            if closed.contains(&id) {
+                row.status = "shutdown".to_owned();
+            }
+            rows.push(row);
+        }
         rows.sort_by(|a, b| a.thread_id.cmp(&b.thread_id));
         Ok(rows)
     }
@@ -543,6 +565,36 @@ impl DescendantSource {
             .collect();
         Ok(all.into_iter().filter(|id| !open.contains(id)).collect())
     }
+}
+
+/// The newest turn boundary wins. A cold unfinished turn is unloaded, not a
+/// fabricated running process; an explicitly resumed idle queue is interrupted.
+fn durable_summary(
+    items: &[codex_history::RolloutItem],
+    unfinished: &'static str,
+) -> Option<(&'static str, Option<String>)> {
+    items.iter().rev().find_map(|item| match item {
+        codex_history::RolloutItem::EventMsg(codex_core_api::EventMsg::TurnComplete(event)) => {
+            Some((
+                if event.error.is_some() {
+                    "failed"
+                } else {
+                    "completed"
+                },
+                event
+                    .last_agent_message
+                    .as_ref()
+                    .map(|text| text.chars().take(1024).collect()),
+            ))
+        }
+        codex_history::RolloutItem::EventMsg(codex_core_api::EventMsg::TurnAborted(_)) => {
+            Some(("interrupted", None))
+        }
+        codex_history::RolloutItem::EventMsg(codex_core_api::EventMsg::TurnStarted(_)) => {
+            Some((unfinished, None))
+        }
+        _ => None,
+    })
 }
 
 /// Shared by durable replay and live fanout so private context cannot leak via

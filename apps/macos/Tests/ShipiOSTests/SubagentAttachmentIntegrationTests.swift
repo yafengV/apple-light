@@ -101,12 +101,14 @@ final class SubagentAttachmentIntegrationTests: XCTestCase {
     }
     XCTAssertEqual(try requests().count, after)
   }
-  @MainActor func testRecordedClosedChildOpensHistoryWithoutReloadingOrSubmittingIt() async throws {
+  @MainActor func testStaleRecordedClosedChildReconcilesNativeHistoryWithoutReloadingOrSubmittingIt() async throws {
     try Data().write(to: gate)
     let original = try await makeStore(), (task, _, child) = try await parent(original)
     let taskIndex = try XCTUnwrap(original.library.tasks.firstIndex { $0.id == task })
     let childIndex = try XCTUnwrap(original.library.tasks[taskIndex].codexSubagents?.firstIndex { $0.id == child.id })
-    // Seed the persisted UI observation; native close_agent behavior is a separate contract.
+    // The cached observation is stale: its actual native spawn edge is open.
+    // Connecting must reconcile that status, while this closed selection remains
+    // a read-only navigation intent. Real close_agent has separate integration.
     original.library.tasks[taskIndex].codexSubagents![childIndex].status = .shutdown
     original.saveLibrary(); await original.shutdown()
     let before = try requests().count, restored = try await makeStore()
@@ -117,7 +119,9 @@ final class SubagentAttachmentIntegrationTests: XCTestCase {
       rootThreadID: child.rootThreadID, childThreadID: child.threadID)
     XCTAssertTrue(SubagentTranscript(events: history).entries.contains { $0.text == "Native child finished" })
     let after = try XCTUnwrap(restored.subagents(taskID: task).first { $0.id == child.id })
-    XCTAssertEqual(after.status, .shutdown); XCTAssertFalse(after.loaded); XCTAssertFalse(after.acceptsInput)
+    XCTAssertEqual(after.status, .completed, "Native durable history replaces the stale UI closure")
+    XCTAssertFalse(after.loaded, "Navigating a recorded closed selection must not implicitly load the child")
+    XCTAssertFalse(after.acceptsInput)
     XCTAssertEqual(try requests().count, before)
   }
   @MainActor func testMixedChildImageAndFileReachActualCoreAndCannotTargetParentOrPeer() async throws {

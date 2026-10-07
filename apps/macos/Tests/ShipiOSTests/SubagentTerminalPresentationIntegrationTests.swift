@@ -12,7 +12,8 @@ final class SubagentTerminalPresentationIntegrationTests: XCTestCase {
     server.arguments = [URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
       .appendingPathComponent("Fixtures/subagent_states_server.py").path]
     server.environment = ProcessInfo.processInfo.environment.merging([
-      "PYTHONUNBUFFERED": "1", "SHIPIOS_CHILD_STATES_GATE": gate.path]) { _, new in new }
+      "PYTHONUNBUFFERED": "1", "SHIPIOS_CHILD_STATES_GATE": gate.path,
+      "SHIPIOS_CHILD_STATES_LOG": root.appendingPathComponent("requests.jsonl").path]) { _, new in new }
     let output = Pipe(); server.standardOutput = output; server.standardError = FileHandle.nullDevice
     try server.run()
     let port = String(decoding: output.fileHandleForReading.availableData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -46,6 +47,62 @@ final class SubagentTerminalPresentationIntegrationTests: XCTestCase {
   }
   @MainActor func testFailedColdHistoryRemainsHiddenAndItsSavedDraftCanRecoverSameChild() async throws {
     try await verifyTerminal(failure: true, restart: true)
+  }
+  @MainActor func testOverviewReconnectionRecoversColdHistoryWithoutUIRowsOrLoadingChild() async throws {
+    let original = try await store()
+    try Data().write(to: gate)
+    let started = await original.startChat("state-parent-failure")
+    let run = try XCTUnwrap(started), task = try XCTUnwrap(original.library.task(containing: run)?.id)
+    try await waitFor("actual child failure") { original.subagents(taskID: task).first?.status == .failed }
+    await original.modelTask(runID: run)?.value
+    let child = try XCTUnwrap(original.subagents(taskID: task).first)
+    let detail = SubagentDetailState(); detail.bindDrafts(to: original, taskID: task); detail.select(child)
+    detail.draft = "state-child-retry 保留发现草稿🙂"
+    let parents = original.library.tasks.first { $0.id == task }?.runIDs
+    let requestsBefore = try String(contentsOf: root.appendingPathComponent("requests.jsonl"), encoding: .utf8)
+      .split(separator: "\n").count
+    await original.shutdown()
+    // Simulate an absent presentation cache. Native durable history, ownership,
+    // resume contract and the independently persisted child draft stay intact.
+    let index = try XCTUnwrap(original.library.tasks.firstIndex { $0.id == task })
+    original.library.tasks[index].codexSubagents = []; original.saveLibrary()
+    let restored = try await store()
+    XCTAssertTrue(restored.subagents(taskID: task).isEmpty)
+    do {
+      try await restored.refreshSubagents(taskID: task, expectedRoot: UUID().uuidString)
+      XCTFail("A stale root must not connect or reconcile another thread")
+    } catch { XCTAssertTrue(restored.subagents(taskID: task).isEmpty) }
+    try await restored.refreshSubagents(taskID: task, expectedRoot: child.rootThreadID)
+    try await waitFor("cold discovery arrives without selecting a child") { !restored.subagents(taskID: task).isEmpty }
+    let cold = try XCTUnwrap(restored.subagents(taskID: task).first)
+    XCTAssertEqual(cold.id, child.id); XCTAssertEqual(cold.status, .failed)
+    XCTAssertFalse(cold.loaded); XCTAssertFalse(cold.working); XCTAssertFalse(cold.acceptsInput)
+    XCTAssertEqual(cold.nickname, child.nickname); XCTAssertEqual(cold.model, child.model)
+    XCTAssertEqual(cold.parentThreadID, child.parentThreadID); XCTAssertEqual(cold.depth, child.depth)
+    XCTAssertNotNil(cold.recencyAtMs)
+    XCTAssertTrue(SubagentOverview([cold]).visible.isEmpty)
+    XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("requests.jsonl"), encoding: .utf8)
+      .split(separator: "\n").count, requestsBefore, "Discovery must not submit a model message")
+    XCTAssertEqual(restored.library.tasks.first { $0.id == task }?.runIDs, parents)
+    try await restored.prepareSubagent(taskID: task, agent: cold)
+    let ready = try XCTUnwrap(restored.subagents(taskID: task).first)
+    XCTAssertTrue(ready.acceptsInput)
+    detail.bindDrafts(to: restored, taskID: task); detail.update(ready)
+    XCTAssertEqual(detail.draft, "state-child-retry 保留发现草稿🙂")
+    let sent = await detail.sendMessage(working: ready.working) { agent, message, expectedTurn in
+      try await restored.codexTransport.submitSubagent(taskID: task, rootThreadID: agent.rootThreadID,
+        childThreadID: agent.threadID, text: message.content, expectedTurnID: expectedTurn)
+    }
+    XCTAssertTrue(sent)
+    let accepted = try XCTUnwrap(restored.subagentSubmissions(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID).last?.turnID)
+    try await waitFor("discovered child completes same-thread retry") {
+      restored.subagentLiveStates[child.id]?.events.contains {
+        $0["type"].text == "task_complete" && $0["turn_id"].text == accepted
+      } == true && restored.subagents(taskID: task).first?.status == .completed
+    }
+    XCTAssertEqual(restored.library.tasks.first { $0.id == task }?.runIDs, parents)
+    XCTAssertFalse(detail.hasInput)
   }
   @MainActor private func verifyTerminal(failure: Bool, restart: Bool = false) async throws {
     var store = try await store()

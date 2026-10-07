@@ -26,6 +26,48 @@ extension WorkspaceStore {
       return task
     }
     _ = try owner()
+    try await prepareSubagentRoot(taskID: taskID, expectedRoot: agent.rootThreadID)
+    _ = try owner()
+    // A closed selection expresses read-only history navigation even when
+    // reconnecting has already reconciled that stale UI row with an open edge.
+    if agent.status == .shutdown || subagents(taskID: taskID).first(where: { $0.id == agent.id })?.status == .shutdown { return }
+    let row = try await codexTransport.loadSubagent(taskID: taskID, rootThreadID: agent.rootThreadID, childThreadID: agent.threadID)
+    _ = try owner()
+    guard let statusName = row["status"].text, let status = CodexSubagentStatus(rawValue: statusName),
+      let loaded = row["loaded"].boolean, loaded else { throw AgentFailure(message: "子任务未能加载，请重新加载。") }
+    guard let index = library.tasks.firstIndex(where: { $0.id == taskID }),
+      let childIndex = library.tasks[index].codexSubagents?.firstIndex(where: { $0.id == agent.id }) else {
+      throw AgentFailure(message: "子任务所属会话已变化。")
+    }
+    // A newer monitor snapshot may already describe a turn started elsewhere.
+    if library.tasks[index].codexSubagents![childIndex].loaded { return }
+    var child = library.tasks[index].codexSubagents![childIndex]
+    child.loaded = loaded; child.status = status
+    child.parentThreadID = row["parentThreadId"].text ?? child.parentThreadID
+    child.nickname = row["nickname"].text ?? child.nickname; child.role = row["role"].text ?? child.role
+    child.model = row["model"].text ?? child.model; child.reasoningEffort = row["reasoningEffort"].text ?? child.reasoningEffort
+    child.depth = row["depth"].int ?? child.depth; child.preview = row["preview"].text ?? child.preview
+    child.recencyAtMs = row["recencyAtMs"].int ?? child.recencyAtMs
+    library.tasks[index].codexSubagents![childIndex] = child
+    saveLibrary()
+  }
+
+  /// Reconcile durable descendants without opening their runtimes or starting
+  /// another parent model turn. Both main and detached overview panels use this.
+  func refreshSubagents(taskID: String, expectedRoot: String) async throws {
+    try await prepareSubagentRoot(taskID: taskID, expectedRoot: expectedRoot)
+    try await codexTransport.refreshSubagents(taskID: taskID, rootThreadID: expectedRoot)
+  }
+
+  private func prepareSubagentRoot(taskID: String, expectedRoot: String) async throws {
+    func owner() throws -> WorkspaceTask {
+      guard libraryLoaded, !shuttingDown, !libraryRecoveryBlocksInteraction,
+        let task = library.tasks.first(where: { $0.id == taskID }), task.codexThreadID == expectedRoot else {
+        throw AgentFailure(message: "子任务所属会话已变化，请返回列表。")
+      }
+      return task
+    }
+    _ = try owner()
     await Task.yield()
     try await codexTransport.waitForParentPreparation(taskID: taskID)
     let task = try owner()
@@ -48,26 +90,7 @@ extension WorkspaceStore {
         confettiEnabled: confettiEnabled && !appearance.shouldReduceMotion, connectOnly: true, resumeOrigin: origin)
     }
     _ = try owner()
-    // Opening a recorded closed child is history navigation, not resume_agent.
-    if subagents(taskID: taskID).first(where: { $0.id == agent.id })?.status == .shutdown { return }
-    let row = try await codexTransport.loadSubagent(taskID: taskID, rootThreadID: agent.rootThreadID, childThreadID: agent.threadID)
-    _ = try owner()
-    guard let statusName = row["status"].text, let status = CodexSubagentStatus(rawValue: statusName),
-      let loaded = row["loaded"].boolean, loaded else { throw AgentFailure(message: "子任务未能加载，请重新加载。") }
-    guard let index = library.tasks.firstIndex(where: { $0.id == taskID }),
-      let childIndex = library.tasks[index].codexSubagents?.firstIndex(where: { $0.id == agent.id }) else {
-      throw AgentFailure(message: "子任务所属会话已变化。")
-    }
-    // A newer monitor snapshot may already describe a turn started elsewhere.
-    if library.tasks[index].codexSubagents![childIndex].loaded { return }
-    var child = library.tasks[index].codexSubagents![childIndex]
-    child.loaded = loaded; child.status = status
-    child.parentThreadID = row["parentThreadId"].text ?? child.parentThreadID
-    child.nickname = row["nickname"].text ?? child.nickname; child.role = row["role"].text ?? child.role
-    child.model = row["model"].text ?? child.model; child.reasoningEffort = row["reasoningEffort"].text ?? child.reasoningEffort
-    child.depth = row["depth"].int ?? child.depth; child.preview = row["preview"].text ?? child.preview
-    library.tasks[index].codexSubagents![childIndex] = child
-    saveLibrary()
+    try Task.checkCancellation()
   }
 
   func activeSubagents(taskID: String) -> [CodexSubagent] {
@@ -96,6 +119,7 @@ extension WorkspaceStore {
         row.depth = row.depth ?? old.depth; row.model = row.model ?? old.model
         row.reasoningEffort = row.reasoningEffort ?? old.reasoningEffort
         row.preview = row.preview ?? old.preview
+        row.recencyAtMs = row.recencyAtMs ?? old.recencyAtMs
         if row.status == .notLoaded, !old.status.working { row.status = old.status }
       }
       next.append(row)
