@@ -150,7 +150,6 @@ struct AppContentView: View {
       }
       .focusedSceneValue(\.searchDialogActive, store.presentedOverlay?.isSearchDialog == true)
       .onChange(of: store.presentedOverlay) { previous, current in
-        if previous == .fileSearch, current == nil { store.restoreOverlayFocus() }
         if previous == .imagePreview, current == nil {
           let returnFocus = imagePreviewReturnFocus
           imagePreviewReturnFocus = nil

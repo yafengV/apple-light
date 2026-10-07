@@ -18,19 +18,30 @@ enum WorkspaceOverlay: String, Identifiable, CaseIterable {
 }
 
 extension WorkspaceStore {
+  private var mainInteractionWindow: NSWindow? {
+    let windows = NSApp?.windows.filter { $0.identifier?.rawValue == "main" } ?? []
+    return windows.first { $0.isKeyWindow } ?? windows.first { $0.isVisible }
+      ?? windows.first ?? NSApp?.keyWindow
+  }
+
   func setOverlay(_ overlay: WorkspaceOverlay, presented: Bool) {
     guard !hasSettingsConfirmation else { return }
     if presented {
       if overlay.isSearchDialog {
         if presentedOverlay?.isSearchDialog != true {
-          searchDialogReturnFocus = SearchDialogReturnFocus(window: NSApp?.keyWindow, destination: destination)
+          searchDialogFocusRevision = UUID()
+          let target = SearchDialogReturnFocus(window: mainInteractionWindow, destination: destination, store: self)
+          searchDialogReturnFocus = target
+          if filesVisible, (target.view as? FilePreviewTextView)?.workspace === workspace,
+            let root = workspace.root, let path = workspace.selectedFile {
+            fileFocusAfterOverlay = (root, path)
+          } else { fileFocusAfterOverlay = nil }
         }
-      } else { searchDialogReturnFocus = nil }
-      if overlay.isSearchDialog, filesVisible,
-        (NSApp?.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === workspace,
-        let root = workspace.root, let path = workspace.selectedFile {
-        fileFocusAfterOverlay = (root, path)
-      } else { fileFocusAfterOverlay = nil }
+      } else {
+        searchDialogFocusRevision = UUID()
+        searchDialogReturnFocus = nil
+        fileFocusAfterOverlay = nil
+      }
       terminalFocusRequest = nil
       showingModelPicker = false
       showingBranchPicker = false
@@ -73,11 +84,7 @@ extension WorkspaceStore {
     // AppKit can retain an older window with the same scene identifier after
     // closing. Capture the active main window before falling back to a visible
     // or hidden scene; array order is not an ownership signal.
-    let mainWindows = NSApp?.windows.filter { $0.identifier?.rawValue == "main" } ?? []
-    let window = mainWindows.first { $0.isKeyWindow }
-      ?? mainWindows.first { $0.isVisible }
-      ?? mainWindows.first
-      ?? NSApp?.keyWindow
+    let window = mainInteractionWindow
     if destination != .settings {
       settingsReturnDestination = destination
       settingsFocusRevision = UUID()
@@ -86,6 +93,7 @@ extension WorkspaceStore {
       settingsReturnFocus = SettingsReturnFocus(target: origin
         ?? SearchDialogReturnFocus(window: window, destination: destination), store: self)
     }
+    searchDialogFocusRevision = UUID()
     searchDialogReturnFocus = nil
     if let page { settingsPage = page }
     presentedOverlay = nil

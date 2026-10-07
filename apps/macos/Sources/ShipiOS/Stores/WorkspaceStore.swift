@@ -47,6 +47,7 @@ final class WorkspaceStore {
   var presentedOverlay: WorkspaceOverlay?
   var projectPickerCreatesNewTask = false
   @ObservationIgnored var searchDialogReturnFocus: SearchDialogReturnFocus?
+  @ObservationIgnored var searchDialogFocusRevision = UUID()
   var fileFocusAfterOverlay: (root: URL, path: String)?
   var showingSearch: Bool {
     get { presentedOverlay == .taskSearch }

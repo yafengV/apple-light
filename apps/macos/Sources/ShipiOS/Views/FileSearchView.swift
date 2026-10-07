@@ -5,9 +5,8 @@ struct FileSearchView: View {
 
   var body: some View {
     WorkspaceFileSearchView(workspace: store.workspace, executable: store.executable, open: { path in
-      _ = store.openFileTab(path)
-      store.setOverlay(.fileSearch, presented: false)
-    }, cancel: { store.setOverlay(.fileSearch, presented: false) })
+      store.openFileSearchResult(path)
+    }, cancel: { store.cancelFileSearch() })
   }
 }
 

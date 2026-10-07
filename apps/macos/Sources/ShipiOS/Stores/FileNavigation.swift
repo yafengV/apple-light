@@ -27,12 +27,37 @@ extension WorkspaceStore {
     fileFocusAfterOverlay = nil
     guard presentedOverlay == nil else { return }
     guard destination == .workspace else { returnFocus?.restore(store: self); return }
-    if returnFocus?.restoreFileFocus(store: self) == true { return }
+    if let returnFocus, returnFocus.hadSourceView || returnFocus.isFileSource {
+      if returnFocus.isFileSource { _ = returnFocus.restoreFileFocus(store: self) }
+      else { returnFocus.restore(store: self) }
+      // An obsolete source must not redirect focus to the parent composer.
+      return
+    }
     if let target, filesVisible, workspace.root == target.root, workspace.selectedFile == target.path {
       workspace.fileFocusRequest = UUID()
     } else {
       focusComposer = UUID()
     }
+  }
+
+  func cancelFileSearch() {
+    guard presentedOverlay == .fileSearch else { return }
+    setOverlay(.fileSearch, presented: false)
+    restoreOverlayFocus()
+  }
+
+  @discardableResult func openFileSearchResult(_ path: String) -> Bool {
+    guard presentedOverlay == .fileSearch, destination == .workspace,
+      !libraryRecoveryBlocksInteraction, openFileTab(path),
+      let tab = focusedWorkspaceContentTab, case .file = tab else { return false }
+    // Selection hands focus to the result, whereas cancellation returns to the
+    // source. Reopening an existing tab also needs a fresh editor focus request.
+    searchDialogFocusRevision = UUID()
+    searchDialogReturnFocus = nil
+    fileFocusAfterOverlay = nil
+    setOverlay(.fileSearch, presented: false)
+    fileTabWorkspace(tab).fileFocusRequest = UUID()
+    return true
   }
 
   func closeFileTab(_ path: String) {
