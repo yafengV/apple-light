@@ -12,12 +12,12 @@ struct AppearanceContrastSlider: NSViewRepresentable {
   @Environment(\.appAppearance) private var appearance
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> Control {
-    let view = Control(); view.owner = context.coordinator; view.setAccessibilityRole(.slider)
+    let view = Control(); view.owner = context.coordinator; view.setAccessibilityElement(true); view.setAccessibilityRole(.slider)
     view.setAccessibilityMinValue(0); view.setAccessibilityMaxValue(100); return view
   }
   func updateNSView(_ view: Control, context: Context) {
     context.coordinator.parent = self
-    view.isEnabled = enabled; view.value = value; view.rtl = direction == .rightToLeft
+    view.isEnabled = enabled && available(); view.value = value; view.rtl = direction == .rightToLeft
     view.accent = AppearanceRGBA(hex: theme.accent); view.surface = AppearanceRGBA(hex: theme.surface)
     view.ink = appearance.resolvedColors["textForeground"].nativeColor
     let font = appearance.nativeFont(size: 13)
@@ -25,9 +25,9 @@ struct AppearanceContrastSlider: NSViewRepresentable {
       NSFontDescriptor.FeatureKey.typeIdentifier: kNumberSpacingType,
       NSFontDescriptor.FeatureKey.selectorIdentifier: kMonospacedNumbersSelector
     ]]]), size: font.pointSize) ?? font
-    view.setAccessibilityLabel(label); view.setAccessibilityValue(NSNumber(value: Self.rangeValue(value)))
+    view.setAccessibilityLabel(label); view.publishAccessibilityValue()
     view.needsDisplay = true
-    if !enabled {
+    if !view.isEnabled {
       DispatchQueue.main.async { [weak view] in
         guard let view, view.owner?.canAct(view) != true, view.window?.firstResponder === view else { return }
         view.window?.makeFirstResponder(nil)
@@ -41,6 +41,11 @@ struct AppearanceContrastSlider: NSViewRepresentable {
     var value: Double = 45; var rtl = false
     var accent = AppearanceRGBA(hex: "#339cff"); var surface = AppearanceRGBA.white
     var ink = NSColor.labelColor
+    func publishAccessibilityValue() {
+      let next = NSNumber(value: rangeValue(value)), previous = accessibilityValue() as? NSNumber
+      setAccessibilityValue(next)
+      if let previous, previous != next { NSAccessibility.post(element: self, notification: .valueChanged) }
+    }
     private var dragOffset: CGFloat?
     private var paletteKey = ""; private var palette: NSImage?
     override var intrinsicContentSize: NSSize { .init(width: 192, height: 36) }
@@ -122,7 +127,7 @@ struct AppearanceContrastSlider: NSViewRepresentable {
     @discardableResult func choose(_ value: Double, in view: Control) -> Bool {
       guard canAct(view) else { return false }; let next = rangeValue(value)
       if next != rangeValue(parent.value) { parent.value = next }
-      view.value = parent.value; view.setAccessibilityValue(NSNumber(value: rangeValue(view.value))); view.needsDisplay = true; return true
+      view.value = parent.value; view.publishAccessibilityValue(); view.needsDisplay = true; return true
     }
   }
 }

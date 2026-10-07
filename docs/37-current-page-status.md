@@ -1,5 +1,7 @@
 # 当前页面与交互验收清单
 
+外观字体/字号/对比度的可访问性与包内资源见[第 645 篇](645-appearance-native-controls-and-packaged-resources.md)：原生叶子通过后仍由实际页面发现字体/字号被 LabeledContent 合并，现使用独立行容器；正式包头像/主题素材改为自身 Resources，避免依赖开发缓存。最终 147 项关联、正式构建/签名及相同 helper 的 IPC/Core 冒烟通过；前台已验证 Menlo/Bold、字号/滑杆增量、落盘、重启与原草稿保持。当前高级分区和整页配对仍缺，完整双端配对 **0/47**。
+
 当前主题卡片与辅助功能见[第 644 篇](644-current-theme-cards-and-accessibility.md)：三个选项进入原生可访问树，更新当前 4:3 预览与尺寸/边框/焦点轮廓，WebKit 底图及蒙版保留阴影与自定义强调色。最终 125 项关联、972 点三密度像素对照及正式构建/签名/IPC/Core 冒烟通过；前台验证选择、箭头/Tab、子草稿与主题重启保存，默认工作区恢复可交互。第 643 篇冻结全量仍运行，不覆盖本阶段；其余外观交互和完整双端配对 **0/47** 保持。
 
 设置返回子输入焦点见[第 643 篇](643-settings-child-composer-focus.md)：旧行为两条断言失败，现等待原生编辑器实际重新启用并隔离过期来源；最终正式 helper 的 352 项关联及构建/签名/IPC/Core 冒烟通过。前台已验证快捷键、按钮与命令菜单进入设置后返回的实际子输入归属，默认工作区恢复可交互。第 639 篇固定全量已 exit 0：2,758 项 Swift、2 跳过、0 失败及 IPC 通过，不覆盖第 640—643 篇；完整双端配对 **0/47**。
@@ -816,7 +818,7 @@ Codex Core 已从只读改为工作区写入，并将命令及补丁审批接到
 
 Codex Responses 的命令开始、结束、状态和输出现在进入聊天有序时间线，见[第 195 篇](195-codex-command-timeline.md)。此阶段仍是只读工具展示；审批和写入尚未接入，也没有新增当前 Codex Mac 的完整页面配对验收。
 
-本页列出 21 个主窗口页面/控件类别和 24 个设置页面/子页类别，共 45 个验收面；这不是缺陷数，也不能据此换算完成百分比。目前 0 个取得与当前用户版本 Codex 的完整逐页、逐交互配对验收。功能性缺口集中在 Codex Core 完整自主编码会话的边界、托管工作树/远程环境、插件与自动化完整生命周期，以及各页视觉、焦点、键盘、拖放细节。固定版本 Codex Core 的隔离嵌入 PoC 见 [第 185 篇](185-codex-core-embed-poc.md)，产品适配库见 [第 189 篇](189-codex-workspace-adapter.md)，Agent RPC 见 [第 190 篇](190-codex-agent-rpc.md)，Swift 文字会话见 [第 191 篇](191-codex-responses-ui-text-session.md)，重启续接见 [第 192 篇](192-codex-thread-resume.md)，图片输入见 [第 193 篇](193-codex-image-input.md)，文本/PDF 附件见 [第 194 篇](194-codex-file-input.md)。
+当前[完整矩阵](599-core-function-parity-matrix.md)列出 21 个主窗口页面/控件类别和 26 个设置页面/子页类别，共 47 个验收面（包括 ShipiOS 自有页面）；这不是缺陷数，也不能据此换算完成百分比。目前 0 个取得与当前用户版本 Codex 的完整逐页、逐交互配对验收。功能性缺口集中在 Codex Core 完整自主编码会话的边界、托管工作树/远程环境、插件与自动化完整生命周期，以及各页视觉、焦点、键盘、拖放细节。固定版本 Codex Core 的隔离嵌入 PoC 见 [第 185 篇](185-codex-core-embed-poc.md)，产品适配库见 [第 189 篇](189-codex-workspace-adapter.md)，Agent RPC 见 [第 190 篇](190-codex-agent-rpc.md)，Swift 文字会话见 [第 191 篇](191-codex-responses-ui-text-session.md)，重启续接见 [第 192 篇](192-codex-thread-resume.md)，图片输入见 [第 193 篇](193-codex-image-input.md)，文本/PDF 附件见 [第 194 篇](194-codex-file-input.md)。
 
 固定版本的 `ThreadManager` 已在临时 ShipiOS home 中实际启动并关闭空线程，见[第 187 篇](187-codex-thread-bootstrap.md)。该阶段尚无模型回合，产品仍使用独立 API 会话路径。
 

@@ -4,7 +4,7 @@ struct AppearanceFontSizeRow: View {
   @Bindable var store: WorkspaceStore
   let kind: AppearanceFontSize
   var body: some View {
-    LabeledContent {
+    AppearanceSettingsRow(compact: false) {
       HStack(spacing: 8) {
         AppearanceFontSizeInput(kind: kind, value: Binding(
           get: { kind.value(in: store.appearance) },

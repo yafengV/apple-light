@@ -19,7 +19,7 @@ struct AppearanceFontPicker: View {
   private var available: Bool { catalog.loaded && store.libraryLoaded && !store.restoringLibrary }
   private var styleAvailable: Bool { available && selection.styleEnabled }
   var body: some View {
-    LabeledContent(role.title) {
+    AppearanceSettingsRow {
       if !catalog.loaded { ProgressView().controlSize(.mini).task { await catalog.load() } }
       else {
         HStack(spacing: 8) {
@@ -27,7 +27,7 @@ struct AppearanceFontPicker: View {
           button(styleMenu, title: resolved?.face.style ?? "常规", label: variant + role.title + "样式", width: 208, enabled: styleAvailable)
         }
       }
-    }
+    } label: { Text(role.title) }
     .onDisappear { familyMenu.dismiss(); styleMenu.dismiss() }
   }
   private func button(_ menu: AppearanceFontMenuState, title: String, label: String, width: CGFloat, enabled: Bool) -> some View {

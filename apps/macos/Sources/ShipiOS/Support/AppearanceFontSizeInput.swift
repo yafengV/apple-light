@@ -14,7 +14,7 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     field.cell = Cell(textCell: ""); field.isBordered = false; field.drawsBackground = false
     field.cell?.usesSingleLineMode = true; field.cell?.isScrollable = true
     field.focusRingType = .none; field.alignment = .left
-    field.setAccessibilityLabel(kind.title); field.setAccessibilityRole(.incrementor)
+    field.setAccessibilityElement(true); field.setAccessibilityLabel(kind.title); field.setAccessibilityRole(.incrementor)
     return field
   }
   func updateNSView(_ field: Control, context: Context) {

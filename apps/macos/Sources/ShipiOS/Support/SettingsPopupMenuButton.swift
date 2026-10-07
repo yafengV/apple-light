@@ -35,7 +35,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
   func makeNSView(context: Context) -> Control {
     let button = Control(); button.owner = context.coordinator
     button.target = context.coordinator; button.action = #selector(Coordinator.clicked(_:))
-    button.isBordered = false; button.setAccessibilityRole(.popUpButton)
+    button.isBordered = false; button.setAccessibilityElement(true); button.setAccessibilityRole(.popUpButton)
     return button
   }
   func updateNSView(_ button: Control, context: Context) {

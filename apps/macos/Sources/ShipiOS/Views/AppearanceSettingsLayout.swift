@@ -11,11 +11,24 @@ extension EnvironmentValues {
 struct AppearanceSettingsRowStyle: LabeledContentStyle {
   var compact = true
   func makeBody(configuration: Configuration) -> some View {
+    AppearanceSettingsRow(compact: compact) { configuration.content } label: { configuration.label }
+  }
+}
+
+/// LabeledContent merges a multi-control native content area into its text
+/// label. Use this row directly when both family/style or an editor/unit must
+/// remain independently discoverable in the system accessibility tree.
+struct AppearanceSettingsRow<Label: View, Content: View>: View {
+  var compact = true
+  @ViewBuilder var content: () -> Content
+  @ViewBuilder var label: () -> Label
+  var body: some View {
     HStack(spacing: compact ? 16 : 24) {
-      configuration.label.appFont(size: 13, weight: .medium)
+      label().appFont(size: 13, weight: .medium)
         .frame(maxWidth: .infinity, alignment: .leading)
-      configuration.content.fixedSize(horizontal: true, vertical: false)
+      content().fixedSize(horizontal: true, vertical: false)
     }.padding(.horizontal, 16).padding(.vertical, compact ? 8 : 12)
+      .accessibilityElement(children: .contain)
   }
 }
 

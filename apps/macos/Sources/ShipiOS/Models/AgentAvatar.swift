@@ -18,7 +18,7 @@ enum AgentAvatar {
     String(format: "avatar-%02d-%@", index(seed: seed, palette: palette), dark ? "dark" : "light")
   }
 
-  static let resourceBundle = Bundle.module
+  static let resourceBundle = ShipiOSResources.bundle
 
   @MainActor private static let images = NSCache<NSString, NSImage>()
 

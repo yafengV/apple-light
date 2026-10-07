@@ -2,7 +2,7 @@ import AppKit
 
 /// Public 80×60 previews, including the two independent system-mode halves.
 @MainActor enum AppearanceModeArtwork {
-  static let resourceBundle = Bundle.module
+  static let resourceBundle = ShipiOSResources.bundle
   private static let images = NSCache<NSString, NSImage>()
 
   static func image(_ name: String, accent: AppearanceRGBA) -> NSImage? {
