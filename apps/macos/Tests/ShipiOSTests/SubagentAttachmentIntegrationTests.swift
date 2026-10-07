@@ -53,10 +53,19 @@ final class SubagentAttachmentIntegrationTests: XCTestCase {
     store.newTask()
     let (peerTask, peerRun, peerChild) = try await parent(store)
     XCTAssertNotEqual(task, peerTask)
-    let detail = SubagentDetailState(); detail.select(child); detail.draft = "subagent-child-followup mixed"
+    let detail = SubagentDetailState(); detail.bindDrafts(to: store, taskID: task)
+    detail.select(child); detail.draft = "subagent-child-followup mixed"
     let textFile = root.appendingPathComponent("child.txt"); try Data("独立子文件🙂".utf8).write(to: textFile)
     let imported = await detail.importAttachments([.image(try AttachmentFixture.png(), name: "child.png"), .file(textFile)], root: store.dataRoot)
     XCTAssertTrue(imported)
+    let draftScope = SubagentDraftScope(taskID: task, rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    let images = detail.images, files = detail.files
+    detail.select(nil); detail.select(child)
+    let remounted = SubagentDetailState(); remounted.bindDrafts(to: store, taskID: task); remounted.select(child)
+    XCTAssertEqual(remounted.draft, "subagent-child-followup mixed")
+    XCTAssertEqual(remounted.images, images); XCTAssertEqual(remounted.files, files)
+    XCTAssertEqual(try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+      .subagentDrafts.first { $0.scope == draftScope }?.message.files, files)
     for wrong in [child.rootThreadID, peerChild.threadID] {
       do {
         _ = try await store.codexTransport.submitSubagent(taskID: task, rootThreadID: child.rootThreadID,
@@ -70,7 +79,10 @@ final class SubagentAttachmentIntegrationTests: XCTestCase {
       try await store.codexTransport.submitSubagent(taskID: task, rootThreadID: agent.rootThreadID, childThreadID: agent.threadID,
         text: message.content, expectedTurnID: turn, images: message.images, files: message.files)
     }
-    XCTAssertTrue(sent, detail.error ?? ""); XCTAssertFalse(detail.hasInput)
+    XCTAssertTrue(sent, detail.error ?? ""); XCTAssertFalse(detail.hasInput); XCTAssertFalse(remounted.hasInput)
+    XCTAssertNil(store.subagentDraft(draftScope))
+    for image in images { XCTAssertEqual(store.library.imageReferences[image.id], image) }
+    for file in files { XCTAssertEqual(store.library.fileReferences[file.id], file) }
     try await waitFor { try self.requests().contains { !$0["imageUrls"].items.isEmpty } }
     let request = try XCTUnwrap(try requests().first { !$0["imageUrls"].items.isEmpty })
     XCTAssertTrue(request["text"].text?.contains("独立子文件🙂") == true)

@@ -41,6 +41,12 @@ struct SubagentComposerView: View {
       if let message = stopError ?? detail?.attachmentError {
         Text(message).appFont(size: 12).foregroundStyle(.red).accessibilityIdentifier("subagent-operation-error")
       }
+      if let detail, let message = detail.draftSaveError {
+        HStack(alignment: .top) {
+          Text(message).appFont(size: 12).foregroundStyle(.red)
+          Button("重试保存") { _ = detail.retryDraftSave() }
+        }.accessibilityIdentifier("subagent-draft-save-error")
+      }
       HStack(spacing: 8) {
         if let store, let detail {
           Button {

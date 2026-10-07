@@ -357,6 +357,10 @@ final class WorkspaceStore {
   var blurComposer = UUID()
   @ObservationIgnored var libraryLoaded = false
   @ObservationIgnored let libraryReader: WorkspaceLibraryReader
+  var subagentDraftSaveErrors: [SubagentDraftScope: String] = [:]
+  @ObservationIgnored var subagentDraftEpochs: [SubagentDraftScope: UUID] = [:]
+  @ObservationIgnored var retiredSubagentDraftImages: [UUID: ImageAttachment] = [:]
+  @ObservationIgnored var retiredSubagentDraftFiles: [UUID: FileAttachment] = [:]
   var libraryLoading = false
   var libraryReadError: String?
   @ObservationIgnored var scopeLoaded = false
@@ -1311,7 +1315,19 @@ final class WorkspaceStore {
     }
   }
 
-  func commitLibrary(_ candidate: WorkspaceLibrary) throws {
+  func commitLibrary(_ candidate: WorkspaceLibrary, updatingSubagentDraft scope: SubagentDraftScope? = nil) throws {
+    var candidate = candidate
+    let updatedDraft = scope.flatMap { scope in candidate.subagentDrafts.first { $0.scope == scope } }
+    // Other operations may have captured a library snapshot before an await.
+    // Preserve current child input unless this commit explicitly edits that scope.
+    candidate.subagentDrafts = library.subagentDrafts.filter { draft in
+      draft.scope != scope && candidate.tasks.contains {
+        $0.id == draft.scope.taskID && $0.codexThreadID == draft.scope.rootThreadID
+      }
+    }
+    if let updatedDraft, candidate.tasks.contains(where: {
+      $0.id == updatedDraft.scope.taskID && $0.codexThreadID == updatedDraft.scope.rootThreadID
+    }) { candidate.subagentDrafts.append(updatedDraft) }
     if libraryLoaded { try candidate.save(to: dataRoot.appendingPathComponent("workspace.json")) }
     let retainedFiles = candidate.fileReferences
     let removedFiles = library.fileReferences.values.filter { retainedFiles[$0.id] == nil }
@@ -1325,6 +1341,7 @@ final class WorkspaceStore {
       for image in removed {
         try? FileManager.default.removeItem(at: ImageAttachmentStorage.url(image, root: dataRoot))
       }
+      finishSubagentDraftSave()
     }
   }
 
@@ -1334,6 +1351,7 @@ final class WorkspaceStore {
     autoreleasepool { taskWindowResources.allObjects.forEach { $0.captureLayouts() } }
     do {
       try library.save(to: dataRoot.appendingPathComponent("workspace.json"))
+      finishSubagentDraftSave()
       return true
     } catch {
       self.error = "无法保存工作区记录：\(error.localizedDescription)"

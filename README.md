@@ -34,6 +34,8 @@ Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 60
 
 工作区读取期限与同窗口重试见[第 628 篇](docs/628-bounded-workspace-restoration.md)。38 项关联、正式构建/签名/IPC/Core 冒烟通过，原桌面读取停滞已实际验证转为超时提示，Return 重试与修复后恢复草稿可操作；底层读取根因仍待处理，完整对齐未完成。
 
+子会话草稿持久化、返回/重建保留、跨窗口同步、保存失败重试与共享附件回收见[第 630 篇](docs/630-subagent-draft-lifecycle.md)。171 项关联及正式包 15 项专项通过，正式包前台已验证返回/重建、独立窗口同步、保存失败阻止发送和重试后的真实历史；冷子线程完整加载/续聊、全量回归与完整双端对齐仍未完成。
+
 ## 本地运行
 
 需要 macOS 14+、Swift 6.2+、Rust 1.95+；构建 iOS fixture 需要完整 Xcode 与 iOS Simulator SDK。已在 Rust 1.97.1、Xcode 26.3 上验证。首次构建需要下载依赖；无需 API Key。Markdown 解析依赖要求 Swift 6.2 工具链，应用仍支持 macOS 14。

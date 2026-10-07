@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Selection and drafts belong to this panel/window, while runtime identities
-/// and actual child status remain owned by the parent task.
+/// Selection/loading belong to this panel; drafts belong to the child conversation.
+/// Runtime identities and actual child status remain owned by the parent task.
 struct SubagentWorkspacePanel: View {
   let store: WorkspaceStore
   let taskID: String
@@ -62,6 +62,8 @@ struct SubagentWorkspacePanel: View {
       } while !Task.isCancelled
     }
     .onChange(of: live) { _, state in detail.updateLive(state) }
+    .onAppear { detail.bindDrafts(to: store, taskID: taskID) }
+    .onDisappear { detail.cancelPendingAttachmentImport() }
     .onChange(of: parentRoot) { _, _ in detail.select(nil) }
     .onChange(of: current) { _, agent in if let agent { detail.update(agent) } }
     .sheet(item: $previewFile) { file in FileAttachmentPreview(file: file, root: store.dataRoot) }
