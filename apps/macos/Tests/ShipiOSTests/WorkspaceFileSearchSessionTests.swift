@@ -182,6 +182,141 @@ import XCTest
     await clock.releaseAll()
   }
 
+  func testDeadlineProcessesAlreadyReadProgressBeforeFailing() async throws {
+    let root = try fixture("""
+    read query
+    printf '{"id":1,"files":[],"complete":false}\\n'
+    while read query; do :; done
+    """)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let clock = SearchDeadlineFixture(), delivery = SearchDeadlineFixture()
+    addTeardownBlock { await clock.releaseAll(); await delivery.releaseAll() }
+    let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
+      timeoutSleep: { await clock.sleep($0) }, beforeResponseDelivery: { await delivery.sleep(.zero) })
+    defer { session.close() }
+    let partial = expectation(description: "already-read progress")
+    var observed: [Bool] = []
+    let pending = Task { () -> Error? in
+      do {
+        for try await update in try session.query("value") {
+          observed.append(update.complete)
+          if !update.complete { partial.fulfill() }
+        }
+        return nil
+      } catch { return error }
+    }
+    try await clock.started(1)
+    // The real pipe has been read, but its ordinary actor delivery is held.
+    // Let timeout be the next actor job to inspect the session.
+    try await delivery.started(1)
+    await clock.release(0)
+    await fulfillment(of: [partial], timeout: 1)
+    XCTAssertEqual(observed, [false])
+    session.cancelQuery()
+    let error = await pending.value
+    XCTAssertTrue(error is CancellationError, "Read progress must keep the query alive until explicit cancellation")
+    await delivery.releaseAll(); await clock.releaseAll()
+  }
+
+  func testDeadlineProcessesAlreadyReadCompletionBeforeFailing() async throws {
+    let root = try fixture("""
+    read query
+    printf '{"id":1,"files":[],"complete":true}\\n'
+    while read query; do :; done
+    """)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let clock = SearchDeadlineFixture(), delivery = SearchDeadlineFixture()
+    addTeardownBlock { await clock.releaseAll(); await delivery.releaseAll() }
+    let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
+      timeoutSleep: { await clock.sleep($0) }, beforeResponseDelivery: { await delivery.sleep(.zero) })
+    defer { session.close() }
+    let pending = Task { () -> Result<[Bool], Error> in
+      do {
+        var observed: [Bool] = []
+        for try await update in try session.query("value") { observed.append(update.complete) }
+        return .success(observed)
+      } catch { return .failure(error) }
+    }
+    try await clock.started(1); try await delivery.started(1)
+    await clock.release(0)
+    let observed = try await pending.value.get()
+    XCTAssertEqual(observed, [true])
+    await delivery.releaseAll(); await clock.releaseAll()
+  }
+
+  func testBufferedProgressRenewsDeadlineButLaterSilenceStillTimesOut() async throws {
+    let root = try fixture("""
+    read query
+    printf '{"id":1,"files":[],"complete":false}\\n'
+    while read query; do :; done
+    """)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let clock = SearchDeadlineFixture(), delivery = SearchDeadlineFixture()
+    addTeardownBlock { await clock.releaseAll(); await delivery.releaseAll() }
+    let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
+      timeoutSleep: { await clock.sleep($0) }, beforeResponseDelivery: { await delivery.sleep(.zero) })
+    defer { session.close() }
+    let partial = expectation(description: "progress renews deadline")
+    let pending = Task { () -> Error? in
+      do {
+        for try await update in try session.query("value") { if !update.complete { partial.fulfill() } }
+        return nil
+      } catch { return error }
+    }
+    try await clock.started(1); try await delivery.started(1)
+    await clock.release(0)
+    await fulfillment(of: [partial], timeout: 1)
+    try await clock.started(2)
+    await clock.release(1)
+    let error = await pending.value
+    XCTAssertTrue(error?.localizedDescription.contains("超时") == true)
+    XCTAssertThrowsError(try session.query("after timeout"))
+    await delivery.releaseAll(); await clock.releaseAll()
+  }
+
+  func testCoalescedWakeupsRetainEveryRealPipeFrameInOrder() async throws {
+    let root = try fixture("""
+    read query
+    value=0
+    while [ "$value" -lt 512 ]; do
+      value=$((value + 1))
+      printf '{"id":1,"files":[{"path":"File%s.swift","isDirectory":false,"score":1}],"complete":false}\\n' "$value"
+    done
+    printf '{"id":1,"files":[],"complete":true}\\n'
+    while read query; do :; done
+    """)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"))
+    defer { session.close() }
+    var updates: [WorkspaceFileSearchUpdate] = []
+    for try await update in try session.query("value") { updates.append(update) }
+    XCTAssertEqual(updates.count, 513)
+    XCTAssertEqual(updates.last?.complete, true)
+    XCTAssertEqual(updates.flatMap(\.files).map(\.path), (1...512).map { "File\($0).swift" })
+  }
+
+  func testReadyDeadlineIgnoresStaleFramesAndReportsBufferedProtocolErrors() async throws {
+    for (frame, expected) in [("{\"id\":0,\"files\":[],\"complete\":false}", "超时"), ("not-json", "无效")] {
+      let root = try fixture("read query; printf '%s\\n' '" + frame + "'; while read query; do :; done")
+      defer { try? FileManager.default.removeItem(at: root) }
+      let clock = SearchDeadlineFixture(), delivery = SearchDeadlineFixture()
+      addTeardownBlock { await clock.releaseAll(); await delivery.releaseAll() }
+      let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
+        timeoutSleep: { await clock.sleep($0) }, beforeResponseDelivery: { await delivery.sleep(.zero) })
+      defer { session.close() }
+      let pending = Task { () -> Error? in
+        do { for try await _ in try session.query("value") {}; return nil }
+        catch { return error }
+      }
+      try await clock.started(1); try await delivery.started(1)
+      await clock.release(0)
+      let error = await pending.value
+      XCTAssertTrue(error?.localizedDescription.contains(expected) == true, error?.localizedDescription ?? "Missing failure")
+      XCTAssertThrowsError(try session.query("after failure"))
+      await delivery.releaseAll(); await clock.releaseAll()
+    }
+  }
+
   func testReplacementQueryCancelsOldDeadlineBeforeDebouncingWithoutRestartingIndex() async throws {
     let root = try fixture("exit 0")
     defer { try? FileManager.default.removeItem(at: root) }

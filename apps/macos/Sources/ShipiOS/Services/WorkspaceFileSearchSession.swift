@@ -16,6 +16,7 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
 @MainActor final class WorkspaceFileSearchSession: FileSearchSession {
   private let process: Process
   private let input: FileHandle
+  private let inbox = WorkspaceFileSearchInbox()
   private var buffer = Data()
   private var currentID = 0
   private var continuation: AsyncThrowingStream<WorkspaceFileSearchUpdate, Error>.Continuation?
@@ -27,7 +28,8 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   var processIdentifier: Int32 { process.processIdentifier }
 
   init(root: URL, executable: URL, timeout: Duration = .seconds(20), additionalRoots: [URL] = [],
-    timeoutSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) throws {
+    timeoutSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+    beforeResponseDelivery: (@Sendable () async -> Void)? = nil) throws {
     self.timeout = timeout
     self.timeoutSleep = timeoutSleep
     let child = Process(), stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
@@ -40,13 +42,17 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
     child.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory(), "LANG": "en_US.UTF-8"]
     child.standardInput = stdin; child.standardOutput = stdout; child.standardError = stderr
     try child.run()
-    let (stream, emitter) = AsyncStream<Data>.makeStream()
+    let inbox = self.inbox
+    // Events may coalesce: the inbox retains every byte until actor delivery.
+    let (stream, emitter) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
     DispatchQueue.global(qos: .userInitiated).async {
       while true {
         let data = stdout.fileHandleForReading.availableData
         if data.isEmpty { break }
-        emitter.yield(data)
+        guard inbox.append(data) else { break }
+        emitter.yield(())
       }
+      inbox.finish()
       emitter.finish()
     }
     // Drain diagnostics without exposing file paths or environment variables in logs.
@@ -54,7 +60,11 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
       while !stderr.fileHandleForReading.availableData.isEmpty {}
     }
     Task { [weak self] in
-      for await data in stream { self?.receive(data) }
+      for await _ in stream {
+        if let beforeResponseDelivery { await beforeResponseDelivery() }
+        self?.drainReceivedData()
+      }
+      self?.drainReceivedData()
       self?.fail(AgentFailure(message: "文件搜索进程已退出，请重试。"))
     }
   }
@@ -87,6 +97,7 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   func close() {
     guard !closed else { return }
     closed = true; currentID += 1
+    inbox.stop()
     cancelCurrent()
     try? input.close()
     // Terminate promptly as well, including when a filesystem walker is stalled.
@@ -94,6 +105,7 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
   }
 
   deinit {
+    inbox.stop()
     deadline?.cancel()
     try? input.close()
     if process.isRunning { process.terminate() }
@@ -104,6 +116,16 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
     var data = try JSONEncoder().encode(Query(id: id, query: query)); data.append(10)
     guard data.count <= 65_536 else { throw AgentFailure(message: "搜索内容过长。") }
     try input.write(contentsOf: data)
+  }
+
+  private func drainReceivedData() {
+    guard !closed else { return }
+    let batch = inbox.take()
+    for data in batch.chunks {
+      receive(data)
+      if closed { return }
+    }
+    if batch.ended { fail(AgentFailure(message: "文件搜索进程已退出，请重试。")) }
   }
 
   private func receive(_ data: Data) {
@@ -134,6 +156,12 @@ struct WorkspaceFileSearchUpdate: Decodable, Sendable {
     deadline = Task { [weak self, timeout, timeoutSleep] in
       do { try await timeoutSleep(timeout) } catch { return }
       guard !Task.isCancelled, let self, self.deadlineRevision == revision,
+        self.currentID == id, self.continuation != nil else { return }
+      // A ready timeout may run before the ordinary response-delivery task.
+      // Decode already-read frames first; only valid current-query progress
+      // renews the deadline, and completion cancels it altogether.
+      self.drainReceivedData()
+      guard !Task.isCancelled, !self.closed, self.deadlineRevision == revision,
         self.currentID == id, self.continuation != nil else { return }
       self.fail(AgentFailure(message: "文件搜索超时，请重试。"))
     }
