@@ -148,10 +148,26 @@ import XCTest
     XCTAssertTrue(text.string.utf8.elementsEqual(source.utf8)); XCTAssertFalse(window.isVisible)
     controller.stop()
   }
-  func testSettingsSearchHasSeparateLightAndDarkCodeThemeTargets() {
-    let targets = SettingsSearch.results(for: "代码主题").compactMap(\.field)
-    XCTAssertTrue(targets.contains(.lightCodeTheme)); XCTAssertTrue(targets.contains(.darkCodeTheme))
+  func testSettingsSearchTargetsOnlyCurrentReferencePaletteAcrossAllModes() throws {
+    struct Sample: Decodable {
+      let mode: String; let systemDark: Bool; let separate: Bool; let advanced: Bool; let variants: [String]
+    }
+    struct Reference: Decodable { let cases: [Sample] }
+    let url = try XCTUnwrap(Bundle.module.url(forResource: "appearance_advanced_reference_646", withExtension: "json", subdirectory: "Fixtures"))
+    let reference = try JSONDecoder().decode(Reference.self, from: Data(contentsOf: url))
+    let cases = reference.cases.filter { !$0.separate && !$0.advanced }
+    XCTAssertEqual(cases.count, 6)
+    for sample in cases {
+      let targets = SettingsSearch.results(for: "代码主题", appearanceTheme: sample.mode,
+        systemDark: sample.systemDark).compactMap(\.field).filter { [.lightCodeTheme, .darkCodeTheme].contains($0) }
+      let expected: [SettingsSearchField] = sample.variants.map { $0 == "dark" ? .darkCodeTheme : .lightCodeTheme }
+      XCTAssertEqual(targets, expected, sample.mode + "/systemDark=" + String(sample.systemDark))
+      let inactive: SettingsSearchField = expected == [.darkCodeTheme] ? .lightCodeTheme : .darkCodeTheme
+      XCTAssertFalse(SettingsSearch.results(for: inactive.title, appearanceTheme: sample.mode,
+        systemDark: sample.systemDark).compactMap(\.field).contains(inactive))
+    }
     XCTAssertEqual(SettingsSearchField.lightCodeTheme.page, .appearance)
+    XCTAssertEqual(SettingsSearchField.darkCodeTheme.page, .appearance)
   }
   func testHiddenAppearancePageMenusApplyPresetWithoutChangingTaskOrOpeningAnotherWindow() async throws {
     _ = NSApplication.shared
