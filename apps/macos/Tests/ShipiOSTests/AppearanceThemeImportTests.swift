@@ -362,6 +362,19 @@ import XCTest
     let backdropHit = try XCTUnwrap(host.hitTest(host.superview?.convert(point, from: nil) ?? point))
     XCTAssertTrue(backdropHit === view || backdropHit.isDescendant(of: view), "Removing the actual notice must expose the modal backdrop at the same point")
     store.notices.show(id: "import-result", title: "保留通知", level: .error); try await settle(host)
+    // Re-entry animates for 400 ms; the ordinary 210 ms layout settle is not
+    // proof that the notice body has reached this point, especially under load.
+    var noticeHit: NSView?
+    for _ in 0..<100 {
+      host.layoutSubtreeIfNeeded()
+      noticeHit = host.hitTest(host.superview?.convert(point, from: nil) ?? point)
+      if let hit = noticeHit, hit !== view, !hit.isDescendant(of: view) { break }
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    let visibleNoticeHit = try XCTUnwrap(noticeHit)
+    XCTAssertFalse(visibleNoticeHit === view || visibleNoticeHit.isDescendant(of: view),
+      "The re-entered notice must be at the click position before testing its body action")
+    XCTAssertTrue(try XCTUnwrap(view.owner).canDismiss(view), "The original modal must remain attached and current")
     let event = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 2,
       windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
     XCTAssertTrue(try XCTUnwrap(view.owner).handleOutsidePointer(event, in: view)); try await settle(host)
