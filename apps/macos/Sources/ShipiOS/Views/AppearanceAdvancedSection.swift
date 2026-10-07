@@ -36,6 +36,15 @@ struct AppearanceAdvancedSection: View {
         SettingsToggle(title: "使用指针光标", description: "悬停交互元素时切换为指针光标",
           isOn: binding(\.usePointerCursors))
           .padding(.horizontal, 16).padding(.vertical, 12).settingsSearchTarget(.pointer)
+        AppearanceSettingsDivider()
+        AppearanceSettingsRow(compact: false) {
+          AppearanceDockIconPicker(store: store).frame(width: 104, height: 48).settingsSearchTarget(.dockIcon)
+        } label: {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Dock 图标").appFont(size: 13, weight: .medium)
+            Text("选择应用在 Dock 中使用的图标").appFont(size: 12).foregroundStyle(.secondary)
+          }
+        }
       }.labeledContentStyle(AppearanceSettingsRowStyle(compact: false))
     }.disabled(!available)
   }

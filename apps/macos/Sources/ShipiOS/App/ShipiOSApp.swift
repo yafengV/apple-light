@@ -117,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var lastAppshotWindowFocus: Date?
   private var popoutWindowController: PopoutWindowController?
   private let pointerCursorController = PointerCursorController()
+  private let dockIconController = DockIconController()
   private var quitting = false
   private var ready = false
   private var automationPoller: Task<Void, Never>?
@@ -127,6 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     NSApp.setActivationPolicy(.regular)
     NSApp.activate(ignoringOtherApps: true)
     UNUserNotificationCenter.current().delegate = self
+    dockIconController.start()
   }
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     !(store?.showInMenuBar ?? true)
@@ -143,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     quitting = true
     stopAutomationPolling()
     stopSkillMonitoring()
+    dockIconController.stop()
     appshotModifierMonitor = nil
     voiceBareModifierMonitor = nil
     globalDictationIndicator?.hide()
@@ -254,10 +257,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       refreshHotKey()
       refreshPopoutHotKey()
       refreshGlobalDictationHotkey()
-      store.appearanceHandler = { [weak pointerCursorController] appearance in
+      store.appearanceHandler = { [weak pointerCursorController, weak dockIconController] appearance in
         pointerCursorController?.apply(appearance.usePointerCursors)
+        dockIconController?.apply(appearance.dockIcon)
       }
       pointerCursorController.apply(store.appearance.usePointerCursors)
+      dockIconController.apply(store.appearance.dockIcon)
       startAutomationPolling()
       startSkillMonitoring()
     }

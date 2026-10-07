@@ -1,0 +1,483 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "defaultPreference": "app-default",
+  "sourceSHA256": {
+    "settings": "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
+    "visibility": "44dcb985ac16b5c5e3d52bd8a84cc44b7122fb063159fca97fc6543931fd8de6",
+    "shared": "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab"
+  },
+  "cases": [
+    {
+      "platform": "macOS",
+      "previews": false,
+      "spaces": false,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "macOS",
+      "previews": false,
+      "spaces": false,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "macOS",
+      "previews": false,
+      "spaces": false,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "macOS",
+      "previews": false,
+      "spaces": true,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "macOS",
+      "previews": false,
+      "spaces": true,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "macOS",
+      "previews": false,
+      "spaces": true,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "macOS",
+      "previews": true,
+      "spaces": false,
+      "selected": "app-default",
+      "visible": true,
+      "options": [
+        {
+          "value": "app-default",
+          "checked": true,
+          "label": "Use ChatGPT Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-text bg-primary-ghost-hover"
+        },
+        {
+          "value": "codex-system",
+          "checked": false,
+          "label": "Use Codex Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        }
+      ],
+      "writes": [
+        "app-default",
+        "codex-system"
+      ]
+    },
+    {
+      "platform": "macOS",
+      "previews": true,
+      "spaces": false,
+      "selected": "codex-system",
+      "visible": true,
+      "options": [
+        {
+          "value": "app-default",
+          "checked": false,
+          "label": "Use ChatGPT Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        },
+        {
+          "value": "codex-system",
+          "checked": true,
+          "label": "Use Codex Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-text bg-primary-ghost-hover"
+        }
+      ],
+      "writes": [
+        "app-default",
+        "codex-system"
+      ]
+    },
+    {
+      "platform": "macOS",
+      "previews": true,
+      "spaces": false,
+      "selected": "space-system",
+      "visible": true,
+      "options": [
+        {
+          "value": "app-default",
+          "checked": false,
+          "label": "Use ChatGPT Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        },
+        {
+          "value": "codex-system",
+          "checked": false,
+          "label": "Use Codex Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        }
+      ],
+      "writes": [
+        "app-default",
+        "codex-system"
+      ]
+    },
+    {
+      "platform": "macOS",
+      "previews": true,
+      "spaces": true,
+      "selected": "app-default",
+      "visible": true,
+      "options": [
+        {
+          "value": "app-default",
+          "checked": true,
+          "label": "Use ChatGPT Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-text bg-primary-ghost-hover"
+        },
+        {
+          "value": "codex-system",
+          "checked": false,
+          "label": "Use Codex Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        },
+        {
+          "value": "space-system",
+          "checked": false,
+          "label": "Use Space Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        }
+      ],
+      "writes": [
+        "app-default",
+        "codex-system",
+        "space-system"
+      ]
+    },
+    {
+      "platform": "macOS",
+      "previews": true,
+      "spaces": true,
+      "selected": "codex-system",
+      "visible": true,
+      "options": [
+        {
+          "value": "app-default",
+          "checked": false,
+          "label": "Use ChatGPT Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        },
+        {
+          "value": "codex-system",
+          "checked": true,
+          "label": "Use Codex Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-text bg-primary-ghost-hover"
+        },
+        {
+          "value": "space-system",
+          "checked": false,
+          "label": "Use Space Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        }
+      ],
+      "writes": [
+        "app-default",
+        "codex-system",
+        "space-system"
+      ]
+    },
+    {
+      "platform": "macOS",
+      "previews": true,
+      "spaces": true,
+      "selected": "space-system",
+      "visible": true,
+      "options": [
+        {
+          "value": "app-default",
+          "checked": false,
+          "label": "Use ChatGPT Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        },
+        {
+          "value": "codex-system",
+          "checked": false,
+          "label": "Use Codex Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-default bg-surface group-hover:border-strong"
+        },
+        {
+          "value": "space-system",
+          "checked": true,
+          "label": "Use Space Dock icon",
+          "radioType": "radio",
+          "name": "dock-icon",
+          "cardClass": "flex size-12 items-center justify-center rounded-xl border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-0 peer-focus-visible:outline-ring border-text bg-primary-ghost-hover"
+        }
+      ],
+      "writes": [
+        "app-default",
+        "codex-system",
+        "space-system"
+      ]
+    },
+    {
+      "platform": "windows",
+      "previews": false,
+      "spaces": false,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": false,
+      "spaces": false,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": false,
+      "spaces": false,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": false,
+      "spaces": true,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": false,
+      "spaces": true,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": false,
+      "spaces": true,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": true,
+      "spaces": false,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": true,
+      "spaces": false,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": true,
+      "spaces": false,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": true,
+      "spaces": true,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": true,
+      "spaces": true,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "previews": true,
+      "spaces": true,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": false,
+      "spaces": false,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": false,
+      "spaces": false,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": false,
+      "spaces": false,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": false,
+      "spaces": true,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": false,
+      "spaces": true,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": false,
+      "spaces": true,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": true,
+      "spaces": false,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": true,
+      "spaces": false,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": true,
+      "spaces": false,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": true,
+      "spaces": true,
+      "selected": "app-default",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": true,
+      "spaces": true,
+      "selected": "codex-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "previews": true,
+      "spaces": true,
+      "selected": "space-system",
+      "visible": false,
+      "options": [],
+      "writes": []
+    }
+  ]
+}

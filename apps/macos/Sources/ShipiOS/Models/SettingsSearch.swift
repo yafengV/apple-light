@@ -22,7 +22,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     preventSleep, confetti, audioVisualizer, enablePlugins, openSourceLicenses
   case appearanceAdvanced, appearanceSeparateModes
   case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
-    pointer, diffMarkers, reduceMotion, importTheme, exportTheme
+    pointer, dockIcon, diffMarkers, reduceMotion, importTheme, exportTheme
   case lightUIFontStyle, darkUIFontStyle
   case lightUIFont, darkUIFont, lightContentFont, darkContentFont, lightCodeFont, darkCodeFont, lightThemeShare, darkThemeShare
   case apiURL, modelID, apiKey, reasoning, tokenUsage
@@ -158,7 +158,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   var page: SettingsPage {
     switch self {
     case .lightUIFontStyle, .darkUIFontStyle, .appearanceAdvanced, .appearanceSeparateModes, .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
-      .pointer, .diffMarkers, .reduceMotion, .importTheme, .exportTheme,
+      .pointer, .dockIcon, .diffMarkers, .reduceMotion, .importTheme, .exportTheme,
       .lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont, .lightThemeShare, .darkThemeShare: .appearance
     case .apiURL, .modelID, .voiceModel, .apiKey, .reasoning, .tokenUsage: .model
     case .profileName: .profile
@@ -394,6 +394,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .codeFont: "代码字体"
     case .codeFontSize: "代码字号"
     case .pointer: "交互控件使用指针光标"
+    case .dockIcon: "Dock 图标"
     case .diffMarkers: "差异标记"
     case .reduceMotion: "减少动态效果"
     case .importTheme: "导入主题"
@@ -407,6 +408,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   }
   var aliases: String {
     switch self {
+    case .dockIcon: "程序坞 应用图标 自适应 dock icon"
     case .profileName: "名称"
     case .profileUsername: "username"
     case .profileAvatar: "avatar"
