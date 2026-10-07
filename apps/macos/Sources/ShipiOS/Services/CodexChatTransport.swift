@@ -191,7 +191,7 @@ final class CodexChatTransport {
     goalInstructions: String? = nil, mcpServers: [MCPServerConfiguration], hooks: [HookSourceBinding] = [],
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
     webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false, pauseAutomationID: UUID? = nil,
-    compact: Bool = false, forkOrigin: CodexForkOrigin? = nil,
+    compact: Bool = false, connectOnly: Bool = false, forkOrigin: CodexForkOrigin? = nil,
     resumeOrigin: CodexResumeOrigin? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     try Task.checkCancellation()
@@ -251,7 +251,7 @@ final class CodexChatTransport {
           "taskId": .string(taskID), "baseUrl": .string(config.baseURL),
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
-          "resumeOnly": .bool(compact),
+          "resumeOnly": .bool(compact || connectOnly),
           "readOnly": .bool(readOnly), "textOnly": .bool(textOnly),
           "permissionProfileId": selectedProfile.map { .string($0.id) } ?? .null,
           "permissionProfileConfig": selectedProfile.map { .string($0.configTOML) } ?? .null,
@@ -293,6 +293,11 @@ final class CodexChatTransport {
         if compact && sendFullContext {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")
         }
+      }
+      if connectOnly {
+        streams.removeValue(forKey: taskID)?.finish()
+        turnTokens.removeValue(forKey: taskID); browserTurnTokens.removeValue(forKey: taskID)
+        return stream
       }
       if compact {
         _ = try await client.request("codex.turn.compact", ["taskId": .string(taskID)])
@@ -429,6 +434,26 @@ final class CodexChatTransport {
     guard activeThreads.contains(taskID) else { throw AgentFailure(message: "Codex 会话未连接") }
     _ = try await client(for: taskID).request("codex.thread.descendants.interrupt", [
       "taskId": .string(taskID), "expectedThreadId": .string(expectedThreadID)])
+  }
+
+  func isConnected(taskID: String) -> Bool { activeThreads.contains(taskID) }
+
+  func waitForParentPreparation(taskID: String) async throws {
+    while preparingTasks.contains(taskID) {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    try Task.checkCancellation()
+  }
+
+  func loadSubagent(taskID: String, rootThreadID: String, childThreadID: String) async throws -> JSONValue {
+    guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接。") }
+    let token = generation
+    let response = try await client(for: taskID).request("codex.subagent.load", [
+      "taskId": .string(taskID), "expectedThreadId": .string(rootThreadID), "childThreadId": .string(childThreadID)])
+    guard token == generation, activeThreads.contains(taskID), response["rootThreadId"].text == rootThreadID,
+      response["agent"]["threadId"].text == childThreadID else { throw CancellationError() }
+    try Task.checkCancellation()
+    return response["agent"]
   }
 
   func readSubagentHistory(taskID: String, rootThreadID: String, childThreadID: String) async throws -> [JSONValue] {

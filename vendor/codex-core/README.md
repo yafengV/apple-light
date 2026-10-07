@@ -4,7 +4,7 @@ Source: https://github.com/openai/codex/tree/50d77959bf927293c4b5ddcca81d05331ae
 
 This component is Apache-2.0; upstream LICENSE, NOTICE, README, assets and tests are retained. Other Codex crates remain pinned Git dependencies. This is a local Cargo patch of Core, not a copied personal Codex installation or configuration.
 
-The reviewable source delta is `upstream/codex-core-approval-capture.patch` (five files). The standalone manifest resolves upstream workspace dependencies and features without changing versions; upstream relative component dependencies point to that same Git revision. Core and the separately audited local MCP component are excluded from the ShipiOS workspace, and their upstream unit/integration tests and doctests are not implicitly part of `cargo test --workspace`. Real-Core regression tests for the public APIs live in `crates/shipios-codex/src/approval_capture_tests.rs`.
+The reviewable source delta is `upstream/codex-core-approval-capture.patch` (six files). The standalone manifest resolves upstream workspace dependencies and features without changing versions; upstream relative component dependencies point to that same Git revision. Core and the separately audited local MCP component are excluded from the ShipiOS workspace, and their upstream unit/integration tests and doctests are not implicitly part of `cargo test --workspace`. Real-Core regression tests for the public APIs live in `crates/shipios-codex/src/approval_capture_tests.rs`.
 
 ## Native approval capture
 
@@ -24,6 +24,12 @@ The ShipiOS host now connects exec/patch claims to child approval cards and one-
 
 The non-cloneable capability owns the original callback, validates the selected active turn atomically, and checks its cancellation token. Stop, turn replacement and callback cancellation prevent a late response. Invalid identity/generation does not consume a request; ordinary queued ID-only replies cannot fulfill a claimed waiter. This foundation does not yet connect child MCP RPC tokens or UI forms. Idle/server-initiated requests outside an active child turn and full permission workflows remain separate work.
 
+## Owner-controlled child reload
+
+`ThreadManager.ensure_child_loaded(child_thread_id)` loads a recorded child through its actual live parent. The V2 route delegates to the existing native owner-validated reload; legacy threads use the native resume-agent route, keeping the stored source, model and reasoning settings and current owner runtime permissions. Legacy records may store parent ownership only in SessionSource; a conflicting explicit parent is rejected. No caller configuration overrides or model turn accompany loading.
+
+ShipiOS validates the root-owned subtree and the full recorded ancestry before calling this API. Its shared reload gate serializes multiple detail windows. Source and parent consistency, unloaded ancestry, duplicate loading and actual same-thread follow-up are covered by the real-Core descendant tests; the upstream full test suite is not included in the host workspace regression.
+
 ## Source audit
 
 With Python 3.11+ and a clean checkout at the pinned revision:
@@ -32,4 +38,4 @@ With Python 3.11+ and a clean checkout at the pinned revision:
 python3 script/verify_codex_core_patch.py /path/to/codex
 ```
 
-The verifier checks the revision, replays the five-file patch in a temporary directory, byte-compares every other upstream source/test/asset, reproduces the standalone manifest and checks legal attribution. Pass `--component codex-mcp` to audit the MCP component separately. `--write-patch` refreshes the source patch during intentional maintenance. Review and rerun native regressions when changing it; the verifier is not behavioral evidence.
+The verifier checks the revision, replays the six-file patch in a temporary directory, byte-compares every other upstream source/test/asset, reproduces the standalone manifest and checks legal attribution. Pass `--component codex-mcp` to audit the MCP component separately. `--write-patch` refreshes the source patch during intentional maintenance. Review and rerun native regressions when changing it; the verifier is not behavioral evidence.

@@ -9,7 +9,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use tokio::sync::broadcast;
+use tokio::sync::{Mutex, RwLock, broadcast};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +33,8 @@ pub struct NativeSubagent {
 pub struct DescendantSource {
     manager: Arc<ThreadManager>,
     parent: ThreadId,
+    reload: Arc<Mutex<()>>,
+    reloaded: Arc<RwLock<HashSet<ThreadId>>>,
     store: Arc<dyn codex_thread_store::ThreadStore>,
 }
 
@@ -45,6 +47,8 @@ impl DescendantSource {
         Self {
             manager,
             parent,
+            reload: Arc::new(Mutex::new(())),
+            reloaded: Arc::new(RwLock::new(HashSet::new())),
             store,
         }
     }
@@ -61,6 +65,59 @@ impl DescendantSource {
             "thread is not a descendant of this task"
         );
         Ok(id)
+    }
+
+    /// Load only a validated descendant and its recorded ancestry, root first.
+    /// Clones share a gate so concurrent detail windows cannot duplicate reloads.
+    pub async fn ensure_loaded(&self, child: &str) -> Result<NativeSubagent> {
+        let _reload = self.reload.lock().await;
+        let id = self.validate_member(child).await?;
+        let previously_loaded: HashSet<_> =
+            self.manager.list_thread_ids().await.into_iter().collect();
+        let mut chain = Vec::new();
+        let mut seen = HashSet::new();
+        let mut next = id;
+        while next != self.parent {
+            ensure!(seen.insert(next), "cyclic child ownership");
+            let stored = self
+                .store
+                .read_thread(codex_thread_store::ReadThreadParams {
+                    thread_id: next,
+                    include_archived: true,
+                    include_history: false,
+                })
+                .await?;
+            let owner = stored
+                .parent_thread_id
+                .or_else(|| stored.source.parent_thread_id())
+                .ok_or_else(|| anyhow::anyhow!("child owner is missing"))?;
+            ensure!(
+                stored.source.parent_thread_id() == Some(owner),
+                "child owner is inconsistent"
+            );
+            chain.push(next);
+            next = owner;
+        }
+        // Register the cold identities before Core publishes thread-created.
+        // A monitor must never see a resumed idle queue as a fresh startup.
+        let mut cold = HashSet::new();
+        for member in &chain {
+            if !previously_loaded.contains(member) {
+                cold.insert(*member);
+                // Legacy native resume also reopens this owner's open descendants.
+                cold.extend(self.manager.list_agent_subtree_thread_ids(*member).await?);
+            }
+        }
+        cold.retain(|member| !previously_loaded.contains(member));
+        self.reloaded.write().await.extend(cold);
+        for member in chain.into_iter().rev() {
+            self.manager.ensure_child_loaded(member).await?;
+        }
+        self.snapshot()
+            .await?
+            .into_iter()
+            .find(|row| row.thread_id == child)
+            .ok_or_else(|| anyhow::anyhow!("loaded child is no longer available"))
     }
 
     /// Only the root-owned descendant monitor may claim this receiver. Native
@@ -325,7 +382,48 @@ impl DescendantSource {
             else {
                 continue;
             };
+            let reloaded = self.reloaded.read().await.contains(&id);
             let (status, preview) = match thread.agent_status().await {
+                AgentStatus::PendingInit if reloaded => {
+                    // A resumed idle Core queue starts PendingInit even when its
+                    // recorded last turn completed. Present that durable state;
+                    // do not synthesize a turn or alter native completion watchers.
+                    let history = self
+                        .store
+                        .load_history(codex_thread_store::LoadThreadHistoryParams {
+                            thread_id: id,
+                            include_archived: true,
+                        })
+                        .await
+                        .ok();
+                    history
+                        .as_ref()
+                        .and_then(|history| {
+                            history.items.iter().rev().find_map(|item| match item {
+                                codex_history::RolloutItem::EventMsg(
+                                    codex_core_api::EventMsg::TurnComplete(event),
+                                ) => Some((
+                                    if event.error.is_some() {
+                                        "failed"
+                                    } else {
+                                        "completed"
+                                    },
+                                    event
+                                        .last_agent_message
+                                        .as_ref()
+                                        .map(|text| text.chars().take(1024).collect()),
+                                )),
+                                codex_history::RolloutItem::EventMsg(
+                                    codex_core_api::EventMsg::TurnAborted(_),
+                                ) => Some(("interrupted", None)),
+                                codex_history::RolloutItem::EventMsg(
+                                    codex_core_api::EventMsg::TurnStarted(_),
+                                ) => Some(("interrupted", None)),
+                                _ => None,
+                            })
+                        })
+                        .unwrap_or(("pendingInit", None))
+                }
                 AgentStatus::PendingInit => ("pendingInit", None),
                 AgentStatus::Running => ("running", None),
                 AgentStatus::Interrupted => ("interrupted", None),

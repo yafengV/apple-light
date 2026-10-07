@@ -47,6 +47,79 @@ final class SubagentAttachmentIntegrationTests: XCTestCase {
   private func requests() throws -> [JSONValue] {
     try String(contentsOf: requestLog, encoding: .utf8).split(separator: "\n").map { try JSONDecoder().decode(JSONValue.self, from: Data($0.utf8)) }
   }
+  @MainActor func testColdChildDraftLoadsAndSendsWithoutInventingAParentTurn() async throws {
+    try Data().write(to: gate)
+    let original = try await makeStore(), (task, run, child) = try await parent(original)
+    let detail = SubagentDetailState(); detail.bindDrafts(to: original, taskID: task); detail.select(child)
+    detail.draft = "subagent-child-followup cold draft🙂"
+    let source = root.appendingPathComponent("cold-reference.txt"); try Data("冷草稿附件".utf8).write(to: source)
+    let imported = await detail.importAttachments([.image(try AttachmentFixture.png(), name: "cold.png"), .file(source)], root: original.dataRoot)
+    XCTAssertTrue(imported)
+    let images = detail.images, files = detail.files, runs = original.library.tasks.first { $0.id == task }?.runIDs
+    await original.shutdown()
+    let before = try requests().count
+    let restored = try await makeStore()
+    let selected = await restored.selectTaskAwaitingScope(try XCTUnwrap(restored.library.tasks.first { $0.id == task }))
+    XCTAssertTrue(selected)
+    try await waitFor { !restored.busy && !restored.restoringLibrary }
+    let cold = try XCTUnwrap(restored.subagents(taskID: task).first { $0.id == child.id })
+    XCTAssertFalse(cold.loaded)
+    async let first: Void = restored.prepareSubagent(taskID: task, agent: cold)
+    async let second: Void = restored.prepareSubagent(taskID: task, agent: cold)
+    _ = try await (first, second)
+    XCTAssertEqual(try requests().count, before, "Connecting and loading must not generate a parent model request")
+    XCTAssertEqual(restored.library.tasks.first { $0.id == task }?.runIDs, runs)
+    XCTAssertEqual(restored.library.tasks.first { $0.id == task }?.codexThreadID, child.rootThreadID)
+    let loaded = try XCTUnwrap(restored.subagents(taskID: task).first { $0.id == child.id })
+    XCTAssertTrue(loaded.acceptsInput); XCTAssertFalse(loaded.working)
+    let fresh = SubagentDetailState(); fresh.bindDrafts(to: restored, taskID: task); fresh.select(loaded)
+    XCTAssertEqual(fresh.images, images); XCTAssertEqual(fresh.files, files); XCTAssertEqual(fresh.draft, "subagent-child-followup cold draft🙂")
+    let sent = await fresh.sendMessage(working: loaded.working) { agent, message, turn in
+      try await restored.codexTransport.submitSubagent(taskID: task, rootThreadID: agent.rootThreadID,
+        childThreadID: agent.threadID, text: message.content, expectedTurnID: turn, images: message.images, files: message.files)
+    }
+    XCTAssertTrue(sent, fresh.error ?? ""); XCTAssertFalse(fresh.hasInput)
+    let acceptedTurn = try XCTUnwrap(restored.subagentSubmissions(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID).last?.turnID)
+    try await waitFor {
+      restored.subagentLiveStates[child.id]?.events.contains {
+        $0["type"].text == "task_complete" && $0["turn_id"].text == acceptedTurn
+      } == true
+    }
+    try await waitFor { restored.subagents(taskID: task).first { $0.id == child.id }?.status == .completed }
+    let events = try await restored.codexTransport.readSubagentHistory(taskID: task, rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    let projected = SubagentTranscript(events: events).attaching(restored.subagentSubmissions(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID), root: restored.dataRoot)
+    XCTAssertEqual(projected.entries.last { $0.hasAttachmentMetadata }?.images, images)
+    XCTAssertEqual(projected.entries.last { $0.hasAttachmentMetadata }?.files, files)
+    XCTAssertEqual(restored.library.tasks.first { $0.id == task }?.runIDs, runs)
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == run }?.result?["response"].text, "Parent finished while child continues")
+    let after = try requests().count
+    for invalid in [child.rootThreadID, UUID().uuidString] {
+      do { _ = try await restored.codexTransport.loadSubagent(taskID: task, rootThreadID: child.rootThreadID, childThreadID: invalid); XCTFail("Foreign child loaded") }
+      catch {}
+    }
+    XCTAssertEqual(try requests().count, after)
+  }
+  @MainActor func testRecordedClosedChildOpensHistoryWithoutReloadingOrSubmittingIt() async throws {
+    try Data().write(to: gate)
+    let original = try await makeStore(), (task, _, child) = try await parent(original)
+    let taskIndex = try XCTUnwrap(original.library.tasks.firstIndex { $0.id == task })
+    let childIndex = try XCTUnwrap(original.library.tasks[taskIndex].codexSubagents?.firstIndex { $0.id == child.id })
+    // Seed the persisted UI observation; native close_agent behavior is a separate contract.
+    original.library.tasks[taskIndex].codexSubagents![childIndex].status = .shutdown
+    original.saveLibrary(); await original.shutdown()
+    let before = try requests().count, restored = try await makeStore()
+    let cold = try XCTUnwrap(restored.subagents(taskID: task).first { $0.id == child.id })
+    XCTAssertEqual(cold.status, .shutdown); XCTAssertFalse(cold.loaded)
+    try await restored.prepareSubagent(taskID: task, agent: cold)
+    let history = try await restored.codexTransport.readSubagentHistory(taskID: task,
+      rootThreadID: child.rootThreadID, childThreadID: child.threadID)
+    XCTAssertTrue(SubagentTranscript(events: history).entries.contains { $0.text == "Native child finished" })
+    let after = try XCTUnwrap(restored.subagents(taskID: task).first { $0.id == child.id })
+    XCTAssertEqual(after.status, .shutdown); XCTAssertFalse(after.loaded); XCTAssertFalse(after.acceptsInput)
+    XCTAssertEqual(try requests().count, before)
+  }
   @MainActor func testMixedChildImageAndFileReachActualCoreAndCannotTargetParentOrPeer() async throws {
     try Data().write(to: gate)
     let store = try await makeStore(), (task, run, child) = try await parent(store)

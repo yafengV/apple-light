@@ -114,6 +114,7 @@ struct SubagentWorkspacePanel: View {
     guard parentRoot == agent.rootThreadID, agents.contains(where: { $0.id == agent.id }) else {
       throw AgentFailure(message: "子任务所属会话已变化，请返回列表。")
     }
+    if current?.loaded != true { try await store.prepareSubagent(taskID: taskID, agent: agent) }
     return try await store.codexTransport.readSubagentHistory(taskID: taskID,
       rootThreadID: agent.rootThreadID, childThreadID: agent.threadID)
   }

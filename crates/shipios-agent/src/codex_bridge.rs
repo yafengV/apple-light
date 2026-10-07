@@ -707,12 +707,13 @@ impl CodexBridge {
             task_id.clone(),
             thread_id.clone(),
         );
+        let descendants = session.descendant_source();
         sessions.insert(
             task_key.clone(),
             ThreadHandle {
                 thread_id: thread_id.clone(),
                 sender,
-                descendants: session.descendant_source(),
+                descendants: descendants.clone(),
                 history: Arc::default(),
                 approvals: Arc::clone(&approvals),
                 elicitations: Arc::clone(&elicitations),
@@ -729,6 +730,7 @@ impl CodexBridge {
                 thread_id: thread_id.clone(),
                 approvals,
                 elicitations,
+                descendants,
             },
         ));
         Ok(ThreadInfo {
@@ -1226,6 +1228,14 @@ impl CodexBridge {
         elicitations.resolve(request).await
     }
 
+    pub async fn load_subagent(&self, task: &str, root: &str, child: &str) -> Result<Value> {
+        let (source, _) = self.descendant_access(task, root).await?;
+        let agent = source.ensure_loaded(child).await?;
+        // Wake membership and claim the loaded child's original native event queue.
+        self.refresh_descendant_submission(task, root, None).await?;
+        Ok(json!({"rootThreadId":root,"agent":agent}))
+    }
+
     pub async fn read_subagent_history(
         &self,
         request: crate::subagent_history::HistoryRequest,
@@ -1356,6 +1366,7 @@ struct RootActorContext {
     thread_id: String,
     approvals: Arc<crate::subagent_approvals::SubagentApprovals>,
     elicitations: Arc<crate::subagent_elicitations::SubagentElicitations>,
+    descendants: shipios_codex::DescendantSource,
 }
 
 async fn run_thread(
@@ -1371,9 +1382,10 @@ async fn run_thread(
         thread_id,
         approvals,
         elicitations,
+        descendants,
     } = context;
     let mut monitor = Some(crate::descendant_monitor::DescendantMonitor::start(
-        session.descendant_source(),
+        descendants,
         events.clone(),
         task_id.clone(),
         thread_id.clone(),

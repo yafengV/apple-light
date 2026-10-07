@@ -11,7 +11,7 @@ import tomllib
 
 REVISION = '50d77959bf927293c4b5ddcca81d05331ae582ea'
 REPO = Path(__file__).resolve().parent.parent
-PATCHED = ['src/codex_thread.rs', 'src/lib.rs', 'src/session/mod.rs', 'src/session/mcp.rs', 'src/state/turn.rs']
+PATCHED = ['src/codex_thread.rs', 'src/lib.rs', 'src/session/mod.rs', 'src/session/mcp.rs', 'src/state/turn.rs', 'src/thread_manager.rs']
 MCP_PATCHED = ['src/elicitation.rs', 'src/lib.rs', 'src/runtime.rs', 'src/user_verification_elicitation.rs']
 
 
@@ -86,7 +86,8 @@ def main():
         patch.write_text(''.join(''.join(difflib.unified_diff(
             (upstream / component / name).read_text().splitlines(keepends=True),
             (local / name).read_text().splitlines(keepends=True),
-            fromfile='a/' + name, tofile='b/' + name)) for name in patched))
+            fromfile='a/' + name, tofile='b/' + name,
+            n=0 if name == 'src/thread_manager.rs' else 3)) for name in patched))
     if (local / 'Cargo.toml').read_text() != normalized_manifest(upstream, component):
         raise SystemExit('Core manifest differs from pinned workspace normalization')
     tracked = subprocess.check_output(['git', '-C', str(upstream), 'ls-tree', '-r',

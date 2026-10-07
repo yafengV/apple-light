@@ -14,6 +14,62 @@ extension WorkspaceStore {
     library.tasks.first { $0.id == taskID }?.codexSubagents ?? []
   }
 
+  /// Reconnect the recorded root without submitting or compacting a parent turn.
+  func prepareSubagent(taskID: String, agent: CodexSubagent) async throws {
+    func owner() throws -> WorkspaceTask {
+      guard libraryLoaded, !shuttingDown, !libraryRecoveryBlocksInteraction,
+        let task = library.tasks.first(where: { $0.id == taskID }),
+        task.codexThreadID == agent.rootThreadID,
+        subagents(taskID: taskID).contains(where: { $0.id == agent.id }) else {
+        throw AgentFailure(message: "子任务所属会话已变化，请返回列表。")
+      }
+      return task
+    }
+    _ = try owner()
+    await Task.yield()
+    try await codexTransport.waitForParentPreparation(taskID: taskID)
+    let task = try owner()
+    if !codexTransport.isConnected(taskID: taskID) {
+      let config = modelConfiguration(for: taskID)
+      guard config.apiProtocol == .codexResponses, let origin = CodexResumeOrigin(task: task) else {
+        throw AgentFailure(message: "原 Codex 会话配置或历史已不可用。")
+      }
+      try config.validateEndpoint()
+      let workspace = URL(fileURLWithPath: task.project.isEmpty ? origin.workspace : task.project)
+      guard FileManager.default.fileExists(atPath: workspace.path) else {
+        throw AgentFailure(message: "会话工作目录已不可用。")
+      }
+      _ = try await codexTransport.startTurn(taskID: taskID, workspace: workspace, executable: executable,
+        additionalFolders: library.additionalFolders(for: task.project), config: config,
+        key: try ModelKeychain.read(account: config.credentialAccount), initialText: "", continuationText: "", images: [],
+        fileAppendix: nil, readOnly: task.isSideChat, mcpServers: mcpServers,
+        hooks: task.isSideChat ? [] : try hookSettings.sessionBindings(), permissions: runtimePermissions(for: taskID),
+        responses: library.agentResponsePreferences, webSearchMode: library.agentWebSearchMode,
+        confettiEnabled: confettiEnabled && !appearance.shouldReduceMotion, connectOnly: true, resumeOrigin: origin)
+    }
+    _ = try owner()
+    // Opening a recorded closed child is history navigation, not resume_agent.
+    if agent.status == .shutdown { return }
+    let row = try await codexTransport.loadSubagent(taskID: taskID, rootThreadID: agent.rootThreadID, childThreadID: agent.threadID)
+    _ = try owner()
+    guard let statusName = row["status"].text, let status = CodexSubagentStatus(rawValue: statusName),
+      let loaded = row["loaded"].boolean, loaded else { throw AgentFailure(message: "子任务未能加载，请重新加载。") }
+    guard let index = library.tasks.firstIndex(where: { $0.id == taskID }),
+      let childIndex = library.tasks[index].codexSubagents?.firstIndex(where: { $0.id == agent.id }) else {
+      throw AgentFailure(message: "子任务所属会话已变化。")
+    }
+    // A newer monitor snapshot may already describe a turn started elsewhere.
+    if library.tasks[index].codexSubagents![childIndex].loaded { return }
+    var child = library.tasks[index].codexSubagents![childIndex]
+    child.loaded = loaded; child.status = status
+    child.parentThreadID = row["parentThreadId"].text ?? child.parentThreadID
+    child.nickname = row["nickname"].text ?? child.nickname; child.role = row["role"].text ?? child.role
+    child.model = row["model"].text ?? child.model; child.reasoningEffort = row["reasoningEffort"].text ?? child.reasoningEffort
+    child.depth = row["depth"].int ?? child.depth; child.preview = row["preview"].text ?? child.preview
+    library.tasks[index].codexSubagents![childIndex] = child
+    saveLibrary()
+  }
+
   func activeSubagents(taskID: String) -> [CodexSubagent] {
     guard let root = library.tasks.first(where: { $0.id == taskID })?.codexThreadID else { return [] }
     return subagents(taskID: taskID).filter { $0.rootThreadID == root && $0.working }

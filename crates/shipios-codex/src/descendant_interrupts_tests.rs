@@ -65,9 +65,13 @@ pub(super) async fn session(
     server: &MockServer,
     name: &str,
 ) -> Result<CodexSession> {
+    CodexSession::start(options(root, server, name)?).await
+}
+
+fn options(root: &std::path::Path, server: &MockServer, name: &str) -> Result<SessionOptions> {
     let project = root.join("Project");
     std::fs::create_dir_all(&project)?;
-    CodexSession::start(SessionOptions {
+    Ok(SessionOptions {
         codex_home: root.join(name),
         project_root: project,
         additional_folders: Vec::new(),
@@ -89,7 +93,6 @@ pub(super) async fn session(
             None,
         )?,
     })
-    .await
 }
 
 pub(super) async fn spawn_child(
@@ -500,6 +503,94 @@ fn shutdown_joins_native_children_releases_home_and_does_not_close_another_sessi
         let reopened = session(root.path(), &server, "First").await?;
         reopened.shutdown().await?;
         second.shutdown().await?;
+        Ok(())
+    })
+}
+
+#[test]
+fn cold_child_reloads_through_its_owner_without_a_parent_turn_and_keeps_native_identity()
+-> Result<()> {
+    run_native_test(async {
+        for load_grandchild in [false, true] {
+            let root = tempfile::tempdir()?;
+            let server = server().await;
+            let parent = session(root.path(), &server, "Reload").await?;
+            let child = spawn_child(&parent, parent.thread_id, 1).await?;
+            let grandchild = spawn_child(&parent, child.thread_id, 2).await?;
+            for thread in [&parent.thread, &child.thread, &grandchild.thread] {
+                start(thread, "complete-child").await?;
+                status(thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+            }
+            let child_id = child.thread_id.to_string();
+            let grandchild_id = grandchild.thread_id.to_string();
+            let root_id = parent.thread_id();
+            let rollout = parent.rollout_path().context("missing root rollout")?;
+            parent.shutdown().await?;
+            drop(child);
+            drop(grandchild);
+            let before = server.received_requests().await.unwrap_or_default().len();
+            let resumed =
+                CodexSession::resume(options(root.path(), &server, "Reload")?, rollout).await?;
+            assert_eq!(resumed.thread_id(), root_id);
+            let source = resumed.descendant_source();
+            assert!(source.ensure_loaded(&root_id).await.is_err());
+            assert!(
+                source
+                    .ensure_loaded(&uuid::Uuid::new_v4().to_string())
+                    .await
+                    .is_err()
+            );
+            assert!(
+                !source
+                    .snapshot()
+                    .await?
+                    .iter()
+                    .find(|row| row.thread_id == child_id)
+                    .context("missing cold child")?
+                    .loaded
+            );
+            let target = if load_grandchild {
+                &grandchild_id
+            } else {
+                &child_id
+            };
+            let mirror = source.clone();
+            let (first, second) =
+                tokio::join!(source.ensure_loaded(target), mirror.ensure_loaded(target));
+            assert!(first?.loaded);
+            assert!(second?.loaded);
+            let rows = mirror.snapshot().await?;
+            assert_eq!(rows.len(), 2);
+            assert!(
+                rows.iter()
+                    .all(|row| row.loaded && row.status == "completed")
+            );
+            assert_eq!(
+                server.received_requests().await.unwrap_or_default().len(),
+                before,
+                "Reload must not send a model message"
+            );
+            let native = source.event_thread(&child_id).await?;
+            let config = native.config_snapshot().await;
+            assert!(
+                matches!(config.session_source, SessionSource::SubAgent(SubAgentSource::ThreadSpawn {parent_thread_id, ..}) if parent_thread_id.to_string() == root_id)
+            );
+            assert_eq!(config.model, "gpt-5.4");
+            let (turn, steered) = source
+                .submit(&child_id, "complete-child".into(), None)
+                .await?;
+            assert!(!steered);
+            assert!(!turn.is_empty());
+            status(&native, |s| matches!(s, AgentStatus::Completed(_))).await?;
+            assert!(
+                source
+                    .history(&child_id)
+                    .await?
+                    .iter()
+                    .any(|event| event["type"] == "task_started" && event["turn_id"] == turn)
+            );
+            resumed.shutdown().await?;
+        }
         Ok(())
     })
 }

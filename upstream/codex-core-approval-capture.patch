@@ -585,3 +585,69 @@
      }
  
      pub(crate) fn insert_pending_dynamic_tool(
+--- a/src/thread_manager.rs
++++ b/src/thread_manager.rs
+@@ -1183,0 +1184,63 @@
++    /// Reload a recorded child through its actual loaded owner without host overrides.
++    /// Legacy agents use the same native resume route as the resume_agent tool.
++    pub async fn ensure_child_loaded(&self, child_thread_id: ThreadId) -> CodexResult<()> {
++        let stored = self
++            .state
++            .read_stored_thread(ReadThreadParams {
++                thread_id: child_thread_id,
++                include_archived: true,
++                include_history: false,
++            })
++            .await?;
++        let parent_id = stored
++            .parent_thread_id
++            .or_else(|| stored.source.parent_thread_id())
++            .ok_or_else(|| CodexErr::InvalidRequest("thread is not a recorded child".to_owned()))?;
++        if stored.source.parent_thread_id() != Some(parent_id) {
++            return Err(CodexErr::InvalidRequest(
++                "recorded child ownership is inconsistent".to_owned(),
++            ));
++        }
++        let parent = self.get_thread(parent_id).await?;
++        if !parent.is_running() {
++            return Err(CodexErr::InvalidRequest(
++                "child owner is not available".to_owned(),
++            ));
++        }
++        if let Ok(thread) = self.get_thread(child_thread_id).await {
++            if thread.session_source.parent_thread_id() != Some(parent_id) {
++                return Err(CodexErr::InvalidRequest(
++                    "loaded child ownership changed".to_owned(),
++                ));
++            }
++            return Ok(());
++        }
++        if parent.multi_agent_version() == Some(MultiAgentVersion::V2) {
++            return self
++                .ensure_multi_agent_v2_child_loaded(child_thread_id)
++                .await;
++        }
++        let turn = parent.session.new_default_turn().await;
++        let mut config = crate::agent::child_config::build_agent_resume_config(&turn)
++            .map_err(CodexErr::InvalidRequest)?;
++        config.model = stored.model;
++        config.model_reasoning_effort = stored.reasoning_effort;
++        if config.model_provider_id != stored.model_provider {
++            config.model_provider = config
++                .model_providers
++                .get(&stored.model_provider)
++                .cloned()
++                .ok_or_else(|| {
++                    CodexErr::InvalidRequest("stored child provider is unavailable".to_owned())
++                })?;
++            config.model_provider_id = stored.model_provider;
++        }
++        parent
++            .session
++            .services
++            .agent_control
++            .resume_agent_from_rollout(config, child_thread_id, stored.source)
++            .await?;
++        Ok(())
++    }
++

@@ -294,6 +294,20 @@ async fn dispatch(
                 let p = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.resolve_subagent_elicitation(p).await.map_err(failed)
             }
+            "codex.subagent.load" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase", deny_unknown_fields)]
+                struct Target {
+                    task_id: String,
+                    expected_thread_id: String,
+                    child_thread_id: String,
+                }
+                let p: Target = serde_json::from_value(params).map_err(|_| invalid())?;
+                codex
+                    .load_subagent(&p.task_id, &p.expected_thread_id, &p.child_thread_id)
+                    .await
+                    .map_err(failed)
+            }
             "codex.subagent.history.read" => {
                 let p = serde_json::from_value(params).map_err(|_| invalid())?;
                 codex.read_subagent_history(p).await.map_err(failed)
