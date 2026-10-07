@@ -43,6 +43,22 @@ struct CodexSubagent: Codable, Equatable, Identifiable {
   }
 }
 
+/// Overview membership is presentation only. Keep terminal children in the task
+/// so an already-open detail can retain history, drafts and a retry composer.
+struct SubagentOverview {
+  let visible: [CodexSubagent]
+  var active: [CodexSubagent] { visible.filter { $0.status != .completed } }
+  var done: [CodexSubagent] { visible.filter { $0.status == .completed } }
+  init(_ agents: [CodexSubagent]) {
+    visible = agents.filter {
+      switch $0.status {
+      case .failed, .interrupted, .shutdown: false
+      default: true
+      }
+    }
+  }
+}
+
 /// A snapshot is applied only after every ordered chunk arrives. Partial or
 /// malformed frames must not hide an active child or enable Stop for a peer.
 struct CodexSubagentSnapshotAssembler {

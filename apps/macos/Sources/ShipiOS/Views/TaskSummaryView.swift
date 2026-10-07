@@ -122,7 +122,7 @@ struct TaskSummaryView: View {
             BackgroundTerminalSummarySection(terminals: backgroundTerminals,
               cleaning: cleaningBackgroundTerminal, open: openBackgroundTerminal, clean: cleanBackgroundTerminal)
           }
-          if let subagents = task.codexSubagents?.filter({ $0.status != .shutdown }), !subagents.isEmpty {
+          if let subagents = task.codexSubagents.map({ SubagentOverview($0).visible }), !subagents.isEmpty {
             Divider()
             SubagentsSummaryButton(agents: subagents, open: openSubagents)
           }

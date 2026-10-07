@@ -5,8 +5,9 @@ struct SubagentsPanelView: View {
   var onSelect: ((CodexSubagent) -> Void)? = nil
   @State private var showAllActive = false
   @State private var showAllDone = false
-  private var active: [CodexSubagent] { agents.filter { $0.status != .completed && $0.status != .shutdown } }
-  private var done: [CodexSubagent] { agents.filter { $0.status == .completed } }
+  private var overview: SubagentOverview { SubagentOverview(agents) }
+  private var active: [CodexSubagent] { overview.active }
+  private var done: [CodexSubagent] { overview.done }
 
   var body: some View {
     ScrollView {
@@ -82,7 +83,7 @@ struct SubagentAvatar: View {
 struct SubagentsSummaryButton: View {
   let agents: [CodexSubagent]
   let open: () -> Void
-  private var visible: [CodexSubagent] { agents.filter { $0.status != .shutdown } }
+  private var visible: [CodexSubagent] { SubagentOverview(agents).visible }
   private var working: [CodexSubagent] { visible.filter(\.working) }
   private var done: [CodexSubagent] { visible.filter { $0.status == .completed } }
   var body: some View {
