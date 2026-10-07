@@ -28,6 +28,8 @@ Hooks 主窗口审阅、独立信任/启停和实际 Core 会话接入见[第 60
 
 浏览器标题更新、清理后历史复活与文件搜索旧期限的竞态修正见[第 625 篇](docs/625-browser-history-and-search-deadline-races.md)。293 项关联及两项搜索连续 12 轮通过，构建/签名/IPC/Core 冒烟通过；最新源码全量仍须验证，完整页面配对继续 0/47。
 
+子任务附件原名称/文件历史卡片、提交前持久化、统一引用和父线程冷恢复见[第 626 篇](docs/626-subagent-attachment-history-and-references.md)。170 项关联及正式包专项通过；本轮前台已实操混合附件发送、文件/图库预览关闭与详情返回，设置浏览器子页也有导航证据。完整配对仍 0/47；未发送草稿生命周期、全部子功能与桌面路径读取停滞继续待处理。第 625 篇全量已停止且无终态结果，不能计为通过。
+
 ## 本地运行
 
 需要 macOS 14+、Swift 6.2+、Rust 1.95+；构建 iOS fixture 需要完整 Xcode 与 iOS Simulator SDK。已在 Rust 1.97.1、Xcode 26.3 上验证。首次构建需要下载依赖；无需 API Key。Markdown 解析依赖要求 Swift 6.2 工具链，应用仍支持 macOS 14。

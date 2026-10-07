@@ -27,7 +27,8 @@ struct SubagentWorkspacePanel: View {
       if let selected = detail.selected {
         header(selected)
         Divider()
-        SubagentTranscriptView(transcript: detail.transcript, loading: detail.loading, error: detail.error ?? live?.error,
+        SubagentTranscriptView(transcript: detail.transcript.attaching(store.subagentSubmissions(taskID: taskID,
+          rootThreadID: selected.rootThreadID, childThreadID: selected.threadID), root: store.dataRoot), loading: detail.loading, error: detail.error ?? live?.error,
           retry: { reload += 1 }, openLink: openLink,
           approvalStatus: { live?.error == nil ? live?.approvals[$0] : nil }, approvalBusy: { store.subagentApprovalBusy.contains($0) },
           approvalError: { store.subagentApprovalErrors[$0] }, approve: { request, choice in
@@ -40,7 +41,7 @@ struct SubagentWorkspacePanel: View {
           }, elicit: { request, choice, content in
             guard let current else { return }
             Task { await store.resolveSubagentElicitation(taskID: taskID, agent: current, request: request, choice: choice, content: content) }
-          }, store: store)
+          }, store: store, onPreviewFile: { previewFile = $0 })
         if current?.acceptsInput == true && parentRoot == selected.rootThreadID {
           composer
         }
@@ -141,6 +142,7 @@ struct SubagentTranscriptView: View {
   var openVerificationURL: ((URL) -> Void)? = nil
   var elicit: (SubagentElicitationRequest, SubagentElicitationRequest.Choice, JSONValue?) -> Void = { _, _, _ in }
   var store: WorkspaceStore? = nil
+  var onPreviewFile: ((FileAttachment) -> Void)? = nil
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 24) {
@@ -161,7 +163,11 @@ struct SubagentTranscriptView: View {
               MessageMarkdownView(source: entry.text, partPrefix: "subagent:" + entry.id, openLink: openLink)
             case .user:
               VStack(alignment: .leading, spacing: 10) {
-                if let store, !entry.localImagePaths.isEmpty { SubagentHistoryImagesView(store: store, paths: entry.localImagePaths) }
+                if let store {
+                  if entry.hasAttachmentMetadata { ImageAttachmentsView(store: store, images: entry.images) }
+                  else if !entry.localImagePaths.isEmpty { SubagentHistoryImagesView(store: store, paths: entry.localImagePaths) }
+                  FileAttachmentsView(store: store, files: entry.files, onPreview: onPreviewFile)
+                }
                 if !entry.text.isEmpty { Text(entry.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
               }
                 .padding(12).background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))

@@ -7,6 +7,7 @@ final class CodexChatTransport {
   var onBrowserRequest: ((String, UUID, JSONValue) -> Void)?
   var onRuntimeCommandEvent: ((String, String?, JSONValue) -> Void)?
   var onSubagentEvent: ((String, String?, JSONValue) -> Void)?
+  var onSubagentSubmission: ((SubagentSubmission) throws -> Void)?
   var onSubagentSnapshot: ((String, String?, JSONValue) -> Void)?
   var onThreadDisconnected: ((String) -> Void)?
   var onHookEvent: ((String, String?, JSONValue) -> Void)?
@@ -467,7 +468,7 @@ final class CodexChatTransport {
     text: String, expectedTurnID: String?, images: [ImageAttachment] = [], files: [FileAttachment] = []) async throws -> String {
     guard activeThreads.contains(taskID) else { throw AgentFailure(message: "父会话尚未连接。") }
     guard text.utf8.count <= 48_000, images.count <= ImageAttachmentStorage.maxCount else {
-      throw AgentFailure(message: "子任务文字超过 48 KiB 或图片超过 8 张。")
+      throw AgentFailure(message: "子任务文字超过 48,000 字节或图片超过 8 张。")
     }
     var imageBytes = 0
     for image in images {
@@ -490,9 +491,21 @@ final class CodexChatTransport {
       "images": .array(images.map { .object(["id": .string($0.id.uuidString),
         "fileExtension": .string($0.fileExtension), "byteCount": .number(Double($0.byteCount))]) })]
     if let staged { request["textAttachment"] = .object(["id": .string(staged.id.uuidString), "byteCount": .number(Double(staged.byteCount))]) }
-    let response = try await client(for: taskID).request("codex.subagent.submit", request)
-    guard let turn = response["turnId"].text, !turn.isEmpty else { throw AgentFailure(message: "子任务没有确认输入。") }
-    return turn
+    var record = SubagentSubmission(taskID: taskID, rootThreadID: rootThreadID, childThreadID: childThreadID,
+      message: .init(role: "user", content: text, images: images, files: files), wireText: text + appendix,
+      expectedTurnID: expectedTurnID)
+    try onSubagentSubmission?(record)
+    do {
+      let response = try await client(for: taskID).request("codex.subagent.submit", request)
+      guard let turn = response["turnId"].text, !turn.isEmpty else { throw AgentFailure(message: "子任务没有确认输入。") }
+      record.turnID = turn; record.phase = .accepted
+      try? onSubagentSubmission?(record)
+      return turn
+    } catch {
+      record.phase = .unconfirmed
+      try? onSubagentSubmission?(record)
+      throw error
+    }
   }
 
   func interruptSubagent(taskID: String, rootThreadID: String, childThreadID: String, expectedTurnID: String) async throws {

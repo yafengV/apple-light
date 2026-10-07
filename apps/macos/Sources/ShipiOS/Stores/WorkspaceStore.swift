@@ -554,6 +554,10 @@ final class WorkspaceStore {
     codexTransport.onSubagentEvent = { [weak self] taskID, threadID, event in
       self?.recordSubagentEvent(taskID: taskID, threadID: threadID, event: event)
     }
+    codexTransport.onSubagentSubmission = { [weak self] record in
+      guard let self else { throw AgentFailure(message: "工作区已关闭。") }
+      try self.recordSubagentSubmission(record)
+    }
     codexTransport.onSubagentSnapshot = { [weak self] taskID, threadID, event in
       self?.recordSubagentSnapshot(taskID: taskID, threadID: threadID, event: event)
     }

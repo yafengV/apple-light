@@ -333,10 +333,12 @@ struct WorkspaceLibrary: Codable {
   var runImages: [String: [ImageAttachment]] = [:]
   var draftFiles: [String: [FileAttachment]] = [:]
   var runFiles: [String: [FileAttachment]] = [:]
+  var subagentSubmissions: [SubagentSubmission] = []
   var fileReferences: [UUID: FileAttachment] {
     var files = Array(draftFiles.values).flatMap { $0 }
     files += Array(runFiles.values).flatMap { $0 }
     files += queuedMessages.flatMap(\.files)
+    files += subagentSubmissions.flatMap { $0.message.files }
     for run in chatRuns { files += run.codexSteeredMessages.flatMap(\.files) }
     return Dictionary(files.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
@@ -344,6 +346,7 @@ struct WorkspaceLibrary: Codable {
     var images = Array(draftImages.values).flatMap { $0 }
     images += Array(runImages.values).flatMap { $0 }
     images += queuedMessages.flatMap(\.images)
+    images += subagentSubmissions.flatMap { $0.message.images }
     for run in chatRuns { images += run.codexSteeredMessages.flatMap(\.images) }
     return Dictionary(images.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
@@ -424,7 +427,7 @@ struct WorkspaceLibrary: Codable {
 
   init() {}
   enum CodingKeys: String, CodingKey {
-    case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, bookmarkedRunIDs, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, profiles, chatRuns, queuedMessages, projectNames,
+    case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, bookmarkedRunIDs, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, subagentSubmissions, profiles, chatRuns, queuedMessages, projectNames,
       pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, reviewDiffSplit, reviewDiffWrap, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
@@ -469,6 +472,7 @@ struct WorkspaceLibrary: Codable {
     runImages = try c.decodeIfPresent([String: [ImageAttachment]].self, forKey: .runImages) ?? [:]
     draftFiles = try c.decodeIfPresent([String: [FileAttachment]].self, forKey: .draftFiles) ?? [:]
     runFiles = try c.decodeIfPresent([String: [FileAttachment]].self, forKey: .runFiles) ?? [:]
+    subagentSubmissions = try c.decodeIfPresent([SubagentSubmission].self, forKey: .subagentSubmissions) ?? []
     drafts = try c.decodeIfPresent([String: String].self, forKey: .drafts) ?? [:]
     linkedNewTaskDraftIDs =
       try c.decodeIfPresent([String: UUID].self, forKey: .linkedNewTaskDraftIDs) ?? [:]
@@ -730,6 +734,7 @@ struct WorkspaceLibrary: Codable {
       runImages[id] = nil
       runFiles[id] = nil
     }
+    subagentSubmissions.removeAll { deletedTaskIDs.contains($0.taskID) }
     for id in deletedTaskIDs {
       workspaceTabLayouts[id] = nil
       for windowID in Array(taskWindowTabLayouts.keys) {

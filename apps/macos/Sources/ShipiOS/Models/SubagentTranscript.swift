@@ -5,10 +5,14 @@ struct SubagentTranscriptEntry: Identifiable, Equatable {
   let id: String
   let kind: Kind
   let title: String?
-  let text: String
+  var text: String
   var approval: SubagentApprovalRequest? = nil
   var elicitation: SubagentElicitationRequest? = nil
   var localImagePaths: [String] = []
+  var turnID: String? = nil
+  var images: [ImageAttachment] = []
+  var files: [FileAttachment] = []
+  var hasAttachmentMetadata = false
 }
 
 struct SubagentTranscript: Equatable {
@@ -19,14 +23,16 @@ struct SubagentTranscript: Equatable {
     // Choose each turn's native presentation family independently. Older
     // durable turns can use raw messages while current turns have legacy/items.
     var scopes: [String] = [], scope = "before-turn"
+    var nativeTurns: [String?] = [], nativeTurn: String?
     var legacyUsers: Set<String> = [], legacyAssistants: Set<String> = []
     var legacyReasoning: Set<String> = []
     var nativeUsers: Set<String> = [], nativeAssistants: Set<String> = []
     for event in events {
       if ["task_started", "turn_started"].contains(event["type"].text ?? "") {
-        scope = event["turn_id"].text ?? "turn-" + String(scopes.count)
+        nativeTurn = event["turn_id"].text
+        scope = nativeTurn ?? "turn-" + String(scopes.count)
       }
-      scopes.append(scope)
+      scopes.append(scope); nativeTurns.append(nativeTurn)
       if event["type"].text == "user_message" { legacyUsers.insert(scope); nativeUsers.insert(scope) }
       if event["type"].text == "agent_reasoning" { legacyReasoning.insert(scope) }
       if event["type"].text == "agent_message" { legacyAssistants.insert(scope); nativeAssistants.insert(scope) }
@@ -59,7 +65,7 @@ struct SubagentTranscript: Equatable {
       func user(_ text: String?, images: [String]) {
         let text = text ?? ""
         guard !text.isEmpty || !images.isEmpty else { return }
-        entries.append(.init(id: String(index), kind: .user, title: nil, text: text, localImagePaths: images))
+        entries.append(.init(id: String(index), kind: .user, title: nil, text: text, localImagePaths: images, turnID: nativeTurns[index]))
       }
       switch event["type"].text {
       case "task_started", "turn_started":
@@ -113,7 +119,8 @@ struct SubagentTranscript: Equatable {
           let role = item["role"].text
           guard role == "user" && !nativeUsers.contains(scope) || role == "assistant" && !nativeAssistants.contains(scope) else { continue }
           let parts = item["content"].decodeArray
-          append(role == "user" ? .user : .assistant, parts.compactMap { $0["text"].text }.joined(separator: "\n"))
+          let text = parts.compactMap { $0["text"].text }.joined(separator: "\n")
+          if role == "user" { user(text, images: []) } else { append(.assistant, text) }
         case "function_call", "custom_tool_call":
           let id = item["call_id"].text ?? "", name = item["name"].text ?? "工具"
           toolNames[id] = name
