@@ -14,7 +14,7 @@ let package = Package(
     .executableTarget(
       name: "ShipiOS",
       dependencies: ["SwiftTerm", .product(name: "Markdown", package: "swift-markdown"), "Yams"],
-      resources: [.copy("Resources/SyntaxHighlighting")]),
+      resources: [.copy("Resources/SyntaxHighlighting"), .copy("Resources/AgentAvatars")]),
     .testTarget(name: "ShipiOSTests", dependencies: ["ShipiOS"], resources: [.copy("Fixtures")]),
   ]
 )

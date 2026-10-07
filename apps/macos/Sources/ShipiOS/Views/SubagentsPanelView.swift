@@ -81,10 +81,7 @@ struct SubagentsPanelView: View {
 struct SubagentAvatar: View {
   let agent: CodexSubagent
   var body: some View {
-    Image(systemName: "person.fill").font(.system(size: 12))
-      .frame(width: 24, height: 24)
-      .background(.secondary.opacity(0.12), in: Circle())
-      .accessibilityHidden(true)
+    SeededAgentAvatar(seed: agent.threadID)
   }
 }
 
