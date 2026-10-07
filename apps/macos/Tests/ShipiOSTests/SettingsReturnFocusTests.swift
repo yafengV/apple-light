@@ -12,6 +12,11 @@ import XCTest
     XCTAssertTrue(fixture.window.makeFirstResponder(editor))
     let focus = fixture.store.focusComposer
     fixture.store.openSettings(.general)
+    let captured = fixture.store.settingsReturnFocus?.target.window
+    let windowState = NSApp.windows.filter { $0.identifier?.rawValue == "main" }.map {
+      "\(type(of: $0)) visible=\($0.isVisible) key=\($0.isKeyWindow) expected=\($0 === fixture.window) captured=\($0 === captured)"
+    }.joined(separator: "; ")
+    XCTAssertTrue(captured === fixture.window, "Settings must capture the live source window: " + windowState)
     fixture.state.enabled = false
     try await fixture.settle()
     XCTAssertFalse(editor.isEditable)
@@ -27,6 +32,43 @@ import XCTest
     XCTAssertEqual(fixture.state.text, "中文 child draft🙂")
     XCTAssertEqual(fixture.store.focusComposer, focus)
     XCTAssertNotNil(ComposerCommandContext.focused(in: fixture.window))
+  }
+
+  func testSettingsCapturePrefersActiveMainWindowOverAnEarlierInactiveCandidate() async throws {
+    let fixtures = [try await ChildComposerFixture(), try await ChildComposerFixture()]
+    defer { fixtures.forEach { $0.close() } }
+    let first = try XCTUnwrap(NSApp.windows.first { $0.identifier?.rawValue == "main" })
+    let source = try XCTUnwrap(fixtures.first { $0.window !== first })
+    for fixture in fixtures { fixture.window.acceptsFocus = fixture === source }
+    let editor = try XCTUnwrap(source.editor)
+    XCTAssertTrue(source.window.makeFirstResponder(editor))
+    let focus = source.store.focusComposer
+    source.store.openSettings(.general)
+    XCTAssertTrue(source.store.settingsReturnFocus?.target.window === source.window,
+      "Entering settings must capture the active main window, not the first retained identifier match")
+    source.state.enabled = false; try await source.settle()
+    source.window.makeFirstResponder(source.query)
+    source.store.closeSettings(); try await source.settle()
+    source.state.enabled = true; try await source.settle()
+    XCTAssertTrue(source.window.firstResponder === editor)
+    XCTAssertEqual(source.store.focusComposer, focus)
+    XCTAssertEqual(source.state.text, "中文 child draft🙂")
+  }
+
+  func testSettingsCaptureUsesVisibleMainWhenNoMainCandidateIsActive() async throws {
+    let fixtures = [try await ChildComposerFixture(), try await ChildComposerFixture()]
+    defer { fixtures.forEach { $0.close() } }
+    let first = try XCTUnwrap(NSApp.windows.first { $0.identifier?.rawValue == "main" })
+    let source = try XCTUnwrap(fixtures.first { $0.window !== first })
+    for fixture in fixtures { fixture.window.acceptsFocus = false }
+    source.window.orderFront(nil)
+    XCTAssertTrue(source.window.isVisible)
+    source.store.openSettings(.general)
+    XCTAssertTrue(source.store.settingsReturnFocus?.target.window === source.window)
+    source.window.makeFirstResponder(source.query)
+    source.store.closeSettings(); try await source.settle()
+    XCTAssertTrue(source.window.firstResponder === source.query.currentEditor(),
+      "Capturing a visible inactive main window must not bypass the existing inactive-window restore guard")
   }
 
   func testPendingChildReturnCannotStealFocusAfterTaskChangeOrSettingsReentry() async throws {

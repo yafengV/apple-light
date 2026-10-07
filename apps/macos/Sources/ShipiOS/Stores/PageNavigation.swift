@@ -70,7 +70,14 @@ extension WorkspaceStore {
     terminalFocusRequest = nil
     showingModelPicker = false
     showingBranchPicker = false
-    let window = NSApp?.windows.first { $0.identifier?.rawValue == "main" } ?? NSApp?.keyWindow
+    // AppKit can retain an older window with the same scene identifier after
+    // closing. Capture the active main window before falling back to a visible
+    // or hidden scene; array order is not an ownership signal.
+    let mainWindows = NSApp?.windows.filter { $0.identifier?.rawValue == "main" } ?? []
+    let window = mainWindows.first { $0.isKeyWindow }
+      ?? mainWindows.first { $0.isVisible }
+      ?? mainWindows.first
+      ?? NSApp?.keyWindow
     if destination != .settings {
       settingsReturnDestination = destination
       settingsFocusRevision = UUID()
