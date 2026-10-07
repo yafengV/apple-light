@@ -1,0 +1,138 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": {
+    "settings": "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
+    "app": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+    "shared": "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "css": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  },
+  "defaultEnabled": true,
+  "baseAntialiased": true,
+  "controls": [
+    {
+      "platform": "macOS",
+      "checked": false,
+      "visible": true,
+      "label": "Font smoothing",
+      "description": "Use native macOS font anti-aliasing",
+      "writes": [
+        {
+          "key": "smoothing",
+          "value": true
+        },
+        {
+          "key": "smoothing",
+          "value": false
+        }
+      ]
+    },
+    {
+      "platform": "macOS",
+      "checked": true,
+      "visible": true,
+      "label": "Font smoothing",
+      "description": "Use native macOS font anti-aliasing",
+      "writes": [
+        {
+          "key": "smoothing",
+          "value": false
+        },
+        {
+          "key": "smoothing",
+          "value": true
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "checked": false,
+      "visible": false,
+      "label": null,
+      "description": null,
+      "writes": []
+    },
+    {
+      "platform": "windows",
+      "checked": true,
+      "visible": false,
+      "label": null,
+      "description": null,
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "checked": false,
+      "visible": false,
+      "label": null,
+      "description": null,
+      "writes": []
+    },
+    {
+      "platform": "linux",
+      "checked": true,
+      "visible": false,
+      "label": null,
+      "description": null,
+      "writes": []
+    }
+  ],
+  "effects": [
+    {
+      "os": "darwin",
+      "enabled": false,
+      "ready": false,
+      "root": "old-override",
+      "body": "old-override"
+    },
+    {
+      "os": "darwin",
+      "enabled": false,
+      "ready": true,
+      "root": null,
+      "body": null
+    },
+    {
+      "os": "darwin",
+      "enabled": true,
+      "ready": false,
+      "root": "old-override",
+      "body": "old-override"
+    },
+    {
+      "os": "darwin",
+      "enabled": true,
+      "ready": true,
+      "root": "antialiased",
+      "body": "antialiased"
+    },
+    {
+      "os": "linux",
+      "enabled": false,
+      "ready": false,
+      "root": "old-override",
+      "body": "old-override"
+    },
+    {
+      "os": "linux",
+      "enabled": false,
+      "ready": true,
+      "root": null,
+      "body": null
+    },
+    {
+      "os": "linux",
+      "enabled": true,
+      "ready": false,
+      "root": "old-override",
+      "body": "old-override"
+    },
+    {
+      "os": "linux",
+      "enabled": true,
+      "ready": true,
+      "root": null,
+      "body": null
+    }
+  ]
+}

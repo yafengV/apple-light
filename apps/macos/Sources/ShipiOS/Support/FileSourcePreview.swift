@@ -46,6 +46,7 @@ struct FileSourcePreview: NSViewRepresentable {
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let text = scroll.documentView as? FilePreviewTextView else { return }
+    text.useFontSmoothing = appearance.useFontSmoothing
     workspace.fileFind.bind(editor: text)
     workspace.selectionEdit.bind(editor: text)
     scroll.drawsBackground = true; scroll.backgroundColor = NSColor(appearance.codeBackgroundColor)
@@ -507,7 +508,7 @@ final class FileSelectionInlineLayout: NSObject, NSLayoutManagerDelegate {
   }
 }
 
-final class FilePreviewTextView: NSTextView {
+final class FilePreviewTextView: AppearanceTextView {
   let syntax = FilePreviewSyntaxController()
   weak var workspace: DeveloperWorkspace?
   var onFocus: (() -> Void)?

@@ -83,6 +83,7 @@ enum ComposerTextStylePlan {
 
 struct ComposerTextEditor: NSViewRepresentable {
   @Environment(\.isEnabled) private var isEnabled
+  @Environment(\.appAppearance) private var appearance
   @Binding var text: String
   @Binding var focused: Bool
   let plainTextMode: Bool
@@ -122,6 +123,7 @@ struct ComposerTextEditor: NSViewRepresentable {
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? ComposerNativeTextView else { return }
+    editor.useFontSmoothing = appearance.useFontSmoothing
     context.coordinator.parent = self
     let focusChanged = context.coordinator.appliedFocus != focused
     context.coordinator.appliedFocus = focused
@@ -421,7 +423,7 @@ struct ComposerTextEditor: NSViewRepresentable {
   }
 }
 
-final class ComposerNativeTextView: NSTextView {
+final class ComposerNativeTextView: AppearanceTextView {
   weak var coordinator: ComposerTextEditor.Coordinator?
   var placeholder = ""
   override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
@@ -450,8 +452,8 @@ final class ComposerNativeTextView: NSTextView {
     super.paste(sender)
   }
 
-  override func draw(_ dirtyRect: NSRect) {
-    super.draw(dirtyRect)
+  override func drawTextSurface(_ dirtyRect: NSRect) {
+    super.drawTextSurface(dirtyRect)
     guard string.isEmpty, !placeholder.isEmpty else { return }
     let attributes: [NSAttributedString.Key: Any] = [
       .font: NSFont.systemFont(ofSize: 14),

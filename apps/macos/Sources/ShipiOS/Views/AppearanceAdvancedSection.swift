@@ -45,6 +45,10 @@ struct AppearanceAdvancedSection: View {
             Text("选择应用在 Dock 中使用的图标").appFont(size: 12).foregroundStyle(.secondary)
           }
         }
+        AppearanceSettingsDivider()
+        SettingsToggle(title: "字体平滑", description: "使用 macOS 原生字体抗锯齿",
+          isOn: binding(\.useFontSmoothing))
+          .padding(.horizontal, 16).padding(.vertical, 12).settingsSearchTarget(.fontSmoothing)
       }.labeledContentStyle(AppearanceSettingsRowStyle(compact: false))
     }.disabled(!available)
   }

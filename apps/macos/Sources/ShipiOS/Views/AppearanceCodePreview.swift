@@ -80,7 +80,7 @@ struct AppearanceCodeSurface: NSViewRepresentable {
     // JSON string quoting is also valid for a CSS quoted family name.
     let quotedFace = face.flatMap { try? String(data: JSONEncoder().encode($0), encoding: .utf8) }
     let font = [quotedFace, family.isEmpty ? nil : family, "ui-monospace, SFMono-Regular, Menlo, monospace"].compactMap { $0 }.joined(separator: ", ")
-    return ["dark": dark, "size": appearance.codeSize, "font": font,
+    return ["dark": dark, "size": appearance.codeSize, "font": font, "fontSmoothing": appearance.useFontSmoothing,
       "surface": raw.surface, "background": theme?.background ?? raw.surface,
       "foreground": theme?.foreground ?? raw.ink, "added": raw.semanticColors.diffAdded,
       "removed": raw.semanticColors.diffRemoved, "symbols": appearance.diffMarkerStyle == .symbols,
@@ -105,6 +105,7 @@ struct AppearanceCodeSurface: NSViewRepresentable {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'none'; connect-src 'none'">
   <style>
   *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}
+  html{-webkit-font-smoothing:antialiased}
   body{font:var(--size)/1.8 var(--font);color:var(--fg);background:var(--surface)}
   main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);height:100%}
   .pane{min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:none;tab-size:2}
@@ -136,6 +137,10 @@ struct AppearanceCodeSurface: NSViewRepresentable {
   }
   window.renderPreview=function(p){
     const saved=captureSelection(),style=document.body.style;
+    for(const node of [document.documentElement,document.body]){
+      if(p.fontSmoothing)node.style.setProperty('-webkit-font-smoothing','antialiased');
+      else node.style.removeProperty('-webkit-font-smoothing');
+    }
     for(const [key,value] of Object.entries({'--size':p.size+'px','--font':p.font,'--surface':p.surface,'--bg':p.background,'--fg':p.foreground,'--added':p.added,'--removed':p.removed,'--line-mix':p.dark?'80%':'88%','--number-mix':p.dark?'85%':'91%'}))style.setProperty(key,value);
     document.body.classList.toggle('symbols',p.symbols);document.body.style.colorScheme=p.dark?'dark':'light';
     for(const [index,lines] of [p.left,p.right].entries()){

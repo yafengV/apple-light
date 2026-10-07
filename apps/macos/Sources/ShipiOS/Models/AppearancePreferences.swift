@@ -84,6 +84,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
   var foreground: String?
   var light = AppearancePalette.light
   var dark = AppearancePalette.dark
+  var useFontSmoothing = true
   var usePointerCursors = false
   var dockIcon = DockIconPreference.appDefault
   var diffMarkerStyle = DiffMarkerStyle.color
@@ -92,7 +93,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
 
   enum CodingKeys: String, CodingKey {
     case theme, uiFont, codeFont, uiSize, codeSize, accent, background, foreground
-    case light, dark, usePointerCursors, dockIcon, diffMarkerStyle, reduceMotion, codeThemes
+    case light, dark, useFontSmoothing, usePointerCursors, dockIcon, diffMarkerStyle, reduceMotion, codeThemes
   }
 
   init() {}
@@ -115,6 +116,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
       translucentSidebar: true, contrast: 60)
     light = try values.decodeIfPresent(AppearancePalette.self, forKey: .light) ?? migratedLight
     dark = try values.decodeIfPresent(AppearancePalette.self, forKey: .dark) ?? migratedDark
+    useFontSmoothing = try values.decodeIfPresent(Bool.self, forKey: .useFontSmoothing) ?? true
     usePointerCursors = try values.decodeIfPresent(Bool.self, forKey: .usePointerCursors) ?? false
     dockIcon = DockIconPreference(rawValue: try values.decodeIfPresent(String.self, forKey: .dockIcon) ?? "") ?? .appDefault
     diffMarkerStyle =

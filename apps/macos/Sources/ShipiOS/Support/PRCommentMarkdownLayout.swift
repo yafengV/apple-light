@@ -84,6 +84,7 @@ struct PRCommentMarkdownText: NSViewRepresentable {
     view.linkTextAttributes = [:]; view.delegate = view; return view
   }
   func updateNSView(_ view: TextView, context: Context) {
+    view.useFontSmoothing = appearance.useFontSmoothing
     let content = NSMutableAttributedString(attributedString: LegacyMessageLinkText.attributedText(text, appearance: appearance, size: font.pointSize,
       weight: weight, lineSpacing: 0, fontOverride: font, lineHeight: lineHeight, inlineCodeScale: 0.92)
     )
@@ -113,7 +114,7 @@ struct PRCommentMarkdownText: NSViewRepresentable {
     return .init(width: proposal.width == nil ? used.width : width, height: used.height)
   }
   static func dismantleNSView(_ view: TextView, coordinator: ()) { view.owner?.remove(view); view.owner = nil; view.open = nil }
-  final class TextView: NSTextView, NSTextViewDelegate {
+  final class TextView: AppearanceTextView, NSTextViewDelegate {
     weak var owner: PRCommentMarkdownLayout?
     var source = "", trailing: CGFloat = 0
     var open: ((URL) -> Void)?

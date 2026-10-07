@@ -32,6 +32,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
   }
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? TextView else { return }
+    editor.useFontSmoothing = appearance.useFontSmoothing
     context.coordinator.parent = self
     context.coordinator.updatingView = true
     defer { context.coordinator.updatingView = false }
@@ -170,7 +171,7 @@ struct PullRequestTextEditor: NSViewRepresentable {
       return false
     }
   }
-  final class TextView: NSTextView {
+  final class TextView: AppearanceTextView {
     var field = GitHubPREditField.title
     var submit: () -> Void = {}
     var cancel: () -> Void = {}
@@ -179,8 +180,8 @@ struct PullRequestTextEditor: NSViewRepresentable {
     var placeholder: String?
     var placeholderColor = NSColor.tertiaryLabelColor
     override var textContainerOrigin: NSPoint { growing ? .init(x: 0, y: 10) : super.textContainerOrigin }
-    override func draw(_ dirtyRect: NSRect) {
-      super.draw(dirtyRect)
+    override func drawTextSurface(_ dirtyRect: NSRect) {
+      super.drawTextSurface(dirtyRect)
       if string.isEmpty, let placeholder {
         var attributes: [NSAttributedString.Key: Any] = [.font: font ?? .systemFont(ofSize: 16), .foregroundColor: placeholderColor]
         if let defaultParagraphStyle { attributes[.paragraphStyle] = defaultParagraphStyle }

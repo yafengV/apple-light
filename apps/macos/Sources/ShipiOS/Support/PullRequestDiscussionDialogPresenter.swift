@@ -81,13 +81,13 @@ struct PullRequestDiscussionDialogPresenter: NSViewRepresentable {
       super.resetCursorRects(); if preferences.usePointerCursors && acceptsFirstResponder { addCursorRect(bounds, cursor: .pointingHand) }
     }
   }
-  final class TextView: NSTextView {
+  final class TextView: AppearanceTextView {
     var available: () -> Bool = { false }
     var placeholder = "添加评论…" { didSet { needsDisplay = true } }
     override var acceptsFirstResponder: Bool { isEditable && available() && super.acceptsFirstResponder && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
-    override func draw(_ dirtyRect: NSRect) {
-      super.draw(dirtyRect)
+    override func drawTextSurface(_ dirtyRect: NSRect) {
+      super.drawTextSurface(dirtyRect)
       if string.isEmpty {
         NSAttributedString(string: placeholder, attributes: [.font: font ?? .systemFont(ofSize: 13),
           .foregroundColor: NSColor.secondaryLabelColor]).draw(at: .init(x: textContainerInset.width + 5, y: textContainerInset.height))
@@ -336,6 +336,7 @@ struct PullRequestDiscussionDialogPresenter: NSViewRepresentable {
         form.editor.string = parent.state.reviewBody
         form.editor.setSelectedRange(.init(location: min(range.location, length), length: min(range.length, max(0, length - range.location))))
       }
+      form.editor.useFontSmoothing = preferences.useFontSmoothing
       form.editor.font = preferences.nativeFont(size: 13); form.editor.textColor = preferences.resolvedColors["textForeground"].nativeColor
       form.editor.placeholder = parent.state.reviewDecision == .approve ? "可选评论" : "添加评论…"
       form.editor.isEditable = canEditReview; form.editor.isSelectable = canEditReview

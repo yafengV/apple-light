@@ -6,6 +6,7 @@ extension AppearancePreferences {
     if uiSize != defaults.uiSize || codeSize != defaults.codeSize || !codeFont.isEmpty { return true }
     if reduceMotion != defaults.reduceMotion || diffMarkerStyle != defaults.diffMarkerStyle { return true }
     if usePointerCursors != defaults.usePointerCursors { return true }
+    if useFontSmoothing != defaults.useFontSmoothing { return true }
     if dockIcon != defaults.dockIcon { return true }
     for (palette, contrast) in [(light, defaults.light.contrast), (dark, defaults.dark.contrast)] {
       if palette.contrast != contrast || !palette.translucentSidebar { return true }
@@ -27,6 +28,7 @@ extension AppearancePreferences {
     value.diffMarkerStyle = defaults.diffMarkerStyle
     value.usePointerCursors = defaults.usePointerCursors
     value.dockIcon = defaults.dockIcon
+    value.useFontSmoothing = defaults.useFontSmoothing
     for dark in [false, true] {
       var palette = dark ? value.dark : value.light
       palette.uiFace = nil

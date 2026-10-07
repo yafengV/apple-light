@@ -43,6 +43,7 @@ struct LegacyMessageLinkText: NSViewRepresentable {
   }
 
   func updateNSView(_ view: TextView, context: Context) {
+    view.useFontSmoothing = appearance.useFontSmoothing
     let native = Self.attributedText(text, appearance: appearance, size: fontSize, weight: weight,
       lineSpacing: lineSpacing, alignment: alignment, secondary: secondary)
     view.actions = actions
@@ -106,7 +107,7 @@ struct LegacyMessageLinkText: NSViewRepresentable {
     return result
   }
 
-  final class TextView: NSTextView, NSTextViewDelegate {
+  final class TextView: AppearanceTextView, NSTextViewDelegate {
     var actions: MessageLinkActions?
     var openLink: ((URL) -> Void)?
     private var pressed: (url: URL, point: NSPoint, activate: (URL, WebLinkClick) -> Void)?

@@ -32,6 +32,7 @@ struct SettingsTextEditor: NSViewRepresentable {
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? TextView else { return }
+    editor.useFontSmoothing = appearance.useFontSmoothing
     context.coordinator.parent = self
     editor.setEnabled(isEnabled)
     editor.placeholder = placeholder
@@ -84,11 +85,11 @@ struct SettingsTextEditor: NSViewRepresentable {
     }
   }
 
-  final class TextView: NSTextView {
+  final class TextView: AppearanceTextView {
     var placeholder = "" { didSet { if placeholder != oldValue { needsDisplay = true } } }
 
-    override func draw(_ dirtyRect: NSRect) {
-      super.draw(dirtyRect)
+    override func drawTextSurface(_ dirtyRect: NSRect) {
+      super.drawTextSurface(dirtyRect)
       guard string.isEmpty, !placeholder.isEmpty, !hasMarkedText() else { return }
       (placeholder as NSString).draw(at: NSPoint(
         x: textContainerInset.width + (textContainer?.lineFragmentPadding ?? 0),
