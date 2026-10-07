@@ -49,7 +49,7 @@ extension WorkspaceStore {
     }
     _ = try owner()
     // Opening a recorded closed child is history navigation, not resume_agent.
-    if agent.status == .shutdown { return }
+    if subagents(taskID: taskID).first(where: { $0.id == agent.id })?.status == .shutdown { return }
     let row = try await codexTransport.loadSubagent(taskID: taskID, rootThreadID: agent.rootThreadID, childThreadID: agent.threadID)
     _ = try owner()
     guard let statusName = row["status"].text, let status = CodexSubagentStatus(rawValue: statusName),
@@ -96,7 +96,7 @@ extension WorkspaceStore {
         row.depth = row.depth ?? old.depth; row.model = row.model ?? old.model
         row.reasoningEffort = row.reasoningEffort ?? old.reasoningEffort
         row.preview = row.preview ?? old.preview
-        if !old.status.working { row.status = old.status }
+        if row.status == .notLoaded, !old.status.working { row.status = old.status }
       }
       next.append(row)
     }

@@ -571,6 +571,7 @@ impl Drop for SessionHomeGuard {
 pub struct CodexSession {
     manager: Arc<ThreadManager>,
     thread_store: Arc<dyn codex_thread_store::ThreadStore>,
+    agent_graph: Option<Arc<dyn codex_agent_graph_store::AgentGraphStore>>,
     thread_id: ThreadId,
     thread: Arc<CodexThread>,
     model: String,
@@ -823,6 +824,7 @@ impl CodexSession {
         let state_db = init_state_db(&config).await;
         let auth_manager = AuthManager::shared_from_config(&config, false).await?;
         let thread_store = thread_store_from_config(&config, state_db.clone());
+        let agent_graph = local_agent_graph_store_from_state_db(state_db.as_ref());
         let environment_manager = Arc::new(
             EnvironmentManager::from_codex_home(
                 config.codex_home.clone(),
@@ -861,7 +863,7 @@ impl CodexSession {
                 None,
                 passthrough_image_store(),
                 Arc::clone(&thread_store),
-                local_agent_graph_store_from_state_db(state_db.as_ref()),
+                agent_graph.clone(),
                 installation_id,
                 None,
                 None,
@@ -909,6 +911,7 @@ impl CodexSession {
         Ok(Self {
             manager,
             thread_store,
+            agent_graph,
             thread_id,
             thread,
             model: options.model,
@@ -1081,6 +1084,7 @@ impl CodexSession {
             Arc::clone(&self.manager),
             self.thread_id,
             Arc::clone(&self.thread_store),
+            self.agent_graph.clone(),
         )
     }
 

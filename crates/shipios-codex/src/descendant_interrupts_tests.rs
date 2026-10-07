@@ -594,3 +594,103 @@ fn cold_child_reloads_through_its_owner_without_a_parent_turn_and_keeps_native_i
         Ok(())
     })
 }
+
+#[test]
+fn closed_spawn_edges_block_automatic_reload_below_closed_ancestors_but_keep_history() -> Result<()>
+{
+    run_native_test(async {
+        for close_ancestor in [false, true] {
+            let root = tempfile::tempdir()?;
+            let server = server().await;
+            let session = session(root.path(), &server, "ClosedGraph").await?;
+            let child = spawn_child(&session, session.thread_id, 1).await?;
+            let grandchild = spawn_child(&session, child.thread_id, 2).await?;
+            let peer = spawn_child(&session, session.thread_id, 1).await?;
+            for thread in [&child.thread, &grandchild.thread, &peer.thread] {
+                start(thread, "complete-child").await?;
+                status(thread, |s| matches!(s, AgentStatus::Completed(_))).await?;
+                thread.flush_rollout().await?;
+            }
+            // This boundary test sets the same durable edge written by native
+            // close_agent. The Swift integration separately executes that tool.
+            let closed = if close_ancestor {
+                child.thread_id
+            } else {
+                grandchild.thread_id
+            };
+            session
+                .agent_graph
+                .as_ref()
+                .context("missing native graph")?
+                .set_thread_spawn_edge_status(
+                    closed,
+                    codex_agent_graph_store::ThreadSpawnEdgeStatus::Closed,
+                )
+                .await?;
+            for agent in [&child, &grandchild, &peer] {
+                agent.thread.shutdown_and_wait().await?;
+                session.manager.remove_thread(&agent.thread_id).await;
+            }
+            let source = session.descendant_source();
+            let rows = source.snapshot().await?;
+            assert_eq!(
+                rows.iter()
+                    .find(|row| row.thread_id == grandchild.thread_id.to_string())
+                    .context("missing grandchild")?
+                    .status,
+                "shutdown"
+            );
+            assert_eq!(
+                rows.iter()
+                    .find(|row| row.thread_id == child.thread_id.to_string())
+                    .context("missing child")?
+                    .status,
+                if close_ancestor {
+                    "shutdown"
+                } else {
+                    "notLoaded"
+                }
+            );
+            assert!(
+                source
+                    .ensure_loaded(&grandchild.thread_id.to_string())
+                    .await
+                    .is_err()
+            );
+            if close_ancestor {
+                assert!(
+                    source
+                        .ensure_loaded(&child.thread_id.to_string())
+                        .await
+                        .is_err()
+                );
+            }
+            let before = server.received_requests().await.unwrap_or_default().len();
+            assert!(
+                source
+                    .ensure_loaded(&peer.thread_id.to_string())
+                    .await?
+                    .loaded
+            );
+            assert!(
+                !source
+                    .history(&grandchild.thread_id.to_string())
+                    .await?
+                    .is_empty()
+            );
+            assert_eq!(
+                server.received_requests().await.unwrap_or_default().len(),
+                before
+            );
+            assert!(
+                session
+                    .manager
+                    .get_thread(grandchild.thread_id)
+                    .await
+                    .is_err()
+            );
+            session.shutdown().await?;
+        }
+        Ok(())
+    })
+}

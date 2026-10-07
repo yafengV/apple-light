@@ -6,7 +6,7 @@ struct SubagentsPanelView: View {
   @State private var showAllActive = false
   @State private var showAllDone = false
   private var active: [CodexSubagent] { agents.filter { $0.status != .completed && $0.status != .shutdown } }
-  private var done: [CodexSubagent] { agents.filter { $0.status == .completed || $0.status == .shutdown } }
+  private var done: [CodexSubagent] { agents.filter { $0.status == .completed } }
 
   var body: some View {
     ScrollView {
@@ -82,19 +82,22 @@ struct SubagentAvatar: View {
 struct SubagentsSummaryButton: View {
   let agents: [CodexSubagent]
   let open: () -> Void
-  private var working: [CodexSubagent] { agents.filter(\.working) }
-  private var done: [CodexSubagent] { agents.filter { $0.status == .completed || $0.status == .shutdown } }
+  private var visible: [CodexSubagent] { agents.filter { $0.status != .shutdown } }
+  private var working: [CodexSubagent] { visible.filter(\.working) }
+  private var done: [CodexSubagent] { visible.filter { $0.status == .completed } }
   var body: some View {
-    Button(action: open) {
-      HStack(spacing: 8) {
-        HStack(spacing: -5) {
-          ForEach(Array((working.isEmpty ? (done.isEmpty ? agents : done) : working).prefix(4))) { SubagentAvatar(agent: $0) }
-        }
-        Text(working.isEmpty ? (done.isEmpty ? "\(agents.count) 个子任务" : "\(done.count) 个已完成") : "\(working.count) 个正在工作")
-        Spacer()
-        if !working.isEmpty && !done.isEmpty { Text("\(done.count) 个已完成").foregroundStyle(.secondary) }
-      }.appFont(size: 13)
-    }.buttonStyle(.plain).accessibilityLabel("打开子任务")
-      .accessibilityIdentifier("open-subagents")
+    if !visible.isEmpty {
+      Button(action: open) {
+        HStack(spacing: 8) {
+          HStack(spacing: -5) {
+            ForEach(Array((working.isEmpty ? (done.isEmpty ? visible : done) : working).prefix(4))) { SubagentAvatar(agent: $0) }
+          }
+          Text(working.isEmpty ? (done.isEmpty ? "\(visible.count) 个子任务" : "\(done.count) 个已完成") : "\(working.count) 个正在工作")
+          Spacer()
+          if !working.isEmpty && !done.isEmpty { Text("\(done.count) 个已完成").foregroundStyle(.secondary) }
+        }.appFont(size: 13)
+      }.buttonStyle(.plain).accessibilityLabel("打开子任务")
+        .accessibilityIdentifier("open-subagents")
+    }
   }
 }

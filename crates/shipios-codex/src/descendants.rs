@@ -36,6 +36,7 @@ pub struct DescendantSource {
     reload: Arc<Mutex<()>>,
     reloaded: Arc<RwLock<HashSet<ThreadId>>>,
     store: Arc<dyn codex_thread_store::ThreadStore>,
+    graph: Option<Arc<dyn codex_agent_graph_store::AgentGraphStore>>,
 }
 
 impl DescendantSource {
@@ -43,6 +44,7 @@ impl DescendantSource {
         manager: Arc<ThreadManager>,
         parent: ThreadId,
         store: Arc<dyn codex_thread_store::ThreadStore>,
+        graph: Option<Arc<dyn codex_agent_graph_store::AgentGraphStore>>,
     ) -> Self {
         Self {
             manager,
@@ -50,6 +52,7 @@ impl DescendantSource {
             reload: Arc::new(Mutex::new(())),
             reloaded: Arc::new(RwLock::new(HashSet::new())),
             store,
+            graph,
         }
     }
 
@@ -111,6 +114,10 @@ impl DescendantSource {
         cold.retain(|member| !previously_loaded.contains(member));
         self.reloaded.write().await.extend(cold);
         for member in chain.into_iter().rev() {
+            ensure!(
+                !self.closed_descendants().await?.contains(&member),
+                "child has been closed"
+            );
             self.manager.ensure_child_loaded(member).await?;
         }
         self.snapshot()
@@ -353,6 +360,7 @@ impl DescendantSource {
     }
 
     pub async fn snapshot(&self) -> Result<Vec<NativeSubagent>> {
+        let closed = self.closed_descendants().await?;
         let mut members: HashSet<_> = self
             .manager
             .list_agent_subtree_thread_ids(self.parent)
@@ -468,7 +476,7 @@ impl DescendantSource {
         let mut rows = members
             .into_iter()
             .map(|id| {
-                loaded
+                let mut row = loaded
                     .remove(&id)
                     .map(|(_, row)| row)
                     .unwrap_or(NativeSubagent {
@@ -482,11 +490,36 @@ impl DescendantSource {
                         status: "notLoaded".to_owned(),
                         loaded: false,
                         preview: None,
-                    })
+                    });
+                if closed.contains(&id) {
+                    row.status = "shutdown".to_owned();
+                }
+                row
             })
             .collect::<Vec<_>>();
         rows.sort_by(|a, b| a.thread_id.cmp(&b.thread_id));
         Ok(rows)
+    }
+
+    /// Native close_agent marks the spawn edge before releasing the in-memory
+    /// thread. An ordinary unloaded thread has an open edge and remains resumable.
+    /// Open traversal also excludes children below a closed ancestor.
+    async fn closed_descendants(&self) -> Result<HashSet<ThreadId>> {
+        let Some(graph) = &self.graph else {
+            return Ok(HashSet::new());
+        };
+        let all = graph
+            .list_thread_spawn_descendants(self.parent, None)
+            .await?;
+        let open: HashSet<_> = graph
+            .list_thread_spawn_descendants(
+                self.parent,
+                Some(codex_agent_graph_store::ThreadSpawnEdgeStatus::Open),
+            )
+            .await?
+            .into_iter()
+            .collect();
+        Ok(all.into_iter().filter(|id| !open.contains(id)).collect())
     }
 }
 
