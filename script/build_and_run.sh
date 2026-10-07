@@ -8,6 +8,8 @@ case "$mode" in
     *) cargo build --locked -p shipios-agent
        exec "$agent_target/debug/shipios-agent" --data-dir "$PWD/.shipios-local" "$@" ;;
 esac
+source script/macos_signing.sh
+shipios_resolve_codesign_identity
 if [ "$mode" != "--build-app" ]; then
     # Exact executable name; the helper sees EOF and cancels any active child command.
     pkill -TERM -x ShipiOS 2>/dev/null || true
@@ -49,8 +51,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 </dict></array>
 </dict></plist>
 PLIST
-codesign --force --sign - "$app/Contents/Helpers/shipios-agent"
-codesign --force --sign - "$app"
+shipios_sign_macos_app "$app"
 if [ "$mode" == "--build-app" ]; then exit 0; fi
 /usr/bin/open -n "$app" --args "$@"
 if [ "$mode" == "--verify" ]; then
