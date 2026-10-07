@@ -5,7 +5,7 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class AppearancePageTests: XCTestCase {
-  func testActualDistributionLayoutVariantsAndDiffExample() throws {
+  func testHistoricalDistributionLayoutVariantsAndDiffExample() throws {
     let url = try XCTUnwrap(Bundle.module.url(forResource: "appearance_layout_reference", withExtension: "json", subdirectory: "Fixtures"))
     let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
     XCTAssertEqual(fixture["settingsSHA256"] as? String, "3a2ff568faaa71fa98cde8ca59a04d525baf13ce81a470ea8ae72c5283800753")
@@ -53,6 +53,28 @@ import XCTest
     XCTAssertEqual(store.library.drafts["fixture"], "keep draft"); XCTAssertFalse(window.isVisible)
   }
 
+  func testThemeOptionsAreDiscoverableInNativeAccessibilityTree() async throws {
+    let (store, _) = makeStore(); let (window, host) = try await page(store); defer { window.close() }
+    let group = try XCTUnwrap(find(host, AppearanceModePicker.Group.self).first)
+    let options = NSAccessibility.unignoredChildren(from: group.subviews).compactMap { $0 as? AppearanceModePicker.Radio }
+    XCTAssertEqual(options.map(\.mode), [.system, .light, .dark])
+    XCTAssertEqual((group.accessibilityChildren() ?? []).compactMap { ($0 as? AppearanceModePicker.Radio)?.mode }, [.system, .light, .dark])
+    XCTAssertEqual(options.map { $0.accessibilityLabel() }, ["系统", "浅色", "深色"])
+    XCTAssertTrue(options.allSatisfy { $0.isAccessibilityElement() })
+    XCTAssertTrue(options.allSatisfy { $0.isAccessibilityEnabled() })
+    XCTAssertEqual(options.map { ($0.accessibilityValue() as? NSNumber)?.intValue }, [1, 0, 0])
+    let light = try XCTUnwrap(options.first { $0.mode == .light })
+    XCTAssertTrue(light.accessibilityPerformPress()); try await settle(host)
+    XCTAssertEqual(store.appearance.theme, "light")
+    XCTAssertEqual(options.map { ($0.accessibilityValue() as? NSNumber)?.intValue }, [0, 1, 0])
+    XCTAssertTrue(window.firstResponder === light)
+    store.restoringLibrary = true; try await settle(host)
+    XCTAssertTrue(options.allSatisfy { !$0.isEnabled })
+    XCTAssertTrue(options.allSatisfy { !$0.isAccessibilityEnabled() })
+    XCTAssertFalse(light.accessibilityPerformPress()); XCTAssertEqual(store.appearance.theme, "light")
+    XCTAssertEqual(store.library.drafts["fixture"], "keep draft")
+  }
+
   func testRadioSaveFailureRestoringDisabledAndUnmountedCallbacksAreGuarded() async throws {
     let (store, root) = makeStore(); let (window, host) = try await page(store); defer { window.close() }
     let group = try XCTUnwrap(find(host, AppearanceModePicker.Group.self).first), owner = try XCTUnwrap(group.owner)
@@ -86,8 +108,9 @@ import XCTest
         let scroll = try XCTUnwrap(scrolls.first), document = try XCTUnwrap(scroll.documentView)
         XCTAssertLessThanOrEqual(document.frame.width, scroll.contentSize.width + 1)
         let picker = try XCTUnwrap(find(host, AppearanceModePicker.Group.self).first)
-        XCTAssertGreaterThan(picker.bounds.width, 450)
-        XCTAssertEqual(picker.radios[0].cardRect.width / picker.radios[0].cardRect.height, 17 / 12, accuracy: 0.001)
+        XCTAssertEqual(picker.bounds.width, 272, accuracy: 0.001)
+        XCTAssertEqual(picker.radios[0].cardRect.width / picker.radios[0].cardRect.height, 4 / 3, accuracy: 0.001)
+        XCTAssertEqual(picker.radios[1].frame.minX - picker.radios[0].frame.maxX, 16, accuracy: 0.001)
         scroll.contentView.scroll(to: .init(x: 0, y: 400)); scroll.reflectScrolledClipView(scroll.contentView)
         XCTAssertEqual(scroll.contentView.bounds.origin.y, 400, accuracy: 1)
       }
@@ -142,36 +165,37 @@ import XCTest
   }
 
   func testArtworkInteriorPixelsMatchActualSVGInNoWindowCanvas() async throws {
-    let url = try XCTUnwrap(Bundle.module.url(forResource: "appearance_layout_reference", withExtension: "json", subdirectory: "Fixtures"))
+    let url = try XCTUnwrap(Bundle.module.url(forResource: "theme_card_reference_644", withExtension: "json", subdirectory: "Fixtures"))
     let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-    let cards = try XCTUnwrap(fixture["cards"] as? [[String: Any]])
+    let artwork = try XCTUnwrap(fixture["artwork"] as? [[String: Any]])
     let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent(); let web = WKWebView(frame: .zero, configuration: config)
-    let points = [8, 23, 49, 73, 84, 85, 91, 107, 120, 144, 160].flatMap { x in [10, 29, 45, 60, 69, 78, 88, 96, 105, 114, 119].map { [x, $0] } }
-    for card in cards {
-      let mode = try XCTUnwrap((card["mode"] as? String).flatMap(AppearanceMode.init(rawValue:)))
+    let points = [3, 10, 25, 40, 60, 76].flatMap { x in [3, 10, 19, 23, 27, 33, 43, 50, 57].map { [x, $0] } }
+    for scale in 1...3 { for mode in AppearanceMode.allCases { for accent in ["#339cff", "#df3758"] {
+      let names = mode == .system ? ["system-light", "system-dark"] : [mode.rawValue]
+      let trees = try names.map { name in try XCTUnwrap(artwork.first { $0["name"] as? String == name }?["tree"]) }
       let expected = try await web.callAsyncJavaScript(#"""
+        const names={clipPath:'clip-path',strokeWidth:'stroke-width',strokeOpacity:'stroke-opacity',fillOpacity:'fill-opacity',shapeRendering:'shape-rendering',colorInterpolationFilters:'color-interpolation-filters',floodOpacity:'flood-opacity'};
         function build(tree){const node=document.createElementNS('http://www.w3.org/2000/svg',tree.type);
-          for(const [key,value] of Object.entries(tree.props??{})){if(key==='children')continue;node.setAttribute(key==='clipPath'?'clip-path':key,value)}
+          for(const [key,value] of Object.entries(tree.props??{})){if(key==='children')continue;node.setAttribute(names[key]??key,value==='currentColor'?accent:value)}
           for(const child of [tree.props?.children].flat(Infinity).filter(Boolean))node.append(build(child));return node;}
-        const svg=build(artwork);svg.setAttribute('width','170');svg.setAttribute('height','120');
-        const canvas=document.createElement('canvas');canvas.width=170;canvas.height=120;const c=canvas.getContext('2d',{colorSpace:'srgb'});
-        const modeBackground=mode==='light'?'#f3f3f3':mode==='dark'?'#5d5d5d':'#9f9f9f';c.fillStyle=modeBackground;c.fillRect(0,0,170,120);
-        if(mode==='system'){c.fillStyle='#5d5d5d';c.fillRect(85,0,85,120)}
-        const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg))});
-        c.drawImage(image,0,0);return points.map(([x,y])=>Array.from(c.getImageData(x,y,1,1).data));
-        """#, arguments: ["artwork": try XCTUnwrap(card["artwork"]), "mode": mode.rawValue, "points": points], in: nil, contentWorld: .defaultClient) as? [[Int]]
-      let context = try XCTUnwrap(CGContext(data: nil, width: 170, height: 120, bitsPerComponent: 8, bytesPerRow: 680,
+        const canvas=document.createElement('canvas');canvas.width=80*scale;canvas.height=60*scale;const c=canvas.getContext('2d',{colorSpace:'srgb'});
+        c.fillStyle='white';c.fillRect(0,0,80*scale,60*scale);
+        for(let i=0;i<artwork.length;i++){const svg=build(artwork[i]);svg.setAttribute('width',String(Number(svg.getAttribute('width'))*scale));svg.setAttribute('height',String(Number(svg.getAttribute('height'))*scale));const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg))});c.drawImage(image,i*40*scale,0)}
+        return points.map(([x,y])=>Array.from(c.getImageData(x*scale,y*scale,1,1).data));
+        """#, arguments: ["artwork": trees, "accent": accent, "scale": scale, "points": points], in: nil, contentWorld: .defaultClient) as? [[Int]]
+      let context = try XCTUnwrap(CGContext(data: nil, width: 80 * scale, height: 60 * scale, bitsPerComponent: 8, bytesPerRow: 320 * scale,
         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-      context.translateBy(x: 0, y: 120); context.scaleBy(x: 1, y: -1)
+      context.setFillColor(CGColor(gray: 1, alpha: 1)); context.fill(.init(x: 0, y: 0, width: 80 * scale, height: 60 * scale))
+      context.translateBy(x: 0, y: CGFloat(60 * scale)); context.scaleBy(x: CGFloat(scale), y: -CGFloat(scale))
       NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-      AppearanceModeArtwork.draw(mode, in: .init(x: 0, y: 0, width: 170, height: 120)); NSGraphicsContext.restoreGraphicsState()
+      AppearanceModeArtwork.draw(mode, in: .init(x: 0, y: 0, width: 80, height: 60), accent: .init(hex: accent)); NSGraphicsContext.restoreGraphicsState()
       let pixels = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
       for (index, point) in points.enumerated() {
-        let offset = point[1] * 680 + point[0] * 4
+        let offset = point[1] * scale * 320 * scale + point[0] * scale * 4
         XCTAssertEqual(pixels[offset + 3], 255)
         for channel in 0..<3 { XCTAssertEqual(Double(pixels[offset + channel]), Double(try XCTUnwrap(expected)[index][channel]), accuracy: 3, "\(mode.rawValue) \(point)") }
       }
-    }
+    } } }
     XCTAssertNil(web.window)
   }
 

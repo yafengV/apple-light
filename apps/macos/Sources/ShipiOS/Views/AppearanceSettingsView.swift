@@ -15,7 +15,7 @@ struct AppearanceSettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
           sectionTitle("主题")
           VStack(spacing: 16) {
-            AppearanceModePicker(store: store).settingsSearchTarget(.theme)
+            AppearanceModePicker(store: store).frame(maxWidth: 272).frame(maxWidth: .infinity, alignment: .leading).settingsSearchTarget(.theme)
             AppearanceCodePreview(appearance: store.appearance)
             VStack(spacing: 20) {
               ForEach(variants) { variant in

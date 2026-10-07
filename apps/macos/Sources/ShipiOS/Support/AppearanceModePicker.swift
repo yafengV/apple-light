@@ -20,12 +20,11 @@ struct AppearanceModePicker: NSViewRepresentable {
     group.selected = AppearanceMode(preference: store.appearance.theme)
     group.available = enabled && store.libraryLoaded && !store.restoringLibrary
     group.colors = displayAppearance.resolvedColors
-    group.labelFont = displayAppearance.nativeFont(size: 13)
     group.refresh()
   }
   func sizeThatFits(_ proposal: ProposedViewSize, nsView: Group, context: Context) -> CGSize? {
-    let width = max(0, proposal.width ?? SettingsPageLayout.contentWidth)
-    return .init(width: width, height: max(0, width - 24) / 3 * 12 / 17 + 6 + ceil(displayAppearance.nativeFont(size: 13).pointSize * 10 / 7))
+    let width = min(272, max(0, proposal.width ?? 272))
+    return .init(width: width, height: max(0, width - 32) / 3 * 3 / 4)
   }
   static func dismantleNSView(_ group: Group, coordinator: Coordinator) { coordinator.active = false; group.owner = nil }
 
@@ -34,19 +33,22 @@ struct AppearanceModePicker: NSViewRepresentable {
     var selected = AppearanceMode.system
     var available = false
     var colors = AppearancePreferences().resolvedColors
-    var labelFont = NSFont.systemFont(ofSize: 13)
     let radios = AppearanceMode.allCases.map { Radio(mode: $0) }
     override var isFlipped: Bool { true }
+    override var wantsDefaultClipping: Bool { false }
     override init(frame: NSRect) { super.init(frame: frame); radios.forEach { addSubview($0) }; setAccessibilityElement(true) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func layout() {
-      super.layout(); let width = max(0, bounds.width - 24) / 3
-      for (index, radio) in radios.enumerated() { radio.frame = .init(x: CGFloat(index) * (width + 12), y: 0, width: width, height: bounds.height) }
+      super.layout(); let width = max(0, min(272, bounds.width) - 32) / 3
+      for (index, radio) in radios.enumerated() { radio.frame = .init(x: CGFloat(index) * (width + 16), y: 0, width: width, height: bounds.height) }
     }
     func refresh() {
       for radio in radios {
-        radio.isEnabled = available; radio.font = labelFont
-        radio.setAccessibilityValue(NSNumber(value: radio.mode == selected ? 1 : 0)); radio.needsDisplay = true
+        radio.isEnabled = available
+        let value = NSNumber(value: radio.mode == selected ? 1 : 0)
+        let previous = radio.accessibilityValue() as? NSNumber
+        radio.setAccessibilityValue(value); radio.needsDisplay = true
+        if let previous, previous != value { NSAccessibility.post(element: radio, notification: .valueChanged) }
       }
       if !available, let focused = window?.firstResponder as? Radio, focused.superview === self {
         DispatchQueue.main.async { [weak self, weak focused] in
@@ -67,7 +69,10 @@ struct AppearanceModePicker: NSViewRepresentable {
     override var canBecomeKeyView: Bool { acceptsFirstResponder && group?.selected == mode }
     init(mode: AppearanceMode) {
       self.mode = mode; super.init(frame: .zero)
+      // A custom NSControl is ignored by AppKit until explicitly exposed.
+      setAccessibilityElement(true)
       setAccessibilityRole(.radioButton); setAccessibilityLabel(mode.title)
+      toolTip = mode.title
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func updateTrackingAreas() {
@@ -80,27 +85,29 @@ struct AppearanceModePicker: NSViewRepresentable {
     override func resetCursorRects() {
       if isEnabled && group?.owner?.parent.store.appearance.usePointerCursors == true { addCursorRect(bounds, cursor: .pointingHand) }
     }
-    override func becomeFirstResponder() -> Bool { let ok = super.becomeFirstResponder(); needsDisplay = true; return ok }
-    override func resignFirstResponder() -> Bool { let ok = super.resignFirstResponder(); needsDisplay = true; return ok }
-    var cardRect: NSRect { .init(x: 0, y: 0, width: bounds.width, height: bounds.width * 12 / 17) }
+    override func becomeFirstResponder() -> Bool { let ok = super.becomeFirstResponder(); invalidateFocusOutline(); return ok }
+    override func resignFirstResponder() -> Bool { let ok = super.resignFirstResponder(); invalidateFocusOutline(); return ok }
+    private func invalidateFocusOutline() {
+      needsDisplay = true
+      superview?.setNeedsDisplay(convert(bounds.insetBy(dx: -4, dy: -4), to: superview))
+    }
+    override var wantsDefaultClipping: Bool { false }
+    var cardRect: NSRect { .init(x: 0, y: 0, width: bounds.width, height: bounds.width * 3 / 4) }
     override func draw(_ dirtyRect: NSRect) {
       guard let group else { return }
       NSGraphicsContext.saveGraphicsState()
       if !isEnabled { NSGraphicsContext.current?.cgContext.setAlpha(0.5) }
       let rect = cardRect, clip = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)
-      clip.addClip(); AppearanceModeArtwork.draw(mode, in: rect)
+      clip.addClip(); AppearanceModeArtwork.draw(mode, in: rect, accent: group.colors["textAccent"])
       let selected = group.selected == mode
-      (selected ? group.colors["textForeground"] : group.colors[hovered ? "borderHeavy" : "border"]).nativeColor.setStroke()
-      let border = NSBezierPath(roundedRect: rect.insetBy(dx: selected ? 1 : 0.5, dy: selected ? 1 : 0.5), xRadius: 8, yRadius: 8)
-      border.lineWidth = selected ? 2 : 1; border.stroke()
+      (selected ? group.colors["borderFocus"] : group.colors[hovered ? "borderHeavy" : "border"]).nativeColor.setStroke()
+      let border = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
+      border.lineWidth = 2; border.stroke()
       NSGraphicsContext.restoreGraphicsState()
       if window?.firstResponder === self {
-        NSColor.keyboardFocusIndicatorColor.setStroke(); let focus = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
+        group.colors["borderFocus"].nativeColor.setStroke(); let focus = NSBezierPath(roundedRect: rect.insetBy(dx: -3, dy: -3), xRadius: 10, yRadius: 10)
         focus.lineWidth = 2; focus.stroke()
       }
-      let label = NSAttributedString(string: mode.title, attributes: [.font: font ?? group.labelFont,
-        .foregroundColor: (selected || hovered ? group.colors["textForeground"] : group.colors["textForegroundSecondary"]).nativeColor])
-      label.draw(at: .init(x: (bounds.width - label.size().width) / 2, y: rect.maxY + 6))
     }
     override func mouseDown(with event: NSEvent) { choose(mode) }
     override func keyDown(with event: NSEvent) {
