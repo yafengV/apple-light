@@ -70,13 +70,22 @@ extension WorkspaceStore {
     terminalFocusRequest = nil
     showingModelPicker = false
     showingBranchPicker = false
-    if destination != .settings { settingsReturnDestination = destination }
+    let window = NSApp?.windows.first { $0.identifier?.rawValue == "main" } ?? NSApp?.keyWindow
+    if destination != .settings {
+      settingsReturnDestination = destination
+      settingsFocusRevision = UUID()
+      let origin = presentedOverlay?.isSearchDialog == true
+        && searchDialogReturnFocus?.window === window ? searchDialogReturnFocus : nil
+      settingsReturnFocus = SettingsReturnFocus(target: origin
+        ?? SearchDialogReturnFocus(window: window, destination: destination), store: self)
+    }
+    searchDialogReturnFocus = nil
     if let page { settingsPage = page }
     presentedOverlay = nil
     fileFocusAfterOverlay = nil
     destination = .settings
     // The hidden PTY can otherwise keep first responder and consume Escape.
-    NSApp?.keyWindow?.makeFirstResponder(nil)
+    window?.makeFirstResponder(nil)
   }
 
   func closeSettings() {
@@ -95,8 +104,12 @@ extension WorkspaceStore {
       return
     }
     settingsSearchRequest = nil
+    let returnFocus = settingsReturnFocus
+    settingsReturnFocus = nil
     destination = settingsReturnDestination
-    if destination == .workspace { focusComposer = UUID() }
+    if returnFocus?.restore(store: self) != true, destination == .workspace {
+      focusComposer = UUID()
+    }
   }
 
   var hasUnsavedSettingsEdits: Bool {

@@ -22,6 +22,8 @@ import AppKit
     filePath = source?.selectedFile
   }
 
+  var isFileSource: Bool { fileRoot != nil && filePath != nil }
+
   /// File previews may be recreated while a modal is visible. Route a fresh
   /// request through the original editor's model instead of retaining its view.
   func restoreFileFocus(store: WorkspaceStore) -> Bool {
@@ -29,7 +31,7 @@ import AppKit
       store.presentedOverlay == nil, let window, window.isKeyWindow,
       window.attachedSheet == nil, let source = fileWorkspace,
       let fileRoot, let filePath, source.root == fileRoot, source.selectedFile == filePath,
-      store.commandFileWorkspace === source else { return false }
+      (source === store.workspace ? store.filesVisible : store.commandFileWorkspace === source) else { return false }
     source.fileFocusRequest = UUID()
     return true
   }

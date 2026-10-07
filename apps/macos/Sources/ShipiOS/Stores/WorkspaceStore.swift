@@ -76,6 +76,8 @@ final class WorkspaceStore {
   var taskSummaryToggleRequest = UUID()
   var showingTaskStatus = false
   var settingsReturnDestination: AppDestination = .workspace
+  @ObservationIgnored var settingsReturnFocus: SettingsReturnFocus?
+  @ObservationIgnored var settingsFocusRevision = UUID()
   var showingFileSearch: Bool {
     get { presentedOverlay == .fileSearch }
     set { setOverlay(.fileSearch, presented: newValue) }

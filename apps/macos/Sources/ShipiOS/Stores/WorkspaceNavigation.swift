@@ -194,6 +194,10 @@ extension WorkspaceStore {
     setOverlay(.commands, presented: false)
     restoreOverlayFocus()
     executeCommand(id)
+    if destination == .settings, let returnFocus,
+      returnFocus.destination == settingsReturnDestination {
+      settingsReturnFocus = SettingsReturnFocus(target: returnFocus, store: self)
+    }
     // Switching between search modes retains the original page's focus target.
     if presentedOverlay?.isSearchDialog == true {
       searchDialogReturnFocus = returnFocus
