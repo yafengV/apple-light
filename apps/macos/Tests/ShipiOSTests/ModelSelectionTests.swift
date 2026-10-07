@@ -94,8 +94,8 @@ final class ModelSelectionTests: XCTestCase {
       ["", "none", "minimal", "low", "medium", "high", "xhigh", "max"])
     XCTAssertEqual(catalog.availableReasoning(for: "missing", advanced: []),
       AgentReasoningEfforts.standard)
-    XCTAssertEqual(catalog.powerChoices(for: "known", advanced: [.max]), ["", "low", "max"])
-    XCTAssertEqual(catalog.powerChoices(for: "known", advanced: []), ["", "low"])
+    XCTAssertEqual(catalog.powerChoices(for: "known", advanced: [.max]), ["low", "max"])
+    XCTAssertEqual(catalog.powerChoices(for: "known", advanced: []), [])
     XCTAssertEqual(catalog.powerChoices(for: "unknown", advanced: [.max]), [])
     XCTAssertEqual(catalog.title(for: "known"), "Known Reasoner")
     XCTAssertEqual(catalog.subtitle(for: "known"), "known · For coding")

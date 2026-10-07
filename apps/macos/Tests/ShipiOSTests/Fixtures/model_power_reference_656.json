@@ -1,0 +1,258 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": {
+    "app": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+    "shared": "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab"
+  },
+  "cases": [
+    {
+      "name": "ordered",
+      "efforts": [
+        "high",
+        "low"
+      ],
+      "defaultEffort": "low",
+      "current": "",
+      "referenceEfforts": [
+        "high",
+        "low"
+      ],
+      "resolved": "low",
+      "steps": [
+        {
+          "current": "high",
+          "decrease": "high",
+          "increase": "low"
+        },
+        {
+          "current": "low",
+          "decrease": "high",
+          "increase": "low"
+        }
+      ]
+    },
+    {
+      "name": "implicit-medium",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultEffort": null,
+      "current": "",
+      "referenceEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "resolved": "medium",
+      "steps": [
+        {
+          "current": "low",
+          "decrease": "low",
+          "increase": "medium"
+        },
+        {
+          "current": "medium",
+          "decrease": "low",
+          "increase": "high"
+        },
+        {
+          "current": "high",
+          "decrease": "medium",
+          "increase": "high"
+        }
+      ]
+    },
+    {
+      "name": "explicit-high",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultEffort": "low",
+      "current": "high",
+      "referenceEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "resolved": "high",
+      "steps": [
+        {
+          "current": "low",
+          "decrease": "low",
+          "increase": "medium"
+        },
+        {
+          "current": "medium",
+          "decrease": "low",
+          "increase": "high"
+        },
+        {
+          "current": "high",
+          "decrease": "medium",
+          "increase": "high"
+        }
+      ]
+    },
+    {
+      "name": "single",
+      "efforts": [
+        "low"
+      ],
+      "defaultEffort": "low",
+      "current": "",
+      "referenceEfforts": [
+        "low"
+      ],
+      "resolved": "low",
+      "steps": [
+        {
+          "current": "low",
+          "decrease": "low",
+          "increase": "low"
+        }
+      ]
+    },
+    {
+      "name": "empty",
+      "efforts": [],
+      "defaultEffort": null,
+      "current": "",
+      "referenceEfforts": [
+        "medium"
+      ],
+      "resolved": "medium",
+      "steps": [
+        {
+          "current": "medium",
+          "decrease": "medium",
+          "increase": "medium"
+        }
+      ]
+    },
+    {
+      "name": "non-slider-values",
+      "efforts": [
+        "persistent",
+        "unknown",
+        "low",
+        "high"
+      ],
+      "defaultEffort": "high",
+      "current": "",
+      "referenceEfforts": [
+        "low",
+        "high"
+      ],
+      "resolved": "high",
+      "steps": [
+        {
+          "current": "low",
+          "decrease": "low",
+          "increase": "high"
+        },
+        {
+          "current": "high",
+          "decrease": "low",
+          "increase": "high"
+        }
+      ]
+    },
+    {
+      "name": "none-and-minimal",
+      "efforts": [
+        "none",
+        "minimal"
+      ],
+      "defaultEffort": "none",
+      "current": "",
+      "referenceEfforts": [
+        "none",
+        "minimal"
+      ],
+      "resolved": "none",
+      "steps": [
+        {
+          "current": "none",
+          "decrease": "none",
+          "increase": "minimal"
+        },
+        {
+          "current": "minimal",
+          "decrease": "none",
+          "increase": "minimal"
+        }
+      ]
+    },
+    {
+      "name": "hidden-default",
+      "efforts": [
+        "low",
+        "high",
+        "max",
+        "ultra"
+      ],
+      "defaultEffort": "ultra",
+      "current": "",
+      "referenceEfforts": [
+        "low",
+        "high",
+        "max",
+        "ultra"
+      ],
+      "resolved": "ultra",
+      "steps": [
+        {
+          "current": "low",
+          "decrease": "low",
+          "increase": "high"
+        },
+        {
+          "current": "high",
+          "decrease": "low",
+          "increase": "max"
+        },
+        {
+          "current": "max",
+          "decrease": "high",
+          "increase": "ultra"
+        },
+        {
+          "current": "ultra",
+          "decrease": "max",
+          "increase": "ultra"
+        }
+      ]
+    },
+    {
+      "name": "missing-default",
+      "efforts": [
+        "low",
+        "high"
+      ],
+      "defaultEffort": null,
+      "current": "",
+      "referenceEfforts": [
+        "low",
+        "high"
+      ],
+      "resolved": "medium",
+      "steps": [
+        {
+          "current": "low",
+          "decrease": "low",
+          "increase": "high"
+        },
+        {
+          "current": "high",
+          "decrease": "low",
+          "increase": "high"
+        }
+      ]
+    }
+  ]
+}

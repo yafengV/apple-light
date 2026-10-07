@@ -215,8 +215,22 @@ final class ModelCatalog {
 
   func powerChoices(for model: String, advanced: Set<AgentAdvancedReasoningEffort>) -> [String] {
     guard supportedReasoningEfforts[model] != nil else { return [] }
-    let choices = availableReasoning(for: model, advanced: advanced)
+    let choices = availableReasoning(for: model, advanced: advanced).filter { !$0.isEmpty }
     return choices.count >= 2 ? choices : []
+  }
+
+  func powerReasoning(for model: String, current: String,
+    advanced: Set<AgentAdvancedReasoningEffort>) -> String? {
+    let effective = current.isEmpty ? defaultReasoningEffort(for: model) ?? "medium" : current
+    return powerChoices(for: model, advanced: advanced).contains(effective) ? effective : nil
+  }
+
+  func powerTarget(for model: String, current: String,
+    advanced: Set<AgentAdvancedReasoningEffort>, increasing: Bool) -> String? {
+    let choices = powerChoices(for: model, advanced: advanced)
+    guard let effective = powerReasoning(for: model, current: current, advanced: advanced),
+      let index = choices.firstIndex(of: effective) else { return nil }
+    return choices[min(max(index + (increasing ? 1 : -1), 0), choices.count - 1)]
   }
 
   func reasoningWhenSelecting(_ model: String, current: String) -> String {

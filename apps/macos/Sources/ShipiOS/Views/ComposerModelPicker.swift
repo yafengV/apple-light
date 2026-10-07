@@ -26,7 +26,11 @@ struct ComposerModelPicker: View {
       advanced: store.library.enabledAdvancedReasoningEfforts)
   }
   private var showingPower: Bool {
-    !showingModels && powerChoices.contains(configuration.reasoning)
+    !showingModels && powerReasoning != nil
+  }
+  private var powerReasoning: String? {
+    catalog.powerReasoning(for: configuration.model, current: configuration.reasoning,
+      advanced: store.library.enabledAdvancedReasoningEfforts)
   }
   private var defaultReasoningTitle: String {
     guard let effort = catalog.defaultReasoningEffort(for: configuration.model) else {
@@ -42,7 +46,7 @@ struct ComposerModelPicker: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        if showingModels && !powerChoices.isEmpty {
+        if showingModels && powerReasoning != nil {
           Button { showingModels = false; searching = false } label: {
             Image(systemName: "chevron.left")
           }.buttonStyle(.plain).accessibilityLabel("返回推理档位")
@@ -70,19 +74,25 @@ struct ComposerModelPicker: View {
             }
           }.buttonStyle(.plain).accessibilityLabel("更换模型：\(configuration.model)")
         }
-        Text("推理强度：\(currentReasoningTitle)")
+        Text("推理强度：\(AgentReasoningEfforts.titles[powerReasoning ?? ""] ?? currentReasoningTitle)")
           .appFont(.caption).foregroundStyle(.secondary)
-        Slider(value: Binding(
-          get: { Double(powerChoices.firstIndex(of: configuration.reasoning) ?? 0) },
-          set: { value in
-            let index = min(max(Int(value.rounded()), 0), powerChoices.count - 1)
-            selectReasoning(powerChoices[index])
-          }), in: 0...Double(powerChoices.count - 1), step: 1) {
-            Text("推理强度")
-          }
-          .accessibilityValue(currentReasoningTitle)
         HStack {
-          Text(defaultReasoningTitle)
+          Text("推理强度")
+          ModelPowerSlider(value: Binding(
+          get: { Double(powerChoices.firstIndex(of: powerReasoning ?? "") ?? 0) },
+          set: { value in
+            guard showingPower, value.isFinite, !powerChoices.isEmpty else { return }
+            let index = Int(min(max(value.rounded(), 0), Double(powerChoices.count - 1)))
+            guard powerChoices[index] != powerReasoning else { return }
+            selectReasoning(powerChoices[index])
+          }), count: powerChoices.count,
+            valueDescription: AgentReasoningEfforts.titles[powerReasoning ?? ""] ?? currentReasoningTitle,
+            available: { showingPower && store.libraryLoaded && !store.libraryRecoveryBlocksInteraction && !store.shuttingDown },
+            onStep: { _ = stepPower(increasing: $0) }, onComplete: close)
+            .frame(height: 28)
+        }
+        HStack {
+          Text(AgentReasoningEfforts.titles[powerChoices.first ?? ""] ?? "")
           Spacer()
           Text(AgentReasoningEfforts.titles[powerChoices.last ?? ""] ?? "")
         }.appFont(.caption).foregroundStyle(.secondary)
@@ -184,7 +194,7 @@ struct ComposerModelPicker: View {
       if !choices.contains(highlighted ?? "") { highlighted = choices.first }
     }
     .onChange(of: showingPower) { _, value in
-      if value { searching = false }
+      searching = !value
     }
     .onExitCommand(perform: close)
   }
@@ -213,5 +223,13 @@ struct ComposerModelPicker: View {
       try store.selectModel(configuration.model, reasoning: reasoning, taskID: taskID)
       saveError = nil
     } catch { saveError = error.localizedDescription }
+  }
+
+  private func stepPower(increasing: Bool) -> KeyPress.Result {
+    guard showingPower, let target = catalog.powerTarget(for: configuration.model,
+      current: configuration.reasoning, advanced: store.library.enabledAdvancedReasoningEfforts,
+      increasing: increasing) else { return .ignored }
+    if target != powerReasoning { selectReasoning(target) }
+    return .handled
   }
 }
