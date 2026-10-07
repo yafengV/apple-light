@@ -1,0 +1,307 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
+  "cases": [
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "14",
+      "after": "15",
+      "afterRelease": {
+        "text": "15",
+        "writes": [
+          15
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "15",
+        "writes": [
+          15
+        ]
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "14",
+      "after": "13",
+      "afterRelease": {
+        "text": "13",
+        "writes": [
+          13
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "13",
+        "writes": [
+          13
+        ]
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "14",
+      "after": "16",
+      "afterRelease": {
+        "text": "16",
+        "writes": [
+          16
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "16",
+        "writes": [
+          16
+        ]
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "14",
+      "after": "11",
+      "afterRelease": {
+        "text": "11",
+        "writes": [
+          11
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "11",
+        "writes": [
+          11
+        ]
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "0014",
+      "after": "0014",
+      "afterRelease": {
+        "text": "0014",
+        "writes": []
+      },
+      "afterDuplicateRelease": {
+        "text": "0014",
+        "writes": []
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "",
+      "after": "11",
+      "afterRelease": {
+        "text": "11",
+        "writes": [
+          11
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "11",
+        "writes": [
+          11
+        ]
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "15.5",
+      "after": "16",
+      "afterRelease": {
+        "text": "16",
+        "writes": [
+          16
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "16",
+        "writes": [
+          16
+        ]
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "bad",
+      "after": "bad",
+      "afterRelease": {
+        "text": "bad",
+        "writes": []
+      },
+      "afterDuplicateRelease": {
+        "text": "bad",
+        "writes": []
+      }
+    },
+    {
+      "kind": "ui",
+      "current": 14,
+      "before": "99",
+      "after": "99",
+      "afterRelease": {
+        "text": "99",
+        "writes": []
+      },
+      "afterDuplicateRelease": {
+        "text": "99",
+        "writes": []
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "12",
+      "after": "13",
+      "afterRelease": {
+        "text": "13",
+        "writes": [
+          13
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "13",
+        "writes": [
+          13
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "12",
+      "after": "11",
+      "afterRelease": {
+        "text": "11",
+        "writes": [
+          11
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "11",
+        "writes": [
+          11
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "12",
+      "after": "24",
+      "afterRelease": {
+        "text": "24",
+        "writes": [
+          24
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "24",
+        "writes": [
+          24
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "12",
+      "after": "8",
+      "afterRelease": {
+        "text": "8",
+        "writes": [
+          8
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "8",
+        "writes": [
+          8
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "0014",
+      "after": "0014",
+      "afterRelease": {
+        "text": "0014",
+        "writes": []
+      },
+      "afterDuplicateRelease": {
+        "text": "0014",
+        "writes": []
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "",
+      "after": "8",
+      "afterRelease": {
+        "text": "8",
+        "writes": [
+          8
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "8",
+        "writes": [
+          8
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "15.5",
+      "after": "16",
+      "afterRelease": {
+        "text": "16",
+        "writes": [
+          16
+        ]
+      },
+      "afterDuplicateRelease": {
+        "text": "16",
+        "writes": [
+          16
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "bad",
+      "after": "bad",
+      "afterRelease": {
+        "text": "bad",
+        "writes": []
+      },
+      "afterDuplicateRelease": {
+        "text": "bad",
+        "writes": []
+      }
+    },
+    {
+      "kind": "code",
+      "current": 12,
+      "before": "99",
+      "after": "99",
+      "afterRelease": {
+        "text": "99",
+        "writes": []
+      },
+      "afterDuplicateRelease": {
+        "text": "99",
+        "writes": []
+      }
+    }
+  ]
+}

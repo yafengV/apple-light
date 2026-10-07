@@ -2,7 +2,7 @@ import AppKit
 import CoreText
 import SwiftUI
 
-/// AppKit owns the draft editor; only blur or Enter writes the SwiftUI binding.
+/// AppKit owns the draft editor; blur, Enter or a changed arrow release commits it.
 struct AppearanceFontSizeInput: NSViewRepresentable {
   let kind: AppearanceFontSize
   @Binding var value: Double
@@ -62,6 +62,7 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     var showsArrows: Bool { acceptsFirstResponder && (hovered || currentEditor() != nil) }
     private var hoverArea: NSTrackingArea?
     private var arrowTimer: Timer?
+    private var arrowInitialText: String?
     private(set) var arrowDirection: Int?
     private var requestedEnabled = true
     private var generation = UUID()
@@ -90,11 +91,13 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       (currentEditor() == nil ? border : focusBorder).setStroke(); path.lineWidth = 1; path.stroke()
       super.draw(dirtyRect)
       guard showsArrows else { return }
-      for (y, up) in [(bounds.midY + 4, true), (bounds.midY - 4, false)] {
+      for up in [true, false] {
+        let direction: CGFloat = (up ? 1 : -1) * (isFlipped ? -1 : 1)
+        let y = bounds.midY + direction * 4
         let chevron = NSBezierPath(); let x = bounds.maxX - 8
-        chevron.move(to: .init(x: x - 2, y: y + (up ? -1 : 1)))
-        chevron.line(to: .init(x: x, y: y + (up ? 1 : -1)))
-        chevron.line(to: .init(x: x + 2, y: y + (up ? -1 : 1)))
+        chevron.move(to: .init(x: x - 2, y: y - direction))
+        chevron.line(to: .init(x: x, y: y + direction))
+        chevron.line(to: .init(x: x + 2, y: y - direction))
         ink.withAlphaComponent(isEnabled ? 0.6 : 0.25).setStroke(); chevron.lineWidth = 1; chevron.stroke()
       }
     }
@@ -103,16 +106,24 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       let point = convert(event.locationInWindow, from: nil)
       if showsArrows, point.x >= bounds.maxX - 14 {
         window?.makeFirstResponder(self)
-        beginArrowHold(direction: point.y >= bounds.midY ? 1 : -1)
+        beginArrowHold(direction: direction(at: point))
       } else { super.mouseDown(with: event) }
     }
     override func mouseDragged(with event: NSEvent) {
       guard arrowDirection != nil else { super.mouseDragged(with: event); return }
-      arrowDirection = convert(event.locationInWindow, from: nil).y >= bounds.midY ? 1 : -1
+      arrowDirection = direction(at: convert(event.locationInWindow, from: nil))
+    }
+    private func direction(at point: NSPoint) -> Int {
+      let top = isFlipped ? point.y < bounds.midY : point.y >= bounds.midY
+      return top ? 1 : -1
     }
     override func mouseUp(with event: NSEvent) {
       guard arrowDirection != nil else { super.mouseUp(with: event); return }
+      let initialText = arrowInitialText
       cancelArrowHold()
+      // Match the reference's pointer-down snapshot: an unchanged release
+      // must not normalize or save a separate typed draft at a step limit.
+      if let initialText, initialText != (currentEditor()?.string ?? stringValue) { owner?.commit(self) }
     }
     override func scrollWheel(with event: NSEvent) {
       if !handleWheel(deltaY: event.scrollingDeltaY) { super.scrollWheel(with: event) }
@@ -129,6 +140,8 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
     }
     func beginArrowHold(direction: Int) {
       cancelArrowHold()
+      guard acceptsFirstResponder, window != nil else { return }
+      arrowInitialText = currentEditor()?.string ?? stringValue
       arrowDirection = direction
       owner?.step(self, direction: direction)
       scheduleArrowTimer(after: 0.5, repeats: false) { [weak self] in
@@ -138,7 +151,7 @@ struct AppearanceFontSizeInput: NSViewRepresentable {
       }
     }
     func cancelArrowHold() {
-      arrowTimer?.invalidate(); arrowTimer = nil; arrowDirection = nil
+      arrowTimer?.invalidate(); arrowTimer = nil; arrowDirection = nil; arrowInitialText = nil
     }
     private func repeatArrowStep() {
       guard let direction = arrowDirection, acceptsFirstResponder, window != nil else {
