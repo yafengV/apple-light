@@ -107,20 +107,39 @@ import XCTest
 
   func testPartialResultsKeepAWorkingSearchAlive() async throws {
     let root = try fixture("""
+    printf '' > boot
     read query
+    printf '' > query-read
     for value in 1 2 3 4 5; do
       printf '{"id":1,"files":[],"complete":false}\\n'
+      printf '' > "emitted-$value"
       /bin/sleep 0.15
     done
     printf '{"id":1,"files":[],"complete":true}\\n'
+    printf '' > emitted-complete
     while read query; do :; done
     """)
     defer { try? FileManager.default.removeItem(at: root) }
+    let launchStarted = Date()
     let session = try WorkspaceFileSearchSession(root: root, executable: root.appendingPathComponent("helper"),
       timeout: .milliseconds(400))
     defer { session.close() }
+    let queryStarted = Date()
     var updates: [WorkspaceFileSearchUpdate] = []
-    for try await update in try session.query("value") { updates.append(update) }
+    var received: [TimeInterval] = []
+    do {
+      for try await update in try session.query("value") {
+        updates.append(update); received.append(Date().timeIntervalSince(queryStarted))
+      }
+    } catch {
+      let milestones = (["boot", "query-read"] + (1...5).map { "emitted-\($0)" } + ["emitted-complete"]).map { name in
+        let attributes = try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(name).path)
+        let time = (attributes?[.modificationDate] as? Date)?.timeIntervalSince(queryStarted)
+        return name + "=" + (time.map { String(format: "%.4f", $0) } ?? "missing")
+      }
+      XCTFail("\(error); query elapsed=\(Date().timeIntervalSince(queryStarted)), launch=\(queryStarted.timeIntervalSince(launchStarted)), received=\(received), child=\(milestones)")
+      return
+    }
     XCTAssertEqual(updates.map(\.complete), [false, false, false, false, false, true])
   }
 
