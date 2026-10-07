@@ -3,6 +3,7 @@ import SwiftUI
 struct SubagentsPanelView: View {
   let agents: [CodexSubagent]
   var onSelect: ((CodexSubagent) -> Void)? = nil
+  var liveEvents: (CodexSubagent) -> [JSONValue] = { _ in [] }
   @State private var showAllActive = false
   @State private var showAllDone = false
   private var overview: SubagentOverview { SubagentOverview(agents) }
@@ -43,6 +44,7 @@ struct SubagentsPanelView: View {
           if let onSelect {
             Button { onSelect(agent) } label: { row(agent) }.buttonStyle(.plain)
               .accessibilityLabel("打开子任务 \(agent.displayName)")
+              .accessibilityValue(SubagentOverviewPreview.text(for: agent, liveEvents: liveEvents(agent)) ?? "")
               .accessibilityIdentifier("subagent:\(agent.threadID)")
           } else { row(agent).accessibilityIdentifier("subagent:\(agent.threadID)") }
         }
@@ -64,10 +66,8 @@ struct SubagentsPanelView: View {
           Text(agent.overviewStatus == .waiting ? "等待中" : agent.overviewStatus == .done ? "已完成" : agent.status.label)
             .foregroundStyle(.secondary).lineLimit(1)
         }
-        if let preview = agent.preview {
+        if let preview = SubagentOverviewPreview.text(for: agent, liveEvents: liveEvents(agent)) {
           Text(preview).foregroundStyle(.secondary).lineLimit(1)
-        } else if agent.overviewStatus != .done {
-          Text("正在工作").foregroundStyle(.secondary).lineLimit(1)
         }
       }.appFont(size: 14)
     }.padding(8).frame(minHeight: 40).contentShape(Rectangle())

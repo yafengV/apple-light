@@ -30,6 +30,7 @@ struct CodexSubagent: Codable, Equatable, Identifiable {
   var preview: String?
   var observedAtMs: Int
   var recencyAtMs: Int? = nil
+  var objective: String? = nil
   var overviewStatus: SubagentOverviewStatus {
     switch status {
     case .pendingInit: .waiting
@@ -86,6 +87,7 @@ struct CodexSubagentSnapshotAssembler {
     let loaded: Bool
     let preview: String?
     let recencyAtMs: Int?
+    let objective: String?
   }
   private var snapshotID: String?
   private var rootID: String?
@@ -122,7 +124,7 @@ struct CodexSubagentSnapshotAssembler {
       CodexSubagent(rootThreadID: root, threadID: row.threadId, parentThreadID: row.parentThreadId,
         nickname: row.nickname, role: row.role, depth: row.depth, model: row.model,
         reasoningEffort: row.reasoningEffort, status: row.status, loaded: row.loaded,
-        preview: row.preview, observedAtMs: timestamp, recencyAtMs: row.recencyAtMs)
+        preview: row.preview, observedAtMs: timestamp, recencyAtMs: row.recencyAtMs, objective: row.objective)
     }
     let ids = rows.map(\.id) + incoming.map(\.id)
     guard Set(ids).count == ids.count else { self = .init(); return nil }

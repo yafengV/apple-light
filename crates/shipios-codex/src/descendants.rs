@@ -43,6 +43,9 @@ pub struct NativeSubagent {
     pub loaded: bool,
     /// Summary only. The full child transcript must be read separately.
     pub preview: Option<String>,
+    /// Latest public delegation from this child's actual owner, not inherited
+    /// user history or the child's final reply. Bounded overview metadata only.
+    pub objective: Option<String>,
     /// Product recency, never the time this snapshot happened to be polled.
     pub recency_at_ms: Option<i64>,
 }
@@ -458,6 +461,7 @@ impl DescendantSource {
                         status: status.to_owned(),
                         loaded: status != "notLoaded",
                         preview,
+                        objective: None,
                         recency_at_ms: self
                             .store
                             .read_thread(codex_thread_store::ReadThreadParams {
@@ -533,6 +537,7 @@ impl DescendantSource {
                     status: status.to_owned(),
                     loaded: false,
                     preview,
+                    objective: None,
                     recency_at_ms: Some(stored.recency_at.timestamp_millis()),
                 }
             };
@@ -540,6 +545,42 @@ impl DescendantSource {
                 row.status = "shutdown".to_owned();
             }
             rows.push(row);
+        }
+        // A fork can inherit its parent's user messages; those are never proof
+        // of the delegated objective. Read public collaboration records from
+        // each immediate owner's durable history, once per owner. The final
+        // parent check excludes inherited calls to another owner's children.
+        let owners: HashSet<_> = rows
+            .iter()
+            .filter_map(|row| row.parent_thread_id.as_deref())
+            .filter_map(|id| ThreadId::from_string(id).ok())
+            .collect();
+        for owner in owners {
+            if let Ok(thread) = self.manager.get_thread(owner).await {
+                thread.flush_rollout().await?;
+            }
+            let Ok(history) = self
+                .store
+                .load_history(codex_thread_store::LoadThreadHistoryParams {
+                    thread_id: owner,
+                    include_archived: true,
+                })
+                .await
+            else {
+                continue;
+            };
+            ensure!(
+                history.thread_id == owner,
+                "objective owner identity changed"
+            );
+            let objectives = delegation_objectives(owner, &history.items);
+            for row in &mut rows {
+                if row.parent_thread_id.as_deref() == Some(&owner.to_string()) {
+                    row.objective = ThreadId::from_string(&row.thread_id)
+                        .ok()
+                        .and_then(|child| objectives.get(&child).cloned());
+                }
+            }
         }
         rows.sort_by(|a, b| a.thread_id.cmp(&b.thread_id));
         Ok(rows)
@@ -565,6 +606,128 @@ impl DescendantSource {
             .collect();
         Ok(all.into_iter().filter(|id| !open.contains(id)).collect())
     }
+}
+
+fn delegation_objectives(
+    owner: ThreadId,
+    items: &[codex_history::RolloutItem],
+) -> HashMap<ThreadId, String> {
+    use codex_core_api::EventMsg;
+    use codex_protocol::{items::TurnItem, models::ResponseItem};
+    let mut objectives = HashMap::new();
+    let mut calls = HashMap::new();
+    for item in items {
+        if let codex_history::RolloutItem::ResponseItem(entry) = item {
+            match &entry.item {
+                ResponseItem::FunctionCall {
+                    name,
+                    namespace,
+                    arguments,
+                    call_id,
+                    ..
+                } => {
+                    calls.remove(call_id);
+                    if matches!(namespace.as_deref(), None | Some("multi_agent_v1"))
+                        && matches!(name.as_str(), "spawn_agent" | "send_input")
+                        && let Ok(args) = serde_json::from_str::<serde_json::Value>(arguments)
+                    {
+                        let prompt = args["message"].as_str().map(str::to_owned).or_else(|| {
+                            args["items"].as_array().map(|items| {
+                                items
+                                    .iter()
+                                    .filter(|item| item["type"] == "text")
+                                    .filter_map(|item| item["text"].as_str())
+                                    .collect::<Vec<_>>()
+                                    .join("\n")
+                            })
+                        });
+                        if let Some(prompt) = prompt.filter(|text| !text.trim().is_empty()) {
+                            calls.insert(
+                                call_id.clone(),
+                                (
+                                    name.clone(),
+                                    prompt,
+                                    args["target"]
+                                        .as_str()
+                                        .and_then(|id| ThreadId::from_string(id).ok()),
+                                ),
+                            );
+                        }
+                    }
+                }
+                ResponseItem::FunctionCallOutput {
+                    call_id: Some(call),
+                    output,
+                    ..
+                } => {
+                    if let Some((name, prompt, target)) = calls.remove(call)
+                        && output.success != Some(false)
+                        && let Some(text) = output.body.to_text()
+                        && let Ok(result) = serde_json::from_str::<serde_json::Value>(&text)
+                        && result.get("error").is_none()
+                    {
+                        let child = if name == "spawn_agent" {
+                            result["agent_id"]
+                                .as_str()
+                                .and_then(|id| ThreadId::from_string(id).ok())
+                        } else if result["submission_id"]
+                            .as_str()
+                            .is_some_and(|id| !id.is_empty())
+                        {
+                            target
+                        } else {
+                            None
+                        };
+                        if let Some(child) = child {
+                            objectives.insert(child, prompt.chars().take(1024).collect());
+                        }
+                    }
+                }
+                _ => {}
+            }
+            continue;
+        }
+        let codex_history::RolloutItem::EventMsg(event) = item else {
+            continue;
+        };
+        if let EventMsg::TurnStarted(_) = event {
+            calls.clear();
+        }
+        if let EventMsg::ItemCompleted(event) = event
+            && event.thread_id == owner
+            && let TurnItem::CollabAgentToolCall(call) = &event.item
+            && call.sender_thread_id == owner
+            && let Some(prompt) = call.prompt.as_ref().filter(|text| !text.trim().is_empty())
+        {
+            for child in &call.receiver_thread_ids {
+                objectives.insert(*child, prompt.chars().take(1024).collect());
+            }
+            continue;
+        }
+        let (sender, child, prompt) = match event {
+            EventMsg::CollabAgentSpawnEnd(event) => {
+                (event.sender_thread_id, event.new_thread_id, &event.prompt)
+            }
+            EventMsg::CollabAgentInteractionBegin(event) => (
+                event.sender_thread_id,
+                Some(event.receiver_thread_id),
+                &event.prompt,
+            ),
+            EventMsg::CollabAgentInteractionEnd(event) => (
+                event.sender_thread_id,
+                Some(event.receiver_thread_id),
+                &event.prompt,
+            ),
+            _ => continue,
+        };
+        if sender == owner
+            && !prompt.trim().is_empty()
+            && let Some(child) = child
+        {
+            objectives.insert(child, prompt.chars().take(1024).collect());
+        }
+    }
+    objectives
 }
 
 /// The newest turn boundary wins. A cold unfinished turn is unloaded, not a
@@ -650,6 +813,129 @@ fn sanitize_response(value: &mut serde_json::Value) -> bool {
 mod presentation_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn objectives_use_only_owned_public_collaboration_and_latest_nonblank_prompt() -> Result<()> {
+        let owner = ThreadId::new();
+        let child = ThreadId::new();
+        let peer = ThreadId::new();
+        let interaction = |sender, target, text: &str| -> Result<_> {
+            Ok(codex_history::RolloutItem::EventMsg(
+                serde_json::from_value(json!({
+                    "type":"collab_agent_interaction_begin", "call_id":"send", "sender_thread_id":sender,
+                    "receiver_thread_id":target, "prompt":text
+                }))?,
+            ))
+        };
+        let spawn = codex_history::RolloutItem::EventMsg(serde_json::from_value(json!({
+            "type":"collab_agent_spawn_end", "call_id":"spawn", "sender_thread_id":owner,
+            "new_thread_id":child, "prompt":"Original objective", "model":"gpt-5.4",
+            "reasoning_effort":"medium", "status":"running"
+        }))?);
+        let private = codex_history::RolloutItem::EventMsg(serde_json::from_value(json!({
+            "type":"agent_reasoning_raw_content", "text":"Never an objective"
+        }))?);
+        let items = vec![
+            spawn,
+            interaction(owner, peer, "Peer objective")?,
+            interaction(owner, child, "# **Updated** 检查🙂")?,
+            interaction(owner, child, " \n\t")?,
+            interaction(peer, child, "Inherited foreign-owner prompt")?,
+            private,
+        ];
+        let result = delegation_objectives(owner, &items);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[&child], "# **Updated** 检查🙂");
+        assert_eq!(result[&peer], "Peer objective");
+        let long = "🙂".repeat(1100);
+        let result = delegation_objectives(owner, &[interaction(owner, child, &long)?]);
+        assert_eq!(result[&child].chars().count(), 1024);
+        Ok(())
+    }
+
+    #[test]
+    fn durable_objectives_pair_successful_legacy_calls_and_validate_paginated_owners() -> Result<()>
+    {
+        use codex_history::RolloutItem;
+        let owner = ThreadId::new();
+        let child = ThreadId::new();
+        let foreign = ThreadId::new();
+        let response = |value| -> Result<_> {
+            let item: codex_protocol::models::ResponseItem = serde_json::from_value(value)?;
+            Ok(RolloutItem::ResponseItem(item.into()))
+        };
+        let call = |id, name, namespace, args: serde_json::Value| {
+            response(json!({
+                "type":"function_call", "name":name, "namespace":namespace,
+                "call_id":id, "arguments":args.to_string()
+            }))
+        };
+        let output = |id, value: serde_json::Value| {
+            response(json!({
+                "type":"function_call_output", "call_id":id, "output":value.to_string()
+            }))
+        };
+        let paginated = |sender, text| -> Result<_> {
+            Ok(RolloutItem::EventMsg(serde_json::from_value(json!({
+                "type":"item_completed", "thread_id":owner, "turn_id":"turn", "item":{
+                    "type":"CollabAgentToolCall", "id":"c", "tool":"send_input", "status":"completed",
+                    "sender_thread_id":sender, "receiver_thread_ids":[child], "prompt":text
+                }
+            }))?))
+        };
+        let mut items = vec![
+            call(
+                "spawn",
+                "spawn_agent",
+                "multi_agent_v1",
+                json!({"message":"First objective"}),
+            )?,
+            output("unmatched", json!({"agent_id":child}))?,
+            output("spawn", json!({"agent_id":child}))?,
+            call(
+                "bad",
+                "spawn_agent",
+                "mcp__unrelated",
+                json!({"message":"Wrong namespace"}),
+            )?,
+            output("bad", json!({"agent_id":child}))?,
+            call(
+                "send",
+                "send_input",
+                "multi_agent_v1",
+                json!({"target":child,"items":[{"type":"text","text":"Updated 🙂"}]}),
+            )?,
+            output("send", json!({"submission_id":"accepted"}))?,
+            call(
+                "failed",
+                "send_input",
+                "multi_agent_v1",
+                json!({"target":child,"message":"Failed update"}),
+            )?,
+            output("failed", json!({"error":"not accepted"}))?,
+            paginated(foreign, "Foreign owner must not override")?,
+        ];
+        items.push(call(
+            "reused",
+            "spawn_agent",
+            "multi_agent_v1",
+            json!({"message":"Stale call"}),
+        )?);
+        items.push(call(
+            "reused",
+            "spawn_agent",
+            "mcp__unrelated",
+            json!({"message":"Foreign call"}),
+        )?);
+        items.push(output("reused", json!({"agent_id":child}))?);
+        assert_eq!(delegation_objectives(owner, &items)[&child], "Updated 🙂");
+        items.push(paginated(owner, "Typed durable objective")?);
+        assert_eq!(
+            delegation_objectives(owner, &items)[&child],
+            "Typed durable objective"
+        );
+        Ok(())
+    }
 
     #[test]
     fn live_projection_preserves_public_summary_and_removes_private_response_content() -> Result<()>

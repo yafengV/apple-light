@@ -48,6 +48,7 @@ extension WorkspaceStore {
     child.model = row["model"].text ?? child.model; child.reasoningEffort = row["reasoningEffort"].text ?? child.reasoningEffort
     child.depth = row["depth"].int ?? child.depth; child.preview = row["preview"].text ?? child.preview
     child.recencyAtMs = row["recencyAtMs"].int ?? child.recencyAtMs
+    child.objective = row["objective"].text ?? child.objective
     library.tasks[index].codexSubagents![childIndex] = child
     saveLibrary()
   }
@@ -120,6 +121,7 @@ extension WorkspaceStore {
         row.reasoningEffort = row.reasoningEffort ?? old.reasoningEffort
         row.preview = row.preview ?? old.preview
         row.recencyAtMs = row.recencyAtMs ?? old.recencyAtMs
+        row.objective = row.objective ?? old.objective
         if row.status == .notLoaded, !old.status.working { row.status = old.status }
       }
       next.append(row)

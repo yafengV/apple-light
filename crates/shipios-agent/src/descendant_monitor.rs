@@ -338,6 +338,7 @@ mod tests {
                 loaded: true,
                 preview: None,
                 recency_at_ms: None,
+                objective: None,
             })
             .collect::<Vec<_>>();
         let frames = snapshot_frames(&rows, 17);

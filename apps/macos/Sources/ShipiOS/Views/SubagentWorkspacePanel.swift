@@ -56,7 +56,8 @@ struct SubagentWorkspacePanel: View {
             Button("重新加载") { discoveryRetry += 1 }.buttonStyle(.plain)
           }.padding(12).accessibilityIdentifier("subagents-discovery-error")
         }
-        SubagentsPanelView(agents: agents, onSelect: { detail.select($0) })
+        SubagentsPanelView(agents: agents, onSelect: { detail.select($0) },
+          liveEvents: { store.subagentLiveStates[$0.id]?.events ?? [] })
       }
     }
     .task(id: (parentRoot ?? "") + ":" + String(discoveryRetry)) {
