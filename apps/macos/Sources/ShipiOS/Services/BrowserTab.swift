@@ -515,9 +515,11 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   }
   private func recordVisit() {
     guard !closed, !loading, error == nil, let url = committedURL else { return }
-    let newVisit = recordedVisitURL != url
-    recordedVisitURL = url
-    didVisit?(url, title, newVisit)
+    let newVisit = !Self.sameDocument(recordedVisitURL, url)
+    // Fragment navigation keeps the same document and its original history key.
+    // Title notifications must update that visit without inserting a new one.
+    if newVisit { recordedVisitURL = url }
+    didVisit?(recordedVisitURL ?? url, title, newVisit)
   }
   func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
     guard !closed else { return }

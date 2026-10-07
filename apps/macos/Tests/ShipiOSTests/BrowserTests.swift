@@ -105,6 +105,40 @@ final class BrowserTests: XCTestCase {
     try await eventually("Navigation did not finish") { !tab.loading && tab.title == "Two" }
     XCTAssertTrue(tab.siteTools.isEmpty)
   }
+  @MainActor func testFragmentChangesKeepOriginalVisitAndCannotReviveClearedHistory() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    store.libraryLoaded = true
+    defer { store.workspace.browser.shutdown() }
+    let tab = store.workspace.browser.newTab()
+    try await load(tab, "/one#initial", title: "One")
+    try await eventually("Initial document visit missing") { store.library.browserHistory.count == 1 }
+    let original = try XCTUnwrap(store.library.browserHistory.first)
+    tab.address = base + "/one#next"; tab.navigate()
+    try await eventually("Fragment navigation did not finish") { !tab.loading && tab.committedURL?.fragment == "next" }
+    _ = try await tab.view.evaluateJavaScript("document.title = 'Fragment title'; undefined;")
+    try await eventually("Original visit title not updated") { store.library.browserHistory.first?.title == "Fragment title" }
+    XCTAssertEqual(store.library.browserHistory.count, 1)
+    XCTAssertEqual(store.library.browserHistory.first?.id, original.id)
+    XCTAssertEqual(store.library.browserHistory.first?.url, original.url)
+    XCTAssertEqual(store.library.browserHistory.first?.visitedAt, original.visitedAt)
+    store.library.browserHistory = []
+    XCTAssertTrue(store.saveLibrary())
+    _ = try await tab.view.evaluateJavaScript("location.hash = 'after-clear'; document.title = 'Cleared fragment'; undefined;")
+    try await eventually("Cleared page fragment did not update") {
+      tab.committedURL?.fragment == "after-clear" && tab.title == "Cleared fragment"
+    }
+    try await Task.sleep(for: .milliseconds(100))
+    XCTAssertTrue(store.library.browserHistory.isEmpty)
+    XCTAssertTrue(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json")).browserHistory.isEmpty)
+    tab.reload()
+    try await eventually("Reload must record a new actual document visit") {
+      !tab.loading && store.library.browserHistory.count == 1
+    }
+    XCTAssertEqual(store.library.browserHistory.first?.url, base + "/one#after-clear")
+    XCTAssertNotEqual(store.library.browserHistory.first?.id, original.id)
+  }
   @MainActor func testSiteToolHostRespectsTaskOwnershipAndDisableSwitch() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("site-tool-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -153,6 +187,8 @@ final class BrowserTests: XCTestCase {
     store.library.browserPermissions.defaultDecision = .allow
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
       styleMask: [.titled], backing: .buffered, defer: false)
+    // ARC owns this fixture; AppKit must not release it again after closing.
+    window.isReleasedWhenClosed = false
     window.identifier = NSUserInterfaceItemIdentifier("main")
     window.orderFront(nil)
     defer { window.close() }

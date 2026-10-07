@@ -127,7 +127,12 @@ final class ArchiveDeletionDialogTests: XCTestCase {
       styleMask: [.borderless], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     defer { window.close() }
+    // Another fixture's window may finish closing while SwiftUI lays out this one.
+    let unrelatedWindow = NSWindow(contentRect: .zero,
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    unrelatedWindow.isReleasedWhenClosed = false
     let windowsBefore = Set(NSApp.windows.map(\.windowNumber))
+    unrelatedWindow.close()
     let request = ArchiveDeletionRequest(kind: .project, taskIDs: ["one", "two"])
     let host = NSHostingView(rootView: Color.gray.overlay(ArchiveDeletionDialog(store: store, request: request)))
     window.contentView = host
@@ -136,7 +141,10 @@ final class ArchiveDeletionDialogTests: XCTestCase {
       try await Task.sleep(for: .milliseconds(200))
       host.layoutSubtreeIfNeeded()
       XCTAssertNil(window.attachedSheet)
-      XCTAssertEqual(Set(NSApp.windows.map(\.windowNumber)), windowsBefore)
+      XCTAssertTrue(Set(NSApp.windows.map(\.windowNumber)).isSubset(of: windowsBefore),
+        "The dialog must not create another window; unrelated windows may close")
+      XCTAssertTrue(window.contentView === host)
+      XCTAssertTrue(host.window === window)
       let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: bitmap)
       let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
