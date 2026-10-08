@@ -36,7 +36,7 @@ struct SettingsMenuPicker<Value: Hashable>: View {
     LabeledContent {
       SettingsMenuInput(title: title, selection: $selection, options: options)
         .settingsFocusReveal()
-        .fixedSize(horizontal: true, vertical: true)
+        .fixedSize(horizontal: false, vertical: true)
         .alignmentGuide(.firstTextBaseline) { dimensions in
           description == nil ? dimensions[.firstTextBaseline] : dimensions[VerticalAlignment.center]
         }
@@ -50,6 +50,7 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
   @Environment(\.settingsNativeControlDidFocus) private var didFocus
+  @Environment(\.layoutDirection) private var direction
   let title: String
   @Binding var selection: Value
   let options: [SettingsMenuOption<Value>]
@@ -61,6 +62,9 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
     button.target = context.coordinator
     button.action = #selector(Coordinator.changed(_:))
     button.menu?.autoenablesItems = false
+    button.menu?.delegate = context.coordinator
+    context.coordinator.button = button
+    (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
     button.setAccessibilityLabel(title)
     return button
   }
@@ -84,21 +88,41 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
       coordinator.options = options
     }
     button.selectItem(at: options.firstIndex(where: { $0.value == selection }) ?? -1)
+    button.formTrigger = .init(appearance: appearance,
+      swatch: options.first(where: { $0.value == selection })?.swatch, direction: direction)
     button.invalidateIntrinsicContentSize()
+  }
+
+  func sizeThatFits(_ proposal: ProposedViewSize, nsView: SettingsMenuControl, context: Context) -> CGSize? {
+    let ideal = nsView.intrinsicContentSize
+    return .init(width: max(0, min(ideal.width, proposal.width ?? ideal.width)), height: ideal.height)
   }
 
   static func dismantleNSView(_ button: SettingsMenuControl, coordinator: Coordinator) {
     coordinator.active = false
     button.active = false
     button.didFocus = nil
+    button.menu?.delegate = nil
+    coordinator.button = nil
+    button.formTrigger = nil
     button.target = nil
   }
 
-  final class Coordinator: NSObject {
+  final class Coordinator: NSObject, NSMenuDelegate {
+    weak var button: SettingsMenuControl?
     var parent: SettingsMenuInput
     var options: [SettingsMenuOption<Value>] = []
     var active = true
     init(_ parent: SettingsMenuInput) { self.parent = parent }
+
+    func menuWillOpen(_ menu: NSMenu) {
+      guard active, let button, button.menu === menu else { return }
+      button.formMenuOpen = true
+    }
+    func menuDidClose(_ menu: NSMenu) {
+      guard let button, button.menu === menu else { return }
+      button.formMenuOpen = false
+    }
 
     @objc func changed(_ button: SettingsMenuControl) {
       let index = button.indexOfSelectedItem
@@ -115,6 +139,73 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
 }
 
 final class SettingsMenuControl: NSPopUpButton {
+  var formTrigger: SettingsMenuTriggerConfiguration? { didSet { updateFormSurface(); invalidateIntrinsicContentSize() } }
+  var formMenuOpen = false { didSet { updateFormSurface() } }
+  private var formHovered = false
+  private var formFocused = false
+  private var pointerFocus = false
+  private var formHost: SettingsMenuTriggerHostingView?
+  private var formTrackingArea: NSTrackingArea?
+
+  override var intrinsicContentSize: NSSize {
+    guard let formTrigger else { return super.intrinsicContentSize }
+    let textWidth = ((titleOfSelectedItem ?? "") as NSString).size(withAttributes:
+      [.font: formTrigger.appearance.nativeFont(size: SettingsMenuTriggerMetrics.fontSize)]).width
+    let leading = formTrigger.swatch == nil ? SettingsMenuTriggerMetrics.padding
+      : SettingsMenuTriggerMetrics.swatchPadding + SettingsMenuTriggerMetrics.swatchSize + SettingsMenuTriggerMetrics.swatchGap
+    return .init(width: ceil(textWidth + leading + SettingsMenuTriggerMetrics.padding
+      + 2 * SettingsMenuTriggerMetrics.border + SettingsMenuTriggerMetrics.gap + SettingsMenuTriggerMetrics.chevronSize),
+      height: SettingsMenuTriggerMetrics.height)
+  }
+
+  override func layout() {
+    super.layout()
+    formHost?.frame = bounds.insetBy(dx: -SettingsMenuTriggerMetrics.focusRing, dy: -SettingsMenuTriggerMetrics.focusRing)
+  }
+  override func draw(_ dirtyRect: NSRect) {
+    if formTrigger == nil { super.draw(dirtyRect) }
+  }
+  override func selectItem(at index: Int) {
+    super.selectItem(at: index)
+    updateFormSurface()
+  }
+  private func updateFormSurface() {
+    guard let formTrigger else {
+      formHost?.removeFromSuperview(); formHost = nil
+      return
+    }
+    isTransparent = true; focusRingType = .none
+    let view = AnyView(SettingsMenuTriggerSurface(title: titleOfSelectedItem ?? "", swatch: formTrigger.swatch,
+      hovered: formHovered, open: formMenuOpen, focused: formFocused)
+      .disabled(!isEnabled).padding(SettingsMenuTriggerMetrics.focusRing)
+      .environment(\.appAppearance, formTrigger.appearance).environment(\.layoutDirection, formTrigger.direction))
+    if let formHost { formHost.rootView = view }
+    else {
+      let host = SettingsMenuTriggerHostingView(rootView: view)
+      host.setAccessibilityElement(false); addSubview(host); formHost = host
+    }
+    needsLayout = true; needsDisplay = true
+  }
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let formTrackingArea { removeTrackingArea(formTrackingArea); self.formTrackingArea = nil }
+    if formTrigger != nil {
+      let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self)
+      addTrackingArea(area); formTrackingArea = area
+    }
+  }
+  override func mouseEntered(with event: NSEvent) {
+    super.mouseEntered(with: event); formHovered = true; updateFormSurface()
+  }
+  override func mouseExited(with event: NSEvent) {
+    super.mouseExited(with: event); formHovered = false; updateFormSurface()
+  }
+  override func resignFirstResponder() -> Bool {
+    let accepted = super.resignFirstResponder()
+    if accepted { formFocused = false; updateFormSurface() }
+    return accepted
+  }
+
   var didFocus: (() -> Void)?
   var active = true { didSet { releaseDisabledFocus() } }
   private var requestedEnabled = true
@@ -124,6 +215,7 @@ final class SettingsMenuControl: NSPopUpButton {
     set {
       guard requestedEnabled != newValue else { return }
       requestedEnabled = newValue
+      updateFormSurface()
       enabledGeneration = UUID()
       let generation = enabledGeneration
       // SwiftUI also sets this property while adopting the environment, before
@@ -142,6 +234,7 @@ final class SettingsMenuControl: NSPopUpButton {
   override func becomeFirstResponder() -> Bool {
     let accepted = super.becomeFirstResponder()
     if accepted {
+      formFocused = !pointerFocus; updateFormSurface()
       DispatchQueue.main.async { [weak self] in
         guard let self, self.acceptsFirstResponder,
           self.window?.firstResponder === self else { return }
@@ -175,7 +268,9 @@ final class SettingsMenuControl: NSPopUpButton {
 
   override func mouseDown(with event: NSEvent) {
     guard acceptsFirstResponder else { return }
+    pointerFocus = true
     window?.makeFirstResponder(self)
+    pointerFocus = false; formFocused = false; updateFormSurface()
     super.mouseDown(with: event)
   }
 
@@ -189,6 +284,7 @@ final class SettingsMenuControl: NSPopUpButton {
     guard acceptsFirstResponder else { return }
     let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
     if modifiers.isEmpty, [36, 49, 76, 125].contains(event.keyCode) {
+      formFocused = true; updateFormSurface()
       if !event.isARepeat { performClick(nil) }
       return
     }
