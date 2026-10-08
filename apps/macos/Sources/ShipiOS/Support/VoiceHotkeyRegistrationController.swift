@@ -20,6 +20,10 @@ import Foundation
     persist: () throws -> Void) throws {
     try transaction.commit(preferences, replacing: previous, persist: persist)
   }
+  func changes(_ preferences: VoicePreferences, replacing previous: VoicePreferences)
+    -> [(mode: Mode, key: AppGlobalHotKey, binding: ShortcutBinding?)] {
+    transaction.changes(preferences, replacing: previous)
+  }
 
   func refresh(_ preferences: VoicePreferences, retrying retry: Mode? = nil) -> Refresh {
     var result = Refresh()

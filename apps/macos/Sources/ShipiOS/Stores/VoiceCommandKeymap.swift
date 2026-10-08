@@ -7,6 +7,11 @@ extension WorkspaceStore {
   func connectShortcutSettingsStorage() {
     shortcuts.voicePreferences = { [weak self] in self?.voicePreferences ?? VoicePreferences() }
     shortcuts.voiceRegistrationError = { [weak self] in self?.voiceShortcutRegistrationErrors[$0] }
+    shortcuts.coordinatesGlobalSnapshot = { [weak self] in
+      guard let self else { return false }
+      return self.libraryLoaded && self.voiceRegistrationController != nil
+        && self.shortcuts.globalRegistrationController != nil
+    }
     shortcuts.setVoiceBinding = { [weak self] mode, binding in
       guard let self else { throw AgentFailure(message: "工作区已关闭。") }
       var next = self.voicePreferences
@@ -52,9 +57,12 @@ extension WorkspaceStore {
     let changed = VoiceShortcutPresentation.Mode.allCases.filter { previous[$0] != next[$0] }
     changed.forEach { voiceShortcutRegistrationErrors[$0] = nil }
     do {
+      if let shortcutSnapshot, shortcutSnapshot.version != 1 {
+        throw AgentFailure(message: "不支持此快捷键设置版本。")
+      }
       if !changed.isEmpty {
         if let error = shortcuts.loadError { throw AgentFailure(message: error) }
-        try validateVoiceBindings(next, changed: changed)
+        try validateVoiceBindings(next, changed: changed, shortcutSnapshot: shortcutSnapshot)
       }
       var candidate = library
       candidate.voicePreferences = next
@@ -66,13 +74,26 @@ extension WorkspaceStore {
         try candidate.save(to: self.dataRoot.appendingPathComponent("workspace.json"))
         self.library = candidate
       }
-      if !changed.isEmpty, let commit = voiceHotkeyPreferenceCommitHandler {
+      if let shortcutSnapshot, let commands = shortcuts.globalRegistrationController,
+        let voice = voiceRegistrationController {
+        let oldCommands = CommandGlobalHotkeyBindings(pet: shortcuts.binding("pet"), popout: shortcuts.binding("popout"))
+        let newCommands = shortcuts.globalBindings(in: shortcutSnapshot)
+        try GlobalHotkeyRegistrationBatch.commit(commands: commands, previousCommands: oldCommands,
+          nextCommands: newCommands, voice: voice, previousVoice: previous, nextVoice: next, persist: persist)
+        for id in CommandGlobalHotkeyBindings.commandIDs where oldCommands[id] != newCommands[id] {
+          shortcuts.globalRegistrationErrors[id] = nil
+        }
+      } else if !changed.isEmpty, let commit = voiceHotkeyPreferenceCommitHandler {
         try commit(previous, next, persist)
       } else { try persist() }
+      if let shortcutSnapshot { shortcuts.publish(shortcutSnapshot) }
       generalSettingsError = nil
       if !changed.isEmpty { globalDictationHotkeyChangeHandler?() }
     } catch let failure as VoiceHotkeyRegistrationFailure {
       voiceShortcutRegistrationErrors[failure.mode] = failure.message
+      throw failure
+    } catch let failure as CommandGlobalHotkeyFailure {
+      shortcuts.globalRegistrationErrors[failure.commandID] = failure.message
       throw failure
     } catch {
       generalSettingsError = error.localizedDescription
@@ -82,12 +103,14 @@ extension WorkspaceStore {
   }
 
   private func validateVoiceBindings(_ next: VoicePreferences,
-    changed: [VoiceShortcutPresentation.Mode]) throws {
+    changed: [VoiceShortcutPresentation.Mode], shortcutSnapshot: ShortcutPreferencesSnapshot?) throws {
     for mode in changed {
       guard let binding = next[mode] else { continue }
       var message = binding.validationMessage(for: mode.commandID)
-      if message == nil, let conflict = DesktopCommand.all.first(where: {
-        !$0.allowsBareModifiers && shortcuts.matches($0.id, binding)
+      if message == nil, let conflict = DesktopCommand.all.first(where: { command in
+        !command.allowsBareModifiers && (shortcutSnapshot.map { snapshot in
+          shortcuts.bindings(command.id, in: snapshot).contains(binding)
+        } ?? shortcuts.matches(command.id, binding))
       }) { message = "已用于“\(conflict.title)”，请先移除该绑定。" }
       if message == nil {
         for other in VoiceShortcutPresentation.Mode.allCases where other != mode {

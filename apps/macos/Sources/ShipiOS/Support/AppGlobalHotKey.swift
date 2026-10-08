@@ -3,52 +3,28 @@ import Foundation
 
 @MainActor
 final class AppGlobalHotKey {
-  private var hotKey: EventHotKeyRef?
-  private var handler: EventHandlerRef?
+  private var native: NativeRegistration?
+  private let primaryRoute: GlobalHotkeyEventRoute
   private var registeredBinding: ShortcutBinding?
   private enum PressRoute { case idle, action, capture }
   private var pressRoute = PressRoute.idle
   private var registrationRevision: UInt64 = 0
   private let action: () -> Void
   private let releaseAction: (() -> Void)?
-  private let identifier: EventHotKeyID
   private let title: String
 
   init(id: UInt32, title: String, onRelease: (() -> Void)? = nil,
     action: @escaping () -> Void) {
-    identifier = EventHotKeyID(signature: 0x5348_4950, id: id) // SHIP
+    primaryRoute = GlobalHotkeyEventRoute.make(preferredID: id)
     self.title = title
     self.action = action
     releaseAction = onRelease
-    let events = [EventTypeSpec(
-      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
-      EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))]
-    let callback: EventHandlerUPP = { _, event, context in
-        guard let event, let context else { return OSStatus(eventNotHandledErr) }
-        var identifier = EventHotKeyID()
-        let status = GetEventParameter(
-          event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
-          nil, MemoryLayout<EventHotKeyID>.size, nil, &identifier)
-        guard status == noErr else { return OSStatus(eventNotHandledErr) }
-        let owner = Unmanaged<AppGlobalHotKey>.fromOpaque(context).takeUnretainedValue()
-        guard identifier.signature == owner.identifier.signature,
-          identifier.id == owner.identifier.id else { return OSStatus(eventNotHandledErr) }
-        let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
-        // The application event target is driven by AppKit's main event loop.
-        // Decline foreign-thread delivery rather than read UI state off-thread.
-        guard Thread.isMainThread else { return OSStatus(eventNotHandledErr) }
-        let delivery = MainActor.assumeIsolated { owner.delivery(released: released) }
-        Task { @MainActor in delivery() }
-        return noErr
-      }
-    let status = events.withUnsafeBufferPointer { buffer in
-      InstallEventHandler(GetApplicationEventTarget(), callback, buffer.count,
-        buffer.baseAddress, Unmanaged.passUnretained(self).toOpaque(), &handler)
-    }
-    if status != noErr { handler = nil }
+    primaryRoute.owner = self
   }
 
-  private func delivery(released: Bool) -> (@MainActor () -> Void) {
+  var eventIdentifier: EventHotKeyID { (native?.route ?? primaryRoute).identifier }
+
+  func delivery(released: Bool) -> (@MainActor () -> Void) {
     if released {
       let invoke = pressRoute != .capture
       pressRoute = .idle
@@ -77,63 +53,106 @@ final class AppGlobalHotKey {
     try prepareRegistration(binding).commit()
   }
 
-  /// Keep the current Carbon registration until the synchronous settings save
-  /// succeeds. Dropping an uncommitted preparation releases only its candidate.
+  /// Keep all old registrations until saving succeeds. A group can reuse a
+  /// registration released by another member without opening an OS race window.
   func prepareRegistration(_ binding: ShortcutBinding?) throws -> PreparedRegistration {
-    if binding == registeredBinding {
-      return PreparedRegistration(owner: self, binding: binding, candidate: nil, changes: false)
+    do { return try Self.prepareRegistrations([(self, binding)]) }
+    catch let failure as PreparationFailure { throw failure.underlying }
+  }
+
+  struct PreparationFailure: LocalizedError {
+    let index: Int
+    let underlying: Error
+    var errorDescription: String? { underlying.localizedDescription }
+  }
+
+  static func prepareRegistrations(_ changes: [(AppGlobalHotKey, ShortcutBinding?)]) throws -> PreparedRegistration {
+    var seenOwners: Set<ObjectIdentifier> = [], seenBindings: Set<ShortcutBinding> = []
+    for (index, change) in changes.enumerated() {
+      guard seenOwners.insert(ObjectIdentifier(change.0)).inserted,
+        change.1.map({ seenBindings.insert($0).inserted }) ?? true else {
+        throw PreparationFailure(index: index, underlying: AgentFailure(message: "同一批全局快捷键不能重复分配。"))
+      }
     }
-    guard let binding else {
-      return PreparedRegistration(owner: self, binding: nil, candidate: nil, changes: true)
+    let reused = changes.map { owner, binding -> NativeRegistration? in
+      guard let binding else { return nil }
+      return changes.first(where: { $0.0.native?.binding == binding })?.0.native
     }
-    guard handler != nil else {
-      throw AgentFailure(message: "无法安装\(title)全局快捷键的事件处理器。")
+    let transferred = Set(zip(changes, reused).compactMap { change, candidate -> ObjectIdentifier? in
+      guard let candidate, change.0.native !== candidate else { return nil }
+      return ObjectIdentifier(candidate)
+    })
+    var entries: [PreparedRegistration.Entry] = []
+    for (index, change) in changes.enumerated() {
+      let (owner, binding) = change
+      if binding == owner.registeredBinding {
+        entries.append(.init(owner: owner, binding: binding, candidate: owner.native, changes: false))
+        continue
+      }
+      var candidate = reused[index]
+      if let binding, candidate == nil {
+        let currentRoute = owner.native?.route ?? owner.primaryRoute
+        let donated = owner.native.map { transferred.contains(ObjectIdentifier($0)) } ?? false
+        let route = !donated && (currentRoute.owner === owner || currentRoute.owner == nil)
+          ? currentRoute : GlobalHotkeyEventRoute.make()
+        route.owner = owner
+        do { candidate = try NativeRegistration(binding: binding, route: route, title: owner.title) }
+        catch { throw PreparationFailure(index: index, underlying: error) }
+      }
+      entries.append(.init(owner: owner, binding: binding, candidate: candidate, changes: true))
     }
-    guard let keyCode = Self.keyCode(binding.key) else {
-      throw AgentFailure(message: "\(title)全局快捷键不支持这个按键。")
+    return PreparedRegistration(entries: entries)
+  }
+
+  @MainActor fileprivate final class NativeRegistration {
+    let binding: ShortcutBinding
+    let route: GlobalHotkeyEventRoute
+    private var reference: EventHotKeyRef?
+    init(binding: ShortcutBinding, route: GlobalHotkeyEventRoute, title: String) throws {
+      self.binding = binding; self.route = route
+      guard route.handler != nil else {
+        throw AgentFailure(message: "无法安装\(title)全局快捷键的事件处理器。")
+      }
+      guard let keyCode = AppGlobalHotKey.keyCode(binding.key) else {
+        throw AgentFailure(message: "\(title)全局快捷键不支持这个按键。")
+      }
+      var modifiers: UInt32 = 0
+      if binding.command { modifiers |= UInt32(cmdKey) }
+      if binding.control { modifiers |= UInt32(controlKey) }
+      if binding.option { modifiers |= UInt32(optionKey) }
+      if binding.shift { modifiers |= UInt32(shiftKey) }
+      let status = RegisterEventHotKey(keyCode, modifiers, route.identifier, GetApplicationEventTarget(), 0, &reference)
+      guard status == noErr else {
+        throw AgentFailure(message: "无法注册\(title)全局快捷键，可能已被其他应用占用。")
+      }
     }
-    var modifiers: UInt32 = 0
-    if binding.command { modifiers |= UInt32(cmdKey) }
-    if binding.control { modifiers |= UInt32(controlKey) }
-    if binding.option { modifiers |= UInt32(optionKey) }
-    if binding.shift { modifiers |= UInt32(shiftKey) }
-    var candidate: EventHotKeyRef?
-    let status = RegisterEventHotKey(
-      keyCode, modifiers, identifier, GetApplicationEventTarget(), 0, &candidate)
-    guard status == noErr else {
-      throw AgentFailure(message: "无法注册\(title)全局快捷键，可能已被其他应用占用。")
-    }
-    return PreparedRegistration(owner: self, binding: binding, candidate: candidate, changes: true)
+    deinit { if let reference { UnregisterEventHotKey(reference) } }
   }
 
   @MainActor final class PreparedRegistration {
-    private let owner: AppGlobalHotKey
-    private let binding: ShortcutBinding?
-    private var candidate: EventHotKeyRef?
-    private let changes: Bool
-    private var committed = false
-
-    fileprivate init(owner: AppGlobalHotKey, binding: ShortcutBinding?,
-      candidate: EventHotKeyRef?, changes: Bool) {
-      self.owner = owner; self.binding = binding; self.candidate = candidate; self.changes = changes
+    fileprivate struct Entry {
+      let owner: AppGlobalHotKey
+      let binding: ShortcutBinding?
+      let candidate: NativeRegistration?
+      let changes: Bool
     }
+    private var entries: [Entry]
+    private var committed = false
+    fileprivate init(entries: [Entry]) { self.entries = entries }
     func commit() {
       guard !committed else { return }
       committed = true
-      guard changes else { return }
-      let previous = owner.hotKey
-      owner.hotKey = candidate; owner.registeredBinding = binding; candidate = nil
-      owner.registrationRevision &+= 1
-      // A registration can change while handling the captured press. Its
-      // matching release must still belong to the recorder until delivered.
-      if let previous { UnregisterEventHotKey(previous) }
+      let previous = entries.compactMap { $0.owner.native }
+      for entry in entries where entry.changes {
+        entry.owner.native = entry.candidate
+        entry.owner.registeredBinding = entry.binding
+        entry.owner.registrationRevision &+= 1
+      }
+      for entry in entries where entry.changes { entry.candidate?.route.owner = entry.owner }
+      entries.removeAll()
+      // Reused references now have their new owner; release only unused ones.
+      withExtendedLifetime(previous) {}
     }
-    deinit { if let candidate { UnregisterEventHotKey(candidate) } }
-  }
-
-  deinit {
-    if let hotKey { UnregisterEventHotKey(hotKey) }
-    if let handler { RemoveEventHandler(handler) }
   }
 
   private static func keyCode(_ key: String) -> UInt32? {

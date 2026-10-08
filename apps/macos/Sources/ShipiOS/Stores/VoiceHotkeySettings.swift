@@ -5,6 +5,7 @@ extension WorkspaceStore {
   /// Tests use this same connection, including initial registration and retry.
   func connectVoiceHotkeys(_ registration: VoiceHotkeyRegistrationController,
     didRefresh: @escaping (_ holdBindingChanged: Bool) -> Void) {
+    voiceRegistrationController = registration
     voiceHotkeyPreferenceCommitHandler = { previous, preferences, persist in
       try registration.commit(preferences, replacing: previous, persist: persist)
     }

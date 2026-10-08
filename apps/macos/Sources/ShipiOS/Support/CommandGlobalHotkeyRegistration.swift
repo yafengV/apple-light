@@ -26,21 +26,33 @@ struct CommandGlobalHotkeyFailure: LocalizedError {
 
   func commit(_ next: CommandGlobalHotkeyBindings, replacing previous: CommandGlobalHotkeyBindings,
     persist: () throws -> Void) throws {
-    var prepared: [(String, AppGlobalHotKey.PreparedRegistration)] = []
-    for id in CommandGlobalHotkeyBindings.commandIDs where next[id] != previous[id] {
-      do { prepared.append((id, try keys[id]!.prepareRegistration(next[id]))) }
-      catch {
-        errors[id] = error.localizedDescription
-        throw CommandGlobalHotkeyFailure(commandID: id, message: error.localizedDescription)
-      }
+    let changes = changes(next, replacing: previous)
+    let prepared: AppGlobalHotKey.PreparedRegistration
+    do { prepared = try AppGlobalHotKey.prepareRegistrations(changes.map { ($0.key, $0.binding) }) }
+    catch let failure as AppGlobalHotKey.PreparationFailure {
+      let id = changes[failure.index].id
+      errors[id] = failure.localizedDescription
+      throw CommandGlobalHotkeyFailure(commandID: id, message: failure.localizedDescription)
     }
     try persist()
-    for (id, candidate) in prepared {
-      candidate.commit(); registered[id] = next[id]; errors[id] = nil
-    }
+    prepared.commit()
+    accept(next, replacing: previous)
   }
 
+  func changes(_ next: CommandGlobalHotkeyBindings, replacing previous: CommandGlobalHotkeyBindings)
+    -> [(id: String, key: AppGlobalHotKey, binding: ShortcutBinding?)] {
+    CommandGlobalHotkeyBindings.commandIDs.filter { next[$0] != previous[$0] }
+      .map { ($0, keys[$0]!, next[$0]) }
+  }
+  func accept(_ next: CommandGlobalHotkeyBindings, replacing previous: CommandGlobalHotkeyBindings) {
+    for id in CommandGlobalHotkeyBindings.commandIDs where next[id] != previous[id] {
+      registered[id] = next[id]; errors[id] = nil
+    }
+  }
+  func noteFailure(_ id: String, message: String) { errors[id] = message }
+
   func connect(to preferences: ShortcutPreferences) {
+    preferences.globalRegistrationController = self
     preferences.commitGlobalBindings = { [weak preferences] previous, next, persist in
       do {
         try self.commit(next, replacing: previous, persist: persist)

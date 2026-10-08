@@ -17,6 +17,8 @@ final class ShortcutPreferences {
   @ObservationIgnored var commitGlobalBindings: ((CommandGlobalHotkeyBindings, CommandGlobalHotkeyBindings,
     () throws -> Void) throws -> Void)?
   @ObservationIgnored var retryGlobalRegistration: ((String) throws -> Void)?
+  @ObservationIgnored weak var globalRegistrationController: CommandGlobalHotkeyRegistration?
+  @ObservationIgnored var coordinatesGlobalSnapshot: (() -> Bool)?
   var globalRegistrationErrors: [String: String] = [:]
   @ObservationIgnored var voicePreferences: (() -> VoicePreferences)?
   @ObservationIgnored var voiceRegistrationError: ((VoiceShortcutPresentation.Mode) -> String?)?
@@ -37,6 +39,7 @@ final class ShortcutPreferences {
   }
   private(set) var loadError: String?
   private let file: URL
+  private let commandDefaults: [String: [ShortcutBinding]]
 
   var snapshot: ShortcutPreferencesSnapshot {
     ShortcutPreferencesSnapshot(primaryNumberShortcutTarget: primaryNumberShortcutTarget,
@@ -47,8 +50,9 @@ final class ShortcutPreferences {
     return globalRegistrationErrors[id]
   }
 
-  init(file: URL) {
+  init(file: URL, commandDefaults: [String: [ShortcutBinding]] = [:]) {
     self.file = file
+    self.commandDefaults = commandDefaults
     reload()
   }
 
@@ -82,11 +86,14 @@ final class ShortcutPreferences {
 
   func restore(_ snapshot: ShortcutPreferencesSnapshot) throws {
     guard snapshot.version == 1 else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
+    publish(snapshot)
+    loadError = nil
+    didChange?("*")
+  }
+  func publish(_ snapshot: ShortcutPreferencesSnapshot) {
     overrides = snapshot.overrides
     primaryNumberShortcutTarget = snapshot.primaryNumberShortcutTarget
     externalBrowserLinkShortcut = snapshot.externalBrowserLinkShortcut ?? .unassigned
-    loadError = nil
-    didChange?("*")
   }
 
   func defaultBindings(_ id: String) -> [ShortcutBinding] {
@@ -97,7 +104,7 @@ final class ShortcutPreferences {
       let primary = slot.isTab == (target == .tabs)
       return [ShortcutBinding("\(primary ? "⌘" : "⌃")\(slot.index)")]
     }
-    return DesktopCommand.all.first(where: { $0.id == id })?.defaultBindings ?? []
+    return commandDefaults[id] ?? DesktopCommand.all.first(where: { $0.id == id })?.defaultBindings ?? []
   }
 
   var hasNumberShortcutConflicts: Bool {
@@ -135,6 +142,13 @@ final class ShortcutPreferences {
     }
   }
   func binding(_ id: String) -> ShortcutBinding? { bindings(id).first }
+  func bindings(_ id: String, in snapshot: ShortcutPreferencesSnapshot) -> [ShortcutBinding] {
+    bindings(id, overrides: snapshot.overrides, target: snapshot.primaryNumberShortcutTarget)
+  }
+  func globalBindings(in snapshot: ShortcutPreferencesSnapshot) -> CommandGlobalHotkeyBindings {
+    CommandGlobalHotkeyBindings(pet: bindings("pet", in: snapshot).first,
+      popout: bindings("popout", in: snapshot).first)
+  }
   func matches(_ id: String, _ binding: ShortcutBinding) -> Bool { bindings(id).contains(binding) }
   func label(_ id: String) -> String { bindings(id).map(\.display).joined(separator: " / ") }
   func conflict(for binding: ShortcutBinding, excluding id: String) -> DesktopCommand? {
@@ -235,11 +249,10 @@ final class ShortcutPreferences {
     let save = {
       if let persistSnapshot = self.persistSnapshot { try persistSnapshot(snapshot, resetVoice, saveFile) }
       else { try saveFile() }
-      self.overrides = updated
-      self.primaryNumberShortcutTarget = target
-      self.externalBrowserLinkShortcut = linkShortcut
+      self.publish(snapshot)
     }
-    if let commitGlobalBindings { try commitGlobalBindings(previous, next, save) }
+    if coordinatesGlobalSnapshot?() == true { try save() }
+    else if let commitGlobalBindings { try commitGlobalBindings(previous, next, save) }
     else { try save() }
   }
 }

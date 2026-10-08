@@ -16,16 +16,25 @@ struct VoiceHotkeyRegistrationFailure: LocalizedError {
 
   func commit(_ preferences: VoicePreferences, replacing previous: VoicePreferences,
     persist: () throws -> Void) throws {
-    var prepared: [AppGlobalHotKey.PreparedRegistration] = []
-    for (mode, key, binding, oldBinding) in [
+    let changes = changes(preferences, replacing: previous)
+    let prepared: AppGlobalHotKey.PreparedRegistration
+    do { prepared = try AppGlobalHotKey.prepareRegistrations(changes.map { ($0.key, $0.binding) }) }
+    catch let failure as AppGlobalHotKey.PreparationFailure {
+      throw VoiceHotkeyRegistrationFailure(mode: changes[failure.index].mode, message: failure.localizedDescription)
+    }
+    try persist()
+    prepared.commit()
+  }
+
+  func changes(_ preferences: VoicePreferences, replacing previous: VoicePreferences)
+    -> [(mode: VoiceShortcutPresentation.Mode, key: AppGlobalHotKey, binding: ShortcutBinding?)] {
+    [
       (VoiceShortcutPresentation.Mode.hold, hold, preferences.globalHoldHotkey, previous.globalHoldHotkey),
       (.toggle, toggle, preferences.globalToggleHotkey, previous.globalToggleHotkey),
       (.voiceChat, voiceChat, preferences.globalVoiceChatHotkey, previous.globalVoiceChatHotkey),
-    ] where binding != oldBinding {
-      do { prepared.append(try key.prepareRegistration(binding?.isBareModifier == true ? nil : binding)) }
-      catch { throw VoiceHotkeyRegistrationFailure(mode: mode, message: error.localizedDescription) }
+    ].compactMap { mode, key, binding, oldBinding in
+      guard binding != oldBinding else { return nil }
+      return (mode, key, binding?.isBareModifier == true ? nil : binding)
     }
-    try persist()
-    prepared.forEach { $0.commit() }
   }
 }
