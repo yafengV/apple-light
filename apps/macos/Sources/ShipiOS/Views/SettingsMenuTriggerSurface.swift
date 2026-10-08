@@ -21,6 +21,8 @@ struct SettingsMenuTriggerConfiguration {
   let appearance: AppearancePreferences
   let swatch: SettingsMenuSwatch?
   let direction: LayoutDirection
+  var style: SettingsMenuTriggerStyle = .toolbar
+  var accent: AppearanceRGBA? = nil
 }
 
 /// Only the trigger is drawn here. The existing NSPopUpButton continues to own
@@ -28,33 +30,39 @@ struct SettingsMenuTriggerConfiguration {
 struct SettingsMenuTriggerSurface: View {
   let title: String
   var swatch: SettingsMenuSwatch?
+  var style: SettingsMenuTriggerStyle = .toolbar
+  var accent: AppearanceRGBA? = nil
   var hovered = false
   var open = false
   var focused = false
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
   private var shape: RoundedRectangle {
-    RoundedRectangle(cornerRadius: SettingsMenuTriggerMetrics.radius, style: .continuous)
+    RoundedRectangle(cornerRadius: style.radius, style: style.radius >= 9999 ? .circular : .continuous)
   }
   var body: some View {
     HStack(spacing: SettingsMenuTriggerMetrics.gap) {
       HStack(spacing: SettingsMenuTriggerMetrics.swatchGap) {
         if let swatch { ThemeColorSwatch(swatch: swatch, size: SettingsMenuTriggerMetrics.swatchSize) }
-        Text(title).appFont(size: SettingsMenuTriggerMetrics.fontSize).lineLimit(1)
+        if let accent {
+          Circle().fill(accent.color).overlay(Circle().strokeBorder(appearance.resolvedColors["border"].color, lineWidth: 1))
+            .frame(width: 12, height: 12)
+        }
+        Text(title).appFont(size: style.fontSize).lineLimit(1)
           .truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading)
       }.frame(maxWidth: .infinity, alignment: .leading)
       SettingsMenuChevron().frame(width: SettingsMenuTriggerMetrics.chevronSize,
         height: SettingsMenuTriggerMetrics.chevronSize)
         .foregroundStyle(appearance.resolvedColors["textForegroundTertiary"].color)
     }
-    .frame(minHeight: SettingsMenuTriggerMetrics.lineHeight)
-    .padding(.leading, (swatch == nil ? SettingsMenuTriggerMetrics.padding : SettingsMenuTriggerMetrics.swatchPadding)
+    .frame(minHeight: style.lineHeight)
+    .padding(.leading, (swatch == nil ? style.padding : style.swatchPadding)
       + SettingsMenuTriggerMetrics.border)
-    .padding(.trailing, SettingsMenuTriggerMetrics.padding + SettingsMenuTriggerMetrics.border)
+    .padding(.trailing, style.padding + SettingsMenuTriggerMetrics.border)
     .frame(height: SettingsMenuTriggerMetrics.height)
     .foregroundStyle(appearance.foregroundColor)
     .background(appearance.resolvedColors[isEnabled && (hovered || open)
-      ? "buttonSecondaryBackgroundHover" : "elevatedSecondary"].color, in: shape)
+      ? "buttonSecondaryBackgroundHover" : style.backgroundRole].color, in: shape)
     .overlay { shape.strokeBorder(appearance.resolvedColors["border"].color, lineWidth: SettingsMenuTriggerMetrics.border) }
     .opacity(isEnabled ? 1 : SettingsMenuTriggerMetrics.disabledOpacity)
     .overlay {

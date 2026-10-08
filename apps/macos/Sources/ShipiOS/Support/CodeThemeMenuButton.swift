@@ -13,6 +13,7 @@ struct CodeThemeMenuButton: View {
     SettingsPopupMenuButton(
       title: CodeThemeCatalog.preset(dark ? store.appearance.codeThemes.dark : store.appearance.codeThemes.light, dark: dark)?.label ?? "Codex",
       label: dark ? "深色代码主题" : "浅色代码主题", menu: menu,
+      formStyle: .codeTheme, swatch: store.appearance.themeSwatch(dark: dark),
       menuHeight: { min(320, CGFloat(menu.options.count * 34 + 4)) + 8 },
       available: store.libraryLoaded && !store.restoringLibrary,
       open: { menu.open(dark: dark, keyboard: $0) }, choose: { menu.choose($0, store: store) },

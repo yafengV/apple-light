@@ -20,6 +20,9 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
   var fontSize: CGFloat = 14
   var menuWidth: CGFloat = 240
   var icon: ((NSRect, NSColor, Bool) -> Void)? = nil
+  var formStyle: SettingsMenuTriggerStyle? = nil
+  var swatch: SettingsMenuSwatch? = nil
+  var accent: AppearanceRGBA? = nil
   var dismissOnWindowBlur = true
   var focusTriggerBeforeSelection = false
   var restoreFocusAfterSelection = true
@@ -31,6 +34,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
   let content: (@escaping (String) -> Void) -> AnyView
   @Environment(\.isEnabled) private var enabled
   @Environment(\.appAppearance) private var appearance
+  @Environment(\.layoutDirection) private var direction
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> Control {
     let button = Control(); button.owner = context.coordinator
@@ -43,22 +47,25 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     owner.needsRootUpdate = true
     button.isEnabled = enabled && available
     button.title = title
-    button.font = appearance.nativeFont(size: fontSize)
+    button.font = appearance.nativeFont(size: formStyle?.fontSize ?? fontSize)
     button.foreground = NSColor(appearance.foregroundColor)
-    button.surface = appearance.resolvedColors["textForeground"].opacity(0.025).nativeColor
+    button.surface = formStyle.map { appearance.resolvedColors[$0.backgroundRole].nativeColor }
+      ?? appearance.resolvedColors["textForeground"].opacity(0.025).nativeColor
     button.hoverSurface = appearance.resolvedColors["buttonSecondaryBackgroundHover"].nativeColor
     button.chevronColor = appearance.resolvedColors["textForegroundTertiary"].nativeColor
     button.expanded = menu.presented
     button.border = appearance.resolvedColors["border"].nativeColor
     button.focusBorder = appearance.resolvedColors["borderFocus"].nativeColor
     button.buttonWidth = buttonWidth
-    button.icon = icon; button.invalidateIntrinsicContentSize()
+    button.icon = icon
+    button.formTrigger = formStyle.map { .init(appearance: appearance, swatch: swatch, direction: direction, style: $0, accent: accent) }
+    button.invalidateIntrinsicContentSize()
     button.setAccessibilityLabel(label)
     button.setAccessibilityValue(button.title); button.setAccessibilityExpanded(menu.presented)
     button.needsDisplay = true; owner.schedule(button)
   }
   static func dismantleNSView(_ button: Control, coordinator: Coordinator) {
-    coordinator.active = false; coordinator.detach(); button.active = false; button.owner = nil; button.target = nil
+    coordinator.active = false; coordinator.detach(); button.formTrigger = nil; button.active = false; button.owner = nil; button.target = nil
   }
   static func placement(anchor: NSRect, viewport: NSRect, height: CGFloat, width: CGFloat = 240) -> NSRect? {
     let available = viewport.insetBy(dx: 6, dy: 6)
@@ -86,19 +93,46 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     var surface = NSColor.controlBackgroundColor
     var hoverSurface = NSColor.controlBackgroundColor
     var chevronColor = NSColor.secondaryLabelColor
-    var expanded = false { didSet { needsDisplay = true } }
-    var hovered = false { didSet { needsDisplay = true } }
+    var expanded = false { didSet { if oldValue != expanded { refreshSurface() } } }
+    var hovered = false { didSet { if oldValue != hovered { refreshSurface() } } }
     private var hoverArea: NSTrackingArea?
     var border = NSColor.separatorColor
     var focusBorder = NSColor.keyboardFocusIndicatorColor
     var buttonWidth: CGFloat = 176
     var icon: ((NSRect, NSColor, Bool) -> Void)?
+    var formTrigger: SettingsMenuTriggerConfiguration? { didSet { refreshSurface() } }
+    private var formHost: SettingsMenuTriggerHostingView?
+    var keyboardFocus = true
+    private var formFocused = false
+    private func refreshSurface() {
+      needsDisplay = true
+      guard let formTrigger else { formHost?.removeFromSuperview(); formHost = nil; return }
+      focusRingType = .none
+      let view = AnyView(SettingsMenuTriggerSurface(title: title, swatch: formTrigger.swatch,
+        style: formTrigger.style, accent: formTrigger.accent, hovered: hovered, open: expanded,
+        focused: formFocused)
+        .disabled(!isEnabled).padding(SettingsMenuTriggerMetrics.focusRing)
+        .environment(\.appAppearance, formTrigger.appearance).environment(\.layoutDirection, formTrigger.direction))
+      if let formHost { formHost.rootView = view }
+      else { let host = SettingsMenuTriggerHostingView(rootView: view); host.setAccessibilityElement(false); addSubview(host); formHost = host }
+      needsLayout = true
+    }
+    override func becomeFirstResponder() -> Bool {
+      let result = super.becomeFirstResponder()
+      if result { formFocused = keyboardFocus; keyboardFocus = true; refreshSurface() }
+      return result
+    }
+    override func resignFirstResponder() -> Bool {
+      let result = super.resignFirstResponder()
+      if result { formFocused = false; DispatchQueue.main.async { [weak self] in self?.refreshSurface() } }
+      return result
+    }
     private var requestedEnabled = true
     private var generation = UUID()
     override var isEnabled: Bool {
       get { requestedEnabled }
       set {
-        guard requestedEnabled != newValue else { return }; requestedEnabled = newValue
+        guard requestedEnabled != newValue else { return }; requestedEnabled = newValue; refreshSurface()
         generation = UUID(); let token = generation
         DispatchQueue.main.async { [weak self] in
           guard let self, self.generation == token else { return }
@@ -108,12 +142,13 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     }
     private func applyEnabled(_ value: Bool) {
       if !value, window?.firstResponder === self { window?.makeFirstResponder(nil) }
-      super.isEnabled = value; needsDisplay = true
+      super.isEnabled = value; refreshSurface()
     }
     override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize { .init(width: buttonWidth, height: icon == nil ? 28 : 24) }
     override func draw(_ dirtyRect: NSRect) {
+      if formTrigger != nil { return }
       if let icon {
         let rect = bounds.insetBy(dx: 0.5, dy: 0.5), path = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)
         if expanded || hovered { hoverSurface.setFill(); path.fill() }
@@ -149,11 +184,14 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     override func mouseEntered(with event: NSEvent) { hovered = true }
     override func mouseExited(with event: NSEvent) { hovered = false }
     override func mouseDown(with event: NSEvent) {
-      guard acceptsFirstResponder else { return }; window?.makeFirstResponder(self); super.mouseDown(with: event)
+      guard acceptsFirstResponder else { return }
+      keyboardFocus = false; formFocused = false; refreshSurface()
+      window?.makeFirstResponder(self); super.mouseDown(with: event)
     }
     override func keyDown(with event: NSEvent) {
       let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
       if acceptsFirstResponder, flags.isEmpty, [36, 49, 76, 125].contains(event.keyCode) {
+        keyboardFocus = true; formFocused = true; refreshSurface()
         if !event.isARepeat { owner?.toggle(self, keyboard: true) }; return
       }
       super.keyDown(with: event)
@@ -162,7 +200,11 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       guard acceptsFirstResponder else { return false }; owner?.toggle(self, keyboard: true); return true
     }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); owner?.attach(self) }
-    override func layout() { super.layout(); owner?.schedule(self) }
+    override func layout() {
+      super.layout()
+      formHost?.frame = bounds.insetBy(dx: -SettingsMenuTriggerMetrics.focusRing, dy: -SettingsMenuTriggerMetrics.focusRing)
+      owner?.schedule(self)
+    }
   }
   @MainActor final class Coordinator: NSObject {
     var parent: SettingsPopupMenuButton
@@ -170,6 +212,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     var needsRootUpdate = true
     private var scheduled = false
     private var focusGeneration = UUID()
+    private var openingKeyboardFocus = true
     private var observers: [NSObjectProtocol] = []
     private var monitor: Any?
     private(set) var popup: HostingView?
@@ -179,6 +222,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     @objc func clicked(_ button: Control) { toggle(button, keyboard: false) }
     func toggle(_ button: Control, keyboard: Bool) {
       guard active, button.acceptsFirstResponder, parent.enabled, parent.available else { return }
+      openingKeyboardFocus = keyboard
       focusGeneration = UUID()
       if parent.menu.presented { dismiss(button, restore: true) }
       else {
@@ -195,11 +239,13 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
       parent.menu.dismiss(); popup?.removeFromSuperview(); popup = nil; button.expanded = false; button.setAccessibilityExpanded(false)
       focusGeneration = UUID(); let token = focusGeneration
       if restore {
+        let keyboard = openingKeyboardFocus
         DispatchQueue.main.async { [weak self, weak button] in
           guard let self, let button, self.focusGeneration == token, self.active,
             !self.parent.menu.presented, button.acceptsFirstResponder,
             let window = button.window, window.attachedSheet == nil else { return }
-          window.makeFirstResponder(button); button.needsDisplay = true
+          button.keyboardFocus = keyboard
+          window.makeFirstResponder(button); button.keyboardFocus = true; button.needsDisplay = true
         }
       }
     }

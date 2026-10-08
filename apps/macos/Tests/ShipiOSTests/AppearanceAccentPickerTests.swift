@@ -97,7 +97,7 @@ import XCTest
   func testHiddenPickerCustomVisibilitySameWindowMenuKeyboardAndImmediateColorSave() async throws {
     let (store, root) = makeStore(); XCTAssertTrue(store.selectCodeTheme("codex", dark: false)); let (window, host) = try await surface(store); defer { window.close() }
     let button = try XCTUnwrap(find(host, as: SettingsPopupMenuButton.Control.self).first { $0.accessibilityLabel() == "浅色强调色" }); let owner = try XCTUnwrap(button.owner)
-    XCTAssertEqual(button.title, "默认"); XCTAssertEqual(button.frame.size, .init(width: 144, height: 28)); XCTAssertEqual(button.font?.pointSize, 13)
+    XCTAssertEqual(button.title, "默认"); XCTAssertEqual(button.frame.size, .init(width: 144, height: 28)); XCTAssertEqual(button.font?.pointSize, 12)
     XCTAssertNil(find(host, as: AppearanceColorInput.Control.self).first { $0.field.accessibilityLabel() == "浅色模式下的自定义强调色" })
     owner.toggle(button, keyboard: true); try await settle(host); let popup = try XCTUnwrap(owner.popup); let menu = try XCTUnwrap(owner.parent.menu as? AppearanceAccentMenuState)
     XCTAssertTrue(popup.window === window); XCTAssertEqual(popup.frame.width, 220); XCTAssertEqual(popup.frame.height, menu.height(fontSize: 13), accuracy: 0.000001)
@@ -146,7 +146,7 @@ import XCTest
     let aOwner = try XCTUnwrap(a.owner); let bOwner = try XCTUnwrap(b.owner)
     aOwner.toggle(a, keyboard: false); bOwner.toggle(b, keyboard: true); try await settle(firstHost); try await settle(secondHost)
     XCTAssertTrue(aOwner.popup?.window === first); XCTAssertTrue(bOwner.popup?.window === second)
-    XCTAssertEqual(a.font?.pointSize, 15)
+    XCTAssertEqual(a.font?.pointSize, 14)
     let state = try XCTUnwrap(aOwner.parent.menu as? AppearanceAccentMenuState)
     XCTAssertEqual(try XCTUnwrap(aOwner.popup).frame.height, state.height(fontSize: 15), accuracy: 0.000001)
     XCTAssertTrue(bOwner.handle(try key(53, second), button: b)); try await settle(secondHost)

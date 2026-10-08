@@ -38,7 +38,7 @@ struct AppearanceFontPicker: View {
     .onDisappear { familyMenu.dismiss(); styleMenu.dismiss() }
   }
   private func button(_ menu: AppearanceFontMenuState, title: String, label: String, width: CGFloat, enabled: Bool) -> some View {
-    SettingsPopupMenuButton(title: title, label: label, menu: menu, buttonWidth: 144, fontSize: 12, menuWidth: width,
+    SettingsPopupMenuButton(title: title, label: label, menu: menu, buttonWidth: 144, fontSize: 12, menuWidth: width, formStyle: .font,
       menuHeight: { menu.height }, available: enabled,
       open: { keyboard in
         (menu.kind == .family ? styleMenu : familyMenu).dismiss()

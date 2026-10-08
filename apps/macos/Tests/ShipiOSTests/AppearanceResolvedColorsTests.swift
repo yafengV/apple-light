@@ -104,7 +104,7 @@ import XCTest
     XCTAssertEqual(editor.string, "13.25"); XCTAssertEqual(editor.selectedRange(), .init(location: 1, length: 2)); XCTAssertEqual(store.appearance.uiSize, 14)
     assertColor(field.surface, changed.resolvedColors["controlBackground"])
     assertColor(field.border, changed.resolvedColors["borderHeavy"]); assertColor(field.focusBorder, changed.resolvedColors["borderFocus"])
-    assertColor(button.surface, changed.resolvedColors["textForeground"].opacity(0.025)); assertColor(button.hoverSurface, changed.resolvedColors["buttonSecondaryBackgroundHover"])
+    assertColor(button.surface, changed.resolvedColors["surface"]); assertColor(button.hoverSurface, changed.resolvedColors["buttonSecondaryBackgroundHover"])
     let owner = try XCTUnwrap(button.owner); owner.toggle(button, keyboard: true); try await settle(host)
     let popup = try XCTUnwrap(owner.popup); XCTAssertTrue(button.expanded)
     changed = store.appearance; changed.dark.accent = "#aa33cc"; changed.dark.contrast = 45; XCTAssertTrue(store.commitAppearance(changed)); try await settle(host)

@@ -8,8 +8,8 @@ struct ThemeColorSwatch: View {
     Text("Aa").appFont(size: 12, weight: .semibold)
       .foregroundStyle(CodeSyntaxText.color(swatch.accent) ?? .accentColor)
       .frame(width: size, height: size)
-      .background(CodeSyntaxText.color(swatch.background) ?? .clear, in: RoundedRectangle(cornerRadius: 6))
-      .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: swatch.borderColor), lineWidth: 1))
+      .background(CodeSyntaxText.color(swatch.background) ?? .clear, in: Circle())
+      .overlay(Circle().strokeBorder(Color(nsColor: swatch.borderColor), lineWidth: 1))
       .accessibilityHidden(true)
   }
 }

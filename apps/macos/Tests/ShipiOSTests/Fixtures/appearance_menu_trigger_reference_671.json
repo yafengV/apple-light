@@ -1,0 +1,429 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  ],
+  "generalSettingsSHA256": "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
+  "widthCascade": "max-w-full follows max-w-36 in the full public CSS; the computed maximum is 100%, not 144px",
+  "callSites": [
+    "Hn,{\"aria-label\":n,className:`w-full max-w-36 max-sm:max-w-none`,color:`outlineSurface`,disabled:g,radius:`full`,size:`menuRow`,children:[_,v]",
+    "Hn,{\"aria-label\":n,className:`w-full max-w-36 max-sm:max-w-none`,radius:`full`,size:`menuRow`,children:(0,Y.jsx)(`span`,{className:`truncate`,children:C??T",
+    "Hn,{\"aria-label\":s,className:`w-full max-w-36 max-sm:max-w-none`,disabled:E,radius:`full`,size:`menuRow`,children:(0,Y.jsx)(`span`,{className:`truncate`,children:r?.styleName??(0,Y.jsx)(M,{...J.chromeThemeRegularFontStyle",
+    "Hn,{\"aria-label\":n,className:`w-44`,color:`outlineSurface`,leadingVisual:c,radius:`full`,children:l"
+  ],
+  "cases": [
+    {
+      "kind": "fontFamily",
+      "disabled": false,
+      "props": {
+        "size": "menuRow",
+        "radius": "full",
+        "className": "w-full max-w-36 max-sm:max-w-none"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+          "disabled": false,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        null,
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "fontFamily",
+      "disabled": true,
+      "props": {
+        "size": "menuRow",
+        "radius": "full",
+        "className": "w-full max-w-36 max-sm:max-w-none"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+          "disabled": true,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        null,
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "fontStyle",
+      "disabled": false,
+      "props": {
+        "size": "menuRow",
+        "radius": "full",
+        "className": "w-full max-w-36 max-sm:max-w-none"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+          "disabled": false,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        null,
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "fontStyle",
+      "disabled": true,
+      "props": {
+        "size": "menuRow",
+        "radius": "full",
+        "className": "w-full max-w-36 max-sm:max-w-none"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+          "disabled": true,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        null,
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "accent",
+      "disabled": false,
+      "props": {
+        "size": "menuRow",
+        "radius": "full",
+        "color": "outlineSurface",
+        "className": "w-full max-w-36 max-sm:max-w-none"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-surface not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+          "disabled": false,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        null,
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "accent",
+      "disabled": true,
+      "props": {
+        "size": "menuRow",
+        "radius": "full",
+        "color": "outlineSurface",
+        "className": "w-full max-w-36 max-sm:max-w-none"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-surface not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+          "disabled": true,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        null,
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "codeTheme",
+      "disabled": false,
+      "props": {
+        "radius": "full",
+        "color": "outlineSurface",
+        "className": "w-44",
+        "leadingVisual": "swatch"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-surface not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border button-toolbar py-0 text-sm leading-[18px] max-w-full justify-between pe-3 ps-[calc((var(--spacing-token-button-composer)-var(--spacing)*5)/2-1px)] w-44",
+          "disabled": false,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        "swatch",
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "codeTheme",
+      "disabled": true,
+      "props": {
+        "radius": "full",
+        "color": "outlineSurface",
+        "className": "w-44",
+        "leadingVisual": "swatch"
+      },
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-surface not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border button-toolbar py-0 text-sm leading-[18px] max-w-full justify-between pe-3 ps-[calc((var(--spacing-token-button-composer)-var(--spacing)*5)/2-1px)] w-44",
+          "disabled": true,
+          "children": {
+            "type": "fragment",
+            "props": {
+              "children": [
+                false,
+                [
+                  {
+                    "type": "span",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                      "children": [
+                        "swatch",
+                        "Selected option"
+                      ]
+                    }
+                  },
+                  {
+                    "type": "reference-chevron",
+                    "props": {
+                      "className": "icon-2xs shrink-0 text-tertiary"
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "swatches": [
+    {
+      "size": "trigger",
+      "tree": {
+        "type": "span",
+        "props": {
+          "aria-hidden": true,
+          "className": "flex shrink-0 items-center justify-center rounded-full border text-xs leading-none font-semibold h-5 w-5",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderColor": "color-mix(in srgb, #000000 16%, #ffffff)",
+            "color": "#0000ff"
+          },
+          "children": {
+            "type": "message",
+            "props": {
+              "id": "settings.general.appearance.codeTheme.previewGlyph",
+              "defaultMessage": "Aa",
+              "description": "Preview glyph shown in the code theme selector"
+            }
+          }
+        }
+      }
+    },
+    {
+      "size": "default",
+      "tree": {
+        "type": "span",
+        "props": {
+          "aria-hidden": true,
+          "className": "flex shrink-0 items-center justify-center rounded-full border text-xs leading-none font-semibold h-6 w-6",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderColor": "color-mix(in srgb, #000000 16%, #ffffff)",
+            "color": "#0000ff"
+          },
+          "children": {
+            "type": "message",
+            "props": {
+              "id": "settings.general.appearance.codeTheme.previewGlyph",
+              "defaultMessage": "Aa",
+              "description": "Preview glyph shown in the code theme selector"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metrics": {
+    "height": 28,
+    "fontSize": 12,
+    "lineHeight": 16,
+    "padding": 8,
+    "fontMaxWidthClass": 144,
+    "codeWidth": 176,
+    "codeFontSize": 13,
+    "codeSwatchSize": 20,
+    "swatchSize": 24,
+    "accentSize": 12,
+    "radius": 9999,
+    "disabledOpacity": 0.4
+  }
+}

@@ -5,11 +5,8 @@ struct CodeThemePicker: View {
   let dark: Bool
   @State private var menu = CodeThemeMenuState()
   var body: some View {
-    HStack(spacing: 8) {
-      ThemeColorSwatch(swatch: store.appearance.themeSwatch(dark: dark), size: 28)
-      CodeThemeMenuButton(store: store, dark: dark, menu: menu)
-        .frame(width: 176, height: 28)
-    }
+    CodeThemeMenuButton(store: store, dark: dark, menu: menu)
+      .frame(width: 176, height: 28)
     .onDisappear { menu.dismiss() }
   }
 }

@@ -11,7 +11,8 @@ struct AppearanceAccentPicker: View {
     LabeledContent("强调色") {
       HStack(spacing: 8) {
         SettingsPopupMenuButton(title: selection.title, label: dark ? "深色强调色" : "浅色强调色", menu: menu,
-          buttonWidth: 144, fontSize: 13, menuWidth: 220,
+          buttonWidth: 144, fontSize: 12, menuWidth: 220, formStyle: .accent,
+          accent: selection.isCustom ? nil : (selection.accountAccent ?? .default).swatch(dark: dark),
           menuHeight: { menu.height(fontSize: store.appearance.nativeFont(size: 13).pointSize) },
           available: store.libraryLoaded && !store.restoringLibrary,
           open: { menu.open(dark: dark, keyboard: $0, store: store) },
