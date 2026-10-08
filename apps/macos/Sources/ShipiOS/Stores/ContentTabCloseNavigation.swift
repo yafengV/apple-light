@@ -10,6 +10,13 @@ extension WorkspaceStore {
   func recordWorkspaceTabSelection(_ tab: WorkspaceContentTab) {
     guard !restoringWorkspaceTabLayout else { return }
     let scope = workspaceTabCloseScope(tab)
+    if workspaceTabCloseControllers[scope]?.selectedID == nil {
+      let current = scope.panel == .bottom ? activeBottomWorkspaceTabID
+        : scope.panel == .primary ? (effectiveWorkspaceContentLayoutMode == .full ? activeWorkspaceTabID : activeRightWorkspaceTabID) : nil
+      if let current, workspaceTabCloseIDs(scope).contains(current) {
+        workspaceTabCloseControllers[scope, default: .init()].selectedID = current
+      }
+    }
     workspaceTabCloseControllers[scope, default: .init()].select(tab.id, in: workspaceTabCloseIDs(scope))
   }
   func recordWorkspaceTabMoved(_ tab: WorkspaceContentTab) {
@@ -24,7 +31,7 @@ extension WorkspaceStore {
 
   /// Called before deleting presentation metadata so mixed-kind order and pane
   /// ownership are still available. BrowserSession never chooses a second fallback.
-  func workspaceTabDidDisappear(_ tab: WorkspaceContentTab) {
+  func workspaceTabDidDisappear(_ tab: WorkspaceContentTab, transferring: Bool = false) {
     let id = tab.id, scope = workspaceTabCloseScope(tab), ids = workspaceTabCloseIDs(scope)
     let currentOwner = tab.owner == currentWorkspaceTabOwner
     let mainSelected = currentOwner && activeWorkspaceTabID == id
@@ -43,7 +50,7 @@ extension WorkspaceStore {
     }
     if let actual { controller.select(actual, in: ids) }
     let wasSelected = controller.selectedID == id
-    let next = controller.close(id, in: ids)
+    let next = transferring ? controller.transfer(id, in: ids) : controller.close(id, in: ids)
     workspaceTabCloseControllers[scope] = controller
     pendingWorkspaceTabCloses[id] = nil
     workspaceTabs.removeAll { $0.id == id }

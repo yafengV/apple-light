@@ -91,6 +91,8 @@ struct ComposerTextEditor: NSViewRepresentable {
   let accessibilityLabel: String
   let focusRequest: UUID
   var focusAllowed = true
+  /// Automatic requests can become stale while native pointer focus remains valid.
+  var automaticFocusAllowed = true
   let onKey: (ComposerEditorKey, NSEvent.ModifierFlags, Bool) -> Bool
   let onPasteAttachments: ([NSItemProvider]) -> Void
   var onSelectionChange: ((NSRange) -> Void)? = nil
@@ -181,7 +183,7 @@ struct ComposerTextEditor: NSViewRepresentable {
     func requestFocus(in editor: ComposerNativeTextView) {
       let request = focusRequest
       DispatchQueue.main.async { [weak self, weak editor] in
-        guard let self, let editor, self.active, self.parent.isEnabled, self.parent.focusAllowed,
+        guard let self, let editor, self.active, self.parent.isEnabled, self.parent.focusAllowed, self.parent.automaticFocusAllowed,
           self.focusRequest == request, editor.isEditable,
           let window = editor.window, window.isKeyWindow, window.attachedSheet == nil,
           NSApp.modalWindow == nil else { return }

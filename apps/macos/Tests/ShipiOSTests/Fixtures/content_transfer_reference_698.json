@@ -1,0 +1,1403 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual FBn.ee/_e/he/ge and pure history helpers with explicit signals; inert fullscreen, layout repair and frame callbacks. Does not verify receiver routing, native focus, Pages pairs or primary workspace.",
+  "traces": [
+    {
+      "name": "recent-before-neighbor",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "c"
+        }
+      ]
+    },
+    {
+      "name": "recent-last",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "d",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "d",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "d",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "b",
+          "recent": [
+            "d"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "d"
+          ],
+          "selected": "d",
+          "recent": [
+            "d"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "d",
+            "tabs": {}
+          },
+          "moved": "b"
+        }
+      ]
+    },
+    {
+      "name": "repeated-selection",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "b",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "b",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "b"
+        }
+      ]
+    },
+    {
+      "name": "inactive",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "a",
+          "ids": [
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": "a"
+        }
+      ]
+    },
+    {
+      "name": "inactive-recent-pruned",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "b",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [
+            "b",
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": "b"
+        },
+        {
+          "action": "transfer",
+          "id": "c",
+          "ids": [
+            "a",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "c"
+        }
+      ]
+    },
+    {
+      "name": "recent-chain",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "b",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [
+            "b",
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "d",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "d",
+          "recent": [
+            "c",
+            "b",
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "d",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "d",
+          "ids": [
+            "a",
+            "b",
+            "c"
+          ],
+          "selected": "c",
+          "recent": [
+            "c",
+            "b",
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": "d"
+        },
+        {
+          "action": "transfer",
+          "id": "c",
+          "ids": [
+            "a",
+            "b"
+          ],
+          "selected": "b",
+          "recent": [
+            "b",
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 6,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": "c"
+        },
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 7,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "b"
+        },
+        {
+          "action": "transfer",
+          "id": "a",
+          "ids": [],
+          "selected": null,
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 8,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": "a"
+        }
+      ]
+    },
+    {
+      "name": "select-null",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": null,
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": null,
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "b",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "b"
+        }
+      ]
+    },
+    {
+      "name": "null-active",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": null,
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": null,
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "a",
+          "ids": [
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": null,
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": "a"
+        }
+      ]
+    },
+    {
+      "name": "missing",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "missing",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        }
+      ]
+    },
+    {
+      "name": "repeat-transfer",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "c"
+        },
+        {
+          "action": "transfer",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        }
+      ]
+    },
+    {
+      "name": "fresh-open",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "open",
+          "id": "e",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          "selected": "e",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "e",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "e",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": "e"
+        }
+      ]
+    },
+    {
+      "name": "opener-family-moved",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "open",
+          "id": "e",
+          "opener": "a",
+          "ids": [
+            "a",
+            "e",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "e",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": true,
+            "generation": 1,
+            "lastSelectedTabId": "e",
+            "tabs": {
+              "e": {
+                "generation": 1,
+                "openerTabId": "a"
+              }
+            }
+          },
+          "moved": null
+        },
+        {
+          "action": "open",
+          "id": "f",
+          "opener": "e",
+          "ids": [
+            "a",
+            "e",
+            "f",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "f",
+          "recent": [
+            "e",
+            "a"
+          ],
+          "history": {
+            "active": true,
+            "generation": 1,
+            "lastSelectedTabId": "f",
+            "tabs": {
+              "e": {
+                "generation": 1,
+                "openerTabId": "a"
+              },
+              "f": {
+                "generation": 1,
+                "openerTabId": "e"
+              }
+            }
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "e",
+          "ids": [
+            "a",
+            "f",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "f",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": "e"
+        }
+      ]
+    },
+    {
+      "name": "opener-moved",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "open",
+          "id": "e",
+          "opener": "a",
+          "ids": [
+            "a",
+            "e",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "e",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": true,
+            "generation": 1,
+            "lastSelectedTabId": "e",
+            "tabs": {
+              "e": {
+                "generation": 1,
+                "openerTabId": "a"
+              }
+            }
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "a",
+          "ids": [
+            "e",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "e",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": "a"
+        }
+      ]
+    },
+    {
+      "name": "unrelated-family-retained",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": null,
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          },
+          "moved": null
+        },
+        {
+          "action": "open",
+          "id": "e",
+          "opener": "a",
+          "ids": [
+            "a",
+            "e",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "e",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": true,
+            "generation": 1,
+            "lastSelectedTabId": "e",
+            "tabs": {
+              "e": {
+                "generation": 1,
+                "openerTabId": "a"
+              }
+            }
+          },
+          "moved": null
+        },
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a",
+            "e",
+            "c",
+            "d"
+          ],
+          "selected": "e",
+          "recent": [
+            "a"
+          ],
+          "history": {
+            "active": true,
+            "generation": 1,
+            "lastSelectedTabId": "e",
+            "tabs": {
+              "e": {
+                "generation": 1,
+                "openerTabId": "a"
+              }
+            }
+          },
+          "moved": "b"
+        }
+      ]
+    },
+    {
+      "name": "empty-recent-right",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": "b",
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "transfer",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "d"
+          ],
+          "selected": "c",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": "b"
+        }
+      ]
+    },
+    {
+      "name": "empty-recent-left",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": "d",
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "transfer",
+          "id": "d",
+          "ids": [
+            "a",
+            "b",
+            "c"
+          ],
+          "selected": "c",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          },
+          "moved": "d"
+        }
+      ]
+    },
+    {
+      "name": "single-empty",
+      "initial": {
+        "ids": [
+          "a"
+        ],
+        "selected": "a",
+        "home": null
+      },
+      "steps": [
+        {
+          "action": "transfer",
+          "id": "a",
+          "ids": [],
+          "selected": null,
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": "a"
+        }
+      ]
+    },
+    {
+      "name": "workspace-home-rejected",
+      "initial": {
+        "ids": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "selected": "a",
+        "home": "a"
+      },
+      "steps": [
+        {
+          "action": "transfer",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "selected": "a",
+          "recent": [],
+          "history": {
+            "active": false,
+            "generation": 0,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          },
+          "moved": null
+        }
+      ]
+    }
+  ]
+}

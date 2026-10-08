@@ -2,24 +2,27 @@ import Foundation
 
 extension WorkspaceStore {
   var workspaceTabLayoutSnapshot: WorkspaceTabLayout {
-    WorkspaceTabLayout(tabs: visibleWorkspaceContentTabs.map { tab in
-      let browser = tab.browserID.flatMap { id in workspace.browser.tabs.first { $0.id == id } }
-      let splitFraction = tab.terminalID.flatMap { id -> Double? in
-        guard let scope = terminalScope(for: tab), workspace.terminals.splitSession(for: id, in: scope) != nil else { return nil }
-        return workspace.terminals.splitFraction(for: id, in: scope)
-      }
-      return SavedWorkspaceTab(id: tab.id,
-        kind: tab.kind,
-        placement: workspaceTabPlacement(tab.id), address: browser?.address,
-        committedURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString,
-        filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
-        terminalSplitFraction: splitFraction,
-        watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
-    }, active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
+    WorkspaceTabLayout(tabs: visibleWorkspaceContentTabs.map(savedWorkspaceTab),
+      active: activeWorkspaceTabID, right: activeRightWorkspaceTabID,
       bottom: activeBottomWorkspaceTabID, focused: focusedWorkspaceTabID,
       showingInspector: showingInspector, showingTerminal: showingTerminal,
       showingTabs: showingWorkspaceTabs, side: workspaceContentPaneSide, reviewScope: workspace.selectedReviewScope,
       reviewRepository: workspace.selectedReviewRepository, contentLayoutMode: effectiveWorkspaceContentLayoutMode)
+  }
+
+  func savedWorkspaceTab(_ tab: WorkspaceContentTab) -> SavedWorkspaceTab {
+    let browser = tab.browserID.flatMap { id in workspace.browser.tabs.first { $0.id == id } }
+    let splitFraction = tab.terminalID.flatMap { id -> Double? in
+      guard let scope = terminalScope(for: tab), workspace.terminals.splitSession(for: id, in: scope) != nil else { return nil }
+      return workspace.terminals.splitFraction(for: id, in: scope)
+    }
+    return SavedWorkspaceTab(id: tab.id,
+      kind: tab.kind,
+      placement: workspaceTabPlacement(tab.id), address: browser?.address,
+      committedURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString,
+      filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
+      terminalSplitFraction: splitFraction,
+      watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
   }
 
   func captureWorkspaceTabLayout() {
@@ -49,8 +52,14 @@ extension WorkspaceStore {
     defer { restoringWorkspaceTabLayout = false }
     if restoredWorkspaceTabOwners.insert(owner).inserted {
       var seen = Set<String>()
+      var restored: [WorkspaceContentTab] = []
       for saved in layout.tabs where seen.insert(saved.id).inserted {
-        _ = materializeWorkspaceTab(saved, owner: owner)
+        if let tab = materializeWorkspaceTab(saved, owner: owner) { restored.append(tab) }
+      }
+      let restoredIDs = Set(restored.map(\.id))
+      var ordered = (restored + visibleWorkspaceContentTabs.filter { !restoredIDs.contains($0.id) }).makeIterator()
+      for index in workspaceTabs.indices where workspaceTabs[index].owner == owner {
+        if let tab = ordered.next() { workspaceTabs[index] = tab }
       }
     }
     func selected(_ id: String?, in placement: WorkspaceTabPlacement) -> String? {

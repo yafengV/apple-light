@@ -360,7 +360,9 @@ extension WorkspaceStore {
     destination = .workspace
     switch tab {
     case .browser(let browserID, _):
-      if workspace.browser.selection != browserID { workspace.browser.select(browserID) }
+      // Restoration may already have selected this browser without focus.
+      // An explicit activation must still issue its native focus request.
+      workspace.browser.select(browserID)
     case .file: break
     case .review:
       Task { await workspace.refreshGit() }
@@ -565,10 +567,11 @@ extension WorkspaceStore {
     return true
   }
 
-  @discardableResult func moveWorkspaceTab(_ id: String, toOwner newOwner: String) -> String? {
-    guard let index = workspaceTabs.firstIndex(where: { $0.id == id }) else { return nil }
-    let source = workspaceTabs[index]
-    guard source.owner != newOwner else { return source.id }
+  func workspaceTabTransferCandidate(_ source: WorkspaceContentTab, toOwner newOwner: String) -> WorkspaceContentTab? {
+    guard source.owner != newOwner else { return source }
+    guard newOwner == "new:none" || newOwner.hasPrefix("new:/") || library.tasks.contains(where: { $0.id == newOwner }) else {
+      error = "目标任务已移除，未移动标签。"; return nil
+    }
     let migrated: WorkspaceContentTab
     switch source {
     case .browser(let browserID, _): migrated = .browser(browserID, owner: newOwner)
@@ -576,12 +579,20 @@ extension WorkspaceStore {
       guard fileTabWorkspaces[source.id]?.selectedFileEditor?.hasUnsavedChanges != true else {
         error = "请先保存文件更改，再移动标签。"; return nil
       }
-      guard let root = workspaceTabProject(owner: newOwner),
-        path.isEmpty || (try? WorkspaceFileScope.location(path,
-          roots: [root] + additionalWorkspaceFolders(for: root))) != nil else {
+      guard let root = workspaceTabProject(owner: newOwner) else {
         error = "文件不在目标任务的项目中。"; return nil
       }
-      migrated = .file(path, owner: newOwner)
+      if path.isEmpty { migrated = .file(path, owner: newOwner) }
+      else {
+        guard let sourceRoot = workspaceTabProject(owner: source.owner),
+          let original = try? WorkspaceFileScope.location(path,
+            roots: WorkspaceFileScope.roots(primary: sourceRoot, additional: additionalWorkspaceFolders(for: sourceRoot))),
+          let destination = try? WorkspaceFileScope.location(original.url.path,
+            roots: WorkspaceFileScope.roots(primary: root, additional: additionalWorkspaceFolders(for: root))) else {
+          error = "文件不在目标任务的项目中。"; return nil
+        }
+        migrated = .file(WorkspaceFileScope.key(destination, primary: root), owner: newOwner)
+      }
     case .review: migrated = .review(owner: newOwner)
     case .subagents:
       error = "子任务属于原会话，不能移到其他任务。"
@@ -601,12 +612,23 @@ extension WorkspaceStore {
     case .pullRequestWatch:
       error = "PR 监控进度属于原任务，不能移到其他任务。"
       return nil
-    case .terminal(let terminalID, _): migrated = .terminal(terminalID, owner: newOwner)
+    case .terminal(let terminalID, _):
+      guard terminalScope(for: source) != nil, terminalSession(terminalID) != nil else {
+        error = "终端已不可用，未移动标签。"; return nil
+      }
+      migrated = .terminal(terminalID, owner: newOwner)
     }
     guard !workspaceTabs.contains(where: { $0.id == migrated.id && $0.id != source.id }) else {
       error = "目标聊天已经包含此类标签。"
       return nil
     }
+    return migrated
+  }
+
+  @discardableResult func moveWorkspaceTab(_ id: String, toOwner newOwner: String) -> String? {
+    guard let source = workspaceTabs.first(where: { $0.id == id }),
+      let migrated = workspaceTabTransferCandidate(source, toOwner: newOwner) else { return nil }
+    guard source.owner != newOwner else { return source.id }
     if let terminalID = source.terminalID {
       guard let sourceScope = terminalScope(for: source) else { return nil }
       let destinationScope = TerminalScope(root: sourceScope.root, conversation: newOwner)
@@ -614,19 +636,25 @@ extension WorkspaceStore {
         return nil
       }
     }
-    recordWorkspaceTabMoved(source)
-    workspaceTabs[index] = migrated
+    let placement = workspaceTabPlacement(source.id)
+    workspaceTabDidDisappear(source, transferring: true)
+    workspaceTabs.append(migrated)
+    workspaceTabPlacements[migrated.id] = placement
     migrateWorkspaceTabState(from: source.id, to: migrated.id, owner: newOwner)
+    recordReceivedWorkspaceTab(migrated)
     saveLibrary()
     return migrated.id
   }
 
   @discardableResult func moveWorkspaceTab(_ id: String, toTaskID taskID: String) async -> Bool {
-    guard let target = library.tasks.first(where: { $0.id == taskID }) else { return false }
+    guard let target = library.tasks.first(where: { $0.id == taskID }),
+      let source = workspaceTabs.first(where: { $0.id == id }),
+      workspaceTabTransferCandidate(source, toOwner: taskID) != nil else { return false }
     if currentProjectKey != target.project {
       guard await openTaskScope(target.project) else { return false }
     }
-    guard let current = library.tasks.first(where: { $0.id == taskID }),
+    guard let current = library.tasks.first(where: { $0.id == taskID }), current.project == target.project,
+      workspaceTabs.contains(source),
       let migratedID = moveWorkspaceTab(id, toOwner: taskID)
     else { return false }
     applyTaskSelection(current)
@@ -636,10 +664,12 @@ extension WorkspaceStore {
   }
 
   @discardableResult func moveWorkspaceTabToNewTask(_ id: String) async -> Bool {
-    guard workspaceTabs.contains(where: { $0.id == id }) else { return false }
+    let futureOwner = "new:\(project == nil ? "none" : currentDraftProjectKey)"
+    guard let source = workspaceTabs.first(where: { $0.id == id }),
+      workspaceTabTransferCandidate(source, toOwner: futureOwner) != nil else { return false }
     let targetProject = currentProjectKey
     await newChat()
-    guard selectedTask == nil, currentProjectKey == targetProject,
+    guard selectedTask == nil, currentProjectKey == targetProject, workspaceTabs.contains(source),
       let migratedID = moveWorkspaceTab(id, toOwner: draftKey)
     else { return false }
     activateWorkspaceTab(migratedID)
@@ -853,6 +883,14 @@ extension WorkspaceStore {
     }
     for (oldID, newID) in migratedIDs {
       migrateWorkspaceTabState(from: oldID, to: newID, owner: newOwner)
+    }
+    for (scope, var controller) in workspaceTabCloseControllers where scope.owner == oldOwner {
+      controller.rekey(migratedIDs)
+      let panel: ContentTabClosePanel
+      if case .detached(let id) = scope.panel { panel = .detached(migratedIDs[id] ?? id) }
+      else { panel = scope.panel }
+      workspaceTabCloseControllers[.init(owner: newOwner, panel: panel)] = controller
+      workspaceTabCloseControllers[scope] = nil
     }
     for index in library.pinnedContentTabs.indices
       where library.pinnedContentTabs[index].sourceWindowID == nil && library.pinnedContentTabs[index].owner == oldOwner {

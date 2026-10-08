@@ -7,20 +7,69 @@ struct BrowserHost: NSViewRepresentable {
   let session: BrowserSession
   let canFocus: () -> Bool
   var independentFocus = false
-  func makeCoordinator() -> Coordinator { Coordinator() }
-  func makeNSView(context: Context) -> WKWebView { tab.view }
-  func updateNSView(_ view: WKWebView, context: Context) {
-    let request = session.contentFocus
-    guard session.contentFocusTarget == tab.id, context.coordinator.handled != request else { return }
-    context.coordinator.handled = request
-    DispatchQueue.main.async {
-      guard canFocus(), (independentFocus || session.selection == tab.id), session.contentFocusTarget == tab.id,
-        session.contentFocus == request, !tab.closed, let window = view.window,
-        window.isKeyWindow, window.attachedSheet == nil else { return }
-      window.makeFirstResponder(view)
+  func makeCoordinator() -> Coordinator { Coordinator(self) }
+  func makeNSView(context: Context) -> BrowserContentHostView {
+    let host = BrowserContentHostView(browserView: tab.view)
+    host.coordinator = context.coordinator
+    return host
+  }
+  func updateNSView(_ host: BrowserContentHostView, context: Context) {
+    context.coordinator.parent = self
+    host.attachBrowser()
+    context.coordinator.requestFocus(in: host)
+  }
+  static func dismantleNSView(_ host: BrowserContentHostView, coordinator: Coordinator) {
+    coordinator.active = false
+    host.coordinator = nil
+  }
+  @MainActor final class Coordinator {
+    var parent: BrowserHost
+    var handled: UUID?
+    var active = true
+    init(_ parent: BrowserHost) { self.parent = parent }
+    func requestFocus(in host: BrowserContentHostView) {
+      let request = parent.session.contentFocus
+      guard active, parent.session.contentFocusTarget == parent.tab.id, handled != request else { return }
+      DispatchQueue.main.async { [weak self, weak host] in
+        guard let self, self.active, let host, self.handled != request,
+          self.parent.canFocus(), !self.parent.tab.closed,
+          (self.parent.independentFocus || self.parent.session.selection == self.parent.tab.id),
+          self.parent.session.contentFocusTarget == self.parent.tab.id,
+          self.parent.session.contentFocus == request,
+          host.browserView.superview === host, let window = host.window,
+          window.isKeyWindow, window.attachedSheet == nil else { return }
+        if window.makeFirstResponder(host.browserView) { self.handled = request }
+      }
     }
   }
-  final class Coordinator { var handled: UUID? }
+}
+
+/// SwiftUI owns a fresh container at each presentation site; the browser session
+/// owns its reusable web view. An outgoing container must not remove a web view
+/// that has already moved into the receiving task's container.
+@MainActor final class BrowserContentHostView: NSView {
+  let browserView: BrowserWebView
+  weak var coordinator: BrowserHost.Coordinator?
+  init(browserView: BrowserWebView) { self.browserView = browserView; super.init(frame: .zero) }
+  required init?(coder: NSCoder) { nil }
+  func attachBrowser() {
+    guard window != nil else { return }
+    if browserView.superview !== self {
+      browserView.removeFromSuperview()
+      addSubview(browserView)
+      browserView.autoresizingMask = [.width, .height]
+    }
+    browserView.frame = bounds
+  }
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    attachBrowser()
+    if window != nil { coordinator?.requestFocus(in: self) }
+  }
+  override func layout() {
+    super.layout()
+    if browserView.superview === self { browserView.frame = bounds }
+  }
 }
 
 struct BrowserPanel: View {

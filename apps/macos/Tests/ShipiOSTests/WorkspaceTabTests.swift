@@ -321,6 +321,7 @@ import XCTest
 
   func testReviewMoveRekeysLayoutSelectionAndPinnedReference() throws {
     let store = storeWithTask()
+    store.library.tasks.append(.init(id: "other", project: "/project", title: "Other", runIDs: []))
     store.openReviewTab(in: .right)
     store.pinWorkspaceTab("review:task")
 
@@ -329,14 +330,16 @@ import XCTest
     XCTAssertEqual(migrated, "review:other")
     XCTAssertEqual(store.workspaceTabs, [.review(owner: "other")])
     XCTAssertEqual(store.workspaceTabPlacement("review:other"), .right)
-    XCTAssertEqual(store.activeRightWorkspaceTabID, "review:other")
-    XCTAssertEqual(store.focusedWorkspaceTabID, "review:other")
+    XCTAssertNil(store.activeRightWorkspaceTabID)
+    XCTAssertNil(store.focusedWorkspaceTabID)
+    XCTAssertEqual(store.library.workspaceTabLayouts["other"]?.right, "review:other")
     XCTAssertEqual(store.library.pinnedContentTabs.first?.sourceTabID, "review:other")
     XCTAssertEqual(store.library.pinnedContentTabs.first?.owner, "other")
   }
 
   func testTerminalMovePreservesExactSessionAcrossConversationOwners() throws {
     let store = storeWithTerminalTask()
+    store.library.tasks.append(.init(id: "other", project: store.project?.path ?? "", title: "Other", runIDs: []))
     defer { store.workspace.terminals.shutdown() }
     store.newTerminalTab(in: .bottom)
     let source = try XCTUnwrap(store.activeBottomWorkspaceContentTab)

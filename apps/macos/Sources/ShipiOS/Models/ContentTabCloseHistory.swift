@@ -59,6 +59,13 @@ struct ContentTabCloseHistory: Equatable {
     active = false; tabs = [:]; lastSelectedTabID = nil
   }
 
+  mutating func rekey(_ ids: [String: String]) {
+    lastSelectedTabID = lastSelectedTabID.map { ids[$0] ?? $0 }
+    tabs = Dictionary(uniqueKeysWithValues: tabs.map { id, entry in
+      (ids[id] ?? id, Entry(generation: entry.generation, openerTabID: ids[entry.openerTabID] ?? entry.openerTabID))
+    })
+  }
+
   private mutating func invalidate() { active = false; generation += 1 }
   private func descends(_ id: String, from ancestor: String) -> Bool {
     var current = id, seen = Set<String>()
@@ -92,16 +99,41 @@ struct ContentTabCloseController {
   // Moving an opener family clears its history's lastSelectedTabID without
   // changing the controller's actual active tab.
   var selectedID: String?
-  mutating func select(_ id: String?, in ids: [String]) {
+  private(set) var recentSelectedIDs: [String] = []
+  mutating func select(_ id: String?, in ids: [String], recordRecent: Bool = true) {
     guard selectedID != id else { return }
+    if recordRecent {
+      recentSelectedIDs = (selectedID.map { [$0] } ?? []) + recentSelectedIDs.filter { $0 != selectedID && $0 != id }
+    }
     selectedID = id; history.selected(id, in: ids)
   }
   mutating func close(_ id: String, in ids: [String]) -> String? {
     guard ids.contains(id) else { return selectedID }
+    recentSelectedIDs.removeAll { $0 == id || !ids.contains($0) }
     if selectedID == id {
-      select(history.fallback(closing: id, in: ids), in: ids.filter { $0 != id })
+      select(history.fallback(closing: id, in: ids), in: ids.filter { $0 != id }, recordRecent: false)
     }
     history.removed(id)
     return selectedID
+  }
+
+  /// Transferring differs from closing: it invalidates the moved family and
+  /// returns to recent content before considering a geometric neighbor.
+  mutating func transfer(_ id: String, in ids: [String]) -> String? {
+    guard let index = ids.firstIndex(of: id) else { return selectedID }
+    history.moved(id)
+    let remaining = ids.filter { $0 != id }
+    recentSelectedIDs.removeAll { !remaining.contains($0) }
+    if selectedID == id {
+      let adjacent = ids.dropFirst(index + 1).first ?? (index > 0 ? ids[index - 1] : nil)
+      select(recentSelectedIDs.first ?? adjacent, in: remaining, recordRecent: false)
+    }
+    return selectedID
+  }
+
+  mutating func rekey(_ ids: [String: String]) {
+    selectedID = selectedID.map { ids[$0] ?? $0 }
+    recentSelectedIDs = recentSelectedIDs.map { ids[$0] ?? $0 }
+    history.rekey(ids)
   }
 }

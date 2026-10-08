@@ -250,6 +250,7 @@ struct ComposerView: View {
       accessibilityLabel: "任务输入",
       focusRequest: store.focusComposer,
       focusAllowed: !store.showingModelPicker,
+      automaticFocusAllowed: store.focusedWorkspaceContentTab == nil,
       onKey: handleEditorKey,
       onPasteAttachments: { store.pasteAttachments($0) },
       onSelectionChange: { range in
