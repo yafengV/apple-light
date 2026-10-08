@@ -21,6 +21,7 @@ extension WorkspaceStore {
       placement: workspaceTabPlacement(tab.id), address: browser?.address,
       committedURL: tab.pullRequestURL ?? browser?.committedURL?.absoluteString,
       filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
+      fileRoot: tab.kind == .file ? workspaceFileTabRoot(tab)?.path : nil,
       terminalSplitFraction: splitFraction,
       watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
   }
@@ -111,12 +112,14 @@ extension WorkspaceStore {
       browser.editingAddress = saved.address != nil && saved.address != saved.committedURL
       tab = .browser(id, owner: owner)
     case .file:
-      guard let root = workspaceTabProject(owner: owner), let path = saved.filePath,
+      guard let path = saved.filePath,
+        let root = workspaceFileTabRoot(.file(path, owner: owner), savedRoot: saved.fileRoot),
         path.isEmpty || (try? WorkspaceFileScope.location(path,
           roots: [root] + additionalWorkspaceFolders(for: root))) != nil else { return nil }
       let candidate = WorkspaceContentTab.file(path, owner: owner)
       guard candidate.id == saved.id else { return nil }
       tab = candidate
+      workspaceFileTabRoots[tab.id] = root
       workspaceTabs.append(tab)
     case .review:
       guard workspaceTabProject(owner: owner) != nil, saved.id == WorkspaceContentTab.review(owner: owner).id else { return nil }

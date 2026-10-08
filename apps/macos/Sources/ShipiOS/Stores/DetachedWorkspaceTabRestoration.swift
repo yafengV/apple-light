@@ -40,7 +40,8 @@ extension WorkspaceStore {
       saved.placement == .detached else { return .close }
     switch saved.kind {
     case .file:
-      guard let root = workspaceTabProject(owner: owner), let path = saved.filePath,
+      guard let path = saved.filePath,
+        let root = workspaceFileTabRoot(.file(path, owner: owner), savedRoot: saved.fileRoot),
         saved.id == WorkspaceContentTab.file(path, owner: owner).id,
         path.isEmpty || (try? WorkspaceFileScope.location(path,
           roots: [root] + additionalWorkspaceFolders(for: root))) != nil else { return .close }

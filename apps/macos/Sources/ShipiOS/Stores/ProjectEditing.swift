@@ -40,6 +40,8 @@ extension WorkspaceStore {
       throw AgentFailure(message: "此文件夹已属于另一个项目，无法替换为当前项目的主目录。")
     }
     var candidate = library
+    let retainedFileRoots = selectedPrimary != request.primaryPath
+      ? preserveWorkspaceFileTabRoots(in: &candidate) : [:]
     candidate.projectNames[request.project] = String(name.prefix(120))
     candidate.projectPrimaryFolders[request.project] = selectedPrimary == request.project ? nil : selectedPrimary
     if selectedPrimary != request.project {
@@ -47,6 +49,7 @@ extension WorkspaceStore {
     }
     candidate.projectAdditionalFolders[request.project] = Array(validated.dropFirst())
     try commitLibrary(candidate)
+    for (id, root) in retainedFileRoots { workspaceFileTabRoots[id] = root }
   }
 
   /// Project edits change defaults; ordinary task scopes and their running tools stay fixed.

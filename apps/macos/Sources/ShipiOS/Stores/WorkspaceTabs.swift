@@ -111,7 +111,8 @@ extension WorkspaceStore {
         restoreURL: browser?.committedURL?.absoluteString ?? browser?.address)
     case .file(let path, let owner):
       reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id,
-        owner: owner, kind: .file, title: workspaceTabTitle(tab), restoreURL: path)
+        owner: owner, kind: .file, title: workspaceTabTitle(tab), restoreURL: path,
+        fileRoot: workspaceFileTabRoot(tab)?.path)
     case .review(let owner):
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .review,
@@ -237,16 +238,18 @@ extension WorkspaceStore {
       let prefix = "file:\(pin.owner):"
       let path = pin.restoreURL ?? (pin.sourceTabID.hasPrefix(prefix)
         ? String(pin.sourceTabID.dropFirst(prefix.count)) : nil)
-      guard let path, openFileTab(path) else {
+      guard let path, pin.fileRoot.map({ validatedWorkspaceFileRoot($0) != nil }) ?? true,
+        openFileTab(path, root: pin.fileRoot.flatMap(validatedWorkspaceFileRoot)) else {
         error = "此文件标签不可用。可以保留固定项或取消固定。"
         return
       }
       if let index = library.pinnedContentTabs.firstIndex(where: { $0.id == pinID }),
-        let tab = activeWorkspaceContentTab {
+        let tab = focusedWorkspaceContentTab, tab.kind == .file {
         library.pinnedContentTabs[index].sourceTabID = tab.id
         library.pinnedContentTabs[index].sourceWindowID = nil
         library.pinnedContentTabs[index].owner = currentWorkspaceTabOwner
-        library.pinnedContentTabs[index].restoreURL = path
+        if case .file(let reopenedPath, _) = tab { library.pinnedContentTabs[index].restoreURL = reopenedPath }
+        library.pinnedContentTabs[index].fileRoot = workspaceFileTabRoot(tab)?.path
         saveLibrary()
       }
     case .review:
@@ -407,19 +410,35 @@ extension WorkspaceStore {
     openReviewTab(in: .left)
   }
 
-  @discardableResult func openFileTab(_ path: String = "", in placement: WorkspaceTabPlacement = .left) -> Bool {
-    guard placement != .bottom, let root = workspaceTabProject(owner: currentWorkspaceTabOwner) else { return false }
+  @discardableResult func openFileTab(_ path: String = "", in placement: WorkspaceTabPlacement = .left,
+    root explicitRoot: URL? = nil) -> Bool {
+    guard placement != .bottom, let root = explicitRoot ?? workspaceTabProject(owner: currentWorkspaceTabOwner) else { return false }
     var normalizedPath = path
     if !path.isEmpty {
       do {
         let location = try WorkspaceFileScope.location(path,
           roots: [root] + additionalWorkspaceFolders(for: root))
+        if let existing = workspaceTabs.first(where: {
+          $0.owner == currentWorkspaceTabOwner && workspaceFileTabURL($0) == location.url
+        }) {
+          moveWorkspaceTab(existing.id, to: placement)
+          activateWorkspaceTab(existing.id)
+          return true
+        }
         normalizedPath = WorkspaceFileScope.key(location, primary: root)
+        // Legacy relative IDs remain valid. A new root's same name needs its own ID.
+        let candidate = WorkspaceContentTab.file(normalizedPath, owner: currentWorkspaceTabOwner)
+        if let reserved = workspaceFileTabURL(candidate), reserved != location.url {
+          normalizedPath = location.url.path
+        }
       }
       catch { self.error = error.localizedDescription; return false }
     }
     let tab = WorkspaceContentTab.file(normalizedPath, owner: currentWorkspaceTabOwner)
-    if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
+    if !workspaceTabs.contains(tab) {
+      workspaceFileTabRoots[tab.id] = root
+      workspaceTabs.append(tab)
+    }
     moveWorkspaceTab(tab.id, to: placement)
     activateWorkspaceTab(tab.id)
     return true
@@ -588,12 +607,22 @@ extension WorkspaceStore {
       }
       if path.isEmpty { migrated = .file(path, owner: newOwner) }
       else {
-        guard let sourceRoot = workspaceTabProject(owner: source.owner),
+        guard let sourceRoot = workspaceFileTabRoot(source),
           let original = try? WorkspaceFileScope.location(path,
             roots: WorkspaceFileScope.roots(primary: sourceRoot, additional: additionalWorkspaceFolders(for: sourceRoot))),
           let destination = try? WorkspaceFileScope.location(original.url.path,
             roots: WorkspaceFileScope.roots(primary: root, additional: additionalWorkspaceFolders(for: root))) else {
           error = "文件不在目标任务的项目中。"; return nil
+        }
+        let savedFiles = (library.workspaceTabLayouts[newOwner]?.tabs ?? []).compactMap { saved -> WorkspaceContentTab? in
+          guard saved.kind == .file, let path = saved.filePath else { return nil }
+          let tab = WorkspaceContentTab.file(path, owner: newOwner)
+          return tab.id == saved.id ? tab : nil
+        }
+        guard !(workspaceTabs + savedFiles).contains(where: {
+          $0.owner == newOwner && workspaceFileTabURL($0) == original.url
+        }) else {
+          error = "目标聊天已经打开此文件。"; return nil
         }
         migrated = .file(WorkspaceFileScope.key(destination, primary: root), owner: newOwner)
       }
@@ -645,6 +674,13 @@ extension WorkspaceStore {
     workspaceTabs.append(migrated)
     workspaceTabPlacements[migrated.id] = placement
     migrateWorkspaceTabState(from: source.id, to: migrated.id, owner: newOwner)
+    if migrated.kind == .file {
+      workspaceFileTabRoots[migrated.id] = workspaceTabProject(owner: newOwner)
+      for index in library.pinnedContentTabs.indices where library.pinnedContentTabs[index].sourceTabID == migrated.id {
+        if case .file(let path, _) = migrated { library.pinnedContentTabs[index].restoreURL = path }
+        library.pinnedContentTabs[index].fileRoot = workspaceFileTabRoot(migrated)?.path
+      }
+    }
     recordReceivedWorkspaceTab(migrated)
     saveLibrary()
     return migrated.id
@@ -682,6 +718,9 @@ extension WorkspaceStore {
   }
 
   private func migrateWorkspaceTabState(from oldID: String, to newID: String, owner: String) {
+    if oldID != newID, let root = workspaceFileTabRoots.removeValue(forKey: oldID) {
+      workspaceFileTabRoots[newID] = root
+    }
     if oldID != newID, let session = fileTabWorkspaces.removeValue(forKey: oldID) {
       fileTabWorkspaces[newID] = session
     }
@@ -768,7 +807,7 @@ extension WorkspaceStore {
     switch tab {
     case .file(let path, let owner):
       let placement = closedFilePlacements.removeValue(forKey: tab.id) ?? .left
-      if owner == currentWorkspaceTabOwner { _ = openFileTab(path, in: placement) }
+      if owner == currentWorkspaceTabOwner { _ = openFileTab(path, in: placement, root: workspaceFileTabRoot(tab)) }
     case .review:
       if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }
       if tab.owner == currentWorkspaceTabOwner { activateWorkspaceTab(tab.id) }

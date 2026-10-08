@@ -21,6 +21,8 @@ struct SavedWorkspaceTab: Codable, Equatable {
   var address: String?
   var committedURL: String?
   var filePath: String? = nil
+  /// The root used when this file opened, independent of future project defaults.
+  var fileRoot: String? = nil
   /// Present only for a split terminal. The shell process itself is never restored.
   var terminalSplitFraction: Double? = nil
   var watchAutomationID: UUID? = nil

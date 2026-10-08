@@ -12,7 +12,7 @@ struct FileWorkspaceTabView: View {
     guard case .file(let path, _) = tab else { return "" }
     return path
   }
-  private var root: URL? { store.workspaceTabProject(owner: tab.owner) }
+  private var root: URL? { store.workspaceFileTabRoot(tab) }
   private var folders: [URL] { store.additionalWorkspaceFolders(for: root) }
   private var scopeKey: String {
     ([tab.id, root?.path ?? ""] + folders.map(\.path)).joined(separator: "\u{0}")

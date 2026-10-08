@@ -13,7 +13,7 @@ struct WorkspaceTabContentView: View {
           store: store, session: store.workspace.browser, showsTabStrip: false, tabID: id)
       case .file:
         FileWorkspaceTabView(store: store, tab: tab,
-          openFile: { _ = store.openFileTab($0, in: store.workspaceTabStripPlacement(tab.id)) },
+          openFile: { _ = store.openFileTab($0, in: store.workspaceTabStripPlacement(tab.id), root: store.workspaceFileTabRoot(tab)) },
           close: { store.closeWorkspaceTab(tab.id) })
       case .review:
         GitReviewView(store: store, workspace: store.workspace)
@@ -157,9 +157,10 @@ struct WorkspaceTabWindowView: View {
               context: browserContext(tab), showsTabStrip: false, tabID: browserID)
           } else if case .file = tab {
             FileWorkspaceTabView(store: store, tab: tab, openFile: { path in
+              let root = store.workspaceFileTabRoot(tab)
               Task {
                 guard await store.focusDetachedWorkspaceChat(tab.id) else { return }
-                guard store.openFileTab(path) else { return }
+                guard store.openFileTab(path, root: root) else { return }
                 showMainWindow()
               }
             }, close: { store.closeWorkspaceTab(tab.id) })
