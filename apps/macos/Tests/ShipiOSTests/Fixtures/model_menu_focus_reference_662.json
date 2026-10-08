@@ -1,0 +1,126 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "234429db84d9319850ff0766a4a5052a9e898bfa0611883633f80018080dd6c0",
+  "cases": [
+    {
+      "name": "keyboard-return-to-simple",
+      "view": "simple",
+      "memory": "advanced",
+      "expected": {
+        "focusedID": "choose-model",
+        "preventScroll": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "keyboard-open-advanced-selected",
+      "view": "advanced",
+      "memory": "simple",
+      "selected": "sol",
+      "expected": {
+        "focusedID": "sol",
+        "preventScroll": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "keyboard-open-advanced-default",
+      "view": "advanced",
+      "memory": "simple",
+      "selected": "default",
+      "expected": {
+        "focusedID": "default",
+        "preventScroll": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "keyboard-open-advanced-unlisted",
+      "view": "advanced",
+      "memory": "simple",
+      "expected": {
+        "focusedID": "default",
+        "preventScroll": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "same-simple-retains-existing-focus",
+      "view": "simple",
+      "memory": "simple",
+      "hasFocus": true,
+      "expected": {
+        "focusedID": null,
+        "preventScroll": null,
+        "memory": "simple"
+      }
+    },
+    {
+      "name": "removed-reset-falls-to-first",
+      "view": "simple",
+      "memory": "simple",
+      "expected": {
+        "focusedID": "choose-model",
+        "preventScroll": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "same-advanced-retains-existing-focus",
+      "view": "advanced",
+      "memory": "advanced",
+      "hasFocus": true,
+      "selected": "sol",
+      "expected": {
+        "focusedID": null,
+        "preventScroll": null,
+        "memory": "advanced"
+      }
+    },
+    {
+      "name": "pointer-advanced-with-focus",
+      "view": "advanced",
+      "hasFocus": true,
+      "selected": "sol",
+      "expected": {
+        "focusedID": null,
+        "preventScroll": null,
+        "memory": null
+      }
+    },
+    {
+      "name": "pointer-advanced-body",
+      "view": "advanced",
+      "selected": "sol",
+      "expected": {
+        "focusedID": "menu-root",
+        "preventScroll": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "inactive-pointer-body",
+      "view": "advanced",
+      "selected": "sol",
+      "active": false,
+      "expected": {
+        "focusedID": null,
+        "preventScroll": null,
+        "memory": null
+      }
+    },
+    {
+      "name": "disabled-selected-falls-to-first",
+      "view": "advanced",
+      "memory": "simple",
+      "selected": "sol",
+      "disabledSelected": true,
+      "expected": {
+        "focusedID": "default",
+        "preventScroll": false,
+        "memory": null
+      }
+    }
+  ]
+}

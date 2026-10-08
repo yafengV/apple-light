@@ -52,6 +52,48 @@ final class ComposerTextEditorTests: XCTestCase {
     XCTAssertFalse(window.firstResponder === editor, "Explicit model blur must still work")
   }
 
+  @MainActor func testModelMenuFocusBarrierCancelsQueuedEditorFocusAndDefersReturn() async throws {
+    _ = NSApplication.shared
+    var text = "保留草稿", allowed = true
+    let request = UUID()
+    func root() -> some View {
+      ComposerTextEditor(text: Binding(get: { text }, set: { text = $0 }),
+        focused: .constant(true), plainTextMode: false, placeholder: "Message",
+        accessibilityLabel: "Composer", focusRequest: request, focusAllowed: allowed,
+        onKey: { _, _, _ in false }, onPasteAttachments: { _ in })
+        .frame(width: 400, height: 100)
+    }
+    let window = FocusTestWindow(contentRect: .init(x: 0, y: 0, width: 420, height: 160),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let content = NSView(frame: window.contentLayoutRect)
+    let host = NSHostingView(rootView: root()); host.frame = .init(x: 0, y: 0, width: 400, height: 100)
+    content.addSubview(host)
+    let menuTarget = NSButton(frame: .init(x: 0, y: 110, width: 100, height: 30))
+    content.addSubview(menuTarget); window.contentView = content; host.layoutSubtreeIfNeeded()
+    func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? ComposerNativeTextView }.first)
+    let coordinator = try XCTUnwrap(editor.coordinator)
+    coordinator.requestFocus(in: editor)
+    allowed = false; host.rootView = root(); host.layoutSubtreeIfNeeded()
+    XCTAssertFalse(coordinator.parent.focusAllowed)
+    XCTAssertTrue(window.makeFirstResponder(menuTarget))
+    try await Task.sleep(for: .milliseconds(40))
+    XCTAssertTrue(window.firstResponder === menuTarget, "A queued composer request must not dismiss the model menu")
+    coordinator.restoreFocus(in: editor, when: { true })
+    try await Task.sleep(for: .milliseconds(40))
+    XCTAssertTrue(window.firstResponder === menuTarget, "Return requests must wait until the menu closes")
+    allowed = true; host.rootView = root(); host.layoutSubtreeIfNeeded()
+    try await Task.sleep(for: .milliseconds(40))
+    XCTAssertTrue(window.firstResponder === editor)
+    XCTAssertEqual(text, "保留草稿")
+    XCTAssertFalse(window.isVisible)
+  }
+  @MainActor private final class FocusTestWindow: NSWindow {
+    override var isKeyWindow: Bool { true }
+  }
+
   @MainActor func testDisabledRetainedEditorCannotReclaimFocusOrAcceptInput() async throws {
     _ = NSApplication.shared
     var text = "Retained draft"

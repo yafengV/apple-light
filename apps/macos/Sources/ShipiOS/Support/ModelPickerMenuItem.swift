@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
+import OSLog
 
 /// A picker owns its responders. No window-wide monitor or shared focus state.
 @MainActor final class ModelPickerMenuFocus {
+  private let logger = Logger(subsystem: "dev.shipios.desktop", category: "ModelPickerFocus")
   struct Item {
     let id: String
     var disabled = false
@@ -19,8 +21,8 @@ import SwiftUI
   }
 
   private final class Reference {
-    weak var button: ModelPickerMenuItem.Control?
-    init(_ button: ModelPickerMenuItem.Control) { self.button = button }
+    weak var button: NSView?
+    init(_ button: NSView) { self.button = button }
   }
   private var buttons: [String: Reference] = [:]
   private var ids: [String] = []
@@ -28,6 +30,8 @@ import SwiftUI
   private var generation = UUID()
   private var initiallyFocused = false
   private(set) var active = false
+  private(set) var keyboardActivation = false
+  func recordActivation(keyboard: Bool) { keyboardActivation = keyboard }
 
   func configure(ids: [String], preferredID: String?, active: Bool) {
     let entering = active && !self.active
@@ -41,16 +45,26 @@ import SwiftUI
   }
   func deactivate() {
     active = false; pendingID = nil; initiallyFocused = false; generation = UUID()
+    keyboardActivation = false
   }
   func register(_ button: ModelPickerMenuItem.Control) {
-    buttons[button.itemID] = Reference(button)
+    register(button, id: button.itemID)
+  }
+  func register(_ button: NSView, id: String) {
+    buttons[id] = Reference(button)
     scheduleInitialFocus()
   }
   func unregister(_ button: ModelPickerMenuItem.Control) {
-    if buttons[button.itemID]?.button === button { buttons[button.itemID] = nil }
+    unregister(button, id: button.itemID)
+  }
+  func unregister(_ button: NSView, id: String) {
+    if buttons[id]?.button === button { buttons[id] = nil }
   }
   func didFocus(_ button: ModelPickerMenuItem.Control) {
-    guard active, ids.contains(button.itemID) else { return }
+    didFocus(button, id: button.itemID)
+  }
+  func didFocus(_ button: NSView, id: String) {
+    guard active, ids.contains(id), buttons[id]?.button === button else { return }
     initiallyFocused = true; pendingID = nil; generation = UUID()
   }
   private func scheduleInitialFocus() {
@@ -58,20 +72,30 @@ import SwiftUI
     let token = generation
     DispatchQueue.main.async { [weak self, weak button] in
       guard let self, let button, self.generation == token, self.active,
-        self.pendingID == button.itemID, self.buttons[button.itemID]?.button === button,
+        self.pendingID == pendingID, self.buttons[pendingID]?.button === button,
         button.acceptsFirstResponder, let window = button.window else { return }
-      if window.makeFirstResponder(button) { button.scrollToVisible(button.bounds) }
+      if window.isVisible, window.canBecomeKey, NSApp.isActive, NSApp.keyWindow !== window {
+        window.makeKey()
+      }
+      if window.makeFirstResponder(button) {
+        self.logger.info("Initial menu responder: key=\(window.isKeyWindow) keyMatches=\(NSApp.keyWindow === window) canBecomeKey=\(window.canBecomeKey) visible=\(window.isVisible) appActive=\(NSApp.isActive)")
+        button.scrollToVisible(button.bounds)
+      }
     }
   }
   func move(from button: ModelPickerMenuItem.Control, key: String, shift: Bool) -> Bool {
+    move(from: button, id: button.itemID, key: key, shift: shift)
+  }
+  func move(from button: NSView, id: String, key: String, shift: Bool) -> Bool {
     guard active, button.acceptsFirstResponder else { return false }
     let items = ids.map { id in
       Item(id: id, disabled: buttons[id]?.button?.acceptsFirstResponder != true)
     }
-    guard let id = Self.destination(items: items, currentID: button.itemID, key: key, shift: shift),
+    guard let id = Self.destination(items: items, currentID: id, key: key, shift: shift),
       let target = buttons[id]?.button, target.window === button.window,
       target.acceptsFirstResponder, target.window?.makeFirstResponder(target) == true else { return false }
     target.scrollToVisible(target.bounds)
+    logger.info("Menu focus moved: key=\(target.window?.isKeyWindow == true)")
     return true
   }
 }
@@ -83,6 +107,9 @@ struct ModelPickerMenuItem: NSViewRepresentable {
   var subtitle: String? = nil
   let label: String
   let selected: Bool
+  var radio = true
+  var symbol: String? = nil
+  var trailingSymbol: String? = nil
   let navigation: ModelPickerMenuFocus
   let available: () -> Bool
   let action: () -> Void
@@ -93,9 +120,11 @@ struct ModelPickerMenuItem: NSViewRepresentable {
     if button.itemID != id || button.navigation !== navigation { button.navigation?.unregister(button) }
     button.itemID = id; button.navigation = navigation
     button.title = title; button.subtitle = subtitle; button.selected = selected
+    button.symbol = symbol; button.trailingSymbol = trailingSymbol
+    button.setAccessibilityRole(radio ? .radioButton : .menuItem)
     button.preferences = appearance; button.font = appearance.nativeFont(size: 13)
     button.setAccessibilityLabel(label); button.setAccessibilityHelp(subtitle)
-    button.setAccessibilityValue(selected ? 1 : 0)
+    button.setAccessibilityValue(radio ? (selected ? 1 : 0) : nil)
     button.canAct = { enabled && available() }; button.activate = action
     button.isEnabled = enabled && available()
     button.invalidateIntrinsicContentSize(); button.needsDisplay = true
@@ -111,6 +140,8 @@ struct ModelPickerMenuItem: NSViewRepresentable {
     var active = true
     var subtitle: String?
     var selected = false
+    var symbol: String?
+    var trailingSymbol: String?
     var preferences = AppearancePreferences()
     var canAct: () -> Bool = { false }
     var activate: (() -> Void)?
@@ -161,6 +192,7 @@ struct ModelPickerMenuItem: NSViewRepresentable {
     @objc private func pressed() { guard acceptsFirstResponder else { return }; activate?() }
     override func accessibilityPerformPress() -> Bool {
       guard acceptsFirstResponder else { return false }
+      navigation?.recordActivation(keyboard: false)
       window?.makeFirstResponder(self); activate?(); return true
     }
     override func keyDown(with event: NSEvent) {
@@ -170,12 +202,13 @@ struct ModelPickerMenuItem: NSViewRepresentable {
       if let key, navigation?.move(from: self, key: key, shift: event.modifierFlags.contains(.shift)) == true { return }
       if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
         [36, 49, 76].contains(event.keyCode) {
-        if !event.isARepeat { pressed() }; return
+        if !event.isARepeat { navigation?.recordActivation(keyboard: true); pressed() }; return
       }
       super.keyDown(with: event)
     }
     override func mouseDown(with event: NSEvent) {
       guard acceptsFirstResponder else { return }
+      navigation?.recordActivation(keyboard: false)
       window?.makeFirstResponder(self); super.mouseDown(with: event)
     }
     override func updateTrackingAreas() {
@@ -200,7 +233,14 @@ struct ModelPickerMenuItem: NSViewRepresentable {
         .foregroundColor: roles["textForeground"].opacity(alpha).nativeColor, .paragraphStyle: paragraph])
       let top = subtitle == nil ? bounds.midY - text.size().height / 2
         : isFlipped ? 8 : bounds.maxY - 8 - text.size().height
-      text.draw(in: .init(x: 8, y: top, width: max(0, bounds.width - 34), height: text.size().height))
+      if let symbol {
+        drawSymbol(symbol, in: .init(x: bounds.midX - 7, y: bounds.midY - 7, width: 14, height: 14), alpha: alpha)
+      } else {
+        text.draw(in: .init(x: 8, y: top, width: max(0, bounds.width - 34), height: text.size().height))
+      }
+      if let trailingSymbol {
+        drawSymbol(trailingSymbol, in: .init(x: bounds.maxX - 20, y: bounds.midY - 6, width: 12, height: 12), alpha: alpha)
+      }
       if let subtitle {
         let sub = NSAttributedString(string: subtitle, attributes: [.font: preferences.nativeFont(size: 11),
           .foregroundColor: roles["textForegroundTertiary"].opacity(alpha).nativeColor, .paragraphStyle: paragraph])
@@ -216,6 +256,15 @@ struct ModelPickerMenuItem: NSViewRepresentable {
         check.lineWidth = 1.6; check.lineCapStyle = .round; check.lineJoinStyle = .round; check.stroke()
       }
       if focused { roles["borderFocus"].nativeColor.setStroke(); path.lineWidth = 2; path.stroke() }
+    }
+    private func drawSymbol(_ name: String, in rect: NSRect, alpha: Double) {
+      guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.copy() as? NSImage else { return }
+      image.isTemplate = false
+      image.lockFocus()
+      preferences.resolvedColors["textForeground"].nativeColor.setFill()
+      NSRect(origin: .zero, size: image.size).fill(using: .sourceIn)
+      image.unlockFocus()
+      image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: alpha, respectFlipped: true, hints: nil)
     }
   }
 }

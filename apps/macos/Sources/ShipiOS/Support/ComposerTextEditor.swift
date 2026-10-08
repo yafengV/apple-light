@@ -90,6 +90,7 @@ struct ComposerTextEditor: NSViewRepresentable {
   let placeholder: String
   let accessibilityLabel: String
   let focusRequest: UUID
+  var focusAllowed = true
   let onKey: (ComposerEditorKey, NSEvent.ModifierFlags, Bool) -> Bool
   let onPasteAttachments: ([NSItemProvider]) -> Void
   var onSelectionChange: ((NSRange) -> Void)? = nil
@@ -131,7 +132,7 @@ struct ComposerTextEditor: NSViewRepresentable {
     editor.isEditable = isEnabled
     editor.isSelectable = isEnabled
     context.coordinator.sync(text, plainTextMode: plainTextMode, in: editor)
-    guard isEnabled else {
+    guard isEnabled && focusAllowed else {
       if editor.window?.firstResponder === editor { editor.window?.makeFirstResponder(nil) }
       return
     }
@@ -171,7 +172,7 @@ struct ComposerTextEditor: NSViewRepresentable {
       // read the current responder so rapid focus changes cannot replay stale state.
       DispatchQueue.main.async { [weak self, weak editor] in
         guard let self, self.active, let editor, let window = editor.window else { return }
-        let focused = window.firstResponder === editor
+        let focused = self.parent.focusAllowed && window.firstResponder === editor
         self.appliedFocus = focused
         if self.parent.focused != focused { self.parent.focused = focused }
       }
@@ -180,7 +181,7 @@ struct ComposerTextEditor: NSViewRepresentable {
     func requestFocus(in editor: ComposerNativeTextView) {
       let request = focusRequest
       DispatchQueue.main.async { [weak self, weak editor] in
-        guard let self, let editor, self.active, self.parent.isEnabled,
+        guard let self, let editor, self.active, self.parent.isEnabled, self.parent.focusAllowed,
           self.focusRequest == request, editor.isEditable,
           let window = editor.window, window.isKeyWindow, window.attachedSheet == nil,
           NSApp.modalWindow == nil else { return }
@@ -198,10 +199,10 @@ struct ComposerTextEditor: NSViewRepresentable {
     @discardableResult func applyPendingReturnFocus(in editor: ComposerNativeTextView) -> Bool {
       guard let allowed = pendingReturnFocus else { return false }
       guard active, allowed() else { pendingReturnFocus = nil; return false }
-      guard parent.isEnabled, editor.isEditable else { return true }
+      guard parent.isEnabled, parent.focusAllowed, editor.isEditable else { return true }
       pendingReturnFocus = nil
       DispatchQueue.main.async { [weak self, weak editor] in
-        guard let self, self.active, self.parent.isEnabled, allowed(),
+        guard let self, self.active, self.parent.isEnabled, self.parent.focusAllowed, allowed(),
           let editor, editor.isEditable, let window = editor.window,
           window.isKeyWindow, window.attachedSheet == nil, NSApp.modalWindow == nil,
           !editor.isHiddenOrHasHiddenAncestor else { return }

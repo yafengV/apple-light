@@ -11,6 +11,7 @@ struct ComposerModelPicker: View {
   @State private var saveError: String?
   @State private var showingModels = false
   @State private var menuFocus = ModelPickerMenuFocus()
+  @State private var compactFocusID = "power"
 
   private var choices: [String] {
     catalog.models
@@ -42,9 +43,13 @@ struct ComposerModelPicker: View {
       (store.library.modelPickerSelectionMode == nil && usingDefaultPower)
   }
   private var menuConfiguration: MenuConfiguration {
+    if showingPower {
+      return .init(ids: ["choose-model"] + (!usingDefaultPower && defaultPower != nil ? ["reset-default"] : []) + ["power"],
+        preferredID: compactFocusID, active: !catalog.loading && canInteract)
+    }
     let ids = (defaultPower == nil ? [] : ["default"]) + choices.map { "model:\($0)" }
     return .init(ids: ids, preferredID: defaultSelected && defaultPower != nil
-      ? "default" : "model:\(configuration.model)", active: !showingPower && !catalog.loading && canInteract)
+      ? "default" : "model:\(configuration.model)", active: !catalog.loading && canInteract)
   }
   private var canInteract: Bool {
     store.libraryLoaded && !store.libraryRecoveryBlocksInteraction && !store.shuttingDown
@@ -69,7 +74,7 @@ struct ComposerModelPicker: View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
         if showingModels && selectedPower != nil {
-          Button { showingModels = false } label: {
+          Button { switchView(showingModels: false) } label: {
             Image(systemName: "chevron.left")
           }.buttonStyle(.plain).accessibilityLabel("返回推理档位")
         }
@@ -86,19 +91,16 @@ struct ComposerModelPicker: View {
         HStack {
           Text("模型").foregroundStyle(.secondary)
           Spacer()
-          Button {
-            showingModels = true
-          } label: {
-            HStack(spacing: 5) {
-              Text(catalog.title(for: configuration.model)).lineLimit(1)
-              Image(systemName: "chevron.right").font(.caption)
-            }
-          }.buttonStyle(.plain).accessibilityLabel("更换模型：\(configuration.model)")
+          ModelPickerMenuItem(id: "choose-model", title: catalog.title(for: configuration.model),
+            label: "更换模型：\(configuration.model)", selected: false, radio: false,
+            trailingSymbol: "chevron.right", navigation: menuFocus, available: { canInteract }) {
+              switchView(showingModels: true)
+            }.frame(width: 190, height: 28)
           if !usingDefaultPower, defaultPower != nil {
-            Button(action: resetToDefaultPower) {
-              Image(systemName: "arrow.uturn.backward")
-            }.buttonStyle(.plain).help("恢复默认模型与推理档位")
-              .accessibilityLabel("使用默认模型与推理档位")
+            ModelPickerMenuItem(id: "reset-default", title: "", label: "使用默认模型与推理档位",
+              selected: false, radio: false, symbol: "arrow.uturn.backward", navigation: menuFocus,
+              available: { canInteract }, action: resetToDefaultPower)
+              .frame(width: 28, height: 28).help("恢复默认模型与推理档位")
           }
         }
         Text(powerTitle(selectedPower))
@@ -115,7 +117,7 @@ struct ComposerModelPicker: View {
           }), count: powerSelections.count,
             valueDescription: powerTitle(selectedPower),
             available: { showingPower && store.libraryLoaded && !store.libraryRecoveryBlocksInteraction && !store.shuttingDown },
-            onStep: { _ = stepPower(increasing: $0) }, onComplete: close)
+            onStep: { _ = stepPower(increasing: $0) }, onComplete: close, navigation: menuFocus)
             .frame(height: 28)
         }
         HStack {
@@ -130,7 +132,7 @@ struct ComposerModelPicker: View {
               ModelPickerMenuItem(id: "default", title: "默认", subtitle: "推荐模型组合",
                 label: "默认：推荐模型组合", selected: defaultSelected, navigation: menuFocus,
                 available: { canInteract }) {
-                  if defaultSelected { showingModels = false }
+                  if defaultSelected { switchView(showingModels: false) }
                   else { resetToDefaultPower() }
                 }.frame(height: 52)
             }
@@ -172,7 +174,8 @@ struct ComposerModelPicker: View {
       await catalog.load(config: config)
       store.captureSkillModelMetadata(catalog, config: config)
     }
-    .onChange(of: menuConfiguration, initial: true) { _, configuration in
+    .onChange(of: menuConfiguration, initial: true) { previous, configuration in
+      if previous.ids.contains("power") != configuration.ids.contains("power") { menuFocus.deactivate() }
       menuFocus.configure(ids: configuration.ids, preferredID: configuration.preferredID,
         active: configuration.active)
     }
@@ -181,8 +184,15 @@ struct ComposerModelPicker: View {
   }
 
   private func close() {
+    menuFocus.deactivate()
     if let onClose { onClose() }
     else { store.showingModelPicker = false; store.focusComposer = UUID() }
+  }
+
+  private func switchView(showingModels: Bool) {
+    if !showingModels { compactFocusID = menuFocus.keyboardActivation ? "choose-model" : "power" }
+    menuFocus.deactivate()
+    self.showingModels = showingModels
   }
 
   private func choose(_ model: String) {
@@ -192,7 +202,7 @@ struct ComposerModelPicker: View {
         try store.selectModel(model,
           reasoning: catalog.reasoningWhenSelecting(model, current: configuration.reasoning), taskID: taskID)
       }
-      saveError = nil; showingModels = false
+      saveError = nil; switchView(showingModels: false)
     } catch { saveError = error.localizedDescription }
   }
 
@@ -206,7 +216,13 @@ struct ComposerModelPicker: View {
   private func resetToDefaultPower() {
     do {
       try store.selectDefaultPower(from: catalog, taskID: taskID)
-      saveError = nil; showingModels = false
+      saveError = nil
+      if showingModels { switchView(showingModels: false) }
+      else {
+        compactFocusID = menuFocus.keyboardActivation ? "choose-model" : "power"
+        menuFocus.deactivate()
+        menuFocus.configure(ids: menuConfiguration.ids, preferredID: compactFocusID, active: menuConfiguration.active)
+      }
     } catch { saveError = error.localizedDescription }
   }
 

@@ -1529,6 +1529,7 @@ struct TaskWindowView: View {
           placeholder: "继续这个任务…",
           accessibilityLabel: "任务窗口输入",
           focusRequest: taskComposerFocusRequest,
+          focusAllowed: !showingTaskModelPicker,
           onKey: handleCandidateKey,
           onPasteAttachments: { store.pasteAttachments($0, draft: taskID) },
           onSelectionChange: { range in

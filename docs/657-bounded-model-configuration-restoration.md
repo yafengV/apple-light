@@ -39,3 +39,8 @@
 第 653 篇固定提交 `b4e81aa51a1b0eb27018797c43df66d580dbb92d` 已取得终态 **exit 0**：2,822 项 Swift、2 跳过、0 失败，4,603.518 秒，以及 IPC 冒烟通过。原 handle `91319` 确认 exit 0；终态文件 `.cache/full-alignment-regression-653-status.json`，日志 `.cache/full-alignment-regression-653.log`。终态后核验 58 个夹具、153 个资源、测试二进制和独立 helper 哈希均保持。该固定结果不覆盖第 654—658 篇，当前阶段提交后会启动新的固定全量，未取得终态前不计通过。
 
 本阶段只限制模型配置等待，不强行终止内核中的同步 open。其他恢复步骤、底层桌面读取停滞根因、全部故障组合、真实用户 API、完整页面/交互双端配对仍须继续。完整配对保持 **0/47**。
+
+
+### 2026-10-08 固定全量终态补记
+
+固定提交 `1cf6f0b917324c12549c4404189fdeda0d4d6417` 的原 handle 28406 已确认 exit 0：**2,846 项 Swift、2 跳过、0 失败、0 unexpected**，4,573.777 秒，以及相同保存 helper 的 IPC exit 0。两项跳过为未设置本机实时语音预览 WebSocket 夹具。日志 `.cache/full-alignment-regression-657.log`，终态 `.cache/full-alignment-regression-657-status.json`；捕获的 63 个夹具、155 个资源、测试可执行程序和 helper 哈希均复核未变。结果只属于固定提交，不覆盖第 659—662 篇，更不代表完整 UI 双端配对通过。

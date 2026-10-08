@@ -1,0 +1,264 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "cases": [
+    {
+      "name": "left",
+      "current": "medium",
+      "key": "ArrowLeft",
+      "code": "ArrowLeft",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "focusVisible",
+            true
+          ],
+          [
+            "select",
+            "low"
+          ],
+          [
+            "commit",
+            "low",
+            "medium"
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "right",
+      "current": "medium",
+      "key": "ArrowRight",
+      "code": "ArrowRight",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "focusVisible",
+            true
+          ],
+          [
+            "select",
+            "high"
+          ],
+          [
+            "commit",
+            "high",
+            "medium"
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "minimum",
+      "current": "low",
+      "key": "ArrowLeft",
+      "code": "ArrowLeft",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "focusVisible",
+            true
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "maximum",
+      "current": "high",
+      "key": "ArrowRight",
+      "code": "ArrowRight",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "focusVisible",
+            true
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "up-is-menu-navigation",
+      "current": "medium",
+      "key": "ArrowUp",
+      "code": "ArrowUp",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [],
+        "prevented": false,
+        "stopped": false
+      }
+    },
+    {
+      "name": "down-is-menu-navigation",
+      "current": "medium",
+      "key": "ArrowDown",
+      "code": "ArrowDown",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [],
+        "prevented": false,
+        "stopped": false
+      }
+    },
+    {
+      "name": "composer-up",
+      "current": "medium",
+      "key": "ArrowUp",
+      "code": "ComposerNavigation",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "focusVisible",
+            true
+          ],
+          [
+            "select",
+            "low"
+          ],
+          [
+            "commit",
+            "low",
+            "medium"
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "composer-down",
+      "current": "medium",
+      "key": "ArrowDown",
+      "code": "ComposerNavigation",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "focusVisible",
+            true
+          ],
+          [
+            "select",
+            "high"
+          ],
+          [
+            "commit",
+            "high",
+            "medium"
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "tab-is-menu-navigation",
+      "current": "medium",
+      "key": "Tab",
+      "code": "Tab",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [],
+        "prevented": false,
+        "stopped": false
+      }
+    },
+    {
+      "name": "space-not-complete",
+      "current": "medium",
+      "key": " ",
+      "code": " ",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [],
+        "prevented": false,
+        "stopped": false
+      }
+    },
+    {
+      "name": "enter-complete",
+      "current": "medium",
+      "key": "Enter",
+      "code": "Enter",
+      "disabled": false,
+      "locked": false,
+      "expected": {
+        "effects": [
+          [
+            "complete"
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    },
+    {
+      "name": "disabled",
+      "current": "medium",
+      "key": "ArrowRight",
+      "code": "",
+      "disabled": true,
+      "locked": false,
+      "expected": {
+        "effects": [],
+        "prevented": false,
+        "stopped": false
+      }
+    },
+    {
+      "name": "disabled-enter",
+      "current": "medium",
+      "key": "Enter",
+      "code": "",
+      "disabled": true,
+      "locked": false,
+      "expected": {
+        "effects": [],
+        "prevented": false,
+        "stopped": false
+      }
+    },
+    {
+      "name": "locked-enter",
+      "current": "medium",
+      "key": "Enter",
+      "code": "",
+      "disabled": false,
+      "locked": true,
+      "expected": {
+        "effects": [
+          [
+            "commit",
+            "medium",
+            "medium"
+          ]
+        ],
+        "prevented": true,
+        "stopped": true
+      }
+    }
+  ]
+}

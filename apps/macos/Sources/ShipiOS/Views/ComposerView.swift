@@ -205,7 +205,8 @@ struct ComposerView: View {
     .onChange(of: store.focusComposer) { _, _ in focused = true }
     .onChange(of: store.blurComposer) { _, _ in focused = false }
     .onChange(of: store.showingModelPicker) { _, showing in
-      if !showing, store.destination == .workspace { focused = true }
+      if showing { focused = false }
+      else if store.destination == .workspace { focused = true }
     }
     .onChange(of: store.action) { _, action in
       if action != .chat {
@@ -240,7 +241,7 @@ struct ComposerView: View {
   private var editor: some View {
     ComposerTextEditor(
       text: $store.draft,
-      focused: Binding(get: { focused }, set: { value in
+      focused: Binding(get: { focused && !store.showingModelPicker }, set: { value in
         focused = value
         if value { updateCommands() }
       }),
@@ -248,6 +249,7 @@ struct ComposerView: View {
       placeholder: "发送消息，或输入 / 选择操作…",
       accessibilityLabel: "任务输入",
       focusRequest: store.focusComposer,
+      focusAllowed: !store.showingModelPicker,
       onKey: handleEditorKey,
       onPasteAttachments: { store.pasteAttachments($0) },
       onSelectionChange: { range in

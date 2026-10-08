@@ -121,8 +121,9 @@ import XCTest
   func testActualNativeSliderFocusKeyboardClampsCompletesAndRejectsDetachedActions() async throws {
     let f = try await fixture(model: "implicit-medium")
     let slider = try XCTUnwrap(find(f.host, as: ModelPowerSlider.Control.self).first)
+    let keyboard = try XCTUnwrap(find(f.host, as: ModelPowerSlider.KeyboardControl.self).first)
     XCTAssertTrue(slider.acceptsFirstResponder)
-    XCTAssertTrue(f.window.firstResponder === slider)
+    XCTAssertTrue(f.window.firstResponder === keyboard)
     func key(_ code: UInt16) throws -> NSEvent {
       try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
         timestamp: 0, windowNumber: f.window.windowNumber, context: nil, characters: "",
@@ -130,15 +131,16 @@ import XCTest
     }
     for (code, expected): (UInt16, String) in [(123,"low"),(123,"low"),(124,"medium"),
       (124,"high"),(124,"high")] {
-      slider.keyDown(with: try key(code)); try await settle(f.host)
+      keyboard.keyDown(with: try key(code)); try await settle(f.host)
       XCTAssertEqual(f.store.modelConfiguration(for: "power-task").reasoning, expected)
-      XCTAssertTrue(f.window.firstResponder === slider)
+      XCTAssertTrue(f.window.firstResponder === keyboard)
     }
     f.store.showingModelPicker = true
-    slider.keyDown(with: try key(36)); XCTAssertFalse(f.store.showingModelPicker)
+    keyboard.keyDown(with: try key(36)); XCTAssertFalse(f.store.showingModelPicker)
     f.store.libraryLoaded = false
     XCTAssertFalse(slider.accessibilityPerformDecrement())
     f.store.libraryLoaded = true
+    XCTAssertFalse(slider.accessibilityPerformDecrement(), "Closing deactivates the retained pointer slider too")
     slider.removeFromSuperview()
     XCTAssertFalse(slider.accessibilityPerformDecrement())
     XCTAssertEqual(f.store.modelConfiguration(for: "power-task").reasoning, "high")

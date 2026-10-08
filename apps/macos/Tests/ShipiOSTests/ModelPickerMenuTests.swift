@@ -10,7 +10,7 @@ import XCTest
     let host: NSHostingView<ComposerModelPicker>
     let window: NSWindow
   }
-  private func fixture(mode: ModelPickerSelectionMode = .model, model: String = "gpt-5.6-sol") async throws -> Fixture {
+  private func fixture(mode: ModelPickerSelectionMode = .model, model: String = "gpt-5.6-sol", reasoning: String = "unsupported") async throws -> Fixture {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("model-menu-\(UUID())")
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     let data = root.appendingPathComponent("models.json")
@@ -35,7 +35,7 @@ import XCTest
     config.model = "global-model"; config.reasoning = "high"
     try store.saveModelConfiguration(config)
     store.library.tasks = [.init(id: "menu-task", project: "", title: "Menu", runIDs: [])]
-    try store.selectModel(model, reasoning: "unsupported", taskID: "menu-task")
+    try store.selectModel(model, reasoning: reasoning, taskID: "menu-task")
     try store.setModelPickerSelectionMode(mode)
     let host = NSHostingView(rootView: ComposerModelPicker(store: store, taskID: "menu-task"))
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 380, height: 600),
@@ -114,14 +114,17 @@ import XCTest
     XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, "")
     XCTAssertEqual(f.store.library.modelPickerSelectionMode, .model)
     XCTAssertEqual(f.store.modelConfiguration, config)
-    let slider = try XCTUnwrap(find(f.host, type: ModelPowerSlider.Control.self).first)
-    XCTAssertTrue(f.window.firstResponder === slider)
-    XCTAssertTrue(find(f.host, type: ModelPickerMenuItem.Control.self).isEmpty)
+    let keyboard = try XCTUnwrap(find(f.host, type: ModelPowerSlider.KeyboardControl.self).first)
+    let model = try row("choose-model", in: f)
+    XCTAssertEqual((f.window.firstResponder as? ModelPickerMenuItem.Control)?.itemID,
+      try referenceFocus("keyboard-return-to-simple"))
+    XCTAssertTrue(find(f.host, type: ModelPickerMenuItem.Control.self).allSatisfy { !$0.selected && $0.accessibilityRole() == .menuItem })
     XCTAssertFalse(terra.accessibilityPerformPress(), "Detached rows cannot change a later picker")
     terra.keyDown(with: try key(36))
     XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").model, "gpt-5.6-terra")
     let originalFocus = f.store.focusComposer
-    slider.keyDown(with: try key(36)); XCTAssertNotEqual(f.store.focusComposer, originalFocus)
+    model.keyDown(with: try key(126)); XCTAssertTrue(f.window.firstResponder === keyboard)
+    keyboard.keyDown(with: try key(36)); XCTAssertNotEqual(f.store.focusComposer, originalFocus)
   }
   func testFailedSaveKeepsAdvancedRowsAndCanRetryFromSameResponder() async throws {
     let f = try await fixture(), terra = try row("model:gpt-5.6-terra", in: f)
@@ -166,6 +169,124 @@ import XCTest
       XCTAssertEqual(result != nil, item.expected.stopped, item.name)
     }
   }
+  func testCompactMenuHasNativeModelActionInThePowerFocusCycle() async throws {
+    let f = try await fixture(reasoning: "medium")
+    let model = try row("choose-model", in: f), reset = try row("reset-default", in: f)
+    let keyboard = try XCTUnwrap(find(f.host, type: ModelPowerSlider.KeyboardControl.self).first)
+    XCTAssertTrue(f.window.firstResponder === keyboard)
+    XCTAssertEqual(keyboard.accessibilityRole(), .menuItem)
+    XCTAssertEqual(model.accessibilityRole(), .menuItem)
+    let workspace = f.root.appendingPathComponent("Data/workspace.json")
+    let original = try Data(contentsOf: workspace)
+    keyboard.keyDown(with: try key(126)); XCTAssertTrue(f.window.firstResponder === reset)
+    reset.keyDown(with: try key(126)); XCTAssertTrue(f.window.firstResponder === model)
+    model.keyDown(with: try key(48, shift: true)); XCTAssertTrue(f.window.firstResponder === keyboard)
+    keyboard.keyDown(with: try key(125)); XCTAssertTrue(f.window.firstResponder === model)
+    model.keyDown(with: try key(48)); XCTAssertTrue(f.window.firstResponder === reset)
+    reset.keyDown(with: try key(125)); XCTAssertTrue(f.window.firstResponder === keyboard)
+    XCTAssertEqual(try Data(contentsOf: workspace), original)
+    keyboard.keyDown(with: try key(124)); try await settle(f.host)
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, "high")
+    XCTAssertTrue(f.window.firstResponder === keyboard)
+    keyboard.keyDown(with: try key(126)); XCTAssertTrue(f.window.firstResponder === reset)
+    reset.keyDown(with: try key(49)); try await settle(f.host)
+    XCTAssertEqual(f.store.library.modelPickerSelectionMode, .default)
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").model, "gpt-5.6-terra")
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, "low")
+    XCTAssertEqual((f.window.firstResponder as? ModelPickerMenuItem.Control)?.itemID,
+      try referenceFocus("removed-reset-falls-to-first"))
+    XCTAssertFalse(reset.accessibilityPerformPress())
+    XCTAssertTrue(f.window.firstResponder === model)
+    model.keyDown(with: try key(36)); try await settle(f.host)
+    XCTAssertTrue(f.window.firstResponder === (try row("default", in: f)))
+    XCTAssertFalse(keyboard.acceptsFirstResponder)
+    keyboard.keyDown(with: try key(124))
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, "low")
+  }
+  func testPointerSliderExcludesOrdinaryUpDownWhileMenuKeyboardControlNavigates() async throws {
+    let f = try await fixture(reasoning: "medium")
+    let slider = try XCTUnwrap(find(f.host, type: ModelPowerSlider.Control.self).first)
+    XCTAssertTrue(f.window.makeFirstResponder(slider))
+    for code: UInt16 in [125, 126] {
+      slider.keyDown(with: try key(code))
+      XCTAssertTrue(f.window.firstResponder === slider)
+      XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, "medium")
+    }
+    slider.keyDown(with: try key(123)); try await settle(f.host)
+    XCTAssertTrue(f.window.firstResponder === slider)
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, "low")
+  }
+
+  func testCompactPowerNativeKeysMatchPublicReferenceForOrdinaryUnlockedEvents() async throws {
+    struct Reference: Decodable {
+      struct Case: Decodable {
+        struct Expected: Decodable { let effects: [[StringOrBool]] }
+        let name: String; let current: String; let key: String; let code: String
+        let disabled: Bool; let locked: Bool; let expected: Expected
+      }
+      let cases: [Case]
+    }
+    let file = try XCTUnwrap(Bundle.module.url(forResource: "model_power_keyboard_reference_662",
+      withExtension: "json", subdirectory: "Fixtures"))
+    let cases = try JSONDecoder().decode(Reference.self, from: Data(contentsOf: file)).cases
+    let codes: [String: UInt16] = ["ArrowLeft":123,"ArrowRight":124,"ArrowUp":126,"ArrowDown":125,"Tab":48," ":49,"Enter":36]
+    for item in cases where item.code != "ComposerNavigation" && !item.locked {
+      let f = try await fixture(reasoning: item.current)
+      let keyboard = try XCTUnwrap(find(f.host, type: ModelPowerSlider.KeyboardControl.self).first)
+      f.store.libraryLoaded = true
+      try f.store.selectModel("gpt-5.6-sol", reasoning: item.current, taskID: "menu-task")
+      try await settle(f.host)
+      XCTAssertTrue(f.window.makeFirstResponder(keyboard))
+      f.store.showingModelPicker = true
+      f.store.libraryLoaded = !item.disabled
+      keyboard.keyDown(with: try key(try XCTUnwrap(codes[item.key])))
+      f.store.libraryLoaded = true
+      try await settle(f.host)
+      let selected = item.expected.effects.first { $0.first?.text == "select" }?.dropFirst().first?.text
+      let completed = item.expected.effects.contains { $0.first?.text == "complete" }
+      XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").reasoning, selected ?? item.current, item.name)
+      XCTAssertEqual(f.store.showingModelPicker, !completed, item.name)
+    }
+  }
+  private func referenceFocus(_ name: String) throws -> String {
+    struct Reference: Decodable {
+      struct Case: Decodable {
+        struct Expected: Decodable { let focusedID: String? }
+        let name: String; let expected: Expected
+      }
+      let cases: [Case]
+    }
+    let file = try XCTUnwrap(Bundle.module.url(forResource: "model_menu_focus_reference_662",
+      withExtension: "json", subdirectory: "Fixtures"))
+    let cases = try JSONDecoder().decode(Reference.self, from: Data(contentsOf: file)).cases
+    return try XCTUnwrap(cases.first { $0.name == name }?.expected.focusedID)
+  }
+  private enum StringOrBool: Decodable {
+    case text(String), flag(Bool)
+    init(from decoder: Decoder) throws {
+      let value = try decoder.singleValueContainer()
+      if let text = try? value.decode(String.self) { self = .text(text) }
+      else { self = .flag(try value.decode(Bool.self)) }
+    }
+    var text: String? { if case .text(let text) = self { return text }; return nil }
+  }
+  func testFailedCompactResetKeepsFocusedActionAndRetriesWithoutClosing() async throws {
+    let f = try await fixture(reasoning: "medium"), reset = try row("reset-default", in: f)
+    let file = f.root.appendingPathComponent("Data/workspace.json"), backup = try Data(contentsOf: file)
+    try FileManager.default.removeItem(at: file)
+    try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+    XCTAssertTrue(reset.accessibilityPerformPress()); try await settle(f.host)
+    XCTAssertTrue(f.window.firstResponder === reset)
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").model, "gpt-5.6-sol")
+    XCTAssertEqual(f.store.library.modelPickerSelectionMode, .model)
+    try FileManager.default.removeItem(at: file); try backup.write(to: file)
+    reset.keyDown(with: try key(36)); try await settle(f.host)
+    XCTAssertEqual(f.store.modelConfiguration(for: "menu-task").model, "gpt-5.6-terra")
+    XCTAssertEqual((f.window.firstResponder as? ModelPickerMenuItem.Control)?.itemID,
+      try referenceFocus("removed-reset-falls-to-first"))
+    XCTAssertFalse(reset.accessibilityPerformPress())
+  }
+
   func testNativeCycleSkipsDisabledHiddenAndDetachedRows() throws {
     let navigation = ModelPickerMenuFocus(), content = NSView(frame: .init(x: 0, y: 0, width: 300, height: 250))
     let window = NSWindow(contentRect: content.frame, styleMask: [.titled], backing: .buffered, defer: false)
