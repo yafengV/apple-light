@@ -110,7 +110,7 @@ struct VoiceSettingsView: View {
     .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)) { _ in
       refreshMicrophones()
     }
-    .onDisappear { shortcutPresentation.reset() }
+    .onDisappear { resetShortcutPresentation() }
   }
 
   private var generalSection: some View {
@@ -203,6 +203,7 @@ struct VoiceSettingsView: View {
   private func resetShortcutPresentation() {
     dictationAdvancedExpanded = false
     shortcutPresentation.reset()
+    store.voiceShortcutRegistrationErrors.removeAll()
   }
 
   private func download(_ id: UUID) {
@@ -275,6 +276,7 @@ struct VoiceSettingsView: View {
             VoiceShortcutActionButton(kind: .edit,
               label: "\(binding == nil ? "设置" : "更改")\(title)",
               identifier: "voice-hotkey-edit-\(mode.rawValue)") {
+                store.voiceShortcutRegistrationErrors[mode] = nil
                 shortcutPresentation.begin(mode)
               }.fixedSize().settingsFocusReveal()
           }
@@ -298,7 +300,7 @@ struct VoiceSettingsView: View {
             dictationAdvancedExpanded.toggle()
           }.fixedSize().settingsFocusReveal()
         }
-        if let warning = shortcutPresentation.warnings[mode] {
+        if let warning = shortcutPresentation.warnings[mode] ?? store.voiceShortcutRegistrationErrors[mode] {
           Text(warning).appFont(size: SettingsRowTypography.descriptionSize).foregroundStyle(.red)
             .settingsTextLineHeight(text: warning, fontSize: SettingsRowTypography.descriptionSize,
               lineHeight: SettingsRowTypography.descriptionLineHeight)

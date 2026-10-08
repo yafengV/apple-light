@@ -152,6 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     globalDictationIndicator = nil
     store?.appshotHotkeyChangeHandler = nil
     store?.globalDictationHotkeyChangeHandler = nil
+    store?.voiceHotkeyPreferenceCommitHandler = nil
     if let appshotWindowFocusObserver {
       NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
       self.appshotWindowFocusObserver = nil
@@ -213,6 +214,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       })
       store.globalDictationHotkeyChangeHandler = { [weak self] in
         self?.refreshGlobalDictationHotkey()
+      }
+      store.voiceHotkeyPreferenceCommitHandler = { [weak self] previous, preferences, persist in
+        guard let self, let hold = self.globalDictationHoldHotKey,
+          let toggle = self.globalDictationToggleHotKey,
+          let voiceChat = self.globalVoiceChatHotKey else {
+          throw AgentFailure(message: "全局语音快捷键尚未就绪，请稍后重试。")
+        }
+        try VoiceHotkeyRegistrationTransaction(hold: hold, toggle: toggle, voiceChat: voiceChat)
+          .commit(preferences, replacing: previous, persist: persist)
       }
       appshotWindowFocusObserver = NotificationCenter.default.addObserver(
         forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
@@ -281,7 +291,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         try globalDictationToggleHotKey.register(toggle?.isBareModifier == true ? nil : toggle)
         registeredGlobalToggleHotkey = toggle
       } catch {
-        registeredGlobalToggleHotkey = nil
         errors.append(error.localizedDescription)
       }
     }
@@ -292,7 +301,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         try globalDictationHoldHotKey.register(hold?.isBareModifier == true ? nil : hold)
         registeredGlobalHoldHotkey = hold
       } catch {
-        registeredGlobalHoldHotkey = nil
         errors.append(error.localizedDescription)
       }
     }
@@ -304,7 +312,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         registeredGlobalVoiceChatHotkey = voiceChat
         globalVoiceChatCarbonError = nil
       } catch {
-        registeredGlobalVoiceChatHotkey = nil
         globalVoiceChatCarbonError = error.localizedDescription
       }
     }

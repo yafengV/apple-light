@@ -4,6 +4,69 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class VoiceShortcutControlTests: XCTestCase {
+  func testActualCaptureOfOccupiedCarbonShortcutKeepsOldValueAndRetrySucceeds() async throws {
+    try await withPage { store, window, host, presentation in
+      let transaction = VoiceHotkeyRegistrationTransaction(
+        hold: AppGlobalHotKey(id: 68_230, title: "按住听写") {},
+        toggle: AppGlobalHotKey(id: 68_231, title: "单击听写") {},
+        voiceChat: AppGlobalHotKey(id: 68_232, title: "语音聊天") {})
+      let blocker = AppGlobalHotKey(id: 68_233, title: "占用") {}
+      let probe = AppGlobalHotKey(id: 68_234, title: "探测") {}
+      let original = try XCTUnwrap(ShortcutBinding("⌘⌃⌥⇧7"))
+      let candidate = try XCTUnwrap(ShortcutBinding("⌘⌃⌥⇧8"))
+      store.voiceHotkeyPreferenceCommitHandler = { previous, preferences, persist in
+        try transaction.commit(preferences, replacing: previous, persist: persist)
+      }
+      store.voicePreferences.globalToggleHotkey = original
+      XCTAssertTrue(store.voiceShortcutRegistrationErrors.isEmpty)
+      try blocker.register(candidate); try await self.settle(host); try await self.expand(host)
+      let submit = {
+        let field = try XCTUnwrap(self.descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
+        XCTAssertTrue(window.makeFirstResponder(field))
+        window.sendEvent(try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+          modifierFlags: [.command, .control, .option, .shift], timestamp: 1,
+          windowNumber: window.windowNumber, context: nil, characters: "8", charactersIgnoringModifiers: "8",
+          isARepeat: false, keyCode: 28)))
+      }
+      XCTAssertTrue(try self.button("edit-toggle", host).accessibilityPerformPress())
+      try await self.settle(host); try submit(); try await self.settle(host)
+      XCTAssertNil(presentation.recording); XCTAssertEqual(store.shortcutCaptureCount, 0)
+      XCTAssertEqual(store.voicePreferences.globalToggleHotkey, original)
+      XCTAssertNotNil(store.voiceShortcutRegistrationErrors[.toggle])
+      XCTAssertNil(store.voiceShortcutRegistrationErrors[.hold]); XCTAssertNil(store.voiceShortcutRegistrationErrors[.voiceChat])
+      XCTAssertNotNil(self.find("edit-toggle", host)); XCTAssertNotNil(self.find("clear-toggle", host))
+      XCTAssertThrowsError(try probe.register(original))
+      if let path = ProcessInfo.processInfo.environment["SHIPIOS_VOICE_REGISTRATION_ERROR_RENDER_PATH"] {
+        let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds)); host.cacheDisplay(in: host.bounds, to: bitmap)
+        try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: path))
+      }
+      XCTAssertTrue(try self.button("edit-toggle", host).accessibilityPerformPress())
+      try await self.settle(host); XCTAssertNil(store.voiceShortcutRegistrationErrors[.toggle])
+      try blocker.register(nil); try submit(); try await self.settle(host)
+      XCTAssertEqual(store.voicePreferences.globalToggleHotkey, candidate)
+      XCTAssertTrue(store.voiceShortcutRegistrationErrors.isEmpty)
+      XCTAssertThrowsError(try probe.register(candidate)); XCTAssertNoThrow(try probe.register(original))
+      let saved = try JSONDecoder().decode(WorkspaceLibrary.self,
+        from: Data(contentsOf: store.dataRoot.appendingPathComponent("workspace.json")))
+      XCTAssertEqual(saved.voicePreferences.globalToggleHotkey, candidate)
+      let file = store.dataRoot.appendingPathComponent("workspace.json")
+      let backup = store.dataRoot.appendingPathComponent("backup.json")
+      try FileManager.default.moveItem(at: file, to: backup)
+      try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+      XCTAssertTrue(try self.button("clear-toggle", host).accessibilityPerformPress())
+      try await self.settle(host)
+      XCTAssertEqual(store.voicePreferences.globalToggleHotkey, candidate)
+      XCTAssertNotNil(store.voiceShortcutRegistrationErrors[.toggle])
+      XCTAssertNotNil(self.find("clear-toggle", host)); XCTAssertThrowsError(try probe.register(candidate))
+      try FileManager.default.removeItem(at: file); try FileManager.default.moveItem(at: backup, to: file)
+      XCTAssertTrue(try self.button("clear-toggle", host).accessibilityPerformPress())
+      try await self.settle(host)
+      XCTAssertNil(store.voicePreferences.globalToggleHotkey)
+      XCTAssertNil(store.voiceShortcutRegistrationErrors[.toggle]); XCTAssertNil(store.generalSettingsError)
+      XCTAssertNoThrow(try probe.register(candidate))
+    }
+  }
+
   func testActualPageHasNamedEditAndConditionalClearAndCancelControls() async throws {
     try await withPage { store, _, host, _ in
       XCTAssertEqual(try self.button("edit-hold", host).accessibilityLabel(), "设置按住听写快捷键")

@@ -5,6 +5,7 @@ import Foundation
 final class AppGlobalHotKey {
   private var hotKey: EventHotKeyRef?
   private var handler: EventHandlerRef?
+  private var registeredBinding: ShortcutBinding?
   private let action: () -> Void
   private let releaseAction: (() -> Void)?
   private let identifier: EventHotKeyID
@@ -46,8 +47,21 @@ final class AppGlobalHotKey {
   }
 
   func register(_ binding: ShortcutBinding?) throws {
-    if let hotKey { UnregisterEventHotKey(hotKey); self.hotKey = nil }
-    guard let binding else { return }
+    try prepareRegistration(binding).commit()
+  }
+
+  /// Keep the current Carbon registration until the synchronous settings save
+  /// succeeds. Dropping an uncommitted preparation releases only its candidate.
+  func prepareRegistration(_ binding: ShortcutBinding?) throws -> PreparedRegistration {
+    if binding == registeredBinding {
+      return PreparedRegistration(owner: self, binding: binding, candidate: nil, changes: false)
+    }
+    guard let binding else {
+      return PreparedRegistration(owner: self, binding: nil, candidate: nil, changes: true)
+    }
+    guard handler != nil else {
+      throw AgentFailure(message: "无法安装\(title)全局快捷键的事件处理器。")
+    }
     guard let keyCode = Self.keyCode(binding.key) else {
       throw AgentFailure(message: "\(title)全局快捷键不支持这个按键。")
     }
@@ -56,12 +70,35 @@ final class AppGlobalHotKey {
     if binding.control { modifiers |= UInt32(controlKey) }
     if binding.option { modifiers |= UInt32(optionKey) }
     if binding.shift { modifiers |= UInt32(shiftKey) }
+    var candidate: EventHotKeyRef?
     let status = RegisterEventHotKey(
-      keyCode, modifiers, identifier, GetApplicationEventTarget(), 0, &hotKey)
+      keyCode, modifiers, identifier, GetApplicationEventTarget(), 0, &candidate)
     guard status == noErr else {
-      hotKey = nil
       throw AgentFailure(message: "无法注册\(title)全局快捷键，可能已被其他应用占用。")
     }
+    return PreparedRegistration(owner: self, binding: binding, candidate: candidate, changes: true)
+  }
+
+  @MainActor final class PreparedRegistration {
+    private let owner: AppGlobalHotKey
+    private let binding: ShortcutBinding?
+    private var candidate: EventHotKeyRef?
+    private let changes: Bool
+    private var committed = false
+
+    fileprivate init(owner: AppGlobalHotKey, binding: ShortcutBinding?,
+      candidate: EventHotKeyRef?, changes: Bool) {
+      self.owner = owner; self.binding = binding; self.candidate = candidate; self.changes = changes
+    }
+    func commit() {
+      guard !committed else { return }
+      committed = true
+      guard changes else { return }
+      let previous = owner.hotKey
+      owner.hotKey = candidate; owner.registeredBinding = binding; candidate = nil
+      if let previous { UnregisterEventHotKey(previous) }
+    }
+    deinit { if let candidate { UnregisterEventHotKey(candidate) } }
   }
 
   deinit {

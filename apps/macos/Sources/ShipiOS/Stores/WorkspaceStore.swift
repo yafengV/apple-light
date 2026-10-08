@@ -22,6 +22,9 @@ final class WorkspaceStore {
   var voiceChatPresented = false
   let voiceRecordingHistory: VoiceRecordingHistory
   @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?
+  @ObservationIgnored var voiceHotkeyPreferenceCommitHandler:
+    ((VoicePreferences, VoicePreferences, () throws -> Void) throws -> Void)?
+  var voiceShortcutRegistrationErrors: [VoiceShortcutPresentation.Mode: String] = [:]
   var globalDictationHotkeyError: String?
   var globalVoiceChatHotkeyError: String?
   @ObservationIgnored let appshotCapture = AppshotCapture()
