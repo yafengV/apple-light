@@ -10,30 +10,37 @@ struct PopoutHotkeySettingsRow: View {
   var body: some View {
     let sessionID = captureID
     LabeledContent {
-      HStack(spacing: 8) {
-        if capturing {
+      if capturing {
+        HStack(spacing: 8) {
           ShortcutCapture(text: "按下快捷键", accessibilityLabel: "捕获弹出窗口快捷键",
             receive: { receive($0, sessionID: sessionID) }, activityChanged: { active in
               store.shortcutCaptureCount = max(0, store.shortcutCaptureCount + (active ? 1 : -1))
-            }, onBlur: { capturing = false }, receiveRegistered: { binding in
+            }, onBlur: { cancel(sessionID) }, receiveRegistered: { binding in
               receive(binding, sessionID: sessionID)
             })
-            .frame(width: 144, height: 28)
-        } else {
-          Button(store.shortcuts.binding("popout")?.display ?? "关闭") {
-            error = nil
-            captureID = UUID()
-            capturing = true
-          }.accessibilityLabel("弹出窗口快捷键")
+            .frame(width: 144, height: 28).id(sessionID)
+          VoiceShortcutActionButton(kind: .cancel, label: "取消录制弹出窗口快捷键",
+            identifier: "popout-hotkey-cancel") { cancel(sessionID) }
+            .fixedSize().settingsFocusReveal()
         }
-        if store.shortcuts.binding("popout") != nil {
-          Button {
-            capturing = false
-            do { try store.shortcuts.set(nil, for: "popout"); error = nil }
-            catch { self.error = error.localizedDescription }
-          } label: { Image(systemName: "xmark.circle.fill") }
-            .buttonStyle(.plain)
-            .accessibilityLabel("清除弹出窗口快捷键")
+      } else {
+        HStack(spacing: 4) {
+          Text(store.shortcuts.binding("popout")?.display ?? "关闭").appFont(size: 13).lineLimit(1)
+          VoiceShortcutActionButton(kind: .edit,
+            label: store.shortcuts.binding("popout") == nil ? "设置弹出窗口快捷键" : "更改弹出窗口快捷键",
+            identifier: "popout-hotkey-edit") {
+              error = nil
+              store.popoutHotkeyError = nil
+              captureID = UUID()
+              capturing = true
+            }.fixedSize().settingsFocusReveal()
+          if store.shortcuts.binding("popout") != nil {
+            VoiceShortcutActionButton(kind: .clear, label: "清除弹出窗口快捷键",
+              identifier: "popout-hotkey-clear") {
+                do { try store.shortcuts.set(nil, for: "popout"); error = nil }
+                catch { self.error = error.localizedDescription }
+              }.fixedSize().settingsFocusReveal()
+          }
         }
       }
     } label: {
@@ -49,6 +56,11 @@ struct PopoutHotkeySettingsRow: View {
     .onDisappear { capturing = false }
   }
 
+  private func cancel(_ sessionID: UUID) {
+    guard capturing, captureID == sessionID else { return }
+    capturing = false
+  }
+
   private func receive(_ event: NSEvent, sessionID: UUID) {
     guard capturing, captureID == sessionID, !event.isARepeat else { return }
     if event.keyCode == 53,
@@ -61,6 +73,8 @@ struct PopoutHotkeySettingsRow: View {
   }
   private func receive(_ binding: ShortcutBinding, sessionID: UUID) {
     guard capturing, captureID == sessionID else { return }
+    capturing = false
+    error = nil
     if let message = binding.validationMessage(for: "popout") {
       error = message
       return
@@ -70,7 +84,9 @@ struct PopoutHotkeySettingsRow: View {
       return
     }
     do {
-      try store.shortcuts.set(binding, for: "popout")
+      if binding == store.shortcuts.binding("popout") {
+        try store.shortcuts.retryGlobalRegistration?("popout")
+      } else { try store.shortcuts.set(binding, for: "popout") }
       error = nil
       capturing = false
     } catch { self.error = error.localizedDescription }

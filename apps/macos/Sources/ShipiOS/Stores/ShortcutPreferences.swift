@@ -14,6 +14,10 @@ private struct SavedShortcuts: Codable {
 
 @MainActor @Observable
 final class ShortcutPreferences {
+  @ObservationIgnored var commitGlobalBindings: ((CommandGlobalHotkeyBindings, CommandGlobalHotkeyBindings,
+    () throws -> Void) throws -> Void)?
+  @ObservationIgnored var retryGlobalRegistration: ((String) throws -> Void)?
+  var globalRegistrationErrors: [String: String] = [:]
   @ObservationIgnored var didChange: ((String) -> Void)?
   private(set) var overrides: [String: [ShortcutBinding]] = [:]
   private(set) var primaryNumberShortcutTarget: NumberShortcutTarget = .tabs
@@ -43,17 +47,22 @@ final class ShortcutPreferences {
         externalBrowserLinkShortcut = loaded.externalBrowserLinkShortcut ?? .unassigned
       }
       loadError = nil
+      didChange?("*")
     } catch CocoaError.fileReadNoSuchFile {
       overrides = [:]
       primaryNumberShortcutTarget = .tabs
       externalBrowserLinkShortcut = .unassigned
       loadError = nil
+      didChange?("*")
     } catch { loadError = "无法读取快捷键设置：\(error.localizedDescription)" }
   }
 
   func defaultBindings(_ id: String) -> [ShortcutBinding] {
+    defaultBindings(id, target: primaryNumberShortcutTarget)
+  }
+  private func defaultBindings(_ id: String, target: NumberShortcutTarget) -> [ShortcutBinding] {
     if let slot = DesktopCommand.numberSlot(id) {
-      let primary = slot.isTab == (primaryNumberShortcutTarget == .tabs)
+      let primary = slot.isTab == (target == .tabs)
       return [ShortcutBinding("\(primary ? "⌘" : "⌃")\(slot.index)")]
     }
     return DesktopCommand.all.first(where: { $0.id == id })?.defaultBindings ?? []
@@ -78,8 +87,11 @@ final class ShortcutPreferences {
   }
 
   func bindings(_ id: String) -> [ShortcutBinding] {
+    bindings(id, overrides: overrides, target: primaryNumberShortcutTarget)
+  }
+  private func bindings(_ id: String, overrides: [String: [ShortcutBinding]], target: NumberShortcutTarget) -> [ShortcutBinding] {
     if let custom = overrides[id] { return custom }
-    let defaults = defaultBindings(id)
+    let defaults = defaultBindings(id, target: target)
     // Every custom binding wins over newly introduced defaults, including aliases.
     return defaults.filter { binding in
       !overrides.contains { command, values in
@@ -143,17 +155,25 @@ final class ShortcutPreferences {
   private func persist(_ updated: [String: [ShortcutBinding]], target: NumberShortcutTarget? = nil,
     linkShortcut: ExternalBrowserLinkShortcut? = nil) throws {
     guard loadError == nil else { throw ShortcutError(message: loadError!) }
-    try FileManager.default.createDirectory(
-      at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
     let target = target ?? primaryNumberShortcutTarget
     let linkShortcut = linkShortcut ?? externalBrowserLinkShortcut
-    try JSONEncoder().encode(SavedShortcuts(primaryNumberShortcutTarget: target, overrides: updated,
-      externalBrowserLinkShortcut: linkShortcut))
-      .write(to: file, options: .atomic)
-    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
-    overrides = updated
-    primaryNumberShortcutTarget = target
-    externalBrowserLinkShortcut = linkShortcut
+    let previous = CommandGlobalHotkeyBindings(pet: binding("pet"), popout: binding("popout"))
+    let next = CommandGlobalHotkeyBindings(
+      pet: bindings("pet", overrides: updated, target: target).first,
+      popout: bindings("popout", overrides: updated, target: target).first)
+    let save = {
+      try FileManager.default.createDirectory(
+        at: self.file.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try JSONEncoder().encode(SavedShortcuts(primaryNumberShortcutTarget: target, overrides: updated,
+        externalBrowserLinkShortcut: linkShortcut))
+        .write(to: self.file, options: .atomic)
+      try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: self.file.path)
+      self.overrides = updated
+      self.primaryNumberShortcutTarget = target
+      self.externalBrowserLinkShortcut = linkShortcut
+    }
+    if let commitGlobalBindings { try commitGlobalBindings(previous, next, save) }
+    else { try save() }
   }
 }
 

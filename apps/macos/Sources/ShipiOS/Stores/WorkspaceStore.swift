@@ -43,7 +43,10 @@ final class WorkspaceStore {
   @ObservationIgnored var popoutWindowHandler: (() -> Void)?
   @ObservationIgnored var popoutWindowToggleHandler: (() -> Void)?
   @ObservationIgnored var showMainWindowHandler: (() -> Void)?
-  var popoutHotkeyError: String?
+  var popoutHotkeyError: String? {
+    get { shortcuts.globalRegistrationErrors["popout"] }
+    set { shortcuts.globalRegistrationErrors["popout"] = newValue }
+  }
   @ObservationIgnored private let root: URL
   @ObservationIgnored private let agentExecutable: URL?
   @ObservationIgnored let browserDataStore: WKWebsiteDataStore?

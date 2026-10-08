@@ -146,6 +146,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     store?.globalDictationHotkeyChangeHandler = nil
     store?.voiceHotkeyPreferenceCommitHandler = nil
     store?.voiceHotkeyRegistrationRetryHandler = nil
+    store?.shortcuts.commitGlobalBindings = nil
+    store?.shortcuts.retryGlobalRegistration = nil
+    store?.shortcuts.didChange = nil
+    petGlobalHotKey = nil
+    popoutGlobalHotKey = nil
     if let appshotWindowFocusObserver {
       NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
       self.appshotWindowFocusObserver = nil
@@ -235,24 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       store.appshotHotkeyChangeHandler = { [weak self] in
         self?.appshotModifierMonitor?.refreshGlobalMonitor()
       }
-      let refreshHotKey = { [weak hotKey, weak store] in
-        guard let hotKey, let store else { return }
-        do { try hotKey.register(store.shortcuts.binding("pet")) }
-        catch { store.petError = error.localizedDescription }
-      }
-      let refreshPopoutHotKey = { [weak popoutHotKey, weak store] in
-        guard let popoutHotKey, let store else { return }
-        do {
-          try popoutHotKey.register(store.shortcuts.binding("popout"))
-          store.popoutHotkeyError = nil
-        } catch { store.popoutHotkeyError = error.localizedDescription }
-      }
-      store.shortcuts.didChange = { id in
-        if id == "pet" || id == "*" { refreshHotKey() }
-        if id == "popout" || id == "*" { refreshPopoutHotKey() }
-      }
-      refreshHotKey()
-      refreshPopoutHotKey()
+      CommandGlobalHotkeyRegistration(pet: hotKey, popout: popoutHotKey).connect(to: store.shortcuts)
       store.appearanceHandler = { [weak pointerCursorController, weak dockIconController] appearance in
         pointerCursorController?.apply(appearance.usePointerCursors)
         dockIconController?.apply(appearance.dockIcon)

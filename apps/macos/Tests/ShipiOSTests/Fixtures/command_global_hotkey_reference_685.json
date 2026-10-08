@@ -1,0 +1,135 @@
+{
+  "popoutReference": {
+    "version": "26.930.51102",
+    "build": 13100,
+    "sourceSHA256": "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535"
+  },
+  "generalShortcutReference": {
+    "version": "26.908.70816",
+    "build": 9275,
+    "sourceSHA256": "2ce95962d64bba7ecaf128cfd4d4e4ec5704f232e0309c6d60a1ffdb7f78e0fb",
+    "capturing": false,
+    "mutations": 0
+  },
+  "boundaries": "Actual Ps and older general callback; local hooks, identity normalization for an exactly equal string and deferred results; no DOM, OS registration or real persistence",
+  "traces": [
+    {
+      "kind": "response-error",
+      "pending": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": true,
+        "error": null
+      },
+      "failed": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": false,
+        "error": "Native registration failed"
+      },
+      "restarted": {
+        "accelerator": "Control+Alt+P",
+        "capturing": true,
+        "disabled": false,
+        "error": null
+      },
+      "repaired": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": false,
+        "error": null
+      },
+      "writes": [
+        {
+          "hotkey": "Control+Alt+P"
+        },
+        {
+          "hotkey": "Control+Alt+P"
+        }
+      ]
+    },
+    {
+      "kind": "transport-error",
+      "pending": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": true,
+        "error": null
+      },
+      "failed": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": false,
+        "error": "Transport failed"
+      },
+      "restarted": {
+        "accelerator": "Control+Alt+P",
+        "capturing": true,
+        "disabled": false,
+        "error": null
+      },
+      "repaired": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": false,
+        "error": null
+      },
+      "writes": [
+        {
+          "hotkey": "Control+Alt+P"
+        },
+        {
+          "hotkey": "Control+Alt+P"
+        }
+      ]
+    },
+    {
+      "kind": "unknown-error",
+      "pending": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": true,
+        "error": null
+      },
+      "failed": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": false,
+        "error": "Failed to update Popout Window hotkey."
+      },
+      "restarted": {
+        "accelerator": "Control+Alt+P",
+        "capturing": true,
+        "disabled": false,
+        "error": null
+      },
+      "repaired": {
+        "accelerator": "Control+Alt+P",
+        "capturing": false,
+        "disabled": false,
+        "error": null
+      },
+      "writes": [
+        {
+          "hotkey": "Control+Alt+P"
+        },
+        {
+          "hotkey": "Control+Alt+P"
+        }
+      ]
+    }
+  ],
+  "clearFailure": {
+    "writes": [
+      {
+        "hotkey": null
+      }
+    ],
+    "settled": {
+      "accelerator": "Control+Alt+P",
+      "capturing": false,
+      "disabled": false,
+      "error": "Clear failed"
+    }
+  }
+}

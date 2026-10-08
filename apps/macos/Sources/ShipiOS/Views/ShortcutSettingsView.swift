@@ -172,10 +172,7 @@ struct ShortcutSettingsView: View {
     let rows: [ShortcutBinding?] = values.isEmpty ? [nil] : values.map(Optional.some) + (appending ? [nil] : [])
     let label = VStack(alignment: .leading, spacing: 4) {
         Text(item.title)
-        if let error = editor.errors[item.id] {
-          Text(error).foregroundStyle(.red).appFont(.caption).textSelection(.enabled)
-        }
-        if item.id == "popout", let error = store.popoutHotkeyError {
+        if let error = editor.errors[item.id] ?? store.shortcuts.globalRegistrationErrors[item.id] {
           Text(error).foregroundStyle(.red).appFont(.caption).textSelection(.enabled)
         }
       }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
