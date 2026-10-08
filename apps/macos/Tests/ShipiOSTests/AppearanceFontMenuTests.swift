@@ -108,7 +108,10 @@ import XCTest
   func testHiddenFamilyAndStyleMenusHaveReferenceWidthsAndKeepWindowAndFocus() async throws {
     let (store, root) = store(); let catalog = AppearanceFontCatalogSource(families: AppearanceFontCatalog.families)
     let (window, host, button, style) = try await host(store, role: .content, catalog: catalog); defer { window.close() }
-    let owner = try XCTUnwrap(button.owner); XCTAssertEqual(button.frame.size, .init(width: 144, height: 28)); XCTAssertEqual(button.title, "与界面字体相同")
+    let owner = try XCTUnwrap(button.owner)
+    let font = try XCTUnwrap(button.font)
+    XCTAssertEqual(button.frame.width, (button.title as NSString).size(withAttributes: [.font: font]).width + 36, accuracy: 1)
+    XCTAssertEqual(button.frame.height, 28); XCTAssertEqual(button.title, "与界面字体相同")
     XCTAssertEqual(button.font?.pointSize, 12); XCTAssertFalse(style.isEnabled)
     owner.toggle(button, keyboard: true); try await settle(host)
     XCTAssertTrue(owner.popup?.window === window); XCTAssertEqual(owner.popup?.frame.width, 240); XCTAssertEqual(owner.popup?.frame.height, 350)

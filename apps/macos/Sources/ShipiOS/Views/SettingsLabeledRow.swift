@@ -21,11 +21,12 @@ extension EnvironmentValues {
 /// resizing does not require an asynchronous state update or replace controls.
 struct SettingsLabeledRow<Label: View, Control: View>: View {
   var reservesControlWidth = true
+  var gap: CGFloat = SettingsCardLayout.rowGap
   @ViewBuilder var label: () -> Label
   @ViewBuilder var control: () -> Control
 
   var body: some View {
-    SettingsLabeledRowLayout(reservesControlWidth: reservesControlWidth) {
+    SettingsLabeledRowLayout(reservesControlWidth: reservesControlWidth, gap: gap) {
       label().appFont(size: SettingsRowTypography.labelSize, weight: .medium)
       control()
     }.accessibilityElement(children: .contain)
@@ -34,13 +35,14 @@ struct SettingsLabeledRow<Label: View, Control: View>: View {
 
 private struct SettingsLabeledRowLayout: Layout {
   var reservesControlWidth: Bool
+  var gap: CGFloat
 
   private func dimensions(_ proposal: ProposedViewSize, _ subviews: Subviews)
     -> (width: CGFloat, labelWidth: CGFloat, controlProposal: ProposedViewSize, label: CGSize, control: CGSize) {
     let labelIdeal = subviews[0].sizeThatFits(.unspecified)
     let controlIdeal = subviews[1].sizeThatFits(.unspecified)
     let hasLabel = labelIdeal.width > 0 || labelIdeal.height > 0
-    let gap = hasLabel ? SettingsCardLayout.rowGap : 0
+    let gap = hasLabel ? self.gap : 0
     let hasControl = controlIdeal.width > 0 || controlIdeal.height > 0
     let reserves = reservesControlWidth && hasLabel && hasControl
     let ideal = labelIdeal.width + max(controlIdeal.width, reserves ? 160 : 0) + gap

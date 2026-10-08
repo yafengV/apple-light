@@ -23,10 +23,10 @@ struct AppearanceSettingsRow<Label: View, Content: View>: View {
   @ViewBuilder var content: () -> Content
   @ViewBuilder var label: () -> Label
   var body: some View {
-    HStack(spacing: compact ? 16 : 24) {
-      label().appFont(size: 13, weight: .medium)
-        .frame(maxWidth: .infinity, alignment: .leading)
-      content().fixedSize(horizontal: true, vertical: false)
+    SettingsLabeledRow(gap: compact ? 16 : 24) {
+      label().frame(maxWidth: .infinity, alignment: .leading)
+    } control: {
+      content()
     }.padding(.horizontal, 16).padding(.vertical, compact ? 8 : 12)
       .accessibilityElement(children: .contain)
   }

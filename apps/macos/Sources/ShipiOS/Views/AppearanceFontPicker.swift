@@ -25,7 +25,7 @@ struct AppearanceFontPicker: View {
     AppearanceSettingsRow {
       if !catalog.loaded { ProgressView().controlSize(.mini).task { await catalog.load() } }
       else {
-        HStack(spacing: 8) {
+        AppearanceFontControlsLayout {
           if controls != .style {
             button(familyMenu, title: label, label: variant + role.title, width: 240, enabled: available)
           }
@@ -38,7 +38,7 @@ struct AppearanceFontPicker: View {
     .onDisappear { familyMenu.dismiss(); styleMenu.dismiss() }
   }
   private func button(_ menu: AppearanceFontMenuState, title: String, label: String, width: CGFloat, enabled: Bool) -> some View {
-    SettingsPopupMenuButton(title: title, label: label, menu: menu, buttonWidth: 144, fontSize: 12, menuWidth: width, formStyle: .font,
+    SettingsPopupMenuButton(title: title, label: label, menu: menu, fitsTitle: true, fontSize: 12, menuWidth: width, formStyle: .font,
       menuHeight: { menu.height }, available: enabled,
       open: { keyboard in
         (menu.kind == .family ? styleMenu : familyMenu).dismiss()
@@ -46,7 +46,7 @@ struct AppearanceFontPicker: View {
       }, choose: { menu.choose($0, role: role, dark: dark, value: value, face: palette.fontFace(role), families: catalog.families, store: store) },
       content: { AnyView(AppearanceFontMenuContent(menu: menu, width: width, label: label,
         selectedID: menu.kind == .style ? resolved.map { "face:" + $0.face.value.postscriptName } : resolved.map { "family:" + $0.family.name } ?? (selection.selectedDefault ? "default" : nil), choose: $0)) })
-      .frame(width: 144, height: 28).disabled(!enabled)
+      .disabled(!enabled)
   }
 }
 

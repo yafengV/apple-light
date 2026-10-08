@@ -17,6 +17,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
   let label: String
   let menu: any SettingsPopupMenuState
   var buttonWidth: CGFloat = 176
+  var fitsTitle = false
   var fontSize: CGFloat = 14
   var menuWidth: CGFloat = 240
   var icon: ((NSRect, NSColor, Bool) -> Void)? = nil
@@ -57,12 +58,18 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     button.border = appearance.resolvedColors["border"].nativeColor
     button.focusBorder = appearance.resolvedColors["borderFocus"].nativeColor
     button.buttonWidth = buttonWidth
+    button.fitsTitle = fitsTitle
     button.icon = icon
     button.formTrigger = formStyle.map { .init(appearance: appearance, swatch: swatch, direction: direction, style: $0, accent: accent) }
     button.invalidateIntrinsicContentSize()
     button.setAccessibilityLabel(label)
     button.setAccessibilityValue(button.title); button.setAccessibilityExpanded(menu.presented)
     button.needsDisplay = true; owner.schedule(button)
+  }
+  func sizeThatFits(_ proposal: ProposedViewSize, nsView: Control, context: Context) -> CGSize? {
+    guard fitsTitle else { return nil }
+    let ideal = nsView.intrinsicContentSize
+    return .init(width: min(ideal.width, proposal.width ?? ideal.width), height: ideal.height)
   }
   static func dismantleNSView(_ button: Control, coordinator: Coordinator) {
     coordinator.active = false; coordinator.detach(); button.formTrigger = nil; button.active = false; button.owner = nil; button.target = nil
@@ -99,6 +106,7 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     var border = NSColor.separatorColor
     var focusBorder = NSColor.keyboardFocusIndicatorColor
     var buttonWidth: CGFloat = 176
+    var fitsTitle = false
     var icon: ((NSRect, NSColor, Bool) -> Void)?
     var formTrigger: SettingsMenuTriggerConfiguration? { didSet { refreshSurface() } }
     private var formHost: SettingsMenuTriggerHostingView?
@@ -146,7 +154,19 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     }
     override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
-    override var intrinsicContentSize: NSSize { .init(width: buttonWidth, height: icon == nil ? 28 : 24) }
+    override var intrinsicContentSize: NSSize {
+      guard fitsTitle, let configuration = formTrigger else { return .init(width: buttonWidth, height: icon == nil ? 28 : 24) }
+      // SwiftUI rounds its text layout outward. NSString can report a half
+      // point less for fallback CJK glyphs, which would truncate a natural title.
+      let titleWidth = ceil((title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: configuration.style.fontSize)]).width)
+      let style = configuration.style
+      let visual: CGFloat = configuration.swatch != nil ? SettingsMenuTriggerMetrics.swatchSize
+        : configuration.accent != nil ? 12 : 0
+      let leading = configuration.swatch != nil ? style.swatchPadding : style.padding
+      return .init(width: titleWidth + leading + style.padding + 2 * SettingsMenuTriggerMetrics.border
+        + SettingsMenuTriggerMetrics.chevronSize + SettingsMenuTriggerMetrics.gap
+        + (visual > 0 ? visual + SettingsMenuTriggerMetrics.swatchGap : 0), height: SettingsMenuTriggerMetrics.height)
+    }
     override func draw(_ dirtyRect: NSRect) {
       if formTrigger != nil { return }
       if let icon {
