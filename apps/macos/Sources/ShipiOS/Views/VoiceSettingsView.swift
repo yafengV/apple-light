@@ -49,155 +49,29 @@ struct VoiceSettingsView: View {
 
   var body: some View {
     SettingsScrollPage(title: "语音", actions: {}, controls: {}) {
-      VStack(alignment: .leading, spacing: 18) {
-        Text("语音聊天").appFont(size: 15, weight: .semibold)
-        VStack(spacing: 0) {
-          if store.modelConfiguration.baseURL.isEmpty
-            || store.voicePreferences.realtimeModelID.isEmpty {
-            HStack {
-              SettingsControlLabel(title: "语音聊天尚未配置",
-                description: "先在“模型与 API”中配置独立服务和实时语音模型。")
-              Spacer()
-              Button("配置模型与 API") { store.openSettings(.model) }
-            }.padding(16)
-            Divider().padding(.horizontal, 16)
-          }
-          HStack(spacing: 12) {
-            SettingsControlLabel(title: "音色", description: "选择新语音聊天使用的音色。")
-            Spacer()
-            Button {
-              voicePickerPresentationID = UUID()
-              showingVoicePicker = true
-            } label: {
-              HStack(spacing: 8) {
-                Circle().fill(.blue).frame(width: 11, height: 11)
-                Text(store.voicePreferences.realtimeVoiceID.capitalized)
-              }
-            }
-            .accessibilityLabel("选择音色：\(store.voicePreferences.realtimeVoiceID)")
-          }
-          .padding(16)
-          .settingsSearchTarget(.voiceVoice)
-          Divider().padding(.horizontal, 16)
-          Toggle(isOn: Binding(
-            get: { store.voicePreferences.screenContextEnabled },
-            set: { value in
-              var preferences = store.voicePreferences
-              preferences.screenContextEnabled = value
-              store.voicePreferences = preferences
-            })) {
-            SettingsControlLabel(title: "屏幕上下文",
-              description: "语音聊天中提到屏幕内容时，可读取前台应用。首次使用时由 macOS 请求权限。")
-          }
-          .toggleStyle(.switch)
-          .padding(16)
-          .settingsSearchTarget(.voiceScreenContext)
-          Divider().padding(.horizontal, 16)
-          globalHotkeyRow(.voiceChat)
-        }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .settingsSearchTarget(.voiceChat)
-        if recordingGlobalHotkey == .voiceChat, let warning = globalHotkeyWarning {
-          Text(warning).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
-        }
-        if let error = store.globalVoiceChatHotkeyError {
-          Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
-        }
-
-        Text("通用").appFont(size: 15, weight: .semibold)
-        VStack(spacing: 0) {
-          SettingsMenuPicker("语言", description: "用于设备端听写。", selection: Binding(
-            get: { store.voicePreferences.dictationLocaleIdentifier },
-            set: { value in
-              var preferences = store.voicePreferences
-              preferences.dictationLocaleIdentifier = value
-              store.voicePreferences = preferences
-            }), options: Self.languages)
-            .settingsSearchTarget(.voiceLanguage)
-            .padding(16)
-          Divider().padding(.horizontal, 16)
-          SettingsMenuPicker("麦克风", description: "用于设备端听写。", selection: Binding(
-            get: { store.voicePreferences.microphoneDeviceID },
-            set: { value in
-              var preferences = store.voicePreferences
-              preferences.microphoneDeviceID = value
-              store.voicePreferences = preferences
-            }), options: microphoneOptions)
-            .settingsSearchTarget(.voiceMicrophone)
-            .padding(16)
-        }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-
-        Text("听写").appFont(size: 15, weight: .semibold)
-        VStack(spacing: 0) {
+      generalSection
+      voiceChatSection
+      VStack(alignment: .leading, spacing: 6) {
+        SettingsSection("听写") {
           globalHotkeyRow(.hold)
-          Divider().padding(.horizontal, 16)
           globalHotkeyRow(.toggle)
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
-          HStack {
-            Label(store.dictation.phase == .finishing ? "正在整理听写…" : "正在全局听写",
-              systemImage: "mic.fill")
-            Spacer()
-            Button("结束听写") { store.dictation.finish(target: target) }
-              .disabled(store.dictation.phase == .finishing)
+          SettingsSection {
+            HStack {
+              Label(store.dictation.phase == .finishing ? "正在整理听写…" : "正在全局听写",
+                systemImage: "mic.fill")
+              Spacer()
+              Button("结束听写") { store.dictation.finish(target: target) }
+                .disabled(store.dictation.phase == .finishing)
+            }
           }
-          .padding(12)
-          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
         if let error = (recordingGlobalHotkey == .voiceChat ? nil : globalHotkeyWarning)
           ?? store.globalDictationHotkeyError {
           Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
         }
-        VStack(spacing: 0) {
-          LabeledContent {
-            Button("添加词条") { insertDictionaryRow(after: nil) }
-          } label: {
-            SettingsControlLabel(title: "听写词典",
-              description: "将专有名词或短语加入设备端识别请求，帮助听写识别。")
-          }
-          .padding(16)
-          ForEach(dictionaryRows) { row in
-            Divider().padding(.horizontal, 16)
-            HStack(spacing: 8) {
-              TextField("词语或短语", text: Binding(
-                get: { dictionaryRows.first(where: { $0.id == row.id })?.text ?? "" },
-                set: { value in
-                  guard let index = dictionaryRows.firstIndex(where: { $0.id == row.id }) else { return }
-                  dictionaryRows[index].text = value
-                }))
-                .focused($focusedDictionaryRow, equals: row.id)
-                .onSubmit { insertDictionaryRow(after: row.id) }
-                .accessibilityLabel("词典词条")
-              Button {
-                dictionaryRows.removeAll { $0.id == row.id }
-                if dictionaryRows.isEmpty { dictionaryRows = [DictionaryRow(text: "")] }
-                persistDictionaryRows()
-              } label: { Image(systemName: "minus.circle") }
-                .buttonStyle(.plain)
-                .disabled(dictionaryRows.count == 1 && row.text.isEmpty)
-                .accessibilityLabel("移除词条：\(row.text.isEmpty ? "空白" : row.text)")
-            }
-            .padding(.leading, 32)
-            .padding(.trailing, 16)
-            .padding(.vertical, 10)
-          }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .settingsSearchTarget(.voiceDictionary)
-        VStack(spacing: 0) {
-          SettingsControlLabel(title: "最近录音", description: "最近 20 条录音保存在此设备。")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-          ForEach(store.voiceRecordingHistory.recordings) { recording in
-            Divider().padding(.horizontal, 16)
-            recordingRow(recording)
-          }
-        }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .settingsSearchTarget(.voiceRecordings)
+        recordingsCard
         if let error = store.voiceRecordingHistory.error {
           HStack(alignment: .top) {
             Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
@@ -205,10 +79,12 @@ struct VoiceSettingsView: View {
             Button("关闭") { store.voiceRecordingHistory.clearError() }
           }
         }
-        Text("在输入区使用 \(store.shortcuts.label("dictation")) 开始或结束听写。")
-          .appFont(.caption).foregroundStyle(.secondary)
       }
+      dictionaryCard
+      Text("在输入区使用 \(store.shortcuts.label("dictation")) 开始或结束听写。")
+        .appFont(.caption).foregroundStyle(.secondary)
     }
+    .settingsFormStyle()
     .onAppear { loadDictionaryRows(); refreshMicrophones() }
     .sheet(isPresented: $showingVoicePicker) {
       VoicePickerSheet(selectedVoiceID: store.voicePreferences.realtimeVoiceID,
@@ -237,6 +113,130 @@ struct VoiceSettingsView: View {
     }
   }
 
+  private var generalSection: some View {
+    SettingsSection("通用") {
+      SettingsMenuPicker("麦克风", description: "用于设备端听写。", selection: Binding(
+        get: { store.voicePreferences.microphoneDeviceID },
+        set: { value in
+          var preferences = store.voicePreferences
+          preferences.microphoneDeviceID = value
+          store.voicePreferences = preferences
+        }), options: microphoneOptions)
+        .settingsSearchTarget(.voiceMicrophone)
+      SettingsMenuPicker("语言", description: "用于设备端听写。", selection: Binding(
+        get: { store.voicePreferences.dictationLocaleIdentifier },
+        set: { value in
+          var preferences = store.voicePreferences
+          preferences.dictationLocaleIdentifier = value
+          store.voicePreferences = preferences
+        }), options: Self.languages)
+        .settingsSearchTarget(.voiceLanguage)
+    }
+  }
+
+  private var voiceChatSection: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      SettingsSection("语音聊天") {
+        if store.modelConfiguration.baseURL.isEmpty || store.voicePreferences.realtimeModelID.isEmpty {
+          LabeledContent {
+            Button("配置模型与 API") { store.openSettings(.model) }
+          } label: {
+            SettingsControlLabel(title: "语音聊天尚未配置",
+              description: "先在“模型与 API”中配置独立服务和实时语音模型。")
+          }
+        }
+        LabeledContent {
+          Button {
+            voicePickerPresentationID = UUID()
+            showingVoicePicker = true
+          } label: {
+            HStack(spacing: 8) {
+              Circle().fill(store.appearance.accentColor).frame(width: 12, height: 12)
+                .accessibilityHidden(true)
+              Text(store.voicePreferences.realtimeVoiceID.capitalized)
+            }
+          }
+          .accessibilityLabel("选择音色：\(store.voicePreferences.realtimeVoiceID)")
+        } label: {
+          SettingsControlLabel(title: "音色", description: "选择新语音聊天使用的音色。")
+        }
+        .settingsSearchTarget(.voiceVoice)
+        globalHotkeyRow(.voiceChat)
+        Toggle(isOn: Binding(
+          get: { store.voicePreferences.screenContextEnabled },
+          set: { value in
+            var preferences = store.voicePreferences
+            preferences.screenContextEnabled = value
+            store.voicePreferences = preferences
+          })) {
+          SettingsControlLabel(title: "屏幕上下文",
+            description: "语音聊天中提到屏幕内容时，可读取前台应用。首次使用时由 macOS 请求权限。")
+        }
+        .settingsSearchTarget(.voiceScreenContext)
+      }
+      .settingsSearchTarget(.voiceChat)
+      if recordingGlobalHotkey == .voiceChat, let warning = globalHotkeyWarning {
+        Text(warning).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
+      }
+      if let error = store.globalVoiceChatHotkeyError {
+        Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
+      }
+    }
+  }
+
+  private var recordingsCard: some View {
+    AppearanceSettingsCard {
+      SettingsControlLabel(title: "最近录音", description: "最近 20 条录音保存在此设备。")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16).padding(.vertical, 12)
+      ForEach(store.voiceRecordingHistory.recordings) { recording in
+        Rectangle().fill(store.appearance.resolvedColors["border"].color)
+          .frame(height: 1).padding(.horizontal, 16).accessibilityHidden(true)
+        VoiceRecordingSettingsRow(store: store, recording: recording) { download(recording.id) }
+      }
+    }
+    .settingsSearchTarget(.voiceRecordings)
+  }
+
+  private var dictionaryCard: some View {
+    AppearanceSettingsCard {
+      SettingsLabeledRow {
+        SettingsControlLabel(title: "听写词典",
+          description: "将专有名词或短语加入设备端识别请求，帮助听写识别。")
+      } control: {
+        Button { insertDictionaryRow(after: nil) } label: {
+          Label("添加词条", systemImage: "plus")
+        }
+      }
+      .padding(.horizontal, 16).padding(.vertical, 12)
+      ForEach(dictionaryRows) { row in
+        Rectangle().fill(store.appearance.resolvedColors["border"].color)
+          .frame(height: 1).padding(.horizontal, 16).accessibilityHidden(true)
+        HStack(spacing: 8) {
+          TextField("词语或短语", text: Binding(
+            get: { dictionaryRows.first(where: { $0.id == row.id })?.text ?? "" },
+            set: { value in
+              guard let index = dictionaryRows.firstIndex(where: { $0.id == row.id }) else { return }
+              dictionaryRows[index].text = value
+            }))
+            .focused($focusedDictionaryRow, equals: row.id)
+            .onSubmit { insertDictionaryRow(after: row.id) }
+            .accessibilityLabel("词典词条")
+          Button {
+            dictionaryRows.removeAll { $0.id == row.id }
+            if dictionaryRows.isEmpty { dictionaryRows = [DictionaryRow(text: "")] }
+            persistDictionaryRows()
+          } label: { Image(systemName: "minus.circle") }
+            .buttonStyle(.plain)
+            .disabled(dictionaryRows.count == 1 && row.text.isEmpty)
+            .accessibilityLabel("移除词条：\(row.text.isEmpty ? "空白" : row.text)")
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8).frame(minHeight: 40)
+      }
+    }
+    .settingsSearchTarget(.voiceDictionary)
+  }
+
   private func loadDictionaryRows() {
     dictionaryRows = store.voicePreferences.dictationDictionary.map { DictionaryRow(text: $0) }
     if dictionaryRows.isEmpty { dictionaryRows = [DictionaryRow(text: "")] }
@@ -262,67 +262,6 @@ struct VoiceSettingsView: View {
   private func refreshMicrophones() {
     microphones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone],
       mediaType: .audio, position: .unspecified).devices
-  }
-
-  private func recordingRow(_ recording: VoiceRecording) -> some View {
-    HStack(spacing: 10) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text(recording.text.isEmpty ? recordingStatus(recording.status) : recording.text)
-          .appFont(size: 13)
-          .lineLimit(1)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        Text(recording.createdAt.formatted(date: .abbreviated, time: .shortened))
-          .appFont(.caption).foregroundStyle(.secondary)
-      }
-      if !recording.text.isEmpty {
-        Button {
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(recording.text, forType: .string)
-        } label: { Image(systemName: "doc.on.doc") }
-          .buttonStyle(.plain)
-          .disabled(store.voiceRecordingHistory.retryingID != nil)
-          .accessibilityLabel("复制听写文本")
-      } else if recording.sizeBytes > 0 && recording.status != .recording {
-        if store.voiceRecordingHistory.retryingID == recording.id {
-          ProgressView().controlSize(.small).accessibilityLabel("正在重试转写")
-        } else {
-          Button("重试") {
-            Task {
-              await store.voiceRecordingHistory.retry(recording.id,
-                languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
-                dictionary: store.voicePreferences.dictationDictionary)
-            }
-          }
-          .disabled(store.voiceRecordingHistory.retryingID != nil)
-          .accessibilityLabel("重试转写")
-        }
-      }
-      Menu {
-        if recording.sizeBytes > 0 {
-          Button("下载录音") { download(recording.id) }
-        }
-        Button("删除录音", role: .destructive) {
-          do { try store.voiceRecordingHistory.delete(recording.id) }
-          catch { store.voiceRecordingHistory.report(error) }
-        }
-          .disabled(recording.status == .recording)
-      } label: { Image(systemName: "ellipsis") }
-        .menuStyle(.borderlessButton)
-        .frame(width: 24)
-        .disabled(store.voiceRecordingHistory.retryingID != nil)
-        .accessibilityLabel("录音操作")
-    }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 10)
-  }
-
-  private func recordingStatus(_ status: VoiceRecording.Status) -> String {
-    switch status {
-    case .recording: "正在录音"
-    case .saved: "录音已保存"
-    case .cancelled: "录音已取消"
-    case .interrupted: "录音已中断"
-    }
   }
 
   private func download(_ id: UUID) {
@@ -400,7 +339,6 @@ struct VoiceSettingsView: View {
     } label: {
       SettingsControlLabel(title: title, description: description)
     }
-    .padding(16)
     .settingsSearchTarget(searchField)
   }
 

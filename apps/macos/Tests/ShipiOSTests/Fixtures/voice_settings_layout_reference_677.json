@@ -1,0 +1,335 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "dcac6c84dc913e502511a3c408178dad8266acbd53fe463c312c7dcb5757055f",
+  "boundaries": "Actual bn/tn/En/On/In evaluated using inert hooks, eligible macOS fixtures; account access, capability variants and permission callbacks are not executed",
+  "expected": {
+    "pageOrder": [
+      "general",
+      "voiceChat",
+      "dictation",
+      "dictionary"
+    ],
+    "generalRows": [
+      "microphone",
+      "language"
+    ],
+    "voiceRows": [
+      "voice",
+      "hotkey",
+      "screenContext"
+    ],
+    "dictationCards": [
+      "sounds",
+      "shortcuts",
+      "recordings"
+    ],
+    "dictionarySeparateCard": true,
+    "recordingRowSize": "compact"
+  },
+  "page": {
+    "type": "wt",
+    "props": {
+      "title": {
+        "type": "yt",
+        "props": {
+          "slug": "voice"
+        }
+      },
+      "children": [
+        {
+          "type": "Fragment",
+          "props": {
+            "children": [
+              {
+                "type": "Section",
+                "props": {
+                  "children": [
+                    {
+                      "type": "SectionHeader",
+                      "props": {
+                        "title": "General"
+                      }
+                    },
+                    {
+                      "type": "SectionContent",
+                      "props": {
+                        "children": {
+                          "type": "U",
+                          "props": {
+                            "children": [
+                              {
+                                "type": "xn",
+                                "props": {}
+                              },
+                              {
+                                "type": "un",
+                                "props": {}
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "tn",
+                "props": {}
+              },
+              {
+                "type": "En",
+                "props": {
+                  "isGlobalDictationEnabled": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "mn",
+          "props": {
+            "fallback": {
+              "type": "Fragment",
+              "props": {
+                "children": {
+                  "type": "On",
+                  "props": {}
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "voice": {
+    "type": "Section",
+    "props": {
+      "children": [
+        {
+          "type": "SectionHeader",
+          "props": {
+            "title": "Voice chat"
+          }
+        },
+        {
+          "type": "SectionContent",
+          "props": {
+            "children": {
+              "type": "U",
+              "props": {
+                "children": {
+                  "type": "Fragment",
+                  "props": {
+                    "children": [
+                      {
+                        "type": "P",
+                        "props": {
+                          "label": "Voice",
+                          "description": {
+                            "type": "div",
+                            "props": {
+                              "className": "flex flex-col gap-1",
+                              "children": [
+                                "Choose the voice Codex uses for new voice chats",
+                                null
+                              ]
+                            }
+                          },
+                          "control": {
+                            "type": "en",
+                            "props": {
+                              "open": false,
+                              "initialVoice": {
+                                "slug": "test-voice",
+                                "name": "Test voice"
+                              },
+                              "triggerContent": {
+                                "type": "Button",
+                                "props": {
+                                  "color": "secondary",
+                                  "size": "toolbar",
+                                  "children": [
+                                    {
+                                      "type": "span",
+                                      "props": {
+                                        "aria-hidden": true,
+                                        "className": "size-3 rounded-full bg-chart-blue"
+                                      }
+                                    },
+                                    "Test voice"
+                                  ]
+                                }
+                              },
+                              "voices": [
+                                {
+                                  "slug": "test-voice",
+                                  "name": "Test voice"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "an",
+                        "props": {}
+                      },
+                      null,
+                      {
+                        "type": "rn",
+                        "props": {}
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "dictation": {
+    "type": "Section",
+    "props": {
+      "children": [
+        {
+          "type": "SectionHeader",
+          "props": {
+            "title": "Dictation"
+          }
+        },
+        {
+          "type": "SectionContent",
+          "props": {
+            "children": [
+              {
+                "type": "U",
+                "props": {
+                  "children": {
+                    "type": "Dn",
+                    "props": {}
+                  }
+                }
+              },
+              {
+                "type": "U",
+                "props": {
+                  "children": {
+                    "type": "Pn",
+                    "props": {
+                      "hotkeyState": {},
+                      "mode": "hold"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "U",
+                "props": {
+                  "children": {
+                    "type": "Fn",
+                    "props": {}
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "dictionary": {
+    "type": "Section",
+    "props": {
+      "children": {
+        "type": "SectionContent",
+        "props": {
+          "children": {
+            "type": "U",
+            "props": {
+              "children": {
+                "type": "kn",
+                "props": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "recording": {
+    "type": "P",
+    "props": {
+      "size": "compact",
+      "label": {
+        "type": "span",
+        "props": {
+          "className": "block truncate font-normal",
+          "children": "Fixture transcript"
+        }
+      },
+      "description": {
+        "type": "time",
+        "props": {
+          "dateTime": "1970-01-01T00:00:00.000Z",
+          "className": "tabular-nums",
+          "children": "Fixture timestamp"
+        }
+      },
+      "control": {
+        "type": "Fragment",
+        "props": {
+          "children": [
+            {
+              "type": "CopyButton",
+              "props": {
+                "ariaLabel": "Copy dictation",
+                "buttonText": "Copy dictation",
+                "iconOnly": true,
+                "isDisabled": false
+              }
+            },
+            null,
+            null,
+            {
+              "type": "DropdownMenu",
+              "props": {
+                "align": "end",
+                "contentWidth": "menu",
+                "disabled": false,
+                "triggerButton": {
+                  "type": "MenuTrigger",
+                  "props": {
+                    "disabled": false,
+                    "label": "Recording actions"
+                  }
+                },
+                "children": [
+                  {
+                    "type": "MenuItem",
+                    "props": {
+                      "leftIconAsset": "download",
+                      "children": "Download recording"
+                    }
+                  },
+                  {
+                    "type": "MenuItem",
+                    "props": {
+                      "leftIconAsset": "delete",
+                      "disabled": false,
+                      "children": "Delete recording"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
