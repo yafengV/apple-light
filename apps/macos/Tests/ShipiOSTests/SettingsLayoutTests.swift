@@ -4,7 +4,61 @@ import Observation
 import XCTest
 @testable import ShipiOS
 
+struct SettingsPageLayoutReference: Decodable {
+  struct Case: Decodable {
+    struct Layout: Decodable {
+      let headingSize, panelInset, contentWidth, sectionSpacing, headingContentSpacing: CGFloat
+      let headingWeight: String
+    }
+    let slate, embedded: Bool
+    let density: String
+    let expected: Layout?
+  }
+  let cases: [Case]
+
+  static func sidebarLayout() throws -> Case.Layout {
+    let url = try XCTUnwrap(Bundle.module.url(forResource: "settings_page_layout_reference_663", withExtension: "json", subdirectory: "Fixtures"))
+    let reference = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+    return try XCTUnwrap(reference.cases.first { !$0.slate && !$0.embedded && $0.density == "default" }?.expected)
+  }
+}
+
 final class SettingsLayoutTests: XCTestCase {
+  @MainActor func testScrollPageInsetsAndSectionGapMatchPublicSidebarLayout() async throws {
+    _ = NSApplication.shared
+    let reference = try SettingsPageLayoutReference.sidebarLayout()
+    XCTAssertEqual(SettingsPageLayout.headingSize, reference.headingSize)
+    XCTAssertEqual(SettingsPageLayout.contentWidth, reference.contentWidth)
+    XCTAssertEqual(SettingsPageLayout.headingContentSpacing, reference.headingContentSpacing)
+    XCTAssertEqual(reference.headingWeight, "regular")
+    let first = NSView(), second = NSView(), action = NSView()
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; defer { window.close() }
+    let host = NSHostingView(rootView: SettingsScrollPage(title: "布局参考", actions: {
+      LayoutPositionProbe(view: action).frame(width: 10, height: 10)
+    }, controls: {}) {
+      LayoutPositionProbe(view: first).frame(height: 30)
+      LayoutPositionProbe(view: second).frame(height: 30)
+    })
+    window.contentView = host
+    for width in [CGFloat(700), 400] {
+      window.setContentSize(NSSize(width: width, height: 500))
+      host.frame.size = NSSize(width: width, height: 500)
+      try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
+      func rect(_ view: NSView) -> NSRect { view.convert(view.bounds, to: host) }
+      func top(_ view: NSView) -> CGFloat {
+        let value = rect(view)
+        return host.isFlipped ? value.minY : host.bounds.height - value.maxY
+      }
+      XCTAssertEqual(rect(first).minX, reference.panelInset, accuracy: 1)
+      XCTAssertEqual(rect(first).width, width - 2 * reference.panelInset, accuracy: 1)
+      XCTAssertEqual(top(action), reference.panelInset, accuracy: 1)
+      XCTAssertEqual(top(second) - top(first) - first.bounds.height, reference.sectionSpacing, accuracy: 1)
+      XCTAssertEqual(scrollViews(in: host).count, 1)
+    }
+  }
+
   func testSearchHighlightExpiresAndReducedMotionHasNoFade() {
     XCTAssertEqual(SettingsSearchHighlight.opacity(elapsed: 0, reducedMotion: false), 1)
     XCTAssertEqual(SettingsSearchHighlight.opacity(elapsed: -0.01, reducedMotion: false), 0)

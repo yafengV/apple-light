@@ -1,0 +1,80 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "cssSHA256": "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+  "cases": [
+    {
+      "slate": false,
+      "density": "default",
+      "embedded": false,
+      "headingClass": "min-w-0 break-words text-default heading-lg font-normal",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-3xl electron:min-w-[min(100%,calc(320px*var(--codex-window-zoom)))]",
+      "sectionClass": "flex flex-col gap-10",
+      "expected": {
+        "headingSize": 24,
+        "headingWeight": "regular",
+        "panelInset": 20,
+        "contentWidth": 768,
+        "sectionSpacing": 40,
+        "headingContentSpacing": 32
+      }
+    },
+    {
+      "slate": false,
+      "density": "default",
+      "embedded": true,
+      "headingClass": "min-w-0 break-words text-default heading-base electron:heading-lg",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-2xl",
+      "sectionClass": "flex flex-col gap-[var(--padding-panel)]"
+    },
+    {
+      "slate": false,
+      "density": "compact",
+      "embedded": false,
+      "headingClass": "min-w-0 break-words text-default heading-lg font-semibold leading-7",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-3xl electron:min-w-[min(100%,calc(320px*var(--codex-window-zoom)))]",
+      "sectionClass": "flex flex-col gap-5.5"
+    },
+    {
+      "slate": false,
+      "density": "compact",
+      "embedded": true,
+      "headingClass": "min-w-0 break-words text-default heading-lg font-semibold leading-7",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-2xl",
+      "sectionClass": "flex flex-col gap-5.5"
+    },
+    {
+      "slate": true,
+      "density": "default",
+      "embedded": false,
+      "headingClass": "text-default heading-xl",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-3xl electron:min-w-[min(100%,calc(320px*var(--codex-window-zoom)))] px-panel pb-panel pt-panel",
+      "sectionClass": "flex flex-col gap-10"
+    },
+    {
+      "slate": true,
+      "density": "default",
+      "embedded": true,
+      "headingClass": "min-w-0 break-words text-default heading-base electron:heading-lg",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-2xl",
+      "sectionClass": "flex flex-col gap-[var(--padding-panel)]"
+    },
+    {
+      "slate": true,
+      "density": "compact",
+      "embedded": false,
+      "headingClass": "text-default heading-lg",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-3xl electron:min-w-[min(100%,calc(320px*var(--codex-window-zoom)))] px-panel pb-panel pt-panel",
+      "sectionClass": "flex flex-col gap-5.5"
+    },
+    {
+      "slate": true,
+      "density": "compact",
+      "embedded": true,
+      "headingClass": "min-w-0 break-words text-default heading-lg font-semibold leading-7",
+      "pageClass": "group/settings mx-auto flex w-full flex-col max-w-2xl",
+      "sectionClass": "flex flex-col gap-5.5"
+    }
+  ]
+}

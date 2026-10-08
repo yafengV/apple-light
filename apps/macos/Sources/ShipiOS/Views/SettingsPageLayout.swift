@@ -2,8 +2,11 @@ import SwiftUI
 
 enum SettingsPageLayout {
   static let contentWidth: CGFloat = 768
-  static let horizontalInset: CGFloat = 24
+  static let horizontalInset: CGFloat = 20
   static let viewportWidth = contentWidth + horizontalInset * 2
+  static let headingSize: CGFloat = 24
+  static let headingContentSpacing: CGFloat = 32
+  static let sectionSpacing: CGFloat = 40
 }
 
 extension SettingsPage {
@@ -47,9 +50,9 @@ struct SettingsPageFormStyle: FormStyle {
       Form {
         if let title {
           Section {} header: {
-            Text(title).appFont(size: 25, weight: .semibold)
+            Text(title).appFont(size: SettingsPageLayout.headingSize)
               .foregroundStyle(.primary).textCase(nil)
-              .padding(.bottom, 20)
+              .padding(.bottom, SettingsPageLayout.headingContentSpacing)
               .accessibilityAddTraits(.isHeader)
               .accessibilityIdentifier("settings-page-heading")
           }
@@ -86,15 +89,16 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
         HStack(alignment: .top, spacing: 16) {
-          VStack(alignment: .leading, spacing: 8) {
-            Text(title).appFont(size: 25, weight: .semibold)
+          VStack(alignment: .leading, spacing: 6) {
+            Text(title).appFont(size: SettingsPageLayout.headingSize)
               .accessibilityAddTraits(.isHeader).accessibilityIdentifier("settings-page-heading")
             if let subtitle { Text(subtitle).foregroundStyle(.secondary) }
           }.frame(maxWidth: .infinity, alignment: .leading)
           actions()
-        }.padding(.top, 24).padding(.bottom, 32)
+        }.padding(.top, SettingsPageLayout.horizontalInset)
+          .padding(.bottom, SettingsPageLayout.headingContentSpacing)
         Section {
-          VStack(alignment: .leading, spacing: 20) { content() }
+          VStack(alignment: .leading, spacing: SettingsPageLayout.sectionSpacing) { content() }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, pinsControls ? 20 : 0)
         } header: {
@@ -103,7 +107,8 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
               .background(appearance.backgroundColor)
           }
         }
-      }.padding(.horizontal, SettingsPageLayout.horizontalInset).padding(.bottom, 24)
+      }.padding(.horizontal, SettingsPageLayout.horizontalInset)
+        .padding(.bottom, SettingsPageLayout.horizontalInset)
     }
     .environment(\.settingsPageTitle, nil)
     .environment(\.settingsFormEmbedded, true)

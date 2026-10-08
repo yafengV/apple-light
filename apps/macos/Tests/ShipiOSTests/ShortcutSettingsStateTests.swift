@@ -124,6 +124,7 @@ final class ShortcutSettingsStateTests: XCTestCase {
 
   @MainActor func testRowEditorRendersAtCommandWithoutAdditionalScrollContainer() async throws {
     _ = NSApplication.shared
+    let pageReference = try SettingsPageLayoutReference.sidebarLayout()
     let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     store.openSettings(.shortcuts)
     let editor = ShortcutSettingsState()
@@ -149,7 +150,8 @@ final class ShortcutSettingsStateTests: XCTestCase {
       XCTAssertGreaterThan(rect.minY, 80, "Capture belongs to the command row below the sticky search controls")
       XCTAssertLessThanOrEqual(rect.maxX, width)
       if width == 400 {
-        XCTAssertEqual(rect.minX, 24, accuracy: 1, "The compact control must align with the page inset")
+        XCTAssertEqual(rect.minX, pageReference.panelInset, accuracy: 1,
+          "The compact control must align with the public sidebar page inset")
         XCTAssertGreaterThan(rect.minY, 180, "The command title must occupy its own line above capture")
       }
       if let directory = ProcessInfo.processInfo.environment["SHIPIOS_SETTINGS_SNAPSHOTS"] {
