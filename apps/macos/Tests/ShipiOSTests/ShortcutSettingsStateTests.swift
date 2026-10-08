@@ -160,6 +160,10 @@ final class ShortcutSettingsStateTests: XCTestCase {
   @MainActor func testRowEditorRendersAtCommandWithoutAdditionalScrollContainer() async throws {
     _ = NSApplication.shared
     let pageReference = try SettingsPageLayoutReference.sidebarLayout()
+    let cardURL = try XCTUnwrap(Bundle.module.url(forResource: "settings_card_layout_reference_664", withExtension: "json", subdirectory: "Fixtures"))
+    let card = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: cardURL)) as? [String: Any])
+    let cardExpected = try XCTUnwrap(card["expected"] as? [String: Any])
+    let cardInset = try XCTUnwrap(cardExpected["rowHorizontalInset"] as? Double)
     let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     store.openSettings(.shortcuts)
     let editor = ShortcutSettingsState()
@@ -185,8 +189,8 @@ final class ShortcutSettingsStateTests: XCTestCase {
       XCTAssertGreaterThan(rect.minY, 80, "Capture belongs to the command row below the sticky search controls")
       XCTAssertLessThanOrEqual(rect.maxX, width)
       if width == 400 {
-        XCTAssertEqual(rect.minX, pageReference.panelInset, accuracy: 1,
-          "The compact control must align with the public sidebar page inset")
+        XCTAssertEqual(rect.minX, pageReference.panelInset + cardInset, accuracy: 1,
+          "The compact control must align with the public page and card row insets")
         XCTAssertGreaterThan(rect.minY, 180, "The command title must occupy its own line above capture")
       }
       if let directory = ProcessInfo.processInfo.environment["SHIPIOS_SETTINGS_SNAPSHOTS"] {

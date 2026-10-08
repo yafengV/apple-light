@@ -14,9 +14,26 @@ struct ShortcutSettingsView: View {
   private var matches: [DesktopCommand] {
     DesktopCommand.all.filter { editor.matches($0, preferences: store.shortcuts) }
   }
+  private var dictationGroup: ShortcutDictationGroup { editor.dictationGroup(preferences: store.shortcuts) }
+  private enum Row: Identifiable {
+    case command(DesktopCommand), externalBrowser
+    var id: String { switch self { case .command(let command): command.id; case .externalBrowser: "external-browser-link" } }
+  }
+  private var ordinaryRows: [Row] {
+    var rows: [Row] = []
+    let ordinaryIDs = Set(dictationGroup.ordinaryCommandIDs)
+    let commands = matches.filter { ordinaryIDs.contains($0.id) }
+    for command in commands {
+      rows.append(.command(command))
+      if command.id == "browser-new", showsLinkShortcut { rows.append(.externalBrowser) }
+    }
+    if showsLinkShortcut, !commands.contains(where: { $0.id == "browser-new" }) { rows.append(.externalBrowser) }
+    return rows
+  }
   var body: some View {
     GeometryReader { geometry in
     let searchCaptureID = editor.searchCaptureID
+    let rows = ordinaryRows
     ScrollViewReader { proxy in
       SettingsScrollPage(title: SettingsPage.shortcuts.title, pinsControls: true) {
         if store.shortcuts.hasCustomizations {
@@ -51,31 +68,43 @@ struct ShortcutSettingsView: View {
             .accessibilityValue(editor.searchByKeys ? "已开启" : "已关闭")
         }.settingsSearchTarget(.shortcutSearch)
       } content: {
-        numberShortcutPreference(contentWidth: geometry.size.width)
+        if editor.matchesNumberPreference(store.shortcuts.primaryNumberShortcutTarget) {
+          AppearanceSettingsCard {
+            numberShortcutPreference(contentWidth: geometry.size.width)
+              .padding(.horizontal, SettingsCardLayout.rowHorizontalInset)
+              .padding(.vertical, SettingsCardLayout.rowVerticalInset)
+          }
+        }
         if let error = store.shortcuts.loadError {
           Text(error).foregroundStyle(.red).textSelection(.enabled)
           Button("重新读取快捷键设置") { editor.capture = nil; store.shortcuts.reload() }
         }
-        LazyVStack(spacing: 0) {
-          if showsLinkShortcut { externalBrowserPreference(contentWidth: geometry.size.width) }
-          ForEach(matches) { item in
-            commandRow(item, contentWidth: geometry.size.width)
-              .padding(.vertical, 12)
-              .background(SettingsSearchHighlightView(token:
-                store.destination == .settings && store.settingsPage == .shortcuts
-                  && store.settingsSearchRequest?.result.commandID == item.id ? store.settingsSearchRequest?.token : nil))
-              .id("shortcut:" + item.id)
-            Divider()
+        if !rows.isEmpty {
+          AppearanceSettingsCard {
+            LazyVStack(spacing: 0) {
+              ForEach(rows) { row in
+                switch row {
+                case .command(let item): presentedCommandRow(item, contentWidth: geometry.size.width)
+                case .externalBrowser:
+                  externalBrowserPreference(contentWidth: geometry.size.width)
+                    .padding(.horizontal, SettingsCardLayout.rowHorizontalInset)
+                    .padding(.vertical, SettingsCardLayout.rowVerticalInset)
+                }
+                if row.id != rows.last?.id { cardDivider }
+              }
+            }
           }
-          if matches.isEmpty && !showsLinkShortcut {
-            ContentUnavailableView("没有匹配的快捷键", systemImage: "keyboard")
-          }
+        }
+        if dictationGroup.showsCard { dictationCard(contentWidth: geometry.size.width) }
+        if matches.isEmpty && !showsLinkShortcut && !editor.matchesNumberPreference(store.shortcuts.primaryNumberShortcutTarget) {
+          ContentUnavailableView("没有匹配的快捷键", systemImage: "keyboard")
         }
       }
       .task(id: store.settingsSearchRequest?.token) {
         guard store.destination == .settings, store.settingsPage == .shortcuts,
           let request = store.settingsSearchRequest, request.result.page == .shortcuts else { return }
         editor.clearSearch()
+        if request.result.commandID == ShortcutDictationGroup.toggleID { editor.dictationAdvancedExpanded = true }
         await Task.yield()
         guard !Task.isCancelled, store.settingsSearchRequest == request,
           store.destination == .settings, store.settingsPage == .shortcuts else { return }
@@ -87,13 +116,56 @@ struct ShortcutSettingsView: View {
       if store.shortcuts.hasCustomizations { resetFocus = true }
       else { store.settingsSearchFocusRequest = UUID() }
     }
-    .onChange(of: store.settingsPage) { _, _ in editor.capture = nil; editor.searchByKeys = false }
-    .onChange(of: store.destination) { _, _ in editor.capture = nil; editor.searchByKeys = false }
+    .onChange(of: store.settingsPage) { _, page in if page != .shortcuts { editor.leavePage() } }
+    .onChange(of: store.destination) { _, destination in if destination != .settings { editor.leavePage() } }
+    .onDisappear { editor.leavePage() }
+    .onChange(of: dictationGroup.showsCard) { _, shown in if !shown { editor.dictationGroupRemoved() } }
     .onChange(of: editor.query) { _, value in
-      editor.capture = nil
+      editor.searchChanged(preferences: store.shortcuts)
       if !value.isEmpty { clearCommandTarget() }
     }
     .onChange(of: editor.searchByKeys) { _, value in if value { clearCommandTarget() } }
+  }
+
+  private var cardDivider: some View {
+    Divider().padding(.horizontal, SettingsCardLayout.dividerInset).accessibilityHidden(true)
+  }
+  private func presentedCommandRow(_ item: DesktopCommand, contentWidth: CGFloat) -> some View {
+    commandRow(item, contentWidth: contentWidth)
+      .padding(.horizontal, SettingsCardLayout.rowHorizontalInset)
+      .padding(.vertical, SettingsCardLayout.rowVerticalInset)
+      .background(SettingsSearchHighlightView(token:
+        store.destination == .settings && store.settingsPage == .shortcuts
+          && store.settingsSearchRequest?.result.commandID == item.id ? store.settingsSearchRequest?.token : nil))
+      .id("shortcut:" + item.id)
+  }
+  private func dictationCard(contentWidth: CGFloat) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      AppearanceSettingsCard {
+        if dictationGroup.holdMatches, let hold = DesktopCommand.all.first(where: { $0.id == ShortcutDictationGroup.holdID }) {
+          presentedCommandRow(hold, contentWidth: contentWidth)
+        }
+        if dictationGroup.holdMatches && (dictationGroup.showsSingleTap || dictationGroup.showsAdvanced) { cardDivider }
+        if dictationGroup.showsSingleTap, let toggle = DesktopCommand.all.first(where: { $0.id == ShortcutDictationGroup.toggleID }) {
+          presentedCommandRow(toggle, contentWidth: contentWidth)
+        }
+        if dictationGroup.showsSingleTap && dictationGroup.showsAdvanced { cardDivider }
+        if dictationGroup.showsAdvanced {
+          HStack {
+            VoiceDictationAdvancedButton(expanded: editor.dictationAdvancedExpanded) { control in
+              if editor.dictationAdvancedExpanded, editor.capture?.commandID == ShortcutDictationGroup.toggleID {
+                control.window?.makeFirstResponder(control)
+              }
+              editor.setDictationExpanded(!editor.dictationAdvancedExpanded)
+            }.fixedSize().settingsFocusReveal()
+            Spacer(minLength: 0)
+          }.padding(.horizontal, SettingsCardLayout.rowHorizontalInset).padding(.vertical, 8)
+        }
+      }
+      Text("适用于任意应用。按 Esc 取消录音。")
+        .appFont(size: SettingsRowTypography.descriptionSize).foregroundStyle(.secondary)
+        .padding(.horizontal, 16)
+    }
   }
 
   private func requestReset() {
@@ -127,8 +199,7 @@ struct ShortcutSettingsView: View {
             }).labelsHidden().fixedSize()
           Spacer(minLength: 0)
         }.frame(width: contentWidth >= 640 ? 384 : nil)
-      }.padding(.vertical, 12).settingsSearchTarget(.shortcutExternalBrowser)
-      Divider()
+      }.settingsSearchTarget(.shortcutExternalBrowser)
     }
   }
 
@@ -161,7 +232,6 @@ struct ShortcutSettingsView: View {
       if let numberShortcutError {
         Text(numberShortcutError).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
       }
-      Divider().padding(.top, 12)
     }.settingsSearchTarget(.shortcutNumbers)
   }
 

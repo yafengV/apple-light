@@ -13,7 +13,38 @@ import Observation
   private(set) var searchCaptureID = UUID()
   var capture: Capture?
   var errors: [String: String] = [:]
+  var dictationAdvancedExpanded = false
   private var modifierCapture = VoiceModifierCaptureState()
+
+  func dictationGroup(preferences: ShortcutPreferences) -> ShortcutDictationGroup {
+    ShortcutDictationGroup(commandIDs: DesktopCommand.all.filter { matches($0, preferences: preferences) }.map(\.id),
+      query: query, searchByKeys: searchByKeys, expanded: dictationAdvancedExpanded)
+  }
+  func setDictationExpanded(_ expanded: Bool) {
+    if !expanded, let capture, capture.commandID == ShortcutDictationGroup.toggleID { cancel(capture.id) }
+    dictationAdvancedExpanded = expanded
+  }
+  func searchChanged(preferences: ShortcutPreferences) {
+    capture = nil; modifierCapture.reset()
+    if !dictationGroup(preferences: preferences).showsCard { dictationGroupRemoved() }
+  }
+  func dictationGroupRemoved() {
+    dictationAdvancedExpanded = false
+    if let capture, [ShortcutDictationGroup.holdID, ShortcutDictationGroup.toggleID].contains(capture.commandID) {
+      cancel(capture.id)
+    }
+  }
+  func leavePage() {
+    capture = nil; modifierCapture.reset(); dictationAdvancedExpanded = false
+    searchByKeys = false; searchCaptureID = UUID()
+  }
+  func matchesNumberPreference(_ target: NumberShortcutTarget) -> Bool {
+    guard !searchByKeys else { return false }
+    let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    return value.isEmpty || ["数字快捷键", "Number shortcuts", "⌘1–9 切换聊天", "⌘1–9 切换标签",
+      target == .tabs ? "使用 ⌘1–9 切换标签，⌃1–9 切换聊天" : "使用 ⌘1–9 切换聊天，⌃1–9 切换标签"]
+      .contains { $0.localizedCaseInsensitiveContains(value) }
+  }
 
   func toggleSearchMode() {
     capture = nil

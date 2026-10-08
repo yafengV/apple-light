@@ -1,0 +1,205 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "f31de7f3b3c6b2449870be9f0fbc8259cd5f494d06105b619a26560976892328",
+    "234429db84d9319850ff0766a4a5052a9e898bfa0611883633f80018080dd6c0"
+  ],
+  "boundaries": "Actual Xt/pure filters and grouping/search expressions with inert JSX/hooks; modifier exclusion uses actual decoder and key-identity stub; no DOM lifetime, native keyboard or persistence is inferred",
+  "collapsed": {
+    "ordinary": [
+      "palette",
+      "realtimeVoice"
+    ],
+    "searching": false,
+    "card": true,
+    "hold": "globalDictationHold",
+    "directToggle": null,
+    "advanced": {
+      "expanded": false,
+      "ariaExpanded": false,
+      "label": "Advanced",
+      "content": "globalDictationSingleTap"
+    },
+    "footer": "Works in any app. Press Esc to cancel a recording."
+  },
+  "expanded": {
+    "ordinary": [
+      "palette",
+      "realtimeVoice"
+    ],
+    "searching": false,
+    "card": true,
+    "hold": "globalDictationHold",
+    "directToggle": null,
+    "advanced": {
+      "expanded": true,
+      "ariaExpanded": true,
+      "label": "Advanced",
+      "content": "globalDictationSingleTap"
+    },
+    "footer": "Works in any app. Press Esc to cancel a recording."
+  },
+  "recollapsed": {
+    "ordinary": [
+      "palette",
+      "realtimeVoice"
+    ],
+    "searching": false,
+    "card": true,
+    "hold": "globalDictationHold",
+    "directToggle": null,
+    "advanced": {
+      "expanded": false,
+      "ariaExpanded": false,
+      "label": "Advanced",
+      "content": "globalDictationSingleTap"
+    },
+    "footer": "Works in any app. Press Esc to cancel a recording."
+  },
+  "cases": [
+    {
+      "name": "all",
+      "ids": [
+        "palette",
+        "globalDictationHold",
+        "globalDictationSingleTap",
+        "realtimeVoice"
+      ],
+      "query": "",
+      "byKeys": false,
+      "ordinary": [
+        "palette",
+        "realtimeVoice"
+      ],
+      "searching": false,
+      "card": true,
+      "hold": "globalDictationHold",
+      "directToggle": null,
+      "advanced": {
+        "expanded": false,
+        "ariaExpanded": false,
+        "label": "Advanced",
+        "content": "globalDictationSingleTap"
+      },
+      "footer": "Works in any app. Press Esc to cancel a recording."
+    },
+    {
+      "name": "textBoth",
+      "ids": [
+        "globalDictationHold",
+        "globalDictationSingleTap"
+      ],
+      "query": "dictation",
+      "byKeys": false,
+      "ordinary": [],
+      "searching": false,
+      "card": true,
+      "hold": "globalDictationHold",
+      "directToggle": null,
+      "advanced": {
+        "expanded": false,
+        "ariaExpanded": false,
+        "label": "Advanced",
+        "content": "globalDictationSingleTap"
+      },
+      "footer": "Works in any app. Press Esc to cancel a recording."
+    },
+    {
+      "name": "textToggle",
+      "ids": [
+        "globalDictationSingleTap"
+      ],
+      "query": "single",
+      "byKeys": false,
+      "ordinary": [],
+      "searching": true,
+      "card": true,
+      "hold": null,
+      "directToggle": "globalDictationSingleTap",
+      "advanced": null,
+      "footer": "Works in any app. Press Esc to cancel a recording."
+    },
+    {
+      "name": "textHold",
+      "ids": [
+        "globalDictationHold"
+      ],
+      "query": "hold",
+      "byKeys": false,
+      "ordinary": [],
+      "searching": false,
+      "card": true,
+      "hold": "globalDictationHold",
+      "directToggle": null,
+      "advanced": null,
+      "footer": "Works in any app. Press Esc to cancel a recording."
+    },
+    {
+      "name": "keysToggle",
+      "ids": [
+        "globalDictationSingleTap"
+      ],
+      "query": "⌃D",
+      "byKeys": true,
+      "ordinary": [],
+      "searching": true,
+      "card": true,
+      "hold": null,
+      "directToggle": "globalDictationSingleTap",
+      "advanced": null,
+      "footer": "Works in any app. Press Esc to cancel a recording."
+    },
+    {
+      "name": "keysBoth",
+      "ids": [
+        "globalDictationHold",
+        "globalDictationSingleTap"
+      ],
+      "query": "⌃D",
+      "byKeys": true,
+      "ordinary": [],
+      "searching": true,
+      "card": true,
+      "hold": "globalDictationHold",
+      "directToggle": "globalDictationSingleTap",
+      "advanced": null,
+      "footer": "Works in any app. Press Esc to cancel a recording."
+    },
+    {
+      "name": "ordinaryOnly",
+      "ids": [
+        "palette"
+      ],
+      "query": "palette",
+      "byKeys": false,
+      "ordinary": [
+        "palette"
+      ],
+      "searching": true,
+      "card": false,
+      "hold": null,
+      "directToggle": null,
+      "advanced": null,
+      "footer": null
+    }
+  ],
+  "ignoredModifiers": [
+    {
+      "key": "Meta",
+      "result": null
+    },
+    {
+      "key": "Control",
+      "result": null
+    },
+    {
+      "key": "Alt",
+      "result": null
+    },
+    {
+      "key": "Shift",
+      "result": null
+    }
+  ]
+}
