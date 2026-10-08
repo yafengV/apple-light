@@ -11,6 +11,8 @@ struct VoiceSettingsView: View {
   @State private var globalHotkeyWarning: String?
   @State private var showingVoicePicker = false
   @State private var voicePickerPresentationID = UUID()
+  @State private var dictationAdvancedExpanded = false
+  @Environment(\.settingsSearchPresentation) private var searchRequest
 
   private enum GlobalHotkeyMode: Hashable { case hold, toggle, voiceChat }
 
@@ -47,7 +49,7 @@ struct VoiceSettingsView: View {
       VStack(alignment: .leading, spacing: 6) {
         SettingsSection("听写") {
           globalHotkeyRow(.hold)
-          globalHotkeyRow(.toggle)
+          if dictationAdvancedExpanded { globalHotkeyRow(.toggle) }
         }
         if let target = store.dictation.target, target.hasPrefix("global-dictation:") {
           SettingsSection {
@@ -79,6 +81,15 @@ struct VoiceSettingsView: View {
     }
     .settingsFormStyle()
     .onAppear { refreshMicrophones() }
+    .task(id: searchRequest?.token) {
+      if searchRequest?.result.field == .voiceToggleHotkey { dictationAdvancedExpanded = true }
+    }
+    .onChange(of: store.settingsPage) { _, page in
+      if page != .voice { resetShortcutPresentation() }
+    }
+    .onChange(of: store.destination) { _, destination in
+      if destination != .settings { resetShortcutPresentation() }
+    }
     .sheet(isPresented: $showingVoicePicker) {
       VoicePickerSheet(selectedVoiceID: store.voicePreferences.realtimeVoiceID,
         config: store.modelConfiguration,
@@ -189,6 +200,12 @@ struct VoiceSettingsView: View {
       mediaType: .audio, position: .unspecified).devices
   }
 
+  private func resetShortcutPresentation() {
+    dictationAdvancedExpanded = false
+    recordingGlobalHotkey = nil
+    modifierCapture.reset()
+  }
+
   private func download(_ id: UUID) {
     guard let source = store.voiceRecordingHistory.recordingURL(for: id),
       let window = NSApp.keyWindow else { return }
@@ -213,8 +230,8 @@ struct VoiceSettingsView: View {
       binding = store.voicePreferences.globalHoldHotkey
       searchField = .voiceHoldHotkey
     case .toggle:
-      title = "切换听写快捷键"
-      description = "在桌面当前输入框按一次开始听写，再按一次结束。"
+      title = "单击听写快捷键"
+      description = "按一次开始，再按一次结束。"
       binding = store.voicePreferences.globalToggleHotkey
       searchField = .voiceToggleHotkey
     case .voiceChat:
@@ -262,7 +279,19 @@ struct VoiceSettingsView: View {
         }
       }
     } label: {
-      SettingsControlLabel(title: title, description: description)
+      VStack(alignment: .leading, spacing: 4) {
+        SettingsControlLabel(title: title, description: description)
+        if mode == .hold {
+          VoiceDictationAdvancedButton(expanded: dictationAdvancedExpanded) { control in
+            if dictationAdvancedExpanded, recordingGlobalHotkey == .toggle {
+              control.window?.makeFirstResponder(control)
+              recordingGlobalHotkey = nil
+              modifierCapture.reset()
+            }
+            dictationAdvancedExpanded.toggle()
+          }.fixedSize().settingsFocusReveal()
+        }
+      }
     }
     .settingsSearchTarget(searchField)
   }

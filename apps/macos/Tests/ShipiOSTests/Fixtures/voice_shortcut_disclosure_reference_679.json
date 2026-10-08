@@ -1,0 +1,54 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "dcac6c84dc913e502511a3c408178dad8266acbd53fe463c312c7dcb5757055f",
+  "boundaries": "Actual Pn callbacks with local hooks/mutation; Qt content lifetime, DOM focus and native registration are not executed",
+  "collapsed": {
+    "expanded": false,
+    "contentID": "optional-shortcut",
+    "toggleMode": "toggle",
+    "holdLabel": "Dictation shortcut",
+    "description": "Hold to dictate, or double-tap for hands-free",
+    "advanced": "Advanced",
+    "ariaExpanded": false,
+    "capture": "Control"
+  },
+  "expanded": {
+    "expanded": true,
+    "contentID": "optional-shortcut",
+    "toggleMode": "toggle",
+    "holdLabel": "Dictation shortcut",
+    "description": "Hold to dictate, or double-tap for hands-free",
+    "advanced": "Advanced",
+    "ariaExpanded": true,
+    "capture": "Control"
+  },
+  "recollapsed": {
+    "expanded": false,
+    "contentID": "optional-shortcut",
+    "toggleMode": "toggle",
+    "holdLabel": "Dictation shortcut",
+    "description": "Hold to dictate, or double-tap for hands-free",
+    "advanced": "Advanced",
+    "ariaExpanded": false,
+    "capture": "Control"
+  },
+  "singleTap": {
+    "label": "Single-tap shortcut",
+    "description": "Press once to start, and again to finish",
+    "advanced": null,
+    "capture": "Alt+Shift"
+  },
+  "capturing": true,
+  "cancelled": false,
+  "writes": [
+    {
+      "name": "global-dictation-set-toggle-hotkey",
+      "hotkey": "Control+Alt+Shift+K"
+    },
+    {
+      "name": "global-dictation-set-toggle-hotkey",
+      "hotkey": null
+    }
+  ]
+}
