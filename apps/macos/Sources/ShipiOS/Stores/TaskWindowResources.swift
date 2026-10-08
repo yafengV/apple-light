@@ -13,6 +13,7 @@ import Observation
   let panels = TaskWindowPanelSessions()
   private(set) var tasks: [String: TaskWindowTabs] = [:]
   @ObservationIgnored private var deferredLayouts: [String: TaskWindowTabLayout] = [:]
+  @ObservationIgnored private var pendingFileTabCloses: [String: UUID] = [:]
 
   func attach(window: NSWindow?, from view: NSView) {
     if let window {
@@ -62,7 +63,10 @@ import Observation
       tasks[taskID]?.watchAutomation = { [weak store] id, target in
         store?.pullRequestWatchContent(.pullRequestWatch(id, task: target, owner: taskID))
       }
-      tasks[taskID]?.onTabWillClose = { [weak self] _ in self?.capturePins() }
+      tasks[taskID]?.onTabWillClose = { [weak self] tab in
+        self?.pendingFileTabCloses[tab.id] = nil
+        self?.capturePins()
+      }
       tasks[taskID]?.onTabReplaced = { [weak self] old, new in
         guard let self, let store = self.store else { return }
         for index in store.library.pinnedContentTabs.indices
@@ -86,8 +90,15 @@ import Observation
     tasks[taskID]?.canCloseFileTab = { [weak self, weak store] tab in
       guard let store, let session = store.fileTabWorkspaces[tab.id],
         session.selectedFileEditor?.hasUnsavedChanges == true else { return true }
-      Task {
-        if await session.saveSelectedFileEdits() { self?.tasks[taskID]?.close(tab.id) }
+      guard let self, pendingFileTabCloses[tab.id] == nil, let target = tasks[taskID] else { return false }
+      let request = UUID(); pendingFileTabCloses[tab.id] = request
+      Task { [weak self, weak store, weak target] in
+        let saved = await session.saveSelectedFileEdits()
+        guard let self, pendingFileTabCloses[tab.id] == request else { return }
+        pendingFileTabCloses[tab.id] = nil
+        guard saved, let store, let target, tasks[taskID] === target,
+          target.tabs.contains(tab), store.fileTabWorkspaces[tab.id] === session else { return }
+        target.close(tab.id)
       }
       return false
     }
@@ -176,6 +187,7 @@ import Observation
       store?.taskWindowResources.remove(self)
       browsers.shutdown(); panels.shutdown(); tasks.removeAll()
       deferredLayouts.removeAll()
+      pendingFileTabCloses.removeAll()
       navigate = nil; window = nil; windowAttachment = nil; displayedTaskID = nil
       store?.saveLibrary()
     }

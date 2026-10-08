@@ -23,6 +23,7 @@ final class BrowserSession {
   @ObservationIgnored var onTabSelected: ((UUID) -> Void)?
   @ObservationIgnored var onTabClosed: ((UUID) -> Void)?
   @ObservationIgnored var onTabsReordered: (([UUID]) -> Void)?
+  @ObservationIgnored var onTabMoved: ((UUID) -> Void)?
   /// Content-tab owners choose the fallback within the closing tab's own pane.
   @ObservationIgnored var selectsAdjacentTabOnClose = true
   @ObservationIgnored var onVisit: ((URL, String, Bool) -> Void)?
@@ -152,6 +153,7 @@ final class BrowserSession {
       return false
     }
     tabs.insert(tab, at: targetIndex + (after ? 1 : 0))
+    onTabMoved?(source)
     onTabsReordered?(tabs.map(\.id))
     return true
   }

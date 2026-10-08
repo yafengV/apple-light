@@ -161,6 +161,9 @@ final class WorkspaceStore {
   var pane = "execution"
   let pullRequestTabPresentations = PullRequestTabPresentations()
   var workspaceTabs: [WorkspaceContentTab] = []
+  @ObservationIgnored var workspaceTabCloseControllers: [ContentTabCloseScope: ContentTabCloseController] = [:]
+  @ObservationIgnored var synchronizingWorkspaceBrowserSelection = false
+  @ObservationIgnored var pendingWorkspaceTabCloses: [String: UUID] = [:]
   @ObservationIgnored var workspaceLayoutActiveOwner: String?
   @ObservationIgnored var restoredWorkspaceTabOwners: Set<String> = []
   @ObservationIgnored var restoringWorkspaceTabLayout = false
@@ -604,6 +607,7 @@ final class WorkspaceStore {
       }
     }
     workspace.browser = BrowserSession(dataStore: browserDataStore)
+    workspace.browser.selectsAdjacentTabOnClose = false
     workspace.browser.createChildTab = { [weak self] id, configuration in
       self?.newBrowserChild(from: id, configuration: configuration)
     }
@@ -611,11 +615,15 @@ final class WorkspaceStore {
     workspace.browser.onTabSelected = { [weak self] id in self?.workspaceBrowserDidSelect(id) }
     workspace.browser.onTabClosed = { [weak self] id in self?.workspaceBrowserDidClose(id) }
     workspace.browser.onTabsReordered = { [weak self] ids in self?.workspaceBrowserDidReorder(ids) }
+    workspace.browser.onTabMoved = { [weak self] id in
+      guard let self, let tab = self.workspaceTabs.first(where: { $0.browserID == id }) else { return }
+      self.recordWorkspaceTabMoved(tab)
+    }
     workspace.browser.onEmpty = { [weak self] in
       guard let self else { return }
       let wasVisible = self.browserVisible
-      if self.pane == "browser" { self.showingInspector = false }
-      if wasVisible { self.activateChatTab() }
+      if self.pane == "browser", self.workspacePrimaryContentTabs.isEmpty { self.showingInspector = false }
+      if wasVisible, self.workspacePrimaryContentTabs.isEmpty { self.activateChatTab() }
     }
     workspace.browser.onVisit = { [weak self] url, title, newVisit in
       self?.recordBrowserVisit(url, title: title, newVisit: newVisit)

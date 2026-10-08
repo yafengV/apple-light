@@ -13,11 +13,21 @@ extension WorkspaceStore {
     reopeningWorkspaceTabOwner = nil
     let id = WorkspaceContentTab.browser(page.id, owner: source.owner).id
     workspaceTabPlacements[id] = placement
+    if let index = workspaceTabs.firstIndex(where: { $0.id == source.id }),
+      let childIndex = workspaceTabs.firstIndex(where: { $0.id == id }) {
+      let child = workspaceTabs.remove(at: childIndex)
+      workspaceTabs.insert(child, at: index + 1)
+      recordWorkspaceTabOpened(child, by: source, background: source.owner != currentWorkspaceTabOwner)
+    }
     if source.owner != currentWorkspaceTabOwner {
       var layout = library.workspaceTabLayouts[source.owner] ?? WorkspaceTabLayout(tabs: [],
         showingInspector: false, showingTerminal: false, showingTabs: true, side: .left,
         reviewScope: library.gitPreferences.defaultReviewScope)
-      if let saved = savedBrowserTab(id) { layout.tabs.append(saved) }
+      if let saved = savedBrowserTab(id) {
+        layout.tabs.removeAll { $0.id == id }
+        let insertion = layout.tabs.firstIndex(where: { $0.id == source.id }).map { $0 + 1 } ?? layout.tabs.count
+        layout.tabs.insert(saved, at: insertion)
+      }
       library.workspaceTabLayouts[source.owner] = layout
     }
     if placement == .detached {

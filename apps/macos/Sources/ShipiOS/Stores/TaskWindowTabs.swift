@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WebKit
 
 /// A task's content layout is local to the window, while the underlying views stay alive.
 @MainActor @Observable final class TaskWindowTabs {
@@ -39,6 +40,7 @@ import Observation
   private var closed: [Closed] = []
   @ObservationIgnored private var openingPlacement = WorkspaceTabPlacement.left
   @ObservationIgnored private var synchronizingBrowser = false
+  @ObservationIgnored private var closeControllers: [ContentTabClosePanel: ContentTabCloseController] = [:]
   private let dragScope = UUID().uuidString
   private(set) var draggingTabID: String?
   private(set) var dragSessionID: UUID?
@@ -81,6 +83,9 @@ import Observation
   init(taskID: String, browser: TaskWindowBrowser, panels: TaskWindowPanels) {
     self.taskID = taskID; self.browser = browser; self.panels = panels
     browser.session.selectsAdjacentTabOnClose = false
+    browser.session.createChildTab = { [weak self] source, configuration in
+      self?.newBrowserChild(from: source, configuration: configuration)
+    }
     browser.session.onTabOpened = { [weak self] id in
       guard let self else { return }
       let tab = WorkspaceContentTab.browser(id, owner: taskID)
@@ -92,6 +97,18 @@ import Observation
     }
     browser.session.onTabClosed = { [weak self] id in
       self?.remove(WorkspaceContentTab.browser(id, owner: taskID).id)
+    }
+    browser.session.onTabMoved = { [weak self] id in
+      guard let self else { return }
+      let key = WorkspaceContentTab.browser(id, owner: taskID).id
+      closeControllers[ContentTabClosePanel(placement(key), id: key), default: .init()].history.moved(key)
+    }
+    browser.session.onTabsReordered = { [weak self] ids in
+      guard let self else { return }
+      var ordered = ids.compactMap { id in self.tabs.first { $0.browserID == id } }.makeIterator()
+      for index in tabs.indices where tabs[index].browserID != nil {
+        if let tab = ordered.next() { tabs[index] = tab }
+      }
     }
   }
 
@@ -166,6 +183,8 @@ import Observation
     }
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
     let place = placement(id)
+    let panel = ContentTabClosePanel(place, id: id)
+    closeControllers[panel, default: .init()].select(id, in: closeIDs(panel))
     if place == .left || place == .right {
       if contentLayoutMode == nil { contentLayoutMode = place == .left ? .full : .split }
       panels.showingFiles = false
@@ -190,6 +209,21 @@ import Observation
     browser.newTab()
     if let id = browser.session.selection { move(WorkspaceContentTab.browser(id, owner: taskID).id, to: place) }
     openingPlacement = .left
+  }
+  @discardableResult private func newBrowserChild(from sourceID: UUID,
+    configuration: WKWebViewConfiguration?) -> BrowserTab? {
+    guard let source = tabs.first(where: { $0.browserID == sourceID }) else { return nil }
+    openingPlacement = placement(source.id)
+    defer { openingPlacement = .left }
+    let page = browser.session.newTab(configuration: configuration, activate: false)
+    let id = WorkspaceContentTab.browser(page.id, owner: taskID).id
+    guard let sourceIndex = tabs.firstIndex(of: source), let childIndex = tabs.firstIndex(where: { $0.id == id }) else { return page }
+    let child = tabs.remove(at: childIndex); tabs.insert(child, at: sourceIndex + 1)
+    let panel = ContentTabClosePanel(placement(id), id: id)
+    closeControllers[panel, default: .init()].history.opened(id, by: source.id, background: false)
+    browser.visible = true
+    activate(id)
+    return page
   }
   func openBrowser(_ url: URL, presentation: MessageWebLinkPresentation) {
     guard BrowserAddress.permits(url) else { return }
@@ -319,6 +353,9 @@ import Observation
   func move(_ id: String, to place: WorkspaceTabPlacement) {
     guard canMove(id, to: place) else { return }
     let previous = placement(id)
+    if ContentTabClosePanel(previous, id: id) != ContentTabClosePanel(place, id: id) {
+      closeControllers[ContentTabClosePanel(previous, id: id), default: .init()].history.moved(id)
+    }
     if place == .left { contentLayoutMode = .full; showingRight = false }
     else if place == .right { contentLayoutMode = .split; selections[.left] = nil }
     if previous != place {
@@ -346,15 +383,41 @@ import Observation
   private func remove(_ id: String) {
     if draggingTabID == id { endDrag() }
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-    let place = placement(id), strip = stripPlacement(id), wasFocused = focusedID == id
+    let place = placement(id), strip = stripPlacement(id), wasFocused = focused?.id == id
+    let panel = ContentTabClosePanel(place, id: id), ids = closeIDs(ContentTabClosePanel(place, id: id))
+    var controller = closeControllers[panel] ?? .init()
+    let current = panel == .bottom ? selections[.bottom]
+      : effectiveContentLayoutMode == .full ? selections[.left] : selections[.right]
+    if let current { controller.select(current, in: ids) }
+    let wasSelected = controller.selectedID == id, wasLastContent = lastContentID == id
+    let selectedMain = selections[.left] == id, selectedRight = selections[.right] == id, selectedBottom = selections[.bottom] == id
+    let next = controller.close(id, in: ids)
+    closeControllers[panel] = controller
     closed.append(Closed(tab: tabs[index], placement: place))
     if closed.count > 20 { closed.removeFirst(closed.count - 20) }
     tabs.remove(at: index); placements[id] = nil; clearSelection(id)
-    repairSelection(strip)
+    if wasLastContent { lastContentID = next }
+    if selectedMain { selections[.left] = next }
+    if selectedRight { selections[.right] = effectiveContentLayoutMode == .split ? next : nil }
+    if selectedBottom { selections[.bottom] = next }
+    if closeIDs(panel).isEmpty {
+      if panel == .primary { showingRight = false }
+      if panel == .bottom { showingBottom = false }
+    }
+    if wasSelected, let next, let browserID = tabs.first(where: { $0.id == next })?.browserID {
+      synchronizingBrowser = true
+      // Selection and native focus are separate. The focused-pane route below
+      // requests focus once; closing an inactive tab must never request it.
+      browser.session.select(browserID, focus: false)
+      synchronizingBrowser = false
+    }
     if wasFocused {
       if let next = selected(strip) { activate(next.id) }
       else { chatFocus = UUID() }
     }
+  }
+  private func closeIDs(_ panel: ContentTabClosePanel) -> [String] {
+    tabs.filter { ContentTabClosePanel(placement($0.id), id: $0.id) == panel }.map(\.id)
   }
   private func clearSelection(_ id: String) {
     for place in [WorkspaceTabPlacement.left, .right, .bottom] where selections[place] == id {
@@ -415,7 +478,9 @@ import Observation
       let index = tabs.firstIndex(where: { $0.id == source }), tabs.contains(where: { $0.id == target }) else { return false }
     let tab = tabs.remove(at: index)
     let destination = tabs.firstIndex(where: { $0.id == target })!
-    tabs.insert(tab, at: destination + (after ? 1 : 0)); return true
+    tabs.insert(tab, at: destination + (after ? 1 : 0))
+    closeControllers[ContentTabClosePanel(placement(source), id: source), default: .init()].history.moved(source)
+    return true
   }
   var numberedTabIDs: [String?] {
     effectiveContentLayoutMode.numberedTabIDs(primaryContentTabs, rightToLeft: contentRightToLeft)

@@ -171,6 +171,9 @@ import XCTest
     store.executeCommand("tab-close")
     XCTAssertFalse(store.workspaceTabs.contains(file))
     XCTAssertTrue(store.workspaceTabs.contains(browser))
+    XCTAssertEqual(store.activeWorkspaceContentTab, browser)
+    XCTAssertFalse(store.mainMCPApprovalVisible)
+    store.activateChatTab()
     XCTAssertTrue(store.mainMCPApprovalVisible)
   }
 

@@ -1,0 +1,2936 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual IBn/RBn/zBn/VBn/HBn helpers with explicit controller state and caller order. Excludes paired content, unsaved approval, native focus and primary workspace; those require separate integration evidence.",
+  "traces": [
+    {
+      "name": "middle-right",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "select",
+          "id": "u",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "u",
+          "ids": [
+            "a",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "last-left",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "z",
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "first-right",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "a",
+          "ids": [
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "inactive-no-selection",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "a",
+          "ids": [
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "single-empty",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "a",
+          "ids": [],
+          "selected": null,
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "missing-close",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "missing",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "explicit-opener",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "nested-opener",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "open",
+          "id": "c",
+          "opener": "b",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 3,
+                "openerTabId": "b"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "select-opener-preserves-family",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "manual-unrelated-invalidates",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "z",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "z",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 6,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "independent-new-tab-invalidates",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "open",
+          "id": "new",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z",
+            "new"
+          ],
+          "selected": "new",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "new",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z",
+            "new"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z",
+            "new"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 6,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "sibling-selection",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "open",
+          "id": "c",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "c",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "c",
+          "ids": [
+            "a",
+            "c",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "a",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "background-from-selected-opener",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "select",
+          "id": "a",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": true,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": true,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {
+              "b": {
+                "generation": 4,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 4,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 4,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "background-from-unrelated-selection",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": true,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "background-close-does-not-select",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": true,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "move-child-invalidates",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "reorder",
+          "id": "b",
+          "target": "z",
+          "after": true,
+          "ids": [
+            "a",
+            "u",
+            "z",
+            "b"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "move-opener-invalidates",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "reorder",
+          "id": "a",
+          "target": "z",
+          "after": true,
+          "ids": [
+            "b",
+            "u",
+            "z",
+            "a"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": null,
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "u",
+            "z",
+            "a"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "move-unrelated-retains",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "reorder",
+          "id": "z",
+          "target": "u",
+          "after": false,
+          "ids": [
+            "a",
+            "b",
+            "z",
+            "u"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "z",
+            "u"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "remove-inactive-opener-prunes-descendants",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "open",
+          "id": "c",
+          "opener": "b",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 3,
+                "openerTabId": "b"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "a",
+          "ids": [
+            "b",
+            "c",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "c",
+          "ids": [
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "remove-inactive-child-prunes-grandchildren",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "open",
+          "id": "c",
+          "opener": "b",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "c",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 3,
+                "openerTabId": "b"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "c",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "c",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "close",
+          "id": "c",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "remove-unrelated-retains",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "z",
+          "ids": [
+            "a",
+            "b",
+            "u"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "new-generation",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": null,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": null,
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": null,
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "z",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "z",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "open",
+          "id": "c",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "c",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "c",
+          "history": {
+            "active": true,
+            "generation": 5,
+            "lastSelectedTabId": "c",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              },
+              "c": {
+                "generation": 5,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "c",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 6,
+            "lastSelectedTabId": "a",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 7,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 8,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "explicit-clear",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": null,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": null,
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": null,
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": false,
+            "generation": 5,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 6,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "repeated-selection",
+      "steps": [
+        {
+          "action": "open",
+          "id": "a",
+          "background": false,
+          "ids": [
+            "a"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 1,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "u",
+          "background": false,
+          "ids": [
+            "a",
+            "u"
+          ],
+          "selected": "u",
+          "history": {
+            "active": false,
+            "generation": 2,
+            "lastSelectedTabId": "u",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "z",
+          "background": false,
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "z",
+          "history": {
+            "active": false,
+            "generation": 3,
+            "lastSelectedTabId": "z",
+            "tabs": {}
+          }
+        },
+        {
+          "action": "open",
+          "id": "b",
+          "opener": "a",
+          "background": false,
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "select",
+          "id": "b",
+          "ids": [
+            "a",
+            "b",
+            "u",
+            "z"
+          ],
+          "selected": "b",
+          "history": {
+            "active": true,
+            "generation": 3,
+            "lastSelectedTabId": "b",
+            "tabs": {
+              "b": {
+                "generation": 3,
+                "openerTabId": "a"
+              }
+            }
+          }
+        },
+        {
+          "action": "close",
+          "id": "b",
+          "ids": [
+            "a",
+            "u",
+            "z"
+          ],
+          "selected": "a",
+          "history": {
+            "active": false,
+            "generation": 4,
+            "lastSelectedTabId": "a",
+            "tabs": {}
+          }
+        }
+      ]
+    }
+  ],
+  "siblingCases": [
+    {
+      "ids": [
+        "b",
+        "u",
+        "c"
+      ],
+      "state": {
+        "active": true,
+        "generation": 2,
+        "lastSelectedTabId": "b",
+        "tabs": {
+          "b": {
+            "generation": 2,
+            "openerTabId": "missing"
+          },
+          "c": {
+            "generation": 2,
+            "openerTabId": "missing"
+          }
+        }
+      },
+      "closing": "b",
+      "next": "c"
+    },
+    {
+      "ids": [
+        "c",
+        "u",
+        "b"
+      ],
+      "state": {
+        "active": true,
+        "generation": 2,
+        "lastSelectedTabId": "b",
+        "tabs": {
+          "b": {
+            "generation": 2,
+            "openerTabId": "missing"
+          },
+          "c": {
+            "generation": 2,
+            "openerTabId": "missing"
+          }
+        }
+      },
+      "closing": "b",
+      "next": "c"
+    },
+    {
+      "ids": [
+        "b",
+        "u"
+      ],
+      "state": {
+        "active": true,
+        "generation": 2,
+        "lastSelectedTabId": "b",
+        "tabs": {
+          "b": {
+            "generation": 2,
+            "openerTabId": "missing"
+          },
+          "c": {
+            "generation": 2,
+            "openerTabId": "missing"
+          }
+        }
+      },
+      "closing": "b",
+      "next": "u"
+    },
+    {
+      "ids": [
+        "u",
+        "b"
+      ],
+      "state": {
+        "active": true,
+        "generation": 2,
+        "lastSelectedTabId": "b",
+        "tabs": {
+          "b": {
+            "generation": 2,
+            "openerTabId": "missing"
+          },
+          "c": {
+            "generation": 2,
+            "openerTabId": "missing"
+          }
+        }
+      },
+      "closing": "b",
+      "next": "u"
+    }
+  ]
+}

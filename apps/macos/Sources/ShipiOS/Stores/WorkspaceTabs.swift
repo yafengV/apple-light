@@ -345,6 +345,7 @@ extension WorkspaceStore {
       return
     }
     guard let tab = visibleWorkspaceContentTabs.first(where: { $0.id == id }) else { return }
+    recordWorkspaceTabSelection(tab)
     switch workspaceTabPlacement(tab.id) {
     case .left, .right:
       selectWorkspacePrimaryContent(tab)
@@ -457,7 +458,15 @@ extension WorkspaceStore {
     guard let tab = workspaceTabs.first(where: { $0.id == id }) else { return }
     if case .file = tab, let session = fileTabWorkspaces[id],
       session.selectedFileEditor?.hasUnsavedChanges == true {
-      Task { if await session.saveSelectedFileEdits() { closeWorkspaceTab(id) } }
+      guard pendingWorkspaceTabCloses[id] == nil else { return }
+      let request = UUID(); pendingWorkspaceTabCloses[id] = request
+      Task { [weak self] in
+        let saved = await session.saveSelectedFileEdits()
+        guard let self, pendingWorkspaceTabCloses[id] == request else { return }
+        pendingWorkspaceTabCloses[id] = nil
+        guard saved, !shuttingDown, workspaceTabs.contains(tab), fileTabWorkspaces[id] === session else { return }
+        closeWorkspaceTab(id)
+      }
       return
     }
     if tab.kind == .file { closedFilePlacements[tab.id] = workspaceTabPlacement(tab.id) }
@@ -468,16 +477,14 @@ extension WorkspaceStore {
       pullRequestTabPresentations.clear(tab.id)
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
-      workspaceTabs.removeAll { $0.id == id }
-      workspaceTabDidDisappear(id)
+      workspaceTabDidDisappear(tab)
     case .terminal(let terminalID, _):
       if let scope = terminalScope(for: tab) {
         workspace.terminals.close(terminalID, for: scope)
       }
       closedWorkspaceTabs.append(tab)
       trimClosedWorkspaceTabs()
-      workspaceTabs.removeAll { $0.id == id }
-      workspaceTabDidDisappear(id)
+      workspaceTabDidDisappear(tab)
     }
   }
 
@@ -485,6 +492,9 @@ extension WorkspaceStore {
     guard canMoveWorkspaceTab(id, to: placement),
       let tab = visibleWorkspaceContentTabs.first(where: { $0.id == id }) else { return }
     let oldPlacement = workspaceTabPlacement(id)
+    if ContentTabClosePanel(oldPlacement, id: id) != ContentTabClosePanel(placement, id: id) {
+      recordWorkspaceTabMoved(tab)
+    }
     if placement == .left { workspaceContentLayoutMode = .full; showingInspector = false }
     else if placement == .right {
       workspaceContentLayoutMode = .split
@@ -513,6 +523,7 @@ extension WorkspaceStore {
     }
     focusedWorkspaceTabID = id
     lastWorkspaceContentTabID = id
+    recordWorkspaceTabSelection(tab)
     if case .browser(let browserID, _) = tab, workspace.browser.selection != browserID {
       workspace.browser.select(browserID)
     }
@@ -603,6 +614,7 @@ extension WorkspaceStore {
         return nil
       }
     }
+    recordWorkspaceTabMoved(source)
     workspaceTabs[index] = migrated
     migrateWorkspaceTabState(from: source.id, to: migrated.id, owner: newOwner)
     saveLibrary()
@@ -655,20 +667,6 @@ extension WorkspaceStore {
     }
   }
 
-  private func workspaceTabDidDisappear(_ id: String) {
-    let strip = workspaceTabStripPlacement(id), wasFocused = focusedWorkspaceTabID == id
-    if draggingWorkspaceTabID == id { endWorkspaceTabDrag() }
-    workspaceTabPlacements[id] = nil
-    if activeWorkspaceTabID == id { activeWorkspaceTabID = nil }
-    if activeRightWorkspaceTabID == id { activeRightWorkspaceTabID = nil }
-    if activeBottomWorkspaceTabID == id { activeBottomWorkspaceTabID = nil }
-    if focusedWorkspaceTabID == id { focusedWorkspaceTabID = nil }
-    if strip == .right, effectiveWorkspaceContentLayoutMode == .split, activeRightWorkspaceTabID == nil {
-      activeRightWorkspaceTabID = workspacePrimaryContentTabs.first?.id
-      if wasFocused, showingInspector { focusedWorkspaceTabID = activeRightWorkspaceTabID }
-    }
-  }
-
   func closeOtherWorkspaceTabs(keeping id: String?) {
     let placement = id.map(workspaceTabStripPlacement) ?? .left
     for tab in presentedWorkspaceContentTabs(in: placement).reversed() where tab.id != id {
@@ -710,6 +708,7 @@ extension WorkspaceStore {
       return false
     }
     workspaceTabs.insert(tab, at: targetIndex + (after ? 1 : 0))
+    recordWorkspaceTabMoved(tab)
     return true
   }
 
@@ -783,8 +782,10 @@ extension WorkspaceStore {
   }
 
   func workspaceBrowserDidSelect(_ id: UUID) {
+    guard !synchronizingWorkspaceBrowserSelection else { return }
     guard let tab = workspaceTabs.first(where: { $0.browserID == id }),
       tab.owner == currentWorkspaceTabOwner else { return }
+    recordWorkspaceTabSelection(tab)
     switch workspaceTabPlacement(tab.id) {
     case .left, .right:
       selectWorkspacePrimaryContent(tab)
@@ -799,15 +800,11 @@ extension WorkspaceStore {
     guard let tab = workspaceTabs.first(where: { $0.browserID == id }) else { return }
     closedWorkspaceTabs.append(tab)
     trimClosedWorkspaceTabs()
-    workspaceTabs.removeAll { $0.id == tab.id }
-    workspaceTabDidDisappear(tab.id)
+    workspaceTabDidDisappear(tab)
     if !shuttingDown {
       library.workspaceTabLayouts[tab.owner]?.tabs.removeAll { $0.id == tab.id }
       restoredDetachedWorkspaceTabIDs.removeAll { $0 == tab.id }
       saveLibrary()
-    }
-    if destination == .workspace && tab.owner == currentWorkspaceTabOwner && focusedWorkspaceContentTab == nil {
-      focusComposer = UUID()
     }
   }
 
