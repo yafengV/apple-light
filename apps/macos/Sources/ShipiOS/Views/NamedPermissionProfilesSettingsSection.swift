@@ -14,7 +14,7 @@ struct NamedPermissionProfilesSettingsSection: View {
   @State private var status = ""
 
   var body: some View {
-    Section("命名权限档案") {
+    SettingsSection("命名权限档案") {
       Text("在此应用中保存独立的 Codex Core 权限档案。新任务可在权限菜单中选择；已有任务保留选择时的配置快照。")
         .appFont(.caption).foregroundStyle(.secondary)
       ForEach(store.library.namedPermissionProfiles) { profile in

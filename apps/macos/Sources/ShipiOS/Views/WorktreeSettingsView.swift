@@ -5,7 +5,7 @@ struct WorktreeSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("工作树根目录") {
+      SettingsSection("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.worktreeRoot)
         HStack {
           Button("选择文件夹…") { store.chooseWorktreeRoot() }
@@ -14,7 +14,7 @@ struct WorktreeSettingsView: View {
         Text("目录设置仅用于之后创建的工作树，不会移动已有项目。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
-      Section("托管工作树") {
+      SettingsSection("托管工作树") {
         Toggle("自动清理旧工作树", isOn: Binding(
           get: { store.library.automaticallyDeleteManagedWorktrees },
           set: { store.setAutomaticManagedWorktreeDeletion($0) }))
@@ -34,7 +34,7 @@ struct WorktreeSettingsView: View {
         Text("当前有 \(store.managedWorktreeCount) 个托管工作树。清理前保存快照；置顶或运行中的任务不会自动清理。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
-      Section("永久工作树") {
+      SettingsSection("永久工作树") {
         Text("从侧栏项目菜单创建。每个工作树是独立项目，归档其中的任务不会删除目录。").settingsSearchTarget(.worktreeList)
           .foregroundStyle(.secondary)
         if store.library.permanentWorktrees.isEmpty {
@@ -65,7 +65,7 @@ struct WorktreeSettingsView: View {
       }
       let pendingForks = store.library.managedWorktrees.filter { $0.pendingForkSourceTaskID != nil }
       if !pendingForks.isEmpty {
-        Section("待完成的分叉工作树") {
+        SettingsSection("待完成的分叉工作树") {
           ForEach(pendingForks) { record in
             VStack(alignment: .leading, spacing: 8) {
               Text(store.library.tasks.first(where: { $0.id == record.taskID })?.title ?? record.checkout.title)
@@ -78,7 +78,7 @@ struct WorktreeSettingsView: View {
       }
       if store.busy { ProgressView("正在处理…").controlSize(.small) }
       if let error = store.worktreeError {
-        Section { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+        SettingsSection { Text(error).foregroundStyle(.red).textSelection(.enabled) }
       }
     }.settingsFormStyle().appSurface()
   }

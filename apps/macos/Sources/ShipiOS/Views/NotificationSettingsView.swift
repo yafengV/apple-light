@@ -7,7 +7,7 @@ struct NotificationSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("任务结束") {
+      SettingsSection("任务结束") {
         SettingsMenuPicker("显示通知",
           description: "通知已完成或失败的任务；主动停止的任务不提醒。点击通知可返回对应任务。",
           selection: binding(\.timing),
@@ -16,7 +16,7 @@ struct NotificationSettingsView: View {
           })
         .settingsSearchTarget(.notificationTiming)
       }
-      Section("需要你操作") {
+      SettingsSection("需要你操作") {
         SettingsToggle(title: "需要批准时提醒",
           description: "工具操作等待你批准时发送通知。",
           isOn: binding(\.approvalAlertsEnabled))
@@ -26,7 +26,7 @@ struct NotificationSettingsView: View {
           isOn: binding(\.questionAlertsEnabled))
           .settingsSearchTarget(.notificationQuestion)
       }
-      Section("系统权限") {
+      SettingsSection("系统权限") {
         Toggle("首次提醒时请求 macOS 通知权限", isOn: binding(\.promptForPermission))
           .settingsSearchTarget(.notificationPrompt)
         LabeledContent("通知权限", value: store.notifications.permission.title).settingsSearchTarget(.notificationPermission)
@@ -42,7 +42,7 @@ struct NotificationSettingsView: View {
         Text("在系统设置 → 通知 → ShipiOS 中管理横幅、声音和锁屏显示。系统专注模式可能影响通知呈现。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
-      Section {
+      SettingsSection {
         Button("发送测试通知") {
           Task {
             await store.notifications.sendTest()

@@ -59,7 +59,7 @@ struct RuntimeSettingsView: View {
       SettingsForm {
         EditorSettingsSection(store: store)
         GeneralPermissionSettingsSection(store: store)
-        Section("玩具") {
+        SettingsSection("玩具") {
           SettingsToggle(title: "彩纸效果",
             description: "当你要求 ShipiOS 庆祝时，允许模型在应用窗口中撒彩纸。",
             isOn: $store.confettiEnabled)
@@ -76,7 +76,7 @@ struct RuntimeSettingsView: View {
             .disabled(audioVisualizerPending || !SystemAudioVisualizer.isSupported)
             .settingsSearchTarget(.audioVisualizer)
         }
-        Section("输入") {
+        SettingsSection("输入") {
           SettingsToggle(title: "显示教育提示", description: "在输入框上方显示可关闭的功能提示。",
             isOn: $store.showEducationalTips)
             .settingsSearchTarget(.tips)
@@ -98,7 +98,7 @@ struct RuntimeSettingsView: View {
             isOn: $store.showBottomPanelControl)
             .settingsSearchTarget(.bottomPanel)
         }
-        Section("链接与无项目任务") {
+        SettingsSection("链接与无项目任务") {
           SettingsMenuPicker("打开网页链接",
             description: "应用内浏览器会把回答中的 HTTP 和 HTTPS 链接作为当前任务的内容标签打开；邮件链接仍交给系统。",
             selection: $store.webLinkTarget,
@@ -117,7 +117,7 @@ struct RuntimeSettingsView: View {
           Text("每个无项目任务会在这里获得独立目录。该目录进入模型上下文，并作为回答中相对文件链接的安全根目录。")
             .appFont(.caption).foregroundStyle(.secondary)
         }
-        Section("弹出窗口") {
+        SettingsSection("弹出窗口") {
           PopoutHotkeySettingsRow(store: store)
             .settingsSearchTarget(.popoutHotkey)
           SettingsToggle(title: "默认使用独立聊天",
@@ -126,7 +126,7 @@ struct RuntimeSettingsView: View {
             .accessibilityLabel("默认将弹出窗口设为独立聊天")
             .settingsSearchTarget(.popoutScope)
         }
-        Section("追加消息") {
+        SettingsSection("追加消息") {
           SettingsSegmentedPicker(title: "模型运行时发送消息", description: store.followUpBehavior.explanation,
             selection: $store.followUpBehavior,
             options: [FollowUpBehavior.queue, .steer].map { SettingsSegmentOption(value: $0, title: $0.title) })
@@ -137,13 +137,13 @@ struct RuntimeSettingsView: View {
           Text("任务、草稿、归档与模型配置保存在 ShipiOS 独立目录中。")
             .foregroundStyle(.secondary)
         }
-        Section("应用") {
+        SettingsSection("应用") {
           SettingsToggle(title: "在菜单栏中显示", description: "主窗口关闭后，让 ShipiOS 保留在 macOS 菜单栏中。",
             isOn: $store.showInMenuBar)
             .accessibilityLabel("在菜单栏中显示 ShipiOS")
             .settingsSearchTarget(.menuBar)
         }
-        Section("代码审查") {
+        SettingsSection("代码审查") {
           Picker("审查结果呈现方式", selection: Binding(
             get: { store.library.gitPreferences.reviewDelivery },
             set: { delivery in
@@ -159,7 +159,7 @@ struct RuntimeSettingsView: View {
           Text("尽可能在当前聊天中启动 /review，或启动单独的审查聊天。")
             .appFont(.caption).foregroundStyle(.secondary)
         }
-        Section("终端") {
+        SettingsSection("终端") {
           SettingsSegmentedPicker(title: "默认终端位置",
             description: "工具栏终端按钮、命令菜单和固定终端恢复都会使用此位置。", selection: Binding(
             get: { store.library.defaultTerminalLocation },
@@ -169,7 +169,7 @@ struct RuntimeSettingsView: View {
             ])
           .settingsSearchTarget(.terminalLocation)
         }
-        Section("运行") {
+        SettingsSection("运行") {
           SettingsToggle(title: "运行时防止休眠",
             description: "任务执行期间阻止空闲休眠，结束后自动恢复。显示器仍可熄灭，手动休眠和合盖仍由系统处理。",
             isOn: $store.preventIdleSleep)
@@ -182,13 +182,13 @@ struct RuntimeSettingsView: View {
             Button("重试") { store.updateSleepPrevention(force: true) }
           }
         }
-        Section("插件") {
+        SettingsSection("插件") {
           SettingsToggle(title: "插件",
             description: "允许 ShipiOS 使用已安装并启用的插件。关闭后，@插件、$技能候选和模型请求中的插件上下文立即停用。",
             isOn: $store.pluginsEnabled)
             .settingsSearchTarget(.enablePlugins)
         }
-        Section("关于") {
+        SettingsSection("关于") {
           HStack(alignment: .center, spacing: 16) {
             SettingsControlLabel(title: "开源许可", description: "所捆绑依赖的第三方声明")
               .frame(maxWidth: .infinity, alignment: .leading)

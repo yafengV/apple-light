@@ -8,7 +8,7 @@ struct GeneralPermissionSettingsSection: View {
   @State private var status = ""
 
   var body: some View {
-    Section("权限") {
+    SettingsSection("权限") {
       SettingsMenuPicker("默认权限",
         description: "新建 Codex Core 任务使用此模式；已有任务保留自己的权限。",
         selection: Binding(

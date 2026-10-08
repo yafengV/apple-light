@@ -22,7 +22,7 @@ struct MemorySettingsView: View {
   var body: some View {
     SettingsScrollPage(title: SettingsPage.memories.title) {} controls: {} content: {
       SettingsForm {
-        Section {
+        SettingsSection {
           SettingsToggle(
             title: "启用记忆",
             description: "启用后，已保存的长期记忆会随下一次模型请求发送给你配置的 API 服务。关闭不会删除内容。",

@@ -10,12 +10,12 @@ struct AgentSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("Agent 默认值") {
+      SettingsSection("Agent 默认值") {
         LabeledContent("模型", value: store.modelConfiguration.model.isEmpty ? "尚未配置" : store.modelConfiguration.model).settingsSearchTarget(.agentModel)
         LabeledContent("推理强度", value: reasoningTitle).settingsSearchTarget(.agentReasoning)
         Button("配置模型与 API…") { store.requestSettingsPage(.model) }
       }
-      Section("模型功能") {
+      SettingsSection("模型功能") {
         LabeledContent {
           SettingsDropdownMenu(title: "\(AgentReasoningEfforts.available(advanced: store.library.enabledAdvancedReasoningEfforts).count - 1) 项已显示",
             accessibilityLabel: "可用推理强度", systemImage: "chevron.down",
@@ -30,13 +30,13 @@ struct AgentSettingsView: View {
         }.settingsSearchTarget(.agentAvailableReasoning)
         if !featureStatus.isEmpty { Text(featureStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
-      Section("建议") {
+      SettingsSection("建议") {
         SettingsToggle(title: "显示建议提示", description: "在空白任务中根据当前项目提供可直接执行的建议。", isOn: Binding(
           get: { store.personalization.showSuggestedPrompts },
           set: { _ = store.saveSuggestedPrompts($0) }))
           .disabled(!store.personalizationLoaded).settingsSearchTarget(.agentSuggestions)
       }
-      Section("Codex Core 权限") {
+      SettingsSection("Codex Core 权限") {
         SettingsMenuPicker("审批者", description: "由你处理越界请求，或让 Codex 自动审查可批准的请求。", selection: Binding(
           get: { store.library.agentRuntimePreferences.approvalReviewer },
           set: { value in updatePermissions { $0.approvalReviewer = value } }),
@@ -73,7 +73,7 @@ struct AgentSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
         if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
       }
-      Section("回复") {
+      SettingsSection("回复") {
         SettingsMenuPicker("回复详细度", description: "仅支持此参数的模型会应用该设置。", selection: Binding(
           get: { store.library.agentResponsePreferences.verbosity },
           set: { value in updateResponses { $0.verbosity = value } }),
@@ -88,7 +88,7 @@ struct AgentSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
         if !responseStatus.isEmpty { Text(responseStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
-      Section("网页搜索") {
+      SettingsSection("网页搜索") {
         SettingsMenuPicker("搜索模式", description: "缓存、索引和实时搜索需要独立 API 服务支持托管 web_search 工具。",
           selection: Binding(
             get: { store.library.agentWebSearchMode },
@@ -150,7 +150,7 @@ struct GitSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("审查面板") {
+      SettingsSection("审查面板") {
         SettingsToggle(title: "关闭基于 Git 的审查",
           description: "审查面板仅显示“最近一轮”，隐藏未暂存、已暂存、提交和分支审查及其 Git 操作。",
           isOn: Binding(
@@ -163,7 +163,7 @@ struct GitSettingsView: View {
             })).settingsSearchTarget(.disableGitBasedReview)
         if !reviewModeStatus.isEmpty { Text(reviewModeStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
-      Section("分支") {
+      SettingsSection("分支") {
         SettingsTextField("分支前缀", text: $branchPrefix, prompt: Text("codex/")).settingsSearchTarget(.branchPrefix)
         Text("从当前提交创建分支时自动填入此前缀。留空可关闭。")
           .appFont(.caption).foregroundStyle(.secondary)
@@ -173,7 +173,7 @@ struct GitSettingsView: View {
         }
         if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
       }
-      Section("推送") {
+      SettingsSection("推送") {
         SettingsToggle(title: "始终强制推送", description: "从 ShipiOS 推送时使用 --force-with-lease。", isOn: Binding(
           get: { store.library.gitPreferences.alwaysForcePush },
           set: { value in
@@ -184,7 +184,7 @@ struct GitSettingsView: View {
               : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.alwaysForcePush)
       }
-      Section("Pull Request") {
+      SettingsSection("Pull Request") {
         Picker("默认合并方式", selection: Binding(
           get: { store.library.gitPreferences.pullRequestMergeMethod },
           set: { value in
@@ -202,7 +202,7 @@ struct GitSettingsView: View {
             status = store.saveGitPreferences(preferences) ? "已保存 PR 创建方式。" : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.createDraftPullRequests)
       }
-      Section("代码审查") {
+      SettingsSection("代码审查") {
         SettingsMenuPicker("审查结果呈现方式",
           description: "内联时优先在当前聊天中运行审查，无法使用时创建独立任务；单独模式始终创建独立任务。",
           selection: Binding(
@@ -219,7 +219,7 @@ struct GitSettingsView: View {
           Text(reviewDeliveryStatus).appFont(.caption).foregroundStyle(.secondary)
         }
       }
-      Section("PR 监控与修复") {
+      SettingsSection("PR 监控与修复") {
         SettingsToggle(title: "准备好时自动合并",
           description: "新建的 PR 监控任务会在修复相关问题、检查通过且仓库允许时请求合并。",
           isOn: Binding(
@@ -233,7 +233,7 @@ struct GitSettingsView: View {
         if !watchStatus.isEmpty { Text(watchStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
       GitInstructionsView(store: store, kind: .watch)
-      Section("工作树根目录") {
+      SettingsSection("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.gitWorktreeRoot)
         HStack {
           Button("选择文件夹…") { store.chooseWorktreeRoot() }
@@ -244,7 +244,7 @@ struct GitSettingsView: View {
       }
       GitInstructionsView(store: store, kind: .commit)
       GitInstructionsView(store: store, kind: .pullRequest)
-      Section("当前项目") {
+      SettingsSection("当前项目") {
         if let project = store.project {
           LabeledContent("目录", value: project.path)
           LabeledContent("Git", value: store.workspace.gitAvailable ? store.workspace.gitBranch : "未检测到仓库")
@@ -271,7 +271,7 @@ struct CodeReviewSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("本地代码审查") {
+      SettingsSection("本地代码审查") {
         SettingsMenuPicker("默认变更范围", selection: Binding(
           get: { store.library.gitPreferences.defaultReviewScope },
           set: { scope in
@@ -293,7 +293,7 @@ struct CodeReviewSettingsView: View {
         Button("打开当前项目审查") { store.openReviewFromSettings() }
           .disabled(store.project == nil)
       }
-      Section("Pull Request 审查") {
+      SettingsSection("Pull Request 审查") {
         Text("自动 PR 审查需要代码托管连接。ShipiOS 当前不会伪造云端审查状态。")
           .foregroundStyle(.secondary)
         Button("查看连接…") { store.requestSettingsPage(.connections) }
@@ -441,7 +441,7 @@ struct LocalEnvironmentSettingsView: View {
 
   private var projectList: some View {
     SettingsForm {
-      Section {
+      SettingsSection {
         HStack {
           Text("选择项目").appFont(.title2, weight: .semibold)
           Spacer()
@@ -452,12 +452,12 @@ struct LocalEnvironmentSettingsView: View {
           .foregroundStyle(.secondary)
       }
       if store.library.orderedProjects.isEmpty {
-        Section {
+        SettingsSection {
           ContentUnavailableView("还没有项目", systemImage: "folder",
             description: Text("添加项目后配置本地环境。"))
         }
       } else {
-        Section("可用项目") {
+        SettingsSection("可用项目") {
           ForEach(store.library.orderedProjects, id: \.self) { path in
             VStack(alignment: .leading, spacing: 8) {
               HStack {
@@ -549,7 +549,7 @@ struct LocalEnvironmentSettingsView: View {
 
   private var overview: some View {
     SettingsForm {
-      Section {
+      SettingsSection {
         Button("‹ 环境") { page = .projects }
           .buttonStyle(.plain)
         if let path = environment.projectPath {
@@ -559,13 +559,13 @@ struct LocalEnvironmentSettingsView: View {
         }
       }
       if let managedSnapshot {
-        Section("任务环境") {
+        SettingsSection("任务环境") {
           LabeledContent("名称", value: managedSnapshot.name)
           Text("此任务使用创建时保存的环境配置。新任务请在来源项目中调整。")
             .foregroundStyle(.secondary)
         }
       } else {
-        Section("项目环境") {
+        SettingsSection("项目环境") {
           ForEach(environment.files.filter { !$0.inherited }) { entry in
             environmentRow(entry)
           }
@@ -576,13 +576,13 @@ struct LocalEnvironmentSettingsView: View {
         }
         let inherited = environment.files.filter(\.inherited)
         if !inherited.isEmpty {
-          Section {
+          SettingsSection {
             DisclosureGroup("继承环境（\(inherited.count)）", isExpanded: $inheritedExpanded) {
               ForEach(inherited) { entry in environmentRow(entry) }
             }
           }
         }
-        Section("当前环境") {
+        SettingsSection("当前环境") {
           LabeledContent("名称", value: environment.name)
           LabeledContent("配置文件", value: environment.fileName)
           if !environment.setupScript.isEmpty {
@@ -666,7 +666,7 @@ struct LocalEnvironmentSettingsView: View {
 
   private var editor: some View {
     SettingsForm {
-      Section {
+      SettingsSection {
         Button("‹ \(environment.projectTitle.isEmpty ? "项目" : environment.projectTitle)") {
           if environment.hasUnsavedChanges {
             returningToOverview = true
@@ -676,7 +676,7 @@ struct LocalEnvironmentSettingsView: View {
         Text("编辑本地环境").appFont(.title2, weight: .semibold)
       }
       if let path = environment.projectPath {
-        Section("当前项目") {
+        SettingsSection("当前项目") {
           LabeledContent("项目", value: environment.projectTitle)
           Text(path).appFont(.caption).textSelection(.enabled)
           if let managedSnapshot {
@@ -685,7 +685,7 @@ struct LocalEnvironmentSettingsView: View {
               .appFont(.caption).foregroundStyle(.secondary)
           }
         }
-        Section("本地环境") {
+        SettingsSection("本地环境") {
           SettingsTextField("环境名称", text: $environment.name)
           if !environment.hasValidName {
             Text("请填写环境名称。")
@@ -715,7 +715,7 @@ struct LocalEnvironmentSettingsView: View {
           }
         }.disabled(managedSnapshot != nil)
         if store.project?.path == path {
-          Section("构建环境") {
+          SettingsSection("构建环境") {
           SettingsTextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
           SettingsTextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
           SettingsMenuPicker("构建配置", selection: $store.configuration, options: [
@@ -728,7 +728,7 @@ struct LocalEnvironmentSettingsView: View {
             .appFont(.caption).foregroundStyle(.secondary)
           }
         }
-        Section("工作树初始化") {
+        SettingsSection("工作树初始化") {
           Text("创建托管工作树后、首次发送任务前运行。命令在新工作树目录中执行。")
             .appFont(.caption).foregroundStyle(.secondary)
           Picker("平台", selection: $setupPlatform) {
@@ -751,7 +751,7 @@ struct LocalEnvironmentSettingsView: View {
           Button("保存初始化脚本") { Task { await saveEnvironment() } }
             .disabled(!environment.canSave)
         }.disabled(managedSnapshot != nil)
-        Section("工作树清理") {
+        SettingsSection("工作树清理") {
           Text("清理托管工作树前在来源项目目录运行；失败时保留工作树。")
             .appFont(.caption).foregroundStyle(.secondary)
           Picker("平台", selection: $cleanupPlatform) {
@@ -766,7 +766,7 @@ struct LocalEnvironmentSettingsView: View {
           Button("保存清理脚本") { Task { await saveEnvironment() } }
             .disabled(!environment.canSave)
         }.disabled(managedSnapshot != nil)
-        Section("快捷操作") {
+        SettingsSection("快捷操作") {
           Text("保存后可从任务顶部启动；每次操作都会在当前项目的新终端标签中运行。")
             .appFont(.caption).foregroundStyle(.secondary)
           ForEach($environment.actions) { $action in
@@ -810,7 +810,7 @@ struct LocalEnvironmentSettingsView: View {
       } else {
         ContentUnavailableView("尚未打开项目", systemImage: "shippingbox", description: Text("打开项目后配置其本地构建环境。"))
       }
-      Section("工作树环境") {
+      SettingsSection("工作树环境") {
         Button("查看工作树设置…") { store.requestSettingsPage(.worktrees) }
         Text("新任务可单独选择环境；托管工作树保存创建时的脚本和快捷操作。")
           .appFont(.caption).foregroundStyle(.secondary)

@@ -50,7 +50,7 @@ struct PluginComponentSettingsView: View {
   var body: some View {
     SettingsForm {
       if showsIntroduction {
-        Section {
+        SettingsSection {
           Text(kind.explanation).foregroundStyle(.secondary)
           HStack {
             Button("导入本地插件…") { store.choosePluginFolder() }
@@ -62,7 +62,7 @@ struct PluginComponentSettingsView: View {
         }
       }
 
-      Section("已安装") {
+      SettingsSection("已安装") {
         if store.pluginsLoading {
           ProgressView("正在读取插件…")
         } else if plugins.isEmpty {
@@ -97,7 +97,7 @@ struct PluginComponentSettingsView: View {
 
       .settingsSearchTarget(installedSearchField)
       if kind == .skills, !store.pluginSkills.isEmpty {
-        Section("可调用技能") {
+        SettingsSection("可调用技能") {
           ForEach(store.pluginSkills.filter { matches([$0.title, $0.mention, $0.pluginName]) }) { skill in
             LabeledContent("$" + skill.mention) {
               Text(skill.pluginName).foregroundStyle(.secondary)
@@ -107,7 +107,7 @@ struct PluginComponentSettingsView: View {
       }
 
       if let error = store.pluginsError {
-        Section {
+        SettingsSection {
           Text(error).foregroundStyle(.red).textSelection(.enabled)
           Button("重新加载") { Task { await store.loadPlugins() } }
             .disabled(store.pluginsLoading)

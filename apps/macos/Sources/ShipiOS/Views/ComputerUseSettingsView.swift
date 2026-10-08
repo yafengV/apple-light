@@ -8,11 +8,11 @@ struct ComputerUseSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section {
+      SettingsSection {
         Text("管理 ShipiOS 如何查看和操作 Mac 上的其他应用。系统权限与应用访问决定彼此独立。")
           .foregroundStyle(.secondary)
       }
-      Section("控制") {
+      SettingsSection("控制") {
         SettingsToggle(
           title: "任意应用",
           description: "连接电脑使用运行时后，首次控制应用仍会请求许可；始终允许列表中的应用可跳过该询问。",
@@ -29,7 +29,7 @@ struct ComputerUseSettingsView: View {
           }
         }.accessibilityElement(children: .contain)
       }
-      Section("macOS 系统访问") {
+      SettingsSection("macOS 系统访问") {
         permissionRow(
           title: "屏幕录制", detail: "允许 ShipiOS 查看目标应用。",
           granted: store.screenRecordingGranted,
@@ -48,7 +48,7 @@ struct ComputerUseSettingsView: View {
           Button("重新检查") { store.refreshComputerUsePermissions() }
         }
       }
-      Section("始终允许的应用") {
+      SettingsSection("始终允许的应用") {
         if store.computerUsePreferences.alwaysAllowedApplications.isEmpty {
           ContentUnavailableView(
             "没有始终允许的应用", systemImage: "app.dashed",
@@ -61,13 +61,13 @@ struct ComputerUseSettingsView: View {
         Button("添加应用…") { store.chooseAlwaysAllowedApplication() }.settingsSearchTarget(.allowedApplications)
           .disabled(!store.computerUseLoaded)
       }
-      Section("锁定状态下使用") {
+      SettingsSection("锁定状态下使用") {
         SettingsToggle(title: "允许在 Mac 锁定时使用电脑",
           description: "此功能需要 Apple 授权的系统插件。当前 ShipiOS 构建尚未包含该插件，因此不会在锁定状态下控制应用。",
           isOn: .constant(false)).disabled(true)
       }
       if let error = store.computerUseError {
-        Section {
+        SettingsSection {
           Text(error).foregroundStyle(.red).textSelection(.enabled)
           Button("重新加载") { Task { await store.loadComputerUsePreferences() } }
             .disabled(store.computerUseLoading)

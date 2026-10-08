@@ -6,7 +6,7 @@ struct PetSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("选择宠物") {
+      SettingsSection("选择宠物") {
         HStack(spacing: 12) {
           choice(.codey, subtitle: "内置动画伙伴")
           choice(.mini, subtitle: "仅显示聊天控件")
@@ -15,7 +15,7 @@ struct PetSettingsView: View {
         Text("选择宠物只会改变外观，不会改变模型或任务行为。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
-      Section("浮动宠物") {
+      SettingsSection("浮动宠物") {
         LabeledContent("显示状态") {
           Button(store.petPreferences.visible ? "隐藏宠物" : "显示宠物") {
             _ = store.setPetVisible(!store.petPreferences.visible)
@@ -38,7 +38,7 @@ struct PetSettingsView: View {
         Text("宠物浮层可拖动，位置、选择、大小和显示状态会随当前 ShipiOS 数据目录保存。按 ⌥Space 或输入 /pet 可显示或隐藏。")
           .appFont(.caption).foregroundStyle(.secondary)
       }
-      Section("自定义宠物") {
+      SettingsSection("自定义宠物") {
         HStack {
           Button("导入宠物…") { store.chooseCustomPet() }.settingsSearchTarget(.petImport)
           if store.petPreferences.hasCustomPet {
@@ -51,7 +51,7 @@ struct PetSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
       if let error = store.petError {
-        Section {
+        SettingsSection {
           Text(error).foregroundStyle(.red).textSelection(.enabled)
           Button("重新加载") { Task { await store.loadPets() } }.disabled(store.petsLoading)
         }

@@ -11,7 +11,7 @@ struct ProfileSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section("个人资料") {
+      SettingsSection("个人资料") {
         HStack(alignment: .top, spacing: 18) {
           avatar
           VStack(alignment: .leading, spacing: 10) {
@@ -36,7 +36,7 @@ struct ProfileSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
 
-      Section("活动洞察") {
+      SettingsSection("活动洞察") {
         let activity = store.profileActivity
         Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 14) {
           GridRow {
@@ -61,7 +61,7 @@ struct ProfileSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
       }
 
-      Section("个人资料卡") {
+      SettingsSection("个人资料卡") {
         HStack {
           VStack(alignment: .leading, spacing: 5) {
             Text(store.profile.displayName.isEmpty ? "ShipiOS 用户" : store.profile.displayName)
@@ -78,7 +78,7 @@ struct ProfileSettingsView: View {
       }
 
       if let error = store.profileError {
-        Section {
+        SettingsSection {
           Text(error).foregroundStyle(.red).textSelection(.enabled)
           Button("重新加载") { Task { await store.loadProfile() } }.disabled(store.profileLoading)
         }

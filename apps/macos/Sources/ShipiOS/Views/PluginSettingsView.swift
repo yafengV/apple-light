@@ -50,7 +50,7 @@ struct PluginSettingsView: View {
       }
       if store.activePluginSettingsSection == .skills {
         SettingsForm {
-          Section("已安装技能") {
+          SettingsSection("已安装技能") {
             PluginSkillsView(store: store, query: store.pluginSettingsQuery)
           }.settingsSearchTarget(.skillsInstalled)
           if let error = store.pluginsError {

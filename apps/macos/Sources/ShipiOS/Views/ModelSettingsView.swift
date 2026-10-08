@@ -9,7 +9,7 @@ struct ModelSettingsView: View {
   @State private var testing = false
   var body: some View {
     SettingsForm {
-      Section("独立 API 服务") {
+      SettingsSection("独立 API 服务") {
         SettingsTextField("基础地址", text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
           .settingsSearchTarget(.apiURL)
         SettingsTextField("模型 ID", text: $draft.model, prompt: Text("由你的服务商提供"))
@@ -62,7 +62,7 @@ struct ModelSettingsView: View {
         }
         if !status.isEmpty { Text(status).appFont(.callout).textSelection(.enabled) }
       }
-      Section {
+      SettingsSection {
         Button("回复风格与自定义指令…") { store.requestSettingsPage(.personalization) }
       }
     }.settingsFormStyle().appSurface().onAppear {

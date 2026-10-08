@@ -42,12 +42,12 @@ struct UsageSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section {
+      SettingsSection {
         Picker("时间范围", selection: $period) {
           ForEach(UsagePeriod.allCases) { Text($0.rawValue).tag($0) }
         }.pickerStyle(.segmented).settingsSearchTarget(.usagePeriod)
       }
-      Section("Token 用量") {
+      SettingsSection("Token 用量") {
         HStack(spacing: 32) {
           metric("总计", total)
           metric("输入", input)
@@ -67,7 +67,7 @@ struct UsageSettingsView: View {
         }
       }
       .settingsSearchTarget(.usageTokens)
-      Section("最近会话") {
+      SettingsSection("最近会话") {
         if records.isEmpty {
           Text("服务尚未返回可记录的 token 统计。" ).foregroundStyle(.secondary)
         } else {
@@ -113,7 +113,7 @@ struct UsageSettingsView: View {
         }
       }
       .settingsSearchTarget(.usageRecent)
-      Section("高用量任务") {
+      SettingsSection("高用量任务") {
         if topTasks.isEmpty {
           Text("记录 token 用量后，这里会显示当前时间范围内用量最高的任务。")
             .foregroundStyle(.secondary)
@@ -138,7 +138,7 @@ struct UsageSettingsView: View {
         }
       }
       .settingsSearchTarget(.usageTopTasks)
-      Section("数据范围") {
+      SettingsSection("数据范围") {
         LabeledContent("已记录会话", value: "\(recordedRunCount) / \(completedRunCount)")
         Text("这里只汇总独立 API 服务在流式响应中返回的 token 数。额度、价格和账单由你的服务商管理，ShipiOS 不做估算。旧会话或未返回 usage 的服务不会出现在图表中。")
           .appFont(.caption).foregroundStyle(.secondary)

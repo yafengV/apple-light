@@ -48,8 +48,8 @@ extension EnvironmentValues {
   }
 }
 
-/// The heading and cards belong to one scroll document. Older systems retain
-/// the grouped form until section decomposition is available.
+/// A form either owns the page scroll document or joins an existing one.
+/// Sections render the same cards on macOS 14 and later.
 struct SettingsForm<Content: View>: View {
   @Environment(\.settingsPageTitle) private var title
   @Environment(\.settingsFormEmbedded) private var embedded
@@ -57,87 +57,19 @@ struct SettingsForm<Content: View>: View {
 
   @ViewBuilder var body: some View {
     if embedded {
-      Form { content().environment(\.settingsPageTitle, nil) }
-        .formStyle(.columns).toggleStyle(SettingsSwitchStyle())
-        .buttonStyle(SettingsActionButtonStyle())
-        .frame(maxWidth: .infinity, alignment: .leading)
-    } else if #available(macOS 15.0, *) {
-      SettingsScrollPage(title: title ?? "", actions: {}, controls: {}) {
-        Group(sections: content().labeledContentStyle(SettingsFormLabeledContentStyle())) { sections in
-          ForEach(sections) { section in
-            SettingsFormSection(section: section)
-          }
-        }
-      }
-      .toggleStyle(SettingsSwitchStyle())
-      .buttonStyle(SettingsActionButtonStyle())
-    } else {
-      Form {
-        if let title {
-          Section {} header: {
-            Text(title).appFont(size: SettingsPageLayout.headingSize)
-              .foregroundStyle(.primary).textCase(nil)
-              .padding(.bottom, SettingsPageLayout.headingContentSpacing)
-              .accessibilityAddTraits(.isHeader)
-              .accessibilityIdentifier("settings-page-heading")
-          }
-        }
+      VStack(alignment: .leading, spacing: SettingsPageLayout.sectionSpacing) {
         content().environment(\.settingsPageTitle, nil)
       }
-      .formStyle(.grouped)
-      .toggleStyle(SettingsSwitchStyle())
-      .buttonStyle(SettingsActionButtonStyle())
-      .contentMargins(.horizontal, SettingsPageLayout.horizontalInset, for: .scrollContent)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .settingsFormStyle()
+    } else {
+      SettingsScrollPage(title: title ?? "", actions: {}, controls: {}) { content() }
+        .settingsFormStyle()
     }
   }
 }
 
-/// Keep the original controls, while the page owns its card geometry. Field
-/// labels are explicit so changing the container cannot turn them into hints.
-@available(macOS 15.0, *)
-private struct SettingsFormSection: View {
-  @Environment(\.appAppearance) private var appearance
-  let section: SectionConfiguration
-  var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      if !section.header.isEmpty {
-        ForEach(section.header) { header in
-          header.appFont(size: SettingsCardLayout.sectionHeadingSize, weight: .medium).textCase(nil)
-            .frame(maxWidth: .infinity, minHeight: SettingsCardLayout.sectionHeaderMinHeight, alignment: .leading)
-            .padding(.bottom, SettingsCardLayout.sectionHeaderBottomInset)
-            .accessibilityAddTraits(.isHeader)
-        }
-      }
-      if !section.content.isEmpty {
-        AppearanceSettingsCard {
-          ForEach(section.content) { row in
-            row
-              .labeledContentStyle(SettingsFormLabeledContentStyle())
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .padding(.horizontal, SettingsCardLayout.rowHorizontalInset)
-              .padding(.vertical, SettingsCardLayout.rowVerticalInset)
-              .overlay(alignment: .bottom) {
-                if row.id != section.content.last?.id {
-                  Rectangle().fill(appearance.resolvedColors["border"].color)
-                    .frame(height: SettingsCardLayout.dividerHeight)
-                    .padding(.horizontal, SettingsCardLayout.dividerInset)
-                    .accessibilityHidden(true)
-                }
-              }
-          }
-        }
-      }
-      if !section.footer.isEmpty {
-        ForEach(section.footer) { footer in
-          footer.appFont(size: 12).foregroundStyle(.secondary)
-            .padding(.horizontal, 16).padding(.top, 6)
-        }
-      }
-    }
-  }
-}
-
-private struct SettingsFormLabeledContentStyle: LabeledContentStyle {
+struct SettingsFormLabeledContentStyle: LabeledContentStyle {
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: SettingsCardLayout.rowGap) {
       configuration.label.frame(maxWidth: .infinity, alignment: .leading)

@@ -369,13 +369,13 @@ private struct PulseTestView: View {
 private struct SampleSettingsForm: View {
   var body: some View {
     SettingsForm {
-      Section("输入") {
+      SettingsSection("输入") {
         Toggle("显示教育提示", isOn: .constant(true))
         Picker("发送快捷键", selection: .constant(0)) { Text("Command + Enter").tag(0) }
         Text("设置标题与下方内容一起滚动。").font(.caption).foregroundStyle(.secondary)
       }
       ForEach(0..<14) { index in
-        Section("示例设置 \(index)") {
+        SettingsSection("示例设置 \(index)") {
           TextField("分支前缀", text: .constant("codex/"))
           Toggle("启用", isOn: .constant(true))
         }

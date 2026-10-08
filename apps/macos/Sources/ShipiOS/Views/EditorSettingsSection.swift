@@ -4,7 +4,7 @@ struct EditorSettingsSection: View {
   @Bindable var store: WorkspaceStore
   @State private var available: Set<ExternalEditor> = []
   var body: some View {
-    Section("文件打开方式") {
+    SettingsSection("文件打开方式") {
       SettingsMenuPicker("默认编辑器",
         description: "审查页文件名和文件面板的“打开”使用此设置。Cmd 点击差异代码行可定位到工作区文件；已删除的行定位到附近的现有行。",
         selection: $store.preferredEditor,

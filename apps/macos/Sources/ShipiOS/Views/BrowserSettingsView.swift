@@ -20,7 +20,7 @@ struct BrowserSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      Section {
+      SettingsSection {
         Picker("浏览器设置", selection: $store.browserSettingsSection) {
           ForEach(BrowserSettingsSection.allCases) { Text($0.rawValue).tag($0) }
         }.pickerStyle(.segmented)
@@ -49,7 +49,7 @@ struct BrowserSettingsView: View {
   }
 
   @ViewBuilder private var historyAndData: some View {
-      Section("浏览历史") {
+      SettingsSection("浏览历史") {
         TextField("搜索标题或网址", text: $query).settingsSearchTarget(.browserHistory)
         Text("访问过的完整网址会保存在 ShipiOS 独立数据目录中，可能包含网址查询参数。")
           .appFont(.caption)
@@ -76,7 +76,7 @@ struct BrowserSettingsView: View {
           }
         }
       }
-      Section("浏览数据") {
+      SettingsSection("浏览数据") {
         Text(store.workspace.browser.dataStore.isPersistent
           ? "内置浏览器使用与系统浏览器分开的 ShipiOS 资料。Cookie、缓存和网站存储会在应用重启后保留；历史记录保存在 ShipiOS 独立数据目录。"
           : "此隔离实例使用临时浏览资料。Cookie、缓存和网站存储只在本次 App 运行期间保留；历史记录保存在当前实例的数据目录。")
@@ -97,14 +97,14 @@ struct BrowserSettingsView: View {
           Text(error).foregroundStyle(.red).textSelection(.enabled)
         }
       }
-      Section("当前能力") {
+      SettingsSection("当前能力") {
         Text("当前支持独立标签、地址与历史、刷新、网页弹出窗口、页面截图与评论、元素样式调整的临时预览，以及真实文件下载。Agent 可在授权后打开、读取、检查和操作网页控件与站点工具；完整 CDP 访问仍需继续开发。")
           .foregroundStyle(.secondary)
       }
   }
 
   @ViewBuilder private var downloads: some View {
-    Section("下载位置") {
+    SettingsSection("下载位置") {
       LabeledContent("文件夹") {
         Text(store.browserDownloadDirectory.path)
           .lineLimit(2).multilineTextAlignment(.trailing).textSelection(.enabled)
@@ -125,7 +125,7 @@ struct BrowserSettingsView: View {
         Text(error).foregroundStyle(.red).textSelection(.enabled)
       }
     }
-    Section("下载记录") {
+    SettingsSection("下载记录") {
       HStack {
         Text("记录保存在 ShipiOS 独立数据目录中。清除记录不会删除已下载的文件。")
           .appFont(.caption).foregroundStyle(.secondary)
@@ -141,13 +141,13 @@ struct BrowserSettingsView: View {
   }
 
   @ViewBuilder private var permissions: some View {
-    Section("站点工具") {
+    SettingsSection("站点工具") {
       SettingsToggle(title: "启用站点工具",
         description: "关闭后隐藏地址栏清单，并禁止 Agent 发现和调用网站声明的工具。",
         isOn: Binding(get: { store.browserPermissionPreferences.siteToolsEnabled },
           set: { store.setBrowserSiteToolsEnabled($0) }))
     }
-    Section("默认网站访问") {
+    SettingsSection("默认网站访问") {
       SettingsMenuPicker(
         "浏览器 Agent 首次访问网站时",
         description: "这些规则用于 Agent 控制网页时的访问授权。你在地址栏中手动打开网站不受影响。",
@@ -157,7 +157,7 @@ struct BrowserSettingsView: View {
         options: BrowserAccessDecision.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
       .settingsSearchTarget(.browserDefaultAccess)
     }
-    Section("添加网站规则") {
+    SettingsSection("添加网站规则") {
       TextField("example.com", text: $site).settingsSearchTarget(.browserAddRule)
       Picker("访问权限", selection: $siteDecision) {
         Text(BrowserAccessDecision.ask.title).tag(BrowserAccessDecision.ask)
@@ -168,7 +168,7 @@ struct BrowserSettingsView: View {
         if store.setBrowserSiteAccess(site, decision: siteDecision) { site = "" }
       }.disabled(site.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
-    Section("网站规则") {
+    SettingsSection("网站规则") {
       Text("网站规则优先于默认访问设置；移除规则后恢复使用默认设置。")
         .appFont(.caption).foregroundStyle(.secondary)
       if store.browserPermissionPreferences.sites.isEmpty {

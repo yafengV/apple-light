@@ -15,7 +15,7 @@ struct MCPSettingsView: View {
   }
   var body: some View {
     SettingsForm {
-      Section("自定义 MCP 服务器") {
+      SettingsSection("自定义 MCP 服务器") {
         if store.mcpServersLoading { ProgressView("正在读取 MCP 配置…") }
         else if servers.isEmpty {
           ContentUnavailableView(store.pluginSettingsQuery.isEmpty ? "尚未添加 MCP 服务器" : "没有匹配的服务器",
@@ -45,7 +45,7 @@ struct MCPSettingsView: View {
         }
       }.settingsSearchTarget(.mcpInstalled)
       if !plugins.isEmpty {
-        Section("插件中的 MCP 声明") {
+        SettingsSection("插件中的 MCP 声明") {
           ForEach(plugins) { plugin in
             HStack {
               Button(plugin.name) { store.openPluginDetail(plugin.id) }.buttonStyle(.plain)
@@ -56,9 +56,9 @@ struct MCPSettingsView: View {
         }
       }
       if let error = store.mcpServersError {
-        Section { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+        SettingsSection { Text(error).foregroundStyle(.red).textSelection(.enabled) }
       }
-      Section {
+      SettingsSection {
         Button("重新加载") { Task { await store.loadMCPServers() } }
           .disabled(store.mcpServersLoading)
       }
