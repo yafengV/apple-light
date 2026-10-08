@@ -16,6 +16,10 @@ struct RuntimeSettingsView: View {
             ScrollViewReader { proxy in
               content(page)
                 .environment(\.settingsPageTitle, page.usesScrollingFormHeader ? page.title : nil)
+                .environment(\.settingsRevealFocusedControl, { id in
+                  guard store.destination == .settings, store.settingsPage == page else { return }
+                  proxy.scrollTo(id)
+                })
                 .environment(\.settingsSearchPresentation,
                   store.destination == .settings && store.settingsPage == page ? store.settingsSearchRequest : nil)
                 .task(id: store.settingsSearchRequest?.token) {
@@ -118,6 +122,7 @@ struct RuntimeSettingsView: View {
                 Button("更改…") { store.chooseProjectlessWorkspaceRoot() }
                 if store.library.projectlessWorkspaceRoot != nil {
                   Button("恢复默认") { store.setProjectlessWorkspaceRoot(nil) }
+                    .buttonStyle(SettingsActionButtonStyle(color: .ghost))
                 }
               }.fixedSize()
             }
