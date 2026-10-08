@@ -1,0 +1,122 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "dcac6c84dc913e502511a3c408178dad8266acbd53fe463c312c7dcb5757055f",
+  "boundaries": "Actual kn/An/jn/Mn/Nn callbacks; local hooks/storage/RAF, no browser focus or account operation",
+  "afterEnter": {
+    "saved": [
+      "First",
+      "Last"
+    ],
+    "writes": [],
+    "focused": 1,
+    "values": [
+      "  中文草稿  ",
+      "",
+      "Last"
+    ],
+    "prevented": true
+  },
+  "afterRealBlur": {
+    "saved": [
+      "中文草稿",
+      "Last"
+    ],
+    "writes": [
+      [
+        "中文草稿",
+        "Last"
+      ]
+    ],
+    "focused": 1,
+    "values": [
+      "中文草稿",
+      "Last"
+    ]
+  },
+  "afterAdd": {
+    "saved": [
+      "One"
+    ],
+    "writes": [],
+    "focused": 1,
+    "values": [
+      "One",
+      ""
+    ],
+    "prevented": true
+  },
+  "afterRemove": {
+    "saved": [
+      "First edited",
+      "Last"
+    ],
+    "writes": [
+      [
+        "First edited",
+        "Last"
+      ]
+    ],
+    "focused": null,
+    "values": [
+      "First edited",
+      "Last"
+    ],
+    "prevented": true
+  },
+  "duplicates": {
+    "saved": [
+      "A",
+      "A"
+    ],
+    "writes": [
+      [
+        "A",
+        "A"
+      ]
+    ],
+    "focused": null
+  },
+  "normalization": [
+    {
+      "input": "﻿ Word ﻿",
+      "output": "Word"
+    },
+    {
+      "input": "Word",
+      "output": "Word"
+    },
+    {
+      "input": "᠎Word᠎",
+      "output": "᠎Word᠎"
+    },
+    {
+      "input": "​Word​",
+      "output": "​Word​"
+    },
+    {
+      "input": " Word ",
+      "output": "Word"
+    },
+    {
+      "input": "　中文 ",
+      "output": "中文"
+    },
+    {
+      "input": "   ",
+      "output": ""
+    },
+    {
+      "input": "A  B",
+      "output": "A  B"
+    }
+  ],
+  "empty": {
+    "values": [
+      ""
+    ],
+    "disabled": true,
+    "label": "Dictionary entry 1",
+    "placeholder": "Jane Doe"
+  }
+}

@@ -5,21 +5,14 @@ import SwiftUI
 
 struct VoiceSettingsView: View {
   @Bindable var store: WorkspaceStore
-  @State private var dictionaryRows: [DictionaryRow] = []
   @State private var microphones: [AVCaptureDevice] = []
   @State private var recordingGlobalHotkey: GlobalHotkeyMode?
   @State private var modifierCapture = VoiceModifierCaptureState()
   @State private var globalHotkeyWarning: String?
   @State private var showingVoicePicker = false
   @State private var voicePickerPresentationID = UUID()
-  @FocusState private var focusedDictionaryRow: UUID?
 
   private enum GlobalHotkeyMode: Hashable { case hold, toggle, voiceChat }
-
-  private struct DictionaryRow: Identifiable {
-    let id = UUID()
-    var text: String
-  }
 
   private static let languages: [SettingsMenuOption<String?>] = {
     let supported = SFSpeechRecognizer.supportedLocales().filter {
@@ -80,12 +73,12 @@ struct VoiceSettingsView: View {
           }
         }
       }
-      dictionaryCard
+      VoiceDictionarySettingsCard(store: store)
       Text("在输入区使用 \(store.shortcuts.label("dictation")) 开始或结束听写。")
         .appFont(.caption).foregroundStyle(.secondary)
     }
     .settingsFormStyle()
-    .onAppear { loadDictionaryRows(); refreshMicrophones() }
+    .onAppear { refreshMicrophones() }
     .sheet(isPresented: $showingVoicePicker) {
       VoicePickerSheet(selectedVoiceID: store.voicePreferences.realtimeVoiceID,
         config: store.modelConfiguration,
@@ -103,14 +96,7 @@ struct VoiceSettingsView: View {
     .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)) { _ in
       refreshMicrophones()
     }
-    .onDisappear { persistDictionaryRows() }
     .onDisappear { recordingGlobalHotkey = nil }
-    .onChange(of: focusedDictionaryRow) { oldValue, newValue in
-      if oldValue != nil && oldValue != newValue {
-        persistDictionaryRows()
-        if newValue == nil { loadDictionaryRows() }
-      }
-    }
   }
 
   private var generalSection: some View {
@@ -196,67 +182,6 @@ struct VoiceSettingsView: View {
       }
     }
     .settingsSearchTarget(.voiceRecordings)
-  }
-
-  private var dictionaryCard: some View {
-    AppearanceSettingsCard {
-      SettingsLabeledRow {
-        SettingsControlLabel(title: "听写词典",
-          description: "将专有名词或短语加入设备端识别请求，帮助听写识别。")
-      } control: {
-        Button { insertDictionaryRow(after: nil) } label: {
-          Label("添加词条", systemImage: "plus")
-        }
-      }
-      .padding(.horizontal, 16).padding(.vertical, 12)
-      ForEach(dictionaryRows) { row in
-        Rectangle().fill(store.appearance.resolvedColors["border"].color)
-          .frame(height: 1).padding(.horizontal, 16).accessibilityHidden(true)
-        HStack(spacing: 8) {
-          TextField("词语或短语", text: Binding(
-            get: { dictionaryRows.first(where: { $0.id == row.id })?.text ?? "" },
-            set: { value in
-              guard let index = dictionaryRows.firstIndex(where: { $0.id == row.id }) else { return }
-              dictionaryRows[index].text = value
-            }))
-            .focused($focusedDictionaryRow, equals: row.id)
-            .onSubmit { insertDictionaryRow(after: row.id) }
-            .accessibilityLabel("词典词条")
-          Button {
-            dictionaryRows.removeAll { $0.id == row.id }
-            if dictionaryRows.isEmpty { dictionaryRows = [DictionaryRow(text: "")] }
-            persistDictionaryRows()
-          } label: { Image(systemName: "minus.circle") }
-            .buttonStyle(.plain)
-            .disabled(dictionaryRows.count == 1 && row.text.isEmpty)
-            .accessibilityLabel("移除词条：\(row.text.isEmpty ? "空白" : row.text)")
-        }
-        .padding(.horizontal, 16).padding(.vertical, 8).frame(minHeight: 40)
-      }
-    }
-    .settingsSearchTarget(.voiceDictionary)
-  }
-
-  private func loadDictionaryRows() {
-    dictionaryRows = store.voicePreferences.dictationDictionary.map { DictionaryRow(text: $0) }
-    if dictionaryRows.isEmpty { dictionaryRows = [DictionaryRow(text: "")] }
-  }
-
-  private func insertDictionaryRow(after id: UUID?) {
-    let row = DictionaryRow(text: "")
-    if let id, let index = dictionaryRows.firstIndex(where: { $0.id == id }) {
-      dictionaryRows.insert(row, at: index + 1)
-    } else {
-      dictionaryRows.append(row)
-    }
-    focusedDictionaryRow = row.id
-  }
-
-  private func persistDictionaryRows() {
-    var preferences = store.voicePreferences
-    preferences.dictationDictionary = dictionaryRows.map(\.text)
-    preferences.normalize()
-    if preferences != store.voicePreferences { store.voicePreferences = preferences }
   }
 
   private func refreshMicrophones() {

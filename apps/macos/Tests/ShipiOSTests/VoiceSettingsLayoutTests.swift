@@ -27,7 +27,7 @@ import XCTest
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     store.voicePreferences.dictationDictionary = ["ShipiOS"]
     let (window, host) = host(store); defer { window.close() }; try await settle(host)
-    let field = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextField }.first { $0.placeholderString == "词语或短语" })
+    let field = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Jane Doe" })
     XCTAssertTrue(window.makeFirstResponder(field))
     let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
     editor.string = "中文未提交词条"
