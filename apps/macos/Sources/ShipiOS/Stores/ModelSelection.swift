@@ -1,6 +1,14 @@
 import Foundation
 
 extension WorkspaceStore {
+  func selectDefaultPower(from catalog: ModelCatalog, taskID: String? = nil) throws {
+    guard let selection = catalog.fallbackPowerSelection(advanced: library.enabledAdvancedReasoningEfforts) else {
+      throw AgentFailure(message: "当前服务没有可用的默认模型档位。")
+    }
+    try setModelPickerSelectionMode(.default)
+    try selectModel(selection.model, reasoning: selection.reasoningEffort, taskID: taskID)
+  }
+
   func setModelPickerSelectionMode(_ mode: ModelPickerSelectionMode) throws {
     guard library.modelPickerSelectionMode != mode else { return }
     var candidate = library

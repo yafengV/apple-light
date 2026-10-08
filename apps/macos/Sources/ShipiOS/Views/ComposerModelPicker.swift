@@ -84,6 +84,12 @@ struct ComposerModelPicker: View {
               Image(systemName: "chevron.right").font(.caption)
             }
           }.buttonStyle(.plain).accessibilityLabel("更换模型：\(configuration.model)")
+          if !usingDefaultPower, defaultPower != nil {
+            Button(action: resetToDefaultPower) {
+              Image(systemName: "arrow.uturn.backward")
+            }.buttonStyle(.plain).help("恢复默认模型与推理档位")
+              .accessibilityLabel("使用默认模型与推理档位")
+          }
         }
         Text(powerTitle(selectedPower))
           .appFont(.caption).foregroundStyle(.secondary)
@@ -255,10 +261,8 @@ struct ComposerModelPicker: View {
   }
 
   private func resetToDefaultPower() {
-    guard let defaultPower else { return }
     do {
-      try store.setModelPickerSelectionMode(.default)
-      try store.selectModel(defaultPower.model, reasoning: defaultPower.reasoningEffort, taskID: taskID)
+      try store.selectDefaultPower(from: catalog, taskID: taskID)
       saveError = nil; showingModels = false; searching = false
     } catch { saveError = error.localizedDescription }
   }

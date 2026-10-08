@@ -12,12 +12,13 @@ struct ModelCatalogEntry: Equatable {
   let priority: Int?
   let showInPicker: Bool?
   let contextWindow: Int?
+  let isDefault: Bool?
 
   init(id: String, supportedReasoningEfforts: Set<String>? = nil,
     reasoningOrder: [String]? = nil,
     displayName: String? = nil, description: String? = nil,
     defaultReasoningEffort: String? = nil, priority: Int? = nil,
-    showInPicker: Bool? = nil, contextWindow: Int? = nil) {
+    showInPicker: Bool? = nil, contextWindow: Int? = nil, isDefault: Bool? = nil) {
     self.id = id
     self.supportedReasoningEfforts = supportedReasoningEfforts
     if let reasoningOrder {
@@ -34,6 +35,7 @@ struct ModelCatalogEntry: Equatable {
     self.priority = priority
     self.showInPicker = showInPicker
     self.contextWindow = contextWindow
+    self.isDefault = isDefault
   }
 }
 
@@ -128,7 +130,8 @@ final class ModelCatalog {
             ?? (visibility.map { $0 == "list" }) ?? previous?.showInPicker,
           contextWindow: positiveInteger(row["context_window"] ?? row["contextWindow"])
             ?? positiveInteger(row["max_context_window"] ?? row["maxContextWindow"])
-            ?? previous?.contextWindow)
+            ?? previous?.contextWindow,
+          isDefault: boolean(row["is_default"] ?? row["isDefault"]) ?? previous?.isDefault)
       }
       return entries.values.sorted {
         if $0.priority != $1.priority { return ($0.priority ?? Int.min) > ($1.priority ?? Int.min) }
@@ -143,6 +146,11 @@ final class ModelCatalog {
     guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
       let integer = Int(exactly: number.doubleValue), integer > 0 else { return nil }
     return integer
+  }
+
+  nonisolated private static func boolean(_ value: Any?) -> Bool? {
+    guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+    return number.boolValue
   }
 
   func load(

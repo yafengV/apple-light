@@ -9,6 +9,22 @@ struct ModelPowerSelection: Equatable, Identifiable {
   let reasoningEffort: String
   let powerSettingIndex: Int
   var id: String { "\(model):\(reasoningEffort)" }
+
+  static func fallback(in selections: [Self], preferredID: String?) -> Self? {
+    let effort = preferredID.map { id in
+      guard let separator = id.lastIndex(of: ":") else { return id }
+      return String(id[id.index(after: separator)...])
+    }
+    return selections.first { $0.id == preferredID }
+      ?? selections.first { $0.isSol && $0.reasoningEffort == effort }
+      ?? selections.first { $0.isSol && $0.reasoningEffort == "medium" }
+      ?? selections.first { $0.isSol }
+      ?? selections.first { $0.reasoningEffort == "medium" } ?? selections.first
+  }
+
+  private var isSol: Bool {
+    model.range(of: "(?:^|[-_.])sol(?:$|[-_.])", options: [.regularExpression, .caseInsensitive]) != nil
+  }
 }
 
 extension ModelCatalog {
@@ -52,8 +68,8 @@ extension ModelCatalog {
 
   func fallbackPowerSelection(advanced: Set<AgentAdvancedReasoningEffort>) -> ModelPowerSelection? {
     let selections = defaultPowerSelections(advanced: advanced)
-    return selections.first { $0.model.contains("-sol") && $0.reasoningEffort == "medium" }
-      ?? selections.first { $0.model.contains("-sol") }
-      ?? selections.first { $0.reasoningEffort == "medium" } ?? selections.first
+    let preferred = models.compactMap { details[$0] }.first { $0.isDefault == true }
+    let preferredID = preferred.flatMap { entry in entry.defaultReasoningEffort.map { "\(entry.id):\($0)" } }
+    return ModelPowerSelection.fallback(in: selections, preferredID: preferredID)
   }
 }

@@ -1,0 +1,407 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "models": [
+    {
+      "id": "gpt-5.6-terra",
+      "display_name": "Terra",
+      "supported_reasoning_efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "default_reasoning_effort": "low",
+      "isDefault": true
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "display_name": "Sol",
+      "supported_reasoning_efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "default_reasoning_effort": "medium",
+      "isDefault": false
+    }
+  ],
+  "cases": [
+    {
+      "name": "exact-terra-low",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "gpt-5.6-terra:low",
+      "expectedID": "gpt-5.6-terra:low"
+    },
+    {
+      "name": "exact-sol-high",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "gpt-5.6-sol:high",
+      "expectedID": "gpt-5.6-sol:high"
+    },
+    {
+      "name": "same-effort-sol",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "custom:high",
+      "expectedID": "gpt-5.6-sol:high"
+    },
+    {
+      "name": "unavailable-effort",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "gpt-5.6-terra:ultra",
+      "expectedID": "gpt-5.6-sol:medium"
+    },
+    {
+      "name": "missing-preference",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": null,
+      "expectedID": "gpt-5.6-sol:medium"
+    },
+    {
+      "name": "no-medium-sol",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 1
+        }
+      ],
+      "preferredID": null,
+      "expectedID": "gpt-5.6-sol:high"
+    },
+    {
+      "name": "other-medium",
+      "selections": [
+        {
+          "id": "custom:low",
+          "model": "custom",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "custom:medium",
+          "model": "custom",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "custom:high",
+          "model": "custom",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 2
+        }
+      ],
+      "preferredID": null,
+      "expectedID": "custom:medium"
+    },
+    {
+      "name": "first-option",
+      "selections": [
+        {
+          "id": "custom:high",
+          "model": "custom",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "custom:low",
+          "model": "custom",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        }
+      ],
+      "preferredID": null,
+      "expectedID": "custom:high"
+    },
+    {
+      "name": "empty",
+      "selections": [],
+      "preferredID": null,
+      "expectedID": null
+    },
+    {
+      "name": "sol-case-and-delimiter",
+      "selections": [
+        {
+          "id": "custom:medium",
+          "model": "custom",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "OAI.SOL.test:high",
+          "model": "OAI.SOL.test",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 1
+        }
+      ],
+      "preferredID": null,
+      "expectedID": "OAI.SOL.test:high"
+    },
+    {
+      "name": "sol-word-boundary",
+      "selections": [
+        {
+          "id": "gpt-solar:high",
+          "model": "gpt-solar",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "custom:medium",
+          "model": "custom",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 1
+        }
+      ],
+      "preferredID": null,
+      "expectedID": "custom:medium"
+    },
+    {
+      "name": "multiple-colons",
+      "selections": [
+        {
+          "id": "org:model:high",
+          "model": "org:model",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 1
+        }
+      ],
+      "preferredID": "org:model:high",
+      "expectedID": "org:model:high"
+    },
+    {
+      "name": "multiple-colons-effort",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "org:model:high",
+      "expectedID": "gpt-5.6-sol:high"
+    },
+    {
+      "name": "no-colon-effort",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "high",
+      "expectedID": "gpt-5.6-sol:high"
+    },
+    {
+      "name": "empty-effort",
+      "selections": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ],
+      "preferredID": "custom:",
+      "expectedID": "gpt-5.6-sol:medium"
+    }
+  ]
+}
