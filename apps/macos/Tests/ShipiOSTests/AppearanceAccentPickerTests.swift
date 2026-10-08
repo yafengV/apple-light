@@ -97,7 +97,9 @@ import XCTest
   func testHiddenPickerCustomVisibilitySameWindowMenuKeyboardAndImmediateColorSave() async throws {
     let (store, root) = makeStore(); XCTAssertTrue(store.selectCodeTheme("codex", dark: false)); let (window, host) = try await surface(store); defer { window.close() }
     let button = try XCTUnwrap(find(host, as: SettingsPopupMenuButton.Control.self).first { $0.accessibilityLabel() == "浅色强调色" }); let owner = try XCTUnwrap(button.owner)
-    XCTAssertEqual(button.title, "默认"); XCTAssertEqual(button.frame.size, .init(width: 144, height: 28)); XCTAssertEqual(button.font?.pointSize, 12)
+    XCTAssertEqual(button.title, "默认")
+    XCTAssertEqual(button.frame.width, ceil((button.title as NSString).size(withAttributes: [.font: try XCTUnwrap(button.font)]).width) + 36 + 18, accuracy: 1)
+    XCTAssertEqual(button.frame.height, 28); XCTAssertEqual(button.font?.pointSize, 12)
     XCTAssertNil(find(host, as: AppearanceColorInput.Control.self).first { $0.field.accessibilityLabel() == "浅色模式下的自定义强调色" })
     owner.toggle(button, keyboard: true); try await settle(host); let popup = try XCTUnwrap(owner.popup); let menu = try XCTUnwrap(owner.parent.menu as? AppearanceAccentMenuState)
     XCTAssertTrue(popup.window === window); XCTAssertEqual(popup.frame.width, 220); XCTAssertEqual(popup.frame.height, menu.height(fontSize: 13), accuracy: 0.000001)

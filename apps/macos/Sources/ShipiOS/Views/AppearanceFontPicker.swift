@@ -25,7 +25,7 @@ struct AppearanceFontPicker: View {
     AppearanceSettingsRow {
       if !catalog.loaded { ProgressView().controlSize(.mini).task { await catalog.load() } }
       else {
-        AppearanceFontControlsLayout {
+        AppearanceControlsLayout {
           if controls != .style {
             button(familyMenu, title: label, label: variant + role.title, width: 240, enabled: available)
           }

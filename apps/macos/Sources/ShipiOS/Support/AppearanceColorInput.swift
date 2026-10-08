@@ -9,6 +9,7 @@ struct AppearanceColorInput: NSViewRepresentable {
   let onChange: (String) -> Bool
   @Environment(\.isEnabled) private var enabled
   @Environment(\.appAppearance) private var appearance
+  @Environment(\.layoutDirection) private var direction
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> Control {
     let view = Control(); view.owner = context.coordinator; view.field.delegate = context.coordinator
@@ -26,10 +27,16 @@ struct AppearanceColorInput: NSViewRepresentable {
     ]]]), size: font.pointSize) ?? font
     view.field.setAccessibilityLabel(label); view.swatch.setAccessibilityLabel(label + "选色面板")
     view.setAccessibilityLabel(label); view.swatch.setAccessibilityExpanded(owner.popup != nil)
+    view.preferences = appearance; view.direction = direction
+    view.field.textColor = NSColor(appearance.foregroundColor)
+    view.field.alignment = direction == .rightToLeft ? .right : .left
+    view.field.baseWritingDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
+    view.needsLayout = true; view.refreshDecoration()
     owner.receive(value, in: view); owner.schedule(view)
   }
   static func dismantleNSView(_ view: Control, coordinator: Coordinator) {
     coordinator.active = false; coordinator.detach(); view.active = false; view.owner = nil; view.field.delegate = nil; view.swatch.target = nil
+    view.removeDecoration()
   }
   static func placement(anchor: CGRect, viewport: CGRect) -> CGRect? {
     let available = viewport.insetBy(dx: 6, dy: 6), size: CGFloat = 224
@@ -42,25 +49,44 @@ struct AppearanceColorInput: NSViewRepresentable {
   final class Control: NSView {
     weak var owner: Coordinator?
     var active = true
+    var preferences = AppearancePreferences()
+    var direction = LayoutDirection.leftToRight
     var color = AppearanceRGBA.black { didSet { needsDisplay = true; swatch.needsDisplay = true } }
     let field = Field(), swatch = Swatch()
-    override var intrinsicContentSize: NSSize { .init(width: 136, height: 28) }
+    private var decoration: SettingsMenuTriggerHostingView?
+    override var intrinsicContentSize: NSSize { .init(width: 96, height: 28) }
     override init(frame: NSRect) {
       super.init(frame: frame); addSubview(swatch); addSubview(field); swatch.container = self; field.container = self
       field.isBordered = false; field.drawsBackground = false; field.focusRingType = .none
       field.cell = Cell(textCell: ""); field.cell?.usesSingleLineMode = true; field.cell?.isScrollable = true
-      swatch.isBordered = false; swatch.setAccessibilityRole(.popUpButton)
+      swatch.isBordered = false; swatch.focusRingType = .none; swatch.setAccessibilityRole(.popUpButton)
     }
-    convenience init() { self.init(frame: .init(x: 0, y: 0, width: 136, height: 28)) }
+    convenience init() { self.init(frame: .init(x: 0, y: 0, width: 96, height: 28)) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func layout() {
-      super.layout(); swatch.frame = .init(x: 8, y: (bounds.height - 14) / 2, width: 14, height: 14)
-      field.frame = .init(x: 30, y: 0, width: max(0, bounds.width - 38), height: bounds.height); owner?.schedule(self)
+      super.layout()
+      let rtl = direction == .rightToLeft
+      swatch.frame = .init(x: rtl ? bounds.width - 23 : 9, y: (bounds.height - 14) / 2, width: 14, height: 14)
+      let height = max(16, ceil(field.font.map { NSLayoutManager().defaultLineHeight(for: $0) } ?? 16))
+      field.frame = .init(x: rtl ? 9 : 31, y: (bounds.height - height) / 2, width: max(0, bounds.width - 40), height: height)
+      decoration?.frame = bounds.insetBy(dx: -2, dy: -2)
+      owner?.schedule(self)
     }
-    override func draw(_ dirtyRect: NSRect) {
-      color.nativeColor.withAlphaComponent(field.isEnabled ? 1 : 0.5).setFill()
-      NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8).fill()
+    func refreshDecoration() {
+      guard active else { return }
+      let first = window?.firstResponder
+      let focused = first != nil && (first === field || first === swatch || first === field.currentEditor())
+      let content = AnyView(AppearanceColorInputBorder(border: preferences.resolvedColors["border"].color,
+        focus: preferences.resolvedColors["borderFocus"].color, focused: focused).padding(2))
+      if let decoration { decoration.rootView = content }
+      else {
+        let host = SettingsMenuTriggerHostingView(rootView: content); host.setAccessibilityElement(false)
+        addSubview(host, positioned: .below, relativeTo: swatch); decoration = host
+      }
+      decoration?.frame = bounds.insetBy(dx: -2, dy: -2)
     }
+    func refreshFocus() { DispatchQueue.main.async { [weak self] in self?.refreshDecoration() } }
+    func removeDecoration() { decoration?.removeFromSuperview(); decoration = nil }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); owner?.attach(self) }
   }
   final class Cell: NSTextFieldCell {
@@ -75,6 +101,8 @@ struct AppearanceColorInput: NSViewRepresentable {
     weak var container: Control?
     override var acceptsFirstResponder: Bool { container?.active == true && isEnabled && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
+    override func becomeFirstResponder() -> Bool { let result = super.becomeFirstResponder(); container?.refreshFocus(); return result }
+    override func resignFirstResponder() -> Bool { let result = super.resignFirstResponder(); container?.refreshFocus(); return result }
   }
   final class Swatch: NSButton {
     weak var container: Control?
@@ -83,11 +111,10 @@ struct AppearanceColorInput: NSViewRepresentable {
     override func draw(_ dirtyRect: NSRect) {
       guard let color = container?.color else { return }
       let path = NSBezierPath(ovalIn: bounds.insetBy(dx: 0.5, dy: 0.5)); color.nativeColor.setFill(); path.fill()
-      let ink = AppearanceColorEditing.readableInk(color.hex)
-      NSColor(srgbRed: (Double(color.red) * 0.82 + Double(ink.red) * 0.18) / 255,
-        green: (Double(color.green) * 0.82 + Double(ink.green) * 0.18) / 255,
-        blue: (Double(color.blue) * 0.82 + Double(ink.blue) * 0.18) / 255, alpha: 1).setStroke(); path.lineWidth = 1; path.stroke()
+      container?.preferences.resolvedColors["border"].nativeColor.setStroke(); path.lineWidth = 1; path.stroke()
     }
+    override func becomeFirstResponder() -> Bool { let result = super.becomeFirstResponder(); container?.refreshFocus(); return result }
+    override func resignFirstResponder() -> Bool { let result = super.resignFirstResponder(); container?.refreshFocus(); return result }
     override func mouseDown(with event: NSEvent) { guard acceptsFirstResponder else { return }; window?.makeFirstResponder(self); super.mouseDown(with: event) }
     override func keyDown(with event: NSEvent) {
       if acceptsFirstResponder, [36, 49, 76].contains(event.keyCode), event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
@@ -115,7 +142,7 @@ struct AppearanceColorInput: NSViewRepresentable {
     func receive(_ hex: String, in view: Control) {
       let incoming = hex.uppercased()
       if incoming != value { value = incoming; hsv = .init(hex: incoming) }
-      view.color = .init(hex: incoming); view.field.textColor = AppearanceColorEditing.readableInk(incoming).nativeColor
+      view.color = .init(hex: incoming)
       if draft == nil, (view.field.currentEditor() as? NSTextView)?.hasMarkedText() != true { replace(view.field, text: value) }
     }
     private func replace(_ field: Field, text: String) {
@@ -129,12 +156,13 @@ struct AppearanceColorInput: NSViewRepresentable {
       if parent.onChange(hex) {
         value = hex.uppercased(); if !fromPicker { hsv = .init(hex: value) }
       } else { hsv = .init(hex: value) }
-      view.color = .init(hex: value); view.field.textColor = AppearanceColorEditing.readableInk(value).nativeColor
+      view.color = .init(hex: value)
       replace(view.field, text: value); update(view)
     }
     func controlTextDidBeginEditing(_ notification: Notification) {
       guard let field = notification.object as? Field, let editor = field.currentEditor() as? NSTextView else { return }
       editor.isAutomaticSpellingCorrectionEnabled = false; editor.isAutomaticQuoteSubstitutionEnabled = false; editor.isAutomaticDashSubstitutionEnabled = false
+      field.container?.refreshFocus()
     }
     func controlTextDidChange(_ notification: Notification) {
       guard let field = notification.object as? Field, let view = field.container, canAct(view),
@@ -145,7 +173,7 @@ struct AppearanceColorInput: NSViewRepresentable {
     }
     func controlTextDidEndEditing(_ notification: Notification) {
       guard let field = notification.object as? Field, let view = field.container else { return }
-      draft = nil; replace(field, text: value); view.needsDisplay = true
+      draft = nil; replace(field, text: value); view.refreshFocus()
     }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
       guard let field = control as? Field, let view = field.container, canAct(view), !textView.hasMarkedText() else { return false }

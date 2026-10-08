@@ -72,7 +72,7 @@ import XCTest
     let fixture = try makeSurface(); defer { fixture.close() }
     let (store, host, window) = (fixture.store, fixture.host, fixture.window); try await settle(host)
     let view = try XCTUnwrap(find(host, as: AppearanceColorInput.Control.self).first { $0.field.accessibilityLabel() == "深色背景色" })
-    XCTAssertEqual(view.frame.size, .init(width: 136, height: 28)); XCTAssertEqual(view.field.stringValue, "#181818")
+    XCTAssertEqual(view.frame.size, .init(width: 96, height: 28)); XCTAssertEqual(view.field.stringValue, "#181818")
     XCTAssertTrue(window.makeFirstResponder(view.field)); let editor = try XCTUnwrap(view.field.currentEditor() as? NSTextView)
     enter("#12", in: view); XCTAssertEqual(view.owner?.draft, "#12"); XCTAssertNil(store.appearance.dark.background)
     var external = store.appearance; external.dark.background = "#654321"; XCTAssertTrue(store.commitAppearance(external)); try await settle(host)
@@ -194,7 +194,7 @@ import XCTest
       VStack(spacing: 24) {
         AppearanceColorInput(value: store.appearance.themeShare(dark: true).theme.surface, label: "深色背景色", available: { store.libraryLoaded }) {
           store.setAppearanceColor($0, key: \.background, dark: true)
-        }.frame(width: 136, height: 28).disabled(!store.libraryLoaded)
+        }.frame(width: 96, height: 28).disabled(!store.libraryLoaded)
         CodeThemeMenuButton(store: store, dark: true, menu: menu).frame(width: 176, height: 28)
       }.frame(width: 850, height: 900).environment(\.appAppearance, store.appearance)
     }

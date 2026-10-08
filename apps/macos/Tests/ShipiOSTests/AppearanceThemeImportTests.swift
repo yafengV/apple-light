@@ -321,10 +321,10 @@ import XCTest
     view.mouseDown(with: try event(.leftMouseDown, [])); XCTAssertNil(store.appearanceThemeImport); XCTAssertFalse(window.isVisible)
   }
   private func drawnColor(_ view: AppearanceColorInput.Control) throws -> Data {
-    let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 136, pixelsHigh: 28,
-      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-    NSGraphicsContext.saveGraphicsState(); defer { NSGraphicsContext.restoreGraphicsState() }
-    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap); view.draw(view.bounds)
+    // Include the retained native text/swatch and the noninteractive border
+    // host; drawing only the transparent parent would now be a vacuous check.
+    let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: bitmap)
     return try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
   }
   func testOutsideNotificationPointerDismissesWhileBackdropRetainsItsOriginalTarget() async throws {

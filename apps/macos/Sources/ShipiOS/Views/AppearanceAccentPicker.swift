@@ -9,21 +9,20 @@ struct AppearanceAccentPicker: View {
   }
   var body: some View {
     LabeledContent("强调色") {
-      HStack(spacing: 8) {
+      AppearanceControlsLayout {
         SettingsPopupMenuButton(title: selection.title, label: dark ? "深色强调色" : "浅色强调色", menu: menu,
-          buttonWidth: 144, fontSize: 12, menuWidth: 220, formStyle: .accent,
+          fitsTitle: true, fontSize: 12, menuWidth: 220, formStyle: .accent,
           accent: selection.isCustom ? nil : (selection.accountAccent ?? .default).swatch(dark: dark),
           menuHeight: { menu.height(fontSize: store.appearance.nativeFont(size: 13).pointSize) },
           available: store.libraryLoaded && !store.restoringLibrary,
           open: { menu.open(dark: dark, keyboard: $0, store: store) },
           choose: { menu.choose($0, store: store) },
           content: { AnyView(AppearanceAccentMenuContent(menu: menu, selectedID: selection.selectedID, choose: $0)) })
-          .frame(width: 144, height: 28)
         if selection.isCustom {
           AppearanceColorInput(value: store.appearance.themeShare(dark: dark).theme.accent, label: selection.customLabel,
             available: { store.libraryLoaded && !store.restoringLibrary }) {
             store.setAppearanceColor($0, key: \.accent, dark: dark)
-          }.frame(width: 136, height: 28).disabled(!store.libraryLoaded || store.restoringLibrary)
+          }.frame(width: 96, height: 28).disabled(!store.libraryLoaded || store.restoringLibrary)
         }
       }
     }.onDisappear { menu.dismiss() }

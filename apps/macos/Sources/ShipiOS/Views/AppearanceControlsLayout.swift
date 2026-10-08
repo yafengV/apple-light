@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The public font wrapper has min-width:0. Each full-width trigger retains
+/// The public font/accent wrapper has min-width:0. Each full-width trigger retains
 /// its intrinsic minimum, capped by the wrapper's available width. Measuring
 /// and placing existing subviews preserves their native responder identities.
-struct AppearanceFontControlsLayout: Layout {
+struct AppearanceControlsLayout: Layout {
   private let gap: CGFloat = 8
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
     let sizes = subviews.map { $0.sizeThatFits(.unspecified) }

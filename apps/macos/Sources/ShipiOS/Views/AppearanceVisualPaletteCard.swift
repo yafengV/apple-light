@@ -46,7 +46,7 @@ struct AppearanceVisualPaletteCard: View {
     LabeledContent(title) {
       AppearanceColorInput(value: value, label: (dark ? "深色" : "浅色") + title, available: { available }) {
         store.setAppearanceColor($0, key: key, dark: dark)
-      }.frame(width: 136, height: 28).disabled(!available)
+      }.frame(width: 96, height: 28).disabled(!available)
     }
   }
 }

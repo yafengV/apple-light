@@ -1,0 +1,352 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  ],
+  "generalSettingsSHA256": "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
+  "boundaries": "Closed popover composition; controlled account/color/translation data, callbacks not invoked",
+  "colors": [
+    {
+      "value": "#181818",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "relative flex h-7 w-24 shrink-0 items-center gap-2 rounded-full border border-default px-2 text-default focus-within:ring-2 focus-within:ring-ring",
+          "children": [
+            {
+              "type": "button",
+              "props": {
+                "className": "size-3.5 shrink-0 cursor-interaction rounded-full border border-default disabled:cursor-default",
+                "style": {
+                  "backgroundColor": "#181818"
+                },
+                "type": "button",
+                "children": {
+                  "type": "span",
+                  "props": {
+                    "className": "sr-only",
+                    "children": "Color"
+                  }
+                }
+              }
+            },
+            {
+              "type": "input",
+              "props": {
+                "aria-label": "Color",
+                "className": "min-w-0 flex-1 bg-transparent text-xs uppercase tabular-nums outline-hidden disabled:cursor-default",
+                "spellCheck": false,
+                "type": "text",
+                "value": "#181818"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "value": "#FFFFFF",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "relative flex h-7 w-24 shrink-0 items-center gap-2 rounded-full border border-default px-2 text-default focus-within:ring-2 focus-within:ring-ring",
+          "children": [
+            {
+              "type": "button",
+              "props": {
+                "className": "size-3.5 shrink-0 cursor-interaction rounded-full border border-default disabled:cursor-default",
+                "style": {
+                  "backgroundColor": "#FFFFFF"
+                },
+                "type": "button",
+                "children": {
+                  "type": "span",
+                  "props": {
+                    "className": "sr-only",
+                    "children": "Color"
+                  }
+                }
+              }
+            },
+            {
+              "type": "input",
+              "props": {
+                "aria-label": "Color",
+                "className": "min-w-0 flex-1 bg-transparent text-xs uppercase tabular-nums outline-hidden disabled:cursor-default",
+                "spellCheck": false,
+                "type": "text",
+                "value": "#FFFFFF"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "accents": [
+    {
+      "source": "custom",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-4 py-2",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Accent"
+                          }
+                        },
+                        null
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": {
+                  "type": "div",
+                  "props": {
+                    "className": "flex min-w-0 items-center gap-2 max-sm:w-full",
+                    "children": [
+                      {
+                        "type": "button",
+                        "props": {
+                          "type": "button",
+                          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-surface not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+                          "disabled": false,
+                          "aria-label": "Accent",
+                          "children": {
+                            "type": "fragment",
+                            "props": {
+                              "children": [
+                                false,
+                                [
+                                  {
+                                    "type": "span",
+                                    "props": {
+                                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                                      "children": [
+                                        null,
+                                        [
+                                          false,
+                                          "Custom"
+                                        ]
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "type": "svg",
+                                    "props": {
+                                      "width": 20,
+                                      "height": 21,
+                                      "viewBox": "0 0 20 21",
+                                      "fill": "none",
+                                      "xmlns": "http://www.w3.org/2000/svg",
+                                      "children": {
+                                        "type": "path",
+                                        "props": {
+                                          "d": "M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z",
+                                          "fill": "currentColor",
+                                          "stroke": "currentColor",
+                                          "strokeWidth": 0.6
+                                        }
+                                      },
+                                      "className": "icon-2xs shrink-0 text-tertiary"
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "div",
+                        "props": {
+                          "className": "relative flex h-7 w-24 shrink-0 items-center gap-2 rounded-full border border-default px-2 text-default focus-within:ring-2 focus-within:ring-ring",
+                          "children": [
+                            {
+                              "type": "button",
+                              "props": {
+                                "className": "size-3.5 shrink-0 cursor-interaction rounded-full border border-default disabled:cursor-default",
+                                "style": {
+                                  "backgroundColor": "#181818"
+                                },
+                                "type": "button",
+                                "children": {
+                                  "type": "span",
+                                  "props": {
+                                    "className": "sr-only",
+                                    "children": "Custom accent"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "input",
+                              "props": {
+                                "aria-label": "Custom accent",
+                                "className": "min-w-0 flex-1 bg-transparent text-xs uppercase tabular-nums outline-hidden disabled:cursor-default",
+                                "spellCheck": false,
+                                "type": "text",
+                                "value": "#181818"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "source": "account",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-4 py-2",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Accent"
+                          }
+                        },
+                        null
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": {
+                  "type": "div",
+                  "props": {
+                    "className": "flex min-w-0 items-center gap-2 max-sm:w-full",
+                    "children": [
+                      {
+                        "type": "button",
+                        "props": {
+                          "type": "button",
+                          "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-full border-default bg-surface not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border h-7 px-2 py-0 text-xs leading-4 max-w-full justify-between w-full max-w-36 max-sm:max-w-none",
+                          "disabled": false,
+                          "aria-label": "Accent",
+                          "children": {
+                            "type": "fragment",
+                            "props": {
+                              "children": [
+                                false,
+                                [
+                                  {
+                                    "type": "span",
+                                    "props": {
+                                      "className": "flex min-w-0 flex-1 items-center gap-1.5",
+                                      "children": [
+                                        null,
+                                        [
+                                          {
+                                            "type": "span",
+                                            "props": {
+                                              "aria-hidden": "true",
+                                              "className": "size-3 shrink-0 rounded-full border border-default",
+                                              "style": {
+                                                "backgroundColor": "#0088ff"
+                                              }
+                                            }
+                                          },
+                                          "Blue"
+                                        ]
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "type": "svg",
+                                    "props": {
+                                      "width": 20,
+                                      "height": 21,
+                                      "viewBox": "0 0 20 21",
+                                      "fill": "none",
+                                      "xmlns": "http://www.w3.org/2000/svg",
+                                      "children": {
+                                        "type": "path",
+                                        "props": {
+                                          "d": "M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z",
+                                          "fill": "currentColor",
+                                          "stroke": "currentColor",
+                                          "strokeWidth": 0.6
+                                        }
+                                      },
+                                      "className": "icon-2xs shrink-0 text-tertiary"
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      null
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "metrics": {
+    "width": 96,
+    "height": 28,
+    "padding": 8,
+    "swatch": 14,
+    "gap": 8,
+    "border": 1,
+    "font": 12,
+    "lineHeight": 16,
+    "radius": 9999,
+    "fieldX": 31
+  }
+}
