@@ -53,7 +53,7 @@ extension TaskWindowTabs {
   }
   @discardableResult func navigateAdjacentContentTab(_ direction: Int) -> Bool {
     let place = focused.map { placement($0.id) } ?? .left
-    let full = selected(.left) != nil
+    let full = effectiveContentLayoutMode == .full
     let local = place == .bottom || (place == .right && !full)
     let content = local ? visibleTabs(place) : tabs.filter { placement($0.id) == .left || (full && placement($0.id) == .right) }
     let ids: [String?] = (local ? [] : [nil]) + content.map { Optional($0.id) }

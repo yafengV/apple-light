@@ -909,7 +909,7 @@ struct TaskWindowView: View {
       }, recentNavigation: RecentTaskShortcutContext(currentID: taskID, recentIDs: store.library.recentTaskIDs,
         isAvailable: { id in store.library.tasks.contains { $0.id == id && !$0.archived && !$0.isTransient } },
         title: { id in store.library.tasks.first { $0.id == id }?.title ?? "" }, select: onNavigate,
-        claimsTabs: { tabs.commandContentTab != nil ||
+        claimsTabs: { tabs.claimsAdjacentContentTabs ||
           (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace },
         selectTab: { direction in
           if (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace {

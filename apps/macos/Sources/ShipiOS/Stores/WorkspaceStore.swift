@@ -167,6 +167,7 @@ final class WorkspaceStore {
   var restoredDetachedWorkspaceTabIDs: [String] = []
   var workspaceTabPlacements: [String: WorkspaceTabPlacement] = [:]
   var activeWorkspaceTabID: String?
+  var workspaceContentLayoutMode: WorkspaceContentLayoutMode?
   var activeRightWorkspaceTabID: String?
   var activeBottomWorkspaceTabID: String?
   var focusedWorkspaceTabID: String?
@@ -673,6 +674,7 @@ final class WorkspaceStore {
     guard activeLocalRun == nil, !busy, await loadLibrary() else { return }
     captureWorkspaceTabLayout()
     workspaceLayoutActiveOwner = nil
+    workspaceContentLayoutMode = nil
     rememberProjectSelection()
     saveProfile()
     busy = true
@@ -828,6 +830,7 @@ final class WorkspaceStore {
       // Failed initialization must not replace the task, draft, files or panels.
       // The previous local Agent has stopped; connection state remains truthful.
       workspaceLayoutActiveOwner = nil
+      workspaceContentLayoutMode = nil
       project = canonical
       dataDirectory = directory
       runs = preparedRuns
@@ -1075,6 +1078,7 @@ final class WorkspaceStore {
     dismissCodeReviewMode()
     if recordHistory { recordNavigation() }
     selection = nil
+    workspaceContentLayoutMode = nil
     activeWorkspaceTabID = nil
     activeRightWorkspaceTabID = nil
     activeBottomWorkspaceTabID = nil
@@ -1127,6 +1131,7 @@ final class WorkspaceStore {
     destination = .workspace
     pendingGoal = nil
     selection = task.selectionID
+    workspaceContentLayoutMode = nil
     activeWorkspaceTabID = nil
     activeRightWorkspaceTabID = nil
     activeBottomWorkspaceTabID = nil

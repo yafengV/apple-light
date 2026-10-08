@@ -1,5 +1,8 @@
 import Foundation
 
+/// Layout survives choosing the chat tab; selection alone cannot identify it.
+enum WorkspaceContentLayoutMode: String, Codable { case full, split }
+
 /// Presentation metadata only. Shell commands, terminal output, page forms and
 /// credentials are never replayed by tab restoration.
 struct SavedWorkspaceTab: Codable, Equatable {
@@ -27,6 +30,8 @@ struct WorkspaceTabLayout: Codable, Equatable {
   var side: WorkspacePaneSide
   var reviewScope: GitReviewScope
   var reviewRepository: String? = nil
+  /// Optional for layouts saved before the mode became independent of selection.
+  var contentLayoutMode: WorkspaceContentLayoutMode? = nil
 }
 
 struct TaskWindowTabLayout: Codable, Equatable {

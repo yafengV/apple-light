@@ -1,6 +1,15 @@
 import AppKit
 
 extension WorkspaceStore {
+  var effectiveWorkspaceContentLayoutMode: WorkspaceContentLayoutMode {
+    workspaceContentLayoutMode ?? (activeWorkspaceContentTab == nil ? .split : .full)
+  }
+  var claimsAdjacentContentTabs: Bool {
+    filePreviewFocused || focusedWorkspaceContentTab != nil || activeWorkspaceContentTab != nil
+      || (effectiveWorkspaceContentLayoutMode == .full && visibleWorkspaceContentTabs.contains {
+        [.left, .right].contains(workspaceTabPlacement($0.id))
+      }) || (browserFocused && workspace.browser.tabs.count > 1)
+  }
   var taskNavigationShortcutContext: RecentTaskShortcutContext? {
     guard destination == .workspace, !libraryRecoveryBlocksInteraction,
       shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
@@ -16,8 +25,7 @@ extension WorkspaceStore {
         self.selectTask(task)
       }, claimsTabs: { [weak self] in
         guard let self else { return false }
-        return self.filePreviewFocused || self.focusedWorkspaceContentTab != nil || self.activeWorkspaceContentTab != nil
-          || (self.browserFocused && self.workspace.browser.tabs.count > 1)
+        return self.claimsAdjacentContentTabs
       }, selectTab: { [weak self] direction in self?.adjacentContentTab(direction) ?? false })
   }
 
@@ -27,7 +35,7 @@ extension WorkspaceStore {
       workspace.moveFile(direction); return true
     }
     if let focused = focusedWorkspaceContentTab,
-      workspaceTabPlacement(focused.id) == .bottom || (workspaceTabPlacement(focused.id) == .right && activeWorkspaceContentTab == nil) {
+      workspaceTabPlacement(focused.id) == .bottom || (workspaceTabPlacement(focused.id) == .right && effectiveWorkspaceContentLayoutMode == .split) {
       let tabs = visibleWorkspaceContentTabs(in: workspaceTabPlacement(focused.id))
       guard tabs.count > 1, let index = tabs.firstIndex(where: { $0.id == focused.id }) else { return false }
       activateWorkspaceTab(tabs[(index + direction + tabs.count) % tabs.count].id); return true
@@ -35,7 +43,7 @@ extension WorkspaceStore {
     if browserFocused, activeWorkspaceContentTab == nil, focusedWorkspaceContentTab == nil {
       return moveLegacyBrowserTab(direction)
     }
-    let full = activeWorkspaceContentTab != nil
+    let full = effectiveWorkspaceContentLayoutMode == .full
     let content = visibleWorkspaceContentTabs.filter {
       workspaceTabPlacement($0.id) == .left || (full && workspaceTabPlacement($0.id) == .right)
     }

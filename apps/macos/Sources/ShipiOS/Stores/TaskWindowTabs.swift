@@ -23,6 +23,15 @@ import Observation
   var showingRight = false
   var showingBottom = false
   var showingTabs = true
+  var contentLayoutMode: WorkspaceContentLayoutMode?
+  var effectiveContentLayoutMode: WorkspaceContentLayoutMode {
+    contentLayoutMode ?? (selected(.left) == nil ? .split : .full)
+  }
+  var claimsAdjacentContentTabs: Bool {
+    commandContentTab != nil || (effectiveContentLayoutMode == .full && tabs.contains {
+      [.left, .right].contains(placement($0.id))
+    })
+  }
   var primarySide = WorkspacePaneSide.left
   var chatFocus = UUID()
   private struct Closed { let tab: WorkspaceContentTab; let placement: WorkspaceTabPlacement }
@@ -127,12 +136,14 @@ import Observation
 
   func activate(_ id: String?, focus: Bool = true) {
     guard let id else {
+      contentLayoutMode = effectiveContentLayoutMode
       selections[.left] = nil; focusedID = nil
       if focus { chatFocus = UUID() }
       return
     }
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
     let place = placement(id)
+    if place == .left { contentLayoutMode = .full }
     selections[place] = id
     if place == .right { panels.showingFiles = false; showingRight = true }
     if place == .bottom { showingBottom = true }
@@ -282,6 +293,7 @@ import Observation
     let previous = placement(id)
     if previous != place {
       clearSelection(id); placements[id] = place
+      if previous == .left && place == .right { contentLayoutMode = .split }
       repairSelection(previous)
     }
     activate(id)
@@ -384,7 +396,6 @@ import Observation
     activate(ids[(index + offset + ids.count) % ids.count])
   }
   func revealChat() {
-    if let tab = selected(.left) { move(tab.id, to: .right) }
     activate(nil)
   }
   func resetProjectTabs() {
@@ -416,7 +427,8 @@ import Observation
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
         bottom: selections[.bottom], focused: focusedID, showingInspector: showingRight,
         showingTerminal: showingBottom, showingTabs: showingTabs, side: primarySide,
-        reviewScope: panels.workspace.selectedReviewScope, reviewRepository: panels.workspace.selectedReviewRepository),
+        reviewScope: panels.workspace.selectedReviewScope, reviewRepository: panels.workspace.selectedReviewRepository,
+        contentLayoutMode: effectiveContentLayoutMode),
       panelSizes: panels.panelSizes, showingFiles: panels.showingFiles)
   }
 
@@ -498,6 +510,7 @@ import Observation
     showingRight = layout.showingInspector && !visibleTabs(.right).isEmpty
     showingBottom = layout.showingTerminal && !visibleTabs(.bottom).isEmpty
     showingTabs = layout.showingTabs
+    contentLayoutMode = layout.contentLayoutMode ?? (selected(.left) == nil ? .split : .full)
     primarySide = layout.side
     panels.panelSizes = saved.panelSizes
     panels.showingFiles = sameProject && panels.workspace.root != nil && saved.showingFiles

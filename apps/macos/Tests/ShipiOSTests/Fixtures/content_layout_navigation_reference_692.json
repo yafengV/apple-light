@@ -1,0 +1,96 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual SHn/iVn/aC and swa with inert explicit state; no native bridge, application initialization or primary content workspace claims.",
+  "chatTransitions": [
+    {
+      "mode": "full",
+      "visible": true,
+      "resultingMode": "full",
+      "resultingKind": "chat",
+      "resultingVisible": false,
+      "focus": "main"
+    },
+    {
+      "mode": "full",
+      "visible": false,
+      "resultingMode": "full",
+      "resultingKind": "chat",
+      "resultingVisible": false,
+      "focus": "main"
+    },
+    {
+      "mode": "split",
+      "visible": true,
+      "resultingMode": "split",
+      "resultingKind": "chat",
+      "resultingVisible": true,
+      "focus": "main"
+    },
+    {
+      "mode": "split",
+      "visible": false,
+      "resultingMode": "split",
+      "resultingKind": "chat",
+      "resultingVisible": false,
+      "focus": "main"
+    }
+  ],
+  "fullChatSelections": [
+    {
+      "ids": [
+        "first",
+        "second"
+      ],
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "first"
+      ]
+    },
+    {
+      "ids": [
+        "first",
+        "second"
+      ],
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "second"
+      ]
+    },
+    {
+      "ids": [
+        "only"
+      ],
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "only"
+      ]
+    },
+    {
+      "ids": [
+        "only"
+      ],
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "only"
+      ]
+    },
+    {
+      "ids": [],
+      "direction": "next",
+      "handled": false,
+      "selected": []
+    },
+    {
+      "ids": [],
+      "direction": "previous",
+      "handled": false,
+      "selected": []
+    }
+  ]
+}

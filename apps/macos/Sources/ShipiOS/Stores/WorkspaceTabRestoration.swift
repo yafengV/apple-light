@@ -19,7 +19,7 @@ extension WorkspaceStore {
       bottom: activeBottomWorkspaceTabID, focused: focusedWorkspaceTabID,
       showingInspector: showingInspector, showingTerminal: showingTerminal,
       showingTabs: showingWorkspaceTabs, side: workspaceContentPaneSide, reviewScope: workspace.selectedReviewScope,
-      reviewRepository: workspace.selectedReviewRepository)
+      reviewRepository: workspace.selectedReviewRepository, contentLayoutMode: effectiveWorkspaceContentLayoutMode)
   }
 
   func captureWorkspaceTabLayout() {
@@ -40,6 +40,7 @@ extension WorkspaceStore {
     if !automationsLoaded,
       library.workspaceTabLayouts[owner]?.tabs.contains(where: { $0.kind == .pullRequestWatch }) == true { return }
     workspaceLayoutActiveOwner = owner
+    workspaceContentLayoutMode = nil
     guard let layout = library.workspaceTabLayouts[owner] else {
       restoredWorkspaceTabOwners.insert(owner)
       return
@@ -65,6 +66,7 @@ extension WorkspaceStore {
     activeWorkspaceTabID = selected(layout.active, in: .left)
     activeRightWorkspaceTabID = selected(layout.right, in: .right)
     activeBottomWorkspaceTabID = selected(layout.bottom, in: .bottom)
+    workspaceContentLayoutMode = layout.contentLayoutMode ?? (activeWorkspaceContentTab == nil ? .split : .full)
     focusedWorkspaceTabID = visibleWorkspaceContentTabs.first { $0.id == layout.focused }?.id
     showingInspector = layout.showingInspector
     showingTerminal = layout.showingTerminal && !visibleWorkspaceContentTabs(in: .bottom).isEmpty

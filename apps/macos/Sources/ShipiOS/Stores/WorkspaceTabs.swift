@@ -306,6 +306,7 @@ extension WorkspaceStore {
   }
 
   func activateChatTab() {
+    workspaceContentLayoutMode = effectiveWorkspaceContentLayoutMode
     activeWorkspaceTabID = nil
     focusedWorkspaceTabID = nil
     focusComposer = UUID()
@@ -319,6 +320,7 @@ extension WorkspaceStore {
     guard let tab = visibleWorkspaceContentTabs.first(where: { $0.id == id }) else { return }
     switch workspaceTabPlacement(tab.id) {
     case .left:
+      workspaceContentLayoutMode = .full
       activeWorkspaceTabID = tab.id
     case .right:
       activeRightWorkspaceTabID = tab.id
@@ -448,6 +450,8 @@ extension WorkspaceStore {
     let oldPlacement = workspaceTabPlacement(id)
     guard oldPlacement != placement else { activateWorkspaceTab(id); return }
     workspaceTabPlacements[id] = placement
+    if placement == .left { workspaceContentLayoutMode = .full }
+    else if oldPlacement == .left && placement == .right { workspaceContentLayoutMode = .split }
     if activeWorkspaceTabID == id { activeWorkspaceTabID = nil }
     if activeRightWorkspaceTabID == id { activeRightWorkspaceTabID = nil }
     if activeBottomWorkspaceTabID == id { activeBottomWorkspaceTabID = nil }
