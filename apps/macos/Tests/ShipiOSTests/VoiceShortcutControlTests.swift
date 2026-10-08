@@ -4,6 +4,44 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class VoiceShortcutControlTests: XCTestCase {
+  func testActualSameValueCaptureRetriesUnavailableRestoredShortcut() async throws {
+    try await withPage { store, window, host, presentation in
+      let registration = VoiceHotkeyRegistrationController(
+        hold: AppGlobalHotKey(id: 68_310, title: "按住听写") {},
+        toggle: AppGlobalHotKey(id: 68_311, title: "单击听写") {},
+        voiceChat: AppGlobalHotKey(id: 68_312, title: "语音聊天") {})
+      let blocker = AppGlobalHotKey(id: 68_313, title: "占用") {}
+      let probe = AppGlobalHotKey(id: 68_314, title: "探测") {}
+      let binding = try XCTUnwrap(ShortcutBinding("⌘⌃⌥⇧8"))
+      store.voicePreferences.globalToggleHotkey = binding
+      let file = store.dataRoot.appendingPathComponent("workspace.json")
+      let originalData = try Data(contentsOf: file)
+      try blocker.register(binding)
+      store.connectVoiceHotkeys(registration) { _ in }
+      XCTAssertNotNil(store.voiceShortcutRegistrationErrors[.toggle])
+      try await self.settle(host); try await self.expand(host)
+      let capture = {
+        XCTAssertTrue(try self.button("edit-toggle", host).accessibilityPerformPress())
+        try await self.settle(host)
+        let field = try XCTUnwrap(self.descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
+        XCTAssertTrue(window.makeFirstResponder(field))
+        window.sendEvent(try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+          modifierFlags: [.command, .control, .option, .shift], timestamp: 1,
+          windowNumber: window.windowNumber, context: nil, characters: "8", charactersIgnoringModifiers: "8",
+          isARepeat: false, keyCode: 28)))
+        try await self.settle(host)
+      }
+      try await capture()
+      XCTAssertNotNil(store.voiceShortcutRegistrationErrors[.toggle])
+      try blocker.register(nil); try await capture()
+      XCTAssertNil(presentation.recording); XCTAssertEqual(store.shortcutCaptureCount, 0)
+      XCTAssertEqual(store.voicePreferences.globalToggleHotkey, binding)
+      XCTAssertNil(store.voiceShortcutRegistrationErrors[.toggle])
+      XCTAssertEqual(try Data(contentsOf: file), originalData)
+      XCTAssertThrowsError(try probe.register(binding), "录入同值也必须重新尝试本机注册")
+    }
+  }
+
   func testActualCaptureOfOccupiedCarbonShortcutKeepsOldValueAndRetrySucceeds() async throws {
     try await withPage { store, window, host, presentation in
       let transaction = VoiceHotkeyRegistrationTransaction(

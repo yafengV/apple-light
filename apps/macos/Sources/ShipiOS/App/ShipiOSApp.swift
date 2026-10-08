@@ -96,16 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petPanelController: PetPanelController?
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
-  private var globalDictationToggleHotKey: AppGlobalHotKey?
-  private var globalDictationHoldHotKey: AppGlobalHotKey?
-  private var globalVoiceChatHotKey: AppGlobalHotKey?
   private var globalDictationIndicator: GlobalDictationIndicatorController?
   private var voiceBareModifierMonitor: VoiceBareModifierMonitor?
-  private var registeredGlobalToggleHotkey: ShortcutBinding?
-  private var registeredGlobalHoldHotkey: ShortcutBinding?
-  private var registeredGlobalVoiceChatHotkey: ShortcutBinding?
-  private var globalDictationCarbonError: String?
-  private var globalVoiceChatCarbonError: String?
   private var globalDictationModifierError: String?
   private var globalDictationState = GlobalDictationToggleState()
   private var globalDictationHoldState = GlobalDictationHoldState()
@@ -153,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     store?.appshotHotkeyChangeHandler = nil
     store?.globalDictationHotkeyChangeHandler = nil
     store?.voiceHotkeyPreferenceCommitHandler = nil
+    store?.voiceHotkeyRegistrationRetryHandler = nil
     if let appshotWindowFocusObserver {
       NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
       self.appshotWindowFocusObserver = nil
@@ -165,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   }
 
   func finishRestoration() async {
-    if let store {
+    if !ready, let store {
       let controller = PetPanelController(store: store)
       petPanelController = controller
       store.petPanelHandler = { [weak controller] preferences in controller?.apply(preferences) }
@@ -187,13 +180,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       let dictationHotKey = AppGlobalHotKey(id: 3, title: "切换听写") { [weak self] in
         self?.toggleGlobalDictation()
       }
-      globalDictationToggleHotKey = dictationHotKey
       let holdDictationHotKey = AppGlobalHotKey(id: 4, title: "按住听写",
         onRelease: { [weak self] in self?.releaseHoldGlobalDictation() }) { [weak self] in
         self?.pressHoldGlobalDictation()
       }
-      globalDictationHoldHotKey = holdDictationHotKey
-      globalVoiceChatHotKey = AppGlobalHotKey(id: 5, title: "语音聊天") { [weak self] in
+      let voiceChatHotKey = AppGlobalHotKey(id: 5, title: "语音聊天") { [weak self] in
         self?.toggleGlobalVoiceChat()
       }
       globalDictationIndicator = GlobalDictationIndicatorController(store: store)
@@ -212,17 +203,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         self?.updateGlobalDictationHotkeyError()
         self?.updateGlobalVoiceChatHotkeyError()
       })
-      store.globalDictationHotkeyChangeHandler = { [weak self] in
-        self?.refreshGlobalDictationHotkey()
-      }
-      store.voiceHotkeyPreferenceCommitHandler = { [weak self] previous, preferences, persist in
-        guard let self, let hold = self.globalDictationHoldHotKey,
-          let toggle = self.globalDictationToggleHotKey,
-          let voiceChat = self.globalVoiceChatHotKey else {
-          throw AgentFailure(message: "全局语音快捷键尚未就绪，请稍后重试。")
-        }
-        try VoiceHotkeyRegistrationTransaction(hold: hold, toggle: toggle, voiceChat: voiceChat)
-          .commit(preferences, replacing: previous, persist: persist)
+      store.connectVoiceHotkeys(VoiceHotkeyRegistrationController(hold: holdDictationHotKey,
+        toggle: dictationHotKey, voiceChat: voiceChatHotKey)) { [weak self] holdBindingChanged in
+        guard let self else { return }
+        if holdBindingChanged { self.releaseHoldGlobalDictation() }
+        self.voiceBareModifierMonitor?.refresh()
+        self.updateGlobalDictationHotkeyError()
+        self.updateGlobalVoiceChatHotkeyError()
       }
       appshotWindowFocusObserver = NotificationCenter.default.addObserver(
         forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
@@ -266,7 +253,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       }
       refreshHotKey()
       refreshPopoutHotKey()
-      refreshGlobalDictationHotkey()
       store.appearanceHandler = { [weak pointerCursorController, weak dockIconController] appearance in
         pointerCursorController?.apply(appearance.usePointerCursors)
         dockIconController?.apply(appearance.dockIcon)
@@ -275,64 +261,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       dockIconController.apply(store.appearance.dockIcon)
       startAutomationPolling()
       startSkillMonitoring()
+      ready = true
     }
-    ready = true
     await openPendingNotification()
     await openPendingDeepLinks()
-  }
-
-  private func refreshGlobalDictationHotkey() {
-    guard let store, let globalDictationToggleHotKey, let globalDictationHoldHotKey,
-      let globalVoiceChatHotKey else { return }
-    var errors: [String] = []
-    let toggle = store.voicePreferences.globalToggleHotkey
-    if toggle != registeredGlobalToggleHotkey {
-      do {
-        try globalDictationToggleHotKey.register(toggle?.isBareModifier == true ? nil : toggle)
-        registeredGlobalToggleHotkey = toggle
-      } catch {
-        errors.append(error.localizedDescription)
-      }
-    }
-    let hold = store.voicePreferences.globalHoldHotkey
-    if hold != registeredGlobalHoldHotkey {
-      releaseHoldGlobalDictation()
-      do {
-        try globalDictationHoldHotKey.register(hold?.isBareModifier == true ? nil : hold)
-        registeredGlobalHoldHotkey = hold
-      } catch {
-        errors.append(error.localizedDescription)
-      }
-    }
-    globalDictationCarbonError = errors.isEmpty ? nil : errors.joined(separator: "\n")
-    let voiceChat = store.voicePreferences.globalVoiceChatHotkey
-    if voiceChat != registeredGlobalVoiceChatHotkey {
-      do {
-        try globalVoiceChatHotKey.register(voiceChat?.isBareModifier == true ? nil : voiceChat)
-        registeredGlobalVoiceChatHotkey = voiceChat
-        globalVoiceChatCarbonError = nil
-      } catch {
-        globalVoiceChatCarbonError = error.localizedDescription
-      }
-    }
-    voiceBareModifierMonitor?.refresh()
-    updateGlobalDictationHotkeyError()
-    updateGlobalVoiceChatHotkeyError()
   }
 
   private func updateGlobalDictationHotkeyError() {
     let bare = store?.voicePreferences.globalHoldHotkey?.isBareModifier == true
       || store?.voicePreferences.globalToggleHotkey?.isBareModifier == true
-    let messages = [globalDictationCarbonError, bare ? globalDictationModifierError : nil]
-      .compactMap { $0 }
-    store?.globalDictationHotkeyError = messages.isEmpty ? nil : messages.joined(separator: "\n")
+    store?.globalDictationHotkeyError = bare ? globalDictationModifierError : nil
   }
 
   private func updateGlobalVoiceChatHotkeyError() {
     let bare = store?.voicePreferences.globalVoiceChatHotkey?.isBareModifier == true
-    let messages = [globalVoiceChatCarbonError, bare ? globalDictationModifierError : nil]
-      .compactMap { $0 }
-    store?.globalVoiceChatHotkeyError = messages.isEmpty ? nil : messages.joined(separator: "\n")
+    store?.globalVoiceChatHotkeyError = bare ? globalDictationModifierError : nil
   }
 
   private func toggleGlobalVoiceChat() {

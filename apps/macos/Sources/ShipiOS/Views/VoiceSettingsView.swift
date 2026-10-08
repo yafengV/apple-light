@@ -371,6 +371,7 @@ struct VoiceSettingsView: View {
     case .toggle: preferences.globalToggleHotkey = binding
     case .voiceChat: preferences.globalVoiceChatHotkey = binding
     }
-    store.voicePreferences = preferences
+    if preferences == store.voicePreferences { store.retryVoiceHotkeyRegistration(mode) }
+    else { store.voicePreferences = preferences }
   }
 }

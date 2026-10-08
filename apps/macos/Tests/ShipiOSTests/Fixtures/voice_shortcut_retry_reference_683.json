@@ -1,0 +1,130 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "dcac6c84dc913e502511a3c408178dad8266acbd53fe463c312c7dcb5757055f",
+  "boundaries": "Actual Pn/an callbacks with local hooks and deferred results; no DOM focus, native registration or persistence",
+  "cases": [
+    {
+      "mode": "hold",
+      "accelerator": "Control",
+      "pending": {
+        "accelerator": "Control",
+        "capturing": false,
+        "disabled": true,
+        "error": null
+      },
+      "failed": {
+        "accelerator": "Control",
+        "capturing": false,
+        "disabled": false,
+        "error": "Hotkey temporarily unavailable"
+      },
+      "restarted": {
+        "accelerator": "Control",
+        "capturing": true,
+        "disabled": false,
+        "error": null
+      },
+      "repaired": {
+        "accelerator": "Control",
+        "capturing": false,
+        "disabled": false,
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "global-dictation-set-hotkey",
+          "hotkey": "Control"
+        },
+        {
+          "name": "global-dictation-set-hotkey",
+          "hotkey": "Control"
+        }
+      ]
+    },
+    {
+      "mode": "toggle",
+      "accelerator": "Alt+Shift",
+      "pending": {
+        "accelerator": "Alt+Shift",
+        "capturing": false,
+        "disabled": true,
+        "error": null
+      },
+      "failed": {
+        "accelerator": "Alt+Shift",
+        "capturing": false,
+        "disabled": false,
+        "error": "Hotkey temporarily unavailable"
+      },
+      "restarted": {
+        "accelerator": "Alt+Shift",
+        "capturing": true,
+        "disabled": false,
+        "error": null
+      },
+      "repaired": {
+        "accelerator": "Alt+Shift",
+        "capturing": false,
+        "disabled": false,
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "global-dictation-set-toggle-hotkey",
+          "hotkey": "Alt+Shift"
+        },
+        {
+          "name": "global-dictation-set-toggle-hotkey",
+          "hotkey": "Alt+Shift"
+        }
+      ]
+    },
+    {
+      "mode": "voiceChat",
+      "accelerator": "Control+Alt+V",
+      "pending": {
+        "accelerator": "Control+Alt+V",
+        "capturing": false,
+        "disabled": true,
+        "error": null
+      },
+      "failed": {
+        "accelerator": "Control+Alt+V",
+        "capturing": false,
+        "disabled": false,
+        "error": "Hotkey temporarily unavailable"
+      },
+      "restarted": {
+        "accelerator": "Control+Alt+V",
+        "capturing": true,
+        "disabled": false,
+        "error": null
+      },
+      "repaired": {
+        "accelerator": "Control+Alt+V",
+        "capturing": false,
+        "disabled": false,
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "set-codex-command-keybinding",
+          "commandId": "realtimeVoice",
+          "update": {
+            "type": "set",
+            "accelerator": "Control+Alt+V"
+          }
+        },
+        {
+          "name": "set-codex-command-keybinding",
+          "commandId": "realtimeVoice",
+          "update": {
+            "type": "set",
+            "accelerator": "Control+Alt+V"
+          }
+        }
+      ]
+    }
+  ]
+}

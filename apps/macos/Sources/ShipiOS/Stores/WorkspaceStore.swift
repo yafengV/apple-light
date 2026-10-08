@@ -24,6 +24,7 @@ final class WorkspaceStore {
   @ObservationIgnored var globalDictationHotkeyChangeHandler: (() -> Void)?
   @ObservationIgnored var voiceHotkeyPreferenceCommitHandler:
     ((VoicePreferences, VoicePreferences, () throws -> Void) throws -> Void)?
+  @ObservationIgnored var voiceHotkeyRegistrationRetryHandler: ((VoiceShortcutPresentation.Mode) -> Void)?
   var voiceShortcutRegistrationErrors: [VoiceShortcutPresentation.Mode: String] = [:]
   var globalDictationHotkeyError: String?
   var globalVoiceChatHotkeyError: String?
