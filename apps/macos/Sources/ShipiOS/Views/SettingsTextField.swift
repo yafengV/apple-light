@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A persistent label is independent of the input's placeholder and value.
-/// This works in both the shared cards and the macOS 14 form fallback.
+/// The same label remains visible in standalone and embedded settings cards.
 struct SettingsTextField: View {
   let title: String
   @Binding var text: String
@@ -15,8 +15,12 @@ struct SettingsTextField: View {
     LabeledContent {
       TextField(title, text: $text, prompt: prompt)
         .textFieldStyle(.roundedBorder).labelsHidden()
-        .frame(maxWidth: 320).accessibilityLabel(title)
-    } label: { Text(title).appFont(size: 14, weight: .medium) }
+        .frame(minWidth: 0, idealWidth: 320, maxWidth: 320).accessibilityLabel(title)
+    } label: {
+      Text(title).appFont(size: SettingsRowTypography.labelSize, weight: .medium)
+        .settingsTextLineHeight(text: title, fontSize: SettingsRowTypography.labelSize,
+          lineHeight: SettingsRowTypography.labelLineHeight, weight: .medium)
+    }
   }
 }
 
@@ -33,7 +37,11 @@ struct SettingsSecureField: View {
     LabeledContent {
       SecureField(title, text: $text, prompt: prompt)
         .textFieldStyle(.roundedBorder).labelsHidden()
-        .frame(maxWidth: 320).accessibilityLabel(title)
-    } label: { Text(title).appFont(size: 14, weight: .medium) }
+        .frame(minWidth: 0, idealWidth: 320, maxWidth: 320).accessibilityLabel(title)
+    } label: {
+      Text(title).appFont(size: SettingsRowTypography.labelSize, weight: .medium)
+        .settingsTextLineHeight(text: title, fontSize: SettingsRowTypography.labelSize,
+          lineHeight: SettingsRowTypography.labelLineHeight, weight: .medium)
+    }
   }
 }

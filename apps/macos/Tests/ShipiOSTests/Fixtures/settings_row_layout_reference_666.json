@@ -1,0 +1,614 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+    "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535"
+  ],
+  "cases": [
+    {
+      "props": {},
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "size": "compact"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-4 py-2",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "controlSizing": "intrinsic"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "controlSizing": "grow"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 min-w-0 flex-1",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "variant": "nested"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 group-data-[density=form]/settings:px-5 flex min-h-10 justify-between gap-3 py-2 max-sm:min-h-0 max-sm:flex-col max-sm:items-stretch group-data-[density=form]/settings:min-h-12 sm:group-data-[density=form]/settings:py-0 items-center",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 flex-1 items-center justify-end max-sm:justify-stretch",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "variant": "stacked"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 flex flex-col items-stretch gap-1 py-3 group-data-[density=compact]/settings:gap-0.5 group-data-[density=compact]/settings:py-2.5 group-data-[density=compact]/settings:first:pt-3.5 group-data-[density=compact]/settings:last:pb-4",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "w-full",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "labelWeight": "regular"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm",
+                            "children": "Setting"
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": "Description"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "folders": [
+    {
+      "root": null,
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "id": "settings.general.projectlessChatFolder.label",
+                                "defaultMessage": "Projectless task folder",
+                                "description": "Label for the default data folder for tasks started outside projects"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "id": "settings.general.projectlessChatFolder.description",
+                                "defaultMessage": "The location where tasks started outside of projects store their data by default.",
+                                "description": "Explanation of the default data folder for tasks started outside projects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": {
+                  "type": "div",
+                  "props": {
+                    "className": "flex min-w-0 items-center gap-2",
+                    "children": [
+                      {
+                        "type": "middle-truncated-text",
+                        "props": {
+                          "className": "w-48 max-w-full font-mono text-xs text-secondary select-text",
+                          "text": "/default/folder"
+                        }
+                      },
+                      {
+                        "type": "div",
+                        "props": {
+                          "className": "flex shrink-0 items-center gap-1",
+                          "children": [
+                            {
+                              "type": "button",
+                              "props": {
+                                "type": "button",
+                                "color": "secondary",
+                                "size": "toolbar",
+                                "loading": false,
+                                "children": {
+                                  "type": "message",
+                                  "props": {
+                                    "id": "settings.general.projectlessChatFolder.change",
+                                    "defaultMessage": "Change",
+                                    "description": "Button that opens the native projectless task folder picker"
+                                  }
+                                }
+                              }
+                            },
+                            null
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "root": "/custom/folder",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 gap-3 items-center flex-1",
+                "children": [
+                  null,
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "flex min-w-0 flex-1 flex-col gap-0.5",
+                      "children": [
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "id": "settings.general.projectlessChatFolder.label",
+                                "defaultMessage": "Projectless task folder",
+                                "description": "Label for the default data folder for tasks started outside projects"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "div",
+                          "props": {
+                            "className": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "id": "settings.general.projectlessChatFolder.description",
+                                "defaultMessage": "The location where tasks started outside of projects store their data by default.",
+                                "description": "Explanation of the default data folder for tasks started outside projects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": {
+                  "type": "div",
+                  "props": {
+                    "className": "flex min-w-0 items-center gap-2",
+                    "children": [
+                      {
+                        "type": "middle-truncated-text",
+                        "props": {
+                          "className": "w-48 max-w-full font-mono text-xs text-secondary select-text",
+                          "text": "/custom/folder"
+                        }
+                      },
+                      {
+                        "type": "div",
+                        "props": {
+                          "className": "flex shrink-0 items-center gap-1",
+                          "children": [
+                            {
+                              "type": "button",
+                              "props": {
+                                "type": "button",
+                                "color": "secondary",
+                                "size": "toolbar",
+                                "loading": false,
+                                "children": {
+                                  "type": "message",
+                                  "props": {
+                                    "id": "settings.general.projectlessChatFolder.change",
+                                    "defaultMessage": "Change",
+                                    "description": "Button that opens the native projectless task folder picker"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "button",
+                              "props": {
+                                "type": "button",
+                                "color": "ghost",
+                                "size": "toolbar",
+                                "children": {
+                                  "type": "message",
+                                  "props": {
+                                    "id": "settings.general.projectlessChatFolder.reset",
+                                    "defaultMessage": "Reset",
+                                    "description": "Button that restores the default projectless task folder"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "expected": {
+    "labelFontSize": 12,
+    "descriptionFontSize": 11,
+    "labelDescriptionGap": 2,
+    "labelLineHeight": 17.142857142857142,
+    "controlMinimum": 160,
+    "controlWidthFraction": 0.4,
+    "rowGap": 24,
+    "descriptionLineHeight": 16,
+    "folderPathWidth": 192
+  },
+  "widths": [
+    {
+      "width": 628,
+      "minimumControlWidth": 160
+    },
+    {
+      "width": 328,
+      "minimumControlWidth": 131.20000000000002
+    },
+    {
+      "width": 168,
+      "minimumControlWidth": 67.2
+    }
+  ]
+}

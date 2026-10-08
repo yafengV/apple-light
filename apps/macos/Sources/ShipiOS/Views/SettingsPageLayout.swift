@@ -71,11 +71,9 @@ struct SettingsForm<Content: View>: View {
 
 struct SettingsFormLabeledContentStyle: LabeledContentStyle {
   func makeBody(configuration: Configuration) -> some View {
-    HStack(spacing: SettingsCardLayout.rowGap) {
-      configuration.label.frame(maxWidth: .infinity, alignment: .leading)
+    SettingsLabeledRow { configuration.label } control: {
       configuration.content.fixedSize(horizontal: false, vertical: true)
     }
-    .accessibilityElement(children: .contain)
   }
 }
 

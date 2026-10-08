@@ -104,18 +104,25 @@ struct RuntimeSettingsView: View {
             selection: $store.webLinkTarget,
             options: WebLinkTarget.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.webLinks)
-          LabeledContent("无项目任务文件夹") {
-            Text(store.projectlessWorkspaceRoot.path)
-              .lineLimit(2).multilineTextAlignment(.trailing).textSelection(.enabled)
+          SettingsLabeledRow {
+            SettingsControlLabel(title: "无项目任务文件夹",
+              description: "没有项目的任务默认在此位置保存数据。")
+          } control: {
+            HStack(spacing: 8) {
+              Text(store.projectlessWorkspaceRoot.path)
+                .appFont(size: 11, design: .monospaced).foregroundStyle(.secondary)
+                .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                .frame(minWidth: 0, idealWidth: 192, maxWidth: 192, alignment: .leading)
+                .help(store.projectlessWorkspaceRoot.path)
+              HStack(spacing: 4) {
+                Button("更改…") { store.chooseProjectlessWorkspaceRoot() }
+                if store.library.projectlessWorkspaceRoot != nil {
+                  Button("恢复默认") { store.setProjectlessWorkspaceRoot(nil) }
+                }
+              }.fixedSize()
+            }
           }
           .settingsSearchTarget(.projectlessFolder)
-          HStack {
-            Button("更改…") { store.chooseProjectlessWorkspaceRoot() }
-            Button("恢复默认") { store.setProjectlessWorkspaceRoot(nil) }
-              .disabled(store.library.projectlessWorkspaceRoot == nil)
-          }
-          Text("每个无项目任务会在这里获得独立目录。该目录进入模型上下文，并作为回答中相对文件链接的安全根目录。")
-            .appFont(.caption).foregroundStyle(.secondary)
         }
         SettingsSection("弹出窗口") {
           PopoutHotkeySettingsRow(store: store)

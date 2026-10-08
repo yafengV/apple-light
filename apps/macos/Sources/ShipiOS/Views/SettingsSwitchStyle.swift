@@ -14,6 +14,7 @@ private struct SettingsSwitchRow<Label: View>: View {
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.layoutDirection) private var direction
   @Environment(\.appAppearance) private var appearance
+  @Environment(\.settingsMinimumControlWidth) private var reservesControlWidth
   @FocusState private var focused: Bool
 
   private var blue: Color {
@@ -21,9 +22,7 @@ private struct SettingsSwitchRow<Label: View>: View {
   }
 
   var body: some View {
-    HStack {
-      label
-      Spacer(minLength: 12)
+    SettingsLabeledRow(reservesControlWidth: reservesControlWidth) { label } control: {
       Capsule()
         .fill(isOn ? blue : appearance.foregroundColor.opacity(0.1))
         .frame(width: 32, height: 20)

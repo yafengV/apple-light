@@ -32,6 +32,7 @@ struct SettingsSection<Header: View, Content: View, Footer: View>: View {
       AppearanceSettingsCard {
         content
           .labeledContentStyle(SettingsFormLabeledContentStyle())
+          .environment(\.settingsMinimumControlWidth, true)
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.horizontal, SettingsCardLayout.rowHorizontalInset)
           .padding(.vertical, SettingsCardLayout.rowVerticalInset)
@@ -50,7 +51,7 @@ struct SettingsSection<Header: View, Content: View, Footer: View>: View {
       }
       .transformPreference(SettingsRowBoundsKey.self) { $0 = [] }
       if hasFooter {
-        footer.appFont(size: 12).foregroundStyle(.secondary)
+        footer.appFont(size: SettingsRowTypography.descriptionSize).foregroundStyle(.secondary)
           .padding(.horizontal, 16).padding(.top, 6)
       }
     }

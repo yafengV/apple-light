@@ -28,7 +28,10 @@ final class SettingsCardLayoutTests: XCTestCase {
       let labelRect = label.convert(label.bounds, to: host)
       XCTAssertEqual(labelRect.minX, 36, accuracy: 1)
       XCTAssertEqual(controlRect.maxX, width - 36, accuracy: 1)
-      XCTAssertEqual(controlRect.minX - labelRect.maxX, 24, accuracy: 1)
+      let row = try SettingsRowLayoutReference.load().expected
+      let available = width - 72
+      let minimum = min(row.controlMinimum, available * row.controlWidthFraction)
+      XCTAssertEqual(controlRect.minX - labelRect.maxX, row.rowGap + minimum - 100, accuracy: 1)
       XCTAssertEqual(scrollViews(host).count, 1)
     }
   }
