@@ -2,8 +2,8 @@ import AppKit
 
 extension WorkspaceStore {
   var filesVisible: Bool {
-    destination == .workspace && showingInspector && pane == "files"
-      && visibleWorkspaceContentTabs(in: .right).isEmpty
+    destination == .workspace && showsWorkspaceInspector && pane == "files"
+      && presentedWorkspaceContentTabs(in: .right).isEmpty
   }
   var commandFileWorkspace: DeveloperWorkspace? {
     guard destination == .workspace else { return nil }

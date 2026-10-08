@@ -5,7 +5,7 @@ extension WorkspaceStore {
     destination == .workspace
       && (activeBrowserTabID != nil
         || (showsWorkspaceInspector && activeRightWorkspaceContentTab?.browserID != nil)
-        || (showsWorkspaceInspector && visibleWorkspaceContentTabs(in: .right).isEmpty && pane == "browser"))
+        || (showsWorkspaceInspector && presentedWorkspaceContentTabs(in: .right).isEmpty && pane == "browser"))
   }
   var browserFocused: Bool { browserVisible && presentedOverlay == nil && !showingModelPicker
     && !showingBranchPicker && workspace.browser.hasNativeFocus }
@@ -36,12 +36,12 @@ extension WorkspaceStore {
   }
   func newBrowserTab(in placement: WorkspaceTabPlacement) {
     destination = .workspace
-    let previousLeft = activeWorkspaceTabID
+    workspaceContentLayoutMode = placement == .left ? .full : .split
+    if placement == .left { showingInspector = false }
     let tab = workspace.browser.newTab()
     let id = WorkspaceContentTab.browser(tab.id, owner: currentWorkspaceTabOwner).id
     if placement != .left {
       moveWorkspaceTab(id, to: placement)
-      activeWorkspaceTabID = previousLeft
     }
   }
   func closeBrowserTab(_ id: UUID) {

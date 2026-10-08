@@ -98,20 +98,25 @@ import Observation
   func visibleTabs(_ placement: WorkspaceTabPlacement) -> [WorkspaceContentTab] {
     tabs.filter { self.placement($0.id) == placement }
   }
+  var primaryContentTabs: [WorkspaceContentTab] {
+    tabs.filter { [.left, .right].contains(placement($0.id)) }
+  }
   func presentedTabs(_ place: WorkspaceTabPlacement) -> [WorkspaceContentTab] {
-    guard effectiveContentLayoutMode == .full else { return visibleTabs(place) }
-    if place == .left { return tabs.filter { [.left, .right].contains(placement($0.id)) } }
-    return place == .right ? [] : visibleTabs(place)
+    if place == .left || place == .right {
+      let surface: WorkspaceTabPlacement = effectiveContentLayoutMode == .full ? .left : .right
+      return place == surface ? primaryContentTabs : []
+    }
+    return visibleTabs(place)
   }
   var showsContentSidePanel: Bool {
     effectiveContentLayoutMode == .split && showingRight && selected(.right) != nil
   }
   func stripPlacement(_ id: String) -> WorkspaceTabPlacement {
     let place = placement(id)
-    return effectiveContentLayoutMode == .full && place == .right ? .left : place
+    return [.left, .right].contains(place) ? (effectiveContentLayoutMode == .full ? .left : .right) : place
   }
   func selected(_ placement: WorkspaceTabPlacement) -> WorkspaceContentTab? {
-    let candidates = placement == .left ? presentedTabs(.left) : visibleTabs(placement)
+    let candidates = placement == .left ? presentedTabs(.left) : placement == .right ? primaryContentTabs : visibleTabs(placement)
     return candidates.first { $0.id == selections[placement] }
   }
   var focused: WorkspaceContentTab? {
@@ -123,8 +128,9 @@ import Observation
   var canReopen: Bool { !closed.isEmpty }
   func isVisible(_ id: String) -> Bool {
     let place = placement(id)
-    if effectiveContentLayoutMode == .full && [.left, .right].contains(place) {
-      return selections[.left] == id
+    if [.left, .right].contains(place) {
+      if effectiveContentLayoutMode == .full { return selections[.left] == id }
+      return selections[.right] == id && showingRight && !panels.showingFiles
     }
     return selections[place] == id && (place == .left || (place == .right && showingRight && !panels.showingFiles)
       || (place == .bottom && showingBottom))
@@ -159,14 +165,14 @@ import Observation
     }
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
     let place = placement(id)
-    if place == .left { contentLayoutMode = .full }
-    selections[place] = id
-    if place == .right {
+    if place == .left || place == .right {
+      if contentLayoutMode == nil { contentLayoutMode = place == .left ? .full : .split }
       panels.showingFiles = false
-      if effectiveContentLayoutMode == .full { selections[.left] = id }
-      else { showingRight = true }
-    }
-    if place == .bottom { showingBottom = true }
+      if effectiveContentLayoutMode == .full {
+        selections[.left] = id
+        if place == .right { selections[.right] = id }
+      } else { selections[.left] = nil; selections[.right] = id; showingRight = true }
+    } else { selections[place] = id; if place == .bottom { showingBottom = true } }
     focusedID = id; lastContentID = id
     if let browserID = tab.browserID {
       synchronizingBrowser = true
@@ -254,7 +260,7 @@ import Observation
     guard place == .left || place == .right, panels.workspace.root != nil,
       pullRequest?(request.url)?.validatedURL != nil else { return false }
     let tab = WorkspaceContentTab.pullRequest(request.url, owner: taskID)
-    if !tabs.contains(tab) { tabs.append(tab); placements[tab.id] = place }
+    if !tabs.contains(tab) { tabs.append(tab); move(tab.id, to: place) }
     if mergeConfirmation { pullRequestPresentations.request(tab.id) }
     activate(tab.id)
     return true
@@ -265,7 +271,7 @@ import Observation
       watchAutomation?(watch.id, target) != nil else { return false }
     let tab = WorkspaceContentTab.pullRequestWatch(watch.id, task: target, owner: taskID)
     if let index = tabs.firstIndex(where: { $0.id == tab.id }) { tabs[index] = tab }
-    else { tabs.append(tab); placements[tab.id] = place }
+    else { tabs.append(tab); move(tab.id, to: place) }
     activate(tab.id)
     return true
   }
@@ -292,7 +298,7 @@ import Observation
   func toggleTerminal(in place: WorkspaceTabPlacement) {
     let visible = place == .right ? showsContentSidePanel : showingBottom
     if visible, selected(place)?.terminalID != nil { hide(place); return }
-    if let existing = visibleTabs(place).first(where: { $0.terminalID != nil }) { move(existing.id, to: place) }
+    if let existing = (place == .right ? primaryContentTabs : visibleTabs(place)).first(where: { $0.terminalID != nil }) { move(existing.id, to: place) }
     else { newTerminal(in: place) }
   }
   func toggleBottom() {
@@ -303,7 +309,7 @@ import Observation
   func hide(_ place: WorkspaceTabPlacement) {
     if place == .right { showingRight = false; panels.showingFiles = false }
     if place == .bottom { showingBottom = false }
-    if focusedID.map(placement) == place { activate(selected(.left)?.id) }
+    if focusedID.map(stripPlacement) == place { activate(selected(.left)?.id) }
   }
   func canMove(_ id: String, to place: WorkspaceTabPlacement) -> Bool {
     guard let tab = tabs.first(where: { $0.id == id }), place != .detached else { return false }
@@ -312,7 +318,7 @@ import Observation
   func move(_ id: String, to place: WorkspaceTabPlacement) {
     guard canMove(id, to: place) else { return }
     let previous = placement(id)
-    if place == .left { contentLayoutMode = .full }
+    if place == .left { contentLayoutMode = .full; showingRight = false }
     else if place == .right { contentLayoutMode = .split; selections[.left] = nil }
     if previous != place {
       clearSelection(id); placements[id] = place
@@ -339,13 +345,13 @@ import Observation
   private func remove(_ id: String) {
     if draggingTabID == id { endDrag() }
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-    let place = placement(id), wasFocused = focusedID == id
+    let place = placement(id), strip = stripPlacement(id), wasFocused = focusedID == id
     closed.append(Closed(tab: tabs[index], placement: place))
     if closed.count > 20 { closed.removeFirst(closed.count - 20) }
     tabs.remove(at: index); placements[id] = nil; clearSelection(id)
-    repairSelection(place)
+    repairSelection(strip)
     if wasFocused {
-      if let next = selected(place) { activate(next.id) }
+      if let next = selected(strip) { activate(next.id) }
       else { chatFocus = UUID() }
     }
   }
@@ -358,8 +364,12 @@ import Observation
   }
   private func repairSelection(_ place: WorkspaceTabPlacement) {
     // The main pane always has its chat tab; side panes fall back to a surviving tab.
-    if place != .left, selected(place) == nil { selections[place] = visibleTabs(place).first?.id }
-    if visibleTabs(place).isEmpty {
+    let candidates = place == .right ? primaryContentTabs : presentedTabs(place)
+    if place != .left, selected(place) == nil {
+      selections[place] = place == .right && effectiveContentLayoutMode == .full ? nil : candidates.first?.id
+      if place == .right, selections[place] == nil { showingRight = false }
+    }
+    if candidates.isEmpty {
       if place == .right { showingRight = false }
       if place == .bottom { showingBottom = false }
     }
@@ -526,15 +536,14 @@ import Observation
       placements[tab.id] = entry.placement == .detached || (entry.placement == .bottom && tab.terminalID == nil)
         ? .left : entry.placement
     }
-    contentLayoutMode = layout.contentLayoutMode
-    for (place, id) in [(WorkspaceTabPlacement.left, layout.active), (.right, layout.right), (.bottom, layout.bottom)] {
-      let candidates = place == .left ? presentedTabs(.left) : visibleTabs(place)
-      if let id, candidates.contains(where: { $0.id == id }) { selections[place] = id }
-    }
-    showingRight = layout.showingInspector && !visibleTabs(.right).isEmpty
+    contentLayoutMode = layout.contentLayoutMode ?? (visibleTabs(.left).contains { $0.id == layout.active } ? .full : .split)
+    func primary(_ id: String?) -> String? { primaryContentTabs.first { $0.id == id }?.id }
+    selections[.left] = effectiveContentLayoutMode == .full ? primary(layout.active) : nil
+    selections[.right] = primary(layout.right) ?? (effectiveContentLayoutMode == .split ? primary(layout.active) : nil)
+    selections[.bottom] = visibleTabs(.bottom).first { $0.id == layout.bottom }?.id
+    showingRight = layout.showingInspector && selected(.right) != nil
     showingBottom = layout.showingTerminal && !visibleTabs(.bottom).isEmpty
     showingTabs = layout.showingTabs
-    contentLayoutMode = layout.contentLayoutMode ?? (selected(.left) == nil ? .split : .full)
     primarySide = layout.side
     panels.panelSizes = saved.panelSizes
     panels.showingFiles = sameProject && panels.workspace.root != nil && saved.showingFiles

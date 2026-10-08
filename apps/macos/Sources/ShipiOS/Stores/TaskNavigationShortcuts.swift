@@ -36,23 +36,17 @@ extension WorkspaceStore {
       guard workspace.openFiles.count > 1 else { return false }
       workspace.moveFile(direction); return true
     }
-    if let focused = focusedWorkspaceContentTab,
-      workspaceTabPlacement(focused.id) == .bottom || (workspaceTabPlacement(focused.id) == .right && effectiveWorkspaceContentLayoutMode == .split) {
-      let tabs = visibleWorkspaceContentTabs(in: workspaceTabPlacement(focused.id))
+    if let focused = focusedWorkspaceContentTab, workspaceTabStripPlacement(focused.id) == .bottom {
+      let tabs = visibleWorkspaceContentTabs(in: .bottom)
       guard tabs.count > 1, let index = tabs.firstIndex(where: { $0.id == focused.id }) else { return false }
       activateWorkspaceTab(tabs[(index + direction + tabs.count) % tabs.count].id); return true
     }
-    if effectiveWorkspaceContentLayoutMode == .split, browserFocused,
-      activeWorkspaceContentTab == nil, focusedWorkspaceContentTab == nil {
-      return moveLegacyBrowserTab(direction)
-    }
     let full = effectiveWorkspaceContentLayoutMode == .full
-    let content = visibleWorkspaceContentTabs.filter {
-      workspaceTabPlacement($0.id) == .left || (full && workspaceTabPlacement($0.id) == .right)
-    }
-    let ids: [String?] = [nil] + content.map { Optional($0.id) }
+    guard full || focusedWorkspaceContentTab != nil || browserFocused else { return false }
+    let content = workspacePrimaryContentTabs
+    let ids: [String?] = (full ? [nil] : []) + content.map { Optional($0.id) }
     guard ids.count > 1 else { return false }
-    let current = focusedWorkspaceContentTab?.id ?? activeWorkspaceTabID
+    let current = focusedWorkspaceContentTab?.id ?? (full ? activeWorkspaceTabID : activeRightWorkspaceTabID)
     let index = ids.firstIndex { $0 == current } ?? 0
     activateWorkspaceTab(ids[(index + direction + ids.count) % ids.count]); return true
   }

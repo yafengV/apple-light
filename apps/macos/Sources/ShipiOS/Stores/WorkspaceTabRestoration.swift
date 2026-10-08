@@ -63,13 +63,11 @@ extension WorkspaceStore {
     }), let browserID = visibleWorkspaceContentTabs.first(where: { $0.id == id })?.browserID {
       workspace.browser.select(browserID, focus: false)
     }
-    workspaceContentLayoutMode = layout.contentLayoutMode
-    activeWorkspaceTabID = layout.contentLayoutMode == .full
-      ? presentedWorkspaceContentTabs(in: .left).first { $0.id == layout.active }?.id
-      : selected(layout.active, in: .left)
-    activeRightWorkspaceTabID = selected(layout.right, in: .right)
+    workspaceContentLayoutMode = layout.contentLayoutMode ?? (selected(layout.active, in: .left) == nil ? .split : .full)
+    func primary(_ id: String?) -> String? { workspacePrimaryContentTabs.first { $0.id == id }?.id }
+    activeWorkspaceTabID = effectiveWorkspaceContentLayoutMode == .full ? primary(layout.active) : nil
+    activeRightWorkspaceTabID = primary(layout.right) ?? (effectiveWorkspaceContentLayoutMode == .split ? primary(layout.active) : nil)
     activeBottomWorkspaceTabID = selected(layout.bottom, in: .bottom)
-    workspaceContentLayoutMode = layout.contentLayoutMode ?? (activeWorkspaceContentTab == nil ? .split : .full)
     focusedWorkspaceTabID = visibleWorkspaceContentTabs.first { $0.id == layout.focused }?.id
     showingInspector = layout.showingInspector
     showingTerminal = layout.showingTerminal && !visibleWorkspaceContentTabs(in: .bottom).isEmpty

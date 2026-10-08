@@ -249,7 +249,7 @@ import XCTest
     for task in library.tasks { library.recordTaskVisit(task.id) }
     XCTAssertEqual(library.recentTaskIDs, (5..<25).reversed().map(String.init))
   }
-  func testSplitContentRoutingCyclesFocusedPaneWithoutOpeningDetachedOrOtherPaneTabs() throws {
+  func testSplitContentRoutingCyclesWholePrimaryPoolWithoutOpeningDetachedTabs() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
@@ -263,7 +263,9 @@ import XCTest
     store.activeRightWorkspaceTabID = first.id; store.focusedWorkspaceTabID = first.id; store.showingInspector = true
     XCTAssertTrue(store.adjacentContentTab(1)); XCTAssertEqual(store.activeRightWorkspaceTabID, second.id)
     XCTAssertNil(store.activeWorkspaceTabID)
+    XCTAssertTrue(store.adjacentContentTab(1)); XCTAssertEqual(store.activeRightWorkspaceTabID, left.id)
     XCTAssertTrue(store.adjacentContentTab(1)); XCTAssertEqual(store.activeRightWorkspaceTabID, first.id)
+    XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, .split)
   }
 
   private final class KeyWindow: NSWindow { override var isKeyWindow: Bool { true } }
@@ -348,7 +350,7 @@ import XCTest
       XCTAssertTrue(tabs.openFile(name, in: name == "left" ? .left : .right))
     }
     for sample in cases {
-      tabs.activate(sample.mode == "full" ? WorkspaceContentTab.file("left", owner: "a").id : nil)
+      tabs.move(WorkspaceContentTab.file("left", owner: "a").id, to: .left)
       tabs.activate(WorkspaceContentTab.file(sample.current, owner: "a").id)
       XCTAssertEqual(tabs.navigateAdjacentContentTab(sample.direction == "next" ? 1 : -1), sample.handled)
       let expected = sample.selected.first == "chat" ? nil : sample.selected.first.map { WorkspaceContentTab.file($0, owner: "a").id }

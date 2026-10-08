@@ -66,7 +66,7 @@ struct WorkspaceTabStrip: View {
     .accessibilityAddTraits(store.activeWorkspaceContentTab == nil ? .isSelected : [])
     .contextMenu {
       Button("关闭其他标签页") { store.closeOtherWorkspaceTabs(keeping: nil) }
-        .disabled(store.visibleWorkspaceContentTabs.isEmpty)
+        .disabled(store.presentedWorkspaceContentTabs(in: .left).isEmpty)
       Button("关闭右侧标签页") { store.closeWorkspaceTabsToRight(of: nil) }
         .disabled(!store.canCloseWorkspaceTabsToRight(of: nil))
     }
@@ -150,7 +150,7 @@ private struct WorkspaceContentTabChip: View {
       Divider()
       Button("关闭") { store.closeWorkspaceTab(tab.id) }
       Button("关闭其他标签页") { store.closeOtherWorkspaceTabs(keeping: tab.id) }
-        .disabled(store.visibleWorkspaceContentTabs.count <= 1)
+        .disabled(store.presentedWorkspaceContentTabs(in: placement).count <= 1)
       Button("关闭右侧标签页") { store.closeWorkspaceTabsToRight(of: tab.id) }
         .disabled(!store.canCloseWorkspaceTabsToRight(of: tab.id))
     }

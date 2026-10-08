@@ -27,7 +27,7 @@ extension TaskWindowTabs {
     switch id {
     case "browser":
       if let tab = commandContentTab, tab.browserID != nil {
-        if stripPlacement(tab.id) == .left { activate(nil) } else { hide(placement(tab.id)) }
+        if stripPlacement(tab.id) == .left { activate(nil) } else { hide(stripPlacement(tab.id)) }
       } else if let tab = tabs.first(where: { $0.browserID != nil }) { activate(tab.id) }
       else { newBrowser() }
     case "browser-new": newBrowser()
@@ -52,11 +52,11 @@ extension TaskWindowTabs {
     return true
   }
   @discardableResult func navigateAdjacentContentTab(_ direction: Int) -> Bool {
-    let place = focused.map { placement($0.id) } ?? .left
+    let place = focused.map { stripPlacement($0.id) } ?? .left
     let full = effectiveContentLayoutMode == .full
-    let local = place == .bottom || (place == .right && !full)
-    let content = local ? visibleTabs(place) : tabs.filter { placement($0.id) == .left || (full && placement($0.id) == .right) }
-    let ids: [String?] = (local ? [] : [nil]) + content.map { Optional($0.id) }
+    guard full || focused != nil else { return false }
+    let content = place == .bottom ? visibleTabs(.bottom) : primaryContentTabs
+    let ids: [String?] = (full && place != .bottom ? [nil] : []) + content.map { Optional($0.id) }
     guard ids.count > 1 else { return false }
     let current = focused?.id ?? selected(place)?.id
     let index = ids.firstIndex { $0 == current } ?? 0

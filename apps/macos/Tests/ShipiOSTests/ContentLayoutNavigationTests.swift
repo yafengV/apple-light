@@ -78,7 +78,7 @@ import XCTest
     let tabs = try XCTUnwrap(resources.tasks["a"])
     tabs.openSources(in: .left)
     XCTAssertTrue(tabs.openSubagents(in: .right))
-    tabs.activate(WorkspaceContentTab.sources(owner: "a").id)
+    tabs.move(WorkspaceContentTab.sources(owner: "a").id, to: .left)
     tabs.activate(nil)
     XCTAssertTrue(tabs.navigateAdjacentContentTab(-1))
     XCTAssertEqual(tabs.focusedID, WorkspaceContentTab.subagents(owner: "a").id)
@@ -108,7 +108,7 @@ import XCTest
       let resources = TaskWindowResources(); resources.prepare("a", store: original); defer { resources.shutdown() }
       let tabs = try XCTUnwrap(resources.tasks["a"])
       tabs.openSources(); XCTAssertTrue(tabs.openSubagents())
-      tabs.activate(WorkspaceContentTab.sources(owner: "a").id); tabs.activate(nil)
+      tabs.move(WorkspaceContentTab.sources(owner: "a").id, to: .left); tabs.activate(nil)
       let saved = try JSONDecoder().decode(TaskWindowTabLayout.self, from: JSONEncoder().encode(tabs.layoutSnapshot))
       let other = TaskWindowResources(); other.prepare("a", store: original); defer { other.shutdown() }
       let result = try XCTUnwrap(other.tasks["a"])
@@ -240,7 +240,7 @@ import XCTest
     store.newBrowserTab(in: .right)
     let right = try XCTUnwrap(store.activeRightWorkspaceContentTab)
     let page = try XCTUnwrap(store.workspace.browser.tabs.first { $0.id == right.browserID })
-    store.activateWorkspaceTab(first.id); store.activateWorkspaceTab(right.id)
+    store.moveWorkspaceTab(first.id, to: .left); store.activateWorkspaceTab(right.id)
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1200, height: 720),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
@@ -270,7 +270,7 @@ import XCTest
     tabs.newBrowser(); let taskFirst = try XCTUnwrap(tabs.selected(.left))
     tabs.newBrowser(in: .right); let taskRight = try XCTUnwrap(tabs.selected(.right))
     let taskPage = try XCTUnwrap(tabs.browser.session.tabs.first { $0.id == taskRight.browserID })
-    tabs.activate(taskFirst.id); tabs.activate(taskRight.id)
+    tabs.move(taskFirst.id, to: .left); tabs.activate(taskRight.id)
     let taskWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 720),
       styleMask: [.titled], backing: .buffered, defer: false)
     taskWindow.isReleasedWhenClosed = false
@@ -327,7 +327,7 @@ import XCTest
       let tabs = try XCTUnwrap(resources.tasks["a"])
       tabs.openSources(); XCTAssertTrue(tabs.openSubagents())
       let first = WorkspaceContentTab.sources(owner: "a").id, second = WorkspaceContentTab.subagents(owner: "a").id
-      tabs.activate(first); tabs.activate(second)
+      tabs.move(first, to: .left); tabs.activate(second)
       XCTAssertEqual(tabs.selected(.left)?.id, second)
       XCTAssertFalse(tabs.chatVisible)
       XCTAssertTrue(tabs.isVisible(second))
@@ -379,7 +379,7 @@ import XCTest
       let resources = TaskWindowResources(); resources.prepare("a", store: store); defer { resources.shutdown() }
       let tabs = try XCTUnwrap(resources.tasks["a"])
       tabs.openSources(); XCTAssertTrue(tabs.openSubagents())
-      tabs.activate(first)
+      tabs.move(first, to: .left)
       XCTAssertTrue(tabs.reorder(second, relativeTo: first, after: false))
       XCTAssertEqual(tabs.presentedTabs(.left).map(\.id), [second, first])
       XCTAssertTrue(tabs.canCloseRight(of: second, in: .left))

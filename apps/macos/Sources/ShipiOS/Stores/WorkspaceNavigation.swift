@@ -349,14 +349,13 @@ extension WorkspaceStore {
   }
   func togglePane(_ name: String) {
     if name == "browser" || name == "review" {
-      let matchingRightTab = visibleWorkspaceContentTabs(in: .right).contains { tab in
+      let matchingRightTab = presentedWorkspaceContentTabs(in: .right).contains { tab in
         if name == "browser" { return tab.browserID != nil }
         if case .review = tab { return true }
         return false
       }
-      if destination == .workspace, showingInspector, matchingRightTab {
-        showingInspector = false
-        focusComposer = UUID()
+      if destination == .workspace, showsWorkspaceInspector, matchingRightTab {
+        toggleWorkspaceInspector()
       } else { showPane(name) }
       return
     }
@@ -383,8 +382,11 @@ extension WorkspaceStore {
     workspaceContentPaneSide.swap()
   }
   func toggleWorkspaceInspector() {
-    if showsWorkspaceInspector { showingInspector = false }
-    else if let tab = activeRightWorkspaceContentTab ?? visibleWorkspaceContentTabs(in: .right).first {
+    if showsWorkspaceInspector {
+      showingInspector = false
+      if effectiveWorkspaceContentLayoutMode == .split { activateChatTab() }
+    }
+    else if let tab = activeRightWorkspaceContentTab ?? workspacePrimaryContentTabs.first {
       moveWorkspaceTab(tab.id, to: .right)
     } else { showingInspector = true }
   }

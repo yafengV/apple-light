@@ -19,6 +19,8 @@ extension WorkspaceStore {
           layout.tabs[index].committedURL = page.committedURL?.absoluteString
         }
         layout.active = id
+        layout.contentLayoutMode = .full
+        layout.showingInspector = false
         layout.focused = id
         if layout.right == id { layout.right = nil }
         if layout.bottom == id { layout.bottom = nil }

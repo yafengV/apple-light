@@ -182,7 +182,7 @@ struct TaskWindowView: View {
                 sidePanelResizeHandle(geometry)
               }
               VStack(spacing: 0) {
-                if tabs.showingTabs && (!backgroundAgent || !tabs.tabs.isEmpty) { tabStrip(task, placement: .left); Divider() }
+                if tabs.showingTabs && tabs.effectiveContentLayoutMode == .full && (!backgroundAgent || !tabs.tabs.isEmpty) { tabStrip(task, placement: .left); Divider() }
                 if let tab = tabs.selected(.left) {
                   content(tab, task: task).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -1070,7 +1070,7 @@ struct TaskWindowView: View {
 
   private func browserPanelContext(_ tab: WorkspaceContentTab) -> BrowserPanelContext {
     BrowserPanelContext(taskID: taskID, canFocus: { tabs.isVisible(tab.id) && tabs.focusedID == tab.id && !windowCommandsBlocked },
-      newTab: { tabs.newBrowser(in: tabs.placement(tab.id)) },
+      newTab: { tabs.newBrowser(in: tabs.stripPlacement(tab.id)) },
       closeTab: { tabs.close(WorkspaceContentTab.browser($0, owner: taskID).id) }, reopen: { tabs.reopen() },
       openSettings: { store.openSettings(.browser); openWindow(id: "main") },
       openSources: { tabs.openSources() },
@@ -1107,7 +1107,7 @@ struct TaskWindowView: View {
     actionError = nil
   }
   private func toggleReview() {
-    if tabs.showingRight, tabs.selected(.right) == .review(owner: taskID) { tabs.hide(.right) }
+    if tabs.showsContentSidePanel, tabs.selected(.right) == .review(owner: taskID) { tabs.hide(.right) }
     else { tabs.openReview(in: .right, defaultScope: store.library.gitPreferences.defaultReviewScope) }
   }
 
@@ -1214,7 +1214,7 @@ struct TaskWindowView: View {
         BrowserPanel(store: store, session: browser.session, context: browserPanelContext(tab), showsTabStrip: false, tabID: id)
       case .file:
         FileWorkspaceTabView(store: store, tab: tab,
-          openFile: { _ = tabs.openFile($0, in: tabs.placement(tab.id)) },
+          openFile: { _ = tabs.openFile($0, in: tabs.stripPlacement(tab.id)) },
           close: { tabs.close(tab.id) })
       case .review:
         GitReviewView(store: store, workspace: taskWorkspace, taskID: taskID, focusComposer: { tabs.revealChat() })
@@ -1262,7 +1262,7 @@ struct TaskWindowView: View {
         if let session = panels.terminals.first(where: { $0.id == id }) {
           TaskWindowTerminalPanel(session: session, task: task, focus: panels.terminalFocus,
             canFocus: { tabs.isVisible(tab.id) && tabs.focusedID == tab.id && !windowCommandsBlocked },
-            hide: { tabs.hide(tabs.placement(tab.id)) }, restart: { tabs.restartTerminal(id) },
+            hide: { tabs.hide(tabs.stripPlacement(tab.id)) }, restart: { tabs.restartTerminal(id) },
             split: panels.splitTerminals[id], openSplit: { _ = panels.splitTerminal(id) },
             closeSplit: { panels.closeTerminalSplit(id) },
             restartSplit: { _ = panels.restartTerminalSplit(id) },

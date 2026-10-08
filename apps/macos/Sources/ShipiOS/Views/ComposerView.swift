@@ -243,7 +243,7 @@ struct ComposerView: View {
       text: $store.draft,
       focused: Binding(get: { focused && !store.showingModelPicker }, set: { value in
         focused = value
-        if value { updateCommands() }
+        if value { store.focusedWorkspaceTabID = nil; updateCommands() }
       }),
       plainTextMode: store.composerPlainTextMode,
       placeholder: "发送消息，或输入 / 选择操作…",

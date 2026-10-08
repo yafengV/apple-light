@@ -15,13 +15,17 @@ extension WorkspaceStore {
     visibleWorkspaceContentTabs.filter { workspaceTabPlacement($0.id) == placement }
   }
 
-  /// Full mode has one content strip; saved placements remain available for split mode.
+  var workspacePrimaryContentTabs: [WorkspaceContentTab] {
+    visibleWorkspaceContentTabs.filter { [.left, .right].contains(workspaceTabPlacement($0.id)) }
+  }
+
+  /// Both layouts share one collection. Placement records opening intent, not visibility.
   func presentedWorkspaceContentTabs(in placement: WorkspaceTabPlacement) -> [WorkspaceContentTab] {
-    guard effectiveWorkspaceContentLayoutMode == .full else { return visibleWorkspaceContentTabs(in: placement) }
-    if placement == .left {
-      return visibleWorkspaceContentTabs.filter { [.left, .right].contains(workspaceTabPlacement($0.id)) }
+    if placement == .left || placement == .right {
+      let surface: WorkspaceTabPlacement = effectiveWorkspaceContentLayoutMode == .full ? .left : .right
+      return placement == surface ? workspacePrimaryContentTabs : []
     }
-    return placement == .right ? [] : visibleWorkspaceContentTabs(in: placement)
+    return visibleWorkspaceContentTabs(in: placement)
   }
 
   var showsWorkspaceInspector: Bool {
@@ -30,7 +34,8 @@ extension WorkspaceStore {
 
   func workspaceTabStripPlacement(_ id: String) -> WorkspaceTabPlacement {
     let place = workspaceTabPlacement(id)
-    return effectiveWorkspaceContentLayoutMode == .full && place == .right ? .left : place
+    return [.left, .right].contains(place)
+      ? (effectiveWorkspaceContentLayoutMode == .full ? .left : .right) : place
   }
 
   var activeWorkspaceContentTab: WorkspaceContentTab? {
@@ -41,7 +46,7 @@ extension WorkspaceStore {
 
   var activeRightWorkspaceContentTab: WorkspaceContentTab? {
     guard let activeRightWorkspaceTabID else { return nil }
-    return visibleWorkspaceContentTabs(in: .right).first { $0.id == activeRightWorkspaceTabID }
+    return workspacePrimaryContentTabs.first { $0.id == activeRightWorkspaceTabID }
   }
 
   var activeBottomWorkspaceContentTab: WorkspaceContentTab? {
@@ -52,9 +57,9 @@ extension WorkspaceStore {
   var focusedWorkspaceContentTab: WorkspaceContentTab? {
     guard destination == .workspace, let focusedWorkspaceTabID,
       let tab = visibleWorkspaceContentTabs.first(where: { $0.id == focusedWorkspaceTabID }) else { return nil }
-    if effectiveWorkspaceContentLayoutMode == .full,
-      [.left, .right].contains(workspaceTabPlacement(tab.id)) {
-      return activeWorkspaceTabID == tab.id ? tab : nil
+    if [.left, .right].contains(workspaceTabPlacement(tab.id)) {
+      if effectiveWorkspaceContentLayoutMode == .full { return activeWorkspaceTabID == tab.id ? tab : nil }
+      return showsWorkspaceInspector && activeRightWorkspaceTabID == tab.id ? tab : nil
     }
     switch workspaceTabPlacement(tab.id) {
     case .left: return activeWorkspaceTabID == tab.id ? tab : nil
@@ -341,13 +346,8 @@ extension WorkspaceStore {
     }
     guard let tab = visibleWorkspaceContentTabs.first(where: { $0.id == id }) else { return }
     switch workspaceTabPlacement(tab.id) {
-    case .left:
-      workspaceContentLayoutMode = .full
-      activeWorkspaceTabID = tab.id
-    case .right:
-      activeRightWorkspaceTabID = tab.id
-      if effectiveWorkspaceContentLayoutMode == .full { activeWorkspaceTabID = tab.id }
-      else { showingInspector = true }
+    case .left, .right:
+      selectWorkspacePrimaryContent(tab)
     case .bottom:
       activeBottomWorkspaceTabID = tab.id
       showingTerminal = true
@@ -366,6 +366,21 @@ extension WorkspaceStore {
     case .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal, .subagents: break
     case .terminal:
       focusTerminal()
+    }
+  }
+
+  private func selectWorkspacePrimaryContent(_ tab: WorkspaceContentTab) {
+    if workspaceContentLayoutMode == nil {
+      workspaceContentLayoutMode = workspaceTabPlacement(tab.id) == .left ? .full : .split
+      if workspaceContentLayoutMode == .full { showingInspector = false }
+    }
+    if effectiveWorkspaceContentLayoutMode == .full {
+      activeWorkspaceTabID = tab.id
+      if workspaceTabPlacement(tab.id) == .right { activeRightWorkspaceTabID = tab.id }
+    } else {
+      activeWorkspaceTabID = nil
+      activeRightWorkspaceTabID = tab.id
+      showingInspector = true
     }
   }
 
@@ -471,7 +486,7 @@ extension WorkspaceStore {
     guard canMoveWorkspaceTab(id, to: placement),
       let tab = visibleWorkspaceContentTabs.first(where: { $0.id == id }) else { return }
     let oldPlacement = workspaceTabPlacement(id)
-    if placement == .left { workspaceContentLayoutMode = .full }
+    if placement == .left { workspaceContentLayoutMode = .full; showingInspector = false }
     else if placement == .right {
       workspaceContentLayoutMode = .split
       activeWorkspaceTabID = nil
@@ -642,12 +657,17 @@ extension WorkspaceStore {
   }
 
   private func workspaceTabDidDisappear(_ id: String) {
+    let strip = workspaceTabStripPlacement(id), wasFocused = focusedWorkspaceTabID == id
     if draggingWorkspaceTabID == id { endWorkspaceTabDrag() }
     workspaceTabPlacements[id] = nil
     if activeWorkspaceTabID == id { activeWorkspaceTabID = nil }
     if activeRightWorkspaceTabID == id { activeRightWorkspaceTabID = nil }
     if activeBottomWorkspaceTabID == id { activeBottomWorkspaceTabID = nil }
     if focusedWorkspaceTabID == id { focusedWorkspaceTabID = nil }
+    if strip == .right, effectiveWorkspaceContentLayoutMode == .split, activeRightWorkspaceTabID == nil {
+      activeRightWorkspaceTabID = workspacePrimaryContentTabs.first?.id
+      if wasFocused, showingInspector { focusedWorkspaceTabID = activeRightWorkspaceTabID }
+    }
   }
 
   func closeOtherWorkspaceTabs(keeping id: String?) {
@@ -767,13 +787,8 @@ extension WorkspaceStore {
     guard let tab = workspaceTabs.first(where: { $0.browserID == id }),
       tab.owner == currentWorkspaceTabOwner else { return }
     switch workspaceTabPlacement(tab.id) {
-    case .left:
-      workspaceContentLayoutMode = .full
-      activeWorkspaceTabID = tab.id
-    case .right:
-      activeRightWorkspaceTabID = tab.id
-      if effectiveWorkspaceContentLayoutMode == .full { activeWorkspaceTabID = tab.id }
-      else { showingInspector = true }
+    case .left, .right:
+      selectWorkspacePrimaryContent(tab)
     case .bottom: break
     case .detached: break
     }
@@ -792,7 +807,9 @@ extension WorkspaceStore {
       restoredDetachedWorkspaceTabIDs.removeAll { $0 == tab.id }
       saveLibrary()
     }
-    if destination == .workspace && tab.owner == currentWorkspaceTabOwner { focusComposer = UUID() }
+    if destination == .workspace && tab.owner == currentWorkspaceTabOwner && focusedWorkspaceContentTab == nil {
+      focusComposer = UUID()
+    }
   }
 
   func workspaceBrowserDidReorder(_ ids: [UUID]) {

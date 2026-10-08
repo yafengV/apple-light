@@ -495,7 +495,7 @@ struct WorkspaceView: View {
   }
 
   @ViewBuilder private var inspectorContent: some View {
-    if store.visibleWorkspaceContentTabs(in: .right).isEmpty {
+    if store.presentedWorkspaceContentTabs(in: .right).isEmpty {
       DeveloperPanel(store: store)
     } else {
       WorkspaceSidePanel(store: store)
@@ -507,7 +507,7 @@ struct WorkspaceView: View {
   ) -> some View {
     VStack(spacing: 0) {
       VStack(spacing: 0) {
-        if store.showingWorkspaceTabs {
+        if store.showingWorkspaceTabs && store.effectiveWorkspaceContentLayoutMode == .full {
           WorkspaceTabStrip(store: store)
           Divider()
         }

@@ -163,6 +163,9 @@ import XCTest
     store.showingInspector = false
     XCTAssertNil(store.focusedWorkspaceContentTab)
     XCTAssertFalse(store.browserVisible)
+    XCTAssertNil(store.commandFileWorkspace)
+    XCTAssertTrue(store.mainMCPApprovalVisible)
+    store.moveWorkspaceTab(file.id, to: .left)
     XCTAssertTrue(store.commandFileWorkspace === editor)
     XCTAssertTrue(store.commandEnabled("tab-close"))
     store.executeCommand("tab-close")

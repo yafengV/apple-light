@@ -150,10 +150,9 @@ extension WorkspaceStore {
     destination = .workspace
     if library.defaultTerminalLocation == .right {
       if showsWorkspaceInspector, activeRightWorkspaceContentTab?.terminalID != nil {
-        showingInspector = false
+        toggleWorkspaceInspector()
         terminalFocusRequest = nil
-        focusComposer = UUID()
-      } else if let tab = visibleWorkspaceContentTabs(in: .right).first(where: {
+      } else if let tab = workspacePrimaryContentTabs.first(where: {
         $0.terminalID != nil
       }) {
         moveWorkspaceTab(tab.id, to: .right)
@@ -212,8 +211,7 @@ extension WorkspaceStore {
       }),
       terminalScope(for: tab) == request.scope else { return false }
     switch workspaceTabPlacement(tab.id) {
-    case .left: return activeWorkspaceTabID == tab.id
-    case .right: return showingInspector && activeRightWorkspaceTabID == tab.id
+    case .left, .right: return focusedWorkspaceContentTab?.id == tab.id
     case .bottom: return showingTerminal && activeBottomWorkspaceTabID == tab.id
     case .detached: return focusedWorkspaceTabID == tab.id
     }

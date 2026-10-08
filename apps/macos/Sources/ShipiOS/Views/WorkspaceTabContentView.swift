@@ -6,68 +6,74 @@ struct WorkspaceTabContentView: View {
   let tab: WorkspaceContentTab
 
   var body: some View {
-    switch tab {
-    case .browser(let id, _):
-      BrowserPanel(
-        store: store, session: store.workspace.browser, showsTabStrip: false, tabID: id)
-    case .file:
-      FileWorkspaceTabView(store: store, tab: tab,
-        openFile: { _ = store.openFileTab($0, in: store.workspaceTabPlacement(tab.id)) },
-        close: { store.closeWorkspaceTab(tab.id) })
-    case .review:
-      GitReviewView(store: store, workspace: store.workspace)
-    case .plan(let runID, let owner):
-      if let run = store.taskWindowRuns(owner).first(where: { $0.id == runID }),
-        let document = run.codexPlanDocument {
-        CodexPlanDocumentView(store: store, run: run, document: document)
-      } else {
-        ContentUnavailableView("计划不可用", systemImage: "text.document",
-          description: Text("此计划可能已从任务中移除。"))
-      }
-    case .sources(let owner):
-      if let task = store.library.tasks.first(where: { $0.id == owner }) {
-        TaskSourcesView(sources: store.taskWindowRuns(owner).summarySources(in: store.library),
-          dataRoot: store.dataRoot,
-          openExternal: { url in
-            store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+    Group {
+      switch tab {
+      case .browser(let id, _):
+        BrowserPanel(
+          store: store, session: store.workspace.browser, showsTabStrip: false, tabID: id)
+      case .file:
+        FileWorkspaceTabView(store: store, tab: tab,
+          openFile: { _ = store.openFileTab($0, in: store.workspaceTabStripPlacement(tab.id)) },
+          close: { store.closeWorkspaceTab(tab.id) })
+      case .review:
+        GitReviewView(store: store, workspace: store.workspace)
+      case .plan(let runID, let owner):
+        if let run = store.taskWindowRuns(owner).first(where: { $0.id == runID }),
+          let document = run.codexPlanDocument {
+          CodexPlanDocumentView(store: store, run: run, document: document)
+        } else {
+          ContentUnavailableView("计划不可用", systemImage: "text.document",
+            description: Text("此计划可能已从任务中移除。"))
+        }
+      case .sources(let owner):
+        if let task = store.library.tasks.first(where: { $0.id == owner }) {
+          TaskSourcesView(sources: store.taskWindowRuns(owner).summarySources(in: store.library),
+            dataRoot: store.dataRoot,
+            openExternal: { url in
+              store.openMessageLink(url, project: nil, ownerRunID: task.runIDs.last,
+                click: WebLinkClick(event: NSApp.currentEvent))
+            },
+            addFile: { store.chooseFiles(draft: owner) },
+            addImage: { store.chooseImages(draft: owner) },
+            canAddFile: store.taskWindowFiles(owner).count < FileAttachmentStorage.maxCount,
+            canAddImage: store.taskWindowImages(owner).count < ImageAttachmentStorage.maxCount)
+        } else {
+          ContentUnavailableView("来源不可用", systemImage: "square.stack",
+            description: Text("此任务可能已移除。"))
+        }
+      case .pullRequest:
+        TaskPullRequestTabView(store: store, tab: tab, presentations: store.pullRequestTabPresentations,
+          openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: tab.owner) } },
+          close: { store.closeWorkspaceTab(tab.id) }, focusComposer: { store.activateChatTab() })
+      case .pullRequestWatch:
+        PullRequestWatchProgressView(store: store, tab: tab,
+          close: { store.closeWorkspaceTab(tab.id) },
+          isFocused: store.focusedWorkspaceTabID == tab.id || store.workspaceTabPlacement(tab.id) == .detached,
+          onFocus: { store.activateWorkspaceTab(tab.id) })
+      case .backgroundTerminal(let id, let owner):
+        BackgroundTerminalOutputView(document: store.backgroundTerminalDocument(id, taskID: owner),
+          focused: store.focusedWorkspaceTabID == tab.id || store.workspaceTabPlacement(tab.id) == .detached,
+          canFocus: {
+            store.presentedOverlay == nil && !store.hasSettingsConfirmation
+              && !store.showingModelPicker && !store.showingBranchPicker
+              && (store.workspaceTabPlacement(tab.id) == .detached || store.focusedWorkspaceContentTab?.id == tab.id)
+          }, openLink: { url in
+            store.openMessageLink(url, project: nil,
+              ownerRunID: store.library.tasks.first { $0.id == owner }?.runIDs.last,
               click: WebLinkClick(event: NSApp.currentEvent))
-          },
-          addFile: { store.chooseFiles(draft: owner) },
-          addImage: { store.chooseImages(draft: owner) },
-          canAddFile: store.taskWindowFiles(owner).count < FileAttachmentStorage.maxCount,
-          canAddImage: store.taskWindowImages(owner).count < ImageAttachmentStorage.maxCount)
-      } else {
-        ContentUnavailableView("来源不可用", systemImage: "square.stack",
-          description: Text("此任务可能已移除。"))
+          })
+      case .subagents(let owner):
+        SubagentWorkspacePanel(store: store, taskID: owner).id(owner)
+      case .terminal(let id, _):
+        if let scope = store.terminalScope(for: tab) {
+          TerminalTabPanel(store: store, scope: scope, terminalID: id)
+        }
       }
-    case .pullRequest:
-      TaskPullRequestTabView(store: store, tab: tab, presentations: store.pullRequestTabPresentations,
-        openExternal: { url in Task { _ = await store.openTaskWebLink(url, taskID: tab.owner) } },
-        close: { store.closeWorkspaceTab(tab.id) }, focusComposer: { store.activateChatTab() })
-    case .pullRequestWatch:
-      PullRequestWatchProgressView(store: store, tab: tab,
-        close: { store.closeWorkspaceTab(tab.id) },
-        isFocused: store.focusedWorkspaceTabID == tab.id || store.workspaceTabPlacement(tab.id) == .detached,
-        onFocus: { store.activateWorkspaceTab(tab.id) })
-    case .backgroundTerminal(let id, let owner):
-      BackgroundTerminalOutputView(document: store.backgroundTerminalDocument(id, taskID: owner),
-        focused: store.focusedWorkspaceTabID == tab.id || store.workspaceTabPlacement(tab.id) == .detached,
-        canFocus: {
-          store.presentedOverlay == nil && !store.hasSettingsConfirmation
-            && !store.showingModelPicker && !store.showingBranchPicker
-            && (store.workspaceTabPlacement(tab.id) == .detached || store.focusedWorkspaceContentTab?.id == tab.id)
-        }, openLink: { url in
-          store.openMessageLink(url, project: nil,
-            ownerRunID: store.library.tasks.first { $0.id == owner }?.runIDs.last,
-            click: WebLinkClick(event: NSApp.currentEvent))
-        })
-    case .subagents(let owner):
-      SubagentWorkspacePanel(store: store, taskID: owner).id(owner)
-    case .terminal(let id, _):
-      if let scope = store.terminalScope(for: tab) {
-        TerminalTabPanel(store: store, scope: scope, terminalID: id)
+    }.simultaneousGesture(TapGesture().onEnded {
+      if store.destination == .workspace, store.workspaceTabPlacement(tab.id) != .detached {
+        store.focusedWorkspaceTabID = tab.id
       }
-    }
+    })
   }
 }
 
@@ -80,7 +86,7 @@ struct WorkspaceSidePanel: View {
         HStack(spacing: 0) {
           WorkspaceTabStrip(store: store, placement: .right, includesChat: false)
           Button {
-            store.showingInspector = false
+            store.toggleWorkspaceInspector()
           } label: {
             Image(systemName: "xmark")
           }

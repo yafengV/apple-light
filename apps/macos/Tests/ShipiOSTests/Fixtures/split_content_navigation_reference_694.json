@@ -1,0 +1,218 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual swa and Bsc selectors, ordinary chat primary surface only; inert explicit state, no application initialization or native bridge.",
+  "selections": [
+    {
+      "ids": [
+        "left",
+        "right",
+        "last"
+      ],
+      "current": "left",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "right"
+      ]
+    },
+    {
+      "ids": [
+        "left",
+        "right",
+        "last"
+      ],
+      "current": "left",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "last"
+      ]
+    },
+    {
+      "ids": [
+        "left",
+        "right",
+        "last"
+      ],
+      "current": "right",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "last"
+      ]
+    },
+    {
+      "ids": [
+        "left",
+        "right",
+        "last"
+      ],
+      "current": "right",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "left"
+      ]
+    },
+    {
+      "ids": [
+        "left",
+        "right",
+        "last"
+      ],
+      "current": "last",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "left"
+      ]
+    },
+    {
+      "ids": [
+        "left",
+        "right",
+        "last"
+      ],
+      "current": "last",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "right"
+      ]
+    },
+    {
+      "ids": [
+        "only"
+      ],
+      "current": "only",
+      "direction": "next",
+      "handled": false,
+      "selected": []
+    },
+    {
+      "ids": [
+        "only"
+      ],
+      "current": "only",
+      "direction": "previous",
+      "handled": false,
+      "selected": []
+    },
+    {
+      "ids": [],
+      "current": null,
+      "direction": "next",
+      "handled": false,
+      "selected": []
+    },
+    {
+      "ids": [],
+      "current": null,
+      "direction": "previous",
+      "handled": false,
+      "selected": []
+    }
+  ],
+  "dispatches": [
+    {
+      "mode": "full",
+      "origin": "main",
+      "visible": true,
+      "handled": true,
+      "calls": [
+        "content:next"
+      ]
+    },
+    {
+      "mode": "full",
+      "origin": "main",
+      "visible": false,
+      "handled": false,
+      "calls": []
+    },
+    {
+      "mode": "full",
+      "origin": "right",
+      "visible": true,
+      "handled": true,
+      "calls": [
+        "content:next"
+      ]
+    },
+    {
+      "mode": "full",
+      "origin": "right",
+      "visible": false,
+      "handled": false,
+      "calls": []
+    },
+    {
+      "mode": "full",
+      "origin": "bottom",
+      "visible": true,
+      "handled": true,
+      "calls": [
+        "bottom:next"
+      ]
+    },
+    {
+      "mode": "full",
+      "origin": "bottom",
+      "visible": false,
+      "handled": true,
+      "calls": [
+        "bottom:next"
+      ]
+    },
+    {
+      "mode": "split",
+      "origin": "main",
+      "visible": true,
+      "handled": false,
+      "calls": []
+    },
+    {
+      "mode": "split",
+      "origin": "main",
+      "visible": false,
+      "handled": false,
+      "calls": []
+    },
+    {
+      "mode": "split",
+      "origin": "right",
+      "visible": true,
+      "handled": true,
+      "calls": [
+        "content:next"
+      ]
+    },
+    {
+      "mode": "split",
+      "origin": "right",
+      "visible": false,
+      "handled": false,
+      "calls": []
+    },
+    {
+      "mode": "split",
+      "origin": "bottom",
+      "visible": true,
+      "handled": true,
+      "calls": [
+        "bottom:next"
+      ]
+    },
+    {
+      "mode": "split",
+      "origin": "bottom",
+      "visible": false,
+      "handled": true,
+      "calls": [
+        "bottom:next"
+      ]
+    }
+  ]
+}
