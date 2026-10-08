@@ -31,3 +31,11 @@
 从旧 ad-hoc 身份首次切换开发证书，或以后换开发团队/签名类型，macOS 仍可能要求一次授权。稳定签名不会绕过首次授权、已有拒绝或已撤销权限，也不代替发布签名/公证。现有测试证明签名要求在代码变化后稳定以及两次实际运行正常，不把它描述为所有 macOS 权限和全部 UI 对齐已经完成。
 
 2026-10-08 用户再次反馈后复验：当前正式包已采用开发证书，无须另装证书或重置系统权限。真实证书的两版不同代码测试再次通过（`.cache/development-signing-current-request-678.log`）；使用独立 native-ui-654 缓存执行标准构建启动脚本，exit 0（`.cache/development-signing-run-678.log`），未触碰正在执行全量回归的 native-ui-648 缓存。重建后主应用及 helper 均使用 Apple Development，指定要求与重建前相同，并分别通过旧要求验证及严格深度校验。CUA 仍明确报告 Mac 锁屏，因此本次前台工作区和重复授权弹窗仍未验收；上述结果仅证明实际调试包与签名稳定性，不把启动成功等同于权限弹窗已消失。
+
+## 解锁后的实际文件夹访问复验
+
+2026-10-08，本次 Mac 已解锁。再次通过 `script/build_and_run.sh --app` 连续两次重建启动，均 exit 0，日志为 `.cache/development-signing-user-request-run.log` 和 `.cache/development-signing-user-request-second-run.log`。使用 native-ui-654 缓存，没有覆盖全量回归使用的 native-ui-648。
+
+第一轮在原生界面打开命令菜单，再用项目文件夹选择器打开当前桌面仓库 `apple-light`；通过文件搜索实际打开 `AGENTS.md`，编辑器显示完整内容与“已保存”。第二轮重建启动后，初始的“正在恢复工作区…”状态随后结束，同一项目、文件标签和内容直接恢复；文件列表刷新、筛选和清空筛选均可操作。两轮观察过程中没有出现新的文件夹授权或信任弹窗，没有接受新系统权限、重置 TCC 或修改钥匙串访问控制。此结论限于本机当前仓库与这两次实际运行。
+
+真实开发证书的两版不同代码冒烟再次通过（`.cache/development-signing-user-request-check.log`）：应用与 helper 的 CDHash 改变，指定要求保持不变，并通过旧要求验证；无身份与无效身份拒绝、显式临时签名选择检查也通过。正式包重建前后的指定要求一致，应用与 helper 均确认使用 Apple Development，并通过旧要求与严格深度校验（`.cache/development-signing-user-request-result.json`）。受限执行环境不能读取完整证书信任链，签名详情与校验使用可访问系统钥匙串的执行环境完成；没有因此降级签名。日志与本机公开证书详情仅留在忽略目录，未提交个人证书信息。本轮复验未修改签名实现，沿用上述已提交的稳定开发签名方案。
