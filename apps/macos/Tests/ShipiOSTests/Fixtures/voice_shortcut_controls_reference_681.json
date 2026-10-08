@@ -1,0 +1,120 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "primarySHA256": "234429db84d9319850ff0766a4a5052a9e898bfa0611883633f80018080dd6c0",
+  "sharedSHA256": "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+  "boundaries": "Actual lBe/uBe/Oli with local hooks/JSX; no DOM focus, CSS cascade, glyph rendering, OS registration or persistence",
+  "empty": {
+    "className": "group flex min-h-8 items-center",
+    "buttons": [
+      {
+        "label": "Set shortcut for Dictation",
+        "color": "ghost",
+        "size": "toolbar",
+        "uniform": true,
+        "disabled": false,
+        "preventsMouseDown": false
+      }
+    ],
+    "valueClass": "flex min-h-8 items-center gap-1 text-sm text-secondary",
+    "keycap": null,
+    "captureWidthClass": null,
+    "calls": [
+      [
+        "start",
+        "set"
+      ]
+    ],
+    "keycapDeclaredClasses": "inline-flex !border-0 !font-sans !shadow-none !rounded-md !bg-current/10 !text-xs !text-current !px-1.5 !py-0.5 !leading-none !px-2 !py-1 !text-sm"
+  },
+  "bound": {
+    "className": "group flex min-h-8 items-center",
+    "buttons": [
+      {
+        "label": "Change shortcut for Dictation",
+        "color": "ghost",
+        "size": "toolbar",
+        "uniform": true,
+        "disabled": false,
+        "preventsMouseDown": false
+      },
+      {
+        "label": "Clear shortcut for Dictation",
+        "color": "ghost",
+        "size": "toolbar",
+        "uniform": true,
+        "disabled": false,
+        "preventsMouseDown": false
+      }
+    ],
+    "valueClass": "flex min-h-8 items-center gap-1 text-sm text-secondary",
+    "keycap": "!px-2 !py-1 !text-sm",
+    "captureWidthClass": null,
+    "calls": [
+      [
+        "start",
+        "replace"
+      ],
+      [
+        "clear"
+      ]
+    ],
+    "keycapDeclaredClasses": "inline-flex !border-0 !font-sans !shadow-none !rounded-md !bg-current/10 !text-xs !text-current !px-1.5 !py-0.5 !leading-none !px-2 !py-1 !text-sm"
+  },
+  "disabled": {
+    "className": "group flex min-h-8 items-center",
+    "buttons": [
+      {
+        "label": "Change shortcut for Dictation",
+        "color": "ghost",
+        "size": "toolbar",
+        "uniform": true,
+        "disabled": true,
+        "preventsMouseDown": false
+      },
+      {
+        "label": "Clear shortcut for Dictation",
+        "color": "ghost",
+        "size": "toolbar",
+        "uniform": true,
+        "disabled": true,
+        "preventsMouseDown": false
+      }
+    ],
+    "valueClass": "flex min-h-8 items-center gap-1 text-sm text-secondary",
+    "keycap": "!px-2 !py-1 !text-sm",
+    "captureWidthClass": null,
+    "calls": [
+      [
+        "start",
+        "replace"
+      ],
+      [
+        "clear"
+      ]
+    ],
+    "keycapDeclaredClasses": "inline-flex !border-0 !font-sans !shadow-none !rounded-md !bg-current/10 !text-xs !text-current !px-1.5 !py-0.5 !leading-none !px-2 !py-1 !text-sm"
+  },
+  "capturing": {
+    "className": "flex w-full flex-col items-start gap-1",
+    "buttons": [
+      {
+        "label": "Cancel",
+        "color": "ghost",
+        "size": "toolbar",
+        "uniform": false,
+        "disabled": false,
+        "preventsMouseDown": true
+      }
+    ],
+    "valueClass": null,
+    "keycap": null,
+    "captureWidthClass": "w-36 max-w-full",
+    "calls": [
+      [
+        "cancel"
+      ]
+    ],
+    "keycapDeclaredClasses": "inline-flex !border-0 !font-sans !shadow-none !rounded-md !bg-current/10 !text-xs !text-current !px-1.5 !py-0.5 !leading-none !px-2 !py-1 !text-sm"
+  }
+}

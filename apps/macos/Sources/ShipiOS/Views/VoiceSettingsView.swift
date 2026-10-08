@@ -11,6 +11,7 @@ struct VoiceSettingsView: View {
   @State private var voicePickerPresentationID = UUID()
   @State private var dictationAdvancedExpanded = false
   @Environment(\.settingsSearchPresentation) private var searchRequest
+  @Environment(\.appAppearance) private var appearance
 
   private typealias GlobalHotkeyMode = VoiceShortcutPresentation.Mode
 
@@ -240,42 +241,51 @@ struct VoiceSettingsView: View {
       searchField = .voiceChatHotkey
     }
     return LabeledContent {
-      HStack(spacing: 8) {
+      HStack(spacing: 0) {
         if shortcutPresentation.recording == mode {
-          ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)",
-            receive: { receiveGlobalHotkey($0, mode: mode, captureID: captureID) },
-            activityChanged: { active in
-              store.shortcutCaptureCount = max(0,
-                store.shortcutCaptureCount + (active ? 1 : -1))
-            }, onBlur: {
-              shortcutPresentation.end(mode, id: captureID)
-            }, receiveModifier: { event in
-              guard shortcutPresentation.owns(mode, id: captureID),
-                let binding = shortcutPresentation.modifierCapture.flagsChanged(event.modifierFlags) else { return }
-              saveGlobalHotkey(binding, mode: mode, captureID: captureID)
-            })
-            .frame(width: 144, height: 28)
+          HStack(spacing: 8) {
+            ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)",
+              receive: { receiveGlobalHotkey($0, mode: mode, captureID: captureID) },
+              activityChanged: { active in
+                store.shortcutCaptureCount = max(0,
+                  store.shortcutCaptureCount + (active ? 1 : -1))
+              }, onBlur: {
+                shortcutPresentation.end(mode, id: captureID)
+              }, receiveModifier: { event in
+                guard shortcutPresentation.owns(mode, id: captureID),
+                  let binding = shortcutPresentation.modifierCapture.flagsChanged(event.modifierFlags) else { return }
+                saveGlobalHotkey(binding, mode: mode, captureID: captureID)
+              })
+              .frame(width: 144, height: 28)
+            VoiceShortcutActionButton(kind: .cancel, label: "取消录制\(title)",
+              identifier: "voice-hotkey-cancel-\(mode.rawValue)") {
+                shortcutPresentation.end(mode, id: captureID)
+              }.fixedSize().settingsFocusReveal()
+          }
         } else {
-          Button(binding?.display ?? "关闭") {
-            shortcutPresentation.begin(mode)
+          HStack(spacing: 4) {
+            Text(binding?.display ?? "关闭").appFont(size: 13).lineLimit(1)
+              .foregroundStyle(appearance.resolvedColors["textForegroundSecondary"].color)
+              .padding(.horizontal, binding == nil ? 0 : 8)
+              .padding(.vertical, binding == nil ? 0 : 4)
+              .background(binding == nil ? Color.clear
+                : appearance.resolvedColors["textForegroundSecondary"].color.opacity(0.1),
+                in: RoundedRectangle(cornerRadius: 6))
+              .accessibilityLabel("\(title)：\(binding?.display ?? "关闭")")
+            VoiceShortcutActionButton(kind: .edit,
+              label: "\(binding == nil ? "设置" : "更改")\(title)",
+              identifier: "voice-hotkey-edit-\(mode.rawValue)") {
+                shortcutPresentation.begin(mode)
+              }.fixedSize().settingsFocusReveal()
+          }
+          if binding != nil {
+            VoiceShortcutActionButton(kind: .clear, label: "清除\(title)",
+              identifier: "voice-hotkey-clear-\(mode.rawValue)") {
+                clearGlobalHotkey(mode)
+              }.fixedSize().settingsFocusReveal().padding(.leading, 8)
           }
         }
-        if binding != nil {
-          Button {
-            var preferences = store.voicePreferences
-            switch mode {
-            case .hold: preferences.globalHoldHotkey = nil
-            case .toggle: preferences.globalToggleHotkey = nil
-            case .voiceChat: preferences.globalVoiceChatHotkey = nil
-            }
-            store.voicePreferences = preferences
-            shortcutPresentation.warnings[mode] = nil
-            shortcutPresentation.end(mode, id: captureID)
-          } label: { Image(systemName: "xmark") }
-            .buttonStyle(.plain)
-            .accessibilityLabel("关闭\(title)")
-        }
-      }
+      }.frame(minHeight: 32)
     } label: {
       VStack(alignment: .leading, spacing: 4) {
         SettingsControlLabel(title: title, description: description)
@@ -298,6 +308,17 @@ struct VoiceSettingsView: View {
       }
     }
     .settingsSearchTarget(searchField)
+  }
+
+  private func clearGlobalHotkey(_ mode: GlobalHotkeyMode) {
+    var preferences = store.voicePreferences
+    switch mode {
+    case .hold: preferences.globalHoldHotkey = nil
+    case .toggle: preferences.globalToggleHotkey = nil
+    case .voiceChat: preferences.globalVoiceChatHotkey = nil
+    }
+    store.voicePreferences = preferences
+    shortcutPresentation.warnings[mode] = nil
   }
 
   private func receiveGlobalHotkey(_ event: NSEvent, mode: GlobalHotkeyMode, captureID: UUID?) {

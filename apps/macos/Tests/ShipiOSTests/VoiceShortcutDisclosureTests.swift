@@ -320,7 +320,8 @@ import XCTest
   }
   private func startSingleTapCapture(_ window: NSWindow, _ host: NSView) async throws -> ShortcutCapture.Field {
     let button = try advanced(host); XCTAssertTrue(window.makeFirstResponder(button))
-    for _ in 0..<2 { try key(.keyDown, 48, "\t", window); try await settle(host) }
+    let tabs = (host as? Host)?.rootView.store.voicePreferences.globalHoldHotkey == nil ? 2 : 3
+    for _ in 0..<tabs { try key(.keyDown, 48, "\t", window); try await settle(host) }
     try key(.keyDown, 36, "\r", window); try await settle(host)
     let capture = try XCTUnwrap(descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
     XCTAssertEqual(capture.accessibilityLabel(), "录制单击听写快捷键")
