@@ -122,7 +122,7 @@ PR 延迟行导航与分栏验证时序见[第 632 篇](docs/632-pr-delayed-navi
 
 需要 macOS 14+、Swift 6.2+、Rust 1.95+；构建 iOS fixture 需要完整 Xcode 与 iOS Simulator SDK。已在 Rust 1.97.1、Xcode 26.3 上验证。首次构建需要下载依赖；无需 API Key。Markdown 解析依赖要求 Swift 6.2 工具链，应用仍支持 macOS 14。
 
-macOS 调试默认使用本机钥匙串中第一个有效的 Apple Development 证书，主应用和 helper 使用固定签名标识，避免代码更新后的临时签名导致文件夹重复授权。可通过 `SHIPIOS_CODESIGN_IDENTITY` 指定本地证书名称或指纹；证书和个人选择不进入仓库。没有开发证书时会明确警告并沿用 ad-hoc 签名，也可显式设置为 `-`。切换签名身份后可能需要授权一次；后续保持相同身份。验证与边界见[开发签名](docs/658-stable-development-signing.md)。
+macOS 调试默认使用本机钥匙串中第一个有效的 Apple Development 证书，主应用和 helper 使用固定签名标识，避免代码更新后的临时签名导致文件夹重复授权。可通过 `SHIPIOS_CODESIGN_IDENTITY` 指定本地证书名称或指纹；证书和个人选择不进入仓库。没有可访问的开发证书时构建会停止，防止受限环境把已有开发签名降级为临时签名；只有显式设置 `SHIPIOS_CODESIGN_IDENTITY=-` 才使用 ad-hoc。切换签名身份后可能需要授权一次；后续保持相同身份。验证与边界见[开发签名](docs/658-stable-development-signing.md)。
 
 ```bash
 # 构建并启动原生 macOS 应用（也可点击 Codex 的 Run 按钮）

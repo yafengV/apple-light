@@ -1,16 +1,25 @@
 #!/bin/bash
 # Sourced by build_and_run.sh. Keep developer identities in the local keychain,
 # never in repository configuration.
+shipios_list_codesign_identities() {
+    /usr/bin/security find-identity -v -p codesigning
+}
+
 shipios_resolve_codesign_identity() {
     if [ -n "${SHIPIOS_CODESIGN_IDENTITY:-}" ]; then
         shipios_codesign_identity="$SHIPIOS_CODESIGN_IDENTITY"
     else
         local identities
-        identities="$(/usr/bin/security find-identity -v -p codesigning)" || return
+        identities="$(shipios_list_codesign_identities)" || return
         shipios_codesign_identity="$(printf '%s\n' "$identities" |
             /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) ([[:xdigit:]]{40}) "Apple Development:.*"$/\1/p' |
             /usr/bin/head -n 1)"
-        shipios_codesign_identity="${shipios_codesign_identity:--}"
+        if [ -z "$shipios_codesign_identity" ]; then
+            printf '%s\n' 'No accessible Apple Development signing identity; refusing to replace development signing with ad-hoc signing.' >&2
+            printf '%s\n' 'Run with local keychain access, or set SHIPIOS_CODESIGN_IDENTITY to an available certificate.' >&2
+            printf '%s\n' 'To deliberately use temporary signing, set SHIPIOS_CODESIGN_IDENTITY=-; folder permissions may be requested again.' >&2
+            return 1
+        fi
     fi
     if [ "$shipios_codesign_identity" = "-" ]; then
         printf '%s\n' 'Warning: ad-hoc signing; macOS folder permissions may be requested again after code changes.' >&2

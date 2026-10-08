@@ -4,6 +4,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source script/macos_signing.sh
+if (unset SHIPIOS_CODESIGN_IDENTITY
+    shipios_list_codesign_identities() { :; }
+    shipios_resolve_codesign_identity) > /dev/null 2>&1; then
+    printf '%s\n' 'An unavailable certificate must fail instead of silently downgrading signing.' >&2
+    exit 1
+fi
+(SHIPIOS_CODESIGN_IDENTITY=-
+    shipios_resolve_codesign_identity
+    test "$shipios_codesign_identity" = "-") > /dev/null 2>&1
 shipios_resolve_codesign_identity
 if [ "$shipios_codesign_identity" = "-" ]; then
     printf '%s\n' 'A certificate identity is required for the stable-signature smoke test.' >&2
@@ -52,4 +61,4 @@ if (SHIPIOS_CODESIGN_IDENTITY=shipios-nonexistent-test-identity
     printf '%s\n' 'An invalid requested identity must fail instead of falling back to ad-hoc.' >&2
     exit 1
 fi
-printf '%s\n' 'PASS: changed app/helper code hashes, stable identifiers and requirements, strict verification, invalid identity fails.'
+printf '%s\n' 'PASS: changed app/helper code hashes, stable requirements, strict verification, unavailable/invalid identity fails, explicit ad-hoc opt-in.'
