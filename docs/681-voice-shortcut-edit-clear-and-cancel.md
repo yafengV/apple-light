@@ -37,3 +37,9 @@
 通过 `script/build_and_run.sh --app` 重新构建并恢复默认工作区目录（`.cache/voice-shortcut-controls-final-default-run-681.log`）。最终 App 与 helper 均为 Apple Development，旧 designated requirement 验证通过、身份保持不变，App 代码哈希更新，helper 与测试版本相同，整个包严格递归验签通过（`.cache/voice-shortcut-controls-code-equivalence-final-681.json`）。此前第 658 篇补充的两次正常重建／文件读取交互未再出现重复授权提示；本次再次尝试前台时 Mac 仍锁屏，启动命令成功不能替代新增控件或工作区实际交互验收。
 
 最终正式包 IPC 和 Core RPC 本地冒烟均 exit 0（`.cache/voice-shortcut-controls-ipc-final-681.log`、`.cache/voice-shortcut-controls-core-final-681.log`），使用本地夹具，未调用用户真实 API 或录音。
+
+## 冻结全量终态（2026-10-09）
+
+提交 `9e919e2e8fb507303b6447ee036761408ab53973` 的固定全量已终态 exit 0：**2,976 项 Swift、2 跳过、0 失败、4,745.688 秒**，IPC 也 exit 0（`.cache/full-alignment-regression-681.log`、`-status.json`）。两项跳过为未配置的本地语音音频夹具；离线语法冷启动恢复为 0。
+
+终态核对 **83 个原源夹具、176 个编译资源、测试执行文件、保存的 helper 与参考 CSS** 全部符合冻结哈希（`.cache/full-alignment-regression-681-final-audit.json`）。期间后续开发已改动部分原源码，因此不宣称当前整个源码仍等于冻结提交；测试实际使用冻结的 native-ui-654 可执行文件／资源与未变源夹具。本结果不覆盖第 682 篇以后改动，也不替代真实前台或完整双端配对，仍为 **0/47**。
