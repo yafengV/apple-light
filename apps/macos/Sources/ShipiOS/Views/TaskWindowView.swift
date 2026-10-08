@@ -361,10 +361,10 @@ struct TaskWindowView: View {
             }
             Menu {
               Button(tabs.showingTabs ? "隐藏标签页" : "显示标签页") { tabs.showingTabs.toggle() }
-              Button(tabs.selected(.left) == nil ? "打开完整视图" : "退出完整视图") { tabs.toggleFullWidth() }
+              Button(tabs.effectiveContentLayoutMode == .full ? "退出完整视图" : "打开完整视图") { tabs.toggleFullWidth() }
                 .disabled(!tabs.commandEnabled("workspace-view"))
               Button("交换左侧和右侧面板") { tabs.primarySide.swap() }
-                .disabled(!tabs.showingRight && !panels.showingFiles)
+                .disabled(!tabs.showsContentSidePanel && !panels.showingFiles)
             } label: { Image(systemName: "rectangle.split.2x1") }
               .accessibilityLabel("任务布局")
             if !task.isTransient {
@@ -1155,7 +1155,7 @@ struct TaskWindowView: View {
   }
 
   private var showsSidePanel: Bool {
-    inspectedRun != nil || panels.showingFiles || (tabs.showingRight && tabs.selected(.right) != nil)
+    inspectedRun != nil || panels.showingFiles || tabs.showsContentSidePanel
   }
 
   private func hiddenPanelDropTarget(_ placement: WorkspaceTabPlacement, title: String, icon: String) -> some View {

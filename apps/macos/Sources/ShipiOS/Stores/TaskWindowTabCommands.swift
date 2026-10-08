@@ -12,10 +12,10 @@ extension TaskWindowTabs {
     case "browser-copy": return page?.committedURL != nil
     case "browser-comment-mode": return page?.canToggleCommentMode == true
     case "workspace-view": return commandContentTab != nil || tabs.contains(where: { $0.id == lastContentForCommand })
-    case "workspace-swap-panes": return showingRight || panels.showingFiles
+    case "workspace-swap-panes": return showsContentSidePanel || panels.showingFiles
     case "tab-close-others":
-      let place = commandContentTab.map { placement($0.id) } ?? .left
-      return visibleTabs(place).count > (commandContentTab == nil ? 0 : 1)
+      let place = commandContentTab.map { stripPlacement($0.id) } ?? .left
+      return presentedTabs(place).count > (commandContentTab == nil ? 0 : 1)
     case "next-tab", "previous-tab": return !tabs.isEmpty
     default: return false
     }
@@ -27,7 +27,7 @@ extension TaskWindowTabs {
     switch id {
     case "browser":
       if let tab = commandContentTab, tab.browserID != nil {
-        if placement(tab.id) == .left { activate(nil) } else { hide(placement(tab.id)) }
+        if stripPlacement(tab.id) == .left { activate(nil) } else { hide(placement(tab.id)) }
       } else if let tab = tabs.first(where: { $0.browserID != nil }) { activate(tab.id) }
       else { newBrowser() }
     case "browser-new": newBrowser()
@@ -44,7 +44,7 @@ extension TaskWindowTabs {
     case "workspace-tabs": showingTabs.toggle()
     case "workspace-swap-panes": primarySide.swap()
     case "tab-close-others":
-      closeOthers(keeping: commandContentTab?.id, in: commandContentTab.map { placement($0.id) } ?? .left)
+      closeOthers(keeping: commandContentTab?.id, in: commandContentTab.map { stripPlacement($0.id) } ?? .left)
     case "next-tab": return navigateAdjacentContentTab(1)
     case "previous-tab": return navigateAdjacentContentTab(-1)
     default: return false

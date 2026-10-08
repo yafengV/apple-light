@@ -27,12 +27,12 @@ struct TaskWindowTabStrip: View {
               .id("chat")
               .contextMenu {
                 Button("关闭其他标签页") { tabs.closeOthers(keeping: nil, in: .left) }
-                  .disabled(tabs.visibleTabs(.left).isEmpty)
+                  .disabled(tabs.presentedTabs(.left).isEmpty)
                 Button("关闭右侧标签页") { tabs.closeRight(of: nil, in: .left) }
                   .disabled(!tabs.canCloseRight(of: nil, in: .left))
               }
             }
-            ForEach(tabs.visibleTabs(placement)) { tab in
+            ForEach(tabs.presentedTabs(placement)) { tab in
               TaskWindowTabChip(store: store, resources: resources, tabs: tabs, tab: tab).id(tab.id)
             }
           }.padding(.horizontal, 8)
@@ -83,7 +83,7 @@ private struct TaskWindowTabChip: View {
         .buttonStyle(.plain).accessibilityLabel("关闭标签：\(tabs.title(tab))")
     }
     .padding(.horizontal, 9).padding(.vertical, 7)
-    .background(tabs.selected(tabs.placement(tab.id))?.id == tab.id ? Color.primary.opacity(0.09) : .clear,
+    .background(tabs.selected(tabs.stripPlacement(tab.id))?.id == tab.id ? Color.primary.opacity(0.09) : .clear,
       in: RoundedRectangle(cornerRadius: 7))
     .background {
       GeometryReader { geometry in
@@ -97,7 +97,7 @@ private struct TaskWindowTabChip: View {
       }
     }
     .accessibilityElement(children: .contain)
-    .accessibilityAddTraits(tabs.selected(tabs.placement(tab.id))?.id == tab.id ? .isSelected : [])
+    .accessibilityAddTraits(tabs.selected(tabs.stripPlacement(tab.id))?.id == tab.id ? .isSelected : [])
     .dropDestination(for: String.self) { values, location in
       defer { tabs.endDrag() }
       guard let source = values.compactMap(tabs.draggedTab).first else { return false }
@@ -111,16 +111,16 @@ private struct TaskWindowTabChip: View {
       }
       Divider()
       ForEach([WorkspaceTabPlacement.left, .right, .bottom], id: \.self) { place in
-        if tabs.placement(tab.id) != place, tabs.canMove(tab.id, to: place) {
+        if tabs.stripPlacement(tab.id) != place, tabs.canMove(tab.id, to: place) {
           Button("移到\(place.label)") { tabs.move(tab.id, to: place) }
         }
       }
       Divider()
       Button("关闭") { tabs.close(tab.id) }
-      Button("关闭其他标签页") { tabs.closeOthers(keeping: tab.id, in: tabs.placement(tab.id)) }
-        .disabled(tabs.visibleTabs(tabs.placement(tab.id)).count <= 1)
-      Button("关闭右侧标签页") { tabs.closeRight(of: tab.id, in: tabs.placement(tab.id)) }
-        .disabled(!tabs.canCloseRight(of: tab.id, in: tabs.placement(tab.id)))
+      Button("关闭其他标签页") { tabs.closeOthers(keeping: tab.id, in: tabs.stripPlacement(tab.id)) }
+        .disabled(tabs.presentedTabs(tabs.stripPlacement(tab.id)).count <= 1)
+      Button("关闭右侧标签页") { tabs.closeRight(of: tab.id, in: tabs.stripPlacement(tab.id)) }
+        .disabled(!tabs.canCloseRight(of: tab.id, in: tabs.stripPlacement(tab.id)))
     }
   }
 }

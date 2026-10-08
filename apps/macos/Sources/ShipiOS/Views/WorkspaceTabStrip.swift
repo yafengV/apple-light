@@ -12,7 +12,7 @@ struct WorkspaceTabStrip: View {
         ScrollView(.horizontal) {
           HStack(spacing: 2) {
             if includesChat { leadingTab.id("workspace-chat-tab") }
-            ForEach(store.visibleWorkspaceContentTabs(in: placement)) { tab in
+            ForEach(store.presentedWorkspaceContentTabs(in: placement)) { tab in
               WorkspaceContentTabChip(store: store, tab: tab, placement: placement).id(tab.id)
             }
           }.padding(.horizontal, 8)
@@ -127,7 +127,7 @@ private struct WorkspaceContentTabChip: View {
       }
       guard let source = values.compactMap(WorkspaceTabDragToken.decode).first,
         source != tab.id,
-        store.workspaceTabPlacement(source) == placement else { return false }
+        store.workspaceTabStripPlacement(source) == placement else { return false }
       return store.reorderWorkspaceTab(source, relativeTo: tab.id, after: location.x > chipWidth / 2)
     } isTargeted: { targeted in
       dropTargeted = targeted

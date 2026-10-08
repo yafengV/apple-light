@@ -142,22 +142,21 @@ extension WorkspaceStore {
     let tab = WorkspaceContentTab.terminal(session.id, owner: currentWorkspaceTabOwner)
     workspaceTabs.append(tab)
     workspaceTabPlacements[tab.id] = placement
-    activateWorkspaceTab(tab.id)
+    moveWorkspaceTab(tab.id, to: placement)
   }
 
   func toggleTerminalPanel() {
     guard project != nil else { return }
     destination = .workspace
     if library.defaultTerminalLocation == .right {
-      if showingInspector, activeRightWorkspaceContentTab?.terminalID != nil {
+      if showsWorkspaceInspector, activeRightWorkspaceContentTab?.terminalID != nil {
         showingInspector = false
         terminalFocusRequest = nil
         focusComposer = UUID()
       } else if let tab = visibleWorkspaceContentTabs(in: .right).first(where: {
         $0.terminalID != nil
       }) {
-        showingInspector = true
-        activateWorkspaceTab(tab.id)
+        moveWorkspaceTab(tab.id, to: .right)
       } else {
         newTerminalTab(in: .right)
       }

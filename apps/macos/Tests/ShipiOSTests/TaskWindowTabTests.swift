@@ -132,7 +132,7 @@ import XCTest
     XCTAssertTrue(store.workspaceTabs.isEmpty)
   }
 
-  func testFileInspectorDoesNotRouteCommandsToCoveredRightTab() throws {
+  func testFileInspectorDoesNotRouteCommandsToCoveredRightTabWhileSplitChatIsVisible() throws {
     let (_, resources, tabs) = try fixture()
     defer { resources.shutdown() }
     tabs.newBrowser(in: .left)
@@ -143,20 +143,19 @@ import XCTest
 
     tabs.panels.showingFiles = true
     XCTAssertNil(tabs.focused)
-    XCTAssertEqual(tabs.commandContentTab, left)
+    XCTAssertNil(tabs.commandContentTab)
     XCTAssertFalse(tabs.isVisible(right.id))
-    XCTAssertTrue(tabs.commandEnabled("browser-address"))
-    XCTAssertTrue(tabs.perform("browser-address"))
-    XCTAssertEqual(tabs.browser.session.addressFocusTarget, left.browserID)
-    XCTAssertTrue(tabs.perform("browser-close"))
-    XCTAssertFalse(tabs.tabs.contains(left))
+    XCTAssertFalse(tabs.commandEnabled("browser-address"))
+    XCTAssertFalse(tabs.perform("browser-address"))
+    XCTAssertFalse(tabs.perform("browser-close"))
+    XCTAssertTrue(tabs.tabs.contains(left))
     XCTAssertTrue(tabs.tabs.contains(right))
 
     tabs.panels.showingFiles = false
     XCTAssertEqual(tabs.focused, right)
   }
 
-  func testPaneMovesNeverDuplicateWebViewsAndCloseOnlyOwnPane() throws {
+  func testPaneMovesRetainWebViewAndFullViewClosesAcrossSavedPlacements() throws {
     let (_, resources, tabs) = try fixture()
     defer { resources.shutdown() }
     tabs.newBrowser()
@@ -178,19 +177,17 @@ import XCTest
     let last = try XCTUnwrap(tabs.selected(.left))
     tabs.closeOthers(keeping: first.id, in: .left)
     XCTAssertFalse(tabs.tabs.contains(last))
-    XCTAssertTrue(tabs.tabs.contains(right))
-    XCTAssertEqual(tabs.selected(.right), right)
+    XCTAssertFalse(tabs.tabs.contains(right))
+    XCTAssertNil(tabs.selected(.right))
     tabs.close(first.id)
     XCTAssertTrue(tabs.chatVisible)
-    XCTAssertEqual(tabs.selected(.right), right, "Closing a main tab must not select a right-pane page into main")
-    XCTAssertEqual(tabs.tabs.count, 1)
-    tabs.activate(right.id)
-    XCTAssertTrue(tabs.commandEnabled("browser-close"))
+    XCTAssertNil(tabs.selected(.right))
+    XCTAssertEqual(tabs.tabs.count, 0)
+    XCTAssertFalse(tabs.commandEnabled("browser-close"))
     XCTAssertFalse(tabs.commandEnabled("browser-back"))
     tabs.perform("workspace-tabs")
     XCTAssertFalse(tabs.showingTabs)
-    tabs.perform("workspace-swap-panes")
-    XCTAssertEqual(tabs.primarySide, .right)
+    XCTAssertFalse(tabs.perform("workspace-swap-panes"))
   }
 
   func testMixedCloseHistoryReopensInOriginalPaneAndBrowserFallbackStaysLocal() throws {
@@ -201,7 +198,6 @@ import XCTest
     tabs.browser.session.selected?.address = "unfinished address"
     tabs.newBrowser()
     let main = try XCTUnwrap(tabs.selected(.left))
-    tabs.activate(first.id)
     tabs.close(first.id)
     XCTAssertEqual(tabs.selected(.left), main)
     XCTAssertFalse(tabs.showingRight)
@@ -217,7 +213,7 @@ import XCTest
     XCTAssertFalse(tabs.canReopen)
   }
 
-  func testReorderCloseRightAndChatCloseOthersRespectPaneBoundaries() throws {
+  func testReorderInSplitThenCloseOthersInFullUsesTheCurrentStrip() throws {
     let (_, resources, tabs) = try fixture()
     defer { resources.shutdown() }
     tabs.newBrowser(); let first = try XCTUnwrap(tabs.selected(.left))
@@ -230,9 +226,9 @@ import XCTest
     tabs.closeRight(of: first.id, in: .left)
     XCTAssertEqual(tabs.visibleTabs(.left), [last, first])
     tabs.closeOthers(keeping: nil, in: .left)
-    XCTAssertEqual(tabs.tabs, [right])
+    XCTAssertTrue(tabs.tabs.isEmpty)
     XCTAssertTrue(tabs.chatVisible)
-    XCTAssertEqual(tabs.selected(.right), right)
+    XCTAssertNil(tabs.selected(.right))
   }
 
   func testMultipleTerminalsRetainExactShellAcrossMovesAndRestartOnlyOne() async throws {

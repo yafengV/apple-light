@@ -387,7 +387,7 @@ import XCTest
     XCTAssertTrue(store.showingInspector)
   }
 
-  func testCloseOtherTabsIsScopedToTheCurrentPanel() throws {
+  func testCloseOtherTabsInFullViewIncludesBothSavedPlacements() throws {
     let store = storeWithTask()
     defer { store.workspace.browser.shutdown() }
     store.newBrowserTab()
@@ -397,8 +397,8 @@ import XCTest
     store.openReviewTab()
 
     store.closeOtherWorkspaceTabs(keeping: right.id)
-    XCTAssertTrue(store.visibleWorkspaceContentTabs.contains(left))
-    XCTAssertTrue(store.visibleWorkspaceContentTabs.contains(.review(owner: "task")))
+    XCTAssertFalse(store.visibleWorkspaceContentTabs.contains(left))
+    XCTAssertFalse(store.visibleWorkspaceContentTabs.contains(.review(owner: "task")))
     XCTAssertTrue(store.visibleWorkspaceContentTabs.contains(right))
   }
 

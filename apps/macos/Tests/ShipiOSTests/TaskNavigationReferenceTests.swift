@@ -330,10 +330,11 @@ import XCTest
       let tabs = ["left", "right1", "right2"].map { WorkspaceContentTab.file($0, owner: "a") }
       store.workspaceTabs = tabs
       for tab in tabs.dropFirst() { store.workspaceTabPlacements[tab.id] = .right }
-      store.activeWorkspaceTabID = sample.mode == "full" ? tabs[0].id : nil
+      store.activateWorkspaceTab(tabs[0].id)
       let current = try XCTUnwrap(tabs.first { $0.id == WorkspaceContentTab.file(sample.current, owner: "a").id })
-      store.focusedWorkspaceTabID = current.id; store.activeRightWorkspaceTabID = current.id
-      store.showingInspector = true
+      store.activateWorkspaceTab(current.id)
+      XCTAssertEqual(store.activeWorkspaceContentTab?.id, current.id)
+      XCTAssertFalse(store.showsWorkspaceInspector)
       XCTAssertEqual(store.adjacentContentTab(sample.direction == "next" ? 1 : -1), sample.handled)
       let expected = sample.selected.first == "chat" ? nil : sample.selected.first.map { WorkspaceContentTab.file($0, owner: "a").id }
       XCTAssertEqual(store.focusedWorkspaceTabID, expected, "main \(sample.mode)/\(sample.current)/\(sample.direction)")

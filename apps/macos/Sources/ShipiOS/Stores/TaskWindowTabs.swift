@@ -25,7 +25,7 @@ import Observation
   var showingTabs = true
   var contentLayoutMode: WorkspaceContentLayoutMode?
   var effectiveContentLayoutMode: WorkspaceContentLayoutMode {
-    contentLayoutMode ?? (selected(.left) == nil ? .split : .full)
+    contentLayoutMode ?? (visibleTabs(.left).contains { $0.id == selections[.left] } ? .full : .split)
   }
   var claimsAdjacentContentTabs: Bool {
     commandContentTab != nil || (effectiveContentLayoutMode == .full && tabs.contains {
@@ -98,8 +98,21 @@ import Observation
   func visibleTabs(_ placement: WorkspaceTabPlacement) -> [WorkspaceContentTab] {
     tabs.filter { self.placement($0.id) == placement }
   }
+  func presentedTabs(_ place: WorkspaceTabPlacement) -> [WorkspaceContentTab] {
+    guard effectiveContentLayoutMode == .full else { return visibleTabs(place) }
+    if place == .left { return tabs.filter { [.left, .right].contains(placement($0.id)) } }
+    return place == .right ? [] : visibleTabs(place)
+  }
+  var showsContentSidePanel: Bool {
+    effectiveContentLayoutMode == .split && showingRight && selected(.right) != nil
+  }
+  func stripPlacement(_ id: String) -> WorkspaceTabPlacement {
+    let place = placement(id)
+    return effectiveContentLayoutMode == .full && place == .right ? .left : place
+  }
   func selected(_ placement: WorkspaceTabPlacement) -> WorkspaceContentTab? {
-    visibleTabs(placement).first { $0.id == selections[placement] }
+    let candidates = placement == .left ? presentedTabs(.left) : visibleTabs(placement)
+    return candidates.first { $0.id == selections[placement] }
   }
   var focused: WorkspaceContentTab? {
     guard let tab = tabs.first(where: { $0.id == focusedID }), isVisible(tab.id) else { return nil }
@@ -110,6 +123,9 @@ import Observation
   var canReopen: Bool { !closed.isEmpty }
   func isVisible(_ id: String) -> Bool {
     let place = placement(id)
+    if effectiveContentLayoutMode == .full && [.left, .right].contains(place) {
+      return selections[.left] == id
+    }
     return selections[place] == id && (place == .left || (place == .right && showingRight && !panels.showingFiles)
       || (place == .bottom && showingBottom))
   }
@@ -145,7 +161,11 @@ import Observation
     let place = placement(id)
     if place == .left { contentLayoutMode = .full }
     selections[place] = id
-    if place == .right { panels.showingFiles = false; showingRight = true }
+    if place == .right {
+      panels.showingFiles = false
+      if effectiveContentLayoutMode == .full { selections[.left] = id }
+      else { showingRight = true }
+    }
     if place == .bottom { showingBottom = true }
     focusedID = id; lastContentID = id
     if let browserID = tab.browserID {
@@ -161,6 +181,7 @@ import Observation
     guard place == .left || place == .right else { return }
     openingPlacement = place
     browser.newTab()
+    if let id = browser.session.selection { move(WorkspaceContentTab.browser(id, owner: taskID).id, to: place) }
     openingPlacement = .left
   }
   func openBrowser(_ url: URL, presentation: MessageWebLinkPresentation) {
@@ -251,7 +272,7 @@ import Observation
   func newTerminal(in place: WorkspaceTabPlacement = .bottom) {
     guard place != .detached, let terminal = panels.newTerminal() else { return }
     let tab = WorkspaceContentTab.terminal(terminal.id, owner: taskID)
-    tabs.append(tab); placements[tab.id] = place; activate(tab.id)
+    tabs.append(tab); placements[tab.id] = place; move(tab.id, to: place)
   }
   @discardableResult func runEnvironmentAction(_ action: EnvironmentAction,
     in place: WorkspaceTabPlacement) -> Bool {
@@ -269,9 +290,9 @@ import Observation
     onTabReplaced?(old.id, tab.id)
   }
   func toggleTerminal(in place: WorkspaceTabPlacement) {
-    let visible = place == .right ? showingRight : showingBottom
+    let visible = place == .right ? showsContentSidePanel : showingBottom
     if visible, selected(place)?.terminalID != nil { hide(place); return }
-    if let existing = visibleTabs(place).first(where: { $0.terminalID != nil }) { activate(existing.id) }
+    if let existing = visibleTabs(place).first(where: { $0.terminalID != nil }) { move(existing.id, to: place) }
     else { newTerminal(in: place) }
   }
   func toggleBottom() {
@@ -291,9 +312,10 @@ import Observation
   func move(_ id: String, to place: WorkspaceTabPlacement) {
     guard canMove(id, to: place) else { return }
     let previous = placement(id)
+    if place == .left { contentLayoutMode = .full }
+    else if place == .right { contentLayoutMode = .split; selections[.left] = nil }
     if previous != place {
       clearSelection(id); placements[id] = place
-      if previous == .left && place == .right { contentLayoutMode = .split }
       repairSelection(previous)
     }
     activate(id)
@@ -301,7 +323,7 @@ import Observation
   func toggleFullWidth() {
     guard let id = commandContentTab?.id ?? lastContentID,
       tabs.contains(where: { $0.id == id }) else { return }
-    move(id, to: placement(id) == .left ? .right : .left)
+    move(id, to: effectiveContentLayoutMode == .full ? .right : .left)
   }
   func close(_ id: String) {
     guard let tab = tabs.first(where: { $0.id == id }) else { return }
@@ -343,16 +365,16 @@ import Observation
     }
   }
   func closeOthers(keeping id: String?, in place: WorkspaceTabPlacement) {
-    for tab in visibleTabs(place).reversed() where tab.id != id { close(tab.id) }
+    for tab in presentedTabs(place).reversed() where tab.id != id { close(tab.id) }
     activate(id)
   }
   func canCloseRight(of id: String?, in place: WorkspaceTabPlacement) -> Bool {
-    let ids: [String?] = (place == .left ? [nil] : []) + visibleTabs(place).map { Optional($0.id) }
+    let ids: [String?] = (place == .left ? [nil] : []) + presentedTabs(place).map { Optional($0.id) }
     guard let index = ids.firstIndex(of: id) else { return false }
     return index + 1 < ids.count
   }
   func closeRight(of id: String?, in place: WorkspaceTabPlacement) {
-    let ids: [String?] = (place == .left ? [nil] : []) + visibleTabs(place).map { Optional($0.id) }
+    let ids: [String?] = (place == .left ? [nil] : []) + presentedTabs(place).map { Optional($0.id) }
     guard let index = ids.firstIndex(of: id) else { return }
     for candidate in ids.dropFirst(index + 1).reversed() { if let candidate { close(candidate) } }
     activate(id)
@@ -378,7 +400,7 @@ import Observation
     }
   }
   @discardableResult func reorder(_ source: String, relativeTo target: String, after: Bool) -> Bool {
-    guard source != target, placement(source) == placement(target),
+    guard source != target, stripPlacement(source) == stripPlacement(target),
       let index = tabs.firstIndex(where: { $0.id == source }), tabs.contains(where: { $0.id == target }) else { return false }
     let tab = tabs.remove(at: index)
     let destination = tabs.firstIndex(where: { $0.id == target })!
@@ -504,8 +526,10 @@ import Observation
       placements[tab.id] = entry.placement == .detached || (entry.placement == .bottom && tab.terminalID == nil)
         ? .left : entry.placement
     }
+    contentLayoutMode = layout.contentLayoutMode
     for (place, id) in [(WorkspaceTabPlacement.left, layout.active), (.right, layout.right), (.bottom, layout.bottom)] {
-      if let id, visibleTabs(place).contains(where: { $0.id == id }) { selections[place] = id }
+      let candidates = place == .left ? presentedTabs(.left) : visibleTabs(place)
+      if let id, candidates.contains(where: { $0.id == id }) { selections[place] = id }
     }
     showingRight = layout.showingInspector && !visibleTabs(.right).isEmpty
     showingBottom = layout.showingTerminal && !visibleTabs(.bottom).isEmpty

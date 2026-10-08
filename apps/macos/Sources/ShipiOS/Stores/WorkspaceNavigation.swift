@@ -292,7 +292,7 @@ extension WorkspaceStore {
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty
     case "workspace-tabs", "workspace-view": return destination == .workspace
-    case "workspace-swap-panes": return destination == .workspace && showingInspector
+    case "workspace-swap-panes": return destination == .workspace && showsWorkspaceInspector
     case let value where value.hasPrefix("focus-tab-"):
       guard destination == .workspace,
         let slot = DesktopCommand.numberSlot(value) else { return false }
@@ -370,23 +370,30 @@ extension WorkspaceStore {
   }
 
   func toggleWorkspaceTabView() {
-    if let tab = activeWorkspaceContentTab {
-      moveWorkspaceTab(tab.id, to: .right)
-    } else if let tab = activeRightWorkspaceContentTab {
-      moveWorkspaceTab(tab.id, to: .left)
+    let tab = focusedWorkspaceContentTab ?? activeWorkspaceContentTab ?? activeRightWorkspaceContentTab
+      ?? visibleWorkspaceContentTabs.first { $0.id == lastWorkspaceContentTabID }
+      ?? presentedWorkspaceContentTabs(in: .left).first
+    if let tab {
+      moveWorkspaceTab(tab.id, to: effectiveWorkspaceContentLayoutMode == .full ? .right : .left)
     } else { newBrowserTab() }
   }
 
   func swapWorkspacePanes() {
-    guard showingInspector else { return }
+    guard showsWorkspaceInspector else { return }
     workspaceContentPaneSide.swap()
+  }
+  func toggleWorkspaceInspector() {
+    if showsWorkspaceInspector { showingInspector = false }
+    else if let tab = activeRightWorkspaceContentTab ?? visibleWorkspaceContentTabs(in: .right).first {
+      moveWorkspaceTab(tab.id, to: .right)
+    } else { showingInspector = true }
   }
   func showPane(_ name: String) {
     destination = .workspace
     if name == "browser" {
       pane = name
       if let tab = visibleWorkspaceContentTabs(in: .right).first(where: { $0.browserID != nil }) {
-        activateWorkspaceTab(tab.id)
+        moveWorkspaceTab(tab.id, to: .right)
       } else if let tab = visibleWorkspaceContentTabs.first(where: { $0.browserID != nil }) {
         moveWorkspaceTab(tab.id, to: .right)
       } else {
@@ -400,7 +407,7 @@ extension WorkspaceStore {
       if let tab = visibleWorkspaceContentTabs(in: .right).first(where: {
         if case .review = $0 { true } else { false }
       }) {
-        activateWorkspaceTab(tab.id)
+        moveWorkspaceTab(tab.id, to: .right)
       } else {
         let tab = WorkspaceContentTab.review(owner: currentWorkspaceTabOwner)
         if !workspaceTabs.contains(tab) { workspaceTabs.append(tab) }

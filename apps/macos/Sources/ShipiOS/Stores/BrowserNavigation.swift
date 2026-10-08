@@ -4,8 +4,8 @@ extension WorkspaceStore {
   var browserVisible: Bool {
     destination == .workspace
       && (activeBrowserTabID != nil
-        || (showingInspector && activeRightWorkspaceContentTab?.browserID != nil)
-        || (showingInspector && visibleWorkspaceContentTabs(in: .right).isEmpty && pane == "browser"))
+        || (showsWorkspaceInspector && activeRightWorkspaceContentTab?.browserID != nil)
+        || (showsWorkspaceInspector && visibleWorkspaceContentTabs(in: .right).isEmpty && pane == "browser"))
   }
   var browserFocused: Bool { browserVisible && presentedOverlay == nil && !showingModelPicker
     && !showingBranchPicker && workspace.browser.hasNativeFocus }

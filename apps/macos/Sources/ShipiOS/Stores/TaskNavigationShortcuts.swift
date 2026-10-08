@@ -2,7 +2,9 @@ import AppKit
 
 extension WorkspaceStore {
   var effectiveWorkspaceContentLayoutMode: WorkspaceContentLayoutMode {
-    workspaceContentLayoutMode ?? (activeWorkspaceContentTab == nil ? .split : .full)
+    workspaceContentLayoutMode ?? (visibleWorkspaceContentTabs(in: .left).contains {
+      $0.id == activeWorkspaceTabID
+    } ? .full : .split)
   }
   var claimsAdjacentContentTabs: Bool {
     filePreviewFocused || focusedWorkspaceContentTab != nil || activeWorkspaceContentTab != nil
@@ -40,7 +42,8 @@ extension WorkspaceStore {
       guard tabs.count > 1, let index = tabs.firstIndex(where: { $0.id == focused.id }) else { return false }
       activateWorkspaceTab(tabs[(index + direction + tabs.count) % tabs.count].id); return true
     }
-    if browserFocused, activeWorkspaceContentTab == nil, focusedWorkspaceContentTab == nil {
+    if effectiveWorkspaceContentLayoutMode == .split, browserFocused,
+      activeWorkspaceContentTab == nil, focusedWorkspaceContentTab == nil {
       return moveLegacyBrowserTab(direction)
     }
     let full = effectiveWorkspaceContentLayoutMode == .full

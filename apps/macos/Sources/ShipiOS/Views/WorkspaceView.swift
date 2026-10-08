@@ -292,7 +292,7 @@ struct WorkspaceView: View {
               }
             }
             Button {
-              store.showingInspector.toggle()
+              store.toggleWorkspaceInspector()
             } label: {
               Image(systemName: "sidebar.right")
             }
@@ -302,12 +302,12 @@ struct WorkspaceView: View {
                 Button(store.showingWorkspaceTabs ? "隐藏标签页" : "显示标签页") {
                   store.toggleWorkspaceTabVisibility()
                 }
-                Button(store.activeWorkspaceContentTab == nil ? "打开完整视图" : "退出完整视图") {
+                Button(store.effectiveWorkspaceContentLayoutMode == .full ? "退出完整视图" : "打开完整视图") {
                   store.toggleWorkspaceTabView()
                 }
                 Divider()
                 Button("交换左侧和右侧面板") { store.swapWorkspacePanes() }
-                  .disabled(!store.showingInspector)
+                  .disabled(!store.showsWorkspaceInspector)
               } label: {
                 Image(systemName: "rectangle.split.2x1")
               }
@@ -393,7 +393,7 @@ struct WorkspaceView: View {
           let terminalHeight = store.panelSizes.terminal(available: detail.size.height)
           let summaryInline = taskSummary.showsInline && store.selectedTask != nil
           HStack(spacing: 0) {
-            if store.showingInspector && store.workspaceContentPaneSide == .left {
+            if store.showsWorkspaceInspector && store.workspaceContentPaneSide == .left {
               inspectorColumn(width: inspectorWidth, height: detail.size.height)
               inspectorResizeHandle(availableWidth: detail.size.width)
             }
@@ -401,10 +401,10 @@ struct WorkspaceView: View {
               width: max(
                 0,
                 detail.size.width
-                  - (store.showingInspector ? inspectorWidth + WorkspacePanelSizes.divider : 0)
+                  - (store.showsWorkspaceInspector ? inspectorWidth + WorkspacePanelSizes.divider : 0)
                   - (summaryInline ? 317 : 0)),
               height: detail.size.height, terminalHeight: terminalHeight)
-            if store.showingInspector && store.workspaceContentPaneSide == .right {
+            if store.showsWorkspaceInspector && store.workspaceContentPaneSide == .right {
               inspectorResizeHandle(availableWidth: detail.size.width)
               inspectorColumn(width: inspectorWidth, height: detail.size.height)
             }
@@ -551,7 +551,7 @@ struct WorkspaceView: View {
     .frame(width: width, height: height)
     .background(NoticeHostFrameReporter(.workspace))
     .overlay(alignment: store.workspaceContentPaneSide == .right ? .trailing : .leading) {
-      if !store.showingInspector, store.canDropWorkspaceTab(to: .right) {
+      if !store.showsWorkspaceInspector, store.canDropWorkspaceTab(to: .right) {
         hiddenPanelDropTarget(.right,
           title: store.workspaceContentPaneSide == .right ? "移到右侧" : "移到左侧",
           icon: store.workspaceContentPaneSide == .right ? "rectangle.trailinghalf.inset.filled" : "rectangle.leadinghalf.inset.filled")

@@ -15,9 +15,27 @@ extension WorkspaceStore {
     visibleWorkspaceContentTabs.filter { workspaceTabPlacement($0.id) == placement }
   }
 
+  /// Full mode has one content strip; saved placements remain available for split mode.
+  func presentedWorkspaceContentTabs(in placement: WorkspaceTabPlacement) -> [WorkspaceContentTab] {
+    guard effectiveWorkspaceContentLayoutMode == .full else { return visibleWorkspaceContentTabs(in: placement) }
+    if placement == .left {
+      return visibleWorkspaceContentTabs.filter { [.left, .right].contains(workspaceTabPlacement($0.id)) }
+    }
+    return placement == .right ? [] : visibleWorkspaceContentTabs(in: placement)
+  }
+
+  var showsWorkspaceInspector: Bool {
+    showingInspector && (effectiveWorkspaceContentLayoutMode != .full || visibleWorkspaceContentTabs(in: .right).isEmpty)
+  }
+
+  func workspaceTabStripPlacement(_ id: String) -> WorkspaceTabPlacement {
+    let place = workspaceTabPlacement(id)
+    return effectiveWorkspaceContentLayoutMode == .full && place == .right ? .left : place
+  }
+
   var activeWorkspaceContentTab: WorkspaceContentTab? {
     guard let activeWorkspaceTabID else { return nil }
-    return visibleWorkspaceContentTabs(in: .left).first { $0.id == activeWorkspaceTabID }
+    return presentedWorkspaceContentTabs(in: .left).first { $0.id == activeWorkspaceTabID }
   }
 
 
@@ -34,6 +52,10 @@ extension WorkspaceStore {
   var focusedWorkspaceContentTab: WorkspaceContentTab? {
     guard destination == .workspace, let focusedWorkspaceTabID,
       let tab = visibleWorkspaceContentTabs.first(where: { $0.id == focusedWorkspaceTabID }) else { return nil }
+    if effectiveWorkspaceContentLayoutMode == .full,
+      [.left, .right].contains(workspaceTabPlacement(tab.id)) {
+      return activeWorkspaceTabID == tab.id ? tab : nil
+    }
     switch workspaceTabPlacement(tab.id) {
     case .left: return activeWorkspaceTabID == tab.id ? tab : nil
     case .right: return showingInspector && activeRightWorkspaceTabID == tab.id ? tab : nil
@@ -324,7 +346,8 @@ extension WorkspaceStore {
       activeWorkspaceTabID = tab.id
     case .right:
       activeRightWorkspaceTabID = tab.id
-      showingInspector = true
+      if effectiveWorkspaceContentLayoutMode == .full { activeWorkspaceTabID = tab.id }
+      else { showingInspector = true }
     case .bottom:
       activeBottomWorkspaceTabID = tab.id
       showingTerminal = true
@@ -448,10 +471,13 @@ extension WorkspaceStore {
     guard canMoveWorkspaceTab(id, to: placement),
       let tab = visibleWorkspaceContentTabs.first(where: { $0.id == id }) else { return }
     let oldPlacement = workspaceTabPlacement(id)
+    if placement == .left { workspaceContentLayoutMode = .full }
+    else if placement == .right {
+      workspaceContentLayoutMode = .split
+      activeWorkspaceTabID = nil
+    }
     guard oldPlacement != placement else { activateWorkspaceTab(id); return }
     workspaceTabPlacements[id] = placement
-    if placement == .left { workspaceContentLayoutMode = .full }
-    else if oldPlacement == .left && placement == .right { workspaceContentLayoutMode = .split }
     if activeWorkspaceTabID == id { activeWorkspaceTabID = nil }
     if activeRightWorkspaceTabID == id { activeRightWorkspaceTabID = nil }
     if activeBottomWorkspaceTabID == id { activeBottomWorkspaceTabID = nil }
@@ -625,17 +651,17 @@ extension WorkspaceStore {
   }
 
   func closeOtherWorkspaceTabs(keeping id: String?) {
-    let placement = id.map(workspaceTabPlacement) ?? .left
-    for tab in visibleWorkspaceContentTabs(in: placement).reversed() where tab.id != id {
+    let placement = id.map(workspaceTabStripPlacement) ?? .left
+    for tab in presentedWorkspaceContentTabs(in: placement).reversed() where tab.id != id {
       closeWorkspaceTab(tab.id)
     }
     activateWorkspaceTab(id)
   }
 
   func closeWorkspaceTabsToRight(of id: String?) {
-    let placement = id.map(workspaceTabPlacement) ?? .left
+    let placement = id.map(workspaceTabStripPlacement) ?? .left
     let prefix: [String?] = placement == .left ? [nil] : []
-    let ids = prefix + visibleWorkspaceContentTabs(in: placement).map { Optional($0.id) }
+    let ids = prefix + presentedWorkspaceContentTabs(in: placement).map { Optional($0.id) }
     guard let index = ids.firstIndex(where: { $0 == id }), index + 1 < ids.count else { return }
     for candidate in ids[(index + 1)...].reversed() {
       if let candidate { closeWorkspaceTab(candidate) }
@@ -644,9 +670,9 @@ extension WorkspaceStore {
   }
 
   func canCloseWorkspaceTabsToRight(of id: String?) -> Bool {
-    let placement = id.map(workspaceTabPlacement) ?? .left
+    let placement = id.map(workspaceTabStripPlacement) ?? .left
     let prefix: [String?] = placement == .left ? [nil] : []
-    let ids = prefix + visibleWorkspaceContentTabs(in: placement).map { Optional($0.id) }
+    let ids = prefix + presentedWorkspaceContentTabs(in: placement).map { Optional($0.id) }
     guard let index = ids.firstIndex(where: { $0 == id }) else { return false }
     return index + 1 < ids.count
   }
@@ -654,6 +680,9 @@ extension WorkspaceStore {
   @discardableResult func reorderWorkspaceTab(_ source: String, relativeTo target: String,
     after: Bool) -> Bool {
     guard source != target,
+      visibleWorkspaceContentTabs.contains(where: { $0.id == source }),
+      visibleWorkspaceContentTabs.contains(where: { $0.id == target }),
+      workspaceTabStripPlacement(source) == workspaceTabStripPlacement(target),
       let sourceIndex = workspaceTabs.firstIndex(where: { $0.id == source }),
       workspaceTabs.contains(where: { $0.id == target }) else { return false }
     let tab = workspaceTabs.remove(at: sourceIndex)
@@ -667,7 +696,7 @@ extension WorkspaceStore {
 
   @discardableResult func reorderWorkspaceTab(_ id: String, horizontalTranslation: CGFloat,
     sourceWidth: CGFloat) -> Bool {
-    let tabs = visibleWorkspaceContentTabs(in: workspaceTabPlacement(id))
+    let tabs = presentedWorkspaceContentTabs(in: workspaceTabStripPlacement(id))
     guard let sourceIndex = tabs.firstIndex(where: { $0.id == id }), sourceWidth > 0,
       abs(horizontalTranslation) >= max(12, sourceWidth * 0.35) else { return false }
     let direction = horizontalTranslation > 0 ? 1 : -1
@@ -738,10 +767,13 @@ extension WorkspaceStore {
     guard let tab = workspaceTabs.first(where: { $0.browserID == id }),
       tab.owner == currentWorkspaceTabOwner else { return }
     switch workspaceTabPlacement(tab.id) {
-    case .left: activeWorkspaceTabID = tab.id
+    case .left:
+      workspaceContentLayoutMode = .full
+      activeWorkspaceTabID = tab.id
     case .right:
       activeRightWorkspaceTabID = tab.id
-      showingInspector = true
+      if effectiveWorkspaceContentLayoutMode == .full { activeWorkspaceTabID = tab.id }
+      else { showingInspector = true }
     case .bottom: break
     case .detached: break
     }
