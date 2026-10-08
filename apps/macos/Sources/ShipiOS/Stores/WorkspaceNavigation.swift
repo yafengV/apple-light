@@ -7,9 +7,9 @@ extension WorkspaceStore {
     switch id {
     case "approval-approve": approveActiveMCPApproval(taskID: selectedTask?.id)
     case "approval-decline": resolveActiveMCPApproval(taskID: selectedTask?.id, decision: .deny)
-    case "new", "new-alternate": Task { await newChat() }
+    case "new": Task { await newChat() }
     case "new-standalone": Task { await newProjectlessTask() }
-    case "palette", "palette-alternate": showingCommands = true
+    case "palette": showingCommands = true
     case "shortcuts": openSettings(.shortcuts)
     case "model": openModelPicker()
     case "capture-appshot":
@@ -320,7 +320,7 @@ extension WorkspaceStore {
         || (destination == .workspace && !navigationForward.isEmpty && activeLocalRun == nil && !busy)
     case "sidebar": return destination != .settings
     case "bottom-panel": return project != nil
-    case "new", "new-alternate", "new-standalone": return !busy && (project == nil || activeLocalRun == nil)
+    case "new", "new-standalone": return !busy && (project == nil || activeLocalRun == nil)
     case "open": return activeLocalRun == nil && !busy
     case "project-picker": return destination == .workspace && activeLocalRun == nil && !busy && libraryLoaded
     case "doctor": return destination == .workspace && canStart

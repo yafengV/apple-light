@@ -45,7 +45,7 @@ final class PageNavigationTests: XCTestCase {
     for page in SettingsPage.allCases {
       store.showProjects()
       store.openSettings(page)
-      for command in ["palette", "palette-alternate", "search"] {
+      for command in ["palette", "search"] {
         store.executeCommand(command)
         XCTAssertEqual(store.presentedOverlay, command == "search" ? .taskSearch : .commands)
         XCTAssertEqual(store.destination, .settings)

@@ -16,7 +16,7 @@ extension WorkspaceStore {
       workspaceTabPlacement(tabID) == .detached {
       enabled.insert("tab-close")
       if detachedCopyLocationTarget(tabID) != nil { enabled.insert("copy-location") }
-      if commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
+      if commandEnabled("new") { enabled.insert("new") }
       if let id = tab.browserID, let page = workspace.browser.tabs.first(where: { $0.id == id }) {
         enabled.formUnion(["browser-address", "browser-reload", "browser-reload-origin", "browser-close", "browser-new", "find"])
         if page.showingPageFind, !page.pageFindQuery.isEmpty {
@@ -36,7 +36,7 @@ extension WorkspaceStore {
         if let target = self.detachedCopyLocationTarget(tabID) { self.copyLocation(target) }
         return
       }
-      if id == "new" || id == "new-alternate" {
+      if id == "new" {
         Task {
           if let root = self.workspaceTabProject(owner: tab.owner) { await self.newTask(in: root.path) }
           else { await self.newProjectlessTask() }

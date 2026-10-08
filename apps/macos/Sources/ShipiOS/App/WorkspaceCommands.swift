@@ -21,7 +21,6 @@ struct WorkspaceCommands: Commands {
     CommandGroup(replacing: .appSettings) { command("settings") }
     CommandGroup(replacing: .newItem) {
       command("new")
-      command("new-alternate")
       command("new-standalone")
       command("open")
       command("project-picker")
@@ -77,7 +76,6 @@ struct WorkspaceCommands: Commands {
     }
     CommandMenu("工作区") {
       command("palette")
-      command("palette-alternate")
       command("shortcuts")
       Divider()
       command("sidebar")
@@ -175,7 +173,7 @@ struct WorkspaceCommands: Commands {
       gitCommands?.execute(id)
     } else if let taskWindowCommands, TaskWindowCommandContext.owns(id) {
       taskWindowCommands.execute(id)
-      if id == "new" || id == "new-alternate" { openWindow(id: "main") }
+      if id == "new" { openWindow(id: "main") }
     } else {
       store.executeCommand(id)
       if id == "project-picker", taskWindowCommands != nil { store.searchDialogReturnFocus = nil }

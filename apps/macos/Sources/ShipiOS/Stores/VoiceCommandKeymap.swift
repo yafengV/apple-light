@@ -37,11 +37,12 @@ extension WorkspaceStore {
         // request to silently fall back to stale legacy defaults.
         throw AgentFailure(message: "无法读取工作区快捷键设置：\(error.localizedDescription)")
       }
-      guard let snapshot = restored.shortcutPreferences, snapshot.version == 1 else {
+      guard let snapshot = restored.shortcutPreferences else {
         throw AgentFailure(message: "无法读取工作区快捷键设置，已保留当前绑定。")
       }
-      self.library.shortcutPreferences = snapshot
-      return snapshot
+      let upgraded = try snapshot.upgradingCommandBindings()
+      self.library.shortcutPreferences = upgraded
+      return upgraded
     }
   }
 
@@ -57,9 +58,7 @@ extension WorkspaceStore {
     let changed = VoiceShortcutPresentation.Mode.allCases.filter { previous[$0] != next[$0] }
     changed.forEach { voiceShortcutRegistrationErrors[$0] = nil }
     do {
-      if let shortcutSnapshot, shortcutSnapshot.version != 1 {
-        throw AgentFailure(message: "不支持此快捷键设置版本。")
-      }
+      let shortcutSnapshot = try shortcutSnapshot?.upgradingCommandBindings()
       if !changed.isEmpty {
         if let error = shortcuts.loadError { throw AgentFailure(message: error) }
         try validateVoiceBindings(next, changed: changed, shortcutSnapshot: shortcutSnapshot)
@@ -67,7 +66,7 @@ extension WorkspaceStore {
       var candidate = library
       candidate.voicePreferences = next
       if let shortcutSnapshot { candidate.shortcutPreferences = shortcutSnapshot }
-      else if candidate.shortcutPreferences == nil, shortcuts.loadError == nil {
+      else if shortcuts.loadError == nil {
         candidate.shortcutPreferences = shortcuts.snapshot
       }
       let persist = {

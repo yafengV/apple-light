@@ -45,10 +45,10 @@ final class TaskWindowCommandTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let shortcuts = ShortcutPreferences(file: root.appendingPathComponent("shortcuts.json"))
     var invoked: [String] = []
-    let context = TaskWindowCommandContext(enabled: ["palette", "palette-alternate", "search"],
+    let context = TaskWindowCommandContext(enabled: ["palette", "search"],
       perform: { invoked.append($0) })
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘K"), shortcuts: shortcuts), "palette")
-    XCTAssertEqual(context.command(for: ShortcutBinding("⌘⇧P"), shortcuts: shortcuts), "palette-alternate")
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘⇧P"), shortcuts: shortcuts), "palette")
     try shortcuts.set(ShortcutBinding("⌃⌥K"), for: "palette")
     XCTAssertNil(context.command(for: ShortcutBinding("⌘K"), shortcuts: shortcuts))
     XCTAssertEqual(context.command(for: ShortcutBinding("⌃⌥K"), shortcuts: shortcuts), "palette")
@@ -98,7 +98,7 @@ final class TaskWindowCommandTests: XCTestCase {
   }
 
   func testTaskCommandsStayLocalIncludingUnavailablePanelAndNumberNavigation() {
-    for id in ["new", "new-alternate", "palette", "palette-alternate", "search", "send", "dictation", "stop", "find", "pin", "archive", "rename", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "copy-location", "task-summary", "environment-action-1", "environment-action-9", "tree", "browser-copy", "browser-comment-mode", "tab-close", "focus-tab-1", "focus-chat-9", "recent-chat-1"] {
+    for id in ["new", "palette", "search", "send", "dictation", "stop", "find", "pin", "archive", "rename", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "copy-location", "task-summary", "environment-action-1", "environment-action-9", "tree", "browser-copy", "browser-comment-mode", "tab-close", "focus-tab-1", "focus-chat-9", "recent-chat-1"] {
       XCTAssertTrue(TaskWindowCommandContext.owns(id), id)
     }
     for id in ["settings", "shortcuts", "open", "projects", "plugins", "automations", "new-standalone"] {

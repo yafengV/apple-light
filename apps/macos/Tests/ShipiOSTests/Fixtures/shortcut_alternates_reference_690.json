@@ -1,0 +1,24 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Literal current electron command definitions only; native execution and rendered acceptance remain separate",
+  "commands": [
+    {
+      "id": "openCommandMenu",
+      "shipiosID": "palette",
+      "defaults": [
+        "CmdOrCtrl+K",
+        "CmdOrCtrl+Shift+P"
+      ]
+    },
+    {
+      "id": "newTask",
+      "shipiosID": "new",
+      "defaults": [
+        "CmdOrCtrl+N",
+        "CmdOrCtrl+Shift+O"
+      ]
+    }
+  ]
+}

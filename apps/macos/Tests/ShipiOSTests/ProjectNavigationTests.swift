@@ -255,7 +255,7 @@ final class ProjectNavigationTests: XCTestCase {
     XCTAssertEqual(DesktopCommand.all.first(where: { $0.id == "new-standalone" })?.defaultBinding,
       ShortcutBinding("⌘⌥O"))
     XCTAssertTrue(TaskWindowCommandContext.owns("new"))
-    XCTAssertTrue(TaskWindowCommandContext.owns("new-alternate"))
+    XCTAssertFalse(TaskWindowCommandContext.owns("new-alternate"))
     XCTAssertFalse(TaskWindowCommandContext.owns("new-standalone"))
   }
 }

@@ -782,7 +782,7 @@ struct TaskWindowView: View {
         && store.commandEnabled(id)
     }, performCommand: { id in
       switch id {
-      case "palette", "palette-alternate": break
+      case "palette": break
       case "search": openSearch(.tasks)
       case "files": openSearch(.files)
       default:
@@ -822,7 +822,7 @@ struct TaskWindowView: View {
   }
 
   private var availableWindowCommands: Set<String> {
-    var enabled: Set<String> = otherWindowModalActive ? [] : ["tab-close", "palette", "palette-alternate", "search"]
+    var enabled: Set<String> = otherWindowModalActive ? [] : ["tab-close", "palette", "search"]
     if !otherWindowModalActive {
       if canGoBack { enabled.insert("back") }
       if canGoForward { enabled.insert("forward") }
@@ -845,7 +845,7 @@ struct TaskWindowView: View {
       if task.copyableCodexThreadID != nil { enabled.insert("copy-session-id") }
       if store.codexConversationPath(for: task) != nil { enabled.insert("copy-conversation-path") }
       if copyLocationTarget != nil { enabled.insert("copy-location") }
-      if store.commandEnabled("new") { enabled.formUnion(["new", "new-alternate"]) }
+      if store.commandEnabled("new") { enabled.formUnion(["new"]) }
       if store.canForkTaskWindow(taskID) { enabled.insert("fork") }
       if canSend { enabled.insert("send") }
       if let active = store.activeChatRun(taskID: taskID), canSend,
@@ -931,13 +931,13 @@ struct TaskWindowView: View {
     if id == "forward" { if canGoForward { onMove(false) }; return }
     guard let task else { return }
     switch id {
-    case "new", "new-alternate":
+    case "new":
       Task {
         if task.project.isEmpty { await store.newProjectlessTask() }
         else { await store.newTask(in: task.project) }
         openWindow(id: "main")
       }
-    case "palette", "palette-alternate": openSearch(.commands)
+    case "palette": openSearch(.commands)
     case "search": openSearch(.tasks)
     case "send": if canSend { submitTaskDraft() }
     case "steer-prompt":

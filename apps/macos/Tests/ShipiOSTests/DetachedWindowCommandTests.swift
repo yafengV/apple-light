@@ -34,7 +34,7 @@ import XCTest
     var closed = 0
     let context = store.detachedWindowCommands(tabID(a), close: { closed += 1 })
     XCTAssertTrue(context.enabled.contains("new"))
-    XCTAssertTrue(context.enabled.contains("new-alternate"))
+    XCTAssertEqual(context.command(for: ShortcutBinding("⌘⇧O"), shortcuts: store.shortcuts), "new")
     let layout = store.workspaceTabLayoutSnapshot
     XCTAssertEqual(context.closeTitle, "关闭标签页窗口")
     XCTAssertNil(context.command(for: ShortcutBinding("⌘←"), shortcuts: store.shortcuts),
@@ -86,7 +86,7 @@ import XCTest
     let review = WorkspaceContentTab.review(owner: "a")
     store.workspaceTabs.append(review); store.workspaceTabPlacements[review.id] = .detached
     let context = store.detachedWindowCommands(review.id, close: {})
-    XCTAssertEqual(context.enabled, ["tab-close", "new", "new-alternate"])
+    XCTAssertEqual(context.enabled, ["tab-close", "new"])
     XCTAssertEqual(context.command(for: ShortcutBinding("⌘W"), shortcuts: store.shortcuts), "tab-close")
     try store.shortcuts.set(ShortcutBinding("⌃⌥L"), for: "browser-address")
     XCTAssertEqual(context.command(for: ShortcutBinding("⌃⌥L"), shortcuts: store.shortcuts), "browser-address")

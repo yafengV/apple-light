@@ -29,10 +29,10 @@ import Observation
   func commands(store: WorkspaceStore, tabID: String, closeWindow: @escaping () -> Void) -> TaskWindowCommandContext {
     let local = store.detachedWindowCommands(tabID, close: closeWindow)
     let enabled = mode == nil && available(store, tabID: tabID)
-      ? local.enabled.union(["palette", "palette-alternate", "search"]) : []
+      ? local.enabled.union(["palette", "search"]) : []
     return TaskWindowCommandContext(enabled: enabled, perform: { [weak self] id in
       guard let self, self.mode == nil, self.available(store, tabID: tabID) else { return }
-      if id == "palette" || id == "palette-alternate" { self.open(.commands, window: NSApp.keyWindow) }
+      if id == "palette" { self.open(.commands, window: NSApp.keyWindow) }
       else if id == "search" { self.open(.tasks, window: NSApp.keyWindow) }
       else { local.execute(id) }
     }, closeTitle: local.closeTitle, keyboardAllowed: local.keyboardAllowed)
@@ -43,19 +43,19 @@ import Observation
     SearchDialogContext(currentTaskID: store.workspaceTabs.first { $0.id == tabID }?.owner ?? "",
       commandEnabled: { [weak self] id in
         guard let self, self.mode == .commands, self.available(store, tabID: tabID) else { return false }
-        if ["palette", "palette-alternate", "search"].contains(id) { return true }
+        if ["palette", "search"].contains(id) { return true }
         if TaskWindowCommandContext.owns(id) {
           return store.detachedWindowCommands(tabID, close: closeWindow).enabled.contains(id)
         }
         return Self.globalCommands.contains(id) && store.commandEnabled(id)
       }, performCommand: { [weak self] id in
         guard let self else { return }
-        if id == "palette" || id == "palette-alternate" { return }
+        if id == "palette" { return }
         if id == "search" { self.mode = .tasks; return }
         if TaskWindowCommandContext.owns(id) {
           self.close(restoreFocus: !["tab-close", "browser-close", "browser-new", "browser-address"].contains(id))
           store.detachedWindowCommands(tabID, close: closeWindow).execute(id)
-          if id == "new" || id == "new-alternate" { showMain() }
+          if id == "new" { showMain() }
         } else {
           let staysHere = id == "pet" || id == "clear-unread"
           self.close(restoreFocus: staysHere)

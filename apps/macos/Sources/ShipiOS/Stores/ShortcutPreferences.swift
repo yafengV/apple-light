@@ -6,10 +6,40 @@ enum NumberShortcutTarget: String, Codable, CaseIterable {
 }
 
 struct ShortcutPreferencesSnapshot: Codable {
-  var version = 1
+  var version = 2
   var primaryNumberShortcutTarget: NumberShortcutTarget
   var overrides: [String: [ShortcutBinding]]
   var externalBrowserLinkShortcut: ExternalBrowserLinkShortcut?
+
+  /// Version 1 stored the two default alternatives as separate commands. Keep
+  /// the effective bindings of each old row, including explicit unbindings.
+  /// Upgrade in memory; a later successful edit persists the canonical schema.
+  func upgradingCommandBindings() throws -> Self {
+    guard version == 1 || version == 2 else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
+    guard version == 1 else { return self }
+    var upgraded = self
+    let pairs = [("palette", "palette-alternate"), ("new", "new-alternate")]
+    let knownIDs = Set(DesktopCommand.all.map(\.id) + pairs.map { $0.1 })
+    for (primary, alternate) in pairs {
+      guard overrides[primary] != nil || overrides[alternate] != nil else { continue }
+      let defaults = DesktopCommand.all.first { $0.id == primary }?.defaultBindings ?? []
+      func oldBindings(_ id: String, defaults: [ShortcutBinding]) -> [ShortcutBinding] {
+        if let custom = overrides[id] { return custom }
+        return defaults.filter { binding in
+          !overrides.contains { other, values in
+            other != id && knownIDs.contains(other) && values.contains(binding)
+          }
+        }
+      }
+      let combined = oldBindings(primary, defaults: Array(defaults.prefix(1)))
+        + oldBindings(alternate, defaults: Array(defaults.dropFirst()))
+      var seen = Set<ShortcutBinding>()
+      upgraded.overrides[primary] = combined.filter { seen.insert($0).inserted }
+      upgraded.overrides[alternate] = nil
+    }
+    upgraded.version = 2
+    return upgraded
+  }
 }
 
 @MainActor @Observable
@@ -65,16 +95,16 @@ final class ShortcutPreferences {
       }
       let data = try Data(contentsOf: file)
       if let legacy = try? JSONDecoder().decode([String: [ShortcutBinding]].self, from: data) {
-        overrides = legacy
-        primaryNumberShortcutTarget = .tabs
-        externalBrowserLinkShortcut = .unassigned
+        var snapshot = ShortcutPreferencesSnapshot(primaryNumberShortcutTarget: .tabs,
+          overrides: legacy, externalBrowserLinkShortcut: .unassigned)
+        snapshot.version = 1
+        try restore(snapshot)
+        return
       } else {
         let loaded = try JSONDecoder().decode(ShortcutPreferencesSnapshot.self, from: data)
         try restore(loaded)
         return
       }
-      loadError = nil
-      didChange?("*")
     } catch CocoaError.fileReadNoSuchFile {
       overrides = [:]
       primaryNumberShortcutTarget = .tabs
@@ -85,8 +115,7 @@ final class ShortcutPreferences {
   }
 
   func restore(_ snapshot: ShortcutPreferencesSnapshot) throws {
-    guard snapshot.version == 1 else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
-    publish(snapshot)
+    publish(try snapshot.upgradingCommandBindings())
     loadError = nil
     didChange?("*")
   }
@@ -143,7 +172,8 @@ final class ShortcutPreferences {
   }
   func binding(_ id: String) -> ShortcutBinding? { bindings(id).first }
   func bindings(_ id: String, in snapshot: ShortcutPreferencesSnapshot) -> [ShortcutBinding] {
-    bindings(id, overrides: snapshot.overrides, target: snapshot.primaryNumberShortcutTarget)
+    guard let snapshot = try? snapshot.upgradingCommandBindings() else { return [] }
+    return bindings(id, overrides: snapshot.overrides, target: snapshot.primaryNumberShortcutTarget)
   }
   func globalBindings(in snapshot: ShortcutPreferencesSnapshot) -> CommandGlobalHotkeyBindings {
     CommandGlobalHotkeyBindings(pet: bindings("pet", in: snapshot).first,
@@ -179,7 +209,11 @@ final class ShortcutPreferences {
     if DesktopCommand.all.first(where: { $0.id == id })?.isOSGlobal == true, values.count > 1 {
       throw ShortcutError(message: "全局命令只能设置一个快捷键。")
     }
-    guard values.count <= 6 else { throw ShortcutError(message: "每个命令最多设置 6 个快捷键。") }
+    // Older separate rows could contain up to twelve alternatives. Preserve
+    // them on migration and allow removal/replacement without permitting growth.
+    guard values.count <= max(6, bindings(id).count) else {
+      throw ShortcutError(message: "每个命令最多设置 6 个快捷键。")
+    }
     guard Set(values).count == values.count else { throw ShortcutError(message: "此命令已经使用这个快捷键。") }
     for binding in values {
       let petOptionBinding = id == "pet" && binding.option && !binding.command && !binding.control
