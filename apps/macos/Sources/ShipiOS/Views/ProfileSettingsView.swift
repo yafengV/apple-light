@@ -10,7 +10,7 @@ struct ProfileSettingsView: View {
   @FocusState private var cardFocused: Bool
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("个人资料") {
         HStack(alignment: .top, spacing: 18) {
           avatar

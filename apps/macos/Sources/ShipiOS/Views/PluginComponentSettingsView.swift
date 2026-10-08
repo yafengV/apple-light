@@ -48,7 +48,7 @@ struct PluginComponentSettingsView: View {
   }
 
   var body: some View {
-    Form {
+    SettingsForm {
       if showsIntroduction {
         Section {
           Text(kind.explanation).foregroundStyle(.secondary)

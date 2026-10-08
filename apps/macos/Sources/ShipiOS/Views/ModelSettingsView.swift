@@ -8,20 +8,20 @@ struct ModelSettingsView: View {
   @State private var status = ""
   @State private var testing = false
   var body: some View {
-    Form {
+    SettingsForm {
       Section("独立 API 服务") {
-        TextField("基础地址", text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
+        SettingsTextField("基础地址", text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
           .settingsSearchTarget(.apiURL)
-        TextField("模型 ID", text: $draft.model, prompt: Text("由你的服务商提供"))
+        SettingsTextField("模型 ID", text: $draft.model, prompt: Text("由你的服务商提供"))
           .settingsSearchTarget(.modelID)
-        TextField("实时语音模型 ID", text: $realtimeModelDraft,
+        SettingsTextField("实时语音模型 ID", text: $realtimeModelDraft,
           prompt: Text("支持 /realtime 的模型；留空关闭语音聊天"))
           .settingsSearchTarget(.voiceModel)
         SettingsMenuPicker("会话协议", selection: $draft.apiProtocol, options: [
           SettingsMenuOption(value: .chatCompletions, title: "Chat Completions"),
           SettingsMenuOption(value: .codexResponses, title: "Codex Core · Responses")
         ])
-        SecureField("API Key", text: $key, prompt: Text("留空保留此地址已保存的密钥"))
+        SettingsSecureField("API Key", text: $key, prompt: Text("留空保留此地址已保存的密钥"))
           .settingsSearchTarget(.apiKey)
         if draft.apiProtocol == .chatCompletions {
           SettingsMenuPicker("推理强度", selection: $draft.reasoning,

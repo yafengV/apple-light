@@ -21,7 +21,7 @@ struct MemorySettingsView: View {
 
   var body: some View {
     SettingsScrollPage(title: SettingsPage.memories.title) {} controls: {} content: {
-      Form {
+      SettingsForm {
         Section {
           SettingsToggle(
             title: "启用记忆",

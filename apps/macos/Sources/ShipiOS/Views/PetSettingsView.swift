@@ -5,7 +5,7 @@ struct PetSettingsView: View {
   @State private var confirmingRemoval = false
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("选择宠物") {
         HStack(spacing: 12) {
           choice(.codey, subtitle: "内置动画伙伴")

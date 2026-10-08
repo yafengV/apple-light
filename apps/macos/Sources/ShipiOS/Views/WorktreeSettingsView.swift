@@ -4,7 +4,7 @@ struct WorktreeSettingsView: View {
   @Bindable var store: WorkspaceStore
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.worktreeRoot)
         HStack {

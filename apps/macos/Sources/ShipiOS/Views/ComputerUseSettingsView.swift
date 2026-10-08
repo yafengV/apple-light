@@ -7,7 +7,7 @@ struct ComputerUseSettingsView: View {
   @State private var applicationToRemove: ComputerUseApplication?
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section {
         Text("管理 ShipiOS 如何查看和操作 Mac 上的其他应用。系统权限与应用访问决定彼此独立。")
           .foregroundStyle(.secondary)

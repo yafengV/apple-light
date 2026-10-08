@@ -49,7 +49,7 @@ struct PluginSettingsView: View {
           .accessibilityLabel("搜索已安装的扩展")
       }
       if store.activePluginSettingsSection == .skills {
-        Form {
+        SettingsForm {
           Section("已安装技能") {
             PluginSkillsView(store: store, query: store.pluginSettingsQuery)
           }.settingsSearchTarget(.skillsInstalled)

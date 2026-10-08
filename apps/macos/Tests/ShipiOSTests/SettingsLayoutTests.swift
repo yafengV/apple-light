@@ -368,7 +368,7 @@ private struct PulseTestView: View {
 
 private struct SampleSettingsForm: View {
   var body: some View {
-    Form {
+    SettingsForm {
       Section("输入") {
         Toggle("显示教育提示", isOn: .constant(true))
         Picker("发送快捷键", selection: .constant(0)) { Text("Command + Enter").tag(0) }

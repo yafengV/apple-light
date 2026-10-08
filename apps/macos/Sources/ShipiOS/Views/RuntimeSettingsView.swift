@@ -56,7 +56,7 @@ struct RuntimeSettingsView: View {
       if store.showingOpenSourceLicenses {
         OpenSourceLicensesView()
       } else {
-      Form {
+      SettingsForm {
         EditorSettingsSection(store: store)
         GeneralPermissionSettingsSection(store: store)
         Section("玩具") {
@@ -231,7 +231,7 @@ struct RuntimeSettingsView: View {
     case .archived:
       ArchivedTasksSettingsView(store: store)
     case .runtime:
-      Form {
+      SettingsForm {
         LabeledContent("Agent", value: store.connected ? "已连接" : "未连接").settingsSearchTarget(.runtimeAgent)
         LabeledContent("数据根目录") { Text(store.dataRoot.path).textSelection(.enabled) }.settingsSearchTarget(.runtimeRoot)
         if let directory = store.dataDirectory {

@@ -14,7 +14,7 @@ struct MCPSettingsView: View {
     store.pluginPreferences.installed.filter { $0.components.mcpServers > 0 && matches($0.name + " " + $0.id) }
   }
   var body: some View {
-    Form {
+    SettingsForm {
       Section("自定义 MCP 服务器") {
         if store.mcpServersLoading { ProgressView("正在读取 MCP 配置…") }
         else if servers.isEmpty {

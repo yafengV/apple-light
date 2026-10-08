@@ -19,7 +19,7 @@ struct BrowserSettingsView: View {
   }
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section {
         Picker("浏览器设置", selection: $store.browserSettingsSection) {
           ForEach(BrowserSettingsSection.allCases) { Text($0.rawValue).tag($0) }

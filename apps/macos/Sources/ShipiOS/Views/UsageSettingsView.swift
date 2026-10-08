@@ -41,7 +41,7 @@ struct UsageSettingsView: View {
   }
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section {
         Picker("时间范围", selection: $period) {
           ForEach(UsagePeriod.allCases) { Text($0.rawValue).tag($0) }

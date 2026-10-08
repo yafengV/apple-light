@@ -1,0 +1,405 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  ],
+  "headers": [
+    {
+      "props": {
+        "title": "Section"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex justify-between group-data-[density=compact]/settings:min-h-0 group-data-[density=compact]/settings:pb-3 gap-4 items-center pb-1.5 min-h-toolbar",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 flex-1 flex-col gap-0.5 group-data-[density=compact]/settings:gap-0.75",
+                "children": [
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "font-medium text-default group-data-[density=compact]/settings:text-lg group-data-[density=compact]/settings:leading-5 text-base",
+                      "children": "Section"
+                    }
+                  },
+                  null
+                ]
+              }
+            },
+            null,
+            null
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "title": "Section",
+        "subtitle": "Description"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex justify-between group-data-[density=compact]/settings:min-h-0 group-data-[density=compact]/settings:pb-3 gap-4 pb-3 items-start",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 flex-1 flex-col gap-0.5 group-data-[density=compact]/settings:gap-0.75",
+                "children": [
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "font-medium text-default group-data-[density=compact]/settings:text-lg group-data-[density=compact]/settings:leading-5 text-lg",
+                      "children": "Section"
+                    }
+                  },
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "font-normal text-secondary group-data-[density=compact]/settings:text-wrap text-balance text-sm leading-[18px]",
+                      "children": "Description"
+                    }
+                  }
+                ]
+              }
+            },
+            null,
+            null
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "title": "Section",
+        "size": "compact",
+        "spacing": "compact"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex justify-between group-data-[density=compact]/settings:min-h-0 group-data-[density=compact]/settings:pb-3 gap-4 items-center pb-1.5 min-h-8",
+          "children": [
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 flex-1 flex-col gap-0.5 group-data-[density=compact]/settings:gap-0.75",
+                "children": [
+                  {
+                    "type": "div",
+                    "props": {
+                      "className": "font-medium text-default group-data-[density=compact]/settings:text-lg group-data-[density=compact]/settings:leading-5 text-sm leading-[18px]",
+                      "children": "Section"
+                    }
+                  },
+                  null
+                ]
+              }
+            },
+            null,
+            null
+          ]
+        }
+      }
+    },
+    {
+      "props": {},
+      "tree": {
+        "type": "fragment",
+        "props": {}
+      }
+    }
+  ],
+  "cards": [
+    {
+      "variant": "default",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex flex-col [&>*:not(:last-child)]:relative [&>*:not(:last-child)]:after:pointer-events-none [&>*:not(:last-child)]:after:absolute [&>*:not(:last-child)]:after:inset-x-4 [&>*:not(:last-child)]:after:bottom-0 [&>*:not(:last-child)]:after:h-px [&>*:not(:last-child)]:after:bg-border [&>*:not(:last-child)]:after:content-[''] rounded-2xl overflow-hidden border border-default group-data-[density=compact]/settings:border-0 group-data-[density=compact]/settings:py-1 group-data-[density=compact]/settings:ring-1 group-data-[density=compact]/settings:ring-inset group-data-[density=compact]/settings:ring-border",
+          "style": {
+            "backgroundColor": "var(--color-background-panel, var(--color-background-primary-soft-alpha))"
+          },
+          "children": [
+            "first-row",
+            "second-row"
+          ]
+        }
+      }
+    },
+    {
+      "variant": "secondary",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex flex-col [&>*:not(:last-child)]:relative [&>*:not(:last-child)]:after:pointer-events-none [&>*:not(:last-child)]:after:absolute [&>*:not(:last-child)]:after:inset-x-4 [&>*:not(:last-child)]:after:bottom-0 [&>*:not(:last-child)]:after:h-px [&>*:not(:last-child)]:after:bg-border [&>*:not(:last-child)]:after:content-[''] rounded-2xl overflow-hidden bg-surface-secondary/92",
+          "children": [
+            "first-row",
+            "second-row"
+          ]
+        }
+      }
+    },
+    {
+      "variant": "form",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex flex-col [&>*:not(:last-child)]:relative [&>*:not(:last-child)]:after:pointer-events-none [&>*:not(:last-child)]:after:absolute [&>*:not(:last-child)]:after:inset-x-4 [&>*:not(:last-child)]:after:bottom-0 [&>*:not(:last-child)]:after:h-px [&>*:not(:last-child)]:after:bg-border [&>*:not(:last-child)]:after:content-[''] rounded-2xl overflow-hidden border border-subtle bg-surface dark:bg-surface-secondary/92 group-data-[density=form]/settings:border-default group-data-[density=form]/settings:bg-transparent dark:group-data-[density=form]/settings:bg-transparent group-data-[density=form]/settings:[&>*:not(:last-child)]:after:inset-x-5 group-data-[density=form]/settings:[&>*:not(:last-child)]:after:h-px group-data-[density=form]/settings:[&>*:not(:last-child)]:after:bg-border-subtle",
+          "children": [
+            "first-row",
+            "second-row"
+          ]
+        }
+      }
+    },
+    {
+      "variant": "flat",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex flex-col [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-border overflow-hidden relative bg-transparent before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-border before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border after:content-['']",
+          "children": [
+            "first-row",
+            "second-row"
+          ]
+        }
+      }
+    },
+    {
+      "variant": "outlined",
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "flex flex-col [&>*:not(:last-child)]:relative [&>*:not(:last-child)]:after:pointer-events-none [&>*:not(:last-child)]:after:absolute [&>*:not(:last-child)]:after:inset-x-4 [&>*:not(:last-child)]:after:bottom-0 [&>*:not(:last-child)]:after:h-px [&>*:not(:last-child)]:after:bg-border [&>*:not(:last-child)]:after:content-[''] rounded-2xl overflow-hidden border border-subtle bg-transparent",
+          "children": [
+            "first-row",
+            "second-row"
+          ]
+        }
+      }
+    }
+  ],
+  "rows": [
+    {
+      "props": {},
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "setting-label",
+              "props": {
+                "label": "Setting",
+                "labelSizing": "grow",
+                "labelWeight": "medium",
+                "variant": "default",
+                "verticalAlignment": "center"
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "size": "compact"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 items-center flex justify-between gap-4 py-2",
+          "children": [
+            {
+              "type": "setting-label",
+              "props": {
+                "label": "Setting",
+                "labelSizing": "grow",
+                "labelWeight": "medium",
+                "variant": "default",
+                "verticalAlignment": "center"
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "variant": "nested"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 group-data-[density=form]/settings:px-5 flex min-h-10 justify-between gap-3 py-2 max-sm:min-h-0 max-sm:flex-col max-sm:items-stretch group-data-[density=form]/settings:min-h-12 sm:group-data-[density=form]/settings:py-0 items-center",
+          "children": [
+            {
+              "type": "setting-label",
+              "props": {
+                "label": "Setting",
+                "labelSizing": "grow",
+                "labelWeight": "medium",
+                "variant": "nested",
+                "verticalAlignment": "center"
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 flex-1 items-center justify-end max-sm:justify-stretch",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "variant": "stacked"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row px-4 flex flex-col items-stretch gap-1 py-3 group-data-[density=compact]/settings:gap-0.5 group-data-[density=compact]/settings:py-2.5 group-data-[density=compact]/settings:first:pt-3.5 group-data-[density=compact]/settings:last:pb-4",
+          "children": [
+            {
+              "type": "setting-label",
+              "props": {
+                "label": "Setting",
+                "labelSizing": "grow",
+                "labelWeight": "medium",
+                "variant": "stacked",
+                "verticalAlignment": "center"
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "w-full",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "layout": "split"
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row items-center grid grid-cols-1 gap-2 px-0 py-4 sm:grid-cols-3",
+          "children": [
+            {
+              "type": "setting-label",
+              "props": {
+                "label": "Setting",
+                "labelSizing": "grow",
+                "labelWeight": "medium",
+                "variant": "default",
+                "verticalAlignment": "center"
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex min-w-0 max-w-full items-center justify-end gap-2 sm:col-span-2",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "props": {
+        "inset": false
+      },
+      "tree": {
+        "type": "div",
+        "props": {
+          "className": "@container/settings-row items-center flex justify-between gap-6 py-3",
+          "children": [
+            {
+              "type": "setting-label",
+              "props": {
+                "label": "Setting",
+                "labelSizing": "grow",
+                "labelWeight": "medium",
+                "variant": "default",
+                "verticalAlignment": "center"
+              }
+            },
+            {
+              "type": "div",
+              "props": {
+                "className": "flex max-w-full items-center justify-end gap-2 shrink-0 min-w-[min(--spacing(40),40cqw)] empty:min-w-0",
+                "children": "Control"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "content": {
+    "type": "div",
+    "props": {
+      "className": "flex flex-col gap-1.5",
+      "children": "section-content"
+    }
+  },
+  "footers": [
+    {
+      "type": "div",
+      "props": {
+        "className": "text-balance text-secondary px-4 pt-1.5 text-xs leading-4",
+        "children": "Footer"
+      }
+    },
+    {
+      "type": "div",
+      "props": {
+        "className": "text-balance text-secondary pt-4 text-sm leading-5",
+        "children": "Footer"
+      }
+    }
+  ],
+  "expected": {
+    "sectionHeadingSize": 14,
+    "sectionHeaderMinHeight": 46,
+    "sectionHeaderBottomInset": 6,
+    "cardRadius": 16,
+    "cardBorderWidth": 1,
+    "dividerInset": 16,
+    "dividerHeight": 1,
+    "rowHorizontalInset": 16,
+    "rowVerticalInset": 12,
+    "rowGap": 24
+  }
+}

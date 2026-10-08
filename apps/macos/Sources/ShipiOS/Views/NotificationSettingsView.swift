@@ -6,7 +6,7 @@ struct NotificationSettingsView: View {
   @State private var testSent = false
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("任务结束") {
         SettingsMenuPicker("显示通知",
           description: "通知已完成或失败的任务；主动停止的任务不提醒。点击通知可返回对应任务。",

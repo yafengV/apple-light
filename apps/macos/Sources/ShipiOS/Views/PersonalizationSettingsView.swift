@@ -4,7 +4,7 @@ struct PersonalizationSettingsView: View {
   @Bindable var store: WorkspaceStore
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("回复风格") {
         Picker(
           "默认风格",

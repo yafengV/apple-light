@@ -9,7 +9,7 @@ struct AgentSettingsView: View {
   @State private var featureStatus = ""
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("Agent 默认值") {
         LabeledContent("模型", value: store.modelConfiguration.model.isEmpty ? "尚未配置" : store.modelConfiguration.model).settingsSearchTarget(.agentModel)
         LabeledContent("推理强度", value: reasoningTitle).settingsSearchTarget(.agentReasoning)
@@ -149,7 +149,7 @@ struct GitSettingsView: View {
   @State private var watchStatus = ""
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("审查面板") {
         SettingsToggle(title: "关闭基于 Git 的审查",
           description: "审查面板仅显示“最近一轮”，隐藏未暂存、已暂存、提交和分支审查及其 Git 操作。",
@@ -164,7 +164,7 @@ struct GitSettingsView: View {
         if !reviewModeStatus.isEmpty { Text(reviewModeStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
       Section("分支") {
-        TextField("分支前缀", text: $branchPrefix, prompt: Text("codex/")).settingsSearchTarget(.branchPrefix)
+        SettingsTextField("分支前缀", text: $branchPrefix, prompt: Text("codex/")).settingsSearchTarget(.branchPrefix)
         Text("从当前提交创建分支时自动填入此前缀。留空可关闭。")
           .appFont(.caption).foregroundStyle(.secondary)
         HStack {
@@ -270,7 +270,7 @@ struct CodeReviewSettingsView: View {
   @Bindable var store: WorkspaceStore
 
   var body: some View {
-    Form {
+    SettingsForm {
       Section("本地代码审查") {
         SettingsMenuPicker("默认变更范围", selection: Binding(
           get: { store.library.gitPreferences.defaultReviewScope },
@@ -440,7 +440,7 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private var projectList: some View {
-    Form {
+    SettingsForm {
       Section {
         HStack {
           Text("选择项目").appFont(.title2, weight: .semibold)
@@ -548,7 +548,7 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private var overview: some View {
-    Form {
+    SettingsForm {
       Section {
         Button("‹ 环境") { page = .projects }
           .buttonStyle(.plain)
@@ -665,7 +665,7 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private var editor: some View {
-    Form {
+    SettingsForm {
       Section {
         Button("‹ \(environment.projectTitle.isEmpty ? "项目" : environment.projectTitle)") {
           if environment.hasUnsavedChanges {
@@ -686,7 +686,7 @@ struct LocalEnvironmentSettingsView: View {
           }
         }
         Section("本地环境") {
-          TextField("环境名称", text: $environment.name)
+          SettingsTextField("环境名称", text: $environment.name)
           if !environment.hasValidName {
             Text("请填写环境名称。")
               .appFont(.caption).foregroundStyle(.red)
@@ -716,8 +716,8 @@ struct LocalEnvironmentSettingsView: View {
         }.disabled(managedSnapshot != nil)
         if store.project?.path == path {
           Section("构建环境") {
-          TextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
-          TextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
+          SettingsTextField("容器", text: $store.container).settingsSearchTarget(.environmentContainer)
+          SettingsTextField("Scheme", text: $store.scheme).settingsSearchTarget(.environmentScheme)
           SettingsMenuPicker("构建配置", selection: $store.configuration, options: [
             SettingsMenuOption(value: "Debug", title: "Debug"),
             SettingsMenuOption(value: "Release", title: "Release")

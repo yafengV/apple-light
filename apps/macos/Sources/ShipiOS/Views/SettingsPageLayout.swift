@@ -9,6 +9,19 @@ enum SettingsPageLayout {
   static let sectionSpacing: CGFloat = 40
 }
 
+enum SettingsCardLayout {
+  static let sectionHeadingSize: CGFloat = 14
+  static let sectionHeaderMinHeight: CGFloat = 46
+  static let sectionHeaderBottomInset: CGFloat = 6
+  static let radius: CGFloat = 16
+  static let borderWidth: CGFloat = 1
+  static let dividerInset: CGFloat = 16
+  static let dividerHeight: CGFloat = 1
+  static let rowHorizontalInset: CGFloat = 16
+  static let rowVerticalInset: CGFloat = 12
+  static let rowGap: CGFloat = 24
+}
+
 extension SettingsPage {
   var usesScrollingFormHeader: Bool {
     switch self {
@@ -35,17 +48,29 @@ extension EnvironmentValues {
   }
 }
 
-/// The heading belongs to the same scroll document as the settings rows. An
-/// empty section header avoids introducing a grouped card around the title.
-struct SettingsPageFormStyle: FormStyle {
-  let title: String?
-  var embedded = false
-  @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+/// The heading and cards belong to one scroll document. Older systems retain
+/// the grouped form until section decomposition is available.
+struct SettingsForm<Content: View>: View {
+  @Environment(\.settingsPageTitle) private var title
+  @Environment(\.settingsFormEmbedded) private var embedded
+  @ViewBuilder var content: () -> Content
+
+  @ViewBuilder var body: some View {
     if embedded {
-      Form { configuration.content.environment(\.settingsPageTitle, nil) }
+      Form { content().environment(\.settingsPageTitle, nil) }
         .formStyle(.columns).toggleStyle(SettingsSwitchStyle())
         .buttonStyle(SettingsActionButtonStyle())
         .frame(maxWidth: .infinity, alignment: .leading)
+    } else if #available(macOS 15.0, *) {
+      SettingsScrollPage(title: title ?? "", actions: {}, controls: {}) {
+        Group(sections: content().labeledContentStyle(SettingsFormLabeledContentStyle())) { sections in
+          ForEach(sections) { section in
+            SettingsFormSection(section: section)
+          }
+        }
+      }
+      .toggleStyle(SettingsSwitchStyle())
+      .buttonStyle(SettingsActionButtonStyle())
     } else {
       Form {
         if let title {
@@ -57,7 +82,7 @@ struct SettingsPageFormStyle: FormStyle {
               .accessibilityIdentifier("settings-page-heading")
           }
         }
-        configuration.content.environment(\.settingsPageTitle, nil)
+        content().environment(\.settingsPageTitle, nil)
       }
       .formStyle(.grouped)
       .toggleStyle(SettingsSwitchStyle())
@@ -67,11 +92,58 @@ struct SettingsPageFormStyle: FormStyle {
   }
 }
 
-private struct SettingsFormModifier: ViewModifier {
-  @Environment(\.settingsPageTitle) private var title
-  @Environment(\.settingsFormEmbedded) private var embedded
-  func body(content: Content) -> some View {
-    content.formStyle(SettingsPageFormStyle(title: title, embedded: embedded))
+/// Keep the original controls, while the page owns its card geometry. Field
+/// labels are explicit so changing the container cannot turn them into hints.
+@available(macOS 15.0, *)
+private struct SettingsFormSection: View {
+  @Environment(\.appAppearance) private var appearance
+  let section: SectionConfiguration
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      if !section.header.isEmpty {
+        ForEach(section.header) { header in
+          header.appFont(size: SettingsCardLayout.sectionHeadingSize, weight: .medium).textCase(nil)
+            .frame(maxWidth: .infinity, minHeight: SettingsCardLayout.sectionHeaderMinHeight, alignment: .leading)
+            .padding(.bottom, SettingsCardLayout.sectionHeaderBottomInset)
+            .accessibilityAddTraits(.isHeader)
+        }
+      }
+      if !section.content.isEmpty {
+        AppearanceSettingsCard {
+          ForEach(section.content) { row in
+            row
+              .labeledContentStyle(SettingsFormLabeledContentStyle())
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.horizontal, SettingsCardLayout.rowHorizontalInset)
+              .padding(.vertical, SettingsCardLayout.rowVerticalInset)
+              .overlay(alignment: .bottom) {
+                if row.id != section.content.last?.id {
+                  Rectangle().fill(appearance.resolvedColors["border"].color)
+                    .frame(height: SettingsCardLayout.dividerHeight)
+                    .padding(.horizontal, SettingsCardLayout.dividerInset)
+                    .accessibilityHidden(true)
+                }
+              }
+          }
+        }
+      }
+      if !section.footer.isEmpty {
+        ForEach(section.footer) { footer in
+          footer.appFont(size: 12).foregroundStyle(.secondary)
+            .padding(.horizontal, 16).padding(.top, 6)
+        }
+      }
+    }
+  }
+}
+
+private struct SettingsFormLabeledContentStyle: LabeledContentStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    HStack(spacing: SettingsCardLayout.rowGap) {
+      configuration.label.frame(maxWidth: .infinity, alignment: .leading)
+      configuration.content.fixedSize(horizontal: false, vertical: true)
+    }
+    .accessibilityElement(children: .contain)
   }
 }
 
@@ -88,15 +160,17 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-        HStack(alignment: .top, spacing: 16) {
-          VStack(alignment: .leading, spacing: 6) {
-            Text(title).appFont(size: SettingsPageLayout.headingSize)
-              .accessibilityAddTraits(.isHeader).accessibilityIdentifier("settings-page-heading")
-            if let subtitle { Text(subtitle).foregroundStyle(.secondary) }
-          }.frame(maxWidth: .infinity, alignment: .leading)
-          actions()
-        }.padding(.top, SettingsPageLayout.horizontalInset)
-          .padding(.bottom, SettingsPageLayout.headingContentSpacing)
+        if !title.isEmpty {
+          HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+              Text(title).appFont(size: SettingsPageLayout.headingSize)
+                .accessibilityAddTraits(.isHeader).accessibilityIdentifier("settings-page-heading")
+              if let subtitle { Text(subtitle).foregroundStyle(.secondary) }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            actions()
+          }.padding(.top, SettingsPageLayout.horizontalInset)
+            .padding(.bottom, SettingsPageLayout.headingContentSpacing)
+        }
         Section {
           VStack(alignment: .leading, spacing: SettingsPageLayout.sectionSpacing) { content() }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -107,7 +181,8 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
               .background(appearance.backgroundColor)
           }
         }
-      }.padding(.horizontal, SettingsPageLayout.horizontalInset)
+      }.padding(.top, title.isEmpty ? SettingsPageLayout.horizontalInset : 0)
+        .padding(.horizontal, SettingsPageLayout.horizontalInset)
         .padding(.bottom, SettingsPageLayout.horizontalInset)
     }
     .environment(\.settingsPageTitle, nil)
@@ -117,5 +192,7 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
 }
 
 extension View {
-  func settingsFormStyle() -> some View { modifier(SettingsFormModifier()) }
+  func settingsFormStyle() -> some View {
+    toggleStyle(SettingsSwitchStyle()).buttonStyle(SettingsActionButtonStyle())
+  }
 }

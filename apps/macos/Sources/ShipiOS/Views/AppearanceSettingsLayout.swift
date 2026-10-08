@@ -38,8 +38,8 @@ struct AppearanceSettingsCard<Content: View>: View {
   var body: some View {
     VStack(spacing: 0) { content() }
       .background(appearance.resolvedColors["elevatedSecondary"].color)
-      .clipShape(RoundedRectangle(cornerRadius: 16))
-      .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(appearance.resolvedColors["border"].color, lineWidth: 1))
+      .clipShape(RoundedRectangle(cornerRadius: SettingsCardLayout.radius))
+      .overlay(RoundedRectangle(cornerRadius: SettingsCardLayout.radius).strokeBorder(appearance.resolvedColors["border"].color, lineWidth: SettingsCardLayout.borderWidth))
   }
 }
 
