@@ -41,3 +41,11 @@
 2026-10-09 00:34:34（上海时间）启动提交 `6839bea23d110d7f24d8bc431ecafab30be8dcf9` 的新全量，已确认原进程句柄存活且首批实际用例通过，不是仅依据状态文件判断。冻结 **1,457 个源码路径、85 个源夹具、178 个编译资源、测试执行文件、保存的签名 helper 与参考 CSS**；使用 native-ui-648，后续开发转用已释放的 native-ui-654。清单与日志为 `.cache/full-alignment-regression-685-{manifest,status}.json`、`.cache/full-alignment-regression-685.log`。
 
 完整 Swift 结束后才执行该冻结 helper 的 IPC。当前尚无终态结果，不把 658 项关联回归或旧第 681 篇全量结果替代本次全量；不得在终态之前覆盖冻结执行文件／资源或修改原源夹具。终态需再次核对这些资源的哈希。
+
+## 冻结全量终态补充：2026-10-09
+
+冻结提交 `6839bea23d110d7f24d8bc431ecafab30be8dcf9` 的原句柄已确认 terminal exit 0。运行自 2026-10-09 00:34:34 至 01:53:47（北京时间），**3,020 项 Swift、2 跳过、0 失败，4747.492 秒**；之后 IPC 阶段 exit 0。日志 `.cache/full-alignment-regression-685.log`，状态 `.cache/full-alignment-regression-685-status.json`；离线语法冷启动恢复为 0。
+
+两项跳过均为未配置 `SHIPIOS_VOICE_PREVIEW_FIXTURE_URL` 的本地实时语音预览夹具，不描述为实录／播放通过。终态审计 `.cache/full-alignment-regression-685-terminal-audit.json` 确认原 **85 个源夹具、178 个编译资源、测试执行文件、冻结 helper 和参考 CSS** 均与启动清单摘要一致。
+
+原 1,457 个来源路径中有 20 个已由第 686—688 篇后续工作修改，清单记录了实际路径；它们不是这次已经编译并冻结的测试工件。不能宣称所有原源码未变，也不能用这份旧提交全量覆盖后续共享映射、批量交接或新版分组。当前阶段与前台验收继续见对应篇和完整矩阵；此前“仍在运行”保留为当时观察，不再代表最新终态。
