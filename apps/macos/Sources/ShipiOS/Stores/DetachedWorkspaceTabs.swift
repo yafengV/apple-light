@@ -36,8 +36,7 @@ extension WorkspaceStore {
       let tab = workspaceTabs.first(where: { $0.id == id }) else { return false }
     if tab.owner == currentWorkspaceTabOwner { return true }
     if let task = library.tasks.first(where: { $0.id == tab.owner }) { return canSelectTask(task) }
-    guard tab.owner.hasPrefix("new:") else { return false }
-    let project = tab.owner == "new:none" ? "" : String(tab.owner.dropFirst(4))
+    guard let project = workspaceDraftProject(owner: tab.owner) else { return false }
     return activeLocalRun == nil || project == currentProjectKey
   }
 
@@ -52,10 +51,9 @@ extension WorkspaceStore {
           let current = library.tasks.first(where: { $0.id == tab.owner }) else { return false }
         applyTaskSelection(current)
       } else {
-        let project = tab.owner == "new:none" ? "" : String(tab.owner.dropFirst(4))
-        guard await openTaskScope(project), !shuttingDown,
-          workspaceTabs.contains(tab), workspaceTabPlacement(id) == .detached else { return false }
-        newTask(recordHistory: false)
+        guard await selectWorkspaceDraft(tab.owner, recordHistory: false, stillValid: {
+          workspaceTabs.contains(tab) && workspaceTabPlacement(id) == .detached
+        }) else { return false }
       }
     }
     guard currentWorkspaceTabOwner == tab.owner else { return false }

@@ -10,7 +10,7 @@ extension WorkspaceStore {
       guard let browserID = tab.browserID,
         let browser = workspace.browser.tabs.first(where: { $0.id == browserID }), !browser.closed else { return nil }
       let task = library.tasks.first(where: { $0.id == tab.owner })
-      guard task != nil || tab.owner.hasPrefix("new:") else { return nil }
+      guard task != nil || workspaceDraftIdentity(owner: tab.owner) != nil else { return nil }
       return CommandBrowserResult(id: tab.id, owner: tab.owner, title: browser.title,
         pageTitle: browser.view.title ?? "", url: browser.committedURL?.absoluteString ?? "",
         ownerTitle: task?.title ?? "新任务")
@@ -21,7 +21,8 @@ extension WorkspaceStore {
     guard !busy, commandBrowserTabs.contains(where: { $0.id == result.id && $0.owner == result.owner }) else { return false }
     if result.owner == currentWorkspaceTabOwner { return true }
     if let task = library.tasks.first(where: { $0.id == result.owner }) { return canSelectTask(task) }
-    return result.owner.hasPrefix("new:") && (activeLocalRun == nil || commandBrowserDraftProject(result.owner) == currentProjectKey)
+    guard let root = workspaceDraftProject(owner: result.owner) else { return false }
+    return activeLocalRun == nil || root == currentProjectKey
   }
 
   @discardableResult func openCommandBrowserTab(_ result: CommandBrowserResult) async -> Bool {
@@ -35,9 +36,9 @@ extension WorkspaceStore {
           let current = library.tasks.first(where: { $0.id == result.owner }) else { return false }
         applyTaskSelection(current)
       } else {
-        guard await openTaskScope(commandBrowserDraftProject(result.owner)),
-          commandBrowserTabs.contains(where: { $0.id == result.id && $0.owner == result.owner }) else { return false }
-        newTask(recordHistory: false)
+        guard await selectWorkspaceDraft(result.owner, recordHistory: false, stillValid: {
+          commandBrowserTabs.contains(where: { $0.id == result.id && $0.owner == result.owner })
+        }) else { return false }
       }
     }
     guard let tab = workspaceTabs.first(where: { $0.id == result.id && $0.owner == currentWorkspaceTabOwner }),
@@ -47,7 +48,4 @@ extension WorkspaceStore {
     return true
   }
 
-  private func commandBrowserDraftProject(_ owner: String) -> String {
-    owner == "new:none" ? "" : String(owner.dropFirst(4))
-  }
 }

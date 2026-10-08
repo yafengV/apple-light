@@ -206,8 +206,12 @@ extension WorkspaceStore {
         applyTaskSelection(current)
       }
     } else if pin.owner != currentWorkspaceTabOwner {
-      error = "此来源标签不可用。可以保留固定项或取消固定。"
-      return
+      guard await selectWorkspaceDraft(pin.owner, stillValid: {
+        library.pinnedContentTabs.contains { $0.id == pinID && $0.owner == pin.owner }
+      }) else {
+        error = "此来源标签不可用。可以保留固定项或取消固定。"
+        return
+      }
     }
     destination = .workspace
     if pin.sourceWindowID == nil, workspaceTabs.contains(where: { $0.id == pin.sourceTabID }) {
@@ -569,7 +573,7 @@ extension WorkspaceStore {
 
   func workspaceTabTransferCandidate(_ source: WorkspaceContentTab, toOwner newOwner: String) -> WorkspaceContentTab? {
     guard source.owner != newOwner else { return source }
-    guard newOwner == "new:none" || newOwner.hasPrefix("new:/") || library.tasks.contains(where: { $0.id == newOwner }) else {
+    guard workspaceDraftIdentity(owner: newOwner) != nil || library.tasks.contains(where: { $0.id == newOwner }) else {
       error = "目标任务已移除，未移动标签。"; return nil
     }
     let migrated: WorkspaceContentTab

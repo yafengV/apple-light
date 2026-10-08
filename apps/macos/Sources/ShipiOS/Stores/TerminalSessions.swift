@@ -223,12 +223,10 @@ extension WorkspaceStore {
     if let id = tab.terminalID, let scope = workspace.terminals.scope(containing: id) {
       return scope
     }
-    let path: String?
-    if tab.owner.hasPrefix("new:") { path = String(tab.owner.dropFirst(4)) }
-    else { path = library.tasks.first(where: { $0.id == tab.owner })?.project }
-    guard let path, !path.isEmpty else { return nil }
-    return TerminalScope(root: URL(fileURLWithPath: path), conversation: tab.owner)
+    guard let root = workspaceTabProject(owner: tab.owner) else { return nil }
+    return TerminalScope(root: root, conversation: tab.owner)
   }
+
   func terminalSession(_ id: UUID) -> TerminalSession? {
     guard let tab = workspaceTabs.first(where: { $0.terminalID == id }),
       let scope = terminalScope(for: tab) else { return nil }

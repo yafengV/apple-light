@@ -28,7 +28,7 @@ extension WorkspaceStore {
       guard owners.count == 1, let resolved = owners.first else { return .close }
       owner = resolved
     }
-    guard owner.hasPrefix("new:") || library.tasks.contains(where: { $0.id == owner }) else { return .close }
+    guard workspaceDraftIdentity(owner: owner) != nil || library.tasks.contains(where: { $0.id == owner }) else { return .close }
     if let live = workspaceTabs.first(where: { $0.id == route.tabID }) {
       if live.kind == .pullRequestWatch {
         if !automationsLoaded { return .loading }

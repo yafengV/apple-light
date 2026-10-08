@@ -38,7 +38,7 @@ extension WorkspaceStore {
   func workspaceTabProject(owner: String) -> URL? {
     let path: String?
     if owner.hasPrefix("new:") {
-      path = owner == "new:none" ? nil : String(owner.dropFirst(4))
+      path = workspaceDraftProject(owner: owner)
     } else {
       path = library.tasks.first { $0.id == owner }?.project
     }

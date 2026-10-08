@@ -1082,24 +1082,8 @@ final class WorkspaceStore {
       Task { await newTask(in: library.projectOwner(for: project.path)) }
       return
     }
-    destination = .workspace
-    library.linkedNewTaskDraftIDs[currentDraftProjectKey] = nil
-    dismissCodeReviewMode()
-    if recordHistory { recordNavigation() }
-    selection = nil
-    workspaceContentLayoutMode = nil
-    activeWorkspaceTabID = nil
-    activeRightWorkspaceTabID = nil
-    activeBottomWorkspaceTabID = nil
-    focusedWorkspaceTabID = nil
-    events = []
-    logText = ""
-    showingArchived = false
-    chatMode = .standard
-    pendingGoal = nil
-    rememberProjectSelection()
-    saveLibrary()
-    focusComposer = UUID()
+    _ = applyWorkspaceDraftSelection(
+      WorkspaceDraftIdentity(project: project == nil ? nil : currentDraftProjectKey), recordHistory: recordHistory)
   }
 
   func selectTask(_ task: WorkspaceTask) {
@@ -1126,7 +1110,7 @@ final class WorkspaceStore {
       return true
     }
     if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
-    let origin = TaskLocation(project: currentProjectKey, run: selection)
+    let origin = currentTaskLocation
     guard await openTaskScope(current.project), !shuttingDown,
       let refreshed = library.tasks.first(where: { $0.id == task.id }), canSelectTask(refreshed) else { return false }
     recordNavigation(origin)

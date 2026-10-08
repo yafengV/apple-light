@@ -32,7 +32,7 @@ extension WorkspaceStore {
     guard automationsLoaded || library.workspaceTabLayouts[currentWorkspaceTabOwner]?.tabs.contains(where: {
       $0.kind == .pullRequestWatch
     }) != true else { return }
-    guard currentWorkspaceTabOwner.hasPrefix("new:") || library.tasks.contains(where: { $0.id == currentWorkspaceTabOwner }) else { return }
+    guard workspaceDraftIdentity(owner: currentWorkspaceTabOwner) != nil || library.tasks.contains(where: { $0.id == currentWorkspaceTabOwner }) else { return }
     library.workspaceTabLayouts[currentWorkspaceTabOwner] = workspaceTabLayoutSnapshot
   }
 

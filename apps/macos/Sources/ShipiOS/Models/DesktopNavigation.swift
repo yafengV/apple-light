@@ -292,4 +292,5 @@ enum SettingsPage: String, CaseIterable, Identifiable {
 struct TaskLocation: Equatable {
   let project: String
   let run: String?
+  var draftOwner: String? = nil
 }

@@ -81,7 +81,9 @@ extension WorkspaceStore {
       error = error ?? "无法打开新任务链接。"
       return
     }
-    library.linkedNewTaskDraftIDs[currentDraftProjectKey] = UUID()
+    guard applyWorkspaceDraftSelection(
+      WorkspaceDraftIdentity(project: project == nil ? nil : currentDraftProjectKey, linkID: UUID()),
+      recordHistory: false) else { return }
     draft = prompt ?? ""
     focusComposer = UUID()
   }

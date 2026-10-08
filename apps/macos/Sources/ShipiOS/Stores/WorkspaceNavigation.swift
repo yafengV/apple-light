@@ -422,8 +422,11 @@ extension WorkspaceStore {
     showingInspector = true
     if name == "files" { Task { await workspace.refreshFiles() } }
   }
+  var currentTaskLocation: TaskLocation {
+    TaskLocation(project: currentProjectKey, run: selection, draftOwner: selection == nil ? draftKey : nil)
+  }
   func recordNavigation(_ origin: TaskLocation? = nil) {
-    let location = origin ?? TaskLocation(project: currentProjectKey, run: selection)
+    let location = origin ?? currentTaskLocation
     if navigationBack.last != location { navigationBack.append(location) }
     navigationForward = []
   }
@@ -463,12 +466,17 @@ extension WorkspaceStore {
     guard destination == .workspace, activeLocalRun == nil, !busy else { return }
     let location = back ? navigationBack.popLast() : navigationForward.popLast()
     guard let location else { return }
-    let current = TaskLocation(project: currentProjectKey, run: selection)
+    let current = currentTaskLocation
     if back { navigationForward.append(current) } else { navigationBack.append(current) }
-    guard await openTaskScope(location.project) else { return }
-    selection = location.run
-    rememberProjectSelection()
-    saveLibrary()
+    if location.run == nil, let owner = location.draftOwner {
+      guard workspaceDraftProject(owner: owner) == location.project,
+        await selectWorkspaceDraft(owner, recordHistory: false) else { return }
+    } else {
+      guard await openTaskScope(location.project) else { return }
+      selection = location.run
+      rememberProjectSelection()
+      saveLibrary()
+    }
     await loadDetails()
   }
   func numberedSidebarTask(at number: Int) -> WorkspaceTask? {
