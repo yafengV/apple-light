@@ -49,4 +49,11 @@
 
 ## 后续接续
 
-提交 `1f6b24f8efb18c5e888ece26f441b64073f407fc` 的全量已于 2026-10-09 02:00:18 CST 启动，实际句柄 70015，使用冻结 native-ui-654、保存的 helper／参考 CSS，捕获 1,468 个源路径、87 个源夹具及 180 个编译资源；仍待终态和终态工件审计，不覆盖后续源码。第 689 篇补上全局 Esc 取消的生产接线／隔离测试，真实跨应用按键及双端验收仍未完成，详见[取消接续](689-global-dictation-escape-cancellation.md)。
+提交 `1f6b24f8efb18c5e888ece26f441b64073f407fc` 的全量已于 2026-10-09 02:00:18 CST 启动，实际句柄 70015，使用冻结 native-ui-654、保存的 helper／参考 CSS，捕获 1,468 个源路径、87 个源夹具及 180 个编译资源；终态与工件审计见下方，不覆盖后续源码。第 689 篇补上全局 Esc 取消的生产接线／隔离测试，真实跨应用按键及双端验收仍未完成，详见[取消接续](689-global-dictation-escape-cancellation.md)。
+
+
+## 冻结全量终态（第 691 篇接续时审计）
+
+原句柄 70015 于 2026-10-09 03:19:27 CST terminal exit 0；`.cache/full-alignment-regression-688-status.json` 确认 Swift 全量与 IPC 均 exit 0。Swift **3,068 项、2 跳过、0 失败，4,743.679 秒**（`.cache/full-alignment-regression-688.log`）。两项跳过均为未设置 `SHIPIOS_VOICE_PREVIEW_FIXTURE_URL` 的本地语音预览夹具，不是通过。
+
+`.cache/full-alignment-regression-688-terminal-audit.json` 终态核对原 **87 个源夹具、180 个编译资源、测试执行文件、保存的 helper 和参考 CSS** 全部未变，捕获的 1,468 个来源路径中后续改动另列清单。终态时第 689—691 篇已改变部分原来源，不能声称全部源码未变；该结果只覆盖冻结提交 `1f6b24f8efb18c5e888ece26f441b64073f407fc`，不覆盖第 689 篇以后源码或真实前台交互。native-ui-654 在本次终态审计后释放。
