@@ -226,6 +226,8 @@ struct FileSourcePreview: NSViewRepresentable {
             Task { await workspace.saveSelectedFileEdits() }
             return true
           }
+          // The window router owns shared tab/MRU bindings and their release lifecycle.
+          if store.shortcuts.matches("next-tab", binding) || store.shortcuts.matches("previous-tab", binding) { return false }
           if workspace === store.workspace {
             guard store.handleFileShortcut(binding) else { return false }
           } else if binding == ShortcutBinding("⌘W"), let closeContentTab = self?.closeContentTab {
@@ -234,12 +236,6 @@ struct FileSourcePreview: NSViewRepresentable {
             workspace.closeFile(path)
           } else if store.shortcuts.matches("browser-address", binding) {
             if !workspace.fileLoading, workspace.fileError == nil { workspace.showingFileLine = true }
-          } else if store.shortcuts.matches("next-task", binding) {
-            if self?.closeContentTab != nil { return false }
-            workspace.moveFile(1)
-          } else if store.shortcuts.matches("previous-task", binding) {
-            if self?.closeContentTab != nil { return false }
-            workspace.moveFile(-1)
           } else { return false }
           return true
         }

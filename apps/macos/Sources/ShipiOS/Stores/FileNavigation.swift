@@ -76,10 +76,10 @@ extension WorkspaceStore {
       if !workspace.fileLoading, workspace.fileError == nil { workspace.showingFileLine = true }
       return true
     }
-    if shortcuts.matches("next-task", binding) {
+    if shortcuts.matches("next-tab", binding) {
       workspace.moveFile(1); return true
     }
-    if shortcuts.matches("previous-task", binding) {
+    if shortcuts.matches("previous-tab", binding) {
       workspace.moveFile(-1); return true
     }
     return false

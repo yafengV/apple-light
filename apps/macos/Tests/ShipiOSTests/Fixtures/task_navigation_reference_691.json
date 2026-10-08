@@ -1,0 +1,582 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Literal commands, actual hSs/fSs/dcc, mLa and swa with inert command/store/explicit layout hooks; native modifier release, panel priority and rendered acceptance require separate validation",
+  "commands": [
+    {
+      "id": "previousThread",
+      "shipiosID": "previous-task",
+      "defaults": [
+        "Command+Shift+[",
+        "Command+Alt+Left"
+      ],
+      "commandMenu": true,
+      "allowsRepeat": false
+    },
+    {
+      "id": "nextThread",
+      "shipiosID": "next-task",
+      "defaults": [
+        "Command+Shift+]",
+        "Command+Alt+Right"
+      ],
+      "commandMenu": true,
+      "allowsRepeat": false
+    },
+    {
+      "id": "previousTab",
+      "shipiosID": "previous-tab",
+      "defaults": [
+        "Ctrl+Shift+Tab",
+        "Command+Shift+[",
+        "Command+Alt+Left"
+      ],
+      "commandMenu": false,
+      "allowsRepeat": true
+    },
+    {
+      "id": "nextTab",
+      "shipiosID": "next-tab",
+      "defaults": [
+        "Ctrl+Tab",
+        "Command+Shift+]",
+        "Command+Alt+Right"
+      ],
+      "commandMenu": false,
+      "allowsRepeat": true
+    },
+    {
+      "id": "previousRecentThread",
+      "shipiosID": "previous-recent-task",
+      "defaults": [
+        "Ctrl+Shift+Tab"
+      ],
+      "commandMenu": false,
+      "allowsRepeat": true
+    },
+    {
+      "id": "nextRecentThread",
+      "shipiosID": "next-recent-task",
+      "defaults": [
+        "Ctrl+Tab"
+      ],
+      "commandMenu": false,
+      "allowsRepeat": true
+    }
+  ],
+  "compatiblePairs": [
+    [
+      "next-tab",
+      "next-task"
+    ],
+    [
+      "next-tab",
+      "next-recent-task"
+    ],
+    [
+      "previous-tab",
+      "previous-task"
+    ],
+    [
+      "previous-tab",
+      "previous-recent-task"
+    ]
+  ],
+  "recentCases": [
+    {
+      "current": null,
+      "direction": "next",
+      "recent": [
+        "a",
+        "b",
+        "c"
+      ],
+      "session": null,
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "b",
+          "c"
+        ],
+        "selectedIndex": 0
+      }
+    },
+    {
+      "current": null,
+      "direction": "previous",
+      "recent": [
+        "a",
+        "b",
+        "c"
+      ],
+      "session": null,
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "b",
+          "c"
+        ],
+        "selectedIndex": 2
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [
+        "a",
+        "b",
+        "c"
+      ],
+      "session": null,
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "b",
+          "c"
+        ],
+        "selectedIndex": 1
+      }
+    },
+    {
+      "current": "a",
+      "direction": "previous",
+      "recent": [
+        "a",
+        "b",
+        "c"
+      ],
+      "session": null,
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "b",
+          "c"
+        ],
+        "selectedIndex": 2
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [
+        "c",
+        "b",
+        "a"
+      ],
+      "session": null,
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 1
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [
+        "c",
+        "b",
+        "a"
+      ],
+      "session": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 1
+      },
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 2
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [
+        "c",
+        "b",
+        "a"
+      ],
+      "session": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 2
+      },
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 0
+      }
+    },
+    {
+      "current": "a",
+      "direction": "previous",
+      "recent": [
+        "c",
+        "b",
+        "a"
+      ],
+      "session": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 0
+      },
+      "unavailable": [],
+      "result": {
+        "threadKeys": [
+          "a",
+          "c",
+          "b"
+        ],
+        "selectedIndex": 2
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [],
+      "session": null,
+      "unavailable": [
+        "b"
+      ],
+      "result": {
+        "threadKeys": [
+          "a"
+        ],
+        "selectedIndex": 0
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [
+        "a"
+      ],
+      "session": null,
+      "unavailable": [
+        "b"
+      ],
+      "result": {
+        "threadKeys": [
+          "a"
+        ],
+        "selectedIndex": 0
+      }
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "recent": [
+        "a",
+        "b",
+        "c"
+      ],
+      "session": null,
+      "unavailable": [
+        "b"
+      ],
+      "result": {
+        "threadKeys": [
+          "a",
+          "c"
+        ],
+        "selectedIndex": 1
+      }
+    }
+  ],
+  "releases": [
+    {
+      "event": {
+        "ctrlKey": true,
+        "key": "Tab"
+      },
+      "keys": [
+        "Control"
+      ]
+    },
+    {
+      "event": {
+        "metaKey": true,
+        "altKey": true,
+        "key": "x"
+      },
+      "keys": [
+        "Meta",
+        "Alt"
+      ]
+    },
+    {
+      "event": {
+        "shiftKey": true,
+        "key": "Tab"
+      },
+      "keys": [
+        "Tab"
+      ]
+    },
+    {
+      "event": {
+        "ctrlKey": true,
+        "shiftKey": true,
+        "key": "Tab"
+      },
+      "keys": [
+        "Control"
+      ]
+    }
+  ],
+  "adjacentCases": [
+    {
+      "current": null,
+      "direction": "next",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "current": null,
+      "direction": "previous",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": [
+        "c"
+      ]
+    },
+    {
+      "current": "a",
+      "direction": "next",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": [
+        "b"
+      ]
+    },
+    {
+      "current": "a",
+      "direction": "previous",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": []
+    },
+    {
+      "current": "b",
+      "direction": "next",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": [
+        "c"
+      ]
+    },
+    {
+      "current": "b",
+      "direction": "previous",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "current": "c",
+      "direction": "next",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": []
+    },
+    {
+      "current": "c",
+      "direction": "previous",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": [
+        "b"
+      ]
+    },
+    {
+      "current": "missing",
+      "direction": "next",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": []
+    },
+    {
+      "current": "missing",
+      "direction": "previous",
+      "targets": [
+        "a",
+        "b",
+        "c"
+      ],
+      "selected": []
+    }
+  ],
+  "contentTabCases": [
+    {
+      "mode": "full",
+      "current": "left",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "right1"
+      ]
+    },
+    {
+      "mode": "full",
+      "current": "left",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "current": "right1",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "right2"
+      ]
+    },
+    {
+      "mode": "full",
+      "current": "right1",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "left"
+      ]
+    },
+    {
+      "mode": "full",
+      "current": "right2",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "current": "right2",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "right1"
+      ]
+    },
+    {
+      "mode": "split",
+      "current": "right1",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "right2"
+      ]
+    },
+    {
+      "mode": "split",
+      "current": "right1",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "split",
+      "current": "right2",
+      "direction": "next",
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "split",
+      "current": "right2",
+      "direction": "previous",
+      "handled": true,
+      "selected": [
+        "right1"
+      ]
+    }
+  ],
+  "cappedVisit": [
+    "current",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "18"
+  ]
+}

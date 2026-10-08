@@ -29,13 +29,14 @@ import XCTest
 
   func testAllDefaultAliasesParticipateInConflictsAndReset() throws {
     let shortcuts = ShortcutPreferences(file: try root().appendingPathComponent("shortcuts.json"))
-    let aliases = ["⌃⇥", "⌘⇧]", "⌘⌥→"].map(ShortcutBinding.init)
+    let aliases = ["⌘⇧]", "⌘⌥→"].map(ShortcutBinding.init)
     XCTAssertEqual(shortcuts.bindings("next-task"), aliases)
     for alias in aliases { XCTAssertThrowsError(try shortcuts.set(alias, for: "search")) }
     try shortcuts.replace(aliases[1], with: nil, for: "next-task")
+    try shortcuts.replace(aliases[1], with: nil, for: "next-tab")
     try shortcuts.set(aliases[1], for: "search")
     XCTAssertThrowsError(try shortcuts.reset("next-task"))
-    XCTAssertEqual(shortcuts.bindings("next-task"), [aliases[0], aliases[2]])
+    XCTAssertEqual(shortcuts.bindings("next-task"), [aliases[0]])
     try shortcuts.set(nil, for: "search")
     try shortcuts.reset("next-task")
     XCTAssertEqual(shortcuts.bindings("next-task"), aliases)
@@ -47,7 +48,7 @@ import XCTest
     try JSONEncoder().encode(["search": existing]).write(to: file)
     let shortcuts = ShortcutPreferences(file: file)
     XCTAssertEqual(shortcuts.bindings("search"), existing)
-    XCTAssertEqual(shortcuts.bindings("next-task"), [ShortcutBinding("⌃⇥"), ShortcutBinding("⌘⌥→")])
+    XCTAssertEqual(shortcuts.bindings("next-task"), [ShortcutBinding("⌘⌥→")])
     XCTAssertThrowsError(try shortcuts.reset("next-task"))
     try shortcuts.resetAll()
     XCTAssertTrue(shortcuts.matches("next-task", existing[1]))

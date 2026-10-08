@@ -31,8 +31,6 @@ struct BrowserKeyboardBridge: NSViewRepresentable {
             store.workspace.browser.hasEditableFocus { return event }
           store.performBrowserCommand(id); return nil
         }
-        if store.shortcuts.matches("next-task", binding) { store.moveWorkspaceTab(1); return nil }
-        if store.shortcuts.matches("previous-task", binding) { store.moveWorkspaceTab(-1); return nil }
         return event
         }
       }

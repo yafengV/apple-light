@@ -11,6 +11,15 @@ struct DesktopCommand: Identifiable {
     ["globalDictationHold", "globalDictationSingleTap", "realtimeVoice"].contains(id)
   }
   var isOSGlobal: Bool { allowsBareModifiers || ["pet", "popout"].contains(id) }
+  var isRecentTaskNavigation: Bool { ["previous-recent-task", "next-recent-task"].contains(id) }
+  var isTabNavigation: Bool { ["previous-tab", "next-tab"].contains(id) }
+  static func allowsSharedBinding(_ left: String, _ right: String) -> Bool {
+    for direction in ["previous", "next"] {
+      if Set([left, right]) == Set(["\(direction)-tab", "\(direction)-task"])
+        || Set([left, right]) == Set(["\(direction)-tab", "\(direction)-recent-task"]) { return true }
+    }
+    return false
+  }
   var defaultBinding: ShortcutBinding? { defaultBindings.first }
   init(id: String, title: String, icon: String, shortcut: String, alternates: [String] = []) {
     self.id = id
@@ -50,8 +59,12 @@ struct DesktopCommand: Identifiable {
     .init(id: "new-standalone", title: "无项目新任务", icon: "square.and.pencil", shortcut: "⌘⌥O"),
     .init(id: "find-next", title: "下一个匹配", icon: "arrow.down", shortcut: "⌘G"),
     .init(id: "find-previous", title: "上一个匹配", icon: "arrow.up", shortcut: "⌘⇧G"),
-    .init(id: "previous-task", title: "上一个任务或标签", icon: "arrow.up", shortcut: "⌃⇧⇥", alternates: ["⌘⇧[", "⌘⌥←"]),
-    .init(id: "next-task", title: "下一个任务或标签", icon: "arrow.down", shortcut: "⌃⇥", alternates: ["⌘⇧]", "⌘⌥→"]),
+    .init(id: "previous-task", title: "上一个聊天", icon: "arrow.up", shortcut: "⌘⇧[", alternates: ["⌘⌥←"]),
+    .init(id: "next-task", title: "下一个聊天", icon: "arrow.down", shortcut: "⌘⇧]", alternates: ["⌘⌥→"]),
+    .init(id: "previous-recent-task", title: "上一个最近访问的聊天", icon: "clock.arrow.circlepath", shortcut: "⌃⇧⇥"),
+    .init(id: "next-recent-task", title: "下一个最近访问的聊天", icon: "clock.arrow.circlepath", shortcut: "⌃⇥"),
+    .init(id: "previous-tab", title: "上一个标签", icon: "arrow.left.square", shortcut: "⌃⇧⇥", alternates: ["⌘⇧[", "⌘⌥←"]),
+    .init(id: "next-tab", title: "下一个标签", icon: "arrow.right.square", shortcut: "⌃⇥", alternates: ["⌘⇧]", "⌘⌥→"]),
     .init(id: "next-attention", title: "下一个需关注的任务", icon: "circle.badge.exclamationmark", shortcut: "⌘⌥A"),
     .init(id: "activity", title: "显示或隐藏活动", icon: "bell", shortcut: "⌘⌥U"),
     .init(id: "clear-unread", title: "清除全部未读标记", icon: "checkmark.circle", shortcut: "⇧⎋"),
@@ -199,7 +212,7 @@ extension DesktopCommand {
     return switch id {
     case "new", "new-standalone", "send", "steer-prompt", "queue-prompt", "model", "reasoning-increase", "reasoning-decrease", "reasoning-cycle", "plan", "clear-prompt", "add-photos", "capture-appshot", "add-files", "dictation", "fork", "open-side-chat", "open-task-window", "copy-task-link", "copy-session-id", "copy-conversation-path", "status", "init", "local", "worktree", "toggle-worktree-mode", "find", "find-next", "find-previous",
       "rename", "pin", "unread", "archive", "stop", "approval-approve", "approval-decline": .chat
-    case "previous-task", "next-task", "next-attention", "activity", "clear-unread", "back", "forward",
+    case "previous-task", "next-task", "previous-tab", "next-tab", "previous-recent-task", "next-recent-task", "next-attention", "activity", "clear-unread", "back", "forward",
       "search", "sidebar": .navigation
     case "bottom-panel", "task-summary", "files", "tree", "terminal", "review", "review-open", "browser",
       "workspace-view", "workspace-tabs", "workspace-swap-panes", "tab-close", "tab-close-others": .panels

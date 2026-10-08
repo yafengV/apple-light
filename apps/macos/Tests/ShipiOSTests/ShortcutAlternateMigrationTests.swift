@@ -52,7 +52,7 @@ import XCTest
     try preferences.restore(legacy(["palette": [ShortcutBinding("⌃⌥K")]]))
     XCTAssertEqual(preferences.bindings("palette"), [ShortcutBinding("⌃⌥K"), ShortcutBinding("⌘⇧P")])
     XCTAssertEqual(preferences.primaryNumberShortcutTarget, .sidebar)
-    XCTAssertEqual(preferences.snapshot.version, 2)
+    XCTAssertEqual(preferences.snapshot.version, 3)
   }
 
   func testOldAlternateEditRetainsUntouchedPrimaryAndMigratesBothCommands() throws {
@@ -94,7 +94,8 @@ import XCTest
   func testVersionTwoReloadNeverAddsRemovedDefaultAndUnknownVersionPreservesState() throws {
     let preferences = preferences()
     try preferences.restore(legacy(["palette-alternate": []]))
-    let saved = try JSONEncoder().encode(preferences.snapshot)
+    var versionTwo = preferences.snapshot; versionTwo.version = 2
+    let saved = try JSONEncoder().encode(versionTwo)
     let decoded = try JSONDecoder().decode(ShortcutPreferencesSnapshot.self, from: saved)
     try preferences.restore(decoded)
     XCTAssertEqual(preferences.bindings("palette"), [ShortcutBinding("⌘K")])
@@ -128,7 +129,7 @@ import XCTest
     XCTAssertEqual(invoked, ["palette", "palette", "new", "new"])
   }
 
-  func testLegacyDictionaryLoadsWithoutWritingAndNextEditSavesVersionTwo() throws {
+  func testLegacyDictionaryLoadsWithoutWritingAndNextEditSavesCurrentVersion() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -143,7 +144,7 @@ import XCTest
     XCTAssertNil(reloaded.loadError)
     XCTAssertEqual(reloaded.bindings("palette"), [ShortcutBinding("⌃⌥Y")])
     XCTAssertEqual(try JSONDecoder().decode(ShortcutPreferencesSnapshot.self,
-      from: Data(contentsOf: file)).version, 2)
+      from: Data(contentsOf: file)).version, 3)
   }
 
   func testTwelveLegacyAlternatesArePreservedAndCanBeReducedOrReplaced() throws {
@@ -183,7 +184,7 @@ import XCTest
     XCTAssertEqual(beforeEdit.overrides, library.shortcutPreferences?.overrides)
     try store.shortcuts.replace(ShortcutBinding("⌃⌥Y"), with: nil, for: "palette")
     let saved = try XCTUnwrap(WorkspaceLibrary.load(from: file).shortcutPreferences)
-    XCTAssertEqual(saved.version, 2); XCTAssertNil(saved.overrides["palette-alternate"])
+    XCTAssertEqual(saved.version, 3); XCTAssertNil(saved.overrides["palette-alternate"])
     XCTAssertEqual(saved.overrides["palette"], [])
     XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("shortcuts.json").path))
     store.shortcuts.reload()
@@ -260,7 +261,7 @@ import XCTest
       XCTAssertEqual(store.shortcuts.bindings(id), [ShortcutBinding(primary), ShortcutBinding("⌃⌥\(key)")])
       XCTAssertFalse(store.shortcuts.matches(id, ShortcutBinding(alternate)))
       XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
-        .shortcutPreferences?.version, 2)
+        .shortcutPreferences?.version, 3)
       XCTAssertTrue(descendants(host).compactMap { $0 as? ShortcutCapture.Field }.isEmpty)
     }
     XCTAssertFalse(window.isVisible)

@@ -13,10 +13,13 @@ final class ShortcutPreferencesTests: XCTestCase {
     let preferences = ShortcutPreferences(file: temporaryFile())
     let commands = DesktopCommand.all
     XCTAssertEqual(Set(commands.map(\.id)).count, commands.count)
-    let bindings = commands.flatMap(\.defaultBindings)
-    XCTAssertEqual(Set(bindings).count, bindings.count)
+    for (index, command) in commands.enumerated() {
+      for other in commands.dropFirst(index + 1) where !DesktopCommand.allowsSharedBinding(command.id, other.id) {
+        XCTAssertTrue(Set(command.defaultBindings).isDisjoint(with: other.defaultBindings), "\(command.id)/\(other.id)")
+      }
+    }
     XCTAssertEqual(preferences.binding("send"), ShortcutBinding("⌘↵"))
-    XCTAssertEqual(preferences.binding("next-task"), ShortcutBinding("⌃⇥"))
+    XCTAssertEqual(preferences.binding("next-task"), ShortcutBinding("⌘⇧]"))
     XCTAssertEqual(preferences.binding("browser"), ShortcutBinding("⌘⇧B"))
     XCTAssertEqual(preferences.binding("copy-session-id"), ShortcutBinding("⌘⌥C"))
     XCTAssertEqual(preferences.binding("copy-conversation-path"), ShortcutBinding("⌘⌥⇧C"))

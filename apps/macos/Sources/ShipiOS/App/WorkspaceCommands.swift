@@ -70,8 +70,8 @@ struct WorkspaceCommands: Commands {
         .disabled(!commandEnabled("tab-close"))
       command("tab-close-others")
       Divider()
-      command("previous-task")
-      command("next-task")
+      command("previous-tab")
+      command("next-tab")
       ForEach(1...9, id: \.self) { command("focus-tab-\($0)") }
     }
     CommandMenu("工作区") {
@@ -149,7 +149,8 @@ struct WorkspaceCommands: Commands {
       guard searchDialogActive != true, taskRenameActive != true, imagePreviewActive != true else { return }
       perform(id)
     }
-      .keyboardShortcut(BrowserKeyboardBridge.contextualCommands.contains(id) ? nil : store.shortcuts.binding(id)?.keyboardShortcut)
+      .keyboardShortcut(BrowserKeyboardBridge.contextualCommands.contains(id)
+        || item.isTabNavigation ? nil : store.shortcuts.binding(id)?.keyboardShortcut)
       .disabled(!commandEnabled(id))
   }
   private func commandEnabled(_ id: String) -> Bool {

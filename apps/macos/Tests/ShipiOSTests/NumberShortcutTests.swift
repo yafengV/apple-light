@@ -23,8 +23,11 @@ import XCTest
       XCTAssertEqual(loaded.binding("focus-tab-\(number)"), ShortcutBinding("⌃\(number)"))
       XCTAssertEqual(loaded.binding("focus-chat-\(number)"), ShortcutBinding("⌘\(number)"))
     }
-    let all = DesktopCommand.all.flatMap { loaded.bindings($0.id) }
-    XCTAssertEqual(Set(all).count, all.count)
+    for (index, command) in DesktopCommand.all.enumerated() {
+      for other in DesktopCommand.all.dropFirst(index + 1) where !DesktopCommand.allowsSharedBinding(command.id, other.id) {
+        XCTAssertTrue(Set(loaded.bindings(command.id)).isDisjoint(with: loaded.bindings(other.id)), "\(command.id)/\(other.id)")
+      }
+    }
     try loaded.set(ShortcutBinding("⌘⇧L"), for: "search")
     try loaded.resetAll()
     XCTAssertEqual(ShortcutPreferences(file: file).primaryNumberShortcutTarget, .sidebar)

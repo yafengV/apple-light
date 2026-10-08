@@ -790,7 +790,7 @@ struct TaskWindowView: View {
         if TaskWindowCommandContext.owns(id) {
           if ["find", "find-next", "find-previous", "model", "clear-prompt", "add-photos", "add-files", "rename", "fork", "open-task-window", "task-summary", "status", "init", "local", "worktree", "back", "forward",
             "tab-close", "archive", "plan", "terminal", "bottom-panel", "browser-address",
-            "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task"].contains(id)
+            "browser", "browser-new", "browser-close", "browser-reopen", "workspace-view", "next-task", "previous-task", "next-tab", "previous-tab"].contains(id)
             || id.hasPrefix("focus-tab-") || DesktopCommand.environmentActionSlot(id) != nil {
             searchReturnFocus = nil
           }
@@ -828,6 +828,7 @@ struct TaskWindowView: View {
       if canGoForward { enabled.insert("forward") }
     }
     if !otherWindowModalActive, let task {
+      enabled.formUnion(["previous-task", "next-task", "previous-recent-task", "next-recent-task"])
       enabled.formUnion(["find", "plan", "model", "clear-prompt", "dictation", "open-task-window", "task-summary", "status"])
       for id in ["reasoning-increase", "reasoning-decrease", "reasoning-cycle"]
       where store.reasoningCommandTarget(id, taskID: taskID) != nil { enabled.insert(id) }
@@ -905,7 +906,17 @@ struct TaskWindowView: View {
             || browser.session.hasNativeFocus
         }
         return true
-      })
+      }, recentNavigation: RecentTaskShortcutContext(currentID: taskID, recentIDs: store.library.recentTaskIDs,
+        isAvailable: { id in store.library.tasks.contains { $0.id == id && !$0.archived && !$0.isTransient } },
+        title: { id in store.library.tasks.first { $0.id == id }?.title ?? "" }, select: onNavigate,
+        claimsTabs: { tabs.commandContentTab != nil ||
+          (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace },
+        selectTab: { direction in
+          if (NSApp.keyWindow?.firstResponder as? FilePreviewTextView)?.workspace === taskWorkspace {
+            guard taskWorkspace.openFiles.count > 1 else { return false }
+            taskWorkspace.moveFile(direction); return true
+          } else { return tabs.navigateAdjacentContentTab(direction) }
+        }))
   }
 
   private func performWindowCommand(_ id: String) {
@@ -920,6 +931,11 @@ struct TaskWindowView: View {
     }
     if id == "browser-address", let file = commandFileWorkspace { file.showingFileLine = true; return }
     if id == "browser-address", filePanelVisible { taskWorkspace.showingFileLine = true; return }
+    if id == "next-task" || id == "previous-task" {
+      if let target = TaskNavigationOrder.adjacent(current: taskID, direction: id == "next-task" ? 1 : -1,
+        targets: store.library.visibleSidebarTasks.map(\.id)) { onNavigate(target) }
+      return
+    }
     if tabs.perform(id) { return }
     if id.hasPrefix("focus-tab-"), let slot = DesktopCommand.numberSlot(id) {
       tabs.focusSlot(slot.index); return

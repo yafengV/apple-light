@@ -16,7 +16,7 @@ extension TaskWindowTabs {
     case "tab-close-others":
       let place = commandContentTab.map { placement($0.id) } ?? .left
       return visibleTabs(place).count > (commandContentTab == nil ? 0 : 1)
-    case "next-task", "previous-task": return !tabs.isEmpty
+    case "next-tab", "previous-tab": return !tabs.isEmpty
     default: return false
     }
   }
@@ -45,10 +45,22 @@ extension TaskWindowTabs {
     case "workspace-swap-panes": primarySide.swap()
     case "tab-close-others":
       closeOthers(keeping: commandContentTab?.id, in: commandContentTab.map { placement($0.id) } ?? .left)
-    case "next-task": cycle(1)
-    case "previous-task": cycle(-1)
+    case "next-tab": return navigateAdjacentContentTab(1)
+    case "previous-tab": return navigateAdjacentContentTab(-1)
     default: return false
     }
     return true
   }
+  @discardableResult func navigateAdjacentContentTab(_ direction: Int) -> Bool {
+    let place = focused.map { placement($0.id) } ?? .left
+    let full = selected(.left) != nil
+    let local = place == .bottom || (place == .right && !full)
+    let content = local ? visibleTabs(place) : tabs.filter { placement($0.id) == .left || (full && placement($0.id) == .right) }
+    let ids: [String?] = (local ? [] : [nil]) + content.map { Optional($0.id) }
+    guard ids.count > 1 else { return false }
+    let current = focused?.id ?? selected(place)?.id
+    let index = ids.firstIndex { $0 == current } ?? 0
+    activate(ids[(index + direction + ids.count) % ids.count]); return true
+  }
+
 }

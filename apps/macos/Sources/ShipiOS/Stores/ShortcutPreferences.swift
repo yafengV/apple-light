@@ -6,7 +6,7 @@ enum NumberShortcutTarget: String, Codable, CaseIterable {
 }
 
 struct ShortcutPreferencesSnapshot: Codable {
-  var version = 2
+  var version = 3
   var primaryNumberShortcutTarget: NumberShortcutTarget
   var overrides: [String: [ShortcutBinding]]
   var externalBrowserLinkShortcut: ExternalBrowserLinkShortcut?
@@ -15,13 +15,13 @@ struct ShortcutPreferencesSnapshot: Codable {
   /// the effective bindings of each old row, including explicit unbindings.
   /// Upgrade in memory; a later successful edit persists the canonical schema.
   func upgradingCommandBindings() throws -> Self {
-    guard version == 1 || version == 2 else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
-    guard version == 1 else { return self }
+    guard (1...3).contains(version) else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
+    guard version < 3 else { return self }
     var upgraded = self
     let pairs = [("palette", "palette-alternate"), ("new", "new-alternate")]
     let knownIDs = Set(DesktopCommand.all.map(\.id) + pairs.map { $0.1 })
     for (primary, alternate) in pairs {
-      guard overrides[primary] != nil || overrides[alternate] != nil else { continue }
+      guard version == 1, overrides[primary] != nil || overrides[alternate] != nil else { continue }
       let defaults = DesktopCommand.all.first { $0.id == primary }?.defaultBindings ?? []
       func oldBindings(_ id: String, defaults: [ShortcutBinding]) -> [ShortcutBinding] {
         if let custom = overrides[id] { return custom }
@@ -37,7 +37,15 @@ struct ShortcutPreferencesSnapshot: Codable {
       upgraded.overrides[primary] = combined.filter { seen.insert($0).inserted }
       upgraded.overrides[alternate] = nil
     }
-    upgraded.version = 2
+    for direction in ["previous", "next"] {
+      if let old = overrides["\(direction)-task"] {
+        // Old custom commands controlled both chats and tabs. Preserve that
+        // intent, including a cleared command, without introducing a new MRU key.
+        upgraded.overrides["\(direction)-tab"] = old
+        upgraded.overrides["\(direction)-recent-task"] = []
+      }
+    }
+    upgraded.version = 3
     return upgraded
   }
 }
@@ -166,7 +174,8 @@ final class ShortcutPreferences {
     // Every custom binding wins over newly introduced defaults, including aliases.
     return defaults.filter { binding in
       !overrides.contains { command, values in
-        command != id && values.contains(binding) && DesktopCommand.all.contains { $0.id == command }
+        command != id && !DesktopCommand.allowsSharedBinding(command, id)
+          && values.contains(binding) && DesktopCommand.all.contains { $0.id == command }
       }
     }
   }
@@ -183,7 +192,7 @@ final class ShortcutPreferences {
   func label(_ id: String) -> String { bindings(id).map(\.display).joined(separator: " / ") }
   func conflict(for binding: ShortcutBinding, excluding id: String) -> DesktopCommand? {
     DesktopCommand.all.first { command in
-      guard command.id != id else { return false }
+      guard command.id != id, !DesktopCommand.allowsSharedBinding(command.id, id) else { return false }
       return bindings(command.id).contains {
         $0 == binding || (command.allowsBareModifiers && binding.isBareModifier && $0.isBareModifier
           && (binding.modifierFlags.isSubset(of: $0.modifierFlags)

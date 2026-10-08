@@ -41,7 +41,7 @@ extension WorkspaceLibrary {
     guard tasks.contains(where: { $0.id == id && !$0.isTransient }) else { return false }
     let valid = Set(tasks.filter { !$0.isTransient }.map(\.id))
     var seen: Set<String> = [id]
-    let next = [id] + recentTaskIDs.filter { valid.contains($0) && seen.insert($0).inserted }
+    let next = Array(([id] + recentTaskIDs.filter { valid.contains($0) && seen.insert($0).inserted }).prefix(20))
     guard next != recentTaskIDs else { return false }
     recentTaskIDs = next
     return true

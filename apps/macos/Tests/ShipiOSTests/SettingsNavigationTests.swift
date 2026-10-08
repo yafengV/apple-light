@@ -94,7 +94,7 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(results("快捷键 分叉").compactMap(\.commandID), ["fork"])
     XCTAssertTrue(results("分叉 ⌘B").isEmpty)
     let alternate = try XCTUnwrap(shortcuts.bindings("next-task").last)
-    XCTAssertEqual(results(alternate.display).compactMap(\.commandID), ["next-task"])
+    XCTAssertEqual(Set(results(alternate.display).compactMap(\.commandID)), ["next-task", "next-tab"])
     let allCommands = results("快捷键").filter { $0.commandID != nil }
     XCTAssertEqual(allCommands.count, DesktopCommand.all.count)
     XCTAssertEqual(Set(allCommands.map(\.id)).count, DesktopCommand.all.count)

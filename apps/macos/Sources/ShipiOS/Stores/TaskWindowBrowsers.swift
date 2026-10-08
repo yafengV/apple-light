@@ -86,7 +86,7 @@ import WebKit
     case "browser-reload", "browser-reload-origin": return visible && session.selected != nil
     case "workspace-view": return visible
     case "tab-close-others": return visible && session.tabs.count > 1
-    case "next-task", "previous-task": return visible && session.tabs.count > 1
+    case "next-tab", "previous-tab": return visible && session.tabs.count > 1
     default: return false
     }
   }
@@ -107,8 +107,8 @@ import WebKit
     case "browser-close": if let id = session.selection { session.close(id) }
     case "workspace-view": fullWidth.toggle()
     case "tab-close-others": if let id = session.selection { session.closeOtherTabs(keeping: id) }
-    case "next-task": session.move(1)
-    case "previous-task": session.move(-1)
+    case "next-tab": session.move(1)
+    case "previous-tab": session.move(-1)
     default: break
     }
   }

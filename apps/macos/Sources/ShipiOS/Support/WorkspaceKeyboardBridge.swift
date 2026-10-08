@@ -10,17 +10,39 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
     context.coordinator.install(view, store: store)
     return view
   }
-  func updateNSView(_ view: NSView, context: Context) {}
+  func updateNSView(_ view: NSView, context: Context) {
+    if store.taskNavigationShortcutContext == nil { context.coordinator.recent.cancel() }
+  }
   static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.stop() }
 
-  final class Coordinator {
+  @MainActor final class Coordinator {
+    let recent = RecentTaskShortcutController()
     private var monitor: Any?
+    private var observations: [NSObjectProtocol] = []
     func install(_ view: NSView, store: WorkspaceStore) {
-      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak view, weak store] event in
+      for name in [NSWindow.didResignKeyNotification, NSWindow.willCloseNotification] {
+        observations.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self, weak view] note in
+          MainActor.assumeIsolated {
+            if note.object as? NSWindow === view?.window { self?.recent.cancel() }
+          }
+        })
+      }
+      observations.append(NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,
+        object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.recent.cancel() } })
+      monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self, weak view, weak store] event in
         MainActor.assumeIsolated {
           guard let window = view?.window, window.isKeyWindow,
             event.window == nil || event.window === window,
-            window.attachedSheet == nil, !WindowModalInteraction.blocksCommands(in: window), let store else { return event }
+            window.attachedSheet == nil, NSApp.modalWindow == nil, !WindowModalInteraction.blocksCommands(in: window), let store else {
+            self?.recent.cancel(); return event
+          }
+          if event.type == .keyDown, (window.firstResponder as? NSTextView)?.hasMarkedText() == true {
+            self?.recent.cancel(); return event
+          }
+          if self?.recent.handle(event, context: store.taskNavigationShortcutContext, shortcuts: store.shortcuts) == true { return nil }
+          if store.taskNavigationShortcutContext != nil,
+            RecentTaskShortcutController.isRepeatedAdjacentChat(event, shortcuts: store.shortcuts) { return nil }
+          guard event.type == .keyDown else { return event }
           if event.keyCode == 53,
             event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
             store.closeSettingsFromKeyboard(in: window) { return nil }
@@ -30,8 +52,12 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
         }
       }
     }
-    func stop() { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
-    deinit { stop() }
+    func stop() {
+      if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil
+      observations.forEach(NotificationCenter.default.removeObserver); observations = []
+      recent.cancel()
+    }
+    deinit { MainActor.assumeIsolated { stop() } }
   }
 }
 
@@ -64,7 +90,8 @@ extension WorkspaceStore {
     }
     guard
       let command = DesktopCommand.all.first(where: {
-        !$0.allowsBareModifiers && !BrowserKeyboardBridge.contextualCommands.contains($0.id)
+        !$0.allowsBareModifiers && !$0.isRecentTaskNavigation && !$0.isTabNavigation
+          && !BrowserKeyboardBridge.contextualCommands.contains($0.id)
           && !["approval-approve", "approval-decline"].contains($0.id)
           && ((["tree", "review", "review-open", "tab-close", "tab-close-others",
             "workspace-view", "workspace-tabs", "workspace-swap-panes"].contains($0.id)

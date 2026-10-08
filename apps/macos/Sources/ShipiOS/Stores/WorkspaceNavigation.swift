@@ -83,8 +83,10 @@ extension WorkspaceStore {
       if let file = commandFileWorkspace, file.fileFind.isPresented { file.fileFind.move(-1) }
       else if let tab = pageFindTab, tab.showingPageFind { tab.findInPage(backwards: true) }
       else { moveFindMatch(-1) }
-    case "previous-task": adjacentTaskOrTab(-1)
-    case "next-task": adjacentTaskOrTab(1)
+    case "previous-task": adjacentTask(-1)
+    case "next-task": adjacentTask(1)
+    case "previous-tab": adjacentContentTab(-1)
+    case "next-tab": adjacentContentTab(1)
     case "next-attention": Task { await openNextAttentionTask() }
     case "activity": toggleActivity()
     case "clear-unread": clearUnreadTasks()
@@ -311,8 +313,11 @@ extension WorkspaceStore {
       if let tab = pageFindTab, tab.showingPageFind { return !tab.pageFindQuery.isEmpty }
       return destination == .workspace && indexedFindText == findText
         && indexedFindTask == selectedTask?.id && !findMatches.isEmpty
-    case "previous-task", "next-task": return commandFileWorkspace != nil || browserFocused
-      || (!visibleTasks.isEmpty && activeLocalRun == nil && !busy)
+    case "previous-task", "next-task": return destination == .workspace && !library.visibleSidebarTasks.isEmpty
+      && activeLocalRun == nil && !busy
+    case "previous-tab", "next-tab": return destination == .workspace
+      && (filePreviewFocused || !visibleWorkspaceContentTabs.isEmpty)
+    case "previous-recent-task", "next-recent-task": return taskNavigationShortcutContext != nil
     case "back":
       return destination != .workspace || (!navigationBack.isEmpty && activeLocalRun == nil && !busy)
     case "forward":
@@ -360,12 +365,6 @@ extension WorkspaceStore {
       focusComposer = UUID()
     } else { showPane(name) }
   }
-  func adjacentTaskOrTab(_ offset: Int) {
-    if filePreviewFocused { workspace.moveFile(offset) }
-    else if !visibleWorkspaceContentTabs.isEmpty { moveWorkspaceTab(offset) }
-    else { adjacentTask(offset) }
-  }
-
   func toggleWorkspaceTabVisibility() {
     showingWorkspaceTabs.toggle()
   }
@@ -474,10 +473,10 @@ extension WorkspaceStore {
   }
 
   func adjacentTask(_ offset: Int) {
-    let tasks = visibleTasks
-    guard !tasks.isEmpty else { return }
-    let index = tasks.firstIndex(where: { $0.id == selectedTask?.id }) ?? 0
-    selectTask(tasks[(index + offset + tasks.count) % tasks.count])
+    let tasks = library.visibleSidebarTasks
+    guard let id = TaskNavigationOrder.adjacent(current: selectedTask?.id, direction: offset, targets: tasks.map(\.id)),
+      let task = tasks.first(where: { $0.id == id }) else { return }
+    selectTask(task)
   }
   func restorePrompt() {
     guard draft.isEmpty, let taskID = selectedTask?.id,

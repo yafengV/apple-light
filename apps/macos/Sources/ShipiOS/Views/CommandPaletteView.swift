@@ -42,7 +42,8 @@ struct CommandPaletteView: View {
       }
     }
     return matches.filter {
-      !GitWorkflowCommandContext.owns($0.id) || git?.enabled($0.id) == true
+      !$0.isRecentTaskNavigation && !$0.isTabNavigation &&
+      (!GitWorkflowCommandContext.owns($0.id) || git?.enabled($0.id) == true)
     }
   }
   private var taskResults: [TaskSearchResult] {
