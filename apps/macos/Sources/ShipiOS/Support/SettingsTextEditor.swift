@@ -2,13 +2,26 @@ import AppKit
 import SwiftUI
 
 /// Retained settings pages must remove disabled editors from the native key loop.
-struct SettingsTextEditor: NSViewRepresentable {
+struct SettingsTextEditor: View {
+  @Binding var text: String
+  let label: String
+  var placeholder: String = ""
+  var focusRequest: UUID?
+
+  var body: some View {
+    SettingsTextEditorContent(text: $text, label: label, placeholder: placeholder,
+      focusRequest: focusRequest).settingsFocusReveal()
+  }
+}
+
+struct SettingsTextEditorContent: NSViewRepresentable {
   @Binding var text: String
   let label: String
   var placeholder: String = ""
   var focusRequest: UUID?
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
+  @Environment(\.settingsNativeControlDidFocus) private var didFocus
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -33,6 +46,7 @@ struct SettingsTextEditor: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? TextView else { return }
     editor.useFontSmoothing = appearance.useFontSmoothing
+    editor.didFocus = didFocus
     context.coordinator.parent = self
     editor.setEnabled(isEnabled)
     editor.placeholder = placeholder
@@ -53,16 +67,17 @@ struct SettingsTextEditor: NSViewRepresentable {
   static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
     coordinator.active = false
     (scroll.documentView as? TextView)?.setEnabled(false)
+    (scroll.documentView as? TextView)?.didFocus = nil
     (scroll.documentView as? TextView)?.delegate = nil
   }
 
   final class Coordinator: NSObject, NSTextViewDelegate {
-    var parent: SettingsTextEditor
+    var parent: SettingsTextEditorContent
     var active = true
     private var lastFocusRequest: UUID?
     private var focusGeneration = UUID()
     private var enabled = true
-    init(_ parent: SettingsTextEditor) { self.parent = parent }
+    init(_ parent: SettingsTextEditorContent) { self.parent = parent }
     func updateFocus(_ editor: TextView, enabled: Bool, request: UUID?) {
       if self.enabled != enabled { focusGeneration = UUID() }
       self.enabled = enabled
@@ -86,6 +101,7 @@ struct SettingsTextEditor: NSViewRepresentable {
   }
 
   final class TextView: AppearanceTextView {
+    var didFocus: (() -> Void)?
     var placeholder = "" { didSet { if placeholder != oldValue { needsDisplay = true } } }
 
     override func drawTextSurface(_ dirtyRect: NSRect) {
@@ -101,6 +117,18 @@ struct SettingsTextEditor: NSViewRepresentable {
 
     override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
     override var canBecomeKeyView: Bool { isEditable && super.canBecomeKeyView }
+
+    override func becomeFirstResponder() -> Bool {
+      let accepted = super.becomeFirstResponder()
+      if accepted {
+        DispatchQueue.main.async { [weak self] in
+          guard let self, self.isEditable, self.isSelectable, !self.isHiddenOrHasHiddenAncestor,
+            self.window?.firstResponder === self else { return }
+          self.didFocus?()
+        }
+      }
+      return accepted
+    }
 
     func setEnabled(_ enabled: Bool) {
       isEditable = enabled

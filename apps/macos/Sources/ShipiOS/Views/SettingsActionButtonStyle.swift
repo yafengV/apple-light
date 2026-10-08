@@ -12,16 +12,6 @@ struct SettingsActionButtonStyle: PrimitiveButtonStyle {
 
 enum SettingsActionButtonColor { case secondary, ghost }
 
-private struct SettingsFocusRevealKey: EnvironmentKey {
-  static let defaultValue: ((UUID) -> Void)? = nil
-}
-extension EnvironmentValues {
-  var settingsRevealFocusedControl: ((UUID) -> Void)? {
-    get { self[SettingsFocusRevealKey.self] }
-    set { self[SettingsFocusRevealKey.self] = newValue }
-  }
-}
-
 enum SettingsActionButtonMetrics {
   static let height: CGFloat = 28
   static let horizontalPadding: CGFloat = 8
@@ -38,8 +28,6 @@ private struct SettingsActionButton: View {
   let color: SettingsActionButtonColor
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
-  @Environment(\.settingsRevealFocusedControl) private var revealFocusedControl
-  @State private var focusID = UUID()
   @FocusState private var focused: Bool
 
   @ViewBuilder private var control: some View {
@@ -56,7 +44,7 @@ private struct SettingsActionButton: View {
       .focusable(isEnabled)
       .focused($focused)
       .focusEffectDisabled()
-      .id(focusID)
+      .settingsFocusReveal(focused: focused)
       .overlay {
         if configuration.role == .destructive && focused && isEnabled {
           RoundedRectangle(cornerRadius: 5).strokeBorder(appearance.accentColor, lineWidth: 2)
@@ -70,9 +58,6 @@ private struct SettingsActionButton: View {
       }
       .onChange(of: isEnabled) { _, enabled in
         if !enabled { focused = false }
-      }
-      .onChange(of: focused) { _, value in
-        if value && isEnabled { revealFocusedControl?(focusID) }
       }
   }
 }

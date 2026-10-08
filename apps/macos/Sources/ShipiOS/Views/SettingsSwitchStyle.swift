@@ -49,6 +49,7 @@ private struct SettingsSwitchRow<Label: View>: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .focusable(isEnabled).focused($focused).focusEffectDisabled()
+    .settingsFocusReveal(focused: focused)
     .onKeyPress(keys: [.space, .return], phases: .down) { press in
       guard isEnabled, press.modifiers.isEmpty else { return .ignored }
       isOn.toggle()

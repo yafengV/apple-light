@@ -58,6 +58,7 @@ private struct SettingsSegmentButton<Value: Hashable>: View {
       .accessibilityAddTraits(selected ? .isSelected : [])
       .opacity(isEnabled ? 1 : 0.4)
       .focusable(isEnabled).focused($focused).focusEffectDisabled()
+      .settingsFocusReveal(focused: focused)
       .overlay {
         if focused && isEnabled {
           RoundedRectangle(cornerRadius: 6)

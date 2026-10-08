@@ -35,6 +35,7 @@ struct SettingsMenuPicker<Value: Hashable>: View {
   var body: some View {
     LabeledContent {
       SettingsMenuInput(title: title, selection: $selection, options: options)
+        .settingsFocusReveal()
         .fixedSize(horizontal: true, vertical: true)
         .alignmentGuide(.firstTextBaseline) { dimensions in
           description == nil ? dimensions[.firstTextBaseline] : dimensions[VerticalAlignment.center]
@@ -48,6 +49,7 @@ struct SettingsMenuPicker<Value: Hashable>: View {
 struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.appAppearance) private var appearance
+  @Environment(\.settingsNativeControlDidFocus) private var didFocus
   let title: String
   @Binding var selection: Value
   let options: [SettingsMenuOption<Value>]
@@ -66,6 +68,7 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
   func updateNSView(_ button: SettingsMenuControl, context: Context) {
     let coordinator = context.coordinator
     coordinator.parent = self
+    button.didFocus = didFocus
     button.isEnabled = isEnabled && options.contains(where: \.enabled)
     button.font = appearance.nativeFont(size: 13)
     button.contentTintColor = NSColor(appearance.foregroundColor)
@@ -87,6 +90,7 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
   static func dismantleNSView(_ button: SettingsMenuControl, coordinator: Coordinator) {
     coordinator.active = false
     button.active = false
+    button.didFocus = nil
     button.target = nil
   }
 
@@ -111,6 +115,7 @@ struct SettingsMenuInput<Value: Hashable>: NSViewRepresentable {
 }
 
 final class SettingsMenuControl: NSPopUpButton {
+  var didFocus: (() -> Void)?
   var active = true { didSet { releaseDisabledFocus() } }
   private var requestedEnabled = true
   private var enabledGeneration = UUID()
@@ -133,6 +138,18 @@ final class SettingsMenuControl: NSPopUpButton {
   }
   override var acceptsFirstResponder: Bool { active && isEnabled && !isHiddenOrHasHiddenAncestor }
   override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
+
+  override func becomeFirstResponder() -> Bool {
+    let accepted = super.becomeFirstResponder()
+    if accepted {
+      DispatchQueue.main.async { [weak self] in
+        guard let self, self.acceptsFirstResponder,
+          self.window?.firstResponder === self else { return }
+        self.didFocus?()
+      }
+    }
+    return accepted
+  }
 
   private func applyEnabled(_ enabled: Bool) {
     if !enabled, let window, window.firstResponder === self { window.makeFirstResponder(nil) }

@@ -6,6 +6,7 @@ struct SettingsTextField: View {
   let title: String
   @Binding var text: String
   var prompt: Text? = nil
+  @FocusState private var focused: Bool
 
   init(_ title: String, text: Binding<String>, prompt: Text? = nil) {
     self.title = title; _text = text; self.prompt = prompt
@@ -14,6 +15,7 @@ struct SettingsTextField: View {
   var body: some View {
     LabeledContent {
       TextField(title, text: $text, prompt: prompt)
+        .focused($focused).settingsFocusReveal(focused: focused)
         .textFieldStyle(.roundedBorder).labelsHidden()
         .frame(minWidth: 0, idealWidth: 320, maxWidth: 320).accessibilityLabel(title)
     } label: {
@@ -28,6 +30,7 @@ struct SettingsSecureField: View {
   let title: String
   @Binding var text: String
   var prompt: Text? = nil
+  @FocusState private var focused: Bool
 
   init(_ title: String, text: Binding<String>, prompt: Text? = nil) {
     self.title = title; _text = text; self.prompt = prompt
@@ -36,6 +39,7 @@ struct SettingsSecureField: View {
   var body: some View {
     LabeledContent {
       SecureField(title, text: $text, prompt: prompt)
+        .focused($focused).settingsFocusReveal(focused: focused)
         .textFieldStyle(.roundedBorder).labelsHidden()
         .frame(minWidth: 0, idealWidth: 320, maxWidth: 320).accessibilityLabel(title)
     } label: {

@@ -28,8 +28,8 @@ import XCTest
           .write(to: directory.appendingPathComponent("instructions-" + name + ".png"))
       }
     }
-    func editors(_ view: NSView) -> [SettingsTextEditor.TextView] {
-      (view as? SettingsTextEditor.TextView).map { [$0] } ?? view.subviews.flatMap(editors)
+    func editors(_ view: NSView) -> [SettingsTextEditorContent.TextView] {
+      (view as? SettingsTextEditorContent.TextView).map { [$0] } ?? view.subviews.flatMap(editors)
     }
     store.personalizationLoading = true
     try await settle("loading")

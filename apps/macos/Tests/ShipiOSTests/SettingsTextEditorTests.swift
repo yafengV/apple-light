@@ -10,11 +10,11 @@ import XCTest
       styleMask: [.borderless], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     defer { window.close() }
-    let editor = SettingsTextEditor.TextView(frame: .init(x: 0, y: 0, width: 400, height: 100))
+    let editor = SettingsTextEditorContent.TextView(frame: .init(x: 0, y: 0, width: 400, height: 100))
     let scroll = NSScrollView(frame: editor.frame)
     scroll.documentView = editor
     window.contentView = scroll
-    let coordinator = SettingsTextEditor(text: .constant("draft"), label: "Editor").makeCoordinator()
+    let coordinator = SettingsTextEditorContent(text: .constant("draft"), label: "Editor").makeCoordinator()
     let request = UUID()
     coordinator.updateFocus(editor, enabled: true, request: request)
     await Task.yield()
@@ -35,16 +35,16 @@ import XCTest
     XCTAssertFalse(window.firstResponder === editor)
     editor.isHidden = false
     coordinator.updateFocus(editor, enabled: true, request: UUID())
-    SettingsTextEditor.dismantleNSView(scroll, coordinator: coordinator)
+    SettingsTextEditorContent.dismantleNSView(scroll, coordinator: coordinator)
     try await Task.sleep(for: .milliseconds(30))
     XCTAssertFalse(window.firstResponder === editor)
   }
 
   func testCompositionAndDismantledCallbacksDoNotPublishPartialDrafts() {
     var draft = "Saved draft"
-    let view = SettingsTextEditor(text: Binding(get: { draft }, set: { draft = $0 }), label: "Draft")
+    let view = SettingsTextEditorContent(text: Binding(get: { draft }, set: { draft = $0 }), label: "Draft")
     let coordinator = view.makeCoordinator()
-    let editor = SettingsTextEditor.TextView()
+    let editor = SettingsTextEditorContent.TextView()
     let scroll = NSScrollView()
     scroll.documentView = editor
     editor.setMarkedText("pin", selectedRange: .init(location: 3, length: 0),
@@ -55,7 +55,7 @@ import XCTest
     editor.string = "Committed composition"
     coordinator.textDidChange(Notification(name: NSText.didChangeNotification, object: editor))
     XCTAssertEqual(draft, "Committed composition")
-    SettingsTextEditor.dismantleNSView(scroll, coordinator: coordinator)
+    SettingsTextEditorContent.dismantleNSView(scroll, coordinator: coordinator)
     editor.string = "Late callback"
     coordinator.textDidChange(Notification(name: NSText.didChangeNotification, object: editor))
     XCTAssertEqual(draft, "Committed composition")
@@ -78,7 +78,7 @@ import XCTest
     host.layoutSubtreeIfNeeded()
     try await Task.sleep(for: .milliseconds(50))
     func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
-    let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? SettingsTextEditor.TextView }.first)
+    let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? SettingsTextEditorContent.TextView }.first)
     XCTAssertTrue(editor.acceptsFirstResponder)
     window.makeFirstResponder(editor)
     editor.insertText("!", replacementRange: .init(location: editor.string.utf16.count, length: 0))
@@ -112,7 +112,7 @@ import XCTest
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let before = NSTextField(frame: .init(x: 0, y: 120, width: 200, height: 20))
-    let editor = SettingsTextEditor.TextView(frame: .init(x: 0, y: 40, width: 200, height: 70))
+    let editor = SettingsTextEditorContent.TextView(frame: .init(x: 0, y: 40, width: 200, height: 70))
     let after = NSTextField(frame: .init(x: 0, y: 10, width: 200, height: 20))
     for view in [before, editor, after] { window.contentView?.addSubview(view) }
     before.nextKeyView = editor
