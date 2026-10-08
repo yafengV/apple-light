@@ -10,10 +10,8 @@ enum TaskWindowRestoration: Equatable {
     readError: String?, taskExists: Bool, hasPresentedTask: Bool) -> Self {
     if let savedRoot = route?.dataRoot, savedRoot != TaskWindowRoute.workspacePath(dataRoot) { return .close }
     if restoring { return .loading }
-    if !loaded {
-      if let readError { return .failed(readError) }
-      return .loading
-    }
+    if let readError { return .failed(readError) }
+    if !loaded { return .loading }
     // SwiftUI can attach the restored value after the scene first appears.
     guard let route else { return .loading }
     // A restored stale route should not leave an unusable window at launch.

@@ -19,7 +19,7 @@ struct TaskWindowSceneView: View {
   private var availableTasks: Set<String> { Set(store.library.tasks.map(\.id)) }
   private var restoration: TaskWindowRestoration {
     .resolve(route: route, dataRoot: store.dataRoot, loaded: store.libraryLoaded,
-      restoring: store.restoringLibrary || store.libraryLoading, readError: store.libraryReadError,
+      restoring: store.restoringLibrary || store.libraryLoading || store.modelConfigurationLoading, readError: store.restorationReadError,
       taskExists: route.map { availableTasks.contains($0.taskID) } ?? false, hasPresentedTask: hasPresentedTask)
   }
 

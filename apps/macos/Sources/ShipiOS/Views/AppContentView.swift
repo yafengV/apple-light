@@ -184,7 +184,7 @@ struct AppContentView: View {
         if store.restoringLibrary {
           ProgressView("正在恢复工作区…").padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        } else if !store.libraryLoaded, let message = store.libraryReadError {
+        } else if let message = store.restorationReadError {
           VStack(alignment: .leading, spacing: 16) {
             Label("无法恢复工作区", systemImage: "exclamationmark.triangle")
               .font(.headline)

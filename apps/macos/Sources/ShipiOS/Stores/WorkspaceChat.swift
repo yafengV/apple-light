@@ -1,15 +1,38 @@
 import Foundation
 
 extension WorkspaceStore {
-  func loadModelConfiguration() async {
-    let url = dataRoot.appendingPathComponent("model.json")
+  @discardableResult func loadModelConfiguration() async -> Bool {
+    guard !shuttingDown else { return false }
+    let request = UUID(), revision = modelConfigurationRevision
+    let previousReadError = modelConfigurationReadError
+    modelConfigurationReadRequest = request
+    modelConfigurationReadError = nil
+    modelConfigurationLoading = true
+    modelConfigurationRecoveryPending = true
+    defer {
+      if modelConfigurationReadRequest == request {
+        modelConfigurationReadRequest = nil
+        modelConfigurationLoading = false
+      }
+    }
     do {
-      let loaded = try await Task.detached(priority: .userInitiated) { () -> ModelConfiguration? in
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try JSONDecoder().decode(ModelConfiguration.self, from: Data(contentsOf: url))
-      }.value
+      let loaded = try await modelConfigurationReader.load()
+      try Task.checkCancellation()
+      guard !shuttingDown, modelConfigurationReadRequest == request else { return false }
+      guard modelConfigurationRevision == revision else { return true }
       if let loaded { modelConfiguration = loaded }
-    } catch { self.error = "无法读取模型配置：\(error.localizedDescription)" }
+      modelConfigurationRecoveryPending = false
+      if error == previousReadError { error = nil }
+      return true
+    } catch {
+      guard !shuttingDown, modelConfigurationReadRequest == request else { return false }
+      // A successful explicit save supersedes a read of the old file.
+      if modelConfigurationRevision != revision, !Task.isCancelled { return true }
+      let message = "无法读取模型配置：\(error.localizedDescription)"
+      modelConfigurationReadError = message
+      self.error = message
+      return false
+    }
   }
   func saveModelConfiguration(_ config: ModelConfiguration) throws {
     try config.validateEndpoint()
@@ -18,6 +41,11 @@ extension WorkspaceStore {
     try JSONEncoder().encode(config).write(to: url, options: .atomic)
     try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     modelConfiguration = config
+    modelConfigurationRevision = UUID()
+    modelConfigurationRecoveryPending = false
+    if error == modelConfigurationReadError { error = nil }
+    modelConfigurationReadError = nil
+    modelConfigurationReader.cancelPending()
   }
   func restoreInterruptedChats() {
     let interrupted = Set(library.chatRuns.filter(\.isActive).map(\.id))

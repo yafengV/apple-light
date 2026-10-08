@@ -3,7 +3,8 @@ import Foundation
 extension WorkspaceStore {
   var archiveActionsBusy: Bool { archivingActivity || deletingArchive || !restoringArchivedTaskIDs.isEmpty }
   var canMutateArchive: Bool { !archiveActionsBusy && !managedTaskPreparing
-    && !libraryLoading && libraryReadError == nil }
+    && !libraryLoading && libraryReadError == nil
+    && !modelConfigurationRecoveryPending && modelConfigurationReadError == nil }
 
   func restoreArchivedTaskWithFeedback(_ taskID: String) async {
     guard canMutateArchive, !hasSettingsConfirmation else { return }

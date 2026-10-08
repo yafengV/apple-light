@@ -360,6 +360,12 @@ final class WorkspaceStore {
   var blurComposer = UUID()
   @ObservationIgnored var libraryLoaded = false
   @ObservationIgnored let libraryReader: WorkspaceLibraryReader
+  @ObservationIgnored let modelConfigurationReader: ModelConfigurationReader
+  @ObservationIgnored var modelConfigurationRevision = UUID()
+  @ObservationIgnored var modelConfigurationReadRequest: UUID?
+  var modelConfigurationLoading = false
+  var modelConfigurationRecoveryPending = false
+  var modelConfigurationReadError: String?
   var subagentDraftSaveErrors: [SubagentDraftScope: String] = [:]
   @ObservationIgnored var subagentDraftEpochs: [SubagentDraftScope: UUID] = [:]
   @ObservationIgnored var retiredSubagentDraftImages: [UUID: ImageAttachment] = [:]
@@ -422,8 +428,11 @@ final class WorkspaceStore {
   var recoveringHandoffTaskIDs: Set<String> = []
   var newTaskStartingBranches: [String: GitBranchChoice] = [:]
   var restoringLibrary = false
+  var restorationReadError: String? {
+    (!libraryLoaded ? libraryReadError : nil) ?? modelConfigurationReadError
+  }
   var libraryRecoveryBlocksInteraction: Bool {
-    restoringLibrary || (!libraryLoaded && libraryReadError != nil)
+    restoringLibrary || modelConfigurationRecoveryPending || restorationReadError != nil
   }
   var error: String?
   var logText = ""
@@ -541,9 +550,12 @@ final class WorkspaceStore {
   func modelTask(runID: String) -> Task<Void, Never>? { modelTasks[runID] }
 
   init(dataRoot: URL? = nil, agentExecutable: URL? = nil,
-    browserDataStore: WKWebsiteDataStore? = nil, libraryReader: WorkspaceLibraryReader? = nil) {
+    browserDataStore: WKWebsiteDataStore? = nil, libraryReader: WorkspaceLibraryReader? = nil,
+    modelConfigurationReader: ModelConfigurationReader? = nil) {
     root = dataRoot ?? Self.defaultDataRoot
     self.libraryReader = libraryReader ?? WorkspaceLibraryReader(url: root.appendingPathComponent("workspace.json"))
+    self.modelConfigurationReader = modelConfigurationReader
+      ?? ModelConfigurationReader(url: root.appendingPathComponent("model.json"))
     hookSettings = HookSettingsState(root: root)
     voiceRecordingHistory = VoiceRecordingHistory(dataRoot: root)
     self.agentExecutable = agentExecutable
@@ -619,12 +631,13 @@ final class WorkspaceStore {
   }
 
   func restore() async {
-    guard !scopeLoaded, project == nil, !restoringLibrary else { return }
+    guard !scopeLoaded, project == nil, !restoringLibrary, !shuttingDown, !Task.isCancelled else { return }
     restoringLibrary = true
     defer { restoringLibrary = false }
     guard await loadLibrary() else { return }
+    guard await loadModelConfiguration() else { return }
+    discardRestoredSideChats()
     await cleanupPendingManagedWorktreeDeletions()
-    await loadModelConfiguration()
     await loadPersonalization()
     await loadMemories()
     await loadProfile()
@@ -1307,7 +1320,6 @@ final class WorkspaceStore {
       libraryLoaded = true
       workspace.gitReviewLastTurnOnly = library.gitPreferences.disableGitBasedReview
       bindFileEditorRecovery(to: workspace)
-      discardRestoredSideChats()
       if error == previousReadError { error = nil }
       return true
     } catch {
@@ -1319,6 +1331,9 @@ final class WorkspaceStore {
   }
 
   func commitLibrary(_ candidate: WorkspaceLibrary, updatingSubagentDraft scope: SubagentDraftScope? = nil) throws {
+    guard !modelConfigurationRecoveryPending, modelConfigurationReadError == nil else {
+      throw AgentFailure(message: "模型配置尚未恢复，任务记录未被更改。请重试恢复。")
+    }
     var candidate = candidate
     let updatedDraft = scope.flatMap { scope in candidate.subagentDrafts.first { $0.scope == scope } }
     // Other operations may have captured a library snapshot before an await.
@@ -1349,7 +1364,7 @@ final class WorkspaceStore {
   }
 
   @discardableResult func saveLibrary() -> Bool {
-    guard libraryLoaded else { return false }
+    guard libraryLoaded, !modelConfigurationRecoveryPending, modelConfigurationReadError == nil else { return false }
     captureWorkspaceTabLayout()
     autoreleasepool { taskWindowResources.allObjects.forEach { $0.captureLayouts() } }
     do {
@@ -1373,6 +1388,7 @@ final class WorkspaceStore {
     dictation.stop()
     realtimeVoice.stop()
     shuttingDown = true
+    modelConfigurationReader.cancelPending()
     appshotIntroRequest = nil
     pendingAppshot = nil
     appshotHandoffAnimator.cancel()

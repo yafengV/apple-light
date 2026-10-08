@@ -13,10 +13,9 @@ extension WorkspaceStore {
 
   func detachedWorkspaceTabRestoration(_ route: WorkspaceTabWindowRoute?) -> DetachedWorkspaceTabRestoration {
     if let root = route?.dataRoot, root != TaskWindowRoute.workspacePath(dataRoot) { return .close }
-    if restoringLibrary || libraryLoading { return .loading }
-    if !libraryLoaded {
-      return libraryReadError.map(DetachedWorkspaceTabRestoration.failed) ?? .loading
-    }
+    if restoringLibrary || libraryLoading || modelConfigurationLoading { return .loading }
+    if let restorationReadError { return .failed(restorationReadError) }
+    if !libraryLoaded { return .loading }
     guard let route else { return .loading }
     let owner: String
     if let explicit = route.owner { owner = explicit }
