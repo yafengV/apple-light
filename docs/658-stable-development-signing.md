@@ -39,3 +39,9 @@
 第一轮在原生界面打开命令菜单，再用项目文件夹选择器打开当前桌面仓库 `apple-light`；通过文件搜索实际打开 `AGENTS.md`，编辑器显示完整内容与“已保存”。第二轮重建启动后，初始的“正在恢复工作区…”状态随后结束，同一项目、文件标签和内容直接恢复；文件列表刷新、筛选和清空筛选均可操作。两轮观察过程中没有出现新的文件夹授权或信任弹窗，没有接受新系统权限、重置 TCC 或修改钥匙串访问控制。此结论限于本机当前仓库与这两次实际运行。
 
 真实开发证书的两版不同代码冒烟再次通过（`.cache/development-signing-user-request-check.log`）：应用与 helper 的 CDHash 改变，指定要求保持不变，并通过旧要求验证；无身份与无效身份拒绝、显式临时签名选择检查也通过。正式包重建前后的指定要求一致，应用与 helper 均确认使用 Apple Development，并通过旧要求与严格深度校验（`.cache/development-signing-user-request-result.json`）。受限执行环境不能读取完整证书信任链，签名详情与校验使用可访问系统钥匙串的执行环境完成；没有因此降级签名。日志与本机公开证书详情仅留在忽略目录，未提交个人证书信息。本轮复验未修改签名实现，沿用上述已提交的稳定开发签名方案。
+
+## 2026-10-09 当前调试入口复验
+
+当前请求再次检查现有实现：真实开发证书的两版不同代码冒烟通过（`.cache/development-signing-request-recheck.log`）；通过标准 `script/build_and_run.sh --app` 重建并执行启动命令，exit 0（`.cache/development-signing-request-standard-run.log`）。主应用和 helper 均使用 Apple Development，指定要求仍与第 690 篇重建前一致，分别通过旧要求及严格深度校验（`.cache/development-signing-request-standard-signature-verified.log`）。首次调用校验脚本遗漏 `after` 参数而失败，日志保留；补齐参数后通过，这不是应用签名失败。
+
+此次重新签名后的 helper 文件字节与第 691 篇保存的测试副本不同，但 CDHash 相同；签名封装字节一致与代码摘要／指定要求一致分别检查，不将它们混为一谈。本轮没有修改签名实现。CUA 当前返回 Mac 锁屏，故本轮无法复验工作区可交互或授权弹窗；上节解锁后的两次运行结果仅作为此前本机证据。
