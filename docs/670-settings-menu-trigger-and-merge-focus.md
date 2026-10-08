@@ -43,6 +43,8 @@
 
 ## 已结束的旧全量与剩余范围
 
+2026-10-08 19:27:20，第 670 篇冻结提交 `a4068692811f31111c3a71a58f7ff5b7eef10a97` 的原 handle 50465 取得 exit 0：**2,890 项 Swift、2 跳过、0 失败**，4,640.535 秒，随后 IPC exit 0。两项跳过仍为未配置本地音频夹具地址的 RealtimeVoiceWireTests；离线语法记录一次冷启动恢复，实际参考 token 比对仍通过，并非跳过该用例。终态重新核对 73 个源夹具、166 个捆绑资源、测试执行文件、保存 helper 及完整参考 CSS 均未变化，保存 `.cache/full-alignment-regression-670-final-audit.json`；日志、manifest／status 同前缀。后续代码使用另一缓存开发，没有重启此进程；该完整结果覆盖冻结的第 670 篇，不覆盖第 671—673 篇及之后的签名修复。
+
 第 666 篇冻结提交 9336030 的完整回归已取得原 handle 94550 的 exit 0：**2,878 项 Swift、2 跳过、0 失败**，4,602.747 秒，2026-10-08 17:49:21.498 结束；随后 IPC exit 0，runner finishedAt 09:49:22.004786 UTC。两个跳过为未配置本地音频夹具地址的 RealtimeVoiceWireTests。无 cold syntax recovery。日志、manifest／status 为 `.cache/full-alignment-regression-666-*`；终态核对 70 个源夹具、163 个资源、测试执行文件和 helper 均未变化，另保存 final-audit。这个结果不覆盖第 667—670 篇。
 
 仍需继续所有菜单变体、精确字重／字形／视觉和动效、其他原生 Picker／滑杆／字号步进器、全部激活与失焦来源、macOS 14 实际运行、真实用户服务，以及每页所有行为。Codex 窗口操作此前受工具安全限制，没有绕过。完整范围仍为 21 个主页面／交互类别、26 个设置面及 29 项核心功能，完整双端配对 **0/47**，不是代码完成比例。见[完整矩阵](599-core-function-parity-matrix.md)。

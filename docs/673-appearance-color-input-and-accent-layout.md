@@ -30,7 +30,7 @@
 
 通过 `script/build_and_run.sh --app` 构建并执行最终默认应用的启动命令，exit 0（`.cache/appearance-color-final-default-run-673.log`）；Apple Development 严格签名通过（`.cache/appearance-color-final-signature-673.log`）。保存的第 670 篇 helper 与正式包 CDHash 相同（`.cache/appearance-color-code-equivalence-673.json`）；正式包 IPC 与 Core RPC 冒烟均 exit 0（`.cache/appearance-color-ipc-673.log`、`.cache/appearance-color-core-673.log`）。本阶段仅 Swift UI／测试改变，不将此前 Rust 回归计作新运行。
 
-最终 CUA 再检查仍报告 Mac 锁屏，未操作新的系统授权或用户 API 配置。默认应用已由项目脚本恢复启动，但本轮工作区可交互、颜色输入／面板及重启前台验收仍待解锁，不用进程或启动命令成功替代。第 670 篇冻结全量仍使用独立缓存运行，不覆盖本阶段；保留其原进程和资源。
+最终 CUA 再检查仍报告 Mac 锁屏，未操作新的系统授权或用户 API 配置。默认应用已由项目脚本恢复启动，但本轮工作区可交互、颜色输入／面板及重启前台验收仍待解锁，不用进程或启动命令成功替代。随后第 670 篇冻结全量原进程取得 exit 0：2,890 项、2 跳过、0 失败及 IPC 通过；已核对冻结资源未变，详见第 670 篇。这是旧提交结果，不覆盖本阶段。
 
 ## 仍待完成
 
