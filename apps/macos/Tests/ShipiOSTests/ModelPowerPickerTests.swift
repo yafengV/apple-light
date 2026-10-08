@@ -89,8 +89,10 @@ import XCTest
       ("implicit-medium", "ultra")] {
       let f = try await fixture(model: model, reasoning: reasoning)
       XCTAssertTrue(find(f.host, as: NSSlider.self).isEmpty, model)
-      XCTAssertFalse(find(f.host, as: NSTextField.self).filter { $0.isEditable }.isEmpty,
-        "Model search must remain available: \(model)")
+      XCTAssertFalse(find(f.host, as: ModelPickerMenuItem.Control.self).isEmpty,
+        "Actual model menu rows remain available: \(model)")
+      XCTAssertTrue(find(f.host, as: NSTextField.self).filter { $0.isEditable }.isEmpty,
+        "The reference model menu uses radio rows rather than an initial search field")
       XCTAssertEqual(f.store.modelConfiguration(for: "power-task").reasoning, reasoning)
       XCTAssertFalse(f.window.isVisible)
     }

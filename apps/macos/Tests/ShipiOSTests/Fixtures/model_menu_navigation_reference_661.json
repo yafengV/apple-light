@@ -1,0 +1,322 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "234429db84d9319850ff0766a4a5052a9e898bfa0611883633f80018080dd6c0",
+  "cases": [
+    {
+      "name": "down",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowDown",
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "up",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowUp",
+      "expected": {
+        "focusedID": "default",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "tab",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "default",
+      "key": "Tab",
+      "expected": {
+        "focusedID": "sol",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "reverse-tab",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "default",
+      "key": "Tab",
+      "shift": true,
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "down-wrap",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "terra",
+      "key": "ArrowDown",
+      "expected": {
+        "focusedID": "default",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "up-wrap",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "default",
+      "key": "ArrowUp",
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "child-target",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowDown",
+      "child": true,
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "outside-item",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": null,
+      "key": "ArrowDown",
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "unrecognized-key",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowRight",
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "slider-excluded",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowDown",
+      "slider": true,
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "composer-slider-excluded",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowDown",
+      "reasoning": true,
+      "code": "ComposerNavigation",
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "ordinary-reasoning-descendant",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "ArrowDown",
+      "reasoning": true,
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "enter-memory",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": "Enter",
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": "advanced"
+      }
+    },
+    {
+      "name": "space-memory",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "sol",
+      "key": " ",
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": "advanced"
+      }
+    },
+    {
+      "name": "disabled-row-skipped",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "default",
+      "key": "ArrowDown",
+      "disabled": [
+        "sol"
+      ],
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "noninteractive-row-skipped",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "default",
+      "key": "Tab",
+      "noninteractive": [
+        "sol"
+      ],
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "hidden-row-skipped",
+      "items": [
+        "default",
+        "sol",
+        "terra"
+      ],
+      "currentID": "default",
+      "key": "ArrowDown",
+      "hidden": [
+        "sol"
+      ],
+      "expected": {
+        "focusedID": "terra",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    },
+    {
+      "name": "empty",
+      "items": [],
+      "currentID": null,
+      "key": "Tab",
+      "empty": true,
+      "expected": {
+        "focusedID": null,
+        "prevented": false,
+        "stopped": false,
+        "memory": null
+      }
+    },
+    {
+      "name": "single-wrap",
+      "items": [
+        "sol"
+      ],
+      "currentID": "sol",
+      "key": "Tab",
+      "single": true,
+      "expected": {
+        "focusedID": "sol",
+        "prevented": true,
+        "stopped": true,
+        "memory": null
+      }
+    }
+  ]
+}

@@ -130,14 +130,13 @@ import XCTest
     try store.setModelPickerSelectionMode(.default)
     try await Task.sleep(for: .milliseconds(80))
     XCTAssertEqual(try XCTUnwrap(descendants(host, type: NSSlider.self).first).numberOfTickMarks, 5)
-    // Hidden hosting windows expose only an AXGroup for SwiftUI virtual buttons.
-    // Enter the same advanced content through an unsupported current model, then
-    // inspect its concrete text field and scroll view; button routing is verified
-    // separately in the packaged native app.
+    // Enter the same advanced content with unsupported current capability.
+    // Inspect concrete responders; packaged-app routing is verified separately.
     try store.selectModel("global-model", reasoning: "", taskID: "preset-task")
     try await Task.sleep(for: .milliseconds(80)); host.layoutSubtreeIfNeeded()
-    let search = try XCTUnwrap(descendants(host, type: NSTextField.self).first { $0.isEditable })
-    XCTAssertTrue(window.firstResponder === search.currentEditor(), "Advanced search receives actual text focus")
+    let row = try XCTUnwrap(descendants(host, type: ModelPickerMenuItem.Control.self).first { $0.itemID == "default" })
+    XCTAssertTrue(window.firstResponder === row, "Default mode initially focuses the default radio row")
+    XCTAssertTrue(descendants(host, type: NSTextField.self).filter { $0.isEditable }.isEmpty)
     let list = try XCTUnwrap(descendants(host, type: NSScrollView.self).first)
     XCTAssertGreaterThan(list.frame.height, 100, "The advanced model list must not collapse inside its host")
     XCTAssertFalse(window.isVisible)
