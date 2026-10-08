@@ -1,5 +1,6 @@
 // Execute the pinned public desktop label/row components and resolve their CSS tokens.
 const fs = require('fs'), vm = require('vm'), crypto = require('crypto');
+const {desktopTypography} = require('./reference_desktop_typography.cjs');
 const [sharedPath, cssPath, generalPath, outputPath] = process.argv.slice(2);
 const hashes = ['eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab',
   '4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720',
@@ -42,14 +43,12 @@ const description = label.props.children[1].props.children[1];
 if (!title.props.className.includes('text-sm') || !description.props.className.includes('text-xs leading-4')
   || !control.props.className.includes('min-w-[min(--spacing(40),40cqw)]')) throw Error('Unexpected public row structure');
 const spacing = Number(css.match(/--spacing:([.\d]+)rem;/)[1]) * 16;
-const labelFontSize = Number(css.match(/--text-sm:([\d.]+)px;/)[1]);
-const descriptionFontSize = Number(css.match(/--text-xs:([\d.]+)px;/)[1]);
-const lineRatio = css.match(/--text-sm--line-height:calc\(([\d.]+) \/ ([\d.]+)\);/);
-if (!lineRatio) throw Error('Missing desktop label line height');
+const desktop = desktopTypography(css);
+const labelFontSize = desktop.labelSize, descriptionFontSize = desktop.descriptionSize;
 const minimum = css.match(/min-width:min\(calc\(var\(--spacing\) \* (\d+)\), (\d+)cqw\)/);
 if (!minimum) throw Error('Missing actual CSS minimum width rule');
 const expected = {labelFontSize, descriptionFontSize, labelDescriptionGap: spacing * .5,
-  labelLineHeight: labelFontSize * Number(lineRatio[1]) / Number(lineRatio[2]),
+  labelLineHeight: desktop.labelLineHeight,
   controlMinimum: spacing * Number(minimum[1]), controlWidthFraction: Number(minimum[2]) / 100,
   rowGap: spacing * 6, descriptionLineHeight: spacing * 4, folderPathWidth: spacing * 48};
 fs.writeFileSync(outputPath, JSON.stringify({version: '26.930.51102', build: 13100, sourceSHA256: hashes,

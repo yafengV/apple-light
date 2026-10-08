@@ -16,7 +16,7 @@ enum SettingsActionButtonMetrics {
   static let height: CGFloat = 28
   static let horizontalPadding: CGFloat = 8
   static let borderWidth: CGFloat = 1
-  static let fontSize: CGFloat = 12
+  static let fontSize: CGFloat = 13
   static let lineHeight: CGFloat = 18
   static let radius: CGFloat = 10
   static let focusRing: CGFloat = 2

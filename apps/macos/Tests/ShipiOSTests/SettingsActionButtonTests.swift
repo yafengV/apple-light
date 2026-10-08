@@ -11,7 +11,7 @@ import XCTest
     }
     let expected: Expected
     static func load() throws -> Expected {
-      let url = try XCTUnwrap(Bundle.module.url(forResource: "settings_action_buttons_reference_667",
+      let url = try XCTUnwrap(Bundle.module.url(forResource: "settings_desktop_typography_reference_669",
         withExtension: "json", subdirectory: "Fixtures"))
       return try JSONDecoder().decode(Self.self, from: Data(contentsOf: url)).expected
     }

@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum SettingsRowTypography {
-  static let labelSize: CGFloat = 12
-  static let descriptionSize: CGFloat = 11
+  static let labelSize: CGFloat = 13
+  static let descriptionSize: CGFloat = 12
   static let labelDescriptionGap: CGFloat = 2
-  static let labelLineHeight: CGFloat = 120.0 / 7
+  static let labelLineHeight: CGFloat = 130.0 / 7
   static let descriptionLineHeight: CGFloat = 16
 }
 

@@ -1,5 +1,6 @@
 // Execute the pinned public button component and read its desktop toolbar tokens.
 const fs = require('fs'), vm = require('vm'), crypto = require('crypto');
+const {desktopTypography} = require('./reference_desktop_typography.cjs');
 const [sourcePath, cssPath, outputPath] = process.argv.slice(2);
 const hashes = ['eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab',
   '4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720'];
@@ -41,7 +42,7 @@ if (!toolbar.includes('height:var(--spacing-token-button-composer)')
 const expected = {
   height: spacing * Number(css.match(/--spacing-token-button-composer:calc\(var\(--spacing\) \* (\d+)\)/)[1]),
   horizontalPadding: spacing * Number(css.match(/--spacing-button-toolbar-inline:calc\(var\(--spacing\) \* (\d+)\)/)[1]),
-  borderWidth: 1, fontSize: Number(css.match(/--text-sm:([\d.]+)px;/)[1]), lineHeight: 18,
+  borderWidth: 1, fontSize: desktopTypography(css).labelSize, lineHeight: 18,
   radius: Number(css.match(/--radius-lg-base:([\d.]+)rem;/)[1]) * 16,
   focusRing: 2, disabledOpacity: 0.4, backgroundOpacity: 0.05, hoverBackgroundOpacity: 0.1
 };

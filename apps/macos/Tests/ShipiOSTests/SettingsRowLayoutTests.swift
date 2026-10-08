@@ -12,7 +12,7 @@ struct SettingsRowLayoutReference: Decodable {
   let expected: Expected
   let widths: [Width]
   static func load() throws -> Self {
-    let url = try XCTUnwrap(Bundle.module.url(forResource: "settings_row_layout_reference_666",
+    let url = try XCTUnwrap(Bundle.module.url(forResource: "settings_desktop_typography_reference_669",
       withExtension: "json", subdirectory: "Fixtures"))
     return try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
   }

@@ -1,0 +1,64 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+    "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535"
+  ],
+  "defaults": {
+    "--spacing": ".25rem",
+    "--text-sm": "12px",
+    "--text-xs": "11px",
+    "--text-sm--line-height": "calc(1.25 / .875)",
+    "--text-xs--line-height": "calc(1 / .75)"
+  },
+  "desktopOverrides": {
+    "--image-viewer-transparent-backdrop-filter": "blur(var(--blur-xs))",
+    "--text-sm": "13px",
+    "--text-xs": "12px",
+    "--font-weight-medium": "500",
+    "--font-ui-weight": "430"
+  },
+  "referenceCSS": ":root{--spacing:.25rem;--text-sm:12px;--text-xs:11px;--text-sm--line-height:calc(1.25 / .875);--text-xs--line-height:calc(1 / .75)}\n.text-sm{font-size:var(--text-sm);line-height:var(--tw-leading,var(--text-sm--line-height))}\n.text-xs{font-size:var(--text-xs);line-height:var(--tw-leading,var(--text-xs--line-height))}\n.leading-4{--tw-leading:calc(var(--spacing) * 4);line-height:calc(var(--spacing) * 4)}\n.leading-\\[18px\\]{--tw-leading:18px;line-height:18px}\n[data-codex-window-type=electron]{--image-viewer-transparent-backdrop-filter:blur(var(--blur-xs));--text-sm:13px;--text-xs:12px;--font-weight-medium:500;--font-ui-weight:430;background:0 0;overflow:hidden}",
+  "componentClasses": {
+    "label": "min-w-0 break-words text-default group-data-[density=compact]/settings:leading-4.5 text-sm font-medium",
+    "description": "min-w-0 text-xs leading-4 text-wrap break-words text-secondary",
+    "button": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-toolbar text-default bg-text/5 not-disabled:not-aria-disabled:hover:bg-text/10 data-[state=open]:bg-text/10 border-transparent button-toolbar py-0 text-sm leading-[18px]"
+  },
+  "expected": {
+    "labelFontSize": 13,
+    "descriptionFontSize": 12,
+    "labelDescriptionGap": 2,
+    "labelLineHeight": 18.571428571428573,
+    "controlMinimum": 160,
+    "controlWidthFraction": 0.4,
+    "rowGap": 24,
+    "descriptionLineHeight": 16,
+    "folderPathWidth": 192,
+    "height": 28,
+    "horizontalPadding": 8,
+    "borderWidth": 1,
+    "fontSize": 13,
+    "lineHeight": 18,
+    "radius": 10,
+    "focusRing": 2,
+    "disabledOpacity": 0.4,
+    "backgroundOpacity": 0.05,
+    "hoverBackgroundOpacity": 0.1
+  },
+  "widths": [
+    {
+      "width": 628,
+      "minimumControlWidth": 160
+    },
+    {
+      "width": 328,
+      "minimumControlWidth": 131.20000000000002
+    },
+    {
+      "width": 168,
+      "minimumControlWidth": 67.2
+    }
+  ]
+}
