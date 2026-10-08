@@ -11,6 +11,23 @@ struct VoicePreferences: Codable, Equatable {
   var realtimeVoiceID = "marin"
   var screenContextEnabled = false
 
+  subscript(mode: VoiceShortcutPresentation.Mode) -> ShortcutBinding? {
+    get {
+      switch mode {
+      case .hold: globalHoldHotkey
+      case .toggle: globalToggleHotkey
+      case .voiceChat: globalVoiceChatHotkey
+      }
+    }
+    set {
+      switch mode {
+      case .hold: globalHoldHotkey = newValue
+      case .toggle: globalToggleHotkey = newValue
+      case .voiceChat: globalVoiceChatHotkey = newValue
+      }
+    }
+  }
+
   init(dictationLocaleIdentifier: String? = nil, microphoneDeviceID: String? = nil,
     globalHoldHotkey: ShortcutBinding? = nil, globalToggleHotkey: ShortcutBinding? = nil,
     globalVoiceChatHotkey: ShortcutBinding? = nil,

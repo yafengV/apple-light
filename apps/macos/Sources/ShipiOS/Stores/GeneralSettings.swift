@@ -5,38 +5,7 @@ import Foundation
 extension WorkspaceStore {
   var voicePreferences: VoicePreferences {
     get { library.voicePreferences }
-    set {
-      let previous = library.voicePreferences
-      guard previous != newValue else { return }
-      guard libraryLoaded else {
-        generalSettingsError = "工作区尚未完成加载，请稍后再修改。"
-        return
-      }
-      let changed: [VoiceShortcutPresentation.Mode] = [
-        previous.globalHoldHotkey != newValue.globalHoldHotkey ? .hold : nil,
-        previous.globalToggleHotkey != newValue.globalToggleHotkey ? .toggle : nil,
-        previous.globalVoiceChatHotkey != newValue.globalVoiceChatHotkey ? .voiceChat : nil,
-      ].compactMap { $0 }
-      changed.forEach { voiceShortcutRegistrationErrors[$0] = nil }
-      do {
-        var candidate = library
-        candidate.voicePreferences = newValue
-        let persist = {
-          try candidate.save(to: self.dataRoot.appendingPathComponent("workspace.json"))
-          self.library = candidate
-        }
-        if !changed.isEmpty, let commit = voiceHotkeyPreferenceCommitHandler {
-          try commit(previous, newValue, persist)
-        } else { try persist() }
-        generalSettingsError = nil
-        if !changed.isEmpty { globalDictationHotkeyChangeHandler?() }
-      } catch let failure as VoiceHotkeyRegistrationFailure {
-        voiceShortcutRegistrationErrors[failure.mode] = failure.message
-      } catch {
-        generalSettingsError = error.localizedDescription
-        changed.forEach { voiceShortcutRegistrationErrors[$0] = error.localizedDescription }
-      }
-    }
+    set { try? saveVoicePreferences(newValue) }
   }
 
   var appshotHotkey: AppshotHotkey {

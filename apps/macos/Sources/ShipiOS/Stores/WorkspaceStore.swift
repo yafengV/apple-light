@@ -635,6 +635,7 @@ final class WorkspaceStore {
       self?.connected = false
       self?.error = message
     }
+    connectShortcutSettingsStorage()
   }
 
   func restore() async {
@@ -1318,6 +1319,7 @@ final class WorkspaceStore {
       defer { busy = false }
       let restored = try await libraryReader.load()
       try Task.checkCancellation()
+      if let snapshot = restored.shortcutPreferences { try shortcuts.restore(snapshot) }
       library = restored
       if library.appearance == nil {
         var appearance = AppearancePreferences()

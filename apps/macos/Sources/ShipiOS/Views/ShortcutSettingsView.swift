@@ -172,7 +172,7 @@ struct ShortcutSettingsView: View {
     let rows: [ShortcutBinding?] = values.isEmpty ? [nil] : values.map(Optional.some) + (appending ? [nil] : [])
     let label = VStack(alignment: .leading, spacing: 4) {
         Text(item.title)
-        if let error = editor.errors[item.id] ?? store.shortcuts.globalRegistrationErrors[item.id] {
+        if let error = editor.errors[item.id] ?? store.shortcuts.registrationError(item.id) {
           Text(error).foregroundStyle(.red).appFont(.caption).textSelection(.enabled)
         }
       }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
@@ -200,14 +200,14 @@ struct ShortcutSettingsView: View {
         .background(binding == nil ? Color.clear : Color.primary.opacity(0.05),
           in: RoundedRectangle(cornerRadius: 5))
       Button {
-        let append = NSApp.currentEvent?.modifierFlags.contains(.shift) == true && binding != nil
+        let append = !command.isOSGlobal && NSApp.currentEvent?.modifierFlags.contains(.shift) == true && binding != nil
         editor.begin(command.id, replacing: append ? nil : binding)
       } label: { Image(systemName: "pencil").frame(width: 24, height: 28) }
         .buttonStyle(.plain).accessibilityLabel("修改\(command.title)快捷键")
-        .help("修改快捷键；按住 Shift 点按可添加另一个绑定")
+        .help(command.isOSGlobal ? "修改快捷键" : "修改快捷键；按住 Shift 点按可添加另一个绑定")
         .contextMenu {
           Button("添加快捷键") { editor.begin(command.id, replacing: nil) }
-            .disabled(store.shortcuts.bindings(command.id).count >= 6)
+            .disabled(command.isOSGlobal || store.shortcuts.bindings(command.id).count >= 6)
         }
       Spacer(minLength: 8)
       if let binding {
@@ -230,7 +230,9 @@ struct ShortcutSettingsView: View {
       HStack(spacing: 8) {
         ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)快捷键",
           receive: { editor.receive($0, sessionID: session.id, preferences: store.shortcuts) },
-          activityChanged: captureActivity, onBlur: { editor.cancel(session.id) }, receiveRegistered: { binding in
+          activityChanged: captureActivity, onBlur: { editor.cancel(session.id) }, receiveModifier: { event in
+            editor.receiveModifier(event, sessionID: session.id, preferences: store.shortcuts)
+          }, receiveRegistered: { binding in
             editor.receive(binding, sessionID: session.id, preferences: store.shortcuts)
           })
           .frame(width: 144, height: 28).id(session.id)
@@ -240,7 +242,7 @@ struct ShortcutSettingsView: View {
     }.padding(.vertical, 2)
   }
   private func resetIndex(_ command: DesktopCommand, values: [ShortcutBinding]) -> Int? {
-    guard store.shortcuts.overrides[command.id] != nil else { return nil }
+    guard store.shortcuts.isCustomized(command.id) else { return nil }
     let defaults = store.shortcuts.defaultBindings(command.id)
     return values.indices.first {
       !defaults.indices.contains($0) || values[$0] != defaults[$0]

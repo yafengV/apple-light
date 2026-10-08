@@ -305,6 +305,9 @@ struct WorkspaceLibrary: Codable {
   var appshotSoundEnabled = true
   var hasAcceptedAppshotIntro = false
   var voicePreferences = VoicePreferences()
+  /// New saves keep the complete command keymap and voice bindings in one
+  /// atomic workspace write. Nil means read the legacy shortcuts.json file.
+  var shortcutPreferences: ShortcutPreferencesSnapshot?
   var activityPreferences = ActivityPreferences()
   var tasks: [WorkspaceTask] = []
   var projects: [String] = []
@@ -437,7 +440,7 @@ struct WorkspaceLibrary: Codable {
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
       pluginsEnabled, showInMenuBar, showEducationalTips, confettiEnabled, audioVisualizerEnabled, dismissedEducationalTipIDs,
-      appshotHotkey, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro, voicePreferences,
+      appshotHotkey, appshotDestination, appshotSoundEnabled, hasAcceptedAppshotIntro, voicePreferences, shortcutPreferences,
       showContextUsageIndicator, showBottomPanelControl, composerPlainTextMode,
       webLinkTarget, projectlessWorkspaceRoot, projectlessTaskDirectories,
       popoutWindowProjectlessDefault,
@@ -539,6 +542,7 @@ struct WorkspaceLibrary: Codable {
     appshotSoundEnabled = try c.decodeIfPresent(Bool.self, forKey: .appshotSoundEnabled) ?? true
     hasAcceptedAppshotIntro = try c.decodeIfPresent(Bool.self, forKey: .hasAcceptedAppshotIntro) ?? false
     voicePreferences = try c.decodeIfPresent(VoicePreferences.self, forKey: .voicePreferences) ?? VoicePreferences()
+    shortcutPreferences = try c.decodeIfPresent(ShortcutPreferencesSnapshot.self, forKey: .shortcutPreferences)
     showInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
     showEducationalTips =
       try c.decodeIfPresent(Bool.self, forKey: .showEducationalTips) ?? true

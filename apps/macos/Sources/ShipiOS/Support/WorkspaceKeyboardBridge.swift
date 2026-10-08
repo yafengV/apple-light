@@ -64,7 +64,7 @@ extension WorkspaceStore {
     }
     guard
       let command = DesktopCommand.all.first(where: {
-        !BrowserKeyboardBridge.contextualCommands.contains($0.id)
+        !$0.allowsBareModifiers && !BrowserKeyboardBridge.contextualCommands.contains($0.id)
           && !["approval-approve", "approval-decline"].contains($0.id)
           && ((["tree", "review", "review-open", "tab-close", "tab-close-others",
             "workspace-view", "workspace-tabs", "workspace-swap-panes"].contains($0.id)

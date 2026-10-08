@@ -344,7 +344,8 @@ struct VoiceSettingsView: View {
       shortcutPresentation.warnings[mode] = message
       return
     }
-    if let conflict = store.shortcuts.conflict(for: binding, excluding: "global-dictation") {
+    if let conflict = store.shortcuts.conflict(for: binding, excluding: mode.commandID),
+      !conflict.allowsBareModifiers {
       shortcutPresentation.warnings[mode] = "已用于“\(conflict.title)”，请先移除该绑定。"
       return
     }

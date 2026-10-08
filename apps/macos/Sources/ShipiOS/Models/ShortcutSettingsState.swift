@@ -13,6 +13,7 @@ import Observation
   private(set) var searchCaptureID = UUID()
   var capture: Capture?
   var errors: [String: String] = [:]
+  private var modifierCapture = VoiceModifierCaptureState()
 
   func toggleSearchMode() {
     capture = nil
@@ -22,10 +23,11 @@ import Observation
   }
   func begin(_ commandID: String, replacing binding: ShortcutBinding?) {
     errors[commandID] = nil
+    modifierCapture.reset()
     capture = Capture(commandID: commandID, original: binding)
   }
   func cancel(_ id: UUID) {
-    if capture?.id == id { capture = nil }
+    if capture?.id == id { capture = nil; modifierCapture.reset() }
   }
   func receiveSearch(_ event: NSEvent) {
     guard !event.isARepeat else { return }
@@ -38,12 +40,22 @@ import Observation
   }
   func receive(_ event: NSEvent, sessionID: UUID, preferences: ShortcutPreferences) {
     guard let session = capture, session.id == sessionID, !event.isARepeat else { return }
+    modifierCapture.reset()
     if isEscape(event) { cancel(sessionID); return }
     guard let binding = ShortcutBinding(event: event) else { return }
     receive(binding, sessionID: sessionID, preferences: preferences)
   }
+  func receiveModifier(_ event: NSEvent, sessionID: UUID, preferences: ShortcutPreferences) {
+    guard let session = capture, session.id == sessionID,
+      DesktopCommand.all.first(where: { $0.id == session.commandID })?.allowsBareModifiers == true,
+      let binding = modifierCapture.flagsChanged(event.modifierFlags) else { return }
+    receive(binding, sessionID: sessionID, preferences: preferences)
+  }
   func receive(_ binding: ShortcutBinding, sessionID: UUID, preferences: ShortcutPreferences) {
     guard let session = capture, session.id == sessionID else { return }
+    // Carbon combinations do not pass through receive(keyDown:). Their later
+    // modifier release must not become a second, bare-modifier candidate.
+    modifierCapture.reset()
     if binding == session.original { cancel(sessionID); return }
     if let conflict = preferences.conflict(for: binding, excluding: session.commandID) {
       capture?.warning = "已用于“\(conflict.title)”"

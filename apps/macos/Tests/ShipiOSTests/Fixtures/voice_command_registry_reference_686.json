@@ -1,0 +1,31 @@
+{
+  "reference": {
+    "version": "26.930.51102",
+    "build": 13100,
+    "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3"
+  },
+  "boundaries": "Three actual registry descriptor literals, evaluated in an empty VM; no general settings DOM or OS behavior is inferred",
+  "commands": [
+    {
+      "id": "globalDictationHold",
+      "titleIntlId": "codex.command.globalDictationHold",
+      "descriptionIntlId": "codex.commandDescription.globalDictationHold",
+      "shortcutScope": "os-global",
+      "allowsBareModifiers": true
+    },
+    {
+      "id": "globalDictationSingleTap",
+      "titleIntlId": "codex.command.globalDictationSingleTap",
+      "descriptionIntlId": "codex.commandDescription.globalDictationSingleTap",
+      "shortcutScope": "os-global",
+      "allowsBareModifiers": true
+    },
+    {
+      "id": "realtimeVoice",
+      "titleIntlId": "codex.command.realtimeVoice",
+      "descriptionIntlId": "codex.commandDescription.realtimeVoice",
+      "shortcutScope": "os-global",
+      "allowsBareModifiers": true
+    }
+  ]
+}

@@ -101,6 +101,8 @@ struct ShortcutBinding: Codable, Equatable, Hashable {
   }
 
   func validationMessage(for commandID: String) -> String? {
+    if isBareModifier,
+      ["globalDictationHold", "globalDictationSingleTap", "realtimeVoice"].contains(commandID) { return nil }
     if ["approval-approve", "approval-decline"].contains(commandID),
       !command && !control && !option && !shift, ["↵", "⎋"].contains(key) { return nil }
     return validationMessage

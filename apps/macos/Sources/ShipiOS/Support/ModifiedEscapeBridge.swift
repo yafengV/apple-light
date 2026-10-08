@@ -34,7 +34,7 @@ extension WorkspaceStore {
     guard binding.key == "⎋", binding.command || binding.control || binding.option || binding.shift,
       !restoringLibrary, shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
       !showingModelPicker, !showingBranchPicker,
-      let command = DesktopCommand.all.first(where: { shortcuts.matches($0.id, binding) })
+      let command = DesktopCommand.all.first(where: { !$0.allowsBareModifiers && shortcuts.matches($0.id, binding) })
     else { return false }
     executeCommand(command.id)
     return true

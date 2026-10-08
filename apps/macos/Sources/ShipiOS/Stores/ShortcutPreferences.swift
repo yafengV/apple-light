@@ -5,7 +5,7 @@ enum NumberShortcutTarget: String, Codable, CaseIterable {
   case tabs, sidebar
 }
 
-private struct SavedShortcuts: Codable {
+struct ShortcutPreferencesSnapshot: Codable {
   var version = 1
   var primaryNumberShortcutTarget: NumberShortcutTarget
   var overrides: [String: [ShortcutBinding]]
@@ -18,13 +18,34 @@ final class ShortcutPreferences {
     () throws -> Void) throws -> Void)?
   @ObservationIgnored var retryGlobalRegistration: ((String) throws -> Void)?
   var globalRegistrationErrors: [String: String] = [:]
+  @ObservationIgnored var voicePreferences: (() -> VoicePreferences)?
+  @ObservationIgnored var voiceRegistrationError: ((VoiceShortcutPresentation.Mode) -> String?)?
+  @ObservationIgnored var setVoiceBinding: ((VoiceShortcutPresentation.Mode, ShortcutBinding?) throws -> Void)?
+  @ObservationIgnored var readSnapshot: (() throws -> ShortcutPreferencesSnapshot?)?
+  @ObservationIgnored var persistSnapshot: ((ShortcutPreferencesSnapshot, Bool, () throws -> Void) throws -> Void)?
   @ObservationIgnored var didChange: ((String) -> Void)?
   private(set) var overrides: [String: [ShortcutBinding]] = [:]
   private(set) var primaryNumberShortcutTarget: NumberShortcutTarget = .tabs
   private(set) var externalBrowserLinkShortcut: ExternalBrowserLinkShortcut = .unassigned
-  var hasCustomizations: Bool { !overrides.isEmpty || externalBrowserLinkShortcut != .unassigned }
+  var hasCustomizations: Bool {
+    !overrides.isEmpty || externalBrowserLinkShortcut != .unassigned
+      || VoiceShortcutPresentation.Mode.allCases.contains { voicePreferences?()[$0] != nil }
+  }
+  func isCustomized(_ id: String) -> Bool {
+    if VoiceShortcutPresentation.Mode(commandID: id) != nil { return binding(id) != nil }
+    return overrides[id] != nil
+  }
   private(set) var loadError: String?
   private let file: URL
+
+  var snapshot: ShortcutPreferencesSnapshot {
+    ShortcutPreferencesSnapshot(primaryNumberShortcutTarget: primaryNumberShortcutTarget,
+      overrides: overrides, externalBrowserLinkShortcut: externalBrowserLinkShortcut)
+  }
+  func registrationError(_ id: String) -> String? {
+    if let mode = VoiceShortcutPresentation.Mode(commandID: id) { return voiceRegistrationError?(mode) }
+    return globalRegistrationErrors[id]
+  }
 
   init(file: URL) {
     self.file = file
@@ -34,17 +55,19 @@ final class ShortcutPreferences {
   /// Retry transient read failures without replacing the user's file.
   func reload() {
     do {
+      if let snapshot = try readSnapshot?() {
+        try restore(snapshot)
+        return
+      }
       let data = try Data(contentsOf: file)
       if let legacy = try? JSONDecoder().decode([String: [ShortcutBinding]].self, from: data) {
         overrides = legacy
         primaryNumberShortcutTarget = .tabs
         externalBrowserLinkShortcut = .unassigned
       } else {
-        let loaded = try JSONDecoder().decode(SavedShortcuts.self, from: data)
-        guard loaded.version == 1 else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
-        overrides = loaded.overrides
-        primaryNumberShortcutTarget = loaded.primaryNumberShortcutTarget
-        externalBrowserLinkShortcut = loaded.externalBrowserLinkShortcut ?? .unassigned
+        let loaded = try JSONDecoder().decode(ShortcutPreferencesSnapshot.self, from: data)
+        try restore(loaded)
+        return
       }
       loadError = nil
       didChange?("*")
@@ -55,6 +78,15 @@ final class ShortcutPreferences {
       loadError = nil
       didChange?("*")
     } catch { loadError = "无法读取快捷键设置：\(error.localizedDescription)" }
+  }
+
+  func restore(_ snapshot: ShortcutPreferencesSnapshot) throws {
+    guard snapshot.version == 1 else { throw ShortcutError(message: "不支持此快捷键设置版本。") }
+    overrides = snapshot.overrides
+    primaryNumberShortcutTarget = snapshot.primaryNumberShortcutTarget
+    externalBrowserLinkShortcut = snapshot.externalBrowserLinkShortcut ?? .unassigned
+    loadError = nil
+    didChange?("*")
   }
 
   func defaultBindings(_ id: String) -> [ShortcutBinding] {
@@ -87,7 +119,10 @@ final class ShortcutPreferences {
   }
 
   func bindings(_ id: String) -> [ShortcutBinding] {
-    bindings(id, overrides: overrides, target: primaryNumberShortcutTarget)
+    if let mode = VoiceShortcutPresentation.Mode(commandID: id), let voicePreferences {
+      return voicePreferences()[mode].map { [$0] } ?? []
+    }
+    return bindings(id, overrides: overrides, target: primaryNumberShortcutTarget)
   }
   private func bindings(_ id: String, overrides: [String: [ShortcutBinding]], target: NumberShortcutTarget) -> [ShortcutBinding] {
     if let custom = overrides[id] { return custom }
@@ -103,7 +138,14 @@ final class ShortcutPreferences {
   func matches(_ id: String, _ binding: ShortcutBinding) -> Bool { bindings(id).contains(binding) }
   func label(_ id: String) -> String { bindings(id).map(\.display).joined(separator: " / ") }
   func conflict(for binding: ShortcutBinding, excluding id: String) -> DesktopCommand? {
-    DesktopCommand.all.first { $0.id != id && matches($0.id, binding) }
+    DesktopCommand.all.first { command in
+      guard command.id != id else { return false }
+      return bindings(command.id).contains {
+        $0 == binding || (command.allowsBareModifiers && binding.isBareModifier && $0.isBareModifier
+          && (binding.modifierFlags.isSubset(of: $0.modifierFlags)
+            || $0.modifierFlags.isSubset(of: binding.modifierFlags)))
+      }
+    }
   }
   func set(_ binding: ShortcutBinding?, for id: String) throws {
     try setBindings(binding.map { [$0] } ?? [], for: id)
@@ -120,7 +162,7 @@ final class ShortcutPreferences {
   }
   private func setBindings(_ values: [ShortcutBinding], for id: String) throws {
     guard DesktopCommand.all.contains(where: { $0.id == id }) else { return }
-    if ["pet", "popout"].contains(id), values.count > 1 {
+    if DesktopCommand.all.first(where: { $0.id == id })?.isOSGlobal == true, values.count > 1 {
       throw ShortcutError(message: "全局命令只能设置一个快捷键。")
     }
     guard values.count <= 6 else { throw ShortcutError(message: "每个命令最多设置 6 个快捷键。") }
@@ -135,12 +177,21 @@ final class ShortcutPreferences {
         throw ShortcutError(message: "已用于“\(conflict.title)”，请先移除该命令的绑定。")
       }
     }
+    if let mode = VoiceShortcutPresentation.Mode(commandID: id), let setVoiceBinding {
+      try setVoiceBinding(mode, values.first)
+      didChange?(id)
+      return
+    }
     var updated = overrides
     updated[id] = values
     try persist(updated)
     didChange?(id)
   }
   func reset(_ id: String) throws {
+    if VoiceShortcutPresentation.Mode(commandID: id) != nil, setVoiceBinding != nil {
+      try set(nil, for: id)
+      return
+    }
     for value in defaultBindings(id) {
       if let conflict = conflict(for: value, excluding: id) {
         throw ShortcutError(message: "默认快捷键已用于“\(conflict.title)”，请先移除该绑定。")
@@ -151,23 +202,39 @@ final class ShortcutPreferences {
     try persist(updated)
     didChange?(id)
   }
-  func resetAll() throws { try persist([:], linkShortcut: .unassigned); didChange?("*") }
+  func resetAll() throws { try persist([:], linkShortcut: .unassigned, resetVoice: true); didChange?("*") }
   private func persist(_ updated: [String: [ShortcutBinding]], target: NumberShortcutTarget? = nil,
-    linkShortcut: ExternalBrowserLinkShortcut? = nil) throws {
+    linkShortcut: ExternalBrowserLinkShortcut? = nil, resetVoice: Bool = false) throws {
     guard loadError == nil else { throw ShortcutError(message: loadError!) }
     let target = target ?? primaryNumberShortcutTarget
     let linkShortcut = linkShortcut ?? externalBrowserLinkShortcut
+    if !resetVoice, let voice = voicePreferences?() {
+      for command in DesktopCommand.all where !command.allowsBareModifiers {
+        let previousBindings = bindings(command.id)
+        for candidate in bindings(command.id, overrides: updated, target: target)
+          where !previousBindings.contains(candidate) {
+          if let conflict = VoiceShortcutPresentation.Mode.allCases.first(where: { voice[$0] == candidate }) {
+            throw ShortcutError(message: "已用于“\(conflict.title)”，请先移除该绑定。")
+          }
+        }
+      }
+    }
     let previous = CommandGlobalHotkeyBindings(pet: binding("pet"), popout: binding("popout"))
     let next = CommandGlobalHotkeyBindings(
       pet: bindings("pet", overrides: updated, target: target).first,
       popout: bindings("popout", overrides: updated, target: target).first)
-    let save = {
+    let snapshot = ShortcutPreferencesSnapshot(primaryNumberShortcutTarget: target, overrides: updated,
+      externalBrowserLinkShortcut: linkShortcut)
+    let saveFile = {
       try FileManager.default.createDirectory(
         at: self.file.deletingLastPathComponent(), withIntermediateDirectories: true)
-      try JSONEncoder().encode(SavedShortcuts(primaryNumberShortcutTarget: target, overrides: updated,
-        externalBrowserLinkShortcut: linkShortcut))
+      try JSONEncoder().encode(snapshot)
         .write(to: self.file, options: .atomic)
       try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: self.file.path)
+    }
+    let save = {
+      if let persistSnapshot = self.persistSnapshot { try persistSnapshot(snapshot, resetVoice, saveFile) }
+      else { try saveFile() }
       self.overrides = updated
       self.primaryNumberShortcutTarget = target
       self.externalBrowserLinkShortcut = linkShortcut
