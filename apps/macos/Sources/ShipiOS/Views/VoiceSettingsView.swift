@@ -6,15 +6,18 @@ import SwiftUI
 struct VoiceSettingsView: View {
   @Bindable var store: WorkspaceStore
   @State private var microphones: [AVCaptureDevice] = []
-  @State private var recordingGlobalHotkey: GlobalHotkeyMode?
-  @State private var modifierCapture = VoiceModifierCaptureState()
-  @State private var globalHotkeyWarning: String?
+  @State private var shortcutPresentation: VoiceShortcutPresentation
   @State private var showingVoicePicker = false
   @State private var voicePickerPresentationID = UUID()
   @State private var dictationAdvancedExpanded = false
   @Environment(\.settingsSearchPresentation) private var searchRequest
 
-  private enum GlobalHotkeyMode: Hashable { case hold, toggle, voiceChat }
+  private typealias GlobalHotkeyMode = VoiceShortcutPresentation.Mode
+
+  init(store: WorkspaceStore, shortcutPresentation: VoiceShortcutPresentation? = nil) {
+    self.store = store
+    _shortcutPresentation = State(initialValue: shortcutPresentation ?? VoiceShortcutPresentation())
+  }
 
   private static let languages: [SettingsMenuOption<String?>] = {
     let supported = SFSpeechRecognizer.supportedLocales().filter {
@@ -62,8 +65,7 @@ struct VoiceSettingsView: View {
             }
           }
         }
-        if let error = (recordingGlobalHotkey == .voiceChat ? nil : globalHotkeyWarning)
-          ?? store.globalDictationHotkeyError {
+        if let error = store.globalDictationHotkeyError {
           Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
         }
         recordingsCard
@@ -107,7 +109,7 @@ struct VoiceSettingsView: View {
     .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)) { _ in
       refreshMicrophones()
     }
-    .onDisappear { recordingGlobalHotkey = nil }
+    .onDisappear { shortcutPresentation.reset() }
   }
 
   private var generalSection: some View {
@@ -172,9 +174,6 @@ struct VoiceSettingsView: View {
         .settingsSearchTarget(.voiceScreenContext)
       }
       .settingsSearchTarget(.voiceChat)
-      if recordingGlobalHotkey == .voiceChat, let warning = globalHotkeyWarning {
-        Text(warning).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
-      }
       if let error = store.globalVoiceChatHotkeyError {
         Text(error).appFont(.caption).foregroundStyle(.red).textSelection(.enabled)
       }
@@ -202,8 +201,7 @@ struct VoiceSettingsView: View {
 
   private func resetShortcutPresentation() {
     dictationAdvancedExpanded = false
-    recordingGlobalHotkey = nil
-    modifierCapture.reset()
+    shortcutPresentation.reset()
   }
 
   private func download(_ id: UUID) {
@@ -219,6 +217,7 @@ struct VoiceSettingsView: View {
   }
 
   private func globalHotkeyRow(_ mode: GlobalHotkeyMode) -> some View {
+    let captureID = shortcutPresentation.captureID
     let title: String
     let description: String
     let binding: ShortcutBinding?
@@ -242,25 +241,23 @@ struct VoiceSettingsView: View {
     }
     return LabeledContent {
       HStack(spacing: 8) {
-        if recordingGlobalHotkey == mode {
+        if shortcutPresentation.recording == mode {
           ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)",
-            receive: { receiveGlobalHotkey($0, mode: mode) },
+            receive: { receiveGlobalHotkey($0, mode: mode, captureID: captureID) },
             activityChanged: { active in
               store.shortcutCaptureCount = max(0,
                 store.shortcutCaptureCount + (active ? 1 : -1))
             }, onBlur: {
-              recordingGlobalHotkey = nil
-              modifierCapture.reset()
+              shortcutPresentation.end(mode, id: captureID)
             }, receiveModifier: { event in
-              guard let binding = modifierCapture.flagsChanged(event.modifierFlags) else { return }
-              saveGlobalHotkey(binding, mode: mode)
+              guard shortcutPresentation.owns(mode, id: captureID),
+                let binding = shortcutPresentation.modifierCapture.flagsChanged(event.modifierFlags) else { return }
+              saveGlobalHotkey(binding, mode: mode, captureID: captureID)
             })
             .frame(width: 144, height: 28)
         } else {
           Button(binding?.display ?? "关闭") {
-            globalHotkeyWarning = nil
-            modifierCapture.reset()
-            recordingGlobalHotkey = mode
+            shortcutPresentation.begin(mode)
           }
         }
         if binding != nil {
@@ -272,7 +269,8 @@ struct VoiceSettingsView: View {
             case .voiceChat: preferences.globalVoiceChatHotkey = nil
             }
             store.voicePreferences = preferences
-            recordingGlobalHotkey = nil
+            shortcutPresentation.warnings[mode] = nil
+            shortcutPresentation.end(mode, id: captureID)
           } label: { Image(systemName: "xmark") }
             .buttonStyle(.plain)
             .accessibilityLabel("关闭\(title)")
@@ -283,47 +281,57 @@ struct VoiceSettingsView: View {
         SettingsControlLabel(title: title, description: description)
         if mode == .hold {
           VoiceDictationAdvancedButton(expanded: dictationAdvancedExpanded) { control in
-            if dictationAdvancedExpanded, recordingGlobalHotkey == .toggle {
+            if dictationAdvancedExpanded, shortcutPresentation.recording == .toggle {
               control.window?.makeFirstResponder(control)
-              recordingGlobalHotkey = nil
-              modifierCapture.reset()
+              shortcutPresentation.end(.toggle, id: captureID)
             }
             dictationAdvancedExpanded.toggle()
           }.fixedSize().settingsFocusReveal()
+        }
+        if let warning = shortcutPresentation.warnings[mode] {
+          Text(warning).appFont(size: SettingsRowTypography.descriptionSize).foregroundStyle(.red)
+            .settingsTextLineHeight(text: warning, fontSize: SettingsRowTypography.descriptionSize,
+              lineHeight: SettingsRowTypography.descriptionLineHeight)
+            .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            .accessibilityIdentifier("voice-hotkey-error-\(mode.rawValue)")
         }
       }
     }
     .settingsSearchTarget(searchField)
   }
 
-  private func receiveGlobalHotkey(_ event: NSEvent, mode: GlobalHotkeyMode) {
-    modifierCapture.reset()
+  private func receiveGlobalHotkey(_ event: NSEvent, mode: GlobalHotkeyMode, captureID: UUID?) {
+    guard shortcutPresentation.owns(mode, id: captureID), !event.isARepeat else { return }
+    shortcutPresentation.modifierCapture.reset()
     if event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
-      recordingGlobalHotkey = nil
+      shortcutPresentation.end(mode, id: captureID)
       return
     }
     guard let binding = ShortcutBinding(event: event) else { return }
-    saveGlobalHotkey(binding, mode: mode)
+    saveGlobalHotkey(binding, mode: mode, captureID: captureID)
   }
 
-  private func saveGlobalHotkey(_ binding: ShortcutBinding, mode: GlobalHotkeyMode) {
+  private func saveGlobalHotkey(_ binding: ShortcutBinding, mode: GlobalHotkeyMode, captureID: UUID?) {
+    guard shortcutPresentation.end(mode, id: captureID) else { return }
+    shortcutPresentation.warnings[mode] = nil
     if !binding.isBareModifier,
       let message = binding.validationMessage(for: "global-dictation") {
-      globalHotkeyWarning = message
+      shortcutPresentation.warnings[mode] = message
       return
     }
     if let conflict = store.shortcuts.conflict(for: binding, excluding: "global-dictation") {
-      globalHotkeyWarning = "已用于“\(conflict.title)”，请先移除该绑定。"
+      shortcutPresentation.warnings[mode] = "已用于“\(conflict.title)”，请先移除该绑定。"
       return
     }
     var preferences = store.voicePreferences
-    let others: [(title: String, binding: ShortcutBinding?)] = [
-      ("按住听写", mode == .hold ? nil : preferences.globalHoldHotkey),
-      ("切换听写", mode == .toggle ? nil : preferences.globalToggleHotkey),
-      ("语音聊天", mode == .voiceChat ? nil : preferences.globalVoiceChatHotkey),
+    let others: [(mode: GlobalHotkeyMode, title: String, binding: ShortcutBinding?)] = [
+      (.hold, "按住听写", mode == .hold ? nil : preferences.globalHoldHotkey),
+      (.toggle, "单击听写", mode == .toggle ? nil : preferences.globalToggleHotkey),
+      (.voiceChat, "语音聊天", mode == .voiceChat ? nil : preferences.globalVoiceChatHotkey),
     ]
     if let conflict = others.first(where: { $0.binding == binding }) {
-      globalHotkeyWarning = "已用于“\(conflict.title)”，请先移除该绑定。"
+      shortcutPresentation.warnings[mode] = mode != .voiceChat && conflict.mode != .voiceChat
+        ? "请为单击听写选择不同的快捷键。" : "已用于“\(conflict.title)”，请先移除该绑定。"
       return
     }
     if binding.isBareModifier,
@@ -332,7 +340,7 @@ struct VoiceSettingsView: View {
         return binding.modifierFlags.isSubset(of: existing.modifierFlags)
           || existing.modifierFlags.isSubset(of: binding.modifierFlags)
       }) {
-      globalHotkeyWarning = "与“\(conflict.title)”的修饰键组合重叠，请选择不同组合。"
+      shortcutPresentation.warnings[mode] = "与“\(conflict.title)”的修饰键组合重叠，请选择不同组合。"
       return
     }
     switch mode {
@@ -341,7 +349,5 @@ struct VoiceSettingsView: View {
     case .voiceChat: preferences.globalVoiceChatHotkey = binding
     }
     store.voicePreferences = preferences
-    recordingGlobalHotkey = nil
-    globalHotkeyWarning = nil
   }
 }

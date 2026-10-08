@@ -1,0 +1,322 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "dcac6c84dc913e502511a3c408178dad8266acbd53fe463c312c7dcb5757055f",
+  "primarySHA256": "234429db84d9319850ff0766a4a5052a9e898bfa0611883633f80018080dd6c0",
+  "boundaries": "Actual Pn/an/lBe/uBe callbacks; local hooks/deferred RPC and shortcut decoder fixture, no DOM focus, OS registration or real persistence",
+  "cases": [
+    {
+      "name": "toggle-conflict",
+      "mode": "toggle",
+      "before": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "pending": {
+        "capturing": false,
+        "disabled": true,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "settled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": "Choose a different shortcut for single-tap dictation"
+      },
+      "restarted": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "cancelled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "global-dictation-set-toggle-hotkey",
+          "hotkey": "Control+Alt+Shift+K"
+        }
+      ]
+    },
+    {
+      "name": "hold-registration-error",
+      "mode": "hold",
+      "before": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": null
+      },
+      "pending": {
+        "capturing": false,
+        "disabled": true,
+        "accelerator": "Control",
+        "error": null
+      },
+      "settled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": "Local registration failed"
+      },
+      "restarted": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": null
+      },
+      "cancelled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "global-dictation-set-hotkey",
+          "hotkey": "Control+Alt+Shift+K"
+        }
+      ]
+    },
+    {
+      "name": "toggle-transport-error",
+      "mode": "toggle",
+      "before": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "pending": {
+        "capturing": false,
+        "disabled": true,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "settled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": "Transport unavailable"
+      },
+      "restarted": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "cancelled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Alt+Shift",
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "global-dictation-set-toggle-hotkey",
+          "hotkey": "Control+Alt+Shift+K"
+        }
+      ]
+    },
+    {
+      "name": "hold-unknown-error",
+      "mode": "hold",
+      "before": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": null
+      },
+      "pending": {
+        "capturing": false,
+        "disabled": true,
+        "accelerator": "Control",
+        "error": null
+      },
+      "settled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": "Failed to update dictation shortcut"
+      },
+      "restarted": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": null
+      },
+      "cancelled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control",
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "global-dictation-set-hotkey",
+          "hotkey": "Control+Alt+Shift+K"
+        }
+      ]
+    },
+    {
+      "name": "voice-chat-error",
+      "mode": "voiceChat",
+      "before": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "pending": {
+        "capturing": false,
+        "disabled": true,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "settled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": "Voice hotkey unavailable"
+      },
+      "restarted": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "cancelled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "set-codex-command-keybinding",
+          "commandId": "realtimeVoice",
+          "update": {
+            "type": "set",
+            "accelerator": "Control+Alt+Shift+K"
+          }
+        }
+      ]
+    },
+    {
+      "name": "voice-chat-unknown-error",
+      "mode": "voiceChat",
+      "before": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "pending": {
+        "capturing": false,
+        "disabled": true,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "settled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": "Failed to update voice chat hotkey"
+      },
+      "restarted": {
+        "capturing": true,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "cancelled": {
+        "capturing": false,
+        "disabled": false,
+        "accelerator": "Control+Alt+V",
+        "error": null
+      },
+      "writes": [
+        {
+          "name": "set-codex-command-keybinding",
+          "commandId": "realtimeVoice",
+          "update": {
+            "type": "set",
+            "accelerator": "Control+Alt+Shift+K"
+          }
+        }
+      ]
+    }
+  ],
+  "isolation": {
+    "hold": {
+      "capturing": false,
+      "disabled": false,
+      "accelerator": "Control",
+      "error": "Hold error"
+    },
+    "toggle": {
+      "capturing": true,
+      "disabled": false,
+      "accelerator": "Alt+Shift",
+      "error": null
+    }
+  },
+  "clearFailure": {
+    "pending": {
+      "capturing": false,
+      "disabled": true,
+      "accelerator": "Alt+Shift",
+      "error": null
+    },
+    "settled": {
+      "capturing": false,
+      "disabled": false,
+      "accelerator": "Alt+Shift",
+      "error": "Could not clear shortcut"
+    },
+    "writes": [
+      {
+        "name": "global-dictation-set-toggle-hotkey",
+        "hotkey": null
+      }
+    ]
+  },
+  "captureEvents": {
+    "repeat": {
+      "captured": [],
+      "cancelled": 0,
+      "decoded": 0,
+      "prevented": false,
+      "stopped": false
+    },
+    "key": {
+      "captured": [
+        "Control+K"
+      ],
+      "decoded": 1,
+      "prevented": true,
+      "stopped": true
+    },
+    "bare": {
+      "captured": [
+        "Control+K",
+        "Control"
+      ],
+      "decoded": 1
+    },
+    "escape": 1,
+    "blur": 2,
+    "cancelButton": {
+      "label": "Cancel",
+      "preventedOnMouseDown": true,
+      "cancelled": 3
+    }
+  }
+}

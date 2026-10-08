@@ -5,28 +5,36 @@ const [sourcePath, outputPath] = process.argv.slice(2);
 const source = fs.readFileSync(sourcePath, 'utf8');
 const hash = crypto.createHash('sha256').update(source).digest('hex');
 if (hash !== 'dcac6c84dc913e502511a3c408178dad8266acbd53fe463c312c7dcb5757055f') throw Error('Unverified voice reference');
-function fixture(mode, state) {
-  const slots = []; let cursor = 0, writes = [], invalidated = [];
+function fixture(mode, state, behavior = {}) {
+  const slots = []; let cursor = 0, writes = [], invalidated = [], pending = false;
   const jsx = (type, props) => type === 'Message' ? props.defaultMessage : {type, props};
   const context = {Z:{c:n=>Array(n).fill(Symbol.for('react.memo_cache_sentinel'))},
     Q:{useState:value=>{const index=cursor++; if(!(index in slots)) slots[index]=value;
       return [slots[index],value=>{slots[index]=value}]}, useId:()=> 'optional-shortcut'},
     $:{jsx,jsxs:jsx}, H:()=>({formatMessage:props=>props.defaultMessage}),
     ve:()=>({setQueryData:()=>{}}), Pe:()=>key=>invalidated.push(key), c:key=>key,
-    I:(name,options)=>({isPending:false,mutateAsync:async({hotkey})=>{
-      writes.push({name,hotkey}); const result={success:true,state}; options.onSuccess(result); return result;
-    }}), j:value=>value, Hn:{holdToDictateHotkey:{defaultMessage:'Dictation shortcut'},
+    I:(name,options)=>({get isPending(){return pending},mutateAsync:async(parameters)=>{
+      writes.push({name,...parameters}); pending=true;
+      try {
+        const result=behavior.mutate ? await behavior.mutate(name,parameters) : {success:true,state};
+        options.onSuccess(result); return result;
+      } finally {pending=false}
+    }}), Error, j:value=>value, Hn:{holdToDictateHotkey:{defaultMessage:'Dictation shortcut'},
       toggleDictationHotkey:{defaultMessage:'Single-tap shortcut'}},
     Bt:'dictation-shortcut', M:'Message', k:'Button', je:'Up', Se:'Down',
     P:'Row', Ft:'Capture', Qt:'Disclosure'};
+  context.sn=context.Q;context.on=context.Z;context.J=context.$;
+  Object.assign(context,{F:()=>({platform:'macOS'}),K:()=>({supported:true}),pt:'keymap',
+    at:()=>[{accelerator:state.configuredVoiceHotkey??null}]});
   vm.createContext(context);
-  const start=source.indexOf('function Pn('),end=source.indexOf('function Fn(',start);
-  if(start<0||end<0) throw Error('Missing Pn');
+  const component=behavior.component??'Pn';
+  const start=source.indexOf(`function ${component}(`),end=source.indexOf(component==='an'?'var on,sn,J,cn;':'function Fn(',start);
+  if(start<0||end<0) throw Error('Missing '+component);
   vm.runInContext(source.slice(start,end),context);
-  const render=()=>{cursor=0;return context.Pn({mode,hotkeyState:state})};
+  const render=()=>{cursor=0;return context[component]({mode,hotkeyState:state})};
   return {render,writes,invalidated};
 }
-(async()=>{
+if (require.main === module) (async()=>{
   const hold=fixture('hold',{configuredHotkey:'Control',configuredToggleHotkey:'Alt+Shift'});
   let tree=hold.render();
   const summarize=tree=>({expanded:tree.props.expanded,contentID:tree.props.contentId,
@@ -58,3 +66,4 @@ function fixture(mode, state) {
   fs.writeFileSync(outputPath,JSON.stringify(result,null,2)+'\n');
   console.log('Extracted actual default-collapse, disclosure toggles, single-tap capture/cancel/save/clear callbacks');
 })().catch(error=>{console.error(error);process.exitCode=1});
+module.exports={fixture,hash};
