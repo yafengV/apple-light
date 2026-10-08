@@ -231,7 +231,6 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     var active = true
     var needsRootUpdate = true
     private var scheduled = false
-    private var focusGeneration = UUID()
     private var openingKeyboardFocus = true
     private var observers: [NSObjectProtocol] = []
     private var monitor: Any?
@@ -243,7 +242,6 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     func toggle(_ button: Control, keyboard: Bool) {
       guard active, button.acceptsFirstResponder, parent.enabled, parent.available else { return }
       openingKeyboardFocus = keyboard
-      focusGeneration = UUID()
       if parent.menu.presented { dismiss(button, restore: true) }
       else {
         button.window?.contentView?.subviews.compactMap { $0 as? HostingView }.forEach { $0.dismissMenu?() }
@@ -257,20 +255,15 @@ struct SettingsPopupMenuButton: NSViewRepresentable {
     }
     func dismiss(_ button: Control, restore: Bool) {
       parent.menu.dismiss(); popup?.removeFromSuperview(); popup = nil; button.expanded = false; button.setAccessibilityExpanded(false)
-      focusGeneration = UUID(); let token = focusGeneration
-      if restore {
-        let keyboard = openingKeyboardFocus
-        DispatchQueue.main.async { [weak self, weak button] in
-          guard let self, let button, self.focusGeneration == token, self.active,
-            !self.parent.menu.presented, button.acceptsFirstResponder,
-            let window = button.window, window.attachedSheet == nil else { return }
-          button.keyboardFocus = keyboard
-          window.makeFirstResponder(button); button.keyboardFocus = true; button.needsDisplay = true
-        }
-      }
+      // Complete the native close before returning to AppKit's event loop.
+      // A queued restoration can otherwise consume the next Tab or override
+      // a later field editor (including its selection).
+      guard restore, active, !parent.menu.presented, button.acceptsFirstResponder,
+        let window = button.window, window.attachedSheet == nil else { return }
+      button.keyboardFocus = openingKeyboardFocus
+      window.makeFirstResponder(button); button.keyboardFocus = true; button.needsDisplay = true
     }
     func detach() {
-      focusGeneration = UUID()
       parent.menu.dismiss(); popup?.removeFromSuperview(); popup = nil
       observers.forEach { NotificationCenter.default.removeObserver($0) }; observers = []
       if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil; observedWindow = nil

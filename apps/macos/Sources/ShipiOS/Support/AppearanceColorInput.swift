@@ -131,7 +131,7 @@ struct AppearanceColorInput: NSViewRepresentable {
     private(set) var value = ""
     private(set) var hsv = AppearanceHSV(hex: "#000000")
     private(set) var popup: SettingsPopupMenuButton.HostingView?
-    private var token = UUID(), focusToken = UUID()
+    private var token = UUID()
     private var scheduled = false
     private var observers: [NSObjectProtocol] = []
     private var monitor: Any?
@@ -182,7 +182,6 @@ struct AppearanceColorInput: NSViewRepresentable {
     @objc func clicked(_ button: Swatch) { if let view = button.container { toggle(view) } }
     func toggle(_ view: Control) {
       guard canAct(view), view.swatch.acceptsFirstResponder else { return }
-      focusToken = UUID()
       if popup != nil { dismiss(view, restore: true); return }
       view.window?.makeFirstResponder(view.swatch)
       view.window?.contentView?.subviews.compactMap { $0 as? SettingsPopupMenuButton.HostingView }.forEach { $0.dismissMenu?() }
@@ -209,14 +208,14 @@ struct AppearanceColorInput: NSViewRepresentable {
     }
     func dismiss(_ view: Control, restore: Bool) {
       token = UUID(); popup?.removeFromSuperview(); popup = nil; draft = nil; replace(view.field, text: value); view.swatch.setAccessibilityExpanded(false)
-      focusToken = UUID(); let focus = focusToken
-      if restore { DispatchQueue.main.async { [weak self, weak view] in
-        guard let self, let view, self.focusToken == focus, self.popup == nil, self.canAct(view), view.swatch.acceptsFirstResponder else { return }
+      // Restore as part of closing, so subsequent Tab/click focus owns the
+      // responder and cannot be overwritten by a delayed callback.
+      if restore, popup == nil, canAct(view), view.swatch.acceptsFirstResponder {
         view.window?.makeFirstResponder(view.swatch)
-      } }
+      }
     }
     func detach() {
-      token = UUID(); focusToken = UUID(); popup?.removeFromSuperview(); popup = nil; draft = nil
+      token = UUID(); popup?.removeFromSuperview(); popup = nil; draft = nil
       observers.forEach { NotificationCenter.default.removeObserver($0) }; observers = []
       if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil; observedWindow = nil
     }

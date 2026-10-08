@@ -1,0 +1,50 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+  "boundaries": "Actual DropdownMenuContent and handler composition with controlled context; React unmount timing and browser focus scheduling are not executed",
+  "deferredUnmountPresent": true,
+  "cases": [
+    {
+      "id": "modal-close",
+      "modal": true,
+      "focusCalls": 1,
+      "defaultPrevented": true
+    },
+    {
+      "id": "nonmodal-close",
+      "modal": false,
+      "focusCalls": 1,
+      "defaultPrevented": true
+    },
+    {
+      "id": "nonmodal-outside-left",
+      "modal": false,
+      "button": 0,
+      "focusCalls": 0,
+      "defaultPrevented": true
+    },
+    {
+      "id": "modal-outside-right",
+      "modal": true,
+      "button": 2,
+      "focusCalls": 0,
+      "defaultPrevented": true
+    },
+    {
+      "id": "modal-outside-control-left",
+      "modal": true,
+      "button": 0,
+      "ctrlKey": true,
+      "focusCalls": 0,
+      "defaultPrevented": true
+    },
+    {
+      "id": "prevented-close",
+      "modal": true,
+      "preventClose": true,
+      "focusCalls": 0,
+      "defaultPrevented": true
+    }
+  ]
+}
