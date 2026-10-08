@@ -1,0 +1,588 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720"
+  ],
+  "boundaries": "Actual gyi/_yi/xyi with controlled React memo cache and click events; browser keyboard defaults/focus heuristics are not executed",
+  "duration": 0.15,
+  "cases": [
+    {
+      "checked": false,
+      "disabled": false,
+      "size": "default",
+      "tone": "accent",
+      "changes": [
+        true
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "unchecked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-5 w-8",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": false,
+      "size": "default",
+      "tone": "neutral",
+      "changes": [
+        true
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "unchecked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-5 w-8",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": false,
+      "size": "sm",
+      "tone": "accent",
+      "changes": [
+        true
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "unchecked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-4 w-7",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": false,
+      "size": "sm",
+      "tone": "neutral",
+      "changes": [
+        true
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "unchecked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-4 w-7",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": true,
+      "size": "default",
+      "tone": "accent",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "unchecked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-5 w-8",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": true,
+      "size": "default",
+      "tone": "neutral",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "unchecked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-5 w-8",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": true,
+      "size": "sm",
+      "tone": "accent",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "unchecked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-4 w-7",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": false,
+      "disabled": true,
+      "size": "sm",
+      "tone": "neutral",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": false,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "unchecked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text/10 h-4 w-7",
+              "data-state": "unchecked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "unchecked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": false,
+      "size": "default",
+      "tone": "accent",
+      "changes": [
+        false
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "checked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-chart-blue h-5 w-8",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": false,
+      "size": "default",
+      "tone": "neutral",
+      "changes": [
+        false
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "checked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text h-5 w-8",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-transparent bg-surface h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": false,
+      "size": "sm",
+      "tone": "accent",
+      "changes": [
+        false
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "checked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-chart-blue h-4 w-7",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": false,
+      "size": "sm",
+      "tone": "neutral",
+      "changes": [
+        false
+      ],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-interaction",
+          "data-state": "checked",
+          "disabled": false,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text h-4 w-7",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-transparent bg-surface h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": true,
+      "size": "default",
+      "tone": "accent",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "checked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-chart-blue h-5 w-8",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": true,
+      "size": "default",
+      "tone": "neutral",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "checked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text h-5 w-8",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-transparent bg-surface h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": true,
+      "size": "sm",
+      "tone": "accent",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "checked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-chart-blue h-4 w-7",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-control-thumb-on-accent bg-control-thumb-on-accent h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "checked": true,
+      "disabled": true,
+      "size": "sm",
+      "tone": "neutral",
+      "changes": [],
+      "preventedChanges": [],
+      "tree": {
+        "type": "button",
+        "props": {
+          "type": "button",
+          "role": "switch",
+          "aria-checked": true,
+          "aria-label": "Switch",
+          "className": "inline-flex items-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-full cursor-not-allowed opacity-60",
+          "data-state": "checked",
+          "disabled": true,
+          "children": {
+            "type": "span",
+            "props": {
+              "aria-hidden": true,
+              "className": "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-basic ease-out bg-text h-4 w-7",
+              "data-state": "checked",
+              "children": {
+                "type": "span",
+                "props": {
+                  "className": "rounded-full border shadow-sm transition-transform duration-basic ease-out data-[state=unchecked]:translate-x-0 border-transparent bg-surface h-3 w-3 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[14px]",
+                  "data-state": "checked"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
