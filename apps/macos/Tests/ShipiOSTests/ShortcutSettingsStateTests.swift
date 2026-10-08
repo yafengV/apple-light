@@ -62,6 +62,41 @@ final class ShortcutSettingsStateTests: XCTestCase {
     XCTAssertTrue(state.query.isEmpty)
   }
 
+  @MainActor func testRegisteredSearchRejectsOldSessionAfterModeChangeOrClear() throws {
+    let state = ShortcutSettingsState()
+    let binding = try XCTUnwrap(ShortcutBinding("⌘⌃⌥⇧8"))
+    state.toggleSearchMode(); let old = state.searchCaptureID
+    state.receiveSearch(binding, sessionID: old)
+    XCTAssertEqual(state.query, binding.display)
+    state.clearSearch(); state.toggleSearchMode()
+    state.receiveSearch(binding, sessionID: old)
+    XCTAssertTrue(state.query.isEmpty)
+    state.receiveSearch(binding, sessionID: state.searchCaptureID)
+    XCTAssertEqual(state.query, binding.display)
+    state.toggleSearchMode()
+    state.receiveSearch(binding, sessionID: state.searchCaptureID)
+    XCTAssertTrue(state.query.isEmpty)
+  }
+
+  @MainActor func testRegisteredCommandCaptureSharesValidationConflictAndSessionGuards() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let preferences = ShortcutPreferences(file: root.appendingPathComponent("keys.json"))
+    let state = ShortcutSettingsState()
+    let binding = try XCTUnwrap(ShortcutBinding("⌘⌃⌥⇧8"))
+    state.begin("search", replacing: nil); let old = try XCTUnwrap(state.capture?.id)
+    state.begin("search", replacing: nil); let current = try XCTUnwrap(state.capture?.id)
+    state.receive(binding, sessionID: old, preferences: preferences)
+    XCTAssertEqual(state.capture?.id, current); XCTAssertTrue(preferences.overrides.isEmpty)
+    state.receive(try XCTUnwrap(ShortcutBinding("⌘K")), sessionID: current, preferences: preferences)
+    XCTAssertNotNil(state.capture?.warning); XCTAssertTrue(preferences.overrides.isEmpty)
+    state.receive(binding, sessionID: current, preferences: preferences)
+    XCTAssertNil(state.capture); XCTAssertEqual(preferences.binding("search"), binding)
+    state.begin("search", replacing: binding)
+    state.receive(binding, sessionID: try XCTUnwrap(state.capture?.id), preferences: preferences)
+    XCTAssertNil(state.capture)
+  }
+
   @MainActor func testFocusedRecorderReleasesCaptureOnBlurAndTeardownExactlyOnce() {
     _ = NSApplication.shared
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 80),

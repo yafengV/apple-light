@@ -4,20 +4,25 @@ import SwiftUI
 struct PopoutHotkeySettingsRow: View {
   @Bindable var store: WorkspaceStore
   @State private var capturing = false
+  @State private var captureID = UUID()
   @State private var error: String?
 
   var body: some View {
+    let sessionID = captureID
     LabeledContent {
       HStack(spacing: 8) {
         if capturing {
           ShortcutCapture(text: "按下快捷键", accessibilityLabel: "捕获弹出窗口快捷键",
-            receive: receive, activityChanged: { active in
+            receive: { receive($0, sessionID: sessionID) }, activityChanged: { active in
               store.shortcutCaptureCount = max(0, store.shortcutCaptureCount + (active ? 1 : -1))
-            }, onBlur: { capturing = false })
+            }, onBlur: { capturing = false }, receiveRegistered: { binding in
+              receive(binding, sessionID: sessionID)
+            })
             .frame(width: 144, height: 28)
         } else {
           Button(store.shortcuts.binding("popout")?.display ?? "关闭") {
             error = nil
+            captureID = UUID()
             capturing = true
           }.accessibilityLabel("弹出窗口快捷键")
         }
@@ -44,14 +49,18 @@ struct PopoutHotkeySettingsRow: View {
     .onDisappear { capturing = false }
   }
 
-  private func receive(_ event: NSEvent) {
-    guard !event.isARepeat else { return }
+  private func receive(_ event: NSEvent, sessionID: UUID) {
+    guard capturing, captureID == sessionID, !event.isARepeat else { return }
     if event.keyCode == 53,
       event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty {
       capturing = false
       return
     }
     guard let binding = ShortcutBinding(event: event) else { return }
+    receive(binding, sessionID: sessionID)
+  }
+  private func receive(_ binding: ShortcutBinding, sessionID: UUID) {
+    guard capturing, captureID == sessionID else { return }
     if let message = binding.validationMessage(for: "popout") {
       error = message
       return

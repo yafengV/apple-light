@@ -7,16 +7,19 @@ struct ShortcutCapture: NSViewRepresentable {
   let text: String
   let accessibilityLabel: String
   let receive: (NSEvent) -> Void
+  let receiveRegistered: ((ShortcutBinding) -> Void)?
   let receiveModifier: ((NSEvent) -> Void)?
   let activityChanged: (Bool) -> Void
   let onBlur: () -> Void
 
   init(text: String, accessibilityLabel: String, receive: @escaping (NSEvent) -> Void,
     activityChanged: @escaping (Bool) -> Void, onBlur: @escaping () -> Void,
-    receiveModifier: ((NSEvent) -> Void)? = nil) {
+    receiveModifier: ((NSEvent) -> Void)? = nil,
+    receiveRegistered: ((ShortcutBinding) -> Void)? = nil) {
     self.text = text
     self.accessibilityLabel = accessibilityLabel
     self.receive = receive
+    self.receiveRegistered = receiveRegistered
     self.receiveModifier = receiveModifier
     self.activityChanged = activityChanged
     self.onBlur = onBlur
@@ -34,6 +37,7 @@ struct ShortcutCapture: NSViewRepresentable {
     view.setAccessibilityLabel(accessibilityLabel)
     view.setAccessibilityValue(text)
     view.receive = receive
+    view.receiveRegistered = receiveRegistered
     view.receiveModifier = receiveModifier
     view.activityChanged = activityChanged
     view.onBlur = onBlur
@@ -43,13 +47,38 @@ struct ShortcutCapture: NSViewRepresentable {
   final class Field: NSView {
     let label = NSTextField(labelWithString: "")
     var receive: ((NSEvent) -> Void)?
+    var receiveRegistered: ((ShortcutBinding) -> Void)?
     var receiveModifier: ((NSEvent) -> Void)?
     var activityChanged: ((Bool) -> Void)?
     var onBlur: (() -> Void)?
     private var monitor: Any?
     private var windowObserver: NSObjectProtocol?
+    private var activationObserver: NSObjectProtocol?
     private var active = false
     private var stopped = false
+    private var focusGeneration = UUID()
+    private(set) static var routingRevision: UInt64 = 0
+
+    static func currentRecorder() -> Field? {
+      NSApp.windows.lazy.compactMap { $0.firstResponder as? Field }
+        .first { $0.canReceiveRegisteredKey }
+    }
+    private var canReceiveRegisteredKey: Bool {
+      guard active, !stopped, let window else { return false }
+      return window.isKeyWindow && window.firstResponder === self
+        && window.attachedSheet == nil && NSApp.modalWindow == nil
+    }
+    func registeredKeyDelivery(_ binding: ShortcutBinding) -> (@MainActor () -> Void)? {
+      guard canReceiveRegisteredKey, let receiveRegistered else { return nil }
+      let generation = focusGeneration
+      return { [weak self] in
+        guard let self, self.focusGeneration == generation, self.canReceiveRegisteredKey else { return }
+        receiveRegistered(binding)
+      }
+    }
+    private func invalidateRouting() {
+      focusGeneration = UUID(); Self.routingRevision &+= 1
+    }
     override var acceptsFirstResponder: Bool { true }
     override var intrinsicContentSize: NSSize { NSSize(width: 144, height: 28) }
 
@@ -91,16 +120,21 @@ struct ShortcutCapture: NSViewRepresentable {
     override func mouseDown(with event: NSEvent) { window?.makeFirstResponder(self) }
     override func becomeFirstResponder() -> Bool {
       guard !stopped else { return false }
-      if !active { active = true; activityChanged?(true) }
+      if !active { active = true; invalidateRouting(); activityChanged?(true) }
       updateStyle()
       return true
     }
     override func resignFirstResponder() -> Bool {
-      if active { active = false; activityChanged?(false); onBlur?() }
+      if active { active = false; invalidateRouting(); activityChanged?(false); onBlur?() }
       updateStyle()
       return true
     }
     func install() {
+      activationObserver = NotificationCenter.default.addObserver(
+        forName: NSApplication.didResignActiveNotification, object: NSApp, queue: .main) { [weak self] _ in
+          guard let self, self.active, self.window?.firstResponder === self else { return }
+          self.window?.makeFirstResponder(nil)
+        }
       monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
         guard let self, !self.stopped, let window = self.window, window.isKeyWindow,
           event.window === window, window.firstResponder === self,
@@ -123,10 +157,11 @@ struct ShortcutCapture: NSViewRepresentable {
       stopped = true
       if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil
       if let windowObserver { NotificationCenter.default.removeObserver(windowObserver) }; windowObserver = nil
+      if let activationObserver { NotificationCenter.default.removeObserver(activationObserver) }; activationObserver = nil
       onBlur = nil
       if window?.firstResponder === self { window?.makeFirstResponder(nil) }
-      if active { active = false; activityChanged?(false) }
-      receive = nil; receiveModifier = nil; activityChanged = nil; onBlur = nil
+      if active { active = false; invalidateRouting(); activityChanged?(false) }
+      receive = nil; receiveRegistered = nil; receiveModifier = nil; activityChanged = nil; onBlur = nil
     }
     private func updateStyle() {
       effectiveAppearance.performAsCurrentDrawingAppearance {
@@ -139,6 +174,7 @@ struct ShortcutCapture: NSViewRepresentable {
     deinit {
       if let monitor { NSEvent.removeMonitor(monitor) }
       if let windowObserver { NotificationCenter.default.removeObserver(windowObserver) }
+      if let activationObserver { NotificationCenter.default.removeObserver(activationObserver) }
     }
   }
 }

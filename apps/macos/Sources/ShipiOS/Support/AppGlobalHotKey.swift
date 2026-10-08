@@ -6,6 +6,9 @@ final class AppGlobalHotKey {
   private var hotKey: EventHotKeyRef?
   private var handler: EventHandlerRef?
   private var registeredBinding: ShortcutBinding?
+  private enum PressRoute { case idle, action, capture }
+  private var pressRoute = PressRoute.idle
+  private var registrationRevision: UInt64 = 0
   private let action: () -> Void
   private let releaseAction: (() -> Void)?
   private let identifier: EventHotKeyID
@@ -17,12 +20,9 @@ final class AppGlobalHotKey {
     self.title = title
     self.action = action
     releaseAction = onRelease
-    var events = [EventTypeSpec(
-      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))]
-    if onRelease != nil {
-      events.append(EventTypeSpec(
-        eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)))
-    }
+    let events = [EventTypeSpec(
+      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+      EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))]
     let callback: EventHandlerUPP = { _, event, context in
         guard let event, let context else { return OSStatus(eventNotHandledErr) }
         var identifier = EventHotKeyID()
@@ -34,9 +34,11 @@ final class AppGlobalHotKey {
         guard identifier.signature == owner.identifier.signature,
           identifier.id == owner.identifier.id else { return OSStatus(eventNotHandledErr) }
         let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
-        Task { @MainActor in
-          if released { owner.releaseAction?() } else { owner.action() }
-        }
+        // The application event target is driven by AppKit's main event loop.
+        // Decline foreign-thread delivery rather than read UI state off-thread.
+        guard Thread.isMainThread else { return OSStatus(eventNotHandledErr) }
+        let delivery = MainActor.assumeIsolated { owner.delivery(released: released) }
+        Task { @MainActor in delivery() }
         return noErr
       }
     let status = events.withUnsafeBufferPointer { buffer in
@@ -44,6 +46,31 @@ final class AppGlobalHotKey {
         buffer.baseAddress, Unmanaged.passUnretained(self).toOpaque(), &handler)
     }
     if status != noErr { handler = nil }
+  }
+
+  private func delivery(released: Bool) -> (@MainActor () -> Void) {
+    if released {
+      let invoke = pressRoute != .capture
+      pressRoute = .idle
+      return { if invoke { self.releaseAction?() } }
+    }
+    guard pressRoute != .capture else { return {} }
+    let revision = registrationRevision
+    if let recorder = ShortcutCapture.Field.currentRecorder() {
+      pressRoute = .capture
+      let capture = registeredBinding.flatMap { recorder.registeredKeyDelivery($0) }
+      return {
+        guard self.registrationRevision == revision else { return }
+        capture?()
+      }
+    }
+    pressRoute = .action
+    let routing = ShortcutCapture.Field.routingRevision
+    return {
+      guard self.registrationRevision == revision,
+        ShortcutCapture.Field.routingRevision == routing else { return }
+      self.action()
+    }
   }
 
   func register(_ binding: ShortcutBinding?) throws {
@@ -96,6 +123,9 @@ final class AppGlobalHotKey {
       guard changes else { return }
       let previous = owner.hotKey
       owner.hotKey = candidate; owner.registeredBinding = binding; candidate = nil
+      owner.registrationRevision &+= 1
+      // A registration can change while handling the captured press. Its
+      // matching release must still belong to the recorder until delivered.
       if let previous { UnregisterEventHotKey(previous) }
     }
     deinit { if let candidate { UnregisterEventHotKey(candidate) } }

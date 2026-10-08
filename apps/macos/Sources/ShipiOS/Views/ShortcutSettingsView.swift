@@ -16,6 +16,7 @@ struct ShortcutSettingsView: View {
   }
   var body: some View {
     GeometryReader { geometry in
+    let searchCaptureID = editor.searchCaptureID
     ScrollViewReader { proxy in
       SettingsScrollPage(title: SettingsPage.shortcuts.title, pinsControls: true) {
         if store.shortcuts.hasCustomizations {
@@ -29,7 +30,9 @@ struct ShortcutSettingsView: View {
           if editor.searchByKeys {
             ShortcutCapture(text: editor.query.isEmpty ? "按下要查找的快捷键" : editor.query,
               accessibilityLabel: "按键搜索录制", receive: editor.receiveSearch,
-              activityChanged: captureActivity, onBlur: {})
+              activityChanged: captureActivity, onBlur: {}, receiveRegistered: { binding in
+                editor.receiveSearch(binding, sessionID: searchCaptureID)
+              })
               .frame(height: 28)
           } else {
             TextField("搜索快捷键…", text: $editor.query).textFieldStyle(.roundedBorder)
@@ -230,7 +233,9 @@ struct ShortcutSettingsView: View {
       HStack(spacing: 8) {
         ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)快捷键",
           receive: { editor.receive($0, sessionID: session.id, preferences: store.shortcuts) },
-          activityChanged: captureActivity, onBlur: { editor.cancel(session.id) })
+          activityChanged: captureActivity, onBlur: { editor.cancel(session.id) }, receiveRegistered: { binding in
+            editor.receive(binding, sessionID: session.id, preferences: store.shortcuts)
+          })
           .frame(width: 144, height: 28).id(session.id)
         Button("取消") { editor.cancel(session.id) }.buttonStyle(.plain)
       }

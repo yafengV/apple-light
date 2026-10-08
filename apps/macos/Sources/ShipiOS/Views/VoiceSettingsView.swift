@@ -256,6 +256,8 @@ struct VoiceSettingsView: View {
                 guard shortcutPresentation.owns(mode, id: captureID),
                   let binding = shortcutPresentation.modifierCapture.flagsChanged(event.modifierFlags) else { return }
                 saveGlobalHotkey(binding, mode: mode, captureID: captureID)
+              }, receiveRegistered: { binding in
+                saveGlobalHotkey(binding, mode: mode, captureID: captureID)
               })
               .frame(width: 144, height: 28)
             VoiceShortcutActionButton(kind: .cancel, label: "取消录制\(title)",

@@ -10,6 +10,7 @@ import Observation
   }
   var query = ""
   var searchByKeys = false
+  private(set) var searchCaptureID = UUID()
   var capture: Capture?
   var errors: [String: String] = [:]
 
@@ -17,6 +18,7 @@ import Observation
     capture = nil
     query = ""
     searchByKeys.toggle()
+    searchCaptureID = UUID()
   }
   func begin(_ commandID: String, replacing binding: ShortcutBinding?) {
     errors[commandID] = nil
@@ -28,12 +30,20 @@ import Observation
   func receiveSearch(_ event: NSEvent) {
     guard !event.isARepeat else { return }
     if isEscape(event) { query = ""; searchByKeys = false; return }
-    if let binding = ShortcutBinding(event: event) { query = binding.display }
+    if let binding = ShortcutBinding(event: event) { receiveSearch(binding, sessionID: searchCaptureID) }
+  }
+  func receiveSearch(_ binding: ShortcutBinding, sessionID: UUID) {
+    guard searchByKeys, searchCaptureID == sessionID else { return }
+    query = binding.display
   }
   func receive(_ event: NSEvent, sessionID: UUID, preferences: ShortcutPreferences) {
     guard let session = capture, session.id == sessionID, !event.isARepeat else { return }
     if isEscape(event) { cancel(sessionID); return }
     guard let binding = ShortcutBinding(event: event) else { return }
+    receive(binding, sessionID: sessionID, preferences: preferences)
+  }
+  func receive(_ binding: ShortcutBinding, sessionID: UUID, preferences: ShortcutPreferences) {
+    guard let session = capture, session.id == sessionID else { return }
     if binding == session.original { cancel(sessionID); return }
     if let conflict = preferences.conflict(for: binding, excluding: session.commandID) {
       capture?.warning = "已用于“\(conflict.title)”"
@@ -51,7 +61,7 @@ import Observation
     errors[commandID] = nil
     do { try action() } catch { errors[commandID] = error.localizedDescription }
   }
-  func clearSearch() { query = ""; searchByKeys = false; capture = nil }
+  func clearSearch() { query = ""; searchByKeys = false; searchCaptureID = UUID(); capture = nil }
   func matchesExternalBrowserShortcut(_ shortcut: ExternalBrowserLinkShortcut) -> Bool {
     guard !searchByKeys else { return false }
     let value = query.trimmingCharacters(in: .whitespacesAndNewlines)

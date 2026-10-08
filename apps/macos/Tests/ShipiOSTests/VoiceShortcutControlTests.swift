@@ -1,9 +1,45 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 import XCTest
 @testable import ShipiOS
 
 @MainActor final class VoiceShortcutControlTests: XCTestCase {
+  func testActualRecorderReceivesAnAlreadyRegisteredCarbonShortcut() async throws {
+    try await withPage { store, window, host, presentation in
+      var actions = 0
+      let nativeWindow = try XCTUnwrap(window as? ShortcutControlsWindow)
+      nativeWindow.carbonCaptureKeyState = true
+      defer { nativeWindow.carbonCaptureKeyState = nil }
+      let key = AppGlobalHotKey(id: 68_410, title: "单击听写") { [weak store] in
+        if store?.shortcutCaptureCount == 0 { actions += 1 }
+      }
+      let binding = ShortcutBinding("⌘⌃⌥⇧8")
+      store.voicePreferences.globalToggleHotkey = binding
+      store.connectVoiceHotkeys(VoiceHotkeyRegistrationController(
+        hold: AppGlobalHotKey(id: 68_411, title: "按住听写") {}, toggle: key,
+        voiceChat: AppGlobalHotKey(id: 68_412, title: "语音聊天") {})) { _ in }
+      try await self.settle(host); try await self.expand(host)
+      XCTAssertTrue(try self.button("edit-toggle", host).accessibilityPerformPress())
+      try await self.settle(host)
+      let field = try XCTUnwrap(self.descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
+      XCTAssertTrue(window.makeFirstResponder(field)); XCTAssertEqual(store.shortcutCaptureCount, 1)
+      var event: EventRef?
+      XCTAssertEqual(CreateEvent(nil, OSType(kEventClassKeyboard), UInt32(kEventHotKeyPressed),
+        GetCurrentEventTime(), 0, &event), noErr)
+      let carbon = try XCTUnwrap(event); defer { ReleaseEvent(carbon) }
+      var identifier = EventHotKeyID(signature: 0x5348_4950, id: 68_410)
+      XCTAssertEqual(SetEventParameter(carbon, EventParamName(kEventParamDirectObject),
+        EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size, &identifier), noErr)
+      XCTAssertEqual(SendEventToEventTarget(carbon, GetApplicationEventTarget()), noErr)
+      try await self.settle(host)
+      XCTAssertNil(presentation.recording)
+      XCTAssertEqual(store.shortcutCaptureCount, 0)
+      XCTAssertEqual(store.voicePreferences.globalToggleHotkey, binding)
+      XCTAssertEqual(actions, 0)
+    }
+  }
+
   func testActualSameValueCaptureRetriesUnavailableRestoredShortcut() async throws {
     try await withPage { store, window, host, presentation in
       let registration = VoiceHotkeyRegistrationController(
@@ -176,8 +212,14 @@ import XCTest
       cancel.mouseDown(with: try self.mouse(.leftMouseDown, center, window))
       NotificationCenter.default.post(name: NSApplication.didResignActiveNotification, object: NSApp)
       cancel.mouseUp(with: try self.mouse(.leftMouseUp, center, window)); try await self.settle(host)
-      XCTAssertEqual(presentation.recording, .toggle); XCTAssertEqual(store.shortcutCaptureCount, 1)
-      XCTAssertTrue(cancel.accessibilityPerformPress()); try await self.settle(host)
+      XCTAssertNil(presentation.recording); XCTAssertEqual(store.shortcutCaptureCount, 0)
+      XCTAssertNil(store.voicePreferences.globalToggleHotkey)
+      let replacement = try await self.begin("toggle", window, host), id = presentation.captureID
+      cancel.mouseUp(with: try self.mouse(.leftMouseUp, center, window)); try await self.settle(host)
+      XCTAssertEqual(presentation.captureID, id); XCTAssertEqual(presentation.recording, .toggle)
+      XCTAssertTrue(window.firstResponder === replacement)
+      XCTAssertTrue(try self.button("cancel-toggle", host).accessibilityPerformPress())
+      try await self.settle(host)
       XCTAssertNil(presentation.recording); XCTAssertEqual(store.shortcutCaptureCount, 0)
       XCTAssertNil(store.voicePreferences.globalToggleHotkey)
     }
@@ -319,7 +361,11 @@ import XCTest
       windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
   }
 }
-@MainActor private final class ShortcutControlsWindow: NSWindow { override var canBecomeKey: Bool { true } }
+@MainActor private final class ShortcutControlsWindow: NSWindow {
+  var carbonCaptureKeyState: Bool?
+  override var isKeyWindow: Bool { carbonCaptureKeyState ?? super.isKeyWindow }
+  override var canBecomeKey: Bool { true }
+}
 private struct ShortcutControlsPage: View {
   let store: WorkspaceStore
   let presentation: VoiceShortcutPresentation
