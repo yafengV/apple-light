@@ -1,0 +1,427 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "cases": [
+    {
+      "name": "both-complete",
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ]
+        },
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "ultra"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        },
+        {
+          "id": "gpt-5.6-sol:xhigh",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "xhigh",
+          "powerSettingIndex": 4
+        },
+        {
+          "id": "gpt-5.6-sol:ultra",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "ultra",
+          "powerSettingIndex": 5
+        }
+      ]
+    },
+    {
+      "name": "sol-only",
+      "models": [
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "ultra"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        },
+        {
+          "id": "gpt-5.6-sol:xhigh",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "xhigh",
+          "powerSettingIndex": 4
+        },
+        {
+          "id": "gpt-5.6-sol:ultra",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "ultra",
+          "powerSettingIndex": 5
+        }
+      ]
+    },
+    {
+      "name": "terra-only",
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-terra:medium",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-terra:high",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-terra:xhigh",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "xhigh",
+          "powerSettingIndex": 3
+        }
+      ]
+    },
+    {
+      "name": "partial-primary",
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ]
+    },
+    {
+      "name": "primary-too-short-use-terra",
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "high"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-terra:medium",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-terra:high",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 2
+        }
+      ]
+    },
+    {
+      "name": "two-options-unavailable",
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low"
+          ]
+        },
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "high"
+          ]
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "unknown-service-model",
+      "models": [
+        {
+          "model": "custom",
+          "displayName": "Custom",
+          "efforts": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "missing-capabilities",
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": []
+        },
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": []
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "provider-order-does-not-reorder-preset",
+      "models": [
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        }
+      ]
+    },
+    {
+      "name": "remove-xhigh",
+      "removeXHigh": true,
+      "models": [
+        {
+          "model": "gpt-5.6-terra",
+          "displayName": "GPT-5.6-terra",
+          "efforts": [
+            "low"
+          ]
+        },
+        {
+          "model": "gpt-5.6-sol",
+          "displayName": "GPT-5.6-sol",
+          "efforts": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "ultra"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "id": "gpt-5.6-terra:low",
+          "model": "gpt-5.6-terra",
+          "modelLabel": "5.6 Terra",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 0
+        },
+        {
+          "id": "gpt-5.6-sol:low",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "low",
+          "powerSettingIndex": 1
+        },
+        {
+          "id": "gpt-5.6-sol:medium",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "medium",
+          "powerSettingIndex": 2
+        },
+        {
+          "id": "gpt-5.6-sol:high",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "high",
+          "powerSettingIndex": 3
+        },
+        {
+          "id": "gpt-5.6-sol:ultra",
+          "model": "gpt-5.6-sol",
+          "modelLabel": "5.6 Sol",
+          "reasoningEffort": "ultra",
+          "powerSettingIndex": 4
+        }
+      ]
+    }
+  ]
+}

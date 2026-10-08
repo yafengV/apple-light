@@ -1,6 +1,13 @@
 import Foundation
 
 extension WorkspaceStore {
+  func setModelPickerSelectionMode(_ mode: ModelPickerSelectionMode) throws {
+    guard library.modelPickerSelectionMode != mode else { return }
+    var candidate = library
+    candidate.modelPickerSelectionMode = mode
+    try commitLibrary(candidate)
+  }
+
   func openModelPicker() {
     showingBranchPicker = false
     guard (try? modelConfiguration.endpoint("models")) != nil else {

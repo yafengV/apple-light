@@ -414,6 +414,7 @@ struct WorkspaceLibrary: Codable {
   var agentResponsePreferences = AgentResponsePreferences()
   var agentWebSearchMode = AgentWebSearchMode.disabled
   var enabledAdvancedReasoningEfforts: Set<AgentAdvancedReasoningEffort> = []
+  var modelPickerSelectionMode: ModelPickerSelectionMode?
   var worktreeRoot: String?
   var automaticallyDeleteManagedWorktrees = true
   var managedWorktreeLimit = 15
@@ -444,7 +445,7 @@ struct WorkspaceLibrary: Codable {
       showAutoReviewInComposer, showFullAccessInComposer,
       newTaskRuntimePreferences,
       popoutHomeRuntimePreferences, taskRuntimePreferences, agentResponsePreferences,
-      agentWebSearchMode, enabledAdvancedReasoningEfforts,
+      agentWebSearchMode, enabledAdvancedReasoningEfforts, modelPickerSelectionMode,
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
       newTaskExecutions, newTaskEnvironmentSelections,
@@ -594,6 +595,8 @@ struct WorkspaceLibrary: Codable {
       forKey: .agentWebSearchMode) ?? .disabled
     enabledAdvancedReasoningEfforts = try c.decodeIfPresent(Set<AgentAdvancedReasoningEffort>.self,
       forKey: .enabledAdvancedReasoningEfforts) ?? []
+    modelPickerSelectionMode = try c.decodeIfPresent(ModelPickerSelectionMode.self,
+      forKey: .modelPickerSelectionMode)
     worktreeRoot = try c.decodeIfPresent(String.self, forKey: .worktreeRoot)
     automaticallyDeleteManagedWorktrees = try c.decodeIfPresent(Bool.self,
       forKey: .automaticallyDeleteManagedWorktrees) ?? true

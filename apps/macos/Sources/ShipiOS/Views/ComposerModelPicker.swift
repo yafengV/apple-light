@@ -21,16 +21,27 @@ struct ComposerModelPicker: View {
     catalog.availableReasoning(for: configuration.model,
       advanced: store.library.enabledAdvancedReasoningEfforts)
   }
-  private var powerChoices: [String] {
-    catalog.powerChoices(for: configuration.model,
+  private var powerSelections: [ModelPowerSelection] {
+    catalog.powerSelections(for: configuration.model, current: configuration.reasoning,
+      mode: store.library.modelPickerSelectionMode,
       advanced: store.library.enabledAdvancedReasoningEfforts)
   }
-  private var showingPower: Bool {
-    !showingModels && powerReasoning != nil
+  private var selectedPower: ModelPowerSelection? {
+    catalog.selectedPower(in: powerSelections, model: configuration.model, reasoning: configuration.reasoning)
   }
-  private var powerReasoning: String? {
-    catalog.powerReasoning(for: configuration.model, current: configuration.reasoning,
-      advanced: store.library.enabledAdvancedReasoningEfforts)
+  private var showingPower: Bool { !showingModels && selectedPower != nil }
+  private var defaultPower: ModelPowerSelection? {
+    catalog.fallbackPowerSelection(advanced: store.library.enabledAdvancedReasoningEfforts)
+  }
+  private var usingDefaultPower: Bool {
+    store.library.modelPickerSelectionMode != .model && selectedPower.map {
+      catalog.defaultPowerSelections(advanced: store.library.enabledAdvancedReasoningEfforts).contains($0)
+    } == true
+  }
+  private func powerTitle(_ selection: ModelPowerSelection?) -> String {
+    guard let selection else { return currentReasoningTitle }
+    let effort = AgentReasoningEfforts.titles[selection.reasoningEffort] ?? selection.reasoningEffort
+    return usingDefaultPower ? "\(catalog.title(for: selection.model)) · \(effort)" : effort
   }
   private var defaultReasoningTitle: String {
     guard let effort = catalog.defaultReasoningEffort(for: configuration.model) else {
@@ -46,7 +57,7 @@ struct ComposerModelPicker: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        if showingModels && powerReasoning != nil {
+        if showingModels && selectedPower != nil {
           Button { showingModels = false; searching = false } label: {
             Image(systemName: "chevron.left")
           }.buttonStyle(.plain).accessibilityLabel("返回推理档位")
@@ -74,32 +85,42 @@ struct ComposerModelPicker: View {
             }
           }.buttonStyle(.plain).accessibilityLabel("更换模型：\(configuration.model)")
         }
-        Text("推理强度：\(AgentReasoningEfforts.titles[powerReasoning ?? ""] ?? currentReasoningTitle)")
+        Text(powerTitle(selectedPower))
           .appFont(.caption).foregroundStyle(.secondary)
         HStack {
           Text("推理强度")
           ModelPowerSlider(value: Binding(
-          get: { Double(powerChoices.firstIndex(of: powerReasoning ?? "") ?? 0) },
+          get: { Double(powerSelections.firstIndex(where: { $0.id == selectedPower?.id }) ?? 0) },
           set: { value in
-            guard showingPower, value.isFinite, !powerChoices.isEmpty else { return }
-            let index = Int(min(max(value.rounded(), 0), Double(powerChoices.count - 1)))
-            guard powerChoices[index] != powerReasoning else { return }
-            selectReasoning(powerChoices[index])
-          }), count: powerChoices.count,
-            valueDescription: AgentReasoningEfforts.titles[powerReasoning ?? ""] ?? currentReasoningTitle,
+            guard showingPower, value.isFinite, !powerSelections.isEmpty else { return }
+            let index = Int(min(max(value.rounded(), 0), Double(powerSelections.count - 1)))
+            guard powerSelections[index].id != selectedPower?.id else { return }
+            selectPower(powerSelections[index])
+          }), count: powerSelections.count,
+            valueDescription: powerTitle(selectedPower),
             available: { showingPower && store.libraryLoaded && !store.libraryRecoveryBlocksInteraction && !store.shuttingDown },
             onStep: { _ = stepPower(increasing: $0) }, onComplete: close)
             .frame(height: 28)
         }
         HStack {
-          Text(AgentReasoningEfforts.titles[powerChoices.first ?? ""] ?? "")
+          Text(powerTitle(powerSelections.first))
           Spacer()
-          Text(AgentReasoningEfforts.titles[powerChoices.last ?? ""] ?? "")
+          Text(powerTitle(powerSelections.last))
         }.appFont(.caption).foregroundStyle(.secondary)
       } else {
+        if defaultPower != nil {
+          Button("使用默认档位", action: resetToDefaultPower)
+            .accessibilityLabel("使用默认模型与推理档位")
+        }
         TextField("搜索或输入模型 ID", text: $query)
           .textFieldStyle(.roundedBorder).focused($searching)
           .accessibilityLabel("搜索模型")
+          .task {
+            searching = false
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            searching = true
+          }
           .onKeyPress(.downArrow) { move(1); return .handled }
           .onKeyPress(.upArrow) { move(-1); return .handled }
           .onSubmit {
@@ -127,14 +148,14 @@ struct ComposerModelPicker: View {
                     .background(
                       highlighted == model ? Color.primary.opacity(0.08) : .clear,
                       in: RoundedRectangle(cornerRadius: 6))
-                }.buttonStyle(.plain).id(model)
+                }.buttonStyle(.plain).id(model).accessibilityLabel("选择模型：\(model)")
               }
               if choices.isEmpty {
                 Text(catalog.loading ? "正在获取模型…" : "没有匹配的模型")
                   .foregroundStyle(.secondary).padding(8)
               }
             }
-          }.frame(maxHeight: 230)
+          }.frame(height: min(230, max(44, CGFloat(choices.count) * 56)))
             .onChange(of: highlighted) { _, model in
               if let model { proxy.scrollTo(model) }
             }
@@ -212,6 +233,7 @@ struct ComposerModelPicker: View {
 
   private func choose(_ model: String) {
     do {
+      try store.setModelPickerSelectionMode(.model)
       try store.selectModel(model,
         reasoning: catalog.reasoningWhenSelecting(model, current: configuration.reasoning), taskID: taskID)
       close()
@@ -225,11 +247,27 @@ struct ComposerModelPicker: View {
     } catch { saveError = error.localizedDescription }
   }
 
+  private func selectPower(_ selection: ModelPowerSelection) {
+    do {
+      try store.selectModel(selection.model, reasoning: selection.reasoningEffort, taskID: taskID)
+      saveError = nil
+    } catch { saveError = error.localizedDescription }
+  }
+
+  private func resetToDefaultPower() {
+    guard let defaultPower else { return }
+    do {
+      try store.setModelPickerSelectionMode(.default)
+      try store.selectModel(defaultPower.model, reasoning: defaultPower.reasoningEffort, taskID: taskID)
+      saveError = nil; showingModels = false; searching = false
+    } catch { saveError = error.localizedDescription }
+  }
+
   private func stepPower(increasing: Bool) -> KeyPress.Result {
-    guard showingPower, let target = catalog.powerTarget(for: configuration.model,
-      current: configuration.reasoning, advanced: store.library.enabledAdvancedReasoningEfforts,
-      increasing: increasing) else { return .ignored }
-    if target != powerReasoning { selectReasoning(target) }
+    guard showingPower, let selectedPower,
+      let index = powerSelections.firstIndex(of: selectedPower) else { return .ignored }
+    let target = powerSelections[min(max(index + (increasing ? 1 : -1), 0), powerSelections.count - 1)]
+    if target != selectedPower { selectPower(target) }
     return .handled
   }
 }
