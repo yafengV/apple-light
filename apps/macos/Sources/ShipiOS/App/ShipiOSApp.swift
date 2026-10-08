@@ -97,6 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private var petGlobalHotKey: AppGlobalHotKey?
   private var popoutGlobalHotKey: AppGlobalHotKey?
   private var globalDictationIndicator: GlobalDictationIndicatorController?
+  private var globalDictationCancellation: GlobalDictationCancellationMonitor?
   private var voiceBareModifierMonitor: VoiceBareModifierMonitor?
   private var globalDictationModifierError: String?
   private var globalDictationState = GlobalDictationToggleState()
@@ -140,6 +141,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     dockIconController.stop()
     appshotModifierMonitor = nil
     voiceBareModifierMonitor = nil
+    globalDictationCancellation?.stop()
+    globalDictationCancellation = nil
     globalDictationIndicator?.hide()
     globalDictationIndicator = nil
     store?.appshotHotkeyChangeHandler = nil
@@ -182,17 +185,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         popoutController?.toggle()
       }
       popoutGlobalHotKey = popoutHotKey
-      let dictationHotKey = AppGlobalHotKey(id: 3, title: "切换听写") { [weak self] in
+      let dictationHotKey = AppGlobalHotKey(id: 3, title: "切换听写", allowsRepeat: false) { [weak self] in
         self?.toggleGlobalDictation()
       }
-      let holdDictationHotKey = AppGlobalHotKey(id: 4, title: "按住听写",
+      let holdDictationHotKey = AppGlobalHotKey(id: 4, title: "按住听写", allowsRepeat: false,
         onRelease: { [weak self] in self?.releaseHoldGlobalDictation() }) { [weak self] in
         self?.pressHoldGlobalDictation()
       }
-      let voiceChatHotKey = AppGlobalHotKey(id: 5, title: "语音聊天") { [weak self] in
+      let voiceChatHotKey = AppGlobalHotKey(id: 5, title: "语音聊天", allowsRepeat: false) { [weak self] in
         self?.toggleGlobalVoiceChat()
       }
       globalDictationIndicator = GlobalDictationIndicatorController(store: store)
+      installGlobalDictationCancellation()
       voiceBareModifierMonitor = VoiceBareModifierMonitor(bindings: { [weak store] in
         (store?.voicePreferences.globalHoldHotkey, store?.voicePreferences.globalToggleHotkey,
           store?.voicePreferences.globalVoiceChatHotkey)
@@ -255,6 +259,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     await openPendingDeepLinks()
   }
 
+  @discardableResult func installGlobalDictationCancellation(
+    events: GlobalDictationCancellationMonitor.EventMonitoring = .system
+  ) -> GlobalDictationCancellationMonitor {
+    globalDictationCancellation?.stop()
+    let store = store
+    let monitor = GlobalDictationCancellationMonitor(
+      activeTarget: { [weak store] in store?.dictation.target },
+      isCapturingShortcut: { [weak store] in
+        (store?.shortcutCaptureCount ?? 0) > 0 || ShortcutCapture.Field.currentRecorder() != nil
+      }, events: events, onCancel: { [weak self] token in self?.cancelGlobalDictation(token: token) })
+    globalDictationCancellation = monitor
+    return monitor
+  }
+
   private func updateGlobalDictationHotkeyError() {
     let bare = store?.voicePreferences.globalHoldHotkey?.isBareModifier == true
       || store?.voicePreferences.globalToggleHotkey?.isBareModifier == true
@@ -282,6 +300,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       store.dictation.finish(target: token)
       return
     case .cancelPending:
+      if let token = globalDictationCancellation?.token {
+        cancelGlobalDictation(token: token)
+      }
       return
     case .start(let token):
       beginGlobalDictation(token: token, mode: .toggle, store: store)
@@ -300,6 +321,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   private func releaseHoldGlobalDictation() {
     guard let token = globalDictationHoldState.release() else { return }
     store?.dictation.finish(target: token)
+    if store?.dictation.target != token { globalDictationCancellation?.end(token: token) }
+  }
+
+  private func cancelGlobalDictation(token: String) {
+    globalDictationState.cancel(token: token)
+    globalDictationHoldState.cancel(token: token)
+    globalDictationCancellation?.end(token: token)
+    store?.dictation.stop(target: token, commitResult: false)
   }
 
   private func beginGlobalDictation(token: String, mode: GlobalDictationMode,
@@ -308,11 +337,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     globalDictationIndicator?.clearError()
     do {
       let textTarget = try GlobalDictationTextTarget.capture()
+      try globalDictationCancellation?.prepare(token: token)
       store.globalDictationHotkeyError = nil
       Task { @MainActor [weak self, weak store] in
         guard let self, let store, self.isCurrentGlobalDictation(token: token, mode: mode) else {
           return
         }
+        self.globalDictationCancellation?.willStart(token: token)
         await store.dictation.start(target: token,
           languageIdentifier: store.voicePreferences.dictationLocaleIdentifier,
           microphoneDeviceID: store.voicePreferences.microphoneDeviceID,
@@ -328,6 +359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
               transcript: transcript)
           }
         }
+        self.globalDictationCancellation?.didResolveStart(token: token)
         switch mode {
         case .toggle:
           self.globalDictationState.didResolveStart(token: token,
@@ -346,6 +378,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
       }
     } catch {
+      globalDictationCancellation?.end(token: token)
       switch mode {
       case .toggle: globalDictationState.cancel(token: token)
       case .hold:

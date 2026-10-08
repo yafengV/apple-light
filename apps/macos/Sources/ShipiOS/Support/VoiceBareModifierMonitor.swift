@@ -23,7 +23,7 @@ import ApplicationServices
     self.onRegistrationError = onRegistrationError
     localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) {
       [weak self] event in
-      self?.consume(type: event.type, flags: event.modifierFlags)
+      self?.consume(type: event.type, flags: event.modifierFlags, keyCode: event.keyCode)
       return event
     }
     activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -58,7 +58,8 @@ import ApplicationServices
         [weak self] event in
         let type = event.type
         let flags = event.modifierFlags
-        Task { @MainActor [weak self] in self?.consume(type: type, flags: flags) }
+        let keyCode = event.keyCode
+        Task { @MainActor [weak self] in self?.consume(type: type, flags: flags, keyCode: keyCode) }
       }
     }
     let error = enabled && (!trusted || globalMonitor == nil)
@@ -66,9 +67,9 @@ import ApplicationServices
     onRegistrationError(error)
   }
 
-  private func consume(type: NSEvent.EventType, flags: NSEvent.ModifierFlags) {
+  private func consume(type: NSEvent.EventType, flags: NSEvent.ModifierFlags, keyCode: UInt16) {
     let selected = bindings()
-    let actions = type == .keyDown ? state.keyDown(currentFlags: flags)
+    let actions = type == .keyDown ? state.keyDown(currentFlags: flags, isEscape: keyCode == 53)
       : state.flagsChanged(flags, hold: selected.hold, toggle: selected.toggle,
         voiceChat: selected.voiceChat)
     actions.forEach(onAction)

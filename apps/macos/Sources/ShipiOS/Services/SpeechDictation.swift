@@ -41,17 +41,7 @@ import Speech
   func start(target: String, languageIdentifier: String? = nil, microphoneDeviceID: String? = nil,
     dictionary: [String] = [], recordingHistory: VoiceRecordingHistory? = nil,
     commit: @escaping (String, String) -> Void) async {
-    if self.target != nil { stop() }
-    let token = UUID()
-    generation = token
-    self.target = target
-    self.commit = commit
-    error = nil
-    errorTarget = nil
-    partial = ""
-    audioLevels = Array(repeating: 0.0, count: Self.waveformSampleCount)
-    completion = SpeechRecognitionCompletion()
-    phase = .requestingAccess
+    let token = beginSession(target: target, commit: commit)
 
     let authorization = await withCheckedContinuation { continuation in
       SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
@@ -128,11 +118,37 @@ import Speech
         return
       }
     }
-    guard generation == token else { return }
-    phase = .listening
+    guard didStartCapture(token: token) else { return }
     recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-      Task { @MainActor [weak self] in self?.receive(result: result, error: error, token: token) }
+      let text = result?.bestTranscription.formattedString
+      let isFinal = result?.isFinal == true
+      Task { @MainActor [weak self] in
+        self?.receive(text: text, isFinal: isFinal, error: error, token: token)
+      }
     }
+  }
+
+  /// The recognition session has an identity before requesting system access.
+  /// Capture and recognition callbacks must keep using this identity.
+  func beginSession(target: String, commit: @escaping (String, String) -> Void) -> UUID {
+    if self.target != nil { stop() }
+    let token = UUID()
+    generation = token
+    self.target = target
+    self.commit = commit
+    error = nil
+    errorTarget = nil
+    partial = ""
+    audioLevels = Array(repeating: 0.0, count: Self.waveformSampleCount)
+    completion = SpeechRecognitionCompletion()
+    phase = .requestingAccess
+    return token
+  }
+
+  @discardableResult func didStartCapture(token: UUID) -> Bool {
+    guard generation == token, target != nil else { return false }
+    phase = .listening
+    return true
   }
 
   func stop(target expected: String? = nil, commitResult: Bool = true) {
@@ -181,12 +197,11 @@ import Speech
     errorTarget = nil
   }
 
-  private func receive(result: SFSpeechRecognitionResult?, error: Error?, token: UUID) {
+  func receive(text: String?, isFinal: Bool, error: Error?, token: UUID) {
     guard generation == token, target != nil else { return }
-    let completed = completion.receive(result?.bestTranscription.formattedString,
-      isFinal: result?.isFinal == true, hasError: error != nil)
+    let completed = completion.receive(text, isFinal: isFinal, hasError: error != nil)
     partial = completion.latest
-    if result?.isFinal == true, completed { stop(); return }
+    if isFinal, completed { stop(); return }
     if let error {
       let message = "听写已中断：\(error.localizedDescription)"
       let failedTarget = target

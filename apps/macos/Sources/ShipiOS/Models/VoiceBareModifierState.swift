@@ -39,10 +39,13 @@ struct VoiceBareModifierState {
     return actions
   }
 
-  mutating func keyDown(currentFlags: NSEvent.ModifierFlags) -> [Action] {
+  mutating func keyDown(currentFlags: NSEvent.ModifierFlags, isEscape: Bool = false) -> [Action] {
     armed = currentFlags.intersection(Self.mask).isEmpty
     heldToggle = nil
     heldVoiceChat = nil
+    // Escape belongs to the recording cancellation listener. Do not finish and
+    // commit first; retain the hold until its physical modifiers are released.
+    if isEscape { return [] }
     guard activeHold != nil else { return [] }
     activeHold = nil
     return [.releaseHold]

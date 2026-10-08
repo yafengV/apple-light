@@ -12,11 +12,13 @@ final class AppGlobalHotKey {
   private let action: () -> Void
   private let releaseAction: (() -> Void)?
   private let title: String
+  private let allowsRepeat: Bool
 
-  init(id: UInt32, title: String, onRelease: (() -> Void)? = nil,
+  init(id: UInt32, title: String, allowsRepeat: Bool = true, onRelease: (() -> Void)? = nil,
     action: @escaping () -> Void) {
     primaryRoute = GlobalHotkeyEventRoute.make(preferredID: id)
     self.title = title
+    self.allowsRepeat = allowsRepeat
     self.action = action
     releaseAction = onRelease
     primaryRoute.owner = self
@@ -31,6 +33,7 @@ final class AppGlobalHotKey {
       return { if invoke { self.releaseAction?() } }
     }
     guard pressRoute != .capture else { return {} }
+    if pressRoute == .action, !allowsRepeat { return {} }
     let revision = registrationRevision
     if let recorder = ShortcutCapture.Field.currentRecorder() {
       pressRoute = .capture
