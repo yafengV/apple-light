@@ -1,0 +1,5020 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual swa numeric selector; ordinary chat primary surface with chat tab enabled. Explicit locale direction and inert focus hooks, no application initialization or native bridge. Primary-workspace and hidden-chat-tab states remain separate requirements.",
+  "selections": [
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "chat"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-11"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-11"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "full",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 0,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-11"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "ltr",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-11"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 0,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 2,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1"
+      ],
+      "current": "file-1",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 3,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 4,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 5,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 6,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 7,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 8,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 9,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3"
+      ],
+      "current": "file-3",
+      "index": 10,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-11"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": null,
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": -1,
+      "handled": false,
+      "selected": []
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 0,
+      "handled": true,
+      "selected": [
+        "file-11"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 1,
+      "handled": true,
+      "selected": [
+        "file-10"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 2,
+      "handled": true,
+      "selected": [
+        "file-9"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 3,
+      "handled": true,
+      "selected": [
+        "file-8"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 4,
+      "handled": true,
+      "selected": [
+        "file-7"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 5,
+      "handled": true,
+      "selected": [
+        "file-6"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 6,
+      "handled": true,
+      "selected": [
+        "file-5"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 7,
+      "handled": true,
+      "selected": [
+        "file-4"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 8,
+      "handled": true,
+      "selected": [
+        "file-3"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 9,
+      "handled": true,
+      "selected": [
+        "file-2"
+      ]
+    },
+    {
+      "mode": "split",
+      "direction": "rtl",
+      "ids": [
+        "file-1",
+        "file-2",
+        "file-3",
+        "file-4",
+        "file-5",
+        "file-6",
+        "file-7",
+        "file-8",
+        "file-9",
+        "file-10",
+        "file-11"
+      ],
+      "current": "file-11",
+      "index": 10,
+      "handled": true,
+      "selected": [
+        "file-1"
+      ]
+    }
+  ]
+}

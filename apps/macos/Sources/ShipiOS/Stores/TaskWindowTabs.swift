@@ -24,6 +24,7 @@ import Observation
   var showingBottom = false
   var showingTabs = true
   var contentLayoutMode: WorkspaceContentLayoutMode?
+  var contentRightToLeft = false
   var effectiveContentLayoutMode: WorkspaceContentLayoutMode {
     contentLayoutMode ?? (visibleTabs(.left).contains { $0.id == selections[.left] } ? .full : .split)
   }
@@ -416,16 +417,14 @@ import Observation
     let destination = tabs.firstIndex(where: { $0.id == target })!
     tabs.insert(tab, at: destination + (after ? 1 : 0)); return true
   }
-  func focusSlot(_ oneBased: Int) {
-    let ids: [String?] = [nil] + tabs.map { Optional($0.id) }
-    guard oneBased > 0, oneBased <= ids.count else { return }
-    activate(ids[oneBased - 1])
+  var numberedTabIDs: [String?] {
+    effectiveContentLayoutMode.numberedTabIDs(primaryContentTabs, rightToLeft: contentRightToLeft)
   }
-  func cycle(_ offset: Int) {
-    let ids: [String?] = [nil] + tabs.map { Optional($0.id) }
-    guard ids.count > 1 else { return }
-    let index = ids.firstIndex(of: commandContentTab?.id) ?? 0
-    activate(ids[(index + offset + ids.count) % ids.count])
+  @discardableResult func focusSlot(_ oneBased: Int) -> Bool {
+    let ids = numberedTabIDs
+    guard oneBased > 0, oneBased <= ids.count else { return false }
+    activate(ids[oneBased - 1])
+    return true
   }
   func revealChat() {
     activate(nil)

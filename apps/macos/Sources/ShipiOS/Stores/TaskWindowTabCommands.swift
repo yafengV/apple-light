@@ -17,6 +17,9 @@ extension TaskWindowTabs {
       let place = commandContentTab.map { stripPlacement($0.id) } ?? .left
       return presentedTabs(place).count > (commandContentTab == nil ? 0 : 1)
     case "next-tab", "previous-tab": return !tabs.isEmpty
+    case let value where value.hasPrefix("focus-tab-"):
+      guard let slot = DesktopCommand.numberSlot(value) else { return false }
+      return numberedTabIDs.indices.contains(slot.index - 1)
     default: return false
     }
   }
@@ -47,6 +50,9 @@ extension TaskWindowTabs {
       closeOthers(keeping: commandContentTab?.id, in: commandContentTab.map { stripPlacement($0.id) } ?? .left)
     case "next-tab": return navigateAdjacentContentTab(1)
     case "previous-tab": return navigateAdjacentContentTab(-1)
+    case let value where value.hasPrefix("focus-tab-"):
+      guard let slot = DesktopCommand.numberSlot(value) else { return false }
+      return focusSlot(slot.index)
     default: return false
     }
     return true

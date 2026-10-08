@@ -4,6 +4,7 @@ import SwiftUI
 struct WorkspaceView: View {
   @Bindable var store: WorkspaceStore
   @Environment(\.openWindow) private var openWindow
+  @Environment(\.layoutDirection) private var layoutDirection
   @State private var renameHistory = TaskRenameHistory()
   @State private var columns: NavigationSplitViewVisibility = .all
   @State private var taskSummary = TaskSummaryPresentation()
@@ -15,6 +16,9 @@ struct WorkspaceView: View {
 
   var body: some View {
     workspaceRoot
+    .onChange(of: layoutDirection, initial: true) { _, direction in
+      store.workspaceContentRightToLeft = direction == .rightToLeft
+    }
     .sheet(item: $store.editingProject) { request in
       ProjectEditView(store: store, request: request)
     }

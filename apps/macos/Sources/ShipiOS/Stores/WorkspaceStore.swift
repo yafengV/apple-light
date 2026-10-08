@@ -168,6 +168,7 @@ final class WorkspaceStore {
   var workspaceTabPlacements: [String: WorkspaceTabPlacement] = [:]
   var activeWorkspaceTabID: String?
   var workspaceContentLayoutMode: WorkspaceContentLayoutMode?
+  var workspaceContentRightToLeft = false
   var activeRightWorkspaceTabID: String?
   var activeBottomWorkspaceTabID: String?
   var focusedWorkspaceTabID: String?

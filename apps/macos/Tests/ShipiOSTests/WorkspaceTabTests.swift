@@ -42,9 +42,9 @@ import XCTest
     XCTAssertNil(store.activeWorkspaceTabID)
     store.focusWorkspaceTab(at: 1)
     XCTAssertEqual(store.activeBrowserTabID, first.id)
-    store.moveWorkspaceTab(-1)
+    XCTAssertTrue(store.adjacentContentTab(-1))
     XCTAssertNil(store.activeWorkspaceTabID)
-    store.moveWorkspaceTab(-1)
+    XCTAssertTrue(store.adjacentContentTab(-1))
     XCTAssertEqual(store.activeWorkspaceTabID, "review:task")
   }
 

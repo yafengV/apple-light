@@ -1,7 +1,16 @@
 import Foundation
 
 /// Layout survives choosing the chat tab; selection alone cannot identify it.
-enum WorkspaceContentLayoutMode: String, Codable { case full, split }
+enum WorkspaceContentLayoutMode: String, Codable {
+  case full, split
+
+  /// Numeric selection follows the primary strip's displayed order, independently
+  /// of keyboard focus or whether the split content is currently revealed.
+  func numberedTabIDs(_ content: [WorkspaceContentTab], rightToLeft: Bool) -> [String?] {
+    let ids: [String?] = (self == .full ? [nil] : []) + content.map { Optional($0.id) }
+    return rightToLeft ? Array(ids.reversed()) : ids
+  }
+}
 
 /// Presentation metadata only. Shell commands, terminal output, page forms and
 /// credentials are never replayed by tab restoration.

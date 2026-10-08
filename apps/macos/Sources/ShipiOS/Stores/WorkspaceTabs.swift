@@ -384,17 +384,16 @@ extension WorkspaceStore {
     }
   }
 
-  func focusWorkspaceTab(at index: Int) {
-    let ids: [String?] = [nil] + visibleWorkspaceContentTabs.map { Optional($0.id) }
-    guard ids.indices.contains(index) else { return }
-    activateWorkspaceTab(ids[index])
+  var numberedWorkspaceTabIDs: [String?] {
+    effectiveWorkspaceContentLayoutMode.numberedTabIDs(workspacePrimaryContentTabs,
+      rightToLeft: workspaceContentRightToLeft)
   }
 
-  func moveWorkspaceTab(_ offset: Int) {
-    let ids: [String?] = [nil] + visibleWorkspaceContentTabs.map { Optional($0.id) }
-    guard ids.count > 1 else { return }
-    let current = ids.firstIndex { $0 == activeWorkspaceTabID } ?? 0
-    activateWorkspaceTab(ids[(current + offset + ids.count) % ids.count])
+  @discardableResult func focusWorkspaceTab(at index: Int) -> Bool {
+    let ids = numberedWorkspaceTabIDs
+    guard ids.indices.contains(index) else { return false }
+    activateWorkspaceTab(ids[index])
+    return true
   }
 
   func openReviewTab() {

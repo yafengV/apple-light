@@ -133,7 +133,7 @@ extension WorkspaceStore {
     case "workspace-view": toggleWorkspaceTabView()
     case "workspace-swap-panes": swapWorkspacePanes()
     case let value where value.hasPrefix("focus-tab-"):
-      if let index = Int(value.dropFirst("focus-tab-".count)) { focusWorkspaceTab(at: index - 1) }
+      if let slot = DesktopCommand.numberSlot(value) { focusWorkspaceTab(at: slot.index - 1) }
     case let value where value.hasPrefix("focus-chat-"):
       if let slot = DesktopCommand.numberSlot(value), let task = numberedSidebarTask(at: slot.index) {
         if let sessionID = activitySession?.id {
@@ -296,7 +296,7 @@ extension WorkspaceStore {
     case let value where value.hasPrefix("focus-tab-"):
       guard destination == .workspace,
         let slot = DesktopCommand.numberSlot(value) else { return false }
-      return slot.index <= visibleWorkspaceContentTabs.count + 1
+      return numberedWorkspaceTabIDs.indices.contains(slot.index - 1)
     case let value where value.hasPrefix("focus-chat-"):
       guard destination != .settings, let slot = DesktopCommand.numberSlot(value),
         let task = numberedSidebarTask(at: slot.index) else { return false }

@@ -17,6 +17,7 @@ struct TaskWindowView: View {
   var onCloseBackgroundAgent: (() -> Void)? = nil
   var onBackgroundAgentFocus: (() -> Void)? = nil
   @Environment(\.openWindow) private var openWindow
+  @Environment(\.layoutDirection) private var layoutDirection
   @Environment(\.dismiss) private var dismiss
   @State private var childProjection = ChildElicitationProjection()
   @State private var forkError: String?
@@ -526,6 +527,9 @@ struct TaskWindowView: View {
       guard tabs.chatVisible, !windowCommandsBlocked else { return }
       composerFocused = true; taskComposerFocusRequest = UUID()
     }
+    .onChange(of: layoutDirection, initial: true) { _, direction in
+      tabs.contentRightToLeft = direction == .rightToLeft
+    }
     .onChange(of: tabs.focusedID) { _, id in if id != nil { composerFocused = false } }
     .onChange(of: composerFocused) { _, focused in
       if focused, tabs.chatVisible {
@@ -879,9 +883,6 @@ struct TaskWindowView: View {
       for command in DesktopCommand.all where tabs.commandEnabled(command.id) {
         enabled.insert(command.id)
       }
-      if !tabs.tabs.isEmpty {
-        for index in 1...9 where index <= tabs.tabs.count + 1 { enabled.insert("focus-tab-\(index)") }
-      }
       for index in recentWindowTasks.indices { enabled.insert("recent-chat-\(index + 1)") }
       if let file = commandFileWorkspace, file.selectedFile != nil, !file.fileLoading,
         file.fileError == nil { enabled.insert("browser-address") }
@@ -937,9 +938,6 @@ struct TaskWindowView: View {
       return
     }
     if tabs.perform(id) { return }
-    if id.hasPrefix("focus-tab-"), let slot = DesktopCommand.numberSlot(id) {
-      tabs.focusSlot(slot.index); return
-    }
     if let slot = DesktopCommand.recentChatSlot(id), recentWindowTasks.indices.contains(slot) {
       onNavigate(recentWindowTasks[slot].id); return
     }
