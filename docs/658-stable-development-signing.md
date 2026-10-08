@@ -45,3 +45,5 @@
 当前请求再次检查现有实现：真实开发证书的两版不同代码冒烟通过（`.cache/development-signing-request-recheck.log`）；通过标准 `script/build_and_run.sh --app` 重建并执行启动命令，exit 0（`.cache/development-signing-request-standard-run.log`）。主应用和 helper 均使用 Apple Development，指定要求仍与第 690 篇重建前一致，分别通过旧要求及严格深度校验（`.cache/development-signing-request-standard-signature-verified.log`）。首次调用校验脚本遗漏 `after` 参数而失败，日志保留；补齐参数后通过，这不是应用签名失败。
 
 此次重新签名后的 helper 文件字节与第 691 篇保存的测试副本不同，但 CDHash 相同；签名封装字节一致与代码摘要／指定要求一致分别检查，不将它们混为一谈。本轮没有修改签名实现。CUA 当前返回 Mac 锁屏，故本轮无法复验工作区可交互或授权弹窗；上节解锁后的两次运行结果仅作为此前本机证据。
+
+当前 `421ae19` 再次复验：`smoke_macos_signing.sh` 的两版不同代码、应用／helper 稳定要求、旧要求校验，以及无证书／无效证书拒绝检查均通过（`.cache/development-signing-latest-smoke.log`）。标准 `script/build_and_run.sh --app` 构建及启动命令 exit 0（`.cache/development-signing-latest-run.log`）；主应用与 helper 均使用 Apple Development，重建前后指定要求一致，分别通过旧要求验证和严格深度校验（`.cache/development-signing-latest-verification.log`）。当前代码没有变化，因此正式包代码摘要不变；代码变化后的稳定性由两版不同代码冒烟验证。再次检查前台时 Mac 仍锁屏，本轮不宣称工作区交互或弹窗已实际验收。签名实现无须重复修改；证书与验证产物继续只留在忽略目录。
