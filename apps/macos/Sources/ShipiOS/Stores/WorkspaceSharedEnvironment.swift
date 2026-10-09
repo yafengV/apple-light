@@ -222,6 +222,23 @@ final class EnvironmentSettingsSession {
     }
   }
 
+  /// Returns whether the settings editor may return to its overview.
+  func saveFromSettings(synchronize: (String, String, Bool) async -> Bool) async -> Bool {
+    let created = !exists, selected = fileName
+    let token = generation
+    guard !Task.isCancelled, let path = projectPath, await save() else { return false }
+    let request = readRequest
+    let synchronized = await synchronize(path, selected, created)
+    guard generation == token, readRequest == request, projectPath == path,
+      fileName == selected, connected, !Task.isCancelled else { return false }
+    if !synchronized {
+      status = "环境文件已保存，但无法选中它。请重新载入项目环境后重试。"
+      return false
+    }
+    if hasUnsavedChanges { status = "已保存提交的内容；当前还有未保存的修改。" }
+    return !hasUnsavedChanges
+  }
+
   @discardableResult func save() async -> Bool {
     guard let client, canSave, !Task.isCancelled else { return false }
     let token = generation
@@ -317,13 +334,16 @@ extension WorkspaceStore {
   func environmentSettingsDidSave(projectPath path: String, fileName: String,
     created: Bool) async -> Bool {
     if project?.path == path && connected {
+      let token = session
       await refreshSharedEnvironments()
+      guard session == token, project?.path == path, connected, !preparingProjectScope else { return false }
       guard created else { return true }
       guard environmentFiles.contains(where: { $0.id == fileName && $0.error == nil }) else {
         return false
       }
       await selectSharedEnvironment(fileName)
-      guard environmentFileName == fileName, environmentExists else { return false }
+      guard session == token, project?.path == path, connected, !preparingProjectScope,
+        environmentFileName == fileName, environmentExists else { return false }
     } else if created {
       var profile = library.profiles[path] ?? BuildProfile()
       profile.environmentFileName = fileName

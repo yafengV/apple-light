@@ -374,4 +374,99 @@ import XCTest
     XCTAssertTrue(newSaved); XCTAssertFalse(editor.saving); XCTAssertEqual(editor.name, "new submitted")
     XCTAssertTrue(editor.connected); XCTAssertFalse(editor.hasUnsavedChanges)
   }
+
+  func testSettingsSaveKeepsEditorWhenNewDraftWasTypedDuringSave() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "submitted"
+    try hold(f, method: "environment.save", file: "environment.toml")
+    var synchronized = false
+    let operation = Task { await editor.saveFromSettings { _, _, _ in synchronized = true; return true } }
+    try await reached(f); editor.name = "new draft"
+    try FileManager.default.removeItem(at: f.gate)
+    let mayReturn = await operation.value
+    XCTAssertFalse(mayReturn); XCTAssertTrue(synchronized); XCTAssertEqual(editor.name, "new draft")
+    XCTAssertTrue(editor.hasUnsavedChanges); XCTAssertTrue(editor.canSave)
+  }
+
+  func testSettingsSaveKeepsEditsTypedDuringWorkspaceSynchronization() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "submitted"
+    var continuation: CheckedContinuation<Bool, Never>?
+    let operation = Task { await editor.saveFromSettings { _, _, _ in
+      await withCheckedContinuation { continuation = $0 }
+    } }
+    for _ in 0..<120 where continuation == nil { try await Task.sleep(for: .milliseconds(25)) }
+    let reply = try XCTUnwrap(continuation)
+    editor.name = "new draft during synchronization"
+    reply.resume(returning: true)
+    let mayReturn = await operation.value
+    XCTAssertFalse(mayReturn); XCTAssertEqual(editor.name, "new draft during synchronization")
+    XCTAssertTrue(editor.hasUnsavedChanges); XCTAssertTrue(editor.canSave)
+    XCTAssertTrue(editor.status.contains("未保存"))
+  }
+
+  func testSettingsSaveSynchronizationCannotWriteFailureAfterABASelection() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "submitted"
+    var continuation: CheckedContinuation<Bool, Never>?
+    let operation = Task { await editor.saveFromSettings { _, _, _ in
+      await withCheckedContinuation { continuation = $0 }
+    } }
+    for _ in 0..<120 where continuation == nil { try await Task.sleep(for: .milliseconds(25)) }
+    let reply = try XCTUnwrap(continuation)
+    await editor.select("environment-2.toml"); await editor.select("environment.toml")
+    let form = editor.formState, revision = editor.revision, status = editor.status
+    reply.resume(returning: false)
+    let mayReturn = await operation.value
+    XCTAssertFalse(mayReturn); XCTAssertEqual(editor.formState, form); XCTAssertEqual(editor.revision, revision)
+    XCTAssertEqual(editor.status, status); XCTAssertFalse(editor.hasUnsavedChanges)
+  }
+
+  func testSettingsSaveSynchronizationFailureStaysInEditor() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "submitted"
+    let mayReturn = await editor.saveFromSettings { _, _, _ in false }
+    XCTAssertFalse(mayReturn); XCTAssertTrue(editor.status.contains("无法选中"))
+    XCTAssertFalse(editor.hasUnsavedChanges); XCTAssertEqual(editor.name, "submitted")
+  }
+
+  func testSettingsSaveCleanExistingAndCreatedEnvironmentCanReturn() async throws {
+    for created in [false, true] {
+      let f = try fixture(), editor = await editor(f)
+      if created { editor.create() }
+      editor.name = "submitted"
+      let file = editor.fileName
+      var calls = 0
+      let mayReturn = await editor.saveFromSettings { path, selected, isCreated in
+        calls += 1
+        XCTAssertEqual(path, f.project.path); XCTAssertEqual(selected, file); XCTAssertEqual(isCreated, created)
+        return true
+      }
+      XCTAssertTrue(mayReturn); XCTAssertEqual(calls, 1); XCTAssertFalse(editor.hasUnsavedChanges)
+    }
+  }
+
+  func testSettingsSaveWorkspaceSynchronizationCannotSelectWhileNextProjectPrepares() async throws {
+    let f = try fixture(), store = await workspace(f)
+    let other = f.root.appendingPathComponent("Other"), scopeGate = f.root.appendingPathComponent("scope-gate")
+    let scopeReached = f.root.appendingPathComponent("scope-reached")
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    try hold(f, method: "environment.list")
+    let synchronization = Task { await store.environmentSettingsDidSave(projectPath: f.project.path,
+      fileName: "environment-2.toml", created: true) }
+    try await reached(f)
+    let file = store.environmentFileName, revision = store.environmentRevision, form = store.currentEnvironmentFormState
+    try Data().write(to: scopeGate)
+    let navigation = Task { await store.open(other, loadsDetails: false) }
+    for _ in 0..<120 where !FileManager.default.fileExists(atPath: scopeReached.path) {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: scopeReached.path))
+    let synchronized = await synchronization.value
+    XCTAssertFalse(synchronized); XCTAssertEqual(store.environmentFileName, file)
+    XCTAssertEqual(store.environmentRevision, revision); XCTAssertEqual(store.currentEnvironmentFormState, form)
+    try FileManager.default.removeItem(at: f.gate)
+    try FileManager.default.removeItem(at: scopeGate); await navigation.value
+    XCTAssertEqual(store.project?.path, other.path); XCTAssertEqual(store.environmentFileName, "environment.toml")
+  }
 }
