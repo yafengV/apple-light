@@ -39,6 +39,7 @@ final class EnvironmentSettingsSession {
   @ObservationIgnored private var client: AgentClient?
   @ObservationIgnored private var temporary: URL?
   @ObservationIgnored private var generation = UUID()
+  @ObservationIgnored private var readRequest = UUID()
 
   var formState: LocalEnvironmentFormState {
     LocalEnvironmentFormState(name: name, setup: setupScript, setupPlatforms: setupPlatforms,
@@ -107,21 +108,25 @@ final class EnvironmentSettingsSession {
   }
 
   func refresh() async {
-    guard let client, projectPath != nil else { return }
+    guard let client, projectPath != nil, !Task.isCancelled else { return }
     let token = generation
+    let request = UUID()
+    readRequest = request
     do {
       let entries = try await client.request("environment.list").decode([LocalEnvironmentEntry].self)
-      guard generation == token else { return }
+      guard generation == token, readRequest == request, !Task.isCancelled else { return }
       files = entries
       let valid = entries.filter { $0.error == nil }
+      let previousFile = fileName
       if !valid.contains(where: { $0.id == fileName }) {
         fileName = valid.first(where: { !$0.inherited && $0.fileName == "environment.toml" })?.id
           ?? valid.first(where: { $0.fileName == "environment.toml" })?.id
           ?? valid.first?.id ?? "environment.toml"
       }
-      await load()
+      if fileName != previousFile { clearForm() }
+      await load(request: request)
     } catch {
-      if generation == token {
+      if generation == token, readRequest == request, !Task.isCancelled {
         readError = true
         status = "环境目录读取失败：\(error.localizedDescription)"
       }
@@ -129,12 +134,15 @@ final class EnvironmentSettingsSession {
   }
 
   func select(_ id: String) async {
-    guard files.contains(where: { $0.id == id }) else { return }
+    guard files.contains(where: { $0.id == id }), !Task.isCancelled else { return }
+    let changed = fileName != id
     fileName = id
+    if changed { clearForm() }
     await load()
   }
 
   func create() {
+    readRequest = UUID()
     let occupied = Set(files.filter { !$0.inherited }.map(\.fileName))
     if !occupied.contains("environment.toml") { fileName = "environment.toml" }
     else {
@@ -164,13 +172,21 @@ final class EnvironmentSettingsSession {
   }
 
   func load() async {
+    guard !Task.isCancelled else { return }
+    let request = UUID()
+    readRequest = request
+    await load(request: request)
+  }
+
+  private func load(request: UUID) async {
+    guard readRequest == request, !Task.isCancelled else { return }
     guard let client else { return }
     let token = generation
     let selected = fileName
-    clearForm()
     do {
       let result = try await client.request("environment.load", ["fileName": .string(selected)])
-      guard generation == token, fileName == selected else { return }
+      guard generation == token, readRequest == request, fileName == selected, !Task.isCancelled else { return }
+      clearForm()
       exists = result["exists"].boolean == true
       revision = result["revision"].text
       if exists, result["error"].text == nil {
@@ -192,7 +208,8 @@ final class EnvironmentSettingsSession {
       } else { status = "\(selected) 尚未创建。" }
       loadedState = formState
     } catch {
-      if generation == token, fileName == selected {
+      if generation == token, readRequest == request, fileName == selected, !Task.isCancelled {
+        clearForm()
         readError = true
         status = "环境文件读取失败：\(error.localizedDescription)"
       }
@@ -391,32 +408,48 @@ extension WorkspaceStore {
   }
 
   func refreshSharedEnvironments() async {
-    guard connected, let path = project?.path else { return }
+    guard connected, !preparingProjectScope, let path = project?.path, !Task.isCancelled else { return }
+    let token = session, request = UUID()
+    environmentReadRequest = request
     do {
       let entries = try await client.request("environment.list").decode([LocalEnvironmentEntry].self)
-      guard project?.path == path else { return }
+      guard environmentReadIsCurrent(request, session: token, path: path) else { return }
       environmentFiles = entries
       let valid = entries.filter { $0.error == nil }
+      let previousFile = environmentFileName
       if !valid.contains(where: { $0.id == environmentFileName }) {
         environmentFileName = valid.first(where: { !$0.inherited && $0.fileName == "environment.toml" })?.id
           ?? valid.first(where: { $0.fileName == "environment.toml" })?.id
           ?? valid.first?.id ?? "environment.toml"
       }
-      await loadSharedEnvironment()
+      if environmentFileName != previousFile { environmentRevision = nil; environmentExists = false }
+      await loadSharedEnvironment(request: request)
     } catch {
-      guard project?.path == path else { return }
+      guard environmentReadIsCurrent(request, session: token, path: path) else { return }
       environmentStatus = "环境目录读取失败：\(error.localizedDescription)"
     }
   }
 
   func loadSharedEnvironment() async {
-    guard connected, let path = project?.path else { return }
+    guard !Task.isCancelled else { return }
+    let request = UUID()
+    environmentReadRequest = request
+    await loadSharedEnvironment(request: request)
+  }
+
+  private func environmentReadIsCurrent(_ request: UUID, session token: UUID, path: String) -> Bool {
+    session == token && environmentReadRequest == request && project?.path == path
+      && connected && !preparingProjectScope && !Task.isCancelled
+  }
+
+  private func loadSharedEnvironment(request: UUID) async {
+    guard connected, !preparingProjectScope, let path = project?.path,
+      environmentReadRequest == request, !Task.isCancelled else { return }
+    let token = session
     let fileName = environmentFileName
-    environmentRevision = nil
-    environmentExists = false
     do {
       let result = try await client.request("environment.load", ["fileName": .string(fileName)])
-      guard project?.path == path, environmentFileName == fileName else { return }
+      guard environmentReadIsCurrent(request, session: token, path: path), environmentFileName == fileName else { return }
       environmentExists = result["exists"].boolean == true
       environmentRevision = result["revision"].text
       if environmentExists {
@@ -436,20 +469,25 @@ extension WorkspaceStore {
       }
       environmentLoadedState = currentEnvironmentFormState
     } catch {
-      guard project?.path == path, environmentFileName == fileName else { return }
+      guard environmentReadIsCurrent(request, session: token, path: path), environmentFileName == fileName else { return }
+      environmentRevision = nil; environmentExists = false
       clearEnvironmentForm(for: fileName)
       environmentStatus = "共享环境文件读取失败：\(error.localizedDescription)"
     }
   }
 
   func selectSharedEnvironment(_ fileName: String) async {
-    guard let entry = environmentFiles.first(where: { $0.id == fileName }) else { return }
+    guard let entry = environmentFiles.first(where: { $0.id == fileName }), !Task.isCancelled else { return }
+    let token = session, request = UUID()
+    environmentReadRequest = request
+    if environmentFileName != fileName { environmentRevision = nil; environmentExists = false }
     environmentFileName = fileName
-    await loadSharedEnvironment()
-    if entry.error == nil { saveProfile() }
+    await loadSharedEnvironment(request: request)
+    if entry.error == nil, session == token, environmentReadRequest == request, !Task.isCancelled { saveProfile() }
   }
 
   func createSharedEnvironment() {
+    environmentReadRequest = UUID()
     let occupied = Set(environmentFiles.filter { !$0.inherited }.map(\.fileName))
     let next: String
     if !occupied.contains("environment.toml") { next = "environment.toml" }

@@ -436,6 +436,7 @@ final class WorkspaceStore {
   var environmentStatus = ""
   var environmentSaving = false
   var environmentLoadedState: LocalEnvironmentFormState?
+  @ObservationIgnored var environmentReadRequest = UUID()
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
   var managedTaskPreparing = false
@@ -460,7 +461,7 @@ final class WorkspaceStore {
   var dataDirectory: URL?
   @ObservationIgnored let client: AgentClient
   @ObservationIgnored let codexTransport: CodexChatTransport
-  @ObservationIgnored private var session = UUID()
+  @ObservationIgnored private(set) var session = UUID()
   @ObservationIgnored private var detailVersion = UUID()
 
   var selectedTask: WorkspaceTask? { library.task(containing: selection) }
