@@ -22,48 +22,56 @@ struct TaskRenameDialog: View {
   }
   @State private var title = ""
   @State private var error: String?
-  @FocusState private var focus: Field?
-  private enum Field: CaseIterable { case name, cancel, save }
+  @FocusState private var focus: RenameDialogField?
+  @Environment(\.appAppearance) private var appearance
   private var valid: Bool { configuration.allowsEmpty || !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
   var body: some View {
     GeometryReader { geometry in
       ZStack {
-        Color.black.opacity(0.3).contentShape(Rectangle())
+        Color.black.opacity(RenameDialogMetrics.overlayOpacity).contentShape(Rectangle())
           .onTapGesture(perform: close).accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: 16) {
-          HStack {
-            Text(configuration.title).font(.system(size: 17, weight: .semibold))
-              .accessibilityAddTraits(.isHeader)
-            Spacer()
-            Button(action: close) { Image(systemName: "xmark") }
-              .buttonStyle(.plain).accessibilityLabel("关闭重命名")
+        RenameDialogSurface(availableWidth: geometry.size.width) {
+          RenameDialogHeader(title: configuration.title, subtitle: configuration.subtitle)
+        } input: {
+          VStack(alignment: .leading, spacing: 8) {
+            TextField(configuration.placeholder, text: $title)
+              .textFieldStyle(.plain).appFont(size: RenameDialogMetrics.inputFont)
+              .padding(.horizontal, RenameDialogMetrics.inputPadding + RenameDialogMetrics.borderWidth)
+              .frame(height: RenameDialogMetrics.inputHeight)
+              .background(appearance.resolvedColors["controlBackground"].color,
+                in: RoundedRectangle(cornerRadius: RenameDialogMetrics.inputRadius, style: .continuous))
+              .overlay {
+                RoundedRectangle(cornerRadius: RenameDialogMetrics.inputRadius, style: .continuous)
+                  .strokeBorder(appearance.resolvedColors[focus == .name ? "borderFocus" : "borderHeavy"].color, lineWidth: 1)
+                  .allowsHitTesting(false)
+              }
+              .focused($focus, equals: .name).accessibilityLabel(configuration.ariaLabel).onSubmit(submit)
+            if let error { Text(error).appFont(size: 13).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
           }
-          Text(configuration.subtitle).foregroundStyle(.secondary)
-          TextField(configuration.placeholder, text: $title)
-            .textFieldStyle(.roundedBorder).focused($focus, equals: .name)
-            .accessibilityLabel(configuration.ariaLabel).onSubmit(submit)
-          if let error { Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
-          HStack {
-            Spacer()
-            Button("取消", action: close).settingsActionFocus($focus, equals: .cancel, activate: close)
-            Button("保存", action: submit).buttonStyle(.borderedProminent)
-              .settingsActionFocus($focus, equals: .save, activate: submit).disabled(!valid)
+        } footer: {
+          HStack(spacing: RenameDialogMetrics.buttonGap) {
+            Spacer(minLength: 0)
+            Button("取消", action: close)
+              .buttonStyle(RenameDialogButtonStyle(role: .outline, focused: focus == .cancel))
+              .renameDialogActionFocus($focus, equals: .cancel, activate: close)
+            Button("保存", action: submit)
+              .buttonStyle(RenameDialogButtonStyle(role: .primary, focused: focus == .save))
+              .renameDialogActionFocus($focus, equals: .save, activate: submit).disabled(!valid)
           }
+        } close: {
+          Button(action: close) { Image(systemName: "xmark").font(.system(size: 12)).frame(width: 16, height: 16) }
+            .buttonStyle(RenameDialogButtonStyle(role: .close, focused: focus == .close))
+            .renameDialogActionFocus($focus, equals: .close, activate: close).accessibilityLabel("关闭重命名")
         }
-        .padding(24).frame(width: min(440, geometry.size.width * 0.92), alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
         .accessibilityElement(children: .contain).accessibilityAddTraits(.isModal)
         .accessibilityIdentifier(configuration.identifier)
         .background(RenameDialogKeyboardBridge(onReady: { focus = .name }) { key in
           switch key {
           case .cancel: close()
-          case .submit: if focus == .cancel { close() } else { submit() }
+          case .submit: if focus?.closesOnEnter == true { close() } else { submit() }
           case .tab(let reverse):
-            let fields: [Field] = valid ? [.name, .cancel, .save] : [.name, .cancel]
-            let index = fields.firstIndex(of: focus ?? .name) ?? 0
-            focus = fields[(index + (reverse ? fields.count - 1 : 1)) % fields.count]
+            focus = RenameDialogField.next(after: focus, valid: valid, reverse: reverse)
           }
         }.frame(width: 0, height: 0))
       }.frame(maxWidth: .infinity, maxHeight: .infinity)

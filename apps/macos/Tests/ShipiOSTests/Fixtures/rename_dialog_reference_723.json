@@ -1,0 +1,777 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+    "4ea4b25e3f4f3225a3bf212fa767afe7655b16bbd5919ebf4fb12c656f974720",
+    "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3"
+  ],
+  "mocks": [
+    "React memo/state/ref; JSX inert tree; metadata disabled; no persistence, Radix or DOM execution"
+  ],
+  "cases": [
+    {
+      "requireNonEmpty": false,
+      "initialValue": "",
+      "tree": {
+        "type": "dialog",
+        "props": {
+          "open": true,
+          "contentProps": {},
+          "showDialogClose": true,
+          "size": "compact",
+          "children": {
+            "type": "body",
+            "props": {
+              "as": "form",
+              "children": [
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "header",
+                      "props": {
+                        "title": {
+                          "type": "heading",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Rename"
+                              }
+                            }
+                          }
+                        },
+                        "subtitle": {
+                          "type": "description",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Short name"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "className": "gap-2",
+                    "children": [
+                      {
+                        "type": "input",
+                        "props": {
+                          "ref": {
+                            "current": null
+                          },
+                          "disabled": false,
+                          "value": "",
+                          "placeholder": "Name",
+                          "aria-label": "Name"
+                        }
+                      },
+                      null,
+                      null
+                    ]
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "footer",
+                      "props": {
+                        "children": [
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "outline",
+                              "type": "button",
+                              "disabled": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogCancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Cancel button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "primary",
+                              "type": "submit",
+                              "disabled": false,
+                              "loading": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogSave",
+                                  "defaultMessage": "Save",
+                                  "description": "Save button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "buttons": [
+        {
+          "type": "button",
+          "props": {
+            "type": "button",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogCancel",
+                      "defaultMessage": "Cancel",
+                      "description": "Cancel button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "button",
+          "props": {
+            "type": "submit",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-solid not-disabled:not-aria-disabled:hover:bg-text/80 data-[state=open]:bg-text/80 text-primary-solid px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogSave",
+                      "defaultMessage": "Save",
+                      "description": "Save button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "requireNonEmpty": false,
+      "initialValue": "Original",
+      "tree": {
+        "type": "dialog",
+        "props": {
+          "open": true,
+          "contentProps": {},
+          "showDialogClose": true,
+          "size": "compact",
+          "children": {
+            "type": "body",
+            "props": {
+              "as": "form",
+              "children": [
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "header",
+                      "props": {
+                        "title": {
+                          "type": "heading",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Rename"
+                              }
+                            }
+                          }
+                        },
+                        "subtitle": {
+                          "type": "description",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Short name"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "className": "gap-2",
+                    "children": [
+                      {
+                        "type": "input",
+                        "props": {
+                          "ref": {
+                            "current": null
+                          },
+                          "disabled": false,
+                          "value": "Original",
+                          "placeholder": "Name",
+                          "aria-label": "Name"
+                        }
+                      },
+                      null,
+                      null
+                    ]
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "footer",
+                      "props": {
+                        "children": [
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "outline",
+                              "type": "button",
+                              "disabled": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogCancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Cancel button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "primary",
+                              "type": "submit",
+                              "disabled": false,
+                              "loading": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogSave",
+                                  "defaultMessage": "Save",
+                                  "description": "Save button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "buttons": [
+        {
+          "type": "button",
+          "props": {
+            "type": "button",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogCancel",
+                      "defaultMessage": "Cancel",
+                      "description": "Cancel button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "button",
+          "props": {
+            "type": "submit",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-solid not-disabled:not-aria-disabled:hover:bg-text/80 data-[state=open]:bg-text/80 text-primary-solid px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogSave",
+                      "defaultMessage": "Save",
+                      "description": "Save button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "requireNonEmpty": true,
+      "initialValue": "",
+      "tree": {
+        "type": "dialog",
+        "props": {
+          "open": true,
+          "contentProps": {},
+          "showDialogClose": true,
+          "size": "compact",
+          "children": {
+            "type": "body",
+            "props": {
+              "as": "form",
+              "children": [
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "header",
+                      "props": {
+                        "title": {
+                          "type": "heading",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Rename"
+                              }
+                            }
+                          }
+                        },
+                        "subtitle": {
+                          "type": "description",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Short name"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "className": "gap-2",
+                    "children": [
+                      {
+                        "type": "input",
+                        "props": {
+                          "ref": {
+                            "current": null
+                          },
+                          "disabled": false,
+                          "value": "",
+                          "placeholder": "Name",
+                          "aria-label": "Name",
+                          "aria-invalid": true
+                        }
+                      },
+                      null,
+                      null
+                    ]
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "footer",
+                      "props": {
+                        "children": [
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "outline",
+                              "type": "button",
+                              "disabled": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogCancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Cancel button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "primary",
+                              "type": "submit",
+                              "disabled": true,
+                              "loading": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogSave",
+                                  "defaultMessage": "Save",
+                                  "description": "Save button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "buttons": [
+        {
+          "type": "button",
+          "props": {
+            "type": "button",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogCancel",
+                      "defaultMessage": "Cancel",
+                      "description": "Cancel button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "button",
+          "props": {
+            "type": "submit",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-solid not-disabled:not-aria-disabled:hover:bg-text/80 data-[state=open]:bg-text/80 text-primary-solid px-4 py-1.5 text-base leading-[18px]",
+            "disabled": true,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogSave",
+                      "defaultMessage": "Save",
+                      "description": "Save button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "requireNonEmpty": true,
+      "initialValue": "Original",
+      "tree": {
+        "type": "dialog",
+        "props": {
+          "open": true,
+          "contentProps": {},
+          "showDialogClose": true,
+          "size": "compact",
+          "children": {
+            "type": "body",
+            "props": {
+              "as": "form",
+              "children": [
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "header",
+                      "props": {
+                        "title": {
+                          "type": "heading",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Rename"
+                              }
+                            }
+                          }
+                        },
+                        "subtitle": {
+                          "type": "description",
+                          "props": {
+                            "children": {
+                              "type": "message",
+                              "props": {
+                                "defaultMessage": "Short name"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "className": "gap-2",
+                    "children": [
+                      {
+                        "type": "input",
+                        "props": {
+                          "ref": {
+                            "current": null
+                          },
+                          "disabled": false,
+                          "value": "Original",
+                          "placeholder": "Name",
+                          "aria-label": "Name"
+                        }
+                      },
+                      null,
+                      null
+                    ]
+                  }
+                },
+                {
+                  "type": "section",
+                  "props": {
+                    "children": {
+                      "type": "footer",
+                      "props": {
+                        "children": [
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "outline",
+                              "type": "button",
+                              "disabled": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogCancel",
+                                  "defaultMessage": "Cancel",
+                                  "description": "Cancel button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "type": "button",
+                            "props": {
+                              "color": "primary",
+                              "type": "submit",
+                              "disabled": false,
+                              "loading": false,
+                              "children": {
+                                "type": "message",
+                                "props": {
+                                  "id": "sidebarElectron.renameThreadDialogSave",
+                                  "defaultMessage": "Save",
+                                  "description": "Save button label for rename chat dialog"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "buttons": [
+        {
+          "type": "button",
+          "props": {
+            "type": "button",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-soft-alpha not-disabled:not-aria-disabled:hover:bg-primary-ghost-hover data-[state=open]:bg-primary-ghost-hover border px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogCancel",
+                      "defaultMessage": "Cancel",
+                      "description": "Cancel button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "button",
+          "props": {
+            "type": "submit",
+            "className": "no-drag cursor-interaction items-center select-none disabled:cursor-default aria-disabled:cursor-default focus:outline-hidden disabled:opacity-40 aria-disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 whitespace-nowrap flex border gap-1 rounded-button-action border-default bg-primary-solid not-disabled:not-aria-disabled:hover:bg-text/80 data-[state=open]:bg-text/80 text-primary-solid px-4 py-1.5 text-base leading-[18px]",
+            "disabled": false,
+            "children": {
+              "type": "fragment",
+              "props": {
+                "children": [
+                  false,
+                  {
+                    "type": "message",
+                    "props": {
+                      "id": "sidebarElectron.renameThreadDialogSave",
+                      "defaultMessage": "Save",
+                      "description": "Save button label for rename chat dialog"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "header": {
+    "type": "div",
+    "props": {
+      "className": "flex flex-col items-start gap-3",
+      "children": [
+        null,
+        null,
+        {
+          "type": "div",
+          "props": {
+            "className": "flex min-w-0 flex-1 flex-col gap-1 self-stretch",
+            "children": [
+              {
+                "type": "div",
+                "props": {
+                  "className": "heading-dialog min-w-0 font-semibold",
+                  "children": "Rename"
+                }
+              },
+              {
+                "type": "div",
+                "props": {
+                  "className": "text-codex-description text-base leading-normal tracking-normal",
+                  "children": "Short name"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "body": {
+    "type": "form",
+    "props": {
+      "className": "flex flex-col text-base leading-normal tracking-normal gap-0 _body_1k5bv_2",
+      "children": [
+        null,
+        []
+      ]
+    }
+  },
+  "inputVariant": "h-9 rounded-md bg-primary-soft px-2.5 text-sm",
+  "focusOrder": [
+    "name",
+    "cancel",
+    "save",
+    "close"
+  ],
+  "invalidFocusOrder": [
+    "name",
+    "cancel",
+    "close"
+  ],
+  "expected": {
+    "width": 420,
+    "maxViewportFraction": 0.92,
+    "padding": 20,
+    "sectionGap": 12,
+    "headerGap": 4,
+    "headingFont": 20,
+    "headingLineHeight": 28,
+    "descriptionFont": 14,
+    "descriptionLineHeight": 21,
+    "inputHeight": 36,
+    "inputPadding": 10,
+    "inputFont": 13,
+    "buttonHeight": 32,
+    "buttonPadding": 16,
+    "buttonFont": 14,
+    "buttonLineHeight": 18,
+    "borderWidth": 1,
+    "buttonGap": 12,
+    "closeSize": 24,
+    "closeInset": 16,
+    "overlayOpacity": 0.13333333333333333,
+    "disabledOpacity": 0.4,
+    "surfaceRadius": 20,
+    "buttonRadius": 10,
+    "inputRadius": 8
+  },
+  "cornerShapeNote": "CSS fallback radii; supported superellipse(1.5) scales radii by 1.25. Native curve/material still require paired acceptance."
+}
