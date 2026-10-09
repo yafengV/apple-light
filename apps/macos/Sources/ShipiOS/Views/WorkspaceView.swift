@@ -299,22 +299,9 @@ struct WorkspaceView: View {
               shortcut: store.shortcuts.label("browser"), perform: store.performWorkspaceLayoutMenuAction)
               .accessibilityLabel("显示或隐藏标签页")
               .disabled(!store.commandEnabled("browser"))
-            if store.showBottomPanelControl {
-              Menu {
-                Button(store.showingWorkspaceTabs ? "隐藏标签页" : "显示标签页") {
-                  store.toggleWorkspaceTabVisibility()
-                }
-                Button(store.effectiveWorkspaceContentLayoutMode == .full ? "退出完整视图" : "打开完整视图") {
-                  store.toggleWorkspaceTabView()
-                }
-                Divider()
-                Button("交换左侧和右侧面板") { store.swapWorkspacePanes() }
-                  .disabled(!store.showsWorkspaceInspector)
-              } label: {
-                Image(systemName: "rectangle.split.2x1")
-              }
-              .help("布局")
-              .accessibilityLabel("任务布局")
+            if store.destination == .workspace {
+              WorkspaceFullViewButton(menu: store.workspaceLayoutMenu, shortcut: store.shortcuts.label("workspace-view"),
+                available: { store.commandEnabled("workspace-view") }, perform: store.toggleWorkspaceTabView)
             }
             if let task = store.selectedTask,
               let pending = store.library.managedWorktrees.first(where: { $0.pendingHandoff?.snapshot.taskID == task.id })?.pendingHandoff {

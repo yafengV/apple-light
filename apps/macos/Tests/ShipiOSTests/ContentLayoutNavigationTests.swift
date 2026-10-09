@@ -391,23 +391,22 @@ import XCTest
     }
   }
 
-  func testFullViewToggleFromChatUsesLayoutModeRatherThanPhysicalPlacement() throws {
+  func testFullViewToggleFromChatUsesDisplayedContentRatherThanSavedLayoutMode() throws {
     try withStore { store in
       store.workspaceTabs = [.sources(owner: "a")]
       let id = store.workspaceTabs[0].id
       store.activateWorkspaceTab(id); store.activateChatTab()
       store.toggleWorkspaceTabView()
-      XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, .split)
-      XCTAssertEqual(store.activeRightWorkspaceContentTab?.id, id)
-      XCTAssertNil(store.activeWorkspaceContentTab)
+      XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, .full)
+      XCTAssertEqual(store.activeWorkspaceContentTab?.id, id)
       let resources = TaskWindowResources(); resources.prepare("a", store: store); defer { resources.shutdown() }
       let tabs = try XCTUnwrap(resources.tasks["a"])
       tabs.openSources(); tabs.activate(nil); tabs.toggleFullWidth()
-      XCTAssertEqual(tabs.effectiveContentLayoutMode, .split)
-      XCTAssertEqual(tabs.selected(.right)?.id, id)
-      tabs.toggleFullWidth()
       XCTAssertEqual(tabs.effectiveContentLayoutMode, .full)
       XCTAssertEqual(tabs.selected(.left)?.id, id)
+      tabs.toggleFullWidth()
+      XCTAssertEqual(tabs.effectiveContentLayoutMode, .split)
+      XCTAssertEqual(tabs.selected(.right)?.id, id)
     }
   }
 

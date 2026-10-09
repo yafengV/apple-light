@@ -7,6 +7,7 @@ struct AppearanceActionButton: NSViewRepresentable {
   let label: String
   var symbolName: String?
   var accessibilityValue: String?
+  var layoutArtwork: WorkspaceLayoutToolbarArtwork?
   let available: () -> Bool
   var interactionAvailable: () -> Bool = { true }
   let action: (Control) -> Void
@@ -16,6 +17,8 @@ struct AppearanceActionButton: NSViewRepresentable {
   func updateNSView(_ view: Control, context: Context) {
     view.title = title; view.setAccessibilityLabel(label)
     view.symbolName = symbolName; view.setAccessibilityValue(accessibilityValue)
+    view.layoutArtwork = layoutArtwork
+    if let layoutArtwork { view.setAccessibilityValue(layoutArtwork.pressed.map { NSNumber(value: $0) }) }
     view.font = appearance.nativeFont(size: 13); view.preferences = appearance
     view.canAct = { enabled && available() && interactionAvailable() }; view.activate = { [weak view] in if let view { action(view) } }
     view.isEnabled = enabled && available(); view.invalidateIntrinsicContentSize(); view.needsDisplay = true
@@ -30,6 +33,7 @@ struct AppearanceActionButton: NSViewRepresentable {
     var outlinedPill = false
     var closeIcon = false
     var symbolName: String?
+    var layoutArtwork: WorkspaceLayoutToolbarArtwork?
     var hovered = false { didSet { needsDisplay = true } }
     var canAct: () -> Bool = { true }
     var activate: (() -> Void)?
@@ -42,6 +46,7 @@ struct AppearanceActionButton: NSViewRepresentable {
     override var acceptsFirstResponder: Bool { active && isEnabled && canAct() && !isHiddenOrHasHiddenAncestor && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder && window != nil }
     override var intrinsicContentSize: NSSize {
+      if layoutArtwork != nil { return .init(width: 28, height: 26) }
       if closeIcon { return .init(width: 22, height: 22) }
       return .init(width: ceil((title as NSString).size(withAttributes: [.font: font ?? .systemFont(ofSize: 13)]).width) + 18 + (symbolName == nil ? 0 : 18), height: outlinedPill ? 24 : 28)
     }
@@ -73,6 +78,10 @@ struct AppearanceActionButton: NSViewRepresentable {
     override func mouseEntered(with event: NSEvent) { hovered = true }
     override func mouseExited(with event: NSEvent) { hovered = false }
     override func draw(_ dirtyRect: NSRect) {
+      if let layoutArtwork {
+        layoutArtwork.draw(in: bounds, appearance: preferences, hovered: hovered, enabled: isEnabled, focused: window?.firstResponder === self)
+        return
+      }
       let roles = preferences.resolvedColors
       let alpha: Double = isEnabled ? 1 : 0.4
       let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: closeIcon ? 4 : outlinedPill ? bounds.height / 2 : 10, yRadius: closeIcon ? 4 : outlinedPill ? bounds.height / 2 : 10)

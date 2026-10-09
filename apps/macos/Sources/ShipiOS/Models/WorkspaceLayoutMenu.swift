@@ -14,6 +14,13 @@ struct WorkspaceLayoutMenu: Equatable {
   let contentVisible: Bool
   let home: Bool
   var scope = ""
+  var layoutMode: WorkspaceContentLayoutMode = .split
+  var fullViewVisible: Bool { contentVisible && layoutMode == .full }
+  var fullViewLabel: String { fullViewVisible ? "退出完整视图" : "进入完整视图" }
+  var toolbarPressed: Bool? { contentVisible || !entries.isEmpty ? contentVisible && layoutMode == .split : nil }
+  var toolbarArtwork: WorkspaceLayoutToolbarArtwork {
+    .init(glyph: contentVisible ? .columns : .rectangle, count: contentVisible ? nil : entries.count, pressed: toolbarPressed)
+  }
   var kind: Kind { contentVisible ? .toggle : entries.isEmpty ? (home ? .newTab : .toggle) : .retained }
   var actions: [Action] {
     switch kind {
@@ -46,7 +53,7 @@ extension WorkspaceStore {
   var workspaceLayoutMenu: WorkspaceLayoutMenu {
     .init(entries: workspacePrimaryContentTabs.map { .init(id: $0.id, title: workspaceTabTitle($0), icon: $0.icon) },
       contentVisible: activeWorkspaceContentTab != nil || (showsWorkspaceInspector && activeRightWorkspaceContentTab != nil),
-      home: selectedTask == nil, scope: currentWorkspaceTabOwner)
+      home: selectedTask == nil, scope: currentWorkspaceTabOwner, layoutMode: effectiveWorkspaceContentLayoutMode)
   }
   func performWorkspaceLayoutMenuAction(_ action: WorkspaceLayoutMenu.Action) {
     guard commandEnabled("browser"), workspaceLayoutMenu.accepts(action) else { return }
@@ -61,7 +68,7 @@ extension WorkspaceStore {
 extension TaskWindowTabs {
   var layoutMenu: WorkspaceLayoutMenu {
     .init(entries: primaryContentTabs.map { .init(id: $0.id, title: title($0), icon: $0.icon) },
-      contentVisible: !chatVisible || showsContentSidePanel, home: taskID.hasPrefix("new:"), scope: taskID)
+      contentVisible: !chatVisible || showsContentSidePanel, home: taskID.hasPrefix("new:"), scope: taskID, layoutMode: effectiveContentLayoutMode)
   }
   func performLayoutMenuAction(_ action: WorkspaceLayoutMenu.Action) {
     guard layoutMenu.accepts(action) else { return }

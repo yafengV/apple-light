@@ -363,14 +363,8 @@ struct TaskWindowView: View {
                 }
               }
             }
-            Menu {
-              Button(tabs.showingTabs ? "隐藏标签页" : "显示标签页") { tabs.showingTabs.toggle() }
-              Button(tabs.effectiveContentLayoutMode == .full ? "退出完整视图" : "打开完整视图") { tabs.toggleFullWidth() }
-                .disabled(!tabs.commandEnabled("workspace-view"))
-              Button("交换左侧和右侧面板") { tabs.primarySide.swap() }
-                .disabled(!tabs.showsContentSidePanel && !panels.showingFiles)
-            } label: { Image(systemName: "rectangle.split.2x1") }
-              .accessibilityLabel("任务布局")
+            WorkspaceFullViewButton(menu: tabs.layoutMenu, shortcut: store.shortcuts.label("workspace-view"),
+              available: { !windowCommandsBlocked && tabs.commandEnabled("workspace-view") }, perform: tabs.toggleFullWidth)
             if !task.isTransient {
               if let pending = store.library.managedWorktrees.first(where: { $0.pendingHandoff?.snapshot.taskID == taskID })?.pendingHandoff {
                 Button {

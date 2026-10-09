@@ -370,7 +370,7 @@ import WebKit
     guard let id = (commandContentTab.flatMap { primaryContentTabs.contains($0) ? $0.id : nil })
       ?? selected(.right)?.id ?? primaryContentTabs.first(where: { $0.id == lastContentID })?.id
       ?? primaryContentTabs.first?.id else { newBrowser(); return }
-    move(id, to: effectiveContentLayoutMode == .full ? .right : .left)
+    move(id, to: layoutMenu.fullViewVisible ? .right : .left)
   }
   func toggleTabLayout(_ id: String?) {
     let content = primaryContentTabs

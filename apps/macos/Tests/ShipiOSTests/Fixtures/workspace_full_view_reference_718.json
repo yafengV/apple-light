@@ -1,0 +1,519 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "chromeSHA256": "db5f01832c7d9c730407f6f4e4cdd699dd584393c206439fe12890d265dd3c4b",
+  "sharedSHA256": "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab",
+  "cssSHA256": "b9602ce3f1d278f45bb058f5004c769a741b43acb08b987aec3ae57781fc709f",
+  "counts": [
+    {
+      "count": 0,
+      "label": null,
+      "plus": true,
+      "fontSize": 8
+    },
+    {
+      "count": 1,
+      "label": "1",
+      "plus": false,
+      "fontSize": 8
+    },
+    {
+      "count": 9,
+      "label": "9",
+      "plus": false,
+      "fontSize": 8
+    },
+    {
+      "count": 10,
+      "label": "9+",
+      "plus": false,
+      "fontSize": 6
+    },
+    {
+      "count": 25,
+      "label": "9+",
+      "plus": false,
+      "fontSize": 6
+    }
+  ],
+  "boundary": "Actual ordinary-workspace pwa full-view transitions and eu/Ql toolbar properties, explicit atoms/JSX and inert native effects. Hidden full chat explicitly sets nS. No primary workspace, DOM/OS focus or foreground acceptance.",
+  "policies": [
+    {
+      "count": 0,
+      "display": "chat",
+      "main": {
+        "pressed": null,
+        "icon": "stack",
+        "color": "ghost"
+      },
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 0,
+      "display": "split",
+      "main": {
+        "pressed": true,
+        "icon": "column",
+        "color": "secondary"
+      },
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 0,
+      "display": "full",
+      "main": {
+        "pressed": false,
+        "icon": "column",
+        "color": "ghost"
+      },
+      "full": {
+        "pressed": true,
+        "icon": "collapse",
+        "color": "secondary"
+      }
+    },
+    {
+      "count": 1,
+      "display": "chat",
+      "main": null,
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 1,
+      "display": "split",
+      "main": {
+        "pressed": true,
+        "icon": "column",
+        "color": "secondary"
+      },
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 1,
+      "display": "full",
+      "main": {
+        "pressed": false,
+        "icon": "column",
+        "color": "ghost"
+      },
+      "full": {
+        "pressed": true,
+        "icon": "collapse",
+        "color": "secondary"
+      }
+    },
+    {
+      "count": 9,
+      "display": "chat",
+      "main": null,
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 9,
+      "display": "split",
+      "main": {
+        "pressed": true,
+        "icon": "column",
+        "color": "secondary"
+      },
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 9,
+      "display": "full",
+      "main": {
+        "pressed": false,
+        "icon": "column",
+        "color": "ghost"
+      },
+      "full": {
+        "pressed": true,
+        "icon": "collapse",
+        "color": "secondary"
+      }
+    },
+    {
+      "count": 10,
+      "display": "chat",
+      "main": null,
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 10,
+      "display": "split",
+      "main": {
+        "pressed": true,
+        "icon": "column",
+        "color": "secondary"
+      },
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 10,
+      "display": "full",
+      "main": {
+        "pressed": false,
+        "icon": "column",
+        "color": "ghost"
+      },
+      "full": {
+        "pressed": true,
+        "icon": "collapse",
+        "color": "secondary"
+      }
+    },
+    {
+      "count": 25,
+      "display": "chat",
+      "main": null,
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 25,
+      "display": "split",
+      "main": {
+        "pressed": true,
+        "icon": "column",
+        "color": "secondary"
+      },
+      "full": {
+        "pressed": false,
+        "icon": "expand",
+        "color": "ghost"
+      }
+    },
+    {
+      "count": 25,
+      "display": "full",
+      "main": {
+        "pressed": false,
+        "icon": "column",
+        "color": "ghost"
+      },
+      "full": {
+        "pressed": true,
+        "icon": "collapse",
+        "color": "secondary"
+      }
+    }
+  ],
+  "traces": [
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [],
+        "selected": null
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "new-browser",
+        "ids": [
+          "new-browser"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "display": "split",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "display": "split",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [],
+        "selected": null
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "new-browser",
+        "ids": [
+          "new-browser"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "display": "full",
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    }
+  ]
+}

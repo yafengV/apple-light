@@ -403,12 +403,14 @@ extension WorkspaceStore {
   }
 
   func toggleWorkspaceTabView() {
-    let tab = focusedWorkspaceContentTab ?? activeWorkspaceContentTab ?? activeRightWorkspaceContentTab
-      ?? visibleWorkspaceContentTabs.first { $0.id == lastWorkspaceContentTabID }
-      ?? presentedWorkspaceContentTabs(in: .left).first
-    if let tab {
-      moveWorkspaceTab(tab.id, to: effectiveWorkspaceContentLayoutMode == .full ? .right : .left)
-    } else { newBrowserTab() }
+    guard commandEnabled("workspace-view") else { return }
+    let primary = workspacePrimaryContentTabs
+    let tab = focusedWorkspaceContentTab.flatMap { primary.contains($0) ? $0 : nil }
+      ?? activeWorkspaceContentTab ?? activeRightWorkspaceContentTab
+      ?? primary.first { $0.id == lastWorkspaceContentTabID } ?? primary.first
+    let exitsFullView = workspaceLayoutMenu.fullViewVisible
+    if let tab { moveWorkspaceTab(tab.id, to: exitsFullView ? .right : .left) }
+    else { newBrowserTab() }
   }
 
   func swapWorkspacePanes() {

@@ -12,14 +12,15 @@ struct WorkspaceLayoutMenuButton: NSViewRepresentable {
   func makeNSView(context: Context) -> Trigger {
     let view = Trigger(); view.owner = context.coordinator
     view.target = context.coordinator; view.action = #selector(Coordinator.click(_:))
-    view.isBordered = false; view.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "显示或隐藏标签页")
+    view.isBordered = false
     return view
   }
   func updateNSView(_ view: Trigger, context: Context) {
     let coordinator = context.coordinator
     let previous = coordinator.parent.menu
     coordinator.parent = self; view.isEnabled = enabled
-    view.contentTintColor = NSColor(appearance.foregroundColor)
+    view.preferences = appearance; view.needsDisplay = true
+    view.setAccessibilityValue(menu.toolbarPressed.map { NSNumber(value: $0) })
     view.toolTip = "显示或隐藏标签页 " + shortcut
     view.setAccessibilityLabel("显示或隐藏标签页")
     view.setAccessibilityHelp(menu.entries.isEmpty ? view.toolTip : "\(menu.entries.count) 个打开的标签页")
@@ -49,7 +50,14 @@ struct WorkspaceLayoutMenuButton: NSViewRepresentable {
   }
   final class Trigger: NSButton {
     weak var owner: Coordinator?
+    var preferences = AppearancePreferences()
+    private var hovered = false
     private var tracking: NSTrackingArea?
+    override func draw(_ dirtyRect: NSRect) {
+      owner?.parent.menu.toolbarArtwork.draw(in: bounds, appearance: preferences, hovered: hovered, enabled: isEnabled, focused: window?.firstResponder === self)
+    }
+    override func becomeFirstResponder() -> Bool { needsDisplay = true; return super.becomeFirstResponder() }
+    override func resignFirstResponder() -> Bool { needsDisplay = true; return super.resignFirstResponder() }
     override var intrinsicContentSize: NSSize { .init(width: 28, height: 26) }
     override var acceptsFirstResponder: Bool { isEnabled && owner?.active == true && WindowModalInteraction.allows(self) }
     override var canBecomeKeyView: Bool { acceptsFirstResponder }
@@ -58,8 +66,8 @@ struct WorkspaceLayoutMenuButton: NSViewRepresentable {
       let area = NSTrackingArea(rect: .zero, options: [.inVisibleRect,.mouseEnteredAndExited,.activeInKeyWindow], owner: self)
       addTrackingArea(area); tracking = area
     }
-    override func mouseEntered(with event: NSEvent) { owner?.hover(self) }
-    override func mouseExited(with event: NSEvent) { owner?.leave(from: event.locationInWindow, fromPopup: false) }
+    override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true; owner?.hover(self) }
+    override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true; owner?.leave(from: event.locationInWindow, fromPopup: false) }
     override func keyDown(with event: NSEvent) {
       if owner?.triggerKey(event, button: self) == true { return }; super.keyDown(with: event)
     }
