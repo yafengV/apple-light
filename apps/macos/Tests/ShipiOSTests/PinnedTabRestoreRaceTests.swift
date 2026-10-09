@@ -66,7 +66,13 @@ import XCTest
     XCTAssertEqual(store.workspace.browser.tabs.count, 1)
     XCTAssertEqual(store.workspaceTabs.filter { $0.browserID != nil }.count, 1)
     XCTAssertEqual(store.library.pinnedContentTabs.count, 1)
-    XCTAssertEqual(store.library.pinnedContentTabs.first?.sourceTabID, store.activeWorkspaceTabID)
+    let restored = try XCTUnwrap(store.focusedWorkspaceContentTab)
+    XCTAssertEqual(store.library.pinnedContentTabs.first?.sourceTabID, restored.id)
+    XCTAssertEqual(restored.browserID, store.workspace.browser.tabs.first?.id)
+    XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, .split)
+    XCTAssertNil(store.activeWorkspaceTabID)
+    XCTAssertEqual(store.activeRightWorkspaceTabID, restored.id)
+    XCTAssertTrue(store.showsWorkspaceInspector)
     XCTAssertNil(store.library.pinnedContentTabs.first?.sourceWindowID)
     XCTAssertEqual(store.library.drafts["main"], "Retain main draft")
     await store.shutdown()
@@ -118,4 +124,5 @@ import XCTest
     XCTAssertNil(store.library.pinnedContentTabs.first?.sourceWindowID)
     await store.shutdown()
   }
+
 }

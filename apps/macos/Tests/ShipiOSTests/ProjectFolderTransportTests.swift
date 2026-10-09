@@ -25,11 +25,14 @@ final class ProjectFolderTransportTests: XCTestCase {
 
   @MainActor private func fixture(api: ModelAPIProtocol = .codexResponses) async throws
     -> (WorkspaceStore, URL, URL, URL, URL) {
-    var repository = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { repository.deleteLastPathComponent() }
-    // Outside /tmp: default workspace-write otherwise also grants every /tmp path.
-    let root = repository.appendingPathComponent(".cache/project-folders-\(UUID())")
+    // Outside /tmp so sandbox probes cannot write the unattached folder via the
+    // default temporary-directory grant; outside .codex even in managed worktrees.
+    let cache = try XCTUnwrap(FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first)
+    let root = cache.appendingPathComponent("ShipiOSTests/project-folders-\(UUID())")
       .resolvingSymlinksInPath().standardizedFileURL
+    XCTAssertFalse(root.pathComponents.contains(".codex"))
+    XCTAssertFalse(root.path.hasPrefix("/private/tmp/"))
+    XCTAssertFalse(root.path.hasPrefix(FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path + "/"))
     addTeardownBlock { try? FileManager.default.removeItem(at: root) }
     let primary = root.appendingPathComponent("Primary")
     let attached = root.appendingPathComponent("Attached with spaces")
@@ -39,7 +42,11 @@ final class ProjectFolderTransportTests: XCTestCase {
     }
     let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
       agentExecutable: try AgentTestExecutable.url())
+    addTeardownBlock { await store.shutdown() }
     await store.restore(); await store.open(primary)
+    guard store.connected else {
+      throw AgentFailure(message: "Project folder fixture could not connect: \(store.error ?? "unknown error")")
+    }
     var config = ModelConfiguration()
     config.baseURL = endpoint
     config.model = api == .codexResponses ? "gpt-5.4" : "fixture"
