@@ -22,6 +22,8 @@ extension WorkspaceStore {
     let boundary: String
     do { boundary = try library.forkHistory(taskID: id, availableRuns: history).last!.id }
     catch { self.error = error.localizedDescription; return nil }
+    let config = modelConfiguration(for: id)
+    let permissions = runtimePermissions(for: id)
     let ongoingChats = library.chatRuns.filter { modelTask(runID: $0.id) != nil }.map(\.id)
     managedTaskPreparing = true
     managedTaskPreparationMessage = "正在分叉到新工作树…"
@@ -58,6 +60,11 @@ extension WorkspaceStore {
         startingName: plan.startingName, createdAt: plan.createdAt, title: plan.title)
       var candidate = library
       var fork = try candidate.forkConversation(taskID: id, through: boundary, availableRuns: history)
+      let needsNativeFork = config.apiProtocol == .codexResponses && fork.codexForkOrigin != nil
+      if needsNativeFork {
+        fork.modelSelection = .init(model: config.model, reasoning: config.reasoning,
+          providerAccount: config.credentialAccount, apiProtocol: config.apiProtocol)
+      }
       savedTaskID = fork.id
       let paths = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
       let files = try ManagedSourceFiles.capture(paths, from: source, dataRoot: dataRoot, taskID: fork.id)
@@ -79,7 +86,12 @@ extension WorkspaceStore {
         try await LocalWorkspaceService.git(
           ["diff", "--quiet", "--cached", stashCommit.map { $0 + "^2" } ?? checkout.startingCommit, "--"], at: source).status == 0,
         try await ManagedSourceFiles.capturedSourceMatches(files, at: source, excluding: dataRoot),
-        library.tasks.contains(where: { $0.id == id && $0.project == sourceTask.project && !$0.archived }),
+        library.tasks.contains(where: {
+          $0.id == id && $0.project == sourceTask.project && !$0.archived
+            && $0.codexThreadID == sourceTask.codexThreadID
+            && $0.codexWorkspacePath == sourceTask.codexWorkspacePath
+            && $0.codexForkOrigin == sourceTask.codexForkOrigin
+        }),
         !shuttingDown else {
         throw AgentFailure(message: "分叉期间来源状态已改变，请重试；来源文件已保留。")
       }
@@ -90,7 +102,7 @@ extension WorkspaceStore {
       var latest = library
       fork.project = checkout.path
       latest.tasks.insert(fork, at: 0)
-      latest.taskRuntimePreferences[fork.id] = candidate.taskRuntimePreferences[fork.id]
+      latest.taskRuntimePreferences[fork.id] = permissions
       latest.forkRuns.append(contentsOf: snapshots.map {
         AgentRun(id: $0.id, kind: $0.kind, project: checkout.path, status: $0.status,
           createdAt: $0.createdAt, updatedAt: $0.updatedAt, request: $0.request, result: $0.result)
@@ -107,6 +119,7 @@ extension WorkspaceStore {
       record.sourceCopiedFiles = files.isEmpty ? nil : files
       record.environment = environment
       record.pendingForkSourceTaskID = id
+      record.nativeForkRequired = needsNativeFork
       record.forkSourcePath = sourceTask.project
       latest.managedWorktrees.append(record)
       var profile = latest.profiles[sourceTask.project] ?? BuildProfile()
@@ -116,7 +129,7 @@ extension WorkspaceStore {
       busy = false
       try await finishWorktreeFork(fork.id)
       if openTask { await revealWorktreeFork(fork) }
-      return fork
+      return library.tasks.first { $0.id == fork.id }
     } catch {
       if let savedTaskID, !library.managedWorktrees.contains(where: { $0.taskID == savedTaskID }) {
         ManagedSourceFiles.removeSnapshot(dataRoot: dataRoot, taskID: savedTaskID)
@@ -149,7 +162,7 @@ extension WorkspaceStore {
     do {
       try await finishWorktreeFork(id)
       if openTask { await revealWorktreeFork(task) }
-      return task
+      return library.tasks.first { $0.id == task.id }
     } catch { reportWorktreeForkFailure(error, taskID: id); return nil }
   }
 
@@ -174,18 +187,31 @@ extension WorkspaceStore {
     }
     managedTaskPreparationMessage = "正在初始化分叉工作树…"
     try await runManagedWorktreeSetup(record)
-    var candidate = library
-    guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == id }),
-      candidate.managedWorktrees[index].ready,
-      candidate.managedWorktrees[index].setupCompleted == true,
-      candidate.tasks.contains(where: { $0.id == id }), !shuttingDown else {
-      throw AgentFailure(message: "分叉工作树尚未准备完成，请继续创建。")
+    var createdNativeFork = false
+    do {
+      let native = try await createPendingWorktreeNativeFork(id)
+      createdNativeFork = native != nil
+      var candidate = library
+      guard let index = candidate.managedWorktrees.firstIndex(where: { $0.taskID == id }),
+        candidate.managedWorktrees[index].ready,
+        candidate.managedWorktrees[index].setupCompleted == true,
+        candidate.tasks.contains(where: { $0.id == id }), !shuttingDown else {
+        throw AgentFailure(message: "分叉工作树尚未准备完成，请继续创建。")
+      }
+      if let native, let taskIndex = candidate.tasks.firstIndex(where: { $0.id == id }) {
+        candidate.tasks[taskIndex].codexThreadID = native.threadID
+        candidate.tasks[taskIndex].codexWorkspacePath = native.workspace
+      }
+      try Task.checkCancellation()
+      candidate.managedWorktrees[index].pendingForkSourceTaskID = nil
+      try commitLibrary(candidate)
+      worktreeError = nil
+      error = nil
+      if showingActivity { activityError = nil }
+    } catch {
+      if createdNativeFork { await Task { await self.codexTransport.discard(taskID: id) }.value }
+      throw error
     }
-    candidate.managedWorktrees[index].pendingForkSourceTaskID = nil
-    try commitLibrary(candidate)
-    worktreeError = nil
-    error = nil
-    if showingActivity { activityError = nil }
   }
 
   private func revealWorktreeFork(_ task: WorkspaceTask) async {

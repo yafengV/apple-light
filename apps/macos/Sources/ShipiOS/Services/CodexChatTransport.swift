@@ -259,6 +259,7 @@ final class CodexChatTransport {
           "model": .string(config.model), "apiKey": key.map(JSONValue.string) ?? .null,
           "initialContextBytes": .number(Double(compact ? 0 : initialText.utf8.count)),
           "resumeOnly": .bool(compact || connectOnly),
+          "createForkOnly": .bool(createForkOnly),
           "readOnly": .bool(readOnly), "textOnly": .bool(textOnly),
           "permissionProfileId": selectedProfile.map { .string($0.id) } ?? .null,
           "permissionProfileConfig": selectedProfile.map { .string($0.configTOML) } ?? .null,
@@ -293,7 +294,8 @@ final class CodexChatTransport {
         activeThreads.insert(taskID)
         serviceIdentities[taskID] = service
         if createForkOnly {
-          guard thread["forked"].boolean == true, thread["resumed"].boolean == false,
+          guard thread["forked"].boolean == true,
+            thread["resumed"].boolean == false || thread["forkRecovered"].boolean == true,
             let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil,
             threadID != forkOrigin?.threadID else {
             throw AgentFailure(message: "Core 未确认独立聊天分支，原聊天未被更改。")

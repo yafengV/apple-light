@@ -25,6 +25,8 @@ pub struct StartThread {
     #[serde(default)]
     pub resume_only: bool,
     #[serde(default)]
+    pub create_fork_only: bool,
+    #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
     pub text_only: bool,
@@ -64,7 +66,7 @@ pub struct HookInventoryRequest {
     pub sources_attachment: Option<CodexTextAttachment>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ForkThreadOrigin {
     pub task_id: String,
@@ -87,6 +89,7 @@ pub struct ThreadInfo {
     pub thread_id: String,
     pub resumed: bool,
     pub forked: bool,
+    pub fork_recovered: bool,
     pub history_workspace: Option<PathBuf>,
 }
 
@@ -103,6 +106,9 @@ struct PersistedThread {
     responses: SessionResponsePreferences,
     #[serde(default)]
     web_search: SessionWebSearch,
+    /// Creation-only forks keep an idempotent checkpoint until their first turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pending_fork_origin: Option<ForkThreadOrigin>,
 }
 
 #[derive(Deserialize)]
@@ -242,6 +248,7 @@ fn saved_thread(home: &std::path::Path) -> Result<Option<PersistedThread>> {
         permission_profile_id: thread.permission_profile_id,
         responses: thread.responses,
         web_search: thread.web_search,
+        pending_fork_origin: thread.pending_fork_origin,
     }))
 }
 
@@ -361,6 +368,8 @@ enum Command {
 
 struct ThreadHandle {
     thread_id: String,
+    persistence_home: PathBuf,
+    fork_checkpoint_pending: bool,
     sender: mpsc::Sender<Command>,
     descendants: shipios_codex::DescendantSource,
     history: Arc<crate::subagent_history::HistorySnapshots>,
@@ -548,6 +557,25 @@ impl CodexBridge {
             let previous = saved_thread(&home)?;
             (home, previous)
         };
+        let fork_recovered = request.create_fork_only && previous.is_some();
+        if request.create_fork_only {
+            ensure!(
+                request.fork_origin.is_some()
+                    && request.resume_origin.is_none()
+                    && !request.resume_only
+                    && !request.text_only,
+                "creation-only fork requires an independent native source"
+            );
+            if let Some(ref previous) = previous {
+                let origin = request.fork_origin.as_ref().expect("validated fork origin");
+                ensure!(
+                    previous.pending_fork_origin.as_ref() == Some(origin)
+                        && previous.thread_id != origin.thread_id
+                        && Uuid::parse_str(&origin.task_id)? != Uuid::parse_str(&task_key)?,
+                    "saved thread is not the same unused fork creation checkpoint"
+                );
+            }
+        }
         let fork_source = if previous.is_none() {
             request
                 .fork_origin
@@ -682,6 +710,13 @@ impl CodexBridge {
             permission_profile_id,
             responses,
             web_search,
+            pending_fork_origin: if request.create_fork_only {
+                request.fork_origin.clone()
+            } else {
+                previous
+                    .as_ref()
+                    .and_then(|saved| saved.pending_fork_origin.clone())
+            },
         });
         let save_result = saved
             .as_ref()
@@ -712,6 +747,10 @@ impl CodexBridge {
             task_key.clone(),
             ThreadHandle {
                 thread_id: thread_id.clone(),
+                persistence_home: home,
+                fork_checkpoint_pending: saved
+                    .as_ref()
+                    .is_some_and(|saved| saved.pending_fork_origin.is_some()),
                 sender,
                 descendants: descendants.clone(),
                 history: Arc::default(),
@@ -737,7 +776,8 @@ impl CodexBridge {
             task_id,
             thread_id,
             resumed,
-            forked,
+            forked: forked || fork_recovered,
+            fork_recovered,
             history_workspace,
         })
     }
@@ -750,6 +790,32 @@ impl CodexBridge {
             .get(&task_id.hyphenated().to_string())
             .map(|handle| handle.sender.clone())
             .ok_or_else(|| anyhow!("Codex thread is not active"))
+    }
+
+    /// Once a turn can change the history, its thread can no longer acknowledge
+    /// an interrupted creation. Persist that boundary before submitting to Core.
+    async fn consume_fork_checkpoint(&self, task_id: &str) -> Result<()> {
+        let key = Uuid::parse_str(task_id)?.hyphenated().to_string();
+        let mut handles = self.sessions.lock().await;
+        let handle = handles
+            .get_mut(&key)
+            .context("Codex thread is not active")?;
+        // Ordinary new threads write their first rollout asynchronously. They have
+        // no creation checkpoint to consume and must not wait for that file here.
+        if !handle.fork_checkpoint_pending {
+            return Ok(());
+        }
+        let mut saved =
+            saved_thread(&handle.persistence_home)?.context("Codex thread reference is missing")?;
+        ensure!(
+            saved.thread_id == handle.thread_id,
+            "Codex thread reference identity changed"
+        );
+        if saved.pending_fork_origin.take().is_some() {
+            persist_thread(&handle.persistence_home, &saved)?;
+        }
+        handle.fork_checkpoint_pending = false;
+        Ok(())
     }
 
     pub async fn approve(&self, approval: CodexApproval) -> Result<()> {
@@ -872,6 +938,7 @@ impl CodexBridge {
             "plan and goal modes cannot be combined"
         );
         let inputs = self.inputs_with_attachments(text, images, text_attachment)?;
+        self.consume_fork_checkpoint(&task_id).await?;
         let (reply, result) = oneshot::channel();
         self.sender(&task_id)
             .await?
@@ -895,6 +962,7 @@ impl CodexBridge {
     }
 
     pub async fn compact(&self, task_id: &str) -> Result<()> {
+        self.consume_fork_checkpoint(task_id).await?;
         let (reply, result) = oneshot::channel();
         self.sender(task_id)
             .await?
@@ -1591,6 +1659,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(0),
                     resume_only: false,
+                    create_fork_only: false,
                     read_only: false,
                     text_only: false,
                     additional_folders: Vec::new(),
@@ -1621,6 +1690,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(0),
                     resume_only: true,
+                    create_fork_only: false,
                     read_only: false,
                     text_only: false,
                     additional_folders: Vec::new(),
@@ -1650,6 +1720,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(0),
                     resume_only: true,
+                    create_fork_only: false,
                     read_only: false,
                     text_only: false,
                     additional_folders: Vec::new(),
@@ -1730,6 +1801,7 @@ mod tests {
             permission_profile_id: None,
             responses: SessionResponsePreferences::default(),
             web_search: SessionWebSearch::default(),
+            pending_fork_origin: None,
         };
         persist_thread(&home, &saved)?;
         let bridge = CodexBridge::new(target_data, target);
@@ -1779,6 +1851,7 @@ mod tests {
                 permission_profile_id: saved.permission_profile_id.clone(),
                 responses: saved.responses,
                 web_search: saved.web_search,
+                pending_fork_origin: None,
             },
         )?;
         let alias_origin = ForkThreadOrigin {
@@ -1934,6 +2007,7 @@ mod tests {
                         api_key: None,
                         initial_context_bytes: Some(0),
                         resume_only: false,
+                    create_fork_only: false,
                         fork_origin: None,
                         resume_origin: None,
                         read_only: false,
@@ -2095,6 +2169,7 @@ mod tests {
                         api_key: None,
                         initial_context_bytes: Some(0),
                         resume_only: false,
+                        create_fork_only: false,
                         read_only: false,
                         text_only: false,
                         additional_folders: Vec::new(),
@@ -2224,6 +2299,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(0),
                     resume_only: true,
+                    create_fork_only: false,
                     fork_origin: None,
                     resume_origin: None,
                     read_only: false,
@@ -2261,6 +2337,7 @@ mod tests {
                     api_key: None,
                     initial_context_bytes: Some(48_001),
                     resume_only: false,
+                    create_fork_only: false,
                     fork_origin: None,
                     resume_origin: None,
                     read_only: false,
@@ -2290,6 +2367,7 @@ mod tests {
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_000),
                 resume_only: false,
+                create_fork_only: false,
                 fork_origin: None,
                 resume_origin: None,
                 read_only: false,
@@ -2363,6 +2441,7 @@ mod tests {
             api_key: Some("bridge-test-token".to_owned()),
             initial_context_bytes: Some(80_000),
             resume_only: false,
+            create_fork_only: true,
             fork_origin: Some(fork_origin),
             resume_origin: None,
             read_only: false,
@@ -2398,6 +2477,22 @@ mod tests {
         let child_history = std::fs::read_to_string(saved_child.rollout_path)?;
         assert!(child_history.contains(&thread.thread_id));
         assert!(child_history.contains("Agent bridge reply"));
+        assert!(saved_child.pending_fork_origin.is_some());
+        let requests_before_recovery = server.received_requests().await.unwrap().len();
+        bridge.stop(&child_id).await?;
+        let mut changed_boundary = origin();
+        changed_boundary.through_turn_id = Uuid::new_v4().to_string();
+        assert!(bridge.start(fork_request(changed_boundary)).await.is_err());
+        let mut changed_source = origin();
+        changed_source.thread_id = Uuid::new_v4().to_string();
+        assert!(bridge.start(fork_request(changed_source)).await.is_err());
+        let recovered = bridge.start(fork_request(origin())).await?;
+        assert!(recovered.forked && recovered.resumed && recovered.fork_recovered);
+        assert_eq!(recovered.thread_id, child.thread_id);
+        assert_eq!(
+            server.received_requests().await.unwrap().len(),
+            requests_before_recovery
+        );
         bridge.submit(&child_id, "Fork followup".to_owned()).await?;
         loop {
             let event =
@@ -2411,7 +2506,17 @@ mod tests {
                 _ => {}
             }
         }
+        assert!(
+            saved_thread(&child_home)?
+                .unwrap()
+                .pending_fork_origin
+                .is_none()
+        );
         bridge.stop(&child_id).await?;
+        assert!(
+            bridge.start(fork_request(origin())).await.is_err(),
+            "A child with a submitted turn is no longer an unused creation checkpoint"
+        );
         bridge.stop(&task_id).await?;
         assert!(bridge.submit(&task_id, "Again".to_owned()).await.is_err());
         let restarted = CodexBridge::new(data_dir.clone(), temp.path().join("Project"));
@@ -2424,6 +2529,7 @@ mod tests {
                 api_key: Some("bridge-test-token".to_owned()),
                 initial_context_bytes: Some(48_001),
                 resume_only: false,
+                create_fork_only: false,
                 fork_origin: None,
                 resume_origin: None,
                 read_only: false,

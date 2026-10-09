@@ -78,6 +78,9 @@ struct ManagedWorktree: Codable, Identifiable, Equatable {
   var pendingHandoff: PendingHandoff? = nil
   /// A saved fork owns its checkout before creation/setup. Cleared only once it can run.
   var pendingForkSourceTaskID: String? = nil
+  /// Native history must be cloned before publishing this checkout as usable.
+  /// Nil keeps older saved pending forks readable; text-only forks explicitly save false.
+  var nativeForkRequired: Bool? = nil
   /// Setup uses the captured checkout; Git lifecycle uses the stable repository source.
   var forkSourcePath: String? = nil
   /// Protected by refs/shipios/managed-archive/<taskID> until this checkout is restored.

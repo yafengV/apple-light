@@ -34,9 +34,11 @@ import XCTest
               out.write(json.dumps({'method': method, 'taskId': params.get('taskId')}) + '\n')
           response = {'jsonrpc': '2.0', 'id': request['id']}
           if method == 'codex.thread.start':
+              mode = json.load(open(os.path.join(root, 'mode.json')))
               with open(os.path.join(root, 'started.tmp'), 'w') as out:
                   json.dump({'taskId': params['taskId'], 'resumeOnly': params['resumeOnly'],
-                             'forkOrigin': params['forkOrigin'], 'project': project}, out)
+                             'forkOrigin': params['forkOrigin'], 'project': project,
+                             'model': params['model'], 'permissions': params['permissions']}, out)
               os.replace(os.path.join(root, 'started.tmp'), os.path.join(root, 'started.json'))
               deadline = time.monotonic() + 10
               while not os.path.exists(os.path.join(root, 'release')) and time.monotonic() < deadline:
@@ -96,6 +98,145 @@ import XCTest
     try String(contentsOf: fixture.trace).split(separator: "\n").map {
       try JSONDecoder().decode(JSONValue.self, from: Data($0.utf8))
     }
+  }
+
+  private func prepareWorktreeRepository(_ f: Fixture) async throws {
+    let project = URL(fileURLWithPath: f.source.project)
+    _ = try await GitReviewService.checked(["init", "-q"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+    try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+    _ = try await GitReviewService.checked(["add", "."], at: project)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+    f.store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.legacy
+    f.store.library.profiles[project.path] = BuildProfile(worktreeSetupScript: "printf 'setup\\n' >> setup-count")
+    XCTAssertTrue(f.store.saveLibrary())
+  }
+
+  func testNewWorktreeWaitsForNativeAcknowledgmentAndMergesIntoLatestLibraryWithoutModelTurn() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let permissions = AgentRuntimePreferences(approvalPolicy: .never, sandboxMode: .readOnly, networkAccess: false)
+    store.library.taskRuntimePreferences[f.source.id] = permissions
+    let operation = Task { await store.forkTaskToNewWorktree(f.source.id, openTask: false) }
+    let request = try await waitUntilStarted(f)
+    let pending = try XCTUnwrap(store.library.managedWorktrees.first)
+    let childID = pending.taskID
+    XCTAssertTrue(pending.ready)
+    XCTAssertEqual(pending.setupCompleted, true)
+    XCTAssertEqual(pending.nativeForkRequired, true)
+    XCTAssertEqual(pending.pendingForkSourceTaskID, f.source.id)
+    XCTAssertFalse(store.canStartChat(taskID: childID))
+    XCTAssertNil(store.library.tasks.first { $0.id == childID }?.codexThreadID)
+    XCTAssertEqual(request["taskId"].text, childID)
+    XCTAssertEqual(request["project"].text, pending.path)
+    XCTAssertEqual(request["forkOrigin"]["threadId"].text, f.source.codexThreadID)
+    XCTAssertEqual(request["permissions"]["sandboxMode"].text, permissions.sandboxMode.rawValue)
+    XCTAssertEqual(request["permissions"]["networkAccess"].boolean, false)
+    store.draft = "new source draft during acknowledgement"
+    store.library.drafts[childID] = "new child draft"
+    var config = store.modelConfiguration
+    config.model = "different-model"
+    try store.saveModelConfiguration(config)
+    try Data().write(to: f.release)
+    let result = await operation.value
+    let child = try XCTUnwrap(result, store.error ?? "")
+    XCTAssertEqual(child.id, childID)
+    XCTAssertEqual(child.codexThreadID, f.childThread)
+    XCTAssertEqual(child.codexWorkspacePath, pending.path)
+    XCTAssertEqual(child.modelSelection?.model, "fixture")
+    XCTAssertEqual(store.modelConfiguration(for: childID).model, "fixture")
+    XCTAssertEqual(store.runtimePermissions(for: childID), permissions)
+    XCTAssertEqual(store.draft, "new source draft during acknowledgement")
+    XCTAssertEqual(store.taskWindowDraft(childID), "new child draft")
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertNil(store.library.managedWorktrees.first?.pendingForkSourceTaskID)
+    XCTAssertTrue(store.canStartChat(taskID: childID))
+    XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+    let saved = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(saved.tasks.first { $0.id == childID }?.codexThreadID, f.childThread)
+    XCTAssertNil(saved.managedWorktrees.first?.pendingForkSourceTaskID)
+    await store.shutdown()
+  }
+
+  func testNewWorktreeCoreFailuresRetainSameCheckpointAndRetryWithoutRepeatingSetup() async throws {
+    for mode in ["error", "not-forked", "invalid-id"] {
+      let f = try await fixture(mode: mode), store = f.store
+      try await prepareWorktreeRepository(f)
+      try Data().write(to: f.release)
+      let failed = await store.forkTaskToNewWorktree(f.source.id, openTask: false)
+      XCTAssertNil(failed, mode)
+      let record = try XCTUnwrap(store.library.managedWorktrees.first)
+      XCTAssertTrue(record.ready)
+      XCTAssertEqual(record.setupCompleted, true)
+      XCTAssertEqual(record.pendingForkSourceTaskID, f.source.id)
+      XCTAssertNil(store.library.tasks.first { $0.id == record.taskID }?.codexThreadID)
+      XCTAssertFalse(store.codexTransport.isConnected(taskID: record.taskID))
+      XCTAssertFalse(store.canStartChat(taskID: record.taskID))
+      XCTAssertEqual(store.selectedTask?.id, f.source.id)
+      XCTAssertEqual(store.draft, "keep current draft")
+      try JSONEncoder().encode("success").write(to: f.root.appendingPathComponent("mode.json"))
+      let result = await store.resumeWorktreeFork(record.taskID, openTask: false)
+      let child = try XCTUnwrap(result, store.error ?? "")
+      XCTAssertEqual(child.id, record.taskID)
+      XCTAssertEqual(child.codexThreadID, f.childThread)
+      XCTAssertEqual(store.library.tasks.count, 2)
+      XCTAssertEqual(store.library.managedWorktrees.count, 1)
+      XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path).appendingPathComponent("setup-count")), "setup\n")
+      XCTAssertNil(store.library.managedWorktrees.first?.pendingForkSourceTaskID)
+      XCTAssertEqual(try events(f).filter { $0["method"].text == "codex.thread.start" }.count, 2)
+      XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+      await store.shutdown()
+    }
+  }
+
+  func testCancelledNewWorktreeAcknowledgementKeepsRecoverableCheckoutAndDiscardsConnection() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let operation = Task { await store.forkTaskToNewWorktree(f.source.id, openTask: false) }
+    _ = try await waitUntilStarted(f)
+    let record = try XCTUnwrap(store.library.managedWorktrees.first)
+    operation.cancel()
+    try Data().write(to: f.release)
+    let failed = await operation.value
+    XCTAssertNil(failed)
+    XCTAssertEqual(store.library.managedWorktrees.first?.pendingForkSourceTaskID, f.source.id)
+    XCTAssertNil(store.library.tasks.first { $0.id == record.taskID }?.codexThreadID)
+    XCTAssertFalse(store.codexTransport.isConnected(taskID: record.taskID))
+    XCTAssertFalse(store.managedTaskPreparing)
+    XCTAssertFalse(store.busy)
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertEqual(store.draft, "keep current draft")
+    let result = await store.resumeWorktreeFork(record.taskID, openTask: false)
+    XCTAssertEqual(result?.id, record.taskID, store.error ?? "")
+    XCTAssertEqual(result?.codexThreadID, f.childThread)
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path).appendingPathComponent("setup-count")), "setup\n")
+    await store.shutdown()
+  }
+
+  func testNewWorktreeFinalSaveFailureDiscardsUnpublishedCoreAndRetryKeepsOriginalCheckout() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let operation = Task { await store.forkTaskToNewWorktree(f.source.id, openTask: false) }
+    _ = try await waitUntilStarted(f)
+    let record = try XCTUnwrap(store.library.managedWorktrees.first)
+    let workspace = store.dataRoot.appendingPathComponent("workspace.json")
+    try FileManager.default.removeItem(at: workspace)
+    try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+    try Data().write(to: f.release)
+    let failed = await operation.value
+    XCTAssertNil(failed)
+    XCTAssertEqual(store.library.managedWorktrees.first?.pendingForkSourceTaskID, f.source.id)
+    XCTAssertNil(store.library.tasks.first { $0.id == record.taskID }?.codexThreadID)
+    XCTAssertFalse(store.codexTransport.isConnected(taskID: record.taskID))
+    try FileManager.default.removeItem(at: workspace)
+    XCTAssertTrue(store.saveLibrary())
+    let result = await store.resumeWorktreeFork(record.taskID, openTask: false)
+    XCTAssertEqual(result?.project, record.path, store.error ?? "")
+    XCTAssertEqual(result?.codexThreadID, f.childThread)
+    XCTAssertEqual(store.library.tasks.count, 2)
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: record.path).appendingPathComponent("setup-count")), "setup\n")
+    await store.shutdown()
   }
 
   func testHistoricalWindowForkPreservesNewDraftUsesLocalNoticesAndLeavesMainNavigationUntouched() async throws {

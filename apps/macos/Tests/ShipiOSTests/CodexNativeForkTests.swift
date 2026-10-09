@@ -443,6 +443,98 @@ final class CodexNativeForkTests: XCTestCase {
     await store.shutdown()
   }
 
+  @MainActor func testNewWorktreeCreatesActualCoreChildBeforeFirstTurnWithoutModelRequest() async throws {
+    let (store, project, agent) = try await fixture()
+    _ = try await GitReviewService.checked(["init", "-q"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+    try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+    _ = try await GitReviewService.checked(["add", "."], at: project)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+    store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
+    let first = try await send("codex-handoff-cwd-probe", store: store)
+    let parent = try XCTUnwrap(store.selectedTask)
+    store.draft = "source draft"
+    let requests = try modelRequestCount()
+    let result = await store.forkTaskToNewWorktree(parent.id, openTask: false)
+    let child = try XCTUnwrap(result, store.error ?? "")
+    XCTAssertNotNil(child.codexThreadID, "The completed creation must include the actual Core child")
+    XCTAssertNotEqual(child.codexThreadID, parent.codexThreadID)
+    XCTAssertEqual(child.codexWorkspacePath, child.project)
+    XCTAssertEqual(child.codexForkOrigin?.throughTurnID, first.result?["codex_turn_id"].text)
+    XCTAssertTrue(store.codexTransport.isConnected(taskID: child.id))
+    XCTAssertNil(store.activeRun(taskID: child.id))
+    XCTAssertEqual(try modelRequestCount(), requests, "Forking must not send a model turn")
+    let path = try XCTUnwrap(store.codexConversationPath(for: child))
+    XCTAssertTrue(try String(contentsOf: path).contains("forked_from_id"))
+    XCTAssertEqual(store.selectedTask?.id, parent.id)
+    XCTAssertEqual(store.draft, "source draft")
+    let saved = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(saved.tasks.first { $0.id == child.id }?.codexThreadID, child.codexThreadID)
+    XCTAssertNil(saved.managedWorktrees.first { $0.taskID == child.id }?.pendingForkSourceTaskID)
+    let dataRoot = store.dataRoot
+    await store.shutdown()
+    let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+    await reopened.restore()
+    let restored = try XCTUnwrap(reopened.library.tasks.first { $0.id == child.id })
+    let opened = await reopened.selectTaskAwaitingScope(restored)
+    XCTAssertTrue(opened, reopened.error ?? "")
+    _ = try await send("skill-dependency-request-echo", store: reopened)
+    XCTAssertEqual(reopened.selectedTask?.codexThreadID, child.codexThreadID)
+    await reopened.shutdown()
+  }
+
+  @MainActor func testNewWorktreeRecoversSameCoreAcknowledgmentAfterInterruptedFinalSaveAndRestart() async throws {
+    let (store, project, agent) = try await fixture()
+    _ = try await GitReviewService.checked(["init", "-q"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+    _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+    try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+    _ = try await GitReviewService.checked(["add", "."], at: project)
+    _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+    store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
+    _ = try await send("codex-handoff-cwd-probe", store: store)
+    let parent = try XCTUnwrap(store.selectedTask)
+    store.draft = "source draft"
+    let requests = try modelRequestCount()
+    let result = await store.forkTaskToNewWorktree(parent.id, openTask: false)
+    let child = try XCTUnwrap(result, store.error ?? "")
+    XCTAssertNotNil(child.codexThreadID, "The completed creation must include the actual Core child")
+    XCTAssertNotEqual(child.codexThreadID, parent.codexThreadID)
+    XCTAssertEqual(child.codexWorkspacePath, child.project)
+    XCTAssertTrue(store.codexTransport.isConnected(taskID: child.id))
+    XCTAssertNil(store.activeRun(taskID: child.id))
+    XCTAssertEqual(try modelRequestCount(), requests, "Forking must not send a model turn")
+    let path = try XCTUnwrap(store.codexConversationPath(for: child))
+    XCTAssertTrue(try String(contentsOf: path).contains("forked_from_id"))
+    XCTAssertEqual(store.selectedTask?.id, parent.id)
+    XCTAssertEqual(store.draft, "source draft")
+    // Reachable crash checkpoint: Core acknowledged its child, but the final workspace
+    // write did not publish that identity or clear the saved preparation record.
+    let taskIndex = try XCTUnwrap(store.library.tasks.firstIndex { $0.id == child.id })
+    let recordIndex = try XCTUnwrap(store.library.managedWorktrees.firstIndex { $0.taskID == child.id })
+    store.library.tasks[taskIndex].codexThreadID = nil
+    store.library.tasks[taskIndex].codexWorkspacePath = nil
+    store.library.managedWorktrees[recordIndex].pendingForkSourceTaskID = parent.id
+    XCTAssertTrue(store.saveLibrary())
+    let dataRoot = store.dataRoot
+    await store.shutdown()
+    let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+    await reopened.restore()
+    let recovered = await reopened.resumeWorktreeFork(child.id, openTask: false)
+    let acknowledged = try XCTUnwrap(recovered, reopened.error ?? "")
+    XCTAssertEqual(acknowledged.id, child.id)
+    XCTAssertEqual(acknowledged.codexThreadID, child.codexThreadID,
+      "Retry must recover the same unused acknowledged child, not create another history")
+    XCTAssertEqual(try modelRequestCount(), requests)
+    XCTAssertNil(reopened.library.managedWorktrees.first { $0.taskID == child.id }?.pendingForkSourceTaskID)
+    let opened = await reopened.selectTaskAwaitingScope(acknowledged)
+    XCTAssertTrue(opened, reopened.error ?? "")
+    _ = try await send("skill-dependency-request-echo", store: reopened)
+    XCTAssertEqual(reopened.selectedTask?.codexThreadID, child.codexThreadID)
+    await reopened.shutdown()
+  }
+
   @MainActor func testNewWorktreeForkPreservesNativeToolsRunsInOwnCheckoutAndResumes() async throws {
     let (store, project, agent) = try await fixture()
     _ = try await GitReviewService.checked(["init", "-q"], at: project)
@@ -518,9 +610,11 @@ final class CodexNativeForkTests: XCTestCase {
     let nestedCreated = await reopened.forkTaskToNewWorktree(fork.id)
     let nested = try XCTUnwrap(nestedCreated, reopened.error ?? "")
     XCTAssertNotEqual(nested.project, fork.project)
-    // The nested child has not opened a Core thread yet. Its source checkout can already be
-    // archived, while the private source rollout and copied files remain available.
-    XCTAssertNil(reopened.library.tasks.first { $0.id == nested.id }?.codexThreadID)
+    // The acknowledged child already owns its native history before its source checkout
+    // is archived. Continuing it must use that saved child, not clone its source again.
+    XCTAssertNotNil(nested.codexThreadID)
+    XCTAssertNotEqual(nested.codexThreadID, child.codexThreadID)
+    XCTAssertTrue(reopened.codexTransport.isConnected(taskID: nested.id))
     reopened.updateTask(fork.id, archive: true)
     await reopened.managedArchiveCleanupTask?.value
     XCTAssertFalse(FileManager.default.fileExists(atPath: fork.project))
