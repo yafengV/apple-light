@@ -36,7 +36,7 @@ extension WorkspaceStore {
           let current = library.tasks.first(where: { $0.id == result.owner }) else { return false }
         applyTaskSelection(current)
       } else {
-        guard await selectWorkspaceDraft(result.owner, recordHistory: false, stillValid: {
+        guard await selectWorkspaceDraft(result.owner, recordHistory: false, revealingContentTabID: result.id, stillValid: {
           commandBrowserTabs.contains(where: { $0.id == result.id && $0.owner == result.owner })
         }) else { return false }
       }

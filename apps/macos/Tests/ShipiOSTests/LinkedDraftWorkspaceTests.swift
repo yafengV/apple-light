@@ -63,19 +63,22 @@ import XCTest
   }
 
   func testCommandBrowserReturnsToExactLinkedDraftWithoutClearingOrdinaryDraft() async throws {
-    let (store, _, owner) = try fixture(project: false)
-    store.newBrowserTab(in: .right)
-    let result = try XCTUnwrap(store.commandBrowserTabs.first)
-    let page = try XCTUnwrap(store.workspace.browser.selected)
-    store.applyTaskSelection(store.library.tasks[0]); store.draft = "task draft"
-    let opened = await store.openCommandBrowserTab(result)
-    XCTAssertTrue(opened, store.error ?? "")
-    XCTAssertEqual(store.draftKey, owner); XCTAssertEqual(store.draft, "linked draft")
-    XCTAssertEqual(store.library.drafts["new:none"], "ordinary draft")
-    XCTAssertEqual(store.library.drafts["task"], "task draft")
-    XCTAssertTrue(store.workspace.browser.selected === page)
-    XCTAssertEqual(store.activeRightWorkspaceTabID, result.id)
-    XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, .split)
+    for mode in [WorkspaceContentLayoutMode.full, .split] {
+      let (store, _, owner) = try fixture(project: false)
+      store.newBrowserTab(in: mode == .full ? .left : .right)
+      let result = try XCTUnwrap(store.commandBrowserTabs.first)
+      let page = try XCTUnwrap(store.workspace.browser.selected)
+      store.applyTaskSelection(store.library.tasks[0]); store.draft = "task draft"
+      let opened = await store.openCommandBrowserTab(result)
+      XCTAssertTrue(opened, store.error ?? "")
+      XCTAssertEqual(store.draftKey, owner); XCTAssertEqual(store.draft, "linked draft")
+      XCTAssertEqual(store.library.drafts["new:none"], "ordinary draft")
+      XCTAssertEqual(store.library.drafts["task"], "task draft")
+      XCTAssertTrue(store.workspace.browser.selected === page)
+      XCTAssertEqual(store.focusedWorkspaceTabID, result.id)
+      XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, mode)
+      XCTAssertFalse(page.closed)
+    }
   }
 
   func testDetachedChatReturnsToExactLinkedDraftAndKeepsDetachedContent() async throws {

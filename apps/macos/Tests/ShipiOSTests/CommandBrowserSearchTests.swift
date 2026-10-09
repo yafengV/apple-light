@@ -67,4 +67,67 @@ final class CommandBrowserSearchTests: XCTestCase {
     XCTAssertEqual(store.activeWorkspaceTabID, draftResult.id)
     await store.shutdown()
   }
+
+  @MainActor func testSearchReturningToUnsentDraftSelectsContentWithoutDiscardingItsTarget() async throws {
+    for mode in [WorkspaceContentLayoutMode.full, .split] {
+      for address in [String?.none, "", "search draft"] {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = WorkspaceStore(dataRoot: root)
+        await store.restore()
+        store.library.tasks = [.init(id: "other", project: "", title: "Other", runIDs: [])]
+        store.library.drafts = ["new:none": "Unsent input", "other": "Other input"]
+        store.newTask()
+        store.newBrowserTab(in: mode == .full ? .left : .right)
+        let page = try XCTUnwrap(store.workspace.browser.selected)
+        if let address { page.setAddressDraft(address) }
+        let result = try XCTUnwrap(store.commandBrowserTabs.first)
+        let owner = store.currentWorkspaceTabOwner
+        store.applyTaskSelection(store.library.tasks[0])
+        XCTAssertFalse(page.closed)
+        let opened = await store.openCommandBrowserTab(result)
+        XCTAssertTrue(opened, "\(mode)/\(String(describing: address))")
+        XCTAssertFalse(page.closed)
+        XCTAssertEqual(store.currentWorkspaceTabOwner, owner)
+        XCTAssertEqual(store.focusedWorkspaceTabID, result.id)
+        XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, mode)
+        XCTAssertTrue(store.workspace.browser.selected === page)
+        XCTAssertEqual(page.address, address ?? "")
+        XCTAssertEqual(store.library.drafts, ["new:none": "Unsent input", "other": "Other input"])
+        XCTAssertFalse(store.canReopenClosedWorkspaceTab)
+        XCTAssertFalse(store.workspace.browser.canReopenClosedTab)
+        await store.shutdown()
+        try? FileManager.default.removeItem(at: root)
+      }
+    }
+  }
+
+  @MainActor func testDraftContentRevealRejectsUnavailableOrForeignTargetsBeforeChangingSelection() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    await store.restore()
+    store.library.tasks = [.init(id: "task", project: "", title: "Task", runIDs: [])]
+    store.newTask(); store.newBrowserTab()
+    let result = try XCTUnwrap(store.commandBrowserTabs.first), page = try XCTUnwrap(store.workspace.browser.selected)
+    store.applyTaskSelection(store.library.tasks[0])
+    let origin = store.currentTaskLocation, history = store.navigationBack
+    for place in [WorkspaceTabPlacement.detached, .bottom] {
+      store.workspaceTabPlacements[result.id] = place
+      let opened = await store.selectWorkspaceDraft(result.owner, revealingContentTabID: result.id)
+      XCTAssertFalse(opened); XCTAssertEqual(store.currentTaskLocation, origin)
+      XCTAssertEqual(store.navigationBack, history); XCTAssertFalse(page.closed)
+    }
+    store.workspaceTabPlacements[result.id] = .left
+    store.newBrowserTab()
+    let foreign = try XCTUnwrap(store.activeWorkspaceTabID)
+    for target in ["missing", foreign] {
+      let opened = await store.selectWorkspaceDraft(result.owner, revealingContentTabID: target)
+      XCTAssertFalse(opened); XCTAssertEqual(store.currentTaskLocation, origin)
+      XCTAssertEqual(store.navigationBack, history); XCTAssertFalse(page.closed)
+    }
+    store.closeBrowserTab(page.id)
+    let closed = await store.selectWorkspaceDraft(result.owner, revealingContentTabID: result.id)
+    XCTAssertFalse(closed); XCTAssertEqual(store.currentTaskLocation, origin)
+    await store.shutdown()
+  }
 }
