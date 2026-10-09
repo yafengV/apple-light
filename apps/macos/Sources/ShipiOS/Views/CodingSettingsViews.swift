@@ -301,14 +301,14 @@ struct CodeReviewSettingsView: View {
   }
 }
 
-private enum EnvironmentPage: Equatable {
-  case projects, overview, editor
-}
-
 struct LocalEnvironmentSettingsView: View {
   @Bindable var store: WorkspaceStore
   @Bindable var environment: EnvironmentSettingsSession
-  @State private var page = EnvironmentPage.projects
+  @State private var navigation = EnvironmentSettingsNavigation()
+  private var page: EnvironmentPage {
+    get { navigation.page }
+    nonmutating set { navigation.show(newValue) }
+  }
   @State private var inheritedExpanded = false
   @State private var expandedCatalogInherited: Set<String> = []
   @State private var setupPlatform = EnvironmentPlatform.all
@@ -362,8 +362,7 @@ struct LocalEnvironmentSettingsView: View {
     .task(id: store.settingsSearchRequest?.token) {
       if store.settingsSearchRequest?.result.page == .environments,
         let path = store.project?.path {
-        await openEnvironmentProject(path)
-        page = .editor
+        await openEnvironmentProject(path, showEditor: true)
       }
     }
     .task(id: store.settingsPage) {
@@ -379,6 +378,7 @@ struct LocalEnvironmentSettingsView: View {
     .onAppear {
       honorEnvironmentRoute()
     }
+    .onDisappear { navigation.invalidate() }
     .onChange(of: store.environmentSettingsOpenProject) { _, shouldOpen in
       if shouldOpen && store.destination == .settings { honorEnvironmentRoute() }
     }
@@ -393,10 +393,7 @@ struct LocalEnvironmentSettingsView: View {
       Button("放弃修改并继续", role: .destructive) {
         if returningToOverview {
           Task {
-            guard page == .editor, store.destination == .settings, store.settingsPage == .environments else { return }
-            guard await environment.reloadFromSettings() else { return }
-            guard page == .editor, store.destination == .settings, store.settingsPage == .environments else { return }
-            page = .overview
+            await navigation.discard(environment: environment, store: store)
           }
         }
         else if reloadingEnvironment { Task { await environment.refresh() } }
@@ -412,13 +409,10 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private func saveEnvironment(returnToOverview: Bool = false) async {
-    guard page == .editor else { return }
-    guard await environment.saveFromSettings(synchronize: { path, selected, created in
-      await store.environmentSettingsDidSave(projectPath: path, fileName: selected, created: created)
-    }) else { return }
-    if returnToOverview && page == .editor && store.destination == .settings && store.settingsPage == .environments {
-      page = .overview
-    }
+    await navigation.save(returnToOverview: returnToOverview, environment: environment, store: store,
+      synchronize: { path, selected, created in
+        await store.environmentSettingsDidSave(projectPath: path, fileName: selected, created: created)
+      })
   }
 
   private func honorEnvironmentRoute() {
@@ -428,8 +422,7 @@ struct LocalEnvironmentSettingsView: View {
     store.environmentSettingsOpenEditor = false
     guard let path = store.project?.path else { page = .projects; return }
     Task {
-      await openEnvironmentProject(path)
-      if showEditor { page = .editor }
+      await openEnvironmentProject(path, showEditor: showEditor)
     }
   }
 
@@ -597,10 +590,7 @@ struct LocalEnvironmentSettingsView: View {
   @ViewBuilder private func environmentRow(_ entry: LocalEnvironmentEntry) -> some View {
     Button {
       Task {
-        await environment.select(entry.id)
-        if environment.fileName == entry.id {
-          page = entry.error == nil ? .overview : .editor
-        }
+        await navigation.select(entry, environment: environment, store: store)
       }
     } label: {
       HStack {
@@ -622,23 +612,9 @@ struct LocalEnvironmentSettingsView: View {
   }
 
   private func openEnvironmentProject(_ path: String, selectionID: String? = nil,
-    createNew: Bool = false) async {
-    if environment.hasUnsavedChanges,
-      environment.projectPath != path || createNew || selectionID != nil {
-      environment.status = "当前环境有未保存的修改，请先保存或放弃。"
-      page = .editor
-      return
-    }
-    if environment.projectPath != path || !environment.connected {
-      await environment.open(path, title: store.library.projectTitle(path), executable: store.executable)
-    }
-    guard environment.connected, environment.projectPath == path else { page = .projects; return }
-    if createNew { environment.create() }
-    else if let selectionID { await environment.select(selectionID) }
-    let needsEditor = createNew || selectionID.flatMap { selected in
-      environment.files.first(where: { $0.id == selected })?.error
-    } != nil
-    page = needsEditor ? .editor : .overview
+    createNew: Bool = false, showEditor: Bool = false) async {
+    await navigation.openProject(path, selectionID: selectionID, createNew: createNew,
+      showEditor: showEditor, environment: environment, store: store)
   }
 
   private func chooseEnvironmentProject() {
@@ -646,10 +622,11 @@ struct LocalEnvironmentSettingsView: View {
     panel.title = "选择项目所在文件夹"
     panel.canChooseDirectories = true
     panel.canChooseFiles = false
-    guard let window = NSApp.keyWindow else { return }
+    guard let window = NSApp.keyWindow, let ticket = navigation.begin(in: store) else { return }
     panel.beginSheetModal(for: window) { response in
       guard response == .OK, let url = panel.url else { return }
       Task { @MainActor in
+        guard navigation.isCurrent(ticket, in: store) else { return }
         let path = url.resolvingSymlinksInPath().standardizedFileURL.path
         store.library.visit(path)
         store.saveLibrary()

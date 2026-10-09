@@ -584,4 +584,104 @@ import XCTest
     XCTAssertTrue(mayReturn); XCTAssertEqual(editor.name, "environment.toml:2")
     XCTAssertFalse(editor.hasUnsavedChanges); XCTAssertFalse(editor.readError)
   }
+
+  private func navigationStore(_ f: Fixture) -> WorkspaceStore {
+    let store = WorkspaceStore(dataRoot: f.root.appendingPathComponent("Navigation"), agentExecutable: f.executable)
+    store.destination = .settings; store.settingsPage = .environments
+    return store
+  }
+
+  func testOpenSettingsProjectCannotNavigateAfterPageOrRouteChanges() async throws {
+    for change in 0..<5 {
+      let f = try fixture(), editor = EnvironmentSettingsSession(), store = navigationStore(f)
+      addTeardownBlock { await editor.close() }
+      let navigation = EnvironmentSettingsNavigation()
+      try hold(f, method: "environment.list")
+      let opening = Task { await navigation.openProject(f.project.path, showEditor: true, environment: editor, store: store) }
+      try await reached(f)
+      switch change {
+      case 0: navigation.show(.overview); navigation.show(.projects)
+      case 1: store.settingsPage = .general; store.settingsPage = .environments
+      case 2: store.destination = .workspace; store.destination = .settings
+      case 3: navigation.invalidate()
+      default: await navigation.openProject(f.project.path, environment: editor, store: store)
+      }
+      try FileManager.default.removeItem(at: f.gate); await opening.value
+      XCTAssertEqual(navigation.page, change == 4 ? .overview : .projects, "change \(change)")
+    }
+  }
+
+  func testEnvironmentSelectionReplyCannotReturnAfterLeavingOverview() async throws {
+    let f = try fixture(), editor = await editor(f), store = navigationStore(f)
+    let navigation = EnvironmentSettingsNavigation(); navigation.show(.overview)
+    let entry = try XCTUnwrap(editor.files.first { $0.id == "environment-2.toml" })
+    try hold(f, method: "environment.load", file: entry.id)
+    let selecting = Task { await navigation.select(entry, environment: editor, store: store) }
+    try await reached(f); navigation.show(.projects)
+    try FileManager.default.removeItem(at: f.gate); await selecting.value
+    XCTAssertEqual(navigation.page, .projects)
+  }
+
+  func testSettingsSaveCannotNavigateAfterLeavingAndReturningToEditor() async throws {
+    let f = try fixture(), editor = await editor(f), store = navigationStore(f)
+    let navigation = EnvironmentSettingsNavigation(); navigation.show(.editor)
+    editor.name = "submitted"
+    try hold(f, method: "environment.save", file: editor.fileName)
+    let saving = Task { await navigation.save(returnToOverview: true, environment: editor, store: store,
+      synchronize: { _, _, _ in true }) }
+    try await reached(f); navigation.show(.overview); navigation.show(.editor)
+    try FileManager.default.removeItem(at: f.gate); await saving.value
+    XCTAssertEqual(navigation.page, .editor); XCTAssertEqual(editor.name, "submitted")
+    XCTAssertFalse(editor.hasUnsavedChanges)
+  }
+
+  func testSettingsDiscardCannotNavigateAfterLeavingAndReturningToEditor() async throws {
+    let f = try fixture(), editor = await editor(f), store = navigationStore(f)
+    let navigation = EnvironmentSettingsNavigation(); navigation.show(.editor)
+    editor.name = "discarded"
+    try hold(f, method: "environment.load", file: editor.fileName)
+    let discarding = Task { await navigation.discard(environment: editor, store: store) }
+    try await reached(f); navigation.show(.overview); navigation.show(.editor)
+    try FileManager.default.removeItem(at: f.gate); await discarding.value
+    XCTAssertEqual(navigation.page, .editor)
+  }
+
+  func testCurrentEnvironmentNavigationStillOpensSelectsSavesAndDiscards() async throws {
+    let f = try fixture(), editor = EnvironmentSettingsSession(), store = navigationStore(f)
+    addTeardownBlock { await editor.close() }
+    let navigation = EnvironmentSettingsNavigation()
+    await navigation.openProject(f.project.path, environment: editor, store: store)
+    XCTAssertEqual(navigation.page, .overview)
+    let entry = try XCTUnwrap(editor.files.first { $0.id == "environment-2.toml" })
+    await navigation.select(entry, environment: editor, store: store)
+    XCTAssertEqual(editor.fileName, entry.id); XCTAssertEqual(navigation.page, .overview)
+    navigation.show(.editor); editor.name = "saved"
+    await navigation.save(returnToOverview: true, environment: editor, store: store,
+      synchronize: { _, _, _ in true })
+    XCTAssertEqual(navigation.page, .overview)
+    navigation.show(.editor); editor.name = "discarded"
+    await navigation.discard(environment: editor, store: store)
+    XCTAssertEqual(navigation.page, .overview); XCTAssertFalse(editor.hasUnsavedChanges)
+    await navigation.openProject(f.project.path, showEditor: true, environment: editor, store: store)
+    XCTAssertEqual(navigation.page, .editor)
+  }
+
+
+  func testInactiveEnvironmentRouteCannotStartLoadingOrSaving() async throws {
+    let f = try fixture(), editor = await editor(f), store = navigationStore(f)
+    let navigation = EnvironmentSettingsNavigation(); navigation.show(.editor)
+    editor.name = "keep inactive draft"
+    let file = editor.fileName, form = editor.formState, revision = editor.revision
+    let entry = try XCTUnwrap(editor.files.first { $0.id == "environment-2.toml" })
+    store.destination = .workspace
+    await navigation.save(returnToOverview: true, environment: editor, store: store,
+      synchronize: { _, _, _ in XCTFail("Inactive route must not synchronize"); return true })
+    await navigation.discard(environment: editor, store: store)
+    await navigation.select(entry, environment: editor, store: store)
+    await navigation.openProject(f.project.path, showEditor: false, environment: editor, store: store)
+    XCTAssertEqual(navigation.page, .editor); XCTAssertEqual(editor.fileName, file)
+    XCTAssertEqual(editor.formState, form); XCTAssertEqual(editor.revision, revision)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.appendingPathComponent("submitted.json").path))
+  }
+
 }

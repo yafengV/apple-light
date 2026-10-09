@@ -67,6 +67,7 @@ final class WorkspaceStore {
   }
   var destination: AppDestination = .workspace {
     didSet {
+      if oldValue != destination { environmentSettingsNavigationRevision = UUID() }
       if destination != .settings, let session = appearanceThemeImport {
         dismissAppearanceImport(session)
       }
@@ -111,6 +112,7 @@ final class WorkspaceStore {
   var sidebarGroupToDelete: SidebarGroup?
   var settingsPage: SettingsPage = .general {
     didSet {
+      if oldValue != settingsPage { environmentSettingsNavigationRevision = UUID() }
       if settingsPage != .general { showingOpenSourceLicenses = false }
       if settingsPage != .appearance, let session = appearanceThemeImport {
         dismissAppearanceImport(session)
@@ -426,6 +428,7 @@ final class WorkspaceStore {
   var environmentCatalogErrors: [String: String] = [:]
   var environmentCatalogLoading = false
   var environmentCatalogRequest = UUID()
+  @ObservationIgnored var environmentSettingsNavigationRevision = UUID()
   var environmentSettingsSession = EnvironmentSettingsSession()
   var environmentSettingsOpenProject = false
   var environmentSettingsOpenEditor = false
