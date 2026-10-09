@@ -49,3 +49,11 @@
 当前 `421ae19` 再次复验：`smoke_macos_signing.sh` 的两版不同代码、应用／helper 稳定要求、旧要求校验，以及无证书／无效证书拒绝检查均通过（`.cache/development-signing-latest-smoke.log`）。标准 `script/build_and_run.sh --app` 构建及启动命令 exit 0（`.cache/development-signing-latest-run.log`）；主应用与 helper 均使用 Apple Development，重建前后指定要求一致，分别通过旧要求验证和严格深度校验（`.cache/development-signing-latest-verification.log`）。当前代码没有变化，因此正式包代码摘要不变；代码变化后的稳定性由两版不同代码冒烟验证。再次检查前台时 Mac 仍锁屏，本轮不宣称工作区交互或弹窗已实际验收。签名实现无须重复修改；证书与验证产物继续只留在忽略目录。
 
 本次用户请求复验（验证记录 697）：真实证书的两版代码冒烟通过（`.cache/development-signing-user-recheck-697.log`）。标准构建启动 exit 0（`.cache/development-signing-standard-run-697.log`）；本次正式应用的代码摘要确实改变，应用与 helper 的指定要求仍保持不变，均通过上一版要求和严格深度校验（`.cache/development-signing-verified-697.log`）。实际调试入口已使用 Apple Development，无须重复改动签名实现。CUA 返回 Mac 锁屏，本轮工作区交互与授权弹窗尚未复验。此次仅记录签名验证，不将工作区中尚未完成测试的标签关闭对齐改动计为验收通过或纳入本次提交。
+
+## 2026-10-09 再次检查文件夹授权（记录 722）
+
+当前调试包、helper 和运行按钮均已使用上述稳定开发签名入口，未发现需要再次修改的签名配置。真实开发证书两版不同代码冒烟通过，包括身份不变、旧要求校验以及无证书／无效证书拒绝检查（`.cache/folder-signing-two-code-smoke-722.log`）。标准 `script/build_and_run.sh --app` 连续两次重建启动均 exit 0，Swift 构建分别 90.58 秒和 0.18 秒；主应用代码摘要相对重建前改变，helper 不变，两者均为 Apple Development，指定要求保持不变、旧要求验证和严格深度校验通过。日志为 `.cache/folder-signing-{first,second}-run-722.log`，结果为 `.cache/folder-signing-{first,second}-result-722.json`。
+
+首次启动后，通过原生命令菜单及文件夹选择器打开当前桌面仓库 `apple-light`，实际观察到恢复结束和可操作的项目工作区，期间没有出现新的授权提示。随后打开文件搜索准备读取 `AGENTS.md` 时，CUA 明确报告 Mac 锁屏且自动解锁已暂停；因此本轮未完成文件内容读取及第二次启动后的前台复验，不能把两次签名校验称为重复授权弹窗已全面消失。此前解锁后的两次实际文件读取仍保留为历史证据。
+
+本次只更新签名验证记录；当前尚未验证完整的浏览器固定侧栏改动不纳入本次提交，也不由构建成功推定为 UI 验收通过。证书身份、构建包及本机验证数据均只保留在忽略目录。
