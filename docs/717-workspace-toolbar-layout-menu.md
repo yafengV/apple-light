@@ -45,3 +45,5 @@
 原 handle `66840` 已缺失；查询 runner／Swift／xctest 的三个原 PID 均不在。状态文件仍停在 `swift-full`，完整日志在最后一组标签测试中截断，没有全套总结、exit code 或该轮 IPC。可见完成方法 3,279 个，没有可见失败方法，但这不能构成全量通过。
 
 根据原清单重新核对固定检出源码、编译资源、测试程序、helper 与参考 CSS：摘要全部未变，终态审核保存在 `.cache/isolated-full-712-terminal-audit.json`。已完成可恢复归档，忽略目录中的原日志和产物保留。当前仍需一轮有完整终态的全量回归；不会因观察超时而直接重启同一仍存活进程，也不把旧不完整日志当作当前代码的全量结果。
+
+提交并推送 `57f924f` 后，已在独立管理检出 `full-regression-717` 启动固定该提交的完整回归。监督进程 PID 33407 已通过 `ps` 确认存活，当前阶段为 `swift-build-all-tests`，子进程 33420；日志、状态和输入清单分别为 `.cache/isolated-full-717.log`、`.cache/isolated-full-717-status.json`、`.cache/isolated-full-717-manifest.json`。独立进程写入终态，使用自己的 Swift 缓存及冻结 helper，不编辑该检出；构建后将先执行新菜单／旧失败组预检，再执行完整 Swift 和 IPC，最终检查冻结输入。此记录仅证明已开始和当前存活，不是全量通过。
