@@ -37,3 +37,11 @@
 提交并推送 `fdf4d46aff56a7505e963de2cfc9ff2322890dd7` 后，于 **2026-10-09 19:19:04** 在独立管理检出 `full-regression-729` 启动广泛回归。监督进程 PID 7249 和构建子进程 PID 7267 已由 `ps` 确认存活，当前为 `swift-build-all-tests`。使用独立构建／依赖缓存，已冻结提交、2,420 项源码／测试／脚本输入、helper 和 CSS；构建后再冻结测试执行文件及编译资源，随后预检旧失败及本阶段滚动组，再执行其余 Swift 方法和 IPC。
 
 唯一明确排除的前台方法仍为 `PinnedBrowserRenameTests.testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves`，不把它称为通过。日志／状态／清单为 `.cache/isolated-full-729.log`、`.cache/isolated-full-729-status.json` 和 `.cache/isolated-full-729-manifest.json`。启动记录不证明完整回归通过，尚未取得终态；后续主检出开发不修改这轮固定检出及其缓存。
+
+## 固定广泛回归终态
+
+上述独立回归于 **2026-10-09 20:42:36** 失败结束。构建及旧失败组预检均 exit 0；其余 Swift 范围 **3,437 项、2 个未配置音频夹具跳过、1 个失败方法／1 条断言，4,829.066 秒**，exit 1，后续 IPC 因该失败未执行。失败为 `SettingsNavigationTests.testCommandSearchUsesEffectiveBindingsIncludingRemovedAndReassignedDefaults`：搜索“快捷键 分叉”未返回 `fork`。该项属于核心设置搜索，继续修复；不将整轮称为通过。
+
+终态和归档前再次核对固定提交 `fdf4d46aff56a7505e963de2cfc9ff2322890dd7`、**2,420 项**源码／测试／脚本、**198 项**编译资源、测试执行文件、helper 及参考 CSS，摘要均未变，检出无本地修改。监督进程及 Swift／XCTest 子进程已终止；专用检出通过管理工具归档，并确认附件类型为 `archived_worktree`。日志、状态、清单仍保存在主检出的 `.cache/isolated-full-729.*`／`isolated-full-729-*.json`。
+
+唯一前台方法排除与两项音频夹具跳过保持上述范围。旧头像和阅读位置失败在这轮范围内通过，但该轮不包含第 730 篇或后续改动，也不证明真实用户 API 闭环或可见页面交互完成。
