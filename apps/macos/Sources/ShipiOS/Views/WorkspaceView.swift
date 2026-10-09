@@ -295,13 +295,10 @@ struct WorkspaceView: View {
                 .frame(height: 480)
               }
             }
-            Button {
-              store.executeCommand("browser")
-            } label: {
-              Image(systemName: "square.on.square")
-            }
-            .help("显示或隐藏标签页 " + store.shortcuts.label("browser"))
-            .accessibilityLabel("显示或隐藏标签页")
+            WorkspaceLayoutMenuButton(menu: store.workspaceLayoutMenu,
+              shortcut: store.shortcuts.label("browser"), perform: store.performWorkspaceLayoutMenuAction)
+              .accessibilityLabel("显示或隐藏标签页")
+              .disabled(!store.commandEnabled("browser"))
             if store.showBottomPanelControl {
               Menu {
                 Button(store.showingWorkspaceTabs ? "隐藏标签页" : "显示标签页") {

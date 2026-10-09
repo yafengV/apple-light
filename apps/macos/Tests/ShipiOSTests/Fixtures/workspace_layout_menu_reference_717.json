@@ -1,0 +1,161 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "chromeSHA256": "db5f01832c7d9c730407f6f4e4cdd699dd584393c206439fe12890d265dd3c4b",
+  "boundary": "Actual eu route/display policy and Wl/zl mouse versus touch and keyboard-edge handlers; explicit JSX/hooks, inert native effects. Not DOM rendering, OS focus acceptance, primary workspace or backend proof.",
+  "policies": [
+    {
+      "home": false,
+      "count": 0,
+      "display": "chat",
+      "kind": "toggle"
+    },
+    {
+      "home": false,
+      "count": 0,
+      "display": "split",
+      "kind": "toggle"
+    },
+    {
+      "home": false,
+      "count": 0,
+      "display": "full",
+      "kind": "toggle"
+    },
+    {
+      "home": false,
+      "count": 1,
+      "display": "chat",
+      "kind": "retained"
+    },
+    {
+      "home": false,
+      "count": 1,
+      "display": "split",
+      "kind": "toggle"
+    },
+    {
+      "home": false,
+      "count": 1,
+      "display": "full",
+      "kind": "toggle"
+    },
+    {
+      "home": false,
+      "count": 3,
+      "display": "chat",
+      "kind": "retained"
+    },
+    {
+      "home": false,
+      "count": 3,
+      "display": "split",
+      "kind": "toggle"
+    },
+    {
+      "home": false,
+      "count": 3,
+      "display": "full",
+      "kind": "toggle"
+    },
+    {
+      "home": true,
+      "count": 0,
+      "display": "chat",
+      "kind": "newTab"
+    },
+    {
+      "home": true,
+      "count": 0,
+      "display": "split",
+      "kind": "toggle"
+    },
+    {
+      "home": true,
+      "count": 0,
+      "display": "full",
+      "kind": "toggle"
+    },
+    {
+      "home": true,
+      "count": 1,
+      "display": "chat",
+      "kind": "retained"
+    },
+    {
+      "home": true,
+      "count": 1,
+      "display": "split",
+      "kind": "toggle"
+    },
+    {
+      "home": true,
+      "count": 1,
+      "display": "full",
+      "kind": "toggle"
+    },
+    {
+      "home": true,
+      "count": 3,
+      "display": "chat",
+      "kind": "retained"
+    },
+    {
+      "home": true,
+      "count": 3,
+      "display": "split",
+      "kind": "toggle"
+    },
+    {
+      "home": true,
+      "count": 3,
+      "display": "full",
+      "kind": "toggle"
+    }
+  ],
+  "retained": {
+    "afterTouch": false,
+    "afterMouse": true,
+    "keyboardFocus": "last",
+    "events": [
+      {
+        "event": "open",
+        "value": true
+      },
+      {
+        "event": "timer",
+        "ms": 100
+      },
+      {
+        "event": "open",
+        "value": false
+      },
+      {
+        "event": "toggle"
+      }
+    ]
+  },
+  "empty": {
+    "afterTouch": false,
+    "afterMouse": true,
+    "keyboardFocus": "last",
+    "events": [
+      {
+        "event": "open",
+        "value": true
+      },
+      {
+        "event": "timer",
+        "ms": 100
+      },
+      {
+        "event": "open",
+        "value": false
+      },
+      {
+        "event": "create",
+        "mode": "split"
+      }
+    ]
+  }
+}

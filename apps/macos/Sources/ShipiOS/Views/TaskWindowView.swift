@@ -326,9 +326,11 @@ struct TaskWindowView: View {
               .frame(height: 480)
             }
 
-            Button { performWindowCommand("browser") } label: { Image(systemName: "square.on.square") }
-              .help("显示或隐藏标签页 " + store.shortcuts.label("browser"))
-              .accessibilityLabel("显示或隐藏标签页")
+            WorkspaceLayoutMenuButton(menu: tabs.layoutMenu, shortcut: store.shortcuts.label("browser")) { action in
+              guard !windowCommandsBlocked else { return }
+              tabs.performLayoutMenuAction(action)
+            }.accessibilityLabel("显示或隐藏标签页")
+              .disabled(windowCommandsBlocked)
             if !task.project.isEmpty {
               Button { openTaskFileSearch() } label: { Image(systemName: "doc.text.magnifyingglass") }
                 .help("搜索任务文件 " + store.shortcuts.label("files")).accessibilityLabel("搜索任务文件")
