@@ -1,0 +1,188 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "discardFixtureSHA256": "fe1896a3d86eaffcaec5abfd33db1d8e71b9520f4da77839c17121b6a3f630cc",
+  "functions": [
+    "QJ",
+    "SHn",
+    "cwa",
+    "pHn",
+    "fHn",
+    "aHn",
+    "iVn",
+    "aC"
+  ],
+  "boundary": "Actual QJ full-view chat selection and hide/focus functions; discard callback composed from phase 714 actual predicate/close extraction. Ordinary workspace only. No native focus, primary workspace or paired foreground evidence.",
+  "cases": [
+    {
+      "name": "empty",
+      "handled": true,
+      "mode": "split",
+      "visible": false,
+      "focus": "chat",
+      "ids": []
+    },
+    {
+      "name": "address-draft",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "cleared-address-draft",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "pinned",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "multiple",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser",
+        "other"
+      ]
+    },
+    {
+      "name": "web",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "loading",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "back-history",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "forward-history",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "zoom",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "comment-mode",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "comments",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "agent",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "capture",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "pending-transfer",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "custom-title",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    },
+    {
+      "name": "missing-snapshot",
+      "handled": true,
+      "mode": "full",
+      "visible": false,
+      "focus": "chat",
+      "ids": [
+        "browser"
+      ]
+    }
+  ]
+}

@@ -179,6 +179,7 @@ import WebKit
     guard let id else {
       contentLayoutMode = effectiveContentLayoutMode
       selections[.left] = nil; focusedID = nil
+      if contentLayoutMode == .full { discardEmptyBrowserTab(resetLayout: true) }
       if focus { chatFocus = UUID() }
       return
     }
@@ -375,10 +376,7 @@ import WebKit
     if effectiveContentLayoutMode == .split, showsContentSidePanel {
       showingRight = false
       activate(nil)
-      if primaryContentTabs.count == 1, let tab = primaryContentTabs.first,
-        isTabPinned?(tab.id) != true, let id = tab.browserID {
-        browser.session.discardEmptyNewTab(id)
-      }
+      discardEmptyBrowserTab()
       return
     }
     let keepChatFocus = focused == nil && selected(.left) == nil
@@ -390,6 +388,16 @@ import WebKit
       activate(tab.id, focus: !keepChatFocus)
       if keepChatFocus { activate(nil) }
     } else { newBrowser(in: .right) }
+  }
+  @discardableResult private func discardEmptyBrowserTab(resetLayout: Bool = false) -> Bool {
+    guard primaryContentTabs.count == 1, let tab = primaryContentTabs.first,
+      isTabPinned?(tab.id) != true, let id = tab.browserID,
+      browser.session.tabs.first(where: { $0.id == id })?.canDiscardEmptyNewTab == true else { return false }
+    if resetLayout {
+      contentLayoutMode = .split
+      showingRight = false
+    }
+    return browser.session.discardEmptyNewTab(id)
   }
   func close(_ id: String) {
     guard let tab = tabs.first(where: { $0.id == id }) else { return }

@@ -343,7 +343,19 @@ extension WorkspaceStore {
     workspaceContentLayoutMode = effectiveWorkspaceContentLayoutMode
     activeWorkspaceTabID = nil
     focusedWorkspaceTabID = nil
+    if workspaceContentLayoutMode == .full { discardEmptyWorkspaceBrowserTab(resetLayout: true) }
     focusComposer = UUID()
+  }
+
+  @discardableResult func discardEmptyWorkspaceBrowserTab(resetLayout: Bool = false) -> Bool {
+    guard workspacePrimaryContentTabs.count == 1, let tab = workspacePrimaryContentTabs.first,
+      !isWorkspaceTabPinned(tab.id), let id = tab.browserID,
+      workspace.browser.tabs.first(where: { $0.id == id })?.canDiscardEmptyNewTab == true else { return false }
+    if resetLayout {
+      workspaceContentLayoutMode = .split
+      showingInspector = false
+    }
+    return workspace.browser.discardEmptyNewTab(id)
   }
 
   func activateWorkspaceTab(_ id: String?, focus: Bool = true) {
