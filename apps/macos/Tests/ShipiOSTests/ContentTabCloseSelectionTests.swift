@@ -435,7 +435,8 @@ import XCTest
       next = .sources(owner: "a"); store.workspaceTabs.append(next); store.activateWorkspaceTab(tab.id)
       close = store.closeWorkspaceTab; contains = { store.workspaceTabs.contains($0) }; selected = { store.activeWorkspaceContentTab }
     }
-    let editor = store.fileTabWorkspace(tab); editor.root = root; await editor.openFile("file.txt")
+    let editor = taskWindow ? resources.fileWorkspace(tab) : store.fileTabWorkspace(tab)
+    editor.root = root; await editor.openFile("file.txt")
     editor.beginEditingSelectedFile(); editor.editSelectedFile("local draft")
     try "external".write(to: path, atomically: true, encoding: .utf8)
     close(tab.id); close(tab.id)

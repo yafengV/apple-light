@@ -516,6 +516,7 @@ import WebKit
         placement: placement(tab.id), address: page?.address,
         committedURL: tab.pullRequestURL ?? page?.committedURL?.absoluteString,
         filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
+        fileRoot: tab.kind == .file ? panels.workspace.root?.path : nil,
         terminalSplitFraction: splitFraction,
         watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
     }
@@ -549,8 +550,12 @@ import WebKit
         page.editingAddress = entry.address != nil && entry.address != entry.committedURL
         tab = .browser(id, owner: taskID)
       case .file:
-        guard sameProject, let path = entry.filePath,
+        guard sameProject, let root = panels.workspace.root, let path = entry.filePath,
           path.isEmpty || (try? panels.workspace.fileLocation(path)) != nil else { continue }
+        if let savedRoot = entry.fileRoot {
+          guard savedRoot.hasPrefix("/"), !savedRoot.contains("\0"),
+            GitBranchService.canonicalRoot(URL(fileURLWithPath: savedRoot)) == GitBranchService.canonicalRoot(root) else { continue }
+        }
         let candidate = WorkspaceContentTab.file(path, owner: taskID)
         guard entry.id == candidate.id else { continue }
         tab = candidate; tabs.append(tab)

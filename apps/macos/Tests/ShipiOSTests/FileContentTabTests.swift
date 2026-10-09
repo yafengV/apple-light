@@ -219,7 +219,7 @@ import XCTest
     let tabs = try XCTUnwrap(resources.tasks["popup"])
     XCTAssertTrue(tabs.openFile("First.swift"))
     let tab = try XCTUnwrap(tabs.selected(.left))
-    let session = store.fileTabWorkspace(tab)
+    let session = resources.fileWorkspace(tab)
     session.root = project
     await session.openFile("First.swift")
     session.beginEditingSelectedFile()

@@ -11,6 +11,11 @@ import Observation
   let notices = WorkspaceNotices()
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
+  let files = TaskWindowFileEditors()
+
+  func fileWorkspace(_ tab: WorkspaceContentTab) -> DeveloperWorkspace {
+    files.workspace(for: tab, store: store)
+  }
   private(set) var tasks: [String: TaskWindowTabs] = [:]
   @ObservationIgnored private var deferredLayouts: [String: TaskWindowTabLayout] = [:]
   @ObservationIgnored private var pendingFileTabCloses: [String: UUID] = [:]
@@ -43,9 +48,8 @@ import Observation
     store.additionalTaskWindowPanels.add(panels)
     if let existing = tasks[taskID] {
       if oldRoot != panel.workspace.root {
-        for tab in existing.tabs where tab.kind == .file {
-          if let session = store.fileTabWorkspaces[tab.id] { store.captureFileEditorRecovery(from: session) }
-        }
+        for tab in existing.tabs where tab.kind == .file { pendingFileTabCloses[tab.id] = nil }
+        files.remove(owner: taskID, store: store)
         existing.resetProjectTabs()
       }
     } else {
@@ -69,6 +73,7 @@ import Observation
       }
       tasks[taskID]?.onTabReplaced = { [weak self] old, new in
         guard let self, let store = self.store else { return }
+        files.rekey(old, to: tasks[taskID]?.tabs.first { $0.id == new }, store: store)
         for index in store.library.pinnedContentTabs.indices
           where store.library.pinnedContentTabs[index].sourceWindowID == id
             && store.library.pinnedContentTabs[index].sourceTabID == old {
@@ -88,7 +93,7 @@ import Observation
       }
     }
     tasks[taskID]?.canCloseFileTab = { [weak self, weak store] tab in
-      guard let store, let session = store.fileTabWorkspaces[tab.id],
+      guard let store, let session = self?.files.existing(tab),
         session.selectedFileEditor?.hasUnsavedChanges == true else { return true }
       guard let self, pendingFileTabCloses[tab.id] == nil, let target = tasks[taskID] else { return false }
       let request = UUID(); pendingFileTabCloses[tab.id] = request
@@ -97,7 +102,7 @@ import Observation
         guard let self, pendingFileTabCloses[tab.id] == request else { return }
         pendingFileTabCloses[tab.id] = nil
         guard saved, let store, let target, tasks[taskID] === target,
-          target.tabs.contains(tab), store.fileTabWorkspaces[tab.id] === session else { return }
+          target.tabs.contains(tab), files.existing(tab) === session else { return }
         target.close(tab.id)
       }
       return false
@@ -116,6 +121,7 @@ import Observation
     deferredLayouts.removeAll()
   }
   func retainTasks(_ available: Set<String>, displaying: String?) {
+    files.retain(available, store: store)
     for (id, panel) in panels.tasks where !available.contains(id) {
       store?.captureFileEditorRecovery(from: panel.workspace)
     }
@@ -126,9 +132,21 @@ import Observation
     }
   }
   func contains(_ pin: PinnedWorkspaceTab) -> Bool {
-    pin.sourceWindowID == id && store?.library.tasks.contains { $0.id == pin.owner } == true
-      && tasks[pin.owner]?.tabs.contains { $0.id == pin.sourceTabID } == true
+    guard pin.sourceWindowID == id, let store,
+      store.library.tasks.contains(where: { $0.id == pin.owner }),
+      let tabs = tasks[pin.owner], let tab = tabs.tabs.first(where: { $0.id == pin.sourceTabID }) else { return false }
+    guard case .file(let currentPath, _) = tab, let savedRoot = pin.fileRoot else { return true }
+    guard let root = store.validatedWorkspaceFileRoot(savedRoot) else { return false }
+    let path = pin.restoreURL ?? currentPath
+    if path.isEmpty || currentPath.isEmpty {
+      return path.isEmpty && currentPath.isEmpty && root == tabs.panels.workspace.root
+    }
+    guard let original = try? WorkspaceFileScope.location(path,
+      roots: [root] + store.additionalWorkspaceFolders(for: root)),
+      let current = try? tabs.panels.workspace.fileLocation(currentPath) else { return false }
+    return original.url == current.url
   }
+
   func title(for pin: PinnedWorkspaceTab) -> String? {
     guard contains(pin), let tabs = tasks[pin.owner],
       let tab = tabs.tabs.first(where: { $0.id == pin.sourceTabID }) else { return nil }
@@ -144,7 +162,8 @@ import Observation
     return PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id, owner: tab.owner,
       kind: tab.kind, title: tabs.title(tab),
       restoreURL: filePath ?? tab.pullRequestURL ?? browser?.committedURL?.absoluteString ?? browser?.address,
-      sourceWindowID: id, watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
+      sourceWindowID: id, fileRoot: tab.kind == .file ? tabs.panels.workspace.root?.path : nil,
+      watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
   }
   func capturePins() {
     guard let store else { return }
@@ -184,6 +203,7 @@ import Observation
       for panel in panels.tasks.values { store?.captureFileEditorRecovery(from: panel.workspace) }
       captureLayouts()
       capturePins()
+      files.shutdown(store: store)
       store?.taskWindowResources.remove(self)
       browsers.shutdown(); panels.shutdown(); tasks.removeAll()
       deferredLayouts.removeAll()

@@ -90,7 +90,7 @@ struct TaskWindowView: View {
       return taskWorkspace
     }
     guard let tab = tabs.commandContentTab, case .file = tab else { return nil }
-    return store.fileTabWorkspaces[tab.id]
+    return resources.files.existing(tab)
   }
   private var task: WorkspaceTask? { store.library.tasks.first { $0.id == taskID } }
   private var reasoningCatalogTaskID: String {
@@ -1213,7 +1213,8 @@ struct TaskWindowView: View {
       case .file:
         FileWorkspaceTabView(store: store, tab: tab,
           openFile: { _ = tabs.openFile($0, in: tabs.stripPlacement(tab.id)) },
-          close: { tabs.close(tab.id) })
+          close: { tabs.close(tab.id) },
+          fileWorkspace: resources.fileWorkspace(tab), fileRoot: taskWorkspace.root)
       case .review:
         GitReviewView(store: store, workspace: taskWorkspace, taskID: taskID, focusComposer: { tabs.revealChat() })
       case .plan(let runID, _):

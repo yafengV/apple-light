@@ -7,12 +7,15 @@ struct FileWorkspaceTabView: View {
   let tab: WorkspaceContentTab
   let openFile: (String) -> Void
   let close: () -> Void
+  var fileWorkspace: DeveloperWorkspace? = nil
+  var fileRoot: URL? = nil
 
   private var path: String {
     guard case .file(let path, _) = tab else { return "" }
     return path
   }
-  private var root: URL? { store.workspaceFileTabRoot(tab) }
+  private var root: URL? { fileWorkspace == nil ? store.workspaceFileTabRoot(tab) : fileRoot }
+  private var contentWorkspace: DeveloperWorkspace { fileWorkspace ?? store.fileTabWorkspace(tab) }
   private var folders: [URL] { store.additionalWorkspaceFolders(for: root) }
   private var scopeKey: String {
     ([tab.id, root?.path ?? ""] + folders.map(\.path)).joined(separator: "\u{0}")
@@ -21,12 +24,13 @@ struct FileWorkspaceTabView: View {
   var body: some View {
     Group {
       if let root {
-        FileWorkspaceView(store: store, workspace: store.fileTabWorkspace(tab),
+        FileWorkspaceView(store: store, workspace: contentWorkspace,
           taskID: tab.owner.hasPrefix("new:") ? nil : tab.owner,
           draftOwner: tab.owner,
           openInContentTab: openFile, closeContentTab: close)
           .task(id: scopeKey) {
-            let workspace = store.fileTabWorkspace(tab)
+            guard !Task.isCancelled else { return }
+            let workspace = contentWorkspace
             if workspace.root != root {
               if workspace.root != nil { store.captureFileEditorRecovery(from: workspace) }
               workspace.setProject(root, additionalFolders: folders)
