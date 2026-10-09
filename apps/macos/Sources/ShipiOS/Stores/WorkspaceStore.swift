@@ -740,7 +740,7 @@ final class WorkspaceStore {
     saveLibrary()
   }
 
-  @discardableResult func openTaskScope(_ key: String, stillValid: () -> Bool = { true }) async -> Bool {
+  @discardableResult func openTaskScope(_ key: String, loadsDetails: Bool = true, stillValid: () -> Bool = { true }) async -> Bool {
     guard stillValid() else { return false }
     if key == currentProjectKey && (key.isEmpty || connected) { return true }
     if let managed = library.managedWorktrees.first(where: { $0.path == key }),
@@ -753,7 +753,7 @@ final class WorkspaceStore {
     }
     guard stillValid() else { return false }
     if key.isEmpty { await openProjectless(stillValid: stillValid) }
-    else { await open(URL(fileURLWithPath: key), usePrimary: false, stillValid: stillValid) }
+    else { await open(URL(fileURLWithPath: key), usePrimary: false, loadsDetails: loadsDetails, stillValid: stillValid) }
     return stillValid() && currentProjectKey == key && (key.isEmpty || connected)
   }
 
@@ -806,7 +806,7 @@ final class WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
 
-  func open(_ url: URL, usePrimary: Bool = true, stillValid: () -> Bool = { true }) async {
+  func open(_ url: URL, usePrimary: Bool = true, loadsDetails: Bool = true, stillValid: () -> Bool = { true }) async {
     guard activeLocalRun == nil || !connected, !busy else { return }
     guard await loadLibrary(), stillValid() else { return }
     let requested = url.resolvingSymlinksInPath().standardizedFileURL
@@ -845,6 +845,9 @@ final class WorkspaceStore {
         + library.localRuns.filter { $0.project == canonical.path }
       guard session == token else { return }
       guard stillValid() else { await client.stop(); return }
+      let preparedEnvironment = await prepareProjectScopeEnvironment(canonical)
+      guard session == token else { return }
+      guard stillValid() else { await client.stop(); return }
       // Failed initialization must not replace the task, draft, files or panels.
       // The previous local Agent has stopped; connection state remains truthful.
       workspaceLayoutActiveOwner = nil
@@ -863,18 +866,6 @@ final class WorkspaceStore {
       container = ""
       scheme = ""
       configuration = "Debug"
-      worktreeSetupScript = ""
-      setupPlatformScripts = .init()
-      worktreeCleanupScript = ""
-      cleanupPlatformScripts = .init()
-      environmentActions = []
-      environmentFiles = []
-      environmentFileName = "environment.toml"
-      environmentName = library.projectTitle(canonical.path)
-      environmentRevision = nil
-      environmentExists = false
-      environmentStatus = ""
-      environmentLoadedState = nil
       completionTracker.seed(runs)
       connected = true
       preparingProjectScope = false
@@ -887,23 +878,9 @@ final class WorkspaceStore {
         }
         scheme = profile.scheme
         configuration = profile.configuration
-        worktreeSetupScript = profile.worktreeSetupScript
-        setupPlatformScripts = profile.setupPlatformScripts
-        worktreeCleanupScript = profile.worktreeCleanupScript
-        cleanupPlatformScripts = profile.cleanupPlatformScripts
-        environmentActions = profile.actions
-        environmentFileName = profile.environmentFileName ?? "environment.toml"
+
       }
-      if let managed = library.managedWorktrees.first(where: { $0.path == project!.path }),
-        let environment = managed.environment {
-        environmentName = environment.name
-        environmentFileName = environment.fileName ?? "environment.toml"
-        environmentStatus = environment.disabled
-          ? "此任务创建时选择了无环境。" : "此任务使用创建时保存的环境配置。"
-        environmentLoadedState = currentEnvironmentFormState
-      } else {
-        await refreshSharedEnvironments()
-      }
+      applyProjectScopeEnvironment(preparedEnvironment)
       action = .chat
       library.lastWorkspace = project!.path
       library.visit(project!.path)
@@ -915,7 +892,7 @@ final class WorkspaceStore {
       chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active
         ? .goal : .standard
       restoreWorkspaceTabLayout()
-      await loadDetails()
+      if loadsDetails { await loadDetails() }
     } catch {
       self.error = error.localizedDescription
       await client.stop()
@@ -1041,20 +1018,24 @@ final class WorkspaceStore {
     events = []
     logText = ""
     guard connected, let run = selectedRun, run.kind != "chat" else { return }
+    let requestedSelection = selection, requestedSession = session
+    let isCurrent = {
+      self.detailVersion == version && self.session == requestedSession && self.selection == requestedSelection
+    }
     do {
       let response = try await client.request("run.events", ["runId": .string(library.forkRunOrigins[run.id] ?? run.id)])
       let fetched = try response["events"].decode([AgentEvent].self)
-      guard detailVersion == version else { return }
+      guard isCurrent() else { return }
       events = fetched
       if run.result?["artifactDirectory"].text != nil {
         let log = try await client.request(
           "artifact.get", ["runId": .string(library.forkRunOrigins[run.id] ?? run.id), "name": .string(logName)])
-        guard detailVersion == version else { return }
+        guard isCurrent() else { return }
         logText =
           (log["text"].text ?? "")
           + (log["truncated"].boolean == true ? "\n…显示前 256 KiB；完整日志位于产物文件夹。" : "")
       }
-    } catch { if detailVersion == version { logText = error.localizedDescription } }
+    } catch { if isCurrent() { logText = error.localizedDescription } }
   }
 
   func exportReport() async {

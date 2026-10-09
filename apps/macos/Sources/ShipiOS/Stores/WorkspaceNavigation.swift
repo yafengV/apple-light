@@ -483,7 +483,7 @@ extension WorkspaceStore {
       guard workspaceDraftProject(owner: owner) == location.project,
         await selectWorkspaceDraft(owner, recordHistory: false, stillValid: stillValid) else { return false }
     } else {
-      guard await openTaskScope(location.project, stillValid: stillValid), stillValid() else { return false }
+      guard await openTaskScope(location.project, loadsDetails: false, stillValid: stillValid), stillValid() else { return false }
       selection = location.run
       rememberProjectSelection()
       saveLibrary()

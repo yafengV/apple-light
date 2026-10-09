@@ -272,6 +272,19 @@ struct LocalEnvironmentFormState: Equatable {
   var actions: [EnvironmentAction]
 }
 
+extension LocalEnvironmentFormState {
+  init(config: JSONValue, fallbackName: String) {
+    self.init(name: config["name"].text ?? fallbackName,
+      setup: config["setup"]["script"].text ?? "", setupPlatforms: platformScripts(from: config["setup"]),
+      cleanup: config["cleanup"]["script"].text ?? "", cleanupPlatforms: platformScripts(from: config["cleanup"]),
+      actions: config["actions"].items.map { action in
+        EnvironmentAction(title: action["name"].text ?? "", symbol: action["icon"].text ?? "tool",
+          script: action["command"].text ?? "",
+          platform: EnvironmentPlatform(rawValue: action["platform"].text ?? "all") ?? .all)
+      })
+  }
+}
+
 @MainActor
 extension WorkspaceStore {
   func environmentSettingsDidSave(projectPath path: String, fileName: String,
@@ -412,18 +425,10 @@ extension WorkspaceStore {
           environmentStatus = "环境文件无法解析。编辑并保存可替换该文件。"
           return
         }
-        let config = result["config"]
-        environmentName = config["name"].text ?? environmentName
-        worktreeSetupScript = config["setup"]["script"].text ?? ""
-        setupPlatformScripts = platformScripts(from: config["setup"])
-        worktreeCleanupScript = config["cleanup"]["script"].text ?? ""
-        cleanupPlatformScripts = platformScripts(from: config["cleanup"])
-        environmentActions = config["actions"].items.map { action in
-          EnvironmentAction(
-            title: action["name"].text ?? "", symbol: action["icon"].text ?? "tool",
-            script: action["command"].text ?? "",
-            platform: EnvironmentPlatform(rawValue: action["platform"].text ?? "all") ?? .all)
-        }
+        let form = LocalEnvironmentFormState(config: result["config"], fallbackName: environmentName)
+        environmentName = form.name; worktreeSetupScript = form.setup; setupPlatformScripts = form.setupPlatforms
+        worktreeCleanupScript = form.cleanup; cleanupPlatformScripts = form.cleanupPlatforms
+        environmentActions = form.actions
         saveProfile()
         environmentStatus = "已载入 \(fileName)。"
       } else {
