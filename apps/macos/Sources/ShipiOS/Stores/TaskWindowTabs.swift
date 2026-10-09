@@ -365,9 +365,26 @@ import WebKit
     activate(id)
   }
   func toggleFullWidth() {
-    guard let id = commandContentTab?.id ?? lastContentID,
-      tabs.contains(where: { $0.id == id }) else { return }
+    guard let id = (commandContentTab.flatMap { primaryContentTabs.contains($0) ? $0.id : nil })
+      ?? selected(.right)?.id ?? primaryContentTabs.first(where: { $0.id == lastContentID })?.id
+      ?? primaryContentTabs.first?.id else { newBrowser(); return }
     move(id, to: effectiveContentLayoutMode == .full ? .right : .left)
+  }
+  func toggleContentVisibility() {
+    if effectiveContentLayoutMode == .split, showsContentSidePanel {
+      showingRight = false
+      activate(nil)
+      return
+    }
+    let keepChatFocus = focused == nil && selected(.left) == nil
+    let content = primaryContentTabs
+    let tab = selected(.left) ?? (effectiveContentLayoutMode == .split ? selected(.right) : nil)
+      ?? content.first { $0.id == lastContentID } ?? selected(.right) ?? content.first
+    contentLayoutMode = .split
+    if let tab {
+      activate(tab.id, focus: !keepChatFocus)
+      if keepChatFocus { activate(nil) }
+    } else { newBrowser(in: .right) }
   }
   func close(_ id: String) {
     guard let tab = tabs.first(where: { $0.id == id }) else { return }

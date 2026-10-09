@@ -326,8 +326,9 @@ struct TaskWindowView: View {
               .frame(height: 480)
             }
 
-            Button { performWindowCommand("browser") } label: { Image(systemName: "globe") }
-              .help("显示或隐藏浏览器").accessibilityLabel("任务浏览器")
+            Button { performWindowCommand("browser") } label: { Image(systemName: "square.on.square") }
+              .help("显示或隐藏标签页 " + store.shortcuts.label("browser"))
+              .accessibilityLabel("显示或隐藏标签页")
             if !task.project.isEmpty {
               Button { openTaskFileSearch() } label: { Image(systemName: "doc.text.magnifyingglass") }
                 .help("搜索任务文件 " + store.shortcuts.label("files")).accessibilityLabel("搜索任务文件")

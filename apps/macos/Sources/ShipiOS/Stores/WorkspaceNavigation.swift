@@ -113,11 +113,7 @@ extension WorkspaceStore {
       toggleTerminalPanel()
     case "review": togglePane("review")
     case "review-open": openReviewTab()
-    case "browser":
-      if activeBrowserTabID != nil { activateChatTab() }
-      else if let tab = visibleWorkspaceContentTabs.first(where: { $0.browserID != nil }) {
-        activateWorkspaceTab(tab.id)
-      } else { newBrowserTab() }
+    case "browser": toggleWorkspaceContentVisibility()
     case "browser-new": newBrowserTab()
     case "browser-address":
       if let file = commandFileWorkspace { file.showingFileLine = true }
@@ -291,7 +287,7 @@ extension WorkspaceStore {
       && (focusedWorkspaceContentTab ?? activeWorkspaceContentTab) != nil
     case "tab-close-others": return destination == .workspace
       && !visibleWorkspaceContentTabs.isEmpty
-    case "workspace-tabs", "workspace-view": return destination == .workspace
+    case "browser", "workspace-tabs", "workspace-view": return destination == .workspace
     case "workspace-swap-panes": return destination == .workspace && showsWorkspaceInspector
     case let value where value.hasPrefix("focus-tab-"):
       guard destination == .workspace,
@@ -366,6 +362,24 @@ extension WorkspaceStore {
   }
   func toggleWorkspaceTabVisibility() {
     showingWorkspaceTabs.toggle()
+  }
+
+  func toggleWorkspaceContentVisibility() {
+    let mode = effectiveWorkspaceContentLayoutMode
+    if mode == .split, showingInspector, activeRightWorkspaceContentTab != nil {
+      showingInspector = false
+      activateChatTab()
+      return
+    }
+    let keepChatFocus = focusedWorkspaceContentTab == nil && activeWorkspaceContentTab == nil
+    let content = workspacePrimaryContentTabs
+    let tab = activeWorkspaceContentTab ?? (mode == .split ? activeRightWorkspaceContentTab : nil)
+      ?? content.first { $0.id == lastWorkspaceContentTabID } ?? activeRightWorkspaceContentTab ?? content.first
+    workspaceContentLayoutMode = .split
+    if let tab {
+      activateWorkspaceTab(tab.id, focus: !keepChatFocus)
+      if keepChatFocus { activateChatTab() }
+    } else { newBrowserTab(in: .right) }
   }
 
   func toggleWorkspaceTabView() {

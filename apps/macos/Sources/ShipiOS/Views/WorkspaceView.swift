@@ -296,11 +296,12 @@ struct WorkspaceView: View {
               }
             }
             Button {
-              store.toggleWorkspaceInspector()
+              store.executeCommand("browser")
             } label: {
-              Image(systemName: "sidebar.right")
+              Image(systemName: "square.on.square")
             }
-            .help("显示或隐藏右侧面板").accessibilityLabel("切换详情面板")
+            .help("显示或隐藏标签页 " + store.shortcuts.label("browser"))
+            .accessibilityLabel("显示或隐藏标签页")
             if store.showBottomPanelControl {
               Menu {
                 Button(store.showingWorkspaceTabs ? "隐藏标签页" : "显示标签页") {

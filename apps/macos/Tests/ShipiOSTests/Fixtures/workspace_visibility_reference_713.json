@@ -1,0 +1,543 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "functions": [
+    "fwa",
+    "pwa",
+    "mwa",
+    "QJ",
+    "$J",
+    "cwa",
+    "dwa",
+    "kM",
+    "SHn",
+    "mHn",
+    "KM",
+    "GM",
+    "pHn",
+    "fHn",
+    "aHn",
+    "iVn",
+    "aC"
+  ],
+  "boundary": "Ordinary chat only; retained nonempty content, no discard callbacks. Actual pinned layout functions; explicit atoms, inert animations/telemetry/native focus. No application initialization or native bridge. Primary workspace, empty-tab discard, native focus timing and paired foreground acceptance remain separate.",
+  "traces": [
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [],
+        "selected": null
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "content",
+          "selected": "new-browser",
+          "ids": [
+            "new-browser"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "new-browser",
+          "ids": [
+            "new-browser"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "new-browser",
+          "ids": [
+            "new-browser"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "content",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "content",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [],
+        "selected": null
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "content",
+          "selected": "new-browser",
+          "ids": [
+            "new-browser"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "new-browser",
+          "ids": [
+            "new-browser"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "new-browser",
+          "ids": [
+            "new-browser"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-1",
+          "ids": [
+            "content-1"
+          ]
+        }
+      ]
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3"
+      },
+      "states": [
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": true,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        },
+        {
+          "mode": "split",
+          "visible": false,
+          "focus": "chat",
+          "selected": "content-3",
+          "ids": [
+            "content-1",
+            "content-2",
+            "content-3"
+          ]
+        }
+      ]
+    }
+  ]
+}

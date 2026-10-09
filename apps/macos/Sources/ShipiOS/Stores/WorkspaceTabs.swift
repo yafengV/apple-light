@@ -346,7 +346,7 @@ extension WorkspaceStore {
     focusComposer = UUID()
   }
 
-  func activateWorkspaceTab(_ id: String?) {
+  func activateWorkspaceTab(_ id: String?, focus: Bool = true) {
     guard let id else {
       activateChatTab()
       return
@@ -369,13 +369,13 @@ extension WorkspaceStore {
     case .browser(let browserID, _):
       // Restoration may already have selected this browser without focus.
       // An explicit activation must still issue its native focus request.
-      workspace.browser.select(browserID)
+      workspace.browser.select(browserID, focus: focus)
     case .file: break
     case .review:
       Task { await workspace.refreshGit() }
     case .plan, .sources, .pullRequest, .pullRequestWatch, .backgroundTerminal, .subagents: break
     case .terminal:
-      focusTerminal()
+      if focus { focusTerminal() }
     }
   }
 

@@ -11,7 +11,7 @@ extension TaskWindowTabs {
     case "browser-forward": return page?.canGoForward == true
     case "browser-copy": return page?.committedURL != nil
     case "browser-comment-mode": return page?.canToggleCommentMode == true
-    case "workspace-view": return commandContentTab != nil || tabs.contains(where: { $0.id == lastContentForCommand })
+    case "workspace-view": return true
     case "workspace-swap-panes": return showsContentSidePanel || panels.showingFiles
     case "tab-close-others":
       let place = commandContentTab.map { stripPlacement($0.id) } ?? .left
@@ -28,11 +28,7 @@ extension TaskWindowTabs {
     guard commandEnabled(id) else { return false }
     let page = commandContentTab?.browserID.flatMap { id in browser.session.tabs.first { $0.id == id } }
     switch id {
-    case "browser":
-      if let tab = commandContentTab, tab.browserID != nil {
-        if stripPlacement(tab.id) == .left { activate(nil) } else { hide(stripPlacement(tab.id)) }
-      } else if let tab = tabs.first(where: { $0.browserID != nil }) { activate(tab.id) }
-      else { newBrowser() }
+    case "browser": toggleContentVisibility()
     case "browser-new": newBrowser()
     case "browser-reopen": reopen()
     case "browser-address": if let page { browser.session.focusAddress(tabID: page.id) }

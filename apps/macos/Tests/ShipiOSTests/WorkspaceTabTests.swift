@@ -48,16 +48,20 @@ import XCTest
     XCTAssertEqual(store.activeWorkspaceTabID, "review:task")
   }
 
-  func testBrowserPanelCommandCreatesThenTogglesExistingTab() throws {
+  func testContentPanelCommandCreatesSplitThenTogglesExistingTab() throws {
     let store = storeWithTask()
     defer { store.workspace.browser.shutdown() }
     XCTAssertEqual(store.shortcuts.binding("browser"), ShortcutBinding("⌘⇧B"))
     store.executeCommand("browser")
-    let browserID = try XCTUnwrap(store.activeBrowserTabID)
+    let browserID = try XCTUnwrap(store.activeRightWorkspaceContentTab?.browserID)
+    XCTAssertTrue(store.showsWorkspaceInspector)
+    // Retained content, not the separately specified disposable single-new-tab case.
+    store.workspaceTabs.append(.sources(owner: "task"))
     store.executeCommand("browser")
-    XCTAssertNil(store.activeBrowserTabID)
+    XCTAssertFalse(store.showsWorkspaceInspector)
     store.executeCommand("browser")
-    XCTAssertEqual(store.activeBrowserTabID, browserID)
+    XCTAssertEqual(store.activeRightWorkspaceContentTab?.browserID, browserID)
+    XCTAssertTrue(store.showsWorkspaceInspector)
     XCTAssertEqual(store.workspace.browser.tabs.count, 1)
   }
 
