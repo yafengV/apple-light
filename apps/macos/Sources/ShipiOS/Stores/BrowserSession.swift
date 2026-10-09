@@ -272,11 +272,11 @@ final class BrowserSession {
       || (responder as? NSView)?.isDescendant(of: tab.view) == true)
   }
   var hasEditableFocus: Bool { hasEditableFocus(tabID: selection) }
-  func copyURL(tabID: UUID? = nil, to pasteboard: NSPasteboard = .general) {
+  @discardableResult func copyURL(tabID: UUID? = nil, to pasteboard: NSPasteboard = .general) -> Bool {
     let tab: BrowserTab?
     if let tabID { tab = tabs.first { $0.id == tabID } } else { tab = selected }
-    guard let url = tab?.committedURL else { return }
-    pasteboard.clearContents(); pasteboard.setString(url.absoluteString, forType: .string)
+    guard let url = tab?.committedURL else { return false }
+    pasteboard.clearContents(); return pasteboard.setString(url.absoluteString, forType: .string)
   }
   func shutdown() {
     cancelRename()

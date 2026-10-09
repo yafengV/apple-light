@@ -249,9 +249,12 @@ private struct SidebarPinnedContentTabRow: View {
 
   @ViewBuilder private var menuActions: some View {
     Button("从侧栏取消固定") { store.unpinWorkspaceTab(pin.id) }
-    if store.canRenamePinnedBrowser(pin.id) {
+    if let context = store.pinnedBrowserActionContext(pin.id) {
       Divider()
-      Button("重命名") { store.beginPinnedBrowserRename(pin.id) }
+      ForEach(context.actions, id: \.rawValue) { action in
+        if action == .rename || action == .close { Divider() }
+        Button(action.title) { store.performPinnedBrowserAction(action, context: context) }
+      }
     }
   }
 }

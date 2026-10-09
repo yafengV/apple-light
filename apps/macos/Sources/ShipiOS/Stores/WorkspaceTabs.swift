@@ -162,6 +162,7 @@ extension WorkspaceStore {
       $0.id == id || ($0.sourceTabID == id && $0.sourceWindowID == windowID)
     }) else { return }
     cancelPinnedBrowserRename(pin.id)
+    pinnedBrowserActionGenerations[pin.id] = nil
     library.pinnedContentTabs.removeAll { $0.id == pin.id }
     library.sidebar.placement[SidebarItem.contentTab(pin.id).id] = nil
     for section in Array(library.sidebar.order.keys) {

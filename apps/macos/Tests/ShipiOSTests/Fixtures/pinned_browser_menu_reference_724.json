@@ -1,0 +1,749 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": [
+    "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+    "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab"
+  ],
+  "boundary": "Actual ewa/eYr/tYr/ZJr and duplicate fallback twa/rwa/XJ (including default revealAndFocus). Scope selectors, closeability, browser snapshots, fork availability, audio item provider, icon/intl/JSX, page initialization, ZJ.open controller and host effects are explicit mocks. No native audio, full-history clone, fork runtime, menu/focus or network acceptance.",
+  "cases": [
+    {
+      "name": "no-snapshot",
+      "snapshot": null,
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": ""
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "invalid-web",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "not-a-url"
+      },
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "mute-browser-tab",
+          "type": "action",
+          "title": "Audio"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "not-a-url"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "blank-web",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "about:blank",
+        "isSuspended": false,
+        "isAudioMuted": false
+      },
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "open-browser-tab-in-external-browser",
+          "type": "action",
+          "title": "Open in external browser"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "mute-browser-tab",
+          "type": "action",
+          "title": "Audio"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "about:blank"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "loaded-web",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "https://source.example/page",
+        "isSuspended": false,
+        "isAudioMuted": false
+      },
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "copy-browser-tab-url",
+          "type": "action",
+          "title": "Copy URL"
+        },
+        {
+          "id": "open-browser-tab-in-external-browser",
+          "type": "action",
+          "title": "Open in external browser"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "mute-browser-tab",
+          "type": "action",
+          "title": "Audio"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "https://source.example/page"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "default-browser",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "https://source.example/page",
+        "isSuspended": false
+      },
+      "defaultBrowser": true,
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "copy-browser-tab-url",
+          "type": "action",
+          "title": "Copy URL"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "mute-browser-tab",
+          "type": "action",
+          "title": "Audio"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "https://source.example/page"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "suspended-web",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "https://source.example/page",
+        "isSuspended": true
+      },
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "copy-browser-tab-url",
+          "type": "action",
+          "title": "Copy URL"
+        },
+        {
+          "id": "open-browser-tab-in-external-browser",
+          "type": "action",
+          "title": "Open in external browser"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "https://source.example/page"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "muted-web",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "https://source.example/page",
+        "isAudioMuted": true
+      },
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "copy-browser-tab-url",
+          "type": "action",
+          "title": "Copy URL"
+        },
+        {
+          "id": "open-browser-tab-in-external-browser",
+          "type": "action",
+          "title": "Open in external browser"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "unmute-browser-tab",
+          "type": "action",
+          "title": "Audio"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "https://source.example/page"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "media-tab",
+      "snapshot": {
+        "tabType": "MEDIA",
+        "url": "https://source.example/media"
+      },
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "open-browser-tab-in-external-browser",
+          "type": "action",
+          "title": "Open in external browser"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "https://source.example/media"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    },
+    {
+      "name": "forkable-web",
+      "snapshot": {
+        "tabType": "WEB",
+        "url": "https://source.example/page"
+      },
+      "fork": true,
+      "items": [
+        {
+          "id": "reload-browser-tab",
+          "type": "action",
+          "title": "Reload"
+        },
+        {
+          "id": "duplicate-browser-tab",
+          "type": "action",
+          "title": "Duplicate"
+        },
+        {
+          "id": "fork-browser-tab",
+          "type": "action",
+          "title": "Fork",
+          "submenu": [
+            {
+              "id": "fork-browser-tab-into-current-workspace",
+              "type": "action",
+              "title": "Fork local"
+            },
+            {
+              "id": "fork-browser-tab-into-new-worktree",
+              "type": "action",
+              "title": "Fork worktree"
+            }
+          ]
+        },
+        {
+          "id": "copy-browser-tab-url",
+          "type": "action",
+          "title": "Copy URL"
+        },
+        {
+          "id": "open-browser-tab-in-external-browser",
+          "type": "action",
+          "title": "Open in external browser"
+        },
+        {
+          "id": "browser-tab-menu-preferences-section-separator",
+          "type": "separator"
+        },
+        {
+          "id": "rename-browser-tab",
+          "type": "action",
+          "title": "Rename"
+        },
+        {
+          "id": "mute-browser-tab",
+          "type": "action",
+          "title": "Audio"
+        },
+        {
+          "id": "close-tab-separator",
+          "type": "separator"
+        },
+        {
+          "id": "close-tab",
+          "type": "action",
+          "title": "Close"
+        }
+      ],
+      "duplicate": [
+        {
+          "kind": "new",
+          "args": {
+            "revealAndFocus": true,
+            "browserConversationId": "a",
+            "browserTabId": "child-uuid",
+            "cwd": "/a",
+            "insertPosition": {
+              "type": "after",
+              "tabId": "browser"
+            },
+            "openerTabId": "browser",
+            "target": "right"
+          }
+        },
+        {
+          "kind": "navigate",
+          "type": "browser-sidebar-command",
+          "args": {
+            "pagePersistence": null,
+            "browserTabId": "child-uuid",
+            "conversationId": "a",
+            "command": {
+              "initiator": "side_panel_menu",
+              "source": "manual",
+              "type": "navigate",
+              "url": "https://source.example/page"
+            }
+          }
+        }
+      ],
+      "staleCallbacks": []
+    }
+  ]
+}

@@ -317,6 +317,7 @@ final class WorkspaceStore {
   @ObservationIgnored var additionalTaskWindowPanels = NSHashTable<TaskWindowPanelSessions>.weakObjects()
   @ObservationIgnored var taskWindowResources = NSHashTable<TaskWindowResources>.weakObjects()
   @ObservationIgnored var restoringPinnedContentTabIDs = Set<String>()
+  @ObservationIgnored var pinnedBrowserActionGenerations: [String: UUID] = [:]
   @ObservationIgnored var additionalBrowserSessions = NSHashTable<BrowserSession>.weakObjects()
   var browserDownloadProgress: [UUID: Double] = [:]
   @ObservationIgnored var messageDownloadIDs = Set<UUID>()

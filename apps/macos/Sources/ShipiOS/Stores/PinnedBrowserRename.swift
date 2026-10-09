@@ -14,7 +14,7 @@ extension WorkspaceStore {
   var mainRenameDialogActive: Bool { renameTaskID != nil || pinnedBrowserRenameRequest != nil }
 
   /// Resolving an action must never reveal a chat, restore a cold source or move a page.
-  private func pinnedBrowserSource(_ pin: PinnedWorkspaceTab) -> (BrowserSession, BrowserTab)? {
+  func pinnedBrowserSource(_ pin: PinnedWorkspaceTab) -> (BrowserSession, BrowserTab)? {
     guard pin.kind == .browser,
       library.tasks.contains(where: { $0.id == pin.owner }) || workspaceDraftIdentity(owner: pin.owner) != nil else { return nil }
     let session: BrowserSession
@@ -22,7 +22,7 @@ extension WorkspaceStore {
       guard let resources = taskWindowResources.allObjects.first(where: { $0.id == windowID }),
         resources.contains(pin), let tabs = resources.tasks[pin.owner],
         let tab = tabs.tabs.first(where: { $0.id == pin.sourceTabID }),
-        tabs.draggingTabID != pin.sourceTabID,
+        tab.kind == .browser, tabs.draggingTabID != pin.sourceTabID,
         [.left, .right].contains(tabs.placement(tab.id)) else { return nil }
       session = tabs.browser.session
     } else {
