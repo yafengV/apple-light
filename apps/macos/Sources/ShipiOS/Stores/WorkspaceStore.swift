@@ -193,6 +193,7 @@ final class WorkspaceStore {
   @ObservationIgnored var legacyReviewFileRoots: [String: URL] = [:]
   var navigationBack: [TaskLocation] = []
   var navigationForward: [TaskLocation] = []
+  var navigatingWorkspaceHistory = false
   var showingArchived = false
   var showingInspector = false
   var inspectorTab = "diagnostics"
@@ -682,18 +683,20 @@ final class WorkspaceStore {
   }
 
   /// Switches to a scope with no filesystem root and no local Agent connection.
-  func openProjectless() async {
-    guard activeLocalRun == nil, !busy, await loadLibrary() else { return }
+  func openProjectless(stillValid: () -> Bool = { true }) async {
+    guard activeLocalRun == nil, !busy, await loadLibrary(), stillValid() else { return }
     captureWorkspaceTabLayout()
-    workspaceLayoutActiveOwner = nil
-    workspaceContentLayoutMode = nil
     rememberProjectSelection()
     saveProfile()
     busy = true
     defer { busy = false }
     connected = false
     session = UUID()
+    let token = session
     await client.stop()
+    guard session == token, stillValid() else { return }
+    workspaceLayoutActiveOwner = nil
+    workspaceContentLayoutMode = nil
     project = nil
     workspace.setProject(nil)
     destination = .workspace
@@ -737,7 +740,8 @@ final class WorkspaceStore {
     saveLibrary()
   }
 
-  @discardableResult func openTaskScope(_ key: String) async -> Bool {
+  @discardableResult func openTaskScope(_ key: String, stillValid: () -> Bool = { true }) async -> Bool {
+    guard stillValid() else { return false }
     if key == currentProjectKey && (key.isEmpty || connected) { return true }
     if let managed = library.managedWorktrees.first(where: { $0.path == key }),
       managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
@@ -747,9 +751,10 @@ final class WorkspaceStore {
         return false
       }
     }
-    if key.isEmpty { await openProjectless() }
-    else { await open(URL(fileURLWithPath: key), usePrimary: false) }
-    return currentProjectKey == key && (key.isEmpty || connected)
+    guard stillValid() else { return false }
+    if key.isEmpty { await openProjectless(stillValid: stillValid) }
+    else { await open(URL(fileURLWithPath: key), usePrimary: false, stillValid: stillValid) }
+    return stillValid() && currentProjectKey == key && (key.isEmpty || connected)
   }
 
   func newChat() async {
@@ -801,9 +806,9 @@ final class WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
 
-  func open(_ url: URL, usePrimary: Bool = true) async {
+  func open(_ url: URL, usePrimary: Bool = true, stillValid: () -> Bool = { true }) async {
     guard activeLocalRun == nil || !connected, !busy else { return }
-    guard await loadLibrary() else { return }
+    guard await loadLibrary(), stillValid() else { return }
     let requested = url.resolvingSymlinksInPath().standardizedFileURL
     let canonical = usePrimary
       ? URL(fileURLWithPath: library.primaryFolder(for: requested.path), isDirectory: true)
@@ -839,6 +844,7 @@ final class WorkspaceStore {
         try await client.request("run.list").decode([AgentRun].self)
         + library.localRuns.filter { $0.project == canonical.path }
       guard session == token else { return }
+      guard stillValid() else { await client.stop(); return }
       // Failed initialization must not replace the task, draft, files or panels.
       // The previous local Agent has stopped; connection state remains truthful.
       workspaceLayoutActiveOwner = nil

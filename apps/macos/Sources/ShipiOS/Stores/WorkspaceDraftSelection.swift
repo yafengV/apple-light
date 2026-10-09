@@ -22,7 +22,7 @@ extension WorkspaceStore {
       activeLocalRun == nil || root == currentProjectKey, stillValid() else { return false }
     let origin = currentTaskLocation
     let previous = selectedTask?.id
-    guard await openTaskScope(root), !Task.isCancelled, !shuttingDown, stillValid(),
+    guard await openTaskScope(root, stillValid: stillValid), !Task.isCancelled, !shuttingDown, stillValid(),
       workspaceDraftIdentity(owner: owner) == identity,
       workspaceDraftProject(owner: owner) == root else { return false }
     if recordHistory {

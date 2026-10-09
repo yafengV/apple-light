@@ -319,10 +319,10 @@ extension WorkspaceStore {
       && (filePreviewFocused || !visibleWorkspaceContentTabs.isEmpty)
     case "previous-recent-task", "next-recent-task": return taskNavigationShortcutContext != nil
     case "back":
-      return destination != .workspace || (!navigationBack.isEmpty && activeLocalRun == nil && !busy)
+      return destination != .workspace || (!navigationBack.isEmpty && activeLocalRun == nil && !busy && !navigatingWorkspaceHistory)
     case "forward":
       return canGoForwardToPluginDetail
-        || (destination == .workspace && !navigationForward.isEmpty && activeLocalRun == nil && !busy)
+        || (destination == .workspace && !navigationForward.isEmpty && activeLocalRun == nil && !busy && !navigatingWorkspaceHistory)
     case "sidebar": return destination != .settings
     case "bottom-panel": return project != nil
     case "new", "new-standalone": return !busy && (project == nil || activeLocalRun == nil)
@@ -463,21 +463,36 @@ extension WorkspaceStore {
       returnToWorkspace()
       return
     }
-    guard destination == .workspace, activeLocalRun == nil, !busy else { return }
-    let location = back ? navigationBack.popLast() : navigationForward.popLast()
-    guard let location else { return }
+    guard await navigateWorkspaceHistory(back: back) else { return }
+    await loadDetails()
+  }
+
+  private func navigateWorkspaceHistory(back: Bool) async -> Bool {
+    guard destination == .workspace, activeLocalRun == nil, !busy,
+      !navigatingWorkspaceHistory, !shuttingDown, !Task.isCancelled,
+      let location = back ? navigationBack.last : navigationForward.last else { return false }
+    navigatingWorkspaceHistory = true
+    defer { navigatingWorkspaceHistory = false }
     let current = currentTaskLocation
-    if back { navigationForward.append(current) } else { navigationBack.append(current) }
+    let previousBack = navigationBack, previousForward = navigationForward
+    let stillValid = {
+      !Task.isCancelled && !self.shuttingDown && self.destination == .workspace
+        && self.navigationBack == previousBack && self.navigationForward == previousForward
+    }
     if location.run == nil, let owner = location.draftOwner {
       guard workspaceDraftProject(owner: owner) == location.project,
-        await selectWorkspaceDraft(owner, recordHistory: false) else { return }
+        await selectWorkspaceDraft(owner, recordHistory: false, stillValid: stillValid) else { return false }
     } else {
-      guard await openTaskScope(location.project) else { return }
+      guard await openTaskScope(location.project, stillValid: stillValid), stillValid() else { return false }
       selection = location.run
       rememberProjectSelection()
       saveLibrary()
     }
-    await loadDetails()
+    // Commit both sides only after the target is selected. An unavailable scope
+    // remains at the same history position, so retry cannot skip to another page.
+    if back { _ = navigationBack.popLast(); navigationForward.append(current) }
+    else { _ = navigationForward.popLast(); navigationBack.append(current) }
+    return true
   }
   func numberedSidebarTask(at number: Int) -> WorkspaceTask? {
     guard (1...9).contains(number) else { return nil }
