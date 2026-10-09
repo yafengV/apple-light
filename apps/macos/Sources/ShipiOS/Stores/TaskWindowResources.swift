@@ -75,6 +75,10 @@ import Observation
         self?.pendingFileTabCloses[tab.id] = nil
         self?.capturePins()
       }
+      tasks[taskID]?.isTabPinned = { [weak self, weak store] tabID in
+        guard let self else { return false }
+        return store?.isWorkspaceTabPinned(tabID, windowID: self.id) == true
+      }
       tasks[taskID]?.onTabReplaced = { [weak self] old, new in
         guard let self, let store = self.store else { return }
         files.rekey(old, to: tasks[taskID]?.tabs.first { $0.id == new }, store: store)

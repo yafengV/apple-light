@@ -2,6 +2,11 @@ import AppKit
 import Observation
 import WebKit
 
+enum BrowserTabCloseReason {
+  case user, discardedEmpty
+  var recordsUndo: Bool { if case .user = self { return true }; return false }
+}
+
 @MainActor @Observable
 final class BrowserSession {
   private struct ClosedTabState {
@@ -21,7 +26,7 @@ final class BrowserSession {
   @ObservationIgnored var createChildTab: ((UUID, WKWebViewConfiguration?) -> BrowserTab?)?
   @ObservationIgnored var onTabOpened: ((UUID) -> Void)?
   @ObservationIgnored var onTabSelected: ((UUID) -> Void)?
-  @ObservationIgnored var onTabClosed: ((UUID) -> Void)?
+  @ObservationIgnored var onTabClosed: ((UUID, BrowserTabCloseReason) -> Void)?
   @ObservationIgnored var onTabsReordered: (([UUID]) -> Void)?
   @ObservationIgnored var onTabMoved: ((UUID) -> Void)?
   /// Content-tab owners choose the fallback within the closing tab's own pane.
@@ -106,16 +111,23 @@ final class BrowserSession {
       contentFocus = UUID()
     }
   }
-  func close(_ id: UUID) {
+  @discardableResult func discardEmptyNewTab(_ id: UUID) -> Bool {
+    guard let tab = tabs.first(where: { $0.id == id }), tab.canDiscardEmptyNewTab else { return false }
+    close(id, reason: .discardedEmpty)
+    return tab.closed
+  }
+  func close(_ id: UUID, reason: BrowserTabCloseReason = .user) {
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
     let tab = tabs.remove(at: index)
-    closedTabs.append(ClosedTabState(
-      id: tab.id,
-      address: tab.committedURL?.absoluteString ?? tab.address,
-      shouldNavigate: tab.committedURL != nil))
-    if closedTabs.count > 20 { closedTabs.removeFirst(closedTabs.count - 20) }
+    if reason.recordsUndo {
+      closedTabs.append(ClosedTabState(
+        id: tab.id,
+        address: tab.committedURL?.absoluteString ?? tab.address,
+        shouldNavigate: tab.committedURL != nil))
+      if closedTabs.count > 20 { closedTabs.removeFirst(closedTabs.count - 20) }
+    }
     tab.close()
-    onTabClosed?(id)
+    onTabClosed?(id, reason)
     if addressFocusTarget == id { addressFocusTarget = nil }
     if contentFocusTarget == id { contentFocusTarget = nil }
     if selection == id {

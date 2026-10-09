@@ -40,6 +40,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   let id: UUID
   var address = ""
   var editingAddress = false
+  private(set) var hasAddressInputDraft = false
   private(set) var title = "新标签页"
   private(set) var loading = false
   private(set) var canGoBack = false
@@ -123,6 +124,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       let url = try BrowserAddress.url(address)
       address = url.absoluteString
       editingAddress = false
+      hasAddressInputDraft = false
       error = nil
       loading = true
       if !Self.sameDocument(view.url, url) { invalidateSiteTools() }
@@ -182,7 +184,29 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       self.pageFindMatch = result.matchFound
     }
   }
-  func restoreAddress() { editingAddress = false; address = committedURL?.absoluteString ?? "" }
+  func setAddressDraft(_ value: String) {
+    address = value
+    hasAddressInputDraft = true
+  }
+  var savedAddressInputDraftPresent: Bool {
+    hasAddressInputDraft || (!address.isEmpty && address != (committedURL?.absoluteString ?? ""))
+  }
+  func restoreSavedAddress(_ value: String?, committedURL raw: String?, draftPresent: Bool?) {
+    address = value ?? raw ?? ""
+    hasAddressInputDraft = draftPresent ?? (value?.isEmpty == false && value != raw)
+    editingAddress = hasAddressInputDraft
+  }
+  func restoreAddress() {
+    editingAddress = false; hasAddressInputDraft = false
+    address = committedURL?.absoluteString ?? ""
+  }
+  var canDiscardEmptyNewTab: Bool {
+    !closed && !hasAddressInputDraft && address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && committedURL == nil && view.url == nil && !loading && !view.isLoading
+      && !canGoBack && !canGoForward && view.pageZoom == 1
+      && !agentOperationActive && !capturingSnapshot && !commenting && !siteToolExecuting
+      && downloads.isEmpty && pendingDownloads.isEmpty
+  }
   func close() {
     guard !closed else { return }
     cancelElementSelection()
@@ -509,7 +533,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     canGoBack = view.canGoBack; canGoForward = view.canGoForward
     if committedURL != view.url {
       committedURL = view.url
-      if !editingAddress, let url = view.url { address = url.absoluteString }
+      if !editingAddress, !hasAddressInputDraft, let url = view.url { address = url.absoluteString }
     }
     title = view.title.flatMap { $0.isEmpty ? nil : $0 } ?? view.url?.host ?? "新标签页"
   }

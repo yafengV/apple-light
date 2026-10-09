@@ -872,10 +872,12 @@ extension WorkspaceStore {
     lastWorkspaceContentTabID = tab.id
   }
 
-  func workspaceBrowserDidClose(_ id: UUID) {
+  func workspaceBrowserDidClose(_ id: UUID, reason: BrowserTabCloseReason = .user) {
     guard let tab = workspaceTabs.first(where: { $0.browserID == id }) else { return }
-    closedWorkspaceTabs.append(tab)
-    trimClosedWorkspaceTabs()
+    if reason.recordsUndo {
+      closedWorkspaceTabs.append(tab)
+      trimClosedWorkspaceTabs()
+    }
     workspaceTabDidDisappear(tab)
     if !shuttingDown {
       library.workspaceTabLayouts[tab.owner]?.tabs.removeAll { $0.id == tab.id }

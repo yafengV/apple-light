@@ -75,8 +75,9 @@ struct BrowserAddressField: NSViewRepresentable {
       parent.onEndEditing()
     }
     func controlTextDidChange(_ notification: Notification) {
+      guard active, !parent.tab.closed else { return }
       if let field = notification.object as? NSTextField {
-        parent.tab.address = field.stringValue
+        parent.tab.setAddressDraft(field.stringValue)
         parent.onChange()
       }
     }

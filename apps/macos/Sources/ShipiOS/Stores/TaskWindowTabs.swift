@@ -11,6 +11,7 @@ import WebKit
   @ObservationIgnored var pullRequest: ((String) -> GitHubPullRequest?)?
   @ObservationIgnored var watchAutomation: ((UUID, String) -> ShipAutomation?)?
   @ObservationIgnored var onTabWillClose: ((WorkspaceContentTab) -> Void)?
+  @ObservationIgnored var isTabPinned: ((String) -> Bool)?
   @ObservationIgnored var canCloseFileTab: ((WorkspaceContentTab) -> Bool)?
   @ObservationIgnored var onTabReplaced: ((String, String) -> Void)?
   @ObservationIgnored var backgroundTerminalTitle: ((UUID) -> String?)?
@@ -95,8 +96,8 @@ import WebKit
       guard let self, !synchronizingBrowser else { return }
       activate(WorkspaceContentTab.browser(id, owner: taskID).id, focus: false)
     }
-    browser.session.onTabClosed = { [weak self] id in
-      self?.remove(WorkspaceContentTab.browser(id, owner: taskID).id)
+    browser.session.onTabClosed = { [weak self] id, reason in
+      self?.remove(WorkspaceContentTab.browser(id, owner: taskID).id, recordCloseUndo: reason.recordsUndo)
     }
     browser.session.onTabMoved = { [weak self] id in
       guard let self else { return }
@@ -374,6 +375,10 @@ import WebKit
     if effectiveContentLayoutMode == .split, showsContentSidePanel {
       showingRight = false
       activate(nil)
+      if primaryContentTabs.count == 1, let tab = primaryContentTabs.first,
+        isTabPinned?(tab.id) != true, let id = tab.browserID {
+        browser.session.discardEmptyNewTab(id)
+      }
       return
     }
     let keepChatFocus = focused == nil && selected(.left) == nil
@@ -397,7 +402,7 @@ import WebKit
       remove(id)
     }
   }
-  private func remove(_ id: String) {
+  private func remove(_ id: String, recordCloseUndo: Bool = true) {
     if draggingTabID == id { endDrag() }
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
     let place = placement(id), strip = stripPlacement(id), wasFocused = focused?.id == id
@@ -410,8 +415,10 @@ import WebKit
     let selectedMain = selections[.left] == id, selectedRight = selections[.right] == id, selectedBottom = selections[.bottom] == id
     let next = controller.close(id, in: ids)
     closeControllers[panel] = controller
-    closed.append(Closed(tab: tabs[index], placement: place))
-    if closed.count > 20 { closed.removeFirst(closed.count - 20) }
+    if recordCloseUndo {
+      closed.append(Closed(tab: tabs[index], placement: place))
+      if closed.count > 20 { closed.removeFirst(closed.count - 20) }
+    }
     tabs.remove(at: index); placements[id] = nil; clearSelection(id)
     if wasLastContent { lastContentID = next }
     if selectedMain { selections[.left] = next }
@@ -535,7 +542,8 @@ import WebKit
         filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
         fileRoot: tab.kind == .file ? panels.workspace.root?.path : nil,
         terminalSplitFraction: splitFraction,
-        watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
+        watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID,
+        addressInputDraftPresent: page?.savedAddressInputDraftPresent)
     }
     return TaskWindowTabLayout(project: panels.workspace.root?.path,
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
@@ -563,8 +571,8 @@ import WebKit
           page.address = raw
           page.navigate()
         }
-        page.address = entry.address ?? entry.committedURL ?? ""
-        page.editingAddress = entry.address != nil && entry.address != entry.committedURL
+        page.restoreSavedAddress(entry.address, committedURL: entry.committedURL,
+          draftPresent: entry.addressInputDraftPresent)
         tab = .browser(id, owner: taskID)
       case .file:
         guard sameProject, let root = panels.workspace.root, let path = entry.filePath,

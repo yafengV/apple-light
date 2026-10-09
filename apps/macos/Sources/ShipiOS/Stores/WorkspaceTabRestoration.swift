@@ -23,7 +23,8 @@ extension WorkspaceStore {
       filePath: { if case .file(let path, _) = tab { return path }; return nil }(),
       fileRoot: tab.kind == .file ? workspaceFileTabRoot(tab)?.path : nil,
       terminalSplitFraction: splitFraction,
-      watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
+      watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID,
+      addressInputDraftPresent: browser?.savedAddressInputDraftPresent)
   }
 
   func captureWorkspaceTabLayout() {
@@ -108,8 +109,8 @@ extension WorkspaceStore {
         browser.address = raw
         browser.navigate()
       }
-      browser.address = saved.address ?? saved.committedURL ?? ""
-      browser.editingAddress = saved.address != nil && saved.address != saved.committedURL
+      browser.restoreSavedAddress(saved.address, committedURL: saved.committedURL,
+        draftPresent: saved.addressInputDraftPresent)
       tab = .browser(id, owner: owner)
     case .file:
       guard let path = saved.filePath,

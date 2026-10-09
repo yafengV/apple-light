@@ -27,6 +27,8 @@ struct SavedWorkspaceTab: Codable, Equatable {
   var terminalSplitFraction: Double? = nil
   var watchAutomationID: UUID? = nil
   var watchTaskID: String? = nil
+  /// Presence is independent of its text: typing and clearing still leaves a draft.
+  var addressInputDraftPresent: Bool? = nil
 }
 
 struct WorkspaceTabLayout: Codable, Equatable {

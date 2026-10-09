@@ -1,0 +1,134 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual canReplaceNewTab/isDisposableEmptyNewTab/kCa/ACa, explicit host state and inert close adapter. No application initialization/native bridge. Cases do not assert native media or transfer support in ShipiOS.",
+  "cases": [
+    {
+      "name": "empty",
+      "disposable": true,
+      "discarded": true,
+      "closed": [
+        {
+          "id": "tab",
+          "recordCloseUndo": false
+        }
+      ],
+      "removed": [
+        "browser"
+      ]
+    },
+    {
+      "name": "address-draft",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "cleared-address-draft",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "pinned",
+      "disposable": true,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "multiple",
+      "disposable": true,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "web",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "loading",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "back-history",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "forward-history",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "zoom",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "comment-mode",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "comments",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "agent",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "capture",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "pending-transfer",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "custom-title",
+      "disposable": true,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    },
+    {
+      "name": "missing-snapshot",
+      "disposable": false,
+      "discarded": false,
+      "closed": [],
+      "removed": []
+    }
+  ]
+}

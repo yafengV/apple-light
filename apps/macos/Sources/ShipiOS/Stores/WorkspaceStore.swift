@@ -623,7 +623,7 @@ final class WorkspaceStore {
     }
     workspace.browser.onTabOpened = { [weak self] id in self?.workspaceBrowserDidOpen(id) }
     workspace.browser.onTabSelected = { [weak self] id in self?.workspaceBrowserDidSelect(id) }
-    workspace.browser.onTabClosed = { [weak self] id in self?.workspaceBrowserDidClose(id) }
+    workspace.browser.onTabClosed = { [weak self] id, reason in self?.workspaceBrowserDidClose(id, reason: reason) }
     workspace.browser.onTabsReordered = { [weak self] ids in self?.workspaceBrowserDidReorder(ids) }
     workspace.browser.onTabMoved = { [weak self] id in
       guard let self, let tab = self.workspaceTabs.first(where: { $0.browserID == id }) else { return }

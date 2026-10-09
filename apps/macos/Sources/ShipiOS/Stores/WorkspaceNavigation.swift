@@ -369,6 +369,10 @@ extension WorkspaceStore {
     if mode == .split, showingInspector, activeRightWorkspaceContentTab != nil {
       showingInspector = false
       activateChatTab()
+      if workspacePrimaryContentTabs.count == 1, let tab = workspacePrimaryContentTabs.first,
+        !isWorkspaceTabPinned(tab.id), let id = tab.browserID {
+        workspace.browser.discardEmptyNewTab(id)
+      }
       return
     }
     let keepChatFocus = focusedWorkspaceContentTab == nil && activeWorkspaceContentTab == nil
