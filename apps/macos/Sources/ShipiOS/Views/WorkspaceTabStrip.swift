@@ -61,6 +61,12 @@ struct WorkspaceTabStrip: View {
         in: RoundedRectangle(cornerRadius: 7))
     }
     .buttonStyle(.plain)
+    .overlay {
+      ContentTabDragSource(title: store.selectedTask?.title ?? "新任务", token: "",
+        select: { store.activateChatTab() }, doubleClick: { store.toggleWorkspaceTabLayout(nil) },
+        begin: { nil }, end: { _ in })
+        .accessibilityHidden(true)
+    }
     .help(store.selectedTask?.title ?? "新任务")
     .accessibilityLabel("聊天标签：\(store.selectedTask?.title ?? "新任务")")
     .accessibilityAddTraits(store.activeWorkspaceContentTab == nil ? .isSelected : [])
@@ -91,6 +97,7 @@ private struct WorkspaceContentTabChip: View {
         .overlay {
           ContentTabDragSource(title: store.workspaceTabTitle(tab), token: WorkspaceTabDragToken.encode(tab.id),
             select: { store.activateWorkspaceTab(tab.id) },
+            doubleClick: { store.toggleWorkspaceTabLayout(tab.id) },
             begin: { store.beginWorkspaceTabDrag(tab.id); return store.workspaceTabDragSessionID },
             end: { store.endWorkspaceTabDrag(session: $0) })
             .accessibilityHidden(true)

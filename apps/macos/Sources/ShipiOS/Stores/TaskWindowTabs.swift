@@ -372,6 +372,23 @@ import WebKit
       ?? primaryContentTabs.first?.id else { newBrowser(); return }
     move(id, to: effectiveContentLayoutMode == .full ? .right : .left)
   }
+  func toggleTabLayout(_ id: String?) {
+    let content = primaryContentTabs
+    if let id, !content.contains(where: { $0.id == id }) { return }
+    if effectiveContentLayoutMode == .full {
+      let target = id ?? selected(.left)?.id
+        ?? content.first(where: { $0.id == lastContentID })?.id
+        ?? selected(.right)?.id ?? content.first?.id
+      if let target { move(target, to: .right) }
+      else { newBrowser(in: .right) }
+    } else if let id {
+      move(id, to: .left)
+    } else {
+      contentLayoutMode = .full
+      showingRight = false
+      activate(nil)
+    }
+  }
   func toggleContentVisibility() {
     if effectiveContentLayoutMode == .split, showsContentSidePanel {
       showingRight = false

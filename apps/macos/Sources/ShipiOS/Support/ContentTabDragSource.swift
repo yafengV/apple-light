@@ -4,9 +4,11 @@ import SwiftUI
 /// SwiftUI owns the tab and its drop destinations. AppKit owns the pointer drag
 /// so cleanup happens after the system session, not before an asynchronous drop.
 struct ContentTabDragSource: NSViewRepresentable {
+  @Environment(\.isEnabled) private var isEnabled
   let title: String
   let token: String
   let select: () -> Void
+  var doubleClick: (() -> Void)? = nil
   let begin: () -> UUID?
   let end: (UUID) -> Void
 
@@ -15,6 +17,9 @@ struct ContentTabDragSource: NSViewRepresentable {
     view.title = title
     view.token = token
     view.select = select
+    view.doubleClick = doubleClick
+    view.isEnabled = isEnabled
+    if !isEnabled { view.pointerDown = nil }
     view.begin = begin
     view.end = end
     view.setAccessibilityElement(false)
@@ -24,6 +29,7 @@ struct ContentTabDragSource: NSViewRepresentable {
     // AppKit may still be completing a drop after SwiftUI has moved the tab.
     // The in-flight session retains its own completion until endedAt arrives.
     view.select = nil
+    view.doubleClick = nil
     view.begin = nil
     view.end = nil
   }
@@ -32,6 +38,8 @@ struct ContentTabDragSource: NSViewRepresentable {
     var title = ""
     var token = ""
     var select: (() -> Void)?
+    var doubleClick: (() -> Void)?
+    var isEnabled = true
     var begin: (() -> UUID?)?
     var end: ((UUID) -> Void)?
     var pointerDown: NSPoint?
@@ -48,17 +56,18 @@ struct ContentTabDragSource: NSViewRepresentable {
       return super.hitTest(point)
     }
     override func mouseDown(with event: NSEvent) {
-      guard completion == nil else { return }
+      guard isEnabled, completion == nil else { return }
       pointerDown = event.locationInWindow
     }
     override func mouseUp(with event: NSEvent) {
       defer { pointerDown = nil }
-      guard completion == nil, pointerDown != nil,
+      guard isEnabled, completion == nil, pointerDown != nil,
         bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
       select?()
+      if event.clickCount == 2, isEnabled, pointerDown != nil { doubleClick?() }
     }
     override func mouseDragged(with event: NSEvent) {
-      guard completion == nil, let origin = pointerDown,
+      guard isEnabled, completion == nil, let origin = pointerDown,
         Self.crossedDragThreshold(from: origin, to: event.locationInWindow),
         !token.isEmpty, let sessionID = begin?(), let end else { return }
       pointerDown = nil

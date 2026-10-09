@@ -1,0 +1,527 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "chromeSHA256": "db5f01832c7d9c730407f6f4e4cdd699dd584393c206439fe12890d265dd3c4b",
+  "boundary": "Actual Du double-click handler plus pinned layout functions. Ordinary workspace, retained nonempty content; explicit atoms and inert native effects. State is at handler invocation, not a simulated OS click sequence. Empty-browser selection disposal is covered separately in phase 715. No primary workspace or foreground acceptance.",
+  "traces": [
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [],
+        "selected": null,
+        "target": "chat"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "new-browser",
+        "ids": [
+          "new-browser"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "content"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "content"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "content"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "content"
+      },
+      "result": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [],
+        "selected": null,
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": null,
+        "ids": []
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "content"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": false,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "content"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "content"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "main",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "chat",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "content"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "main",
+        "selected": "content-1",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1"
+        ],
+        "selected": "content-1",
+        "target": "content"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "chat"
+      },
+      "result": {
+        "mode": "full",
+        "visible": false,
+        "focus": "chat",
+        "focusArea": "main",
+        "selected": "content-3",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    },
+    {
+      "initial": {
+        "mode": "split",
+        "visible": true,
+        "focus": "content",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ],
+        "selected": "content-3",
+        "target": "content"
+      },
+      "result": {
+        "mode": "full",
+        "visible": true,
+        "focus": "content",
+        "focusArea": "right-panel",
+        "selected": "content-1",
+        "ids": [
+          "content-1",
+          "content-2",
+          "content-3"
+        ]
+      }
+    }
+  ]
+}

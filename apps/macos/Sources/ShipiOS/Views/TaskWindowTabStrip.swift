@@ -23,6 +23,11 @@ struct TaskWindowTabStrip: View {
                     in: RoundedRectangle(cornerRadius: 7))
               }
               .buttonStyle(.plain).help(title).accessibilityLabel("聊天标签：\(title)")
+              .overlay {
+                ContentTabDragSource(title: title, token: "", select: { tabs.activate(nil) },
+                  doubleClick: { tabs.toggleTabLayout(nil) }, begin: { nil }, end: { _ in })
+                  .accessibilityHidden(true)
+              }
               .accessibilityAddTraits(tabs.chatVisible ? .isSelected : [])
               .id("chat")
               .contextMenu {
@@ -75,6 +80,7 @@ private struct TaskWindowTabChip: View {
         .overlay {
           ContentTabDragSource(title: tabs.title(tab), token: tabs.dragToken(tab.id),
             select: { tabs.activate(tab.id) },
+            doubleClick: { tabs.toggleTabLayout(tab.id) },
             begin: { tabs.beginDrag(tab.id); return tabs.dragSessionID },
             end: { tabs.endDrag(session: $0) })
             .accessibilityHidden(true)

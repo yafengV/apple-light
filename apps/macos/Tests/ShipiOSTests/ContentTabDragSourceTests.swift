@@ -3,9 +3,51 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class ContentTabDragSourceTests: XCTestCase {
-  private func event(_ type: NSEvent.EventType, at point: NSPoint) throws -> NSEvent {
+  private func event(_ type: NSEvent.EventType, at point: NSPoint, count: Int = 1) throws -> NSEvent {
     try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
-      timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 0))
+      timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: count, pressure: 0))
+  }
+
+  func testDoubleClickSelectsThenTogglesExactlyOnceAndTripleClickOnlySelects() throws {
+    let view = ContentTabDragSource.SourceView(frame:.init(x:0,y:0,width:100,height:30))
+    var actions:[String] = []
+    view.select = { actions.append("select") }
+    view.doubleClick = { actions.append("toggle") }
+    for count in 1...3 {
+      view.mouseDown(with:try event(.leftMouseDown,at:.init(x:10,y:10),count:count))
+      view.mouseUp(with:try event(.leftMouseUp,at:.init(x:10,y:10),count:count))
+    }
+    XCTAssertEqual(actions,["select","select","toggle","select"])
+  }
+  func testDisabledOutsideAndDismantledDoubleClicksCannotToggle() throws {
+    let view = ContentTabDragSource.SourceView(frame:.init(x:0,y:0,width:100,height:30))
+    view.select = { XCTFail("Inactive pointer must not select") }
+    view.doubleClick = { XCTFail("Inactive pointer must not toggle") }
+    let down = try event(.leftMouseDown,at:.init(x:10,y:10),count:2)
+    let up = try event(.leftMouseUp,at:.init(x:10,y:10),count:2)
+    view.isEnabled = false; view.mouseDown(with:down); view.mouseUp(with:up)
+    view.isEnabled = true; view.mouseDown(with:down)
+    view.mouseUp(with:try event(.leftMouseUp,at:.init(x:150,y:10),count:2))
+    view.mouseDown(with:down); view.isEnabled = false; view.mouseUp(with:up)
+    view.isEnabled = true; view.mouseDown(with:down)
+    ContentTabDragSource.dismantleNSView(view,coordinator:())
+    view.mouseUp(with:up)
+    XCTAssertNil(view.doubleClick)
+  }
+  func testSelectionRemovingOrDisablingSourceCancelsFollowingDoubleClick() throws {
+    for remove in [true,false] {
+      let view = ContentTabDragSource.SourceView(frame:.init(x:0,y:0,width:100,height:30))
+      var selections = 0
+      view.select = {
+        selections += 1
+        if remove { ContentTabDragSource.dismantleNSView(view,coordinator:()) }
+        else { view.isEnabled = false }
+      }
+      view.doubleClick = { XCTFail("Selection invalidated the pointer source") }
+      view.mouseDown(with:try event(.leftMouseDown,at:.init(x:10,y:10),count:2))
+      view.mouseUp(with:try event(.leftMouseUp,at:.init(x:10,y:10),count:2))
+      XCTAssertEqual(selections,1)
+    }
   }
 
   func testTitleClickSelectsOnceAndReleaseOutsideDoesNotSelect() throws {

@@ -364,6 +364,25 @@ extension WorkspaceStore {
     showingWorkspaceTabs.toggle()
   }
 
+  func toggleWorkspaceTabLayout(_ id: String?) {
+    guard destination == .workspace, !shuttingDown else { return }
+    let content = workspacePrimaryContentTabs
+    if let id, !content.contains(where: { $0.id == id }) { return }
+    if effectiveWorkspaceContentLayoutMode == .full {
+      let target = id ?? activeWorkspaceContentTab?.id
+        ?? content.first(where: { $0.id == lastWorkspaceContentTabID })?.id
+        ?? activeRightWorkspaceContentTab?.id ?? content.first?.id
+      if let target { moveWorkspaceTab(target, to: .right) }
+      else { newBrowserTab(in: .right) }
+    } else if let id {
+      moveWorkspaceTab(id, to: .left)
+    } else {
+      workspaceContentLayoutMode = .full
+      showingInspector = false
+      activateChatTab()
+    }
+  }
+
   func toggleWorkspaceContentVisibility() {
     let mode = effectiveWorkspaceContentLayoutMode
     if mode == .split, showingInspector, activeRightWorkspaceContentTab != nil {
