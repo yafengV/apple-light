@@ -44,7 +44,7 @@ struct SidebarTaskMenu: View {
             Button(store.taskMenuForkDestination(task)) {
               Task { await store.forkTaskFromMenu(taskID) }
             }.disabled(!store.canForkTaskFromMenu(taskID))
-            Button("分叉到新工作树") {
+            Button("在新工作树中创建聊天分支") {
               Task { await store.forkTaskToNewWorktree(taskID) }
             }.disabled(!store.canForkTaskToNewWorktree(taskID))
           }

@@ -5,12 +5,14 @@ import XCTest
 final class CodexNativeForkTests: XCTestCase {
   private var server: Process!
   private var endpoint = ""
+  private var trace = FileManager.default.temporaryDirectory.appendingPathComponent("native-fork-http-\(UUID()).jsonl")
   override func setUpWithError() throws {
     server = Process()
     server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().appendingPathComponent("Fixtures/model_server.py")
     server.arguments = ["-u", fixture.path]
+    server.environment = ["FIXTURE_EVENT_LOG": trace.path]
     let pipe = Pipe()
     server.standardOutput = pipe; server.standardError = FileHandle.nullDevice
     try server.run()
@@ -21,6 +23,14 @@ final class CodexNativeForkTests: XCTestCase {
   }
   override func tearDown() {
     if server?.isRunning == true { server.terminate(); server.waitUntilExit() }
+    try? FileManager.default.removeItem(at: trace)
+  }
+
+  private func modelRequestCount() throws -> Int {
+    guard FileManager.default.fileExists(atPath: trace.path) else { return 0 }
+    return try String(contentsOf: trace).split(separator: "\n").map {
+      try JSONDecoder().decode(JSONValue.self, from: Data($0.utf8))
+    }.filter { $0["phase"].text == "post" }.count
   }
 
   @MainActor private func fixture() async throws -> (WorkspaceStore, URL, URL) {
@@ -62,10 +72,18 @@ final class CodexNativeForkTests: XCTestCase {
     store.pinWorkspaceTab(try XCTUnwrap(store.focusedWorkspaceContentTab?.id))
     let browserContext = try XCTUnwrap(store.pinnedBrowserActionContext(
       try XCTUnwrap(store.library.pinnedContentTabs.first).id))
+    let requestsBeforeFork = try modelRequestCount()
     let created = await store.forkPinnedBrowser(browserContext, to: .currentWorkspace)
     let fork = try XCTUnwrap(created)
     XCTAssertEqual(fork.codexForkOrigin?.throughTurnID, first.result?["codex_turn_id"].text)
-    XCTAssertNil(fork.codexThreadID)
+    XCTAssertNotNil(fork.codexThreadID, "The menu creates the actual Core fork before continuation")
+    XCTAssertNotEqual(fork.codexThreadID, parent.codexThreadID)
+    XCTAssertTrue(store.codexTransport.isConnected(taskID: fork.id))
+    let initialForkPath = try XCTUnwrap(store.codexConversationPath(for: fork))
+    XCTAssertTrue(try String(contentsOf: initialForkPath).contains("forked_from_id"))
+    XCTAssertEqual(fork.title, parent.title)
+    XCTAssertNil(store.activeRun(taskID: fork.id), "Creating a fork must not submit a model turn")
+    XCTAssertEqual(try modelRequestCount(), requestsBeforeFork, "No model HTTP turn is sent by the fork menu")
     store.selectTask(parent)
     _ = try await send("later-source-proof", store: store)
     store.draft = "preserve source draft"
@@ -335,6 +353,15 @@ final class CodexNativeForkTests: XCTestCase {
       }
       try await Task.sleep(for: .milliseconds(25))
     }
+    let requestsBeforeFork = try modelRequestCount()
+    let createdWhileRunning = await store.forkTaskFromMenu(source.id)
+    let eager = try XCTUnwrap(createdWhileRunning, store.error ?? "No native fork while source runs")
+    XCTAssertNotNil(eager.codexThreadID)
+    XCTAssertNotEqual(eager.codexThreadID, source.codexThreadID)
+    XCTAssertEqual(eager.codexForkOrigin?.throughTurnID, second.result?["codex_turn_id"].text)
+    XCTAssertEqual(store.activeRun(taskID: source.id)?.id, activeID)
+    XCTAssertNil(store.activeRun(taskID: eager.id))
+    XCTAssertEqual(try modelRequestCount(), requestsBeforeFork)
     store.selectTask(nested)
     let child = try await send("skill-dependency-request-echo", store: store)
     let body = try JSONDecoder().decode(JSONValue.self,
@@ -345,6 +372,41 @@ final class CodexNativeForkTests: XCTestCase {
     XCTAssertEqual(store.activeRun(taskID: source.id)?.id, activeID)
     await store.cancel(taskID: source.id)
     await sourceHandle.value
+    await store.shutdown()
+  }
+
+  @MainActor func testMenuRejectsActualCoreInvalidBoundaryWithoutTextFallbackOrParentInterruption() async throws {
+    let (store, _, _) = try await fixture()
+    let first = try await send("codex-handoff-cwd-probe", store: store)
+    let source = try XCTUnwrap(store.selectedTask)
+    let index = try XCTUnwrap(store.library.chatRuns.firstIndex { $0.id == first.id })
+    var result = try XCTUnwrap(first.result)
+    var object = try result.decode([String: JSONValue].self)
+    let invalidTurnID = UUID().uuidString
+    object["codex_turn_id"] = .string(invalidTurnID)
+    result = .object(object)
+    let corrupted = AgentRun(id: first.id, kind: first.kind, project: first.project,
+      status: first.status, createdAt: first.createdAt, updatedAt: first.updatedAt,
+      request: first.request, result: result)
+    store.library.chatRuns[index] = corrupted
+    store.runs[try XCTUnwrap(store.runs.firstIndex { $0.id == first.id })] = corrupted
+    XCTAssertEqual(store.taskWindowRuns(source.id).first?.result?["codex_turn_id"].text, invalidTurnID,
+      "The real menu reads the current run cache before persisted local history")
+    let tasksBefore = store.library.tasks, copiedBefore = store.library.forkRuns
+    let requestsBeforeFork = try modelRequestCount()
+    let rejected = await store.forkTaskFromMenu(source.id)
+    XCTAssertNil(rejected)
+    XCTAssertEqual(store.library.tasks, tasksBefore)
+    XCTAssertEqual(store.library.forkRuns.map(\.id), copiedBefore.map(\.id))
+    XCTAssertEqual(store.selectedTask?.id, source.id)
+    XCTAssertTrue(store.codexTransport.isConnected(taskID: source.id))
+    XCTAssertEqual(try modelRequestCount(), requestsBeforeFork)
+    XCTAssertTrue(store.canForkTaskFromMenu(source.id))
+    XCTAssertEqual(store.notices.items.first?.title, "创建聊天分支失败")
+    let continued = try await send("skill-dependency-request-echo", store: store)
+    XCTAssertEqual(continued.status, "succeeded")
+    XCTAssertEqual(store.selectedTask?.codexThreadID, source.codexThreadID)
+    XCTAssertTrue(try XCTUnwrap(continued.result?["response"].text).contains("function_call_output"))
     await store.shutdown()
   }
 

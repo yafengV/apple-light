@@ -48,7 +48,7 @@ extension WorkspaceLibrary {
     let now = Date()
     var fork = WorkspaceTask(
       id: UUID().uuidString, project: source.project,
-      title: String(source.title.prefix(112)) + " · 分叉", runIDs: snapshots.map(\.id),
+      title: source.title, runIDs: snapshots.map(\.id),
       forkOrigin: ConversationForkOrigin(taskID: source.id, runID: ids.last!), modelSelection: source.modelSelection, createdAt: now, updatedAt: now)
     if let lastChat = history.last(where: { $0.kind == "chat" }),
       let throughTurnID = lastChat.result?["codex_turn_id"].text,

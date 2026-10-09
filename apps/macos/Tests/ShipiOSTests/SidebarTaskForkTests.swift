@@ -29,7 +29,7 @@ import XCTest
     let session = store.activitySession?.id
     let created = await store.forkTaskFromMenu("source")
     let fork = try XCTUnwrap(created)
-    XCTAssertEqual(fork.title, "Latest source · 分叉")
+    XCTAssertEqual(fork.title, "Latest source")
     XCTAssertEqual(fork.runIDs.count, 1)
     XCTAssertEqual(fork.forkOrigin, .init(taskID: "source", runID: "first"))
     XCTAssertEqual(store.library.chatContext(taskID: fork.id).map(\.content),

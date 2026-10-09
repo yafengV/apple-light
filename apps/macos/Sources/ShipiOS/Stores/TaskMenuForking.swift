@@ -13,16 +13,18 @@ extension WorkspaceStore {
   }
 
   func taskMenuForkDestination(_ task: WorkspaceTask) -> String {
-    taskForkUsesWorktree(task) ? "分叉到相同工作树" : "分叉到本地"
+    taskForkUsesWorktree(task) ? "在同一工作树中创建聊天分支" : "创建聊天分支"
   }
 
   /// A row forks its own latest history. Opening failure never discards the persisted fork.
   @discardableResult func forkTaskFromMenu(_ id: String) async -> WorkspaceTask? {
     guard canForkTaskFromMenu(id) else { return nil }
     taskMenuForkingID = id
-    defer { taskMenuForkingID = nil }
+    let pendingID = "fork-pending-\(id)"
+    notices.show(id: pendingID, title: "正在创建聊天分支…", level: .pending, taskID: id)
+    defer { taskMenuForkingID = nil; notices.completeAndDismiss(pendingID) }
     do {
-      let fork = try forkTaskWindowConversation(id)
+      let fork = try await persistTaskMenuFork(id)
       if await selectTaskAwaitingScope(fork) {
         action = .chat
         if showingActivity { activityError = nil }
@@ -35,8 +37,11 @@ extension WorkspaceStore {
       }
       return fork
     } catch {
+      if error is CancellationError || shuttingDown { return nil }
       self.error = error.localizedDescription
       if showingActivity { activityError = error.localizedDescription }
+      notices.show(id: "fork-error-\(id)", title: "创建聊天分支失败",
+        description: error.localizedDescription, level: .error, taskID: id)
       return nil
     }
   }

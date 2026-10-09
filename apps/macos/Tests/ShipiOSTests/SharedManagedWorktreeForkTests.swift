@@ -65,7 +65,7 @@ import XCTest
     XCTAssertEqual(store.managedWorktreeCount, 1)
     XCTAssertEqual(store.library.managedTasks(for: store.library.managedWorktrees[0]).count, 3)
     XCTAssertEqual(store.library.sidebarProject(for: child), source.path)
-    XCTAssertEqual(store.taskMenuForkDestination(child), "分叉到相同工作树")
+    XCTAssertEqual(store.taskMenuForkDestination(child), "在同一工作树中创建聊天分支")
     XCTAssertEqual(store.library.chatContext(taskID: child.id).map(\.content),
       ["completed prompt", "completed reply"])
     XCTAssertEqual(store.library.drafts[owner.id], "owner draft")

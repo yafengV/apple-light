@@ -192,9 +192,16 @@ final class CodexChatTransport {
     permissions: AgentRuntimePreferences, responses: AgentResponsePreferences,
     webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false, pauseAutomationID: UUID? = nil,
     compact: Bool = false, connectOnly: Bool = false, forkOrigin: CodexForkOrigin? = nil,
-    resumeOrigin: CodexResumeOrigin? = nil
+    resumeOrigin: CodexResumeOrigin? = nil, createForkOnly: Bool = false,
+    onForkCreated: ((String, String) -> Void)? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     try Task.checkCancellation()
+    if createForkOnly {
+      guard forkOrigin != nil, resumeOrigin == nil, !compact, !connectOnly, !textOnly,
+        !activeThreads.contains(taskID), onForkCreated != nil else {
+        throw AgentFailure(message: "创建聊天分支需要独立的新任务和原生历史来源。")
+      }
+    }
     guard preparingTasks.insert(taskID).inserted else {
       throw AgentFailure(message: "该任务已有 Codex 回合正在运行。")
     }
@@ -285,16 +292,26 @@ final class CodexChatTransport {
         sendFullContext = thread["resumed"].boolean != true && thread["forked"].boolean != true
         activeThreads.insert(taskID)
         serviceIdentities[taskID] = service
-        if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
-          onThreadStarted?(taskID, threadID, thread["historyWorkspace"].text ?? path)
-          _ = try? await client.request("codex.thread.descendants.refresh", [
-            "taskId": .string(taskID), "expectedThreadId": .string(threadID)])
+        if createForkOnly {
+          guard thread["forked"].boolean == true, thread["resumed"].boolean == false,
+            let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil,
+            threadID != forkOrigin?.threadID else {
+            throw AgentFailure(message: "Core 未确认独立聊天分支，原聊天未被更改。")
+          }
+          try Task.checkCancellation()
+          onForkCreated?(threadID, thread["historyWorkspace"].text ?? path)
+        } else {
+          if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
+            onThreadStarted?(taskID, threadID, thread["historyWorkspace"].text ?? path)
+            _ = try? await client.request("codex.thread.descendants.refresh", [
+              "taskId": .string(taskID), "expectedThreadId": .string(threadID)])
+          }
         }
         if compact && sendFullContext {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")
         }
       }
-      if connectOnly {
+      if connectOnly || createForkOnly {
         streams.removeValue(forKey: taskID)?.finish()
         turnTokens.removeValue(forKey: taskID); browserTurnTokens.removeValue(forKey: taskID)
         return stream
@@ -336,7 +353,11 @@ final class CodexChatTransport {
       try Task.checkCancellation()
       return stream
     } catch {
-      if Task.isCancelled { await interrupt(taskID: taskID) }
+      if createForkOnly {
+        // A cancelled caller still waits for the acknowledged child to shut down.
+        // Never stop the shared project process or the source conversation.
+        await Task { await self.discard(taskID: taskID) }.value
+      } else if Task.isCancelled { await interrupt(taskID: taskID) }
       browserTurnTokens.removeValue(forKey: taskID)
       turnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
