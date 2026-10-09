@@ -7,10 +7,13 @@ extension WorkspaceStore {
     return canForkTaskWindow(id)
   }
 
-  func taskMenuForkDestination(_ task: WorkspaceTask) -> String {
+  func taskForkUsesWorktree(_ task: WorkspaceTask) -> Bool {
     library.isPermanentWorktree(task.project)
       || library.managedWorktrees.contains(where: { $0.path == task.project })
-      ? "分叉到相同工作树" : "分叉到本地"
+  }
+
+  func taskMenuForkDestination(_ task: WorkspaceTask) -> String {
+    taskForkUsesWorktree(task) ? "分叉到相同工作树" : "分叉到本地"
   }
 
   /// A row forks its own latest history. Opening failure never discards the persisted fork.

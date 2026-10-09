@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import ShipiOS
 
@@ -51,12 +52,17 @@ final class CodexNativeForkTests: XCTestCase {
   }
 
   @MainActor func testNativeForkRetainsToolHistoryAndFixedBoundaryAcrossRestart() async throws {
+    _ = NSApplication.shared
     let (store, project, agent) = try await fixture()
     let first = try await send("codex-handoff-cwd-probe", store: store)
     let parent = try XCTUnwrap(store.selectedTask)
     XCTAssertEqual(parent.codexWorkspacePath, project.path)
     XCTAssertNotNil(store.codexConversationPath(for: parent), "Use the real camelCase project-owned reference")
-    let created = await store.forkTaskFromMenu(parent.id)
+    store.newBrowserTab(in: .right)
+    store.pinWorkspaceTab(try XCTUnwrap(store.focusedWorkspaceContentTab?.id))
+    let browserContext = try XCTUnwrap(store.pinnedBrowserActionContext(
+      try XCTUnwrap(store.library.pinnedContentTabs.first).id))
+    let created = await store.forkPinnedBrowser(browserContext, to: .currentWorkspace)
     let fork = try XCTUnwrap(created)
     XCTAssertEqual(fork.codexForkOrigin?.throughTurnID, first.result?["codex_turn_id"].text)
     XCTAssertNil(fork.codexThreadID)

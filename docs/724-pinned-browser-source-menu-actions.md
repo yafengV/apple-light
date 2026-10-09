@@ -37,3 +37,7 @@
 标准 `script/build_and_run.sh --build-app` exit 0，Swift 3.74 秒；正式应用与 helper 均为 Apple Development，指定要求保持第 713 篇基线，旧要求验证及严格深度校验通过，正式包 helper IPC exit 0。打包前后 1,639 项源码、测试、执行文件和编译资源摘要未变。日志与清单为 `.cache/pinned-browser-actions-{build-run-url-final,signature-url-final,package-url-final-provenance,ipc-url-final}-724.*`。Mac 最近明确锁屏，本阶段不把包生成、WebKit 本地夹具或无关键窗口的挂载当作实际菜单／工作区可交互验收。固定第 721 篇独立广泛回归的监督 PID 97076 与 Swift PID 1838 经 `ps` 确认仍活跃，构建／预检已通过、当前继续执行 GitPullRequestWorkflow 等组，仍待终态，不含本篇改动。
 
 仍未实现完整静音／取消静音 backend、浏览器来源分叉到本地／同工作树／新工作树、host clone 完整历史及状态、特殊媒体／iframe/CDP/WebMCP 菜单；还需前台菜单外观／图标／焦点、关闭菜单后的 fixed row fallback、真实系统默认浏览器及外部打开、冷／primary／phase／全部跨窗口路由、固定行图标／状态／缩略图／布局配对。原范围保持 **47 页面、29 核心项，完整双端配对 0/47**，不把支持的六项来源动作当作整个浏览器或全部 UI 完成。
+
+## 后续阶段的历史元数据修复
+
+第 725 篇的扩大回归编排误沿用本篇清单输出文件名，旧清单被该轮 411 项记录覆盖。已将 725 的实际记录移到独立文件、检查其日志与当前冻结摘要，并修正编排后重新运行。724 的历史元数据从未改动的 406 项原日志及同期正式打包冻结清单恢复，显式标记 `reconstructedHistoricalMetadata` 并记录恢复来源；它不是新执行，也不作为 725 当前代码的验证。原测试与打包结果不因此改写。

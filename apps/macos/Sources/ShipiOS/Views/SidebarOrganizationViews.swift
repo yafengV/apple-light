@@ -254,6 +254,18 @@ private struct SidebarPinnedContentTabRow: View {
       ForEach(context.actions, id: \.rawValue) { action in
         if action == .rename || action == .close { Divider() }
         Button(action.title) { store.performPinnedBrowserAction(action, context: context) }
+        if action == .duplicate {
+          let destinations = store.pinnedBrowserForkDestinations(context)
+          if !destinations.isEmpty {
+            Menu("分叉") {
+              ForEach(destinations, id: \.rawValue) { destination in
+                Button(store.pinnedBrowserForkTitle(destination, context: context)) {
+                  Task { await store.forkPinnedBrowser(context, to: destination) }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
