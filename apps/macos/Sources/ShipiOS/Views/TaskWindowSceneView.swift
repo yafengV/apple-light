@@ -20,6 +20,9 @@ struct TaskWindowSceneView: View {
   private var pendingWorktreeTaskIDs: Set<String> {
     Set(store.library.managedWorktrees.filter { $0.pendingForkSourceTaskID != nil }.map(\.taskID))
   }
+  private var worktreeResumeBlocker: String? {
+    route.flatMap { store.worktreeForkResumeBlocker($0.taskID) }
+  }
   private var restoration: TaskWindowRestoration {
     .resolve(route: route, dataRoot: store.dataRoot, loaded: store.libraryLoaded,
       restoring: store.restoringLibrary || store.libraryLoading || store.modelConfigurationLoading, readError: store.restorationReadError,
@@ -88,6 +91,12 @@ struct TaskWindowSceneView: View {
         Task { await prepareTask(taskID) }
       }
     }
+    .onChange(of: worktreeResumeBlocker) { _, blocker in
+      if blocker == nil, let taskID = route?.taskID,
+        resources.worktreeRestoreWait?.taskID == taskID {
+        Task { await prepareTask(taskID) }
+      }
+    }
     .onChange(of: availableTasks) { _, available in
       resources.retainTasks(available, displaying: route?.taskID)
     }
@@ -115,7 +124,18 @@ struct TaskWindowSceneView: View {
       }
     case .loading: ProgressView("正在恢复任务…")
     case .ready:
-      if let worktreeRestoreError {
+      if let waiting = resources.worktreeRestoreWait, waiting.taskID == route?.taskID {
+        ContentUnavailableView {
+          Label("工作树尚未恢复", systemImage: "clock")
+        } description: {
+          Text(worktreeResumeBlocker ?? waiting.message)
+        } actions: {
+          Button("重试") { Task { await prepareTask(waiting.taskID) } }
+            .disabled(worktreeResumeBlocker != nil)
+            .accessibilityIdentifier("worktree-restore-retry")
+          Button("关闭窗口") { closeWindow() }
+        }
+      } else if let worktreeRestoreError {
         ContentUnavailableView {
           Label("无法恢复任务工作树", systemImage: "exclamationmark.triangle")
         } description: {
@@ -128,7 +148,7 @@ struct TaskWindowSceneView: View {
         }
       } else if restoringWorktree {
         ProgressView("正在恢复工作树…")
-      } else { Color.clear }
+      } else { ProgressView("正在准备任务…") }
     case .close: Color.clear
     }
   }
@@ -149,15 +169,12 @@ struct TaskWindowSceneView: View {
   }
 
   private func prepareTask(_ taskID: String) async {
+    guard route?.taskID == taskID, !resources.isClosed, !store.shuttingDown else { return }
     resources.register(store: store, windowID: route?.id)
     if store.library.managedWorktrees.contains(where: {
       $0.containsTask(taskID) && $0.pendingForkSourceTaskID != nil
     }) {
-      if let preparation = store.activeWorktreeForkPreparation, preparation.taskID == taskID {
-        resources.worktreeForkPresentation.present(preparation)
-      } else {
-        resources.forkToNewWorktree(taskID, store: store, resume: true)
-      }
+      resources.restorePendingWorktree(taskID, store: store)
       return
     }
     let request = UUID()

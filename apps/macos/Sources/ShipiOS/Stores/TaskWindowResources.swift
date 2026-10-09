@@ -10,9 +10,15 @@ import Observation
   @ObservationIgnored var navigate: ((String) -> Void)?
   let notices = WorkspaceNotices()
   let worktreeForkPresentation = WorktreeForkPresentation()
+  struct WorktreeRestoreWait: Equatable {
+    let taskID: String
+    let message: String
+  }
+  private(set) var worktreeRestoreWait: WorktreeRestoreWait?
   @ObservationIgnored private var worktreeForkRequest: Task<Void, Never>?
   @ObservationIgnored private var worktreeForkRequestID: UUID?
   @ObservationIgnored private var worktreeForkNavigationRevision = UUID()
+  @ObservationIgnored private(set) var isClosed = false
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
   let files = TaskWindowFileEditors()
@@ -43,12 +49,30 @@ import Observation
   func invalidateWorktreeForkNavigation() {
     worktreeForkNavigationRevision = UUID()
     worktreeForkPresentation.dismiss()
+    worktreeRestoreWait = nil
+  }
+
+  /// Cold windows cannot mount editors until their saved checkout has finished preparing.
+  @discardableResult func restorePendingWorktree(_ taskID: String, store: WorkspaceStore) -> Task<Void, Never>? {
+    guard !isClosed, !store.shuttingDown else { return nil }
+    if let preparation = store.activeWorktreeForkPreparation, preparation.taskID == taskID {
+      worktreeRestoreWait = nil
+      worktreeForkPresentation.present(preparation)
+      return worktreeForkRequest
+    }
+    if let blocker = store.worktreeForkResumeBlocker(taskID) {
+      worktreeRestoreWait = .init(taskID: taskID, message: blocker)
+      return nil
+    }
+    worktreeRestoreWait = nil
+    return forkToNewWorktree(taskID, store: store, resume: true)
   }
 
   @discardableResult func forkToNewWorktree(_ taskID: String, store: WorkspaceStore,
     resume: Bool = false) -> Task<Void, Never>? {
-    guard !store.busy, !store.managedTaskPreparing, !store.shuttingDown,
-      resume || store.canForkTaskToNewWorktree(taskID) else { return nil }
+    guard !isClosed, !store.busy, !store.managedTaskPreparing, !store.shuttingDown,
+      resume ? store.worktreeForkResumeBlocker(taskID) == nil : store.canForkTaskToNewWorktree(taskID)
+      else { return nil }
     self.store = store
     store.taskWindowResources.add(self)
     let requestID = UUID()
@@ -70,8 +94,15 @@ import Observation
         worktreeForkNavigationRevision == navigationRevision, id == originalWindowID,
         displayedTaskID == originalDisplayedTaskID, !store.shuttingDown else { return }
       if resume {
-        _ = await store.resumeWorktreeFork(taskID, openTask: false,
+        let result = await store.resumeWorktreeFork(taskID, openTask: false,
           presentation: worktreeForkPresentation, noticeBoard: notices)
+        // Admission may change between queuing this action and starting its worker.
+        if result == nil, !Task.isCancelled, worktreeForkRequestID == requestID,
+          worktreeForkNavigationRevision == navigationRevision,
+          !store.shuttingDown, worktreeForkPresentation.preparation == nil {
+          worktreeRestoreWait = .init(taskID: taskID,
+            message: store.worktreeForkResumeBlocker(taskID) ?? "工作树尚未恢复，请重试。")
+        }
       } else {
         _ = await store.forkTaskToNewWorktree(taskID, openTask: false,
           presentation: worktreeForkPresentation, noticeBoard: notices)
@@ -280,6 +311,8 @@ import Observation
   @discardableResult func shutdown(force: Bool = false) -> Bool {
     let saved = prepareToClose()
     guard saved || force else { return false }
+    isClosed = true
+    worktreeRestoreWait = nil
     worktreeForkRequest?.cancel(); worktreeForkRequest = nil
     worktreeForkRequestID = nil
     worktreeForkNavigationRevision = UUID()

@@ -151,12 +151,23 @@ extension WorkspaceStore {
   }
 
   /// Resume the saved checkout/boundary/environment, never fork or capture the source again.
+  func worktreeForkResumeBlocker(_ id: String) -> String? {
+    if shuttingDown { return "应用正在关闭。" }
+    if !libraryLoaded || restoringLibrary { return "正在恢复工作区，完成后将继续恢复此任务。" }
+    if busy { return "正在切换或更新工作区，完成后将继续恢复此任务。" }
+    if managedTaskPreparing { return "另一个工作树正在准备，完成后将继续恢复此任务。" }
+    if activeLocalRun != nil { return "本地开发操作正在运行，完成后将继续恢复此任务。" }
+    if taskForkIsReserved(id) { return "此任务的分支操作正在运行，完成后将继续恢复。" }
+    guard library.tasks.contains(where: { $0.id == id && !$0.archived }),
+      library.managedWorktrees.contains(where: { $0.containsTask(id) && $0.pendingForkSourceTaskID != nil })
+      else { return "待恢复的工作树记录不可用。" }
+    return nil
+  }
+
   @discardableResult func resumeWorktreeFork(_ id: String, openTask: Bool = true,
     presentation: WorktreeForkPresentation? = nil, noticeBoard: WorkspaceNotices? = nil) async -> WorkspaceTask? {
-    guard libraryLoaded, !restoringLibrary, !shuttingDown, !busy, !managedTaskPreparing,
-      activeLocalRun == nil, !taskForkIsReserved(id),
-      let task = library.tasks.first(where: { $0.id == id && !$0.archived }),
-      library.managedWorktrees.contains(where: { $0.containsTask(id) && $0.pendingForkSourceTaskID != nil })
+    guard worktreeForkResumeBlocker(id) == nil,
+      let task = library.tasks.first(where: { $0.id == id && !$0.archived })
       else { return nil }
     let target = presentation ?? (openTask ? worktreeForkPresentation : nil)
     if target === worktreeForkPresentation { destination = .workspace; closeActivity() }

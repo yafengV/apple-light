@@ -369,7 +369,7 @@ import XCTest
       resources.display(target)
       navigated.append(target)
     }
-    resources.forkToNewWorktree(childID, store: store, resume: true)
+    resources.restorePendingWorktree(childID, store: store)
     let deadline = ContinuousClock.now.advanced(by: .seconds(5))
     while store.activeWorktreeForkPreparation == nil {
       guard ContinuousClock.now < deadline else { throw AgentFailure(message: "Window preparation did not start") }
@@ -384,6 +384,124 @@ import XCTest
     XCTAssertNil(resources.worktreeForkPresentation.preparation)
     XCTAssertEqual(store.selectedTask?.id, f.source.id)
     XCTAssertTrue(resources.shutdown(force: true))
+    await store.shutdown()
+  }
+
+  func testColdPendingWindowWaitsForBusyWorktreeAndLocalOperationsThenResumesSameCheckpoint() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let initial = Task { await store.forkTaskToNewWorktree(f.source.id, openTask: false) }
+    _ = try await waitUntilStarted(f)
+    let page = try XCTUnwrap(store.activeWorktreeForkPreparation)
+    page.cancel(); _ = await initial.value
+    let childID = try XCTUnwrap(page.taskID)
+    store.library.drafts[childID] = "pending child draft"
+    let resources = TaskWindowResources(), windowID = UUID().uuidString
+    resources.register(store: store, windowID: windowID)
+    var navigated: [String] = []
+    resources.navigate = { target in
+      resources.prepare(target, store: store, windowID: windowID)
+      resources.display(target); navigated.append(target)
+    }
+    let nativeStarts = try events(f).filter { $0["method"].text == "codex.thread.start" }.count
+    store.busy = true
+    XCTAssertNil(resources.restorePendingWorktree(childID, store: store))
+    XCTAssertEqual(resources.worktreeRestoreWait?.taskID, childID)
+    XCTAssertTrue(resources.worktreeRestoreWait?.message.contains("切换") == true)
+    store.busy = false; store.managedTaskPreparing = true
+    XCTAssertNil(resources.restorePendingWorktree(childID, store: store))
+    XCTAssertTrue(resources.worktreeRestoreWait?.message.contains("另一个工作树") == true)
+    store.managedTaskPreparing = false
+    store.runs.append(AgentRun(id: UUID().uuidString, kind: "build", project: f.source.project,
+      status: "running", createdAt: 3, updatedAt: 3, request: .null, result: nil))
+    XCTAssertNil(resources.restorePendingWorktree(childID, store: store))
+    XCTAssertTrue(resources.worktreeRestoreWait?.message.contains("本地开发") == true)
+    XCTAssertTrue(resources.tasks.isEmpty)
+    XCTAssertNil(resources.worktreeForkPresentation.preparation)
+    XCTAssertTrue(navigated.isEmpty)
+    XCTAssertEqual(try events(f).filter { $0["method"].text == "codex.thread.start" }.count, nativeStarts)
+    store.runs.removeAll { $0.kind == "build" }
+    XCTAssertNil(store.worktreeForkResumeBlocker(childID))
+    try Data().write(to: f.release)
+    let resumed = try XCTUnwrap(resources.restorePendingWorktree(childID, store: store))
+    await resumed.value
+    XCTAssertNil(resources.worktreeRestoreWait)
+    XCTAssertEqual(navigated, [childID])
+    XCTAssertEqual(store.library.managedWorktrees.count, 1)
+    XCTAssertNil(store.library.managedWorktrees.first?.pendingForkSourceTaskID)
+    XCTAssertEqual(store.library.tasks.first { $0.id == childID }?.codexThreadID, f.childThread)
+    XCTAssertEqual(store.library.drafts[childID], "pending child draft")
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertEqual(store.library.drafts[f.source.id], "keep current draft")
+    XCTAssertEqual(try String(contentsOf: URL(fileURLWithPath: try XCTUnwrap(store.library.managedWorktrees.first).path).appendingPathComponent("setup-count")), "setup\n")
+    resources.shutdown(force: true); await store.shutdown()
+  }
+
+  func testColdPendingWindowHandlesAdmissionChangeAndCannotRestartAfterClose() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let initial = Task { await store.forkTaskToNewWorktree(f.source.id, openTask: false) }
+    _ = try await waitUntilStarted(f)
+    let page = try XCTUnwrap(store.activeWorktreeForkPreparation)
+    page.cancel(); _ = await initial.value
+    let childID = try XCTUnwrap(page.taskID)
+    let resources = TaskWindowResources()
+    resources.register(store: store, windowID: UUID().uuidString)
+    var navigated: [String] = []
+    resources.navigate = { navigated.append($0) }
+    let nativeStarts = try events(f).filter { $0["method"].text == "codex.thread.start" }.count
+    let queued = try XCTUnwrap(resources.restorePendingWorktree(childID, store: store))
+    store.busy = true
+    await queued.value
+    XCTAssertEqual(resources.worktreeRestoreWait?.taskID, childID)
+    XCTAssertNil(resources.worktreeForkPresentation.preparation)
+    XCTAssertTrue(resources.tasks.isEmpty)
+    XCTAssertEqual(try events(f).filter { $0["method"].text == "codex.thread.start" }.count, nativeStarts)
+    store.busy = false
+    resources.invalidateWorktreeForkNavigation()
+    XCTAssertNil(resources.worktreeRestoreWait)
+    resources.shutdown(force: true)
+    XCTAssertNil(resources.restorePendingWorktree(childID, store: store))
+    XCTAssertNil(resources.forkToNewWorktree(childID, store: store, resume: true))
+    XCTAssertNil(resources.worktreeRestoreWait)
+    XCTAssertTrue(navigated.isEmpty)
+    XCTAssertNotNil(store.library.managedWorktrees.first?.pendingForkSourceTaskID)
+    await store.shutdown()
+  }
+
+  func testHiddenTaskSceneAutomaticallyResumesPendingCheckpointWhenWorkspaceBecomesAvailable() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let initial = Task { await store.forkTaskToNewWorktree(f.source.id, openTask: false) }
+    _ = try await waitUntilStarted(f)
+    let page = try XCTUnwrap(store.activeWorktreeForkPreparation)
+    page.cancel(); _ = await initial.value
+    let childID = try XCTUnwrap(page.taskID)
+    try FileManager.default.removeItem(at: f.started)
+    store.busy = true
+    var route: TaskWindowRoute? = .newWindow(taskID: childID, dataRoot: store.dataRoot)
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 700),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    window.contentView = NSHostingView(rootView: TaskWindowSceneView(store: store,
+      route: Binding(get: { route }, set: { route = $0 })))
+    defer { window.contentView = nil; window.close() }
+    for _ in 0..<20 {
+      window.contentView?.layoutSubtreeIfNeeded()
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertFalse(window.isVisible, "This is lifecycle coverage, not foreground interaction acceptance")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: f.started.path))
+    XCTAssertNil(store.activeWorktreeForkPreparation)
+    store.busy = false
+    _ = try await waitUntilStarted(f)
+    XCTAssertEqual(store.activeWorktreeForkPreparation?.taskID, childID)
+    try Data().write(to: f.release)
+    try await waitUntilPreparationFinishes(store)
+    XCTAssertNil(store.library.managedWorktrees.first?.pendingForkSourceTaskID)
+    XCTAssertEqual(route?.taskID, childID)
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    window.contentView = nil; window.close()
     await store.shutdown()
   }
 
