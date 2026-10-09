@@ -98,6 +98,205 @@ import XCTest
     }
   }
 
+  func testHistoricalWindowForkPreservesNewDraftUsesLocalNoticesAndLeavesMainNavigationUntouched() async throws {
+    let f = try await fixture(), store = f.store
+    let boundary = try XCTUnwrap(f.source.runIDs.first)
+    let later = AgentRun(id: UUID().uuidString, kind: "chat", project: f.source.project,
+      status: "succeeded", createdAt: 3, updatedAt: 4, request: .null,
+      result: .object(["response": .string("later excluded reply"),
+        "codex_thread_id": .string(try XCTUnwrap(f.source.codexThreadID)),
+        "codex_turn_id": .string(UUID().uuidString)]))
+    store.library.tasks[0].runIDs.append(later.id)
+    store.library.chatRuns.append(later); store.runs.append(later)
+    store.library.notes[later.id] = "later excluded prompt"
+    store.draft = "/fork"
+    let selection = store.selection, navigation = store.navigationBack
+    let board = WorkspaceNotices()
+    let operation = Task { try await store.forkTaskWindowConversation(f.source.id,
+      through: boundary, consumeCommand: true, noticeBoard: board) }
+    let request = try await waitUntilStarted(f)
+    let boundaryRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == boundary })
+    XCTAssertEqual(request["forkOrigin"]["throughTurnId"].text,
+      try XCTUnwrap(boundaryRun.result?["codex_turn_id"].text))
+    XCTAssertFalse(store.canForkTaskWindow(f.source.id, through: boundary))
+    XCTAssertTrue(store.notices.items.isEmpty)
+    XCTAssertEqual(board.items.first?.level, .pending)
+    store.draft = "new input while native fork is pending"
+    try Data().write(to: f.release)
+    let fork = try await operation.value
+    XCTAssertEqual(fork.runIDs.count, 1)
+    XCTAssertEqual(store.library.chatContext(taskID: fork.id).map(\.content), ["source prompt", "reply"])
+    XCTAssertEqual(store.taskWindowDraft(f.source.id), "new input while native fork is pending")
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertEqual(store.selection, selection)
+    XCTAssertEqual(store.navigationBack, navigation)
+    XCTAssertEqual(fork.codexThreadID, f.childThread)
+    XCTAssertTrue(board.items.isEmpty)
+    XCTAssertTrue(store.notices.items.isEmpty)
+    await store.shutdown()
+  }
+
+  func testMainRequestCapturesCommandBeforeSchedulingAndKeepsInputEnteredBeforeCreation() async throws {
+    let f = try await fixture(), store = f.store
+    store.draft = "/fork"
+    let operation = try XCTUnwrap(store.requestConversationFork(consumeCommand: true))
+    store.draft = "new input before the fork task starts"
+    _ = try await waitUntilStarted(f)
+    try Data().write(to: f.release)
+    let result = await operation.value
+    let fork = try XCTUnwrap(result)
+    XCTAssertEqual(store.selectedTask?.id, fork.id)
+    XCTAssertEqual(store.taskWindowDraft(f.source.id), "new input before the fork task starts")
+    XCTAssertEqual(store.navigationBack.last?.run, f.source.selectionID)
+    XCTAssertEqual(fork.codexThreadID, f.childThread)
+    XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+    await store.shutdown()
+  }
+
+  func testMainHistoricalActionCanForkLoadedPrefixWhenLaterHistoryIsUnavailable() async throws {
+    let f = try await fixture(), store = f.store
+    let boundary = try XCTUnwrap(f.source.runIDs.first)
+    store.library.tasks[0].runIDs.append("not-loaded-later-run")
+    XCTAssertFalse(store.canForkConversation, "The latest-history menu must remain unavailable")
+    XCTAssertTrue(store.canForkConversation(through: boundary))
+    XCTAssertFalse(store.canForkConversation(through: "foreign-run"))
+    let operation = try XCTUnwrap(store.requestConversationFork(through: boundary))
+    let request = try await waitUntilStarted(f)
+    let boundaryRun = try XCTUnwrap(store.library.chatRuns.first { $0.id == boundary })
+    XCTAssertEqual(request["forkOrigin"]["throughTurnId"].text, boundaryRun.result?["codex_turn_id"].text)
+    try Data().write(to: f.release)
+    let result = await operation.value
+    let fork = try XCTUnwrap(result)
+    XCTAssertEqual(fork.runIDs.count, 1)
+    XCTAssertEqual(fork.codexThreadID, f.childThread)
+    XCTAssertEqual(store.selectedTask?.id, fork.id)
+    XCTAssertEqual(store.taskWindowDraft(f.source.id), "keep current draft")
+    XCTAssertEqual(store.library.tasks.first { $0.id == f.source.id }?.runIDs,
+      [boundary, "not-loaded-later-run"])
+    XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+    await store.shutdown()
+  }
+
+  func testScheduledMainForkDoesNotCreateFromNewlySelectedUnrelatedChat() async throws {
+    let f = try await fixture(), store = f.store
+    let other = WorkspaceTask(id: UUID().uuidString, project: f.source.project, title: "Other", runIDs: [])
+    store.library.tasks.append(other)
+    store.draft = "/fork"
+    let operation = try XCTUnwrap(store.requestConversationFork(consumeCommand: true))
+    store.selectTask(other)
+    store.draft = "other draft"
+    let result = await operation.value
+    XCTAssertNil(result)
+    XCTAssertEqual(store.library.tasks.map(\.id), [f.source.id, other.id])
+    XCTAssertEqual(store.selectedTask?.id, other.id)
+    XCTAssertEqual(store.draft, "other draft")
+    XCTAssertEqual(store.taskWindowDraft(f.source.id), "/fork")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: f.started.path))
+    XCTAssertTrue(store.notices.items.isEmpty)
+    XCTAssertNil(store.error)
+    await store.shutdown()
+  }
+
+  func testSlashCommandWaitsForNativeCreationBeforeOpeningChildWithoutModelSubmission() async throws {
+    let f = try await fixture(), store = f.store
+    store.draft = "/fork"
+    XCTAssertTrue(store.handleComposerCommand())
+    _ = try await waitUntilStarted(f)
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertEqual(store.draft, "/fork")
+    XCTAssertEqual(store.library.tasks.count, 1)
+    try Data().write(to: f.release)
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while store.library.tasks.count == 1 || store.taskMenuForkingID != nil {
+      guard ContinuousClock.now < deadline else {
+        XCTFail("Slash fork did not publish its acknowledged child")
+        await store.shutdown()
+        return
+      }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let fork = try XCTUnwrap(store.selectedTask)
+    XCTAssertNotEqual(fork.id, f.source.id)
+    XCTAssertEqual(fork.codexThreadID, f.childThread)
+    XCTAssertEqual(store.taskWindowDraft(f.source.id), "")
+    XCTAssertTrue(store.codexTransport.isConnected(taskID: fork.id))
+    XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+    XCTAssertTrue(store.notices.items.isEmpty)
+    await store.shutdown()
+  }
+
+  func testCancelledBeforeSchedulingPublishesNeitherNativeNorTextChildAndKeepsCommand() async throws {
+    for native in [true, false] {
+      let f = try await fixture(), store = f.store
+      if !native {
+        var config = store.modelConfiguration(for: f.source.id)
+        config.apiProtocol = .chatCompletions
+        try store.saveModelConfiguration(config)
+      }
+      store.draft = "/fork"
+      let board = WorkspaceNotices()
+      let operation = Task { try await store.forkTaskWindowConversation(f.source.id,
+        consumeCommand: true, noticeBoard: board) }
+      operation.cancel()
+      do { _ = try await operation.value; XCTFail("A pre-cancelled window action must not publish") }
+      catch { XCTAssertTrue(error is CancellationError) }
+      XCTAssertEqual(store.library.tasks.map(\.id), [f.source.id])
+      XCTAssertEqual(store.draft, "/fork")
+      XCTAssertNil(store.taskMenuForkingID)
+      XCTAssertTrue(board.items.isEmpty)
+      XCTAssertFalse(FileManager.default.fileExists(atPath: f.started.path))
+      await store.shutdown()
+    }
+  }
+
+  func testUnavailableSlashCommandReportsReasonWithoutClearingDraftOrSendingToModel() async throws {
+    let f = try await fixture(), store = f.store
+    store.library.tasks[0].runIDs = []
+    store.draft = "/fork"
+    XCTAssertTrue(store.handleComposerCommand())
+    XCTAssertNotNil(store.error)
+    XCTAssertEqual(store.draft, "/fork")
+    XCTAssertEqual(store.library.tasks.map(\.id), [f.source.id])
+    XCTAssertNil(store.taskMenuForkingID)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: f.started.path))
+    await store.shutdown()
+  }
+
+  func testNativeCommandIsConsumedOnlyAfterSaveAndCancellationPreservesItInCallingWindow() async throws {
+    for outcome in ["success", "cancel", "save-failure"] {
+      let f = try await fixture(), store = f.store
+      let board = WorkspaceNotices()
+      store.draft = "/fork"
+      let operation = Task { try await store.forkTaskWindowConversation(f.source.id,
+        consumeCommand: true, noticeBoard: board) }
+      _ = try await waitUntilStarted(f)
+      XCTAssertEqual(store.draft, "/fork")
+      if outcome == "cancel" { operation.cancel() }
+      if outcome == "save-failure" {
+        let file = store.dataRoot.appendingPathComponent("workspace.json")
+        try FileManager.default.removeItem(at: file)
+        try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
+      }
+      try Data().write(to: f.release)
+      do {
+        let fork = try await operation.value
+        XCTAssertEqual(outcome, "success")
+        XCTAssertEqual(fork.codexThreadID, f.childThread)
+        XCTAssertEqual(store.draft, "")
+      } catch {
+        XCTAssertNotEqual(outcome, "success", error.localizedDescription)
+        XCTAssertEqual(store.draft, "/fork")
+        XCTAssertEqual(store.library.tasks.map(\.id), [f.source.id])
+        if outcome == "cancel" { XCTAssertTrue(error is CancellationError); XCTAssertTrue(board.items.isEmpty) }
+        else { XCTAssertEqual(board.items.first?.title, "创建聊天分支失败") }
+      }
+      XCTAssertTrue(store.notices.items.isEmpty)
+      XCTAssertFalse(board.items.contains { $0.level == .pending })
+      XCTAssertEqual(store.selectedTask?.id, f.source.id)
+      await store.shutdown()
+    }
+  }
+
   func testPendingForkPreservesLatestLibraryAndPublishesOnlyAcknowledgedIndependentThread() async throws {
     for projectless in [false, true] {
       let f = try await fixture(projectless: projectless), store = f.store

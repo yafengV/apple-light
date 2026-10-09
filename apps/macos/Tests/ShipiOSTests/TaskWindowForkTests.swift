@@ -29,7 +29,7 @@ import XCTest
     let selection = store.selection, mainRuns = store.runs, navigation = store.navigationBack
     let projectSelections = store.library.projectSelections
     XCTAssertTrue(store.canForkTaskWindow("source", through: "middle"))
-    let fork = try store.forkTaskWindowConversation("source", through: "middle")
+    let fork = try await store.forkTaskWindowConversation("source", through: "middle")
     XCTAssertEqual(store.selection, selection)
     XCTAssertEqual(store.runs, mainRuns)
     XCTAssertEqual(store.navigationBack, navigation)
@@ -57,12 +57,12 @@ import XCTest
     let file = root.appendingPathComponent("workspace.json")
     try FileManager.default.removeItem(at: file)
     try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
-    XCTAssertThrowsError(try store.forkTaskWindowConversation("source", consumeCommand: true))
+    do { _ = try await store.forkTaskWindowConversation("source", consumeCommand: true); XCTFail("Expected fork failure") } catch {}
     XCTAssertEqual(store.library.tasks.count, 2)
     XCTAssertTrue(store.library.forkRuns.isEmpty)
     XCTAssertEqual(store.taskWindowDraft("source"), "/fork")
     try FileManager.default.removeItem(at: file)
-    let fork = try store.forkTaskWindowConversation("source", consumeCommand: true)
+    let fork = try await store.forkTaskWindowConversation("source", consumeCommand: true)
     XCTAssertEqual(store.taskWindowDraft("source"), "")
     XCTAssertEqual(store.taskWindowDraft("main"), "Main draft")
     XCTAssertEqual(store.selectedTask?.id, "main")
@@ -79,23 +79,23 @@ import XCTest
       request: last.request, result: last.result)
     XCTAssertTrue(store.canForkTaskWindow("source"))
     XCTAssertFalse(store.canForkTaskWindow("source", through: "last"))
-    let fork = try store.forkTaskWindowConversation("source")
+    let fork = try await store.forkTaskWindowConversation("source")
     XCTAssertEqual(fork.runIDs.count, 2)
     store.library.chatRuns.removeAll { $0.id == "middle" }
     XCTAssertFalse(store.canForkTaskWindow("source"))
     XCTAssertFalse(store.canForkTaskWindow("source", through: "middle"))
     XCTAssertTrue(store.canForkTaskWindow("source", through: "first"))
     XCTAssertFalse(store.canForkTaskWindow("main"))
-    XCTAssertThrowsError(try store.forkTaskWindowConversation("missing"))
-    XCTAssertThrowsError(try store.forkTaskWindowConversation("source", through: "missing"))
+    do { _ = try await store.forkTaskWindowConversation("missing"); XCTFail("Expected fork failure") } catch {}
+    do { _ = try await store.forkTaskWindowConversation("source", through: "missing"); XCTFail("Expected fork failure") } catch {}
     await store.shutdown()
   }
 
   func testNestedForkKeepsOriginalRunOriginsAndCanContinueIndependently() async throws {
     let (store, root) = await setup()
     defer { try? FileManager.default.removeItem(at: root) }
-    let first = try store.forkTaskWindowConversation("source", through: "first")
-    let second = try store.forkTaskWindowConversation(first.id)
+    let first = try await store.forkTaskWindowConversation("source", through: "first")
+    let second = try await store.forkTaskWindowConversation(first.id)
     XCTAssertEqual(store.library.forkRunOrigins[second.runIDs[0]], "first")
     XCTAssertEqual(second.forkOrigin?.taskID, first.id)
     store.setTaskWindowDraft("Follow up", taskID: second.id)

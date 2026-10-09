@@ -189,7 +189,7 @@ final class ConversationForkTests: XCTestCase {
     XCTAssertTrue(restored.forkRunOrigins.isEmpty)
   }
 
-  @MainActor func testStoreForkPreservesDraftNavigationAndOriginalActiveRun() throws {
+  @MainActor func testStoreForkPreservesDraftNavigationAndOriginalActiveRun() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
@@ -198,9 +198,11 @@ final class ConversationForkTests: XCTestCase {
     store.connected = true
     store.runs = runs
     store.library = library(runs)
+    store.libraryLoaded = true
     store.selection = "active"
     store.draft = "do not replace"
-    let fork = try XCTUnwrap(store.forkConversation())
+    let forkResult = await store.forkConversation()
+    let fork = try XCTUnwrap(forkResult)
     XCTAssertEqual(store.selectedTask?.id, fork.id)
     XCTAssertEqual(store.activeRun?.id, "active")
     XCTAssertEqual(store.library.drafts["done"], "do not replace")
@@ -211,7 +213,7 @@ final class ConversationForkTests: XCTestCase {
     XCTAssertEqual(persisted.forkRuns.count, 1)
   }
 
-  @MainActor func testFailedSaveDoesNotSwitchOrMutateLibrary() throws {
+  @MainActor func testFailedSaveDoesNotSwitchOrMutateLibrary() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try Data("not a directory".utf8).write(to: root)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -219,9 +221,12 @@ final class ConversationForkTests: XCTestCase {
     store.project = URL(fileURLWithPath: "/fixture")
     store.runs = [run("one")]
     store.library = library(store.runs)
+    store.libraryLoaded = true
     store.selection = "one"
     store.library.drafts["one"] = "/fork"
-    XCTAssertTrue(store.handleComposerCommand())
+    let operation = store.requestConversationFork(consumeCommand: true)
+    XCTAssertNotNil(operation)
+    _ = await operation?.value
     XCTAssertEqual(store.selection, "one")
     XCTAssertEqual(store.draft, "/fork")
     XCTAssertEqual(store.library.tasks.count, 1)
@@ -230,16 +235,24 @@ final class ConversationForkTests: XCTestCase {
     XCTAssertNotNil(store.error)
   }
 
-  @MainActor func testSlashForkConsumesOnlyCommandAndFollowupAttachesToFork() throws {
+  @MainActor func testSlashForkConsumesOnlyCommandAndFollowupAttachesToFork() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
     store.project = URL(fileURLWithPath: "/fixture")
     store.runs = [run("one"), run("two")]
     store.library = library(store.runs)
+    store.libraryLoaded = true
     store.selection = "two"
     store.draft = "/fork"
     XCTAssertTrue(store.handleComposerCommand())
+    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+    while store.library.tasks.count == 1 || store.taskMenuForkingID != nil {
+      guard ContinuousClock.now < deadline else {
+        XCTFail("Slash fork did not finish: \(store.error ?? "no error")"); return
+      }
+      try await Task.sleep(for: .milliseconds(10))
+    }
     let fork = try XCTUnwrap(store.selectedTask)
     XCTAssertNotEqual(fork.id, "one")
     XCTAssertEqual(store.library.drafts["one"], "")

@@ -2,15 +2,25 @@ import Foundation
 
 extension WorkspaceStore {
   var canForkConversation: Bool {
-    guard !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
+    canForkConversation(through: nil)
+  }
+
+  func canForkConversation(through runID: String?) -> Bool {
+    guard libraryLoaded, taskMenuForkingID == nil, !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
       let task = selectedTask, !task.isTransient, !task.archived,
       !taskForkIsReserved(task.id),
       task.project == currentProjectKey else { return false }
     guard canForkInCurrentCheckout(task.id) else { return false }
-    return (try? library.forkHistory(taskID: task.id, availableRuns: taskWindowRuns(task.id))) != nil
+    return (try? library.forkHistory(taskID: task.id, through: runID,
+      availableRuns: taskWindowRuns(task.id))) != nil
   }
 
   func canForkTaskWindow(_ taskID: String, through runID: String? = nil) -> Bool {
+    taskMenuForkingID == nil && forkSourceIsAvailable(taskID, through: runID)
+  }
+
+  /// The executing operation keeps its reservation while checking the live source.
+  func forkSourceIsAvailable(_ taskID: String, through runID: String? = nil) -> Bool {
     guard libraryLoaded, !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
       !taskForkIsReserved(taskID),
       library.tasks.contains(where: { $0.id == taskID && !$0.isTransient && !$0.archived }) else { return false }
@@ -19,8 +29,8 @@ extension WorkspaceStore {
       availableRuns: taskWindowRuns(taskID))) != nil
   }
 
-  /// Persist a fork for the calling window without touching main-window navigation.
-  func forkTaskWindowConversation(_ taskID: String, through runID: String? = nil,
+  /// Only imported/text history uses this path; native UI actions await the Core clone.
+  func persistNonNativeFork(_ taskID: String, through runID: String? = nil,
     consumeCommand: Bool = false) throws -> WorkspaceTask {
     guard libraryLoaded, !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
       !taskForkIsReserved(taskID),
@@ -43,32 +53,72 @@ extension WorkspaceStore {
     return fork
   }
 
-  @discardableResult func forkConversation(
-    through runID: String? = nil, consumeCommand: Bool = false
-  ) -> WorkspaceTask? {
-    guard canForkConversation, let task = selectedTask else {
+  /// One lifecycle for sidebar, current chat and detached-window historical forks.
+  func forkTaskWindowConversation(_ taskID: String, through runID: String? = nil,
+    consumeCommand: Bool = false, expectedCommandDraft: String? = nil,
+    revealInMainWindow: Bool = false, noticeBoard: WorkspaceNotices? = nil
+  ) async throws -> WorkspaceTask {
+    try Task.checkCancellation()
+    guard canForkTaskWindow(taskID, through: runID) else {
+      throw AgentFailure(message: "聊天来源不可用或已有分支正在创建，请稍后重试。")
+    }
+    let board = noticeBoard ?? notices
+    let rawCommand = consumeCommand ? (expectedCommandDraft ?? library.drafts[taskID]) : nil
+    let commandDraft = rawCommand?.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token
+      ? rawCommand : nil
+    taskMenuForkingID = taskID
+    let pendingID = "fork-pending-\(taskID)"
+    board.show(id: pendingID, title: "正在创建聊天分支…", level: .pending, taskID: taskID)
+    defer { taskMenuForkingID = nil; board.completeAndDismiss(pendingID) }
+    do {
+      let fork = try await persistConversationFork(taskID, through: runID, commandDraft: commandDraft)
+      if revealInMainWindow {
+        if await selectTaskAwaitingScope(fork) {
+          action = .chat; error = nil
+          if showingActivity { activityError = nil }
+        } else {
+          let message = "聊天分支已保存，但暂时无法打开其项目。可从侧栏重新打开任务。"
+          error = message
+          if showingActivity { activityError = message }
+          board.show(id: "fork-open-\(fork.id)", title: message, level: .error, taskID: fork.id)
+        }
+      }
+      return fork
+    } catch {
+      if !(error is CancellationError), !shuttingDown {
+        board.show(id: "fork-error-\(taskID)", title: "创建聊天分支失败",
+          description: error.localizedDescription, level: .error, taskID: taskID)
+      }
+      throw error
+    }
+  }
+
+  /// Capture the clicked owner/command before scheduling work on the main actor.
+  @discardableResult func requestConversationFork(through runID: String? = nil,
+    consumeCommand: Bool = false) -> Task<WorkspaceTask?, Never>? {
+    guard canForkConversation(through: runID), let task = selectedTask else { return nil }
+    let commandDraft = consumeCommand ? library.drafts[task.id] : nil
+    return Task { await forkConversation(taskID: task.id, through: runID,
+      consumeCommand: consumeCommand, expectedCommandDraft: commandDraft) }
+  }
+
+  @discardableResult func forkConversation(taskID: String? = nil,
+    through runID: String? = nil, consumeCommand: Bool = false,
+    expectedCommandDraft: String? = nil
+  ) async -> WorkspaceTask? {
+    if let taskID, selectedTask?.id != taskID { return nil }
+    guard canForkConversation(through: runID), let task = selectedTask else {
       error = "当前任务还没有可分叉的已结束回合。"
       return nil
     }
     do {
-      var candidate = library
-      let fork = try candidate.forkConversation(
-        taskID: task.id, through: runID, availableRuns: taskWindowRuns(task.id))
-      candidate.shareManagedWorktree(sourceTaskID: task.id, fork: fork)
-      if consumeCommand { candidate.drafts[task.id] = "" }
-      // Persist before switching tasks, so a failed write cannot create a ghost fork.
-      candidate.projectSelections[task.project] = fork.runIDs.last
-      try candidate.save(to: dataRoot.appendingPathComponent("workspace.json"))
-      library = candidate
-      let newIDs = Set(fork.runIDs)
-      runs.append(contentsOf: candidate.forkRuns.filter { newIDs.contains($0.id) })
-      error = nil
-      selectTask(fork)
-      action = .chat
-      showingModelPicker = false
+      let fork = try await forkTaskWindowConversation(task.id, through: runID,
+        consumeCommand: consumeCommand, expectedCommandDraft: expectedCommandDraft,
+        revealInMainWindow: true)
+      if selectedTask?.id == fork.id { showingModelPicker = false }
       return fork
     } catch {
-      self.error = error.localizedDescription
+      if !(error is CancellationError), !shuttingDown { self.error = error.localizedDescription }
       return nil
     }
   }

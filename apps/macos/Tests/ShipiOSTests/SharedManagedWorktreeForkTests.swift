@@ -57,8 +57,8 @@ import XCTest
     store.library.unreadTasks.insert(owner.id)
     let before = try await GitReviewService.checked(["status", "--porcelain=v1", "-z"], at: target)
     XCTAssertTrue(store.canForkTaskWindow(owner.id))
-    let child = try store.forkTaskWindowConversation(owner.id)
-    let nested = try store.forkTaskWindowConversation(child.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
+    let nested = try await store.forkTaskWindowConversation(child.id)
     XCTAssertEqual(child.project, owner.project)
     XCTAssertEqual(nested.project, owner.project)
     XCTAssertEqual(store.library.managedWorktrees.count, 1)
@@ -87,13 +87,13 @@ import XCTest
     let file = store.dataRoot.appendingPathComponent("workspace.json")
     try FileManager.default.removeItem(at: file)
     try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
-    XCTAssertThrowsError(try store.forkTaskWindowConversation(owner.id, consumeCommand: true))
+    do { _ = try await store.forkTaskWindowConversation(owner.id, consumeCommand: true); XCTFail("Expected fork failure") } catch {}
     XCTAssertEqual(store.library.tasks.map(\.id), [owner.id])
     XCTAssertNil(store.library.managedWorktrees[0].sharedTaskIDs)
     XCTAssertTrue(store.library.forkRuns.isEmpty)
     XCTAssertEqual(store.taskWindowDraft(owner.id), "/fork")
     try FileManager.default.removeItem(at: file)
-    let child = try store.forkTaskWindowConversation(owner.id, consumeCommand: true)
+    let child = try await store.forkTaskWindowConversation(owner.id, consumeCommand: true)
     XCTAssertEqual(store.taskWindowDraft(owner.id), "")
     XCTAssertEqual(store.library.managedWorktree(forTaskID: child.id)?.taskID, owner.id)
     await store.shutdown()
@@ -101,7 +101,7 @@ import XCTest
 
   func testLastArchivePrunesSharedSnapshotAndEitherTaskCanRestoreAfterCreatorDeletion() async throws {
     let (store, root, source, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     let target = URL(fileURLWithPath: owner.project)
     try write("staged\n", target.appendingPathComponent("tracked"))
     _ = try await GitReviewService.checked(["add", "tracked"], at: target)
@@ -139,7 +139,7 @@ import XCTest
 
   func testDeletingCreatorKeepsSharedCheckoutUntilLastTaskDeletion() async throws {
     let (store, _, source, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     store.requestTaskDeletion(owner.id)
     await store.confirmArchiveDeletion()
     XCTAssertNil(store.archivedTaskDeletionError)
@@ -147,7 +147,7 @@ import XCTest
     XCTAssertEqual(store.library.managedWorktrees[0].taskID, owner.id)
     XCTAssertTrue(store.library.permanentWorktrees.isEmpty)
     XCTAssertTrue(store.library.pendingManagedWorktreeDeletions.isEmpty)
-    let nested = try store.forkTaskWindowConversation(child.id)
+    let nested = try await store.forkTaskWindowConversation(child.id)
     store.requestTaskDeletion(child.id)
     await store.confirmArchiveDeletion()
     XCTAssertNil(store.archivedTaskDeletionError)
@@ -168,7 +168,7 @@ import XCTest
 
   func testPrunedSharedResourcesAreReleasedOnlyWithLastArchivedTask() async throws {
     let (store, _, source, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     try write("dirty\n", URL(fileURLWithPath: owner.project).appendingPathComponent("tracked"))
     await store.archiveTask(owner.id)
     await store.managedArchiveCleanupTask?.value
@@ -190,7 +190,7 @@ import XCTest
 
   func testLimitProtectsAnyPinnedOrRunningMemberAndRestoresFromChild() async throws {
     let (store, _, _, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     store.updateTask(child.id, pin: true)
     await store.pruneManagedWorktreeIfEligible(owner.id, dueToLimit: true)
     XCTAssertTrue(FileManager.default.fileExists(atPath: owner.project))
@@ -219,7 +219,7 @@ import XCTest
 
   func testSharedChildCanHandoffBothWaysAndRunningSiblingBlocksFileTransfer() async throws {
     let (store, _, source, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     try write("dirty\n", URL(fileURLWithPath: owner.project).appendingPathComponent("tracked"))
     let ownerIndex = try XCTUnwrap(store.library.tasks.firstIndex { $0.id == owner.id })
     store.library.tasks[ownerIndex].runIDs.append("running-owner")
@@ -251,7 +251,7 @@ import XCTest
 
   func testSharedHandoffRecoveryMovesSnapshotActorAfterRestart() async throws {
     let (store, root, source, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     let target = URL(fileURLWithPath: owner.project)
     try write("staged\n", target.appendingPathComponent("tracked"))
     _ = try await GitReviewService.checked(["add", "tracked"], at: target)
@@ -286,7 +286,7 @@ import XCTest
 
   func testCleanupReservationPreventsDeletionAndNavigationDuringSnapshot() async throws {
     let (store, _, source, owner) = try await fixture()
-    let child = try store.forkTaskWindowConversation(owner.id)
+    let child = try await store.forkTaskWindowConversation(owner.id)
     store.library.managedWorktrees[0].environment?.cleanupScript =
       "printf 'started' > cleanup-started; sleep 2"
     for index in store.library.tasks.indices { store.library.tasks[index].archived = true }
@@ -318,7 +318,8 @@ import XCTest
     await store.open(URL(fileURLWithPath: owner.project))
     store.selectTask(try XCTUnwrap(store.library.tasks.first { $0.id == owner.id }))
     XCTAssertTrue(store.canForkConversation)
-    let child = try XCTUnwrap(store.forkConversation(), store.error ?? "")
+    let childResult = await store.forkConversation()
+    let child = try XCTUnwrap(childResult, store.error ?? "")
     XCTAssertEqual(store.selectedTask?.id, child.id)
     XCTAssertEqual(store.currentProjectKey, owner.project)
     XCTAssertEqual(store.library.managedWorktree(forTaskID: child.id)?.taskID, owner.id)

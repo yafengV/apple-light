@@ -21,6 +21,7 @@ struct TaskWindowView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var childProjection = ChildElicitationProjection()
   @State private var forkError: String?
+  @State private var forkOperation: Task<Void, Never>?
   @State private var handoffError: String?
   @State private var actionError: String?
   @State private var archiveReturnFocus: SearchDialogReturnFocus?
@@ -403,9 +404,9 @@ struct TaskWindowView: View {
                 }.help("将任务移交到本地检出").disabled(windowCommandsBlocked)
               }
               Menu {
-                Button("分叉到新任务") { forkTask() }
+                Button(store.taskMenuForkDestination(task)) { forkTask() }
                   .disabled(!store.canForkTaskWindow(taskID) || windowCommandsBlocked)
-                Button("分叉到新工作树") {
+                Button("在新工作树中创建聊天分支") {
                   Task {
                     if let fork = await store.forkTaskToNewWorktree(taskID, openTask: false) {
                       onNavigate(fork.id)
@@ -559,7 +560,10 @@ struct TaskWindowView: View {
 
   var body: some View {
     archiveRoutedTaskContent
-    .onChange(of: taskID) { _, _ in executionRunID = nil }
+    .onChange(of: taskID) { _, _ in
+      forkOperation?.cancel(); forkOperation = nil
+      executionRunID = nil
+    }
     .disabled(searchMode != nil).allowsHitTesting(searchMode == nil).accessibilityHidden(searchMode != nil)
     .overlay { searchOverlay }
     .onChange(of: searchMode) { _, mode in if mode == nil { restoreSearchFocus() } }
@@ -621,6 +625,7 @@ struct TaskWindowView: View {
       _ = await store.loadContextWindow(for: taskID)
     }
     .onDisappear {
+      forkOperation?.cancel(); forkOperation = nil
       store.dictation.stop(target: taskID)
       store.dictationCarets[taskID] = nil
       tabs.endDrag()
@@ -702,16 +707,26 @@ struct TaskWindowView: View {
   }
 
   private func forkTask(through runID: String? = nil, consumeCommand: Bool = false) {
-    guard !windowCommandsBlocked else { return }
-    do {
-      let fork = try store.forkTaskWindowConversation(taskID, through: runID, consumeCommand: consumeCommand)
-      forkError = nil
-      onNavigate(fork.id)
-    } catch {
-      forkError = error.localizedDescription
-      composerFocused = true
-      taskComposerFocusRequest = UUID()
-      if consumeCommand { commandSelection = ComposerCommandSelection(); updateCandidates() }
+    guard !windowCommandsBlocked, forkOperation == nil,
+      store.canForkTaskWindow(taskID, through: runID) else { return }
+    let commandDraft = consumeCommand ? store.taskWindowDraft(taskID) : nil
+    forkOperation = Task {
+      defer { forkOperation = nil }
+      do {
+        let fork = try await store.forkTaskWindowConversation(taskID, through: runID,
+          consumeCommand: consumeCommand, expectedCommandDraft: commandDraft, noticeBoard: resources.notices)
+        guard !Task.isCancelled, resources.displayedTaskID == taskID,
+          resources.tasks[taskID] === tabs else { return }
+        forkError = nil
+        onNavigate(fork.id)
+      } catch {
+        guard !(error is CancellationError), !Task.isCancelled,
+          resources.displayedTaskID == taskID else { return }
+        forkError = error.localizedDescription
+        composerFocused = true
+        taskComposerFocusRequest = UUID()
+        if consumeCommand { commandSelection = ComposerCommandSelection(); updateCandidates() }
+      }
     }
   }
 
@@ -1882,7 +1897,7 @@ private struct TaskWindowMessageView: View {
             .help(copied ? "已复制" : "复制结果")
             Button(action: onFork) { Image(systemName: "arrow.triangle.branch") }
               .buttonStyle(.plain).foregroundStyle(.secondary).disabled(!canFork)
-              .help("从此处分叉到新任务").accessibilityLabel("从此处分叉到新任务")
+              .help("从此处创建聊天分支").accessibilityLabel("从此处创建聊天分支")
           }
         }
       }

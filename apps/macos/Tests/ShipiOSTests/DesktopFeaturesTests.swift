@@ -4118,7 +4118,8 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertEqual(try ReviewSnapshotStorage.load(runID: retried.id,
       root: root.appendingPathComponent("Data")), originalSnapshot)
     let taskID = try XCTUnwrap(restarted.library.task(containing: run.id)?.id)
-    let fork = try XCTUnwrap(restarted.forkConversation())
+    let forkResult = await restarted.forkConversation()
+    let fork = try XCTUnwrap(forkResult)
     let forkReviewID = try XCTUnwrap(fork.runIDs.first)
     restarted.updateTask(taskID, archive: true)
     XCTAssertTrue(restarted.deleteArchivedTasks([taskID]))

@@ -1218,7 +1218,9 @@ extension WorkspaceStore {
       return true
     }
     if command == "/fork" {
-      forkConversation(consumeCommand: true)
+      if requestConversationFork(consumeCommand: true) == nil {
+        error = "当前聊天没有可创建分支的已结束回合，或已有分支正在创建。"
+      }
       return true
     }
     if command == "/plan" {

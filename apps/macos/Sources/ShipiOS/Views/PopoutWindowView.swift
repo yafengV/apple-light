@@ -378,6 +378,8 @@ struct PopoutThreadView: View {
   let onOpenThread: (String) -> Void
   let onOpenInMain: (String) -> Void
   let onHide: () -> Void
+  @State private var forkOperation: Task<Void, Never>?
+  @State private var forkNotices = WorkspaceNotices()
   @State private var focused = false
   @State private var focusRequest = UUID()
   @State private var slashSelection = PopoutSlashSelection()
@@ -620,6 +622,7 @@ struct PopoutThreadView: View {
       }.padding(14)
     }
     .frame(minWidth: 400, minHeight: 400)
+    .overlay(alignment: .top) { WorkspaceNoticesView(store: store, notices: forkNotices) }
     .overlay(alignment: .bottomLeading) {
       if slashSelection.isVisible {
         PopoutSlashMenuView(store: store, selection: $slashSelection, maximumHeight: 264,
@@ -632,6 +635,8 @@ struct PopoutThreadView: View {
     .tint(store.appearance.accentColor)
     .preferredColorScheme(store.appearance.colorScheme)
     .onAppear { focused = true; focusRequest = UUID(); updateSlashSelection() }
+    .onDisappear { forkOperation?.cancel(); forkOperation = nil }
+    .onChange(of: taskID) { _, _ in forkOperation?.cancel(); forkOperation = nil }
     .onChange(of: draft.wrappedValue) { _, _ in updateSlashSelection() }
     .onChange(of: store.library.tasks) { _, _ in updateSlashSelection() }
     .onChange(of: store.taskWindowImages(taskID).count + store.taskWindowFiles(taskID).count) {
@@ -694,10 +699,18 @@ struct PopoutThreadView: View {
   }
 
   private func forkConversation(through runID: String) {
-    do {
-      let fork = try store.forkTaskWindowConversation(taskID, through: runID)
-      onOpenThread(fork.id)
-    } catch { store.error = error.localizedDescription }
+    guard forkOperation == nil, store.canForkTaskWindow(taskID, through: runID) else { return }
+    forkOperation = Task {
+      defer { forkOperation = nil }
+      do {
+        let fork = try await store.forkTaskWindowConversation(taskID, through: runID, noticeBoard: forkNotices)
+        guard !Task.isCancelled else { return }
+        onOpenThread(fork.id)
+      } catch {
+        guard !(error is CancellationError), !Task.isCancelled else { return }
+        store.error = error.localizedDescription
+      }
+    }
   }
 
   private func updateSlashSelection() {

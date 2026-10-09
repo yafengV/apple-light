@@ -246,12 +246,12 @@ struct ExecutionMessageView: View {
             }
             Button {
               if let actions { actions.fork(run) }
-              else { store.forkConversation(through: run.id) }
+              else { store.requestConversationFork(through: run.id) }
             } label: {
               Image(systemName: "arrow.triangle.branch")
-            }.disabled(actions.map { !$0.canFork(run) } ?? !store.canForkConversation)
-              .help("从此处分叉到新任务")
-              .accessibilityLabel("从此处分叉到新任务")
+            }.disabled(actions.map { !$0.canFork(run) } ?? !store.canForkConversation(through: run.id))
+              .help("从此处创建聊天分支")
+              .accessibilityLabel("从此处创建聊天分支")
             if let stats = run.codexHookStats {
               Button { showingHookStats = true } label: {
                 HookIcon()

@@ -3,17 +3,19 @@ import Foundation
 extension WorkspaceStore {
   /// Freeze the source boundary, create its actual Core child without a model turn,
   /// then merge only that child into the latest library. No unpublished child navigates.
-  func persistTaskMenuFork(_ id: String) async throws -> WorkspaceTask {
-    guard canForkTaskWindow(id), let source = library.tasks.first(where: { $0.id == id }) else {
+  func persistConversationFork(_ id: String, through runID: String? = nil,
+    commandDraft: String? = nil) async throws -> WorkspaceTask {
+    guard forkSourceIsAvailable(id, through: runID), let source = library.tasks.first(where: { $0.id == id }) else {
       throw AgentFailure(message: "聊天来源已不可用，请返回任务列表。")
     }
     var frozen = library
-    var fork = try frozen.forkConversation(taskID: id, availableRuns: taskWindowRuns(id))
+    var fork = try frozen.forkConversation(taskID: id, through: runID, availableRuns: taskWindowRuns(id))
     let config = modelConfiguration(for: id)
     // Imported/text conversations have no native rollout to clone. Preserve their
     // completed text history through the existing first-turn context path.
     guard config.apiProtocol == .codexResponses, let origin = fork.codexForkOrigin else {
-      return try forkTaskWindowConversation(id)
+      return try persistNonNativeFork(id, through: runID,
+        consumeCommand: commandDraft != nil && library.drafts[id] == commandDraft)
     }
     try config.validateEndpoint()
     guard !config.model.isEmpty else { throw AgentFailure(message: "请配置独立模型服务后重试。") }
@@ -38,7 +40,7 @@ extension WorkspaceStore {
         forkOrigin: origin, createForkOnly: true,
         onForkCreated: { created = ($0, $1) })
       try Task.checkCancellation()
-      guard canForkTaskWindow(id),
+      guard forkSourceIsAvailable(id, through: runID),
         let current = library.tasks.first(where: { $0.id == id }),
         current.project == source.project, current.codexThreadID == source.codexThreadID,
         current.codexWorkspacePath == source.codexWorkspacePath,
@@ -52,6 +54,7 @@ extension WorkspaceStore {
       latest.tasks.insert(fork, at: 0)
       latest.forkRuns.append(contentsOf: snapshots)
       latest.taskRuntimePreferences[fork.id] = permissions
+      if let commandDraft, latest.drafts[id] == commandDraft { latest.drafts[id] = "" }
       if source.project.isEmpty { latest.projectlessTaskDirectories[fork.id] = workspace.path }
       for runID in copied {
         latest.forkRunOrigins[runID] = frozen.forkRunOrigins[runID]

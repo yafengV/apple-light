@@ -32,4 +32,8 @@ Codex 的新工作树菜单会立即打开 pending client thread；目前 ShipiO
 
 提交并推送 `35edce7591617cf67c2447ec4f058d532a07c70c` 后，2026-10-09 17:06:46 在独立管理检出 `full-regression-725` 启动广泛回归。监督进程 PID 41434 已通过 `ps` 确认存活，当前状态为 `swift-build-all-tests`；使用独立缓存，冻结提交、helper、CSS、源码、测试及编译资源，随后进行旧失败组预检、全部其他 Swift 方法和 IPC。唯一明确排除的前台方法仍为 `PinnedBrowserRenameTests.testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves`，不把它称为通过。
 
-日志、状态及清单使用 `.cache/isolated-full-725.log`、`.cache/isolated-full-725-status.json` 和 `.cache/isolated-full-725-manifest.json`。启动记录仅证明该轮已启动且监督进程存活，尚无终态，不作为全量通过。后续开发使用主检出，不编辑或共享这轮固定检出的构建缓存。
+日志、状态及清单使用 `.cache/isolated-full-725.log`、`.cache/isolated-full-725-status.json` 和 `.cache/isolated-full-725-manifest.json`。后续开发使用主检出，不编辑或共享这轮固定检出的构建缓存。
+
+该轮已于 **2026-10-09 18:33:05 失败结束**：**3,416 项、2 个音频夹具跳过、2 个失败方法／2 条断言，4,699.926 秒**。失败为 `AgentAvatarTests.testAll56PackagedSVGsKeepReferenceBytesDecodeAndRenderWithoutTemplates` 的重复行解码向量复用断言，以及 `PopoutWindowLayoutTests.testScrolledThreadShowsReturnToLatestWhileReplyChanges` 的新增回复不改变读者历史滚动位置断言。不能仅凭单项通过或环境猜测把它们当作无效失败，后续独立排查。
+
+构建和旧失败组预检 exit 0，广泛 Swift 阶段 exit 1；监督脚本因此未执行 IPC，不能称为本轮 IPC 通过。终态及再次核验的 **2,416 项源码／测试／脚本输入、198 项编译资源、helper、CSS 和测试执行文件**摘要均未变。监督／Swift／xctest 进程已不存在，专用管理检出随后归档。该轮不包含第 726—728 篇改动，不能当作当前源码的完整回归通过。

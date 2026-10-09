@@ -21,7 +21,7 @@ extension WorkspaceStore {
       let target = draftKey
       Task { await toggleDictation(target: target) }
     case "branch": openBranchPicker()
-    case "fork": forkConversation()
+    case "fork": requestConversationFork()
     case "open-side-chat":
       if let parent = selectedTask {
         do {

@@ -70,16 +70,16 @@ import XCTest
 
   func testWindowForkRejectsReservedTargetButKeepsOtherTargetsAvailable() async throws {
     let store = await makeStore()
-    let second = try store.forkTaskWindowConversation("source")
+    let second = try await store.forkTaskWindowConversation("source")
     store.requestTaskDeletion("source")
     XCTAssertFalse(store.canForkTaskFromMenu("source"))
     XCTAssertFalse(store.canForkTaskWindow("source"))
-    XCTAssertThrowsError(try store.forkTaskWindowConversation("source"))
+    do { _ = try await store.forkTaskWindowConversation("source"); XCTFail("Expected fork failure") } catch {}
     XCTAssertTrue(store.canForkTaskWindow(second.id))
     store.dismissArchiveDeletion()
     store.activityArchiveRequest = .init(taskIDs: ["source"], scope: .task)
     XCTAssertFalse(store.canForkTaskWindow("source"))
-    XCTAssertThrowsError(try store.forkTaskWindowConversation("source"))
+    do { _ = try await store.forkTaskWindowConversation("source"); XCTFail("Expected fork failure") } catch {}
     store.dismissTaskArchive()
     store.activityArchivingTaskIDs = ["source"]
     XCTAssertFalse(store.canForkTaskWindow("source"))

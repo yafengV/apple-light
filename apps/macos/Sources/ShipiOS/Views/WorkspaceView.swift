@@ -342,9 +342,11 @@ struct WorkspaceView: View {
                 }
               }
               Divider()
-              Button("分叉到新任务") { store.forkConversation() }.disabled(!store.canForkConversation)
+              Button(store.selectedTask.map(store.taskMenuForkDestination) ?? "创建聊天分支") {
+                store.requestConversationFork()
+              }.disabled(!store.canForkConversation)
               if let task = store.selectedTask {
-                Button("分叉到新工作树") { Task { await store.forkTaskToNewWorktree(task.id) } }
+                Button("在新工作树中创建聊天分支") { Task { await store.forkTaskToNewWorktree(task.id) } }
                   .disabled(!store.canForkTaskToNewWorktree(task.id))
                 if store.library.managedWorktrees.contains(where: {
                   $0.containsTask(task.id) && $0.pendingForkSourceTaskID != nil

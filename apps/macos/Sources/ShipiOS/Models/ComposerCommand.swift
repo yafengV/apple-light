@@ -19,7 +19,7 @@ enum ComposerCommand: String, CaseIterable, Identifiable {
   var title: String {
     localAction?.title ?? [
       "review": "审查代码变更", "files": "搜索文件", "terminal": "切换终端",
-      "project": "为新任务选择项目", "task": "无项目新任务", "new": "新任务", "fork": "分叉到新任务", "side": "打开临时侧聊",
+      "project": "为新任务选择项目", "task": "无项目新任务", "new": "新任务", "fork": "创建聊天分支", "side": "打开临时侧聊",
       "plan": "制定实施计划",
       "goal": "定义目标与成功标准",
       "compact": "整理会话上下文",

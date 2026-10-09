@@ -86,7 +86,7 @@ struct DesktopCommand: Identifiable {
     .init(id: "globalDictationHold", title: "按住听写", icon: "mic", shortcut: ""),
     .init(id: "globalDictationSingleTap", title: "单击听写", icon: "mic", shortcut: ""),
     .init(id: "realtimeVoice", title: "语音聊天", icon: "waveform", shortcut: ""),
-    .init(id: "fork", title: "分叉到新任务", icon: "arrow.triangle.branch", shortcut: ""),
+    .init(id: "fork", title: "创建聊天分支", icon: "arrow.triangle.branch", shortcut: ""),
     .init(id: "open-side-chat", title: "打开临时侧聊", icon: "bubble.left.and.bubble.right", shortcut: "⌘⌥S"),
     .init(id: "open-task-window", title: "在新窗口中打开任务", icon: "macwindow.on.rectangle", shortcut: ""),
     .init(id: "copy-task-link", title: "复制任务链接", icon: "link", shortcut: "⌘⌥L"),
