@@ -393,7 +393,9 @@ struct LocalEnvironmentSettingsView: View {
       Button("放弃修改并继续", role: .destructive) {
         if returningToOverview {
           Task {
-            await environment.load()
+            guard page == .editor, store.destination == .settings, store.settingsPage == .environments else { return }
+            guard await environment.reloadFromSettings() else { return }
+            guard page == .editor, store.destination == .settings, store.settingsPage == .environments else { return }
             page = .overview
           }
         }

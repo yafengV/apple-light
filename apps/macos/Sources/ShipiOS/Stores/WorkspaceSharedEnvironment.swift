@@ -118,9 +118,11 @@ final class EnvironmentSettingsSession {
     let token = generation
     let request = UUID()
     readRequest = request
+    let startingForm = formState
     do {
       let entries = try await client.request("environment.list").decode([LocalEnvironmentEntry].self)
       guard generation == token, readRequest == request, !Task.isCancelled else { return }
+      if preserveNewInput(since: startingForm) { return }
       files = entries
       let valid = entries.filter { $0.error == nil }
       let previousFile = fileName
@@ -130,9 +132,10 @@ final class EnvironmentSettingsSession {
           ?? valid.first?.id ?? "environment.toml"
       }
       if fileName != previousFile { clearForm() }
-      await load(request: request)
+      await load(request: request, startingForm: formState)
     } catch {
       if generation == token, readRequest == request, !Task.isCancelled {
+        if preserveNewInput(since: startingForm) { return }
         readError = true
         status = "环境目录读取失败：\(error.localizedDescription)"
       }
@@ -181,17 +184,26 @@ final class EnvironmentSettingsSession {
     guard !Task.isCancelled else { return }
     let request = UUID()
     readRequest = request
-    await load(request: request)
+    await load(request: request, startingForm: formState)
   }
 
-  private func load(request: UUID) async {
+  private func preserveNewInput(since startingForm: LocalEnvironmentFormState) -> Bool {
+    guard formState != startingForm else { return false }
+    readRequest = UUID()
+    status = "载入期间内容已修改，已保留当前编辑。"
+    return true
+  }
+
+  private func load(request: UUID, startingForm: LocalEnvironmentFormState) async {
     guard readRequest == request, !Task.isCancelled else { return }
+    if preserveNewInput(since: startingForm) { return }
     guard let client else { return }
     let token = generation
     let selected = fileName
     do {
       let result = try await client.request("environment.load", ["fileName": .string(selected)])
       guard generation == token, readRequest == request, fileName == selected, !Task.isCancelled else { return }
+      if preserveNewInput(since: startingForm) { return }
       clearForm()
       exists = result["exists"].boolean == true
       revision = result["revision"].text
@@ -215,11 +227,21 @@ final class EnvironmentSettingsSession {
       loadedState = formState
     } catch {
       if generation == token, readRequest == request, fileName == selected, !Task.isCancelled {
+        if preserveNewInput(since: startingForm) { return }
         clearForm()
         readError = true
         status = "环境文件读取失败：\(error.localizedDescription)"
       }
     }
+  }
+
+  func reloadFromSettings() async -> Bool {
+    guard connected, let path = projectPath, !Task.isCancelled else { return false }
+    let token = generation, selected = fileName, request = UUID()
+    readRequest = request
+    await load(request: request, startingForm: formState)
+    return generation == token && readRequest == request && projectPath == path && fileName == selected
+      && connected && !hasUnsavedChanges && !readError && !parseError && !Task.isCancelled
   }
 
   /// Returns whether the settings editor may return to its overview.
@@ -441,9 +463,11 @@ extension WorkspaceStore {
     guard connected, !preparingProjectScope, let path = project?.path, !Task.isCancelled else { return }
     let token = session, request = UUID()
     environmentReadRequest = request
+    let startingForm = currentEnvironmentFormState
     do {
       let entries = try await client.request("environment.list").decode([LocalEnvironmentEntry].self)
       guard environmentReadIsCurrent(request, session: token, path: path) else { return }
+      if preserveNewEnvironmentInput(since: startingForm) { return }
       environmentFiles = entries
       let valid = entries.filter { $0.error == nil }
       let previousFile = environmentFileName
@@ -453,9 +477,10 @@ extension WorkspaceStore {
           ?? valid.first?.id ?? "environment.toml"
       }
       if environmentFileName != previousFile { environmentRevision = nil; environmentExists = false }
-      await loadSharedEnvironment(request: request)
+      await loadSharedEnvironment(request: request, startingForm: currentEnvironmentFormState)
     } catch {
       guard environmentReadIsCurrent(request, session: token, path: path) else { return }
+      if preserveNewEnvironmentInput(since: startingForm) { return }
       environmentStatus = "环境目录读取失败：\(error.localizedDescription)"
     }
   }
@@ -464,7 +489,7 @@ extension WorkspaceStore {
     guard !Task.isCancelled else { return }
     let request = UUID()
     environmentReadRequest = request
-    await loadSharedEnvironment(request: request)
+    await loadSharedEnvironment(request: request, startingForm: currentEnvironmentFormState)
   }
 
   private func environmentReadIsCurrent(_ request: UUID, session token: UUID, path: String) -> Bool {
@@ -472,14 +497,23 @@ extension WorkspaceStore {
       && connected && !preparingProjectScope && !Task.isCancelled
   }
 
-  private func loadSharedEnvironment(request: UUID) async {
+  private func preserveNewEnvironmentInput(since startingForm: LocalEnvironmentFormState) -> Bool {
+    guard currentEnvironmentFormState != startingForm else { return false }
+    environmentReadRequest = UUID()
+    environmentStatus = "载入期间内容已修改，已保留当前编辑。"
+    return true
+  }
+
+  private func loadSharedEnvironment(request: UUID, startingForm: LocalEnvironmentFormState) async {
     guard connected, !preparingProjectScope, let path = project?.path,
       environmentReadRequest == request, !Task.isCancelled else { return }
+    if preserveNewEnvironmentInput(since: startingForm) { return }
     let token = session
     let fileName = environmentFileName
     do {
       let result = try await client.request("environment.load", ["fileName": .string(fileName)])
       guard environmentReadIsCurrent(request, session: token, path: path), environmentFileName == fileName else { return }
+      if preserveNewEnvironmentInput(since: startingForm) { return }
       environmentExists = result["exists"].boolean == true
       environmentRevision = result["revision"].text
       if environmentExists {
@@ -500,6 +534,7 @@ extension WorkspaceStore {
       environmentLoadedState = currentEnvironmentFormState
     } catch {
       guard environmentReadIsCurrent(request, session: token, path: path), environmentFileName == fileName else { return }
+      if preserveNewEnvironmentInput(since: startingForm) { return }
       environmentRevision = nil; environmentExists = false
       clearEnvironmentForm(for: fileName)
       environmentStatus = "共享环境文件读取失败：\(error.localizedDescription)"
@@ -512,7 +547,7 @@ extension WorkspaceStore {
     environmentReadRequest = request
     if environmentFileName != fileName { environmentRevision = nil; environmentExists = false }
     environmentFileName = fileName
-    await loadSharedEnvironment(request: request)
+    await loadSharedEnvironment(request: request, startingForm: currentEnvironmentFormState)
     if entry.error == nil, session == token, environmentReadRequest == request, !Task.isCancelled { saveProfile() }
   }
 

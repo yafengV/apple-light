@@ -469,4 +469,119 @@ import XCTest
     try FileManager.default.removeItem(at: scopeGate); await navigation.value
     XCTAssertEqual(store.project?.path, other.path); XCTAssertEqual(store.environmentFileName, "environment.toml")
   }
+
+  func testWorkspaceNewInputDuringLoadKeepsDraftBaselineAndRevision() async throws {
+    for error in [false, true] {
+      for field in 0..<6 {
+        let f = try fixture(), store = await workspace(f)
+        let baseline = store.environmentLoadedState, revision = store.environmentRevision
+        try hold(f, method: "environment.load", file: "environment.toml", error: error)
+        let read = Task { await store.loadSharedEnvironment() }; try await reached(f)
+        switch field {
+        case 0: store.environmentName = "new input"
+        case 1: store.worktreeSetupScript = "echo new setup"
+        case 2: store.setupPlatformScripts.darwin = "echo new mac"
+        case 3: store.worktreeCleanupScript = "echo new cleanup"
+        case 4: store.cleanupPlatformScripts.win32 = "echo new windows cleanup"
+        default: store.environmentActions = [.init(title: "New action", script: "echo new action")]
+        }
+        let form = store.currentEnvironmentFormState
+        try FileManager.default.removeItem(at: f.gate); await read.value
+        XCTAssertEqual(store.currentEnvironmentFormState, form); XCTAssertEqual(store.environmentLoadedState, baseline)
+        XCTAssertEqual(store.environmentRevision, revision); XCTAssertTrue(store.environmentExists)
+        XCTAssertTrue(store.environmentHasUnsavedChanges); XCTAssertTrue(store.environmentStatus.contains("保留"))
+      }
+    }
+  }
+
+  func testEditorNewInputDuringLoadKeepsDraftBaselineAndRevision() async throws {
+    for error in [false, true] {
+      for field in 0..<6 {
+        let f = try fixture(), editor = await editor(f)
+        let baseline = editor.loadedState, revision = editor.revision
+        try hold(f, method: "environment.load", file: "environment.toml", error: error)
+        let read = Task { await editor.load() }; try await reached(f)
+        switch field {
+        case 0: editor.name = "new input"
+        case 1: editor.setupScript = "echo new setup"
+        case 2: editor.setupPlatforms.darwin = "echo new mac"
+        case 3: editor.cleanupScript = "echo new cleanup"
+        case 4: editor.cleanupPlatforms.win32 = "echo new windows cleanup"
+        default: editor.actions = [.init(title: "New action", script: "echo new action")]
+        }
+        let form = editor.formState
+        try FileManager.default.removeItem(at: f.gate); await read.value
+        XCTAssertEqual(editor.formState, form); XCTAssertEqual(editor.loadedState, baseline)
+        XCTAssertEqual(editor.revision, revision); XCTAssertTrue(editor.exists)
+        XCTAssertTrue(editor.hasUnsavedChanges); XCTAssertTrue(editor.canSave)
+        XCTAssertFalse(editor.readError); XCTAssertTrue(editor.status.contains("保留"))
+      }
+    }
+  }
+
+  func testWorkspaceNewInputDuringDirectoryAndContentRefreshIsPreserved() async throws {
+    for method in ["environment.list", "environment.load"] {
+      for error in [false, true] {
+        let f = try fixture(), store = await workspace(f)
+        let baseline = store.environmentLoadedState, revision = store.environmentRevision, file = store.environmentFileName
+        try hold(f, method: method, error: error)
+        let read = Task { await store.refreshSharedEnvironments() }; try await reached(f)
+        store.environmentName = "new refresh input"
+        store.worktreeCleanupScript = "echo new cleanup"
+        let form = store.currentEnvironmentFormState
+        try FileManager.default.removeItem(at: f.gate); await read.value
+        XCTAssertEqual(store.currentEnvironmentFormState, form); XCTAssertEqual(store.environmentLoadedState, baseline)
+        XCTAssertEqual(store.environmentRevision, revision); XCTAssertEqual(store.environmentFileName, file)
+        XCTAssertTrue(store.environmentHasUnsavedChanges); XCTAssertTrue(store.environmentStatus.contains("保留"))
+      }
+    }
+  }
+
+  func testEditorNewInputDuringDirectoryAndContentRefreshIsPreserved() async throws {
+    for method in ["environment.list", "environment.load"] {
+      for error in [false, true] {
+        let f = try fixture(), editor = await editor(f)
+        let baseline = editor.loadedState, revision = editor.revision, file = editor.fileName
+        try hold(f, method: method, error: error)
+        let read = Task { await editor.refresh() }; try await reached(f)
+        editor.name = "new refresh input"; editor.cleanupScript = "echo new cleanup"
+        let form = editor.formState
+        try FileManager.default.removeItem(at: f.gate); await read.value
+        XCTAssertEqual(editor.formState, form); XCTAssertEqual(editor.loadedState, baseline)
+        XCTAssertEqual(editor.revision, revision); XCTAssertEqual(editor.fileName, file)
+        XCTAssertTrue(editor.hasUnsavedChanges); XCTAssertTrue(editor.canSave)
+        XCTAssertFalse(editor.readError); XCTAssertTrue(editor.status.contains("保留"))
+      }
+    }
+  }
+
+  func testSettingsReloadNewInputPreventsReturnAndKeepsNewDraft() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "old draft to discard"
+    try hold(f, method: "environment.load", file: "environment.toml")
+    let reload = Task { await editor.reloadFromSettings() }; try await reached(f)
+    editor.name = "new draft after confirmation"
+    try FileManager.default.removeItem(at: f.gate)
+    let mayReturn = await reload.value
+    XCTAssertFalse(mayReturn); XCTAssertEqual(editor.name, "new draft after confirmation")
+    XCTAssertTrue(editor.hasUnsavedChanges); XCTAssertEqual(editor.revision, "environment.toml:1")
+  }
+
+  func testSettingsReloadFailurePreventsReturn() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "old draft to discard"
+    try hold(f, method: "environment.load", file: "environment.toml", error: true)
+    let reload = Task { await editor.reloadFromSettings() }; try await reached(f)
+    try FileManager.default.removeItem(at: f.gate)
+    let mayReturn = await reload.value
+    XCTAssertFalse(mayReturn); XCTAssertTrue(editor.readError); XCTAssertTrue(editor.status.contains("失败"))
+  }
+
+  func testSettingsReloadWithoutNewInputDiscardsOldDraftAndCanReturn() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "old draft to discard"
+    let mayReturn = await editor.reloadFromSettings()
+    XCTAssertTrue(mayReturn); XCTAssertEqual(editor.name, "environment.toml:2")
+    XCTAssertFalse(editor.hasUnsavedChanges); XCTAssertFalse(editor.readError)
+  }
 }
