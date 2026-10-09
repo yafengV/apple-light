@@ -116,7 +116,9 @@ import Observation
     let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
     if value.isEmpty { return true }
     if searchByKeys { return preferences.bindings(command.id).contains { $0.display == value } }
-    return command.title.localizedCaseInsensitiveContains(value) || command.id.localizedCaseInsensitiveContains(value)
+    return ([command.title, command.id] + command.searchAliases).contains {
+      $0.localizedCaseInsensitiveContains(value)
+    }
   }
   private func isEscape(_ event: NSEvent) -> Bool {
     event.keyCode == 53 && event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty

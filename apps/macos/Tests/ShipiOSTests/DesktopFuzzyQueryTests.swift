@@ -2,6 +2,18 @@ import XCTest
 @testable import ShipiOS
 
 final class DesktopFuzzyQueryTests: XCTestCase {
+  func testForkFormerNameResolvesToCurrentCommandWithoutDuplicatingResults() throws {
+    for query in ["分叉", "创建聊天分支"] {
+      let results = DesktopCommand.search(query: query)
+      XCTAssertEqual(results.first?.id, "fork")
+      XCTAssertEqual(results.first?.title, "创建聊天分支")
+      XCTAssertEqual(results.filter { $0.id == "fork" }.count, 1)
+      XCTAssertEqual(Set(results.map(\.id)).count, results.count)
+    }
+    XCTAssertEqual(DesktopCommand.search(query: "设置").first?.id, "settings")
+    XCTAssertEqual(DesktopCommand.search(query: " \n ").map(\.id), DesktopCommand.all.map(\.id))
+  }
+
   struct Example: Decodable {
     struct Fragment: Decodable { let startOffset: Int; let endOffset: Int }
     let text: String

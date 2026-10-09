@@ -4,6 +4,30 @@ import XCTest
 @testable import ShipiOS
 
 final class ShortcutSettingsStateTests: XCTestCase {
+  @MainActor func testForkFormerNameAndCurrentNameRemainSearchableWithoutLeakingIntoRecordedKeySearch() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let preferences = ShortcutPreferences(file: root.appendingPathComponent("keys.json"))
+    let state = ShortcutSettingsState()
+    let fork = try XCTUnwrap(DesktopCommand.all.first { $0.id == "fork" })
+    for query in ["分叉", "创建聊天分支"] {
+      state.query = query
+      XCTAssertEqual(DesktopCommand.all.filter { state.matches($0, preferences: preferences) }.map(\.id), ["fork"])
+    }
+    try preferences.set(nil, for: "new")
+    try preferences.set(ShortcutBinding("⌘N"), for: "fork")
+    state.toggleSearchMode()
+    state.query = "⌘N"
+    XCTAssertTrue(state.matches(fork, preferences: preferences))
+    try preferences.set(nil, for: "fork")
+    XCTAssertFalse(state.matches(fork, preferences: preferences))
+    state.query = "分叉"
+    XCTAssertFalse(state.matches(fork, preferences: preferences), "Aliases are text, not recorded bindings")
+    state.toggleSearchMode()
+    state.query = "分叉"
+    XCTAssertTrue(state.matches(fork, preferences: preferences), "An unbound command remains discoverable by name")
+  }
+
   private func event(_ code: UInt16, characters: String = "", flags: NSEvent.ModifierFlags = [], repeated: Bool = false) throws -> NSEvent {
     try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags,
       timestamp: 0, windowNumber: 0, context: nil, characters: characters,

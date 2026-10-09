@@ -580,7 +580,8 @@ enum SettingsSearch {
       }.map { SettingsSearchResult(page: page, field: $0) }
       let commands = page == .shortcuts ? DesktopCommand.all.filter { command in
         let bindings = shortcutBindings?[command.id] ?? (shortcutBindings == nil ? command.defaultBindings : [])
-        return matches([page.title, command.title, command.id, bindings.map(\.display).joined(separator: " ")]
+        return matches([page.title, command.title, command.id, command.searchAliases.joined(separator: " "),
+          bindings.map(\.display).joined(separator: " ")]
           .joined(separator: " "))
       }.map { SettingsSearchResult(page: page, commandID: $0.id) } : []
       let pageMatches = matches(page.title + " " + page.rawValue)

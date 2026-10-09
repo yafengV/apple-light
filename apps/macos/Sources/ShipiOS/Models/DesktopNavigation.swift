@@ -7,6 +7,8 @@ struct DesktopCommand: Identifiable {
   let title: String
   let icon: String
   let defaultBindings: [ShortcutBinding]
+  // Keep the former label discoverable after renaming the visible command.
+  var searchAliases: [String] { id == "fork" ? ["分叉"] : [] }
   var allowsBareModifiers: Bool {
     ["globalDictationHold", "globalDictationSingleTap", "realtimeVoice"].contains(id)
   }
