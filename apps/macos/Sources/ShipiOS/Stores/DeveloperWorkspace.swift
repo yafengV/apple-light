@@ -32,6 +32,8 @@ final class DeveloperWorkspace {
   @ObservationIgnored var fileEditorRecoveryContext: FileEditorRecoveryContext?
   @ObservationIgnored var previousFileEditorRecoveryContexts: Set<FileEditorRecoveryContext> = []
   @ObservationIgnored var fileEditorRecoverySelections: [String: FileEditorRecoveryVersion] = [:]
+  @ObservationIgnored var pendingFileEditorRecoveryResolutions: Set<String> = []
+  @ObservationIgnored var fileEditingAllowed: () -> Bool = { true }
   @ObservationIgnored var onFileEditResolved: ((String) -> Void)?
   var fileCloseRequest: String?
   @ObservationIgnored var fileAutosaveTasks: [String: Task<Void, Never>] = [:]

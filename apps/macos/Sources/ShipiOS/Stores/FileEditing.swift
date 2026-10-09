@@ -13,7 +13,7 @@ extension DeveloperWorkspace {
   }
 
   func beginEditingSelectedFile() {
-    guard let selectedFile, !fileLoading, !fileIsReadOnly, fileError == nil else { return }
+    guard fileEditingAllowed(), let selectedFile, !fileLoading, !fileIsReadOnly, fileError == nil else { return }
     let key = editorKey(for: selectedFile)
     if fileEditorSessions[key] == nil {
       fileEditorSessions[key] = FileEditorSession(baseText: fileText, text: fileText)
@@ -22,7 +22,7 @@ extension DeveloperWorkspace {
   }
 
   func editSelectedFile(_ text: String) {
-    guard let selectedFile else { return }
+    guard fileEditingAllowed(), let selectedFile else { return }
     let key = editorKey(for: selectedFile)
     guard var session = fileEditorSessions[key] else { return }
     session.text = text
@@ -97,7 +97,7 @@ extension DeveloperWorkspace {
   }
 
   @discardableResult func useLocalFileEditsAfterConflict() async -> Bool {
-    guard let selectedFile else { return false }
+    guard fileEditingAllowed(), let selectedFile else { return false }
     let key = editorKey(for: selectedFile)
     guard var session = fileEditorSessions[key], let diskText = session.changedOnDisk else { return false }
     session.baseText = diskText
@@ -108,7 +108,7 @@ extension DeveloperWorkspace {
   }
 
   func discardSelectedFileEdits() {
-    guard let selectedFile else { return }
+    guard fileEditingAllowed(), let selectedFile else { return }
     let key = editorKey(for: selectedFile)
     fileAutosaveTasks.removeValue(forKey: key)?.cancel()
     fileEditorSessions[key] = nil
@@ -118,6 +118,7 @@ extension DeveloperWorkspace {
   }
 
   func discardAndCloseFile(_ path: String) {
+    guard fileEditingAllowed() else { return }
     let key = editorKey(for: path)
     fileAutosaveTasks.removeValue(forKey: key)?.cancel()
     fileEditorSessions[key] = nil

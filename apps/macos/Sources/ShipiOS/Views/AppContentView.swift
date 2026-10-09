@@ -37,6 +37,7 @@ struct AppContentView: View {
           }
         }
       }
+      .background(FileRecoveryWindowCloseGuard(prepare: store.prepareMainWindowClose).frame(width: 0, height: 0))
       .background(ModifiedEscapeBridge(store: store).frame(width: 0, height: 0))
       .background(MCPApprovalKeyboardBridge(store: store, taskID: store.selectedTask?.id,
         visible: store.mainMCPApprovalVisible).frame(width: 0, height: 0))
@@ -179,7 +180,7 @@ struct AppContentView: View {
           EmptyView()
         }
       }
-      .disabled(store.libraryRecoveryBlocksInteraction)
+      .disabled(store.shuttingDown || store.libraryRecoveryBlocksInteraction)
       .overlay {
         if store.restoringLibrary {
           ProgressView("正在恢复工作区…").padding(24)

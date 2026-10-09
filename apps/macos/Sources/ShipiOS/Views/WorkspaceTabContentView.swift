@@ -192,12 +192,17 @@ struct WorkspaceTabWindowView: View {
     .onDisappear { store.restoreDetachedWorkspaceTab(tabID) }
   }
 
+  private func closeWindow() {
+    guard store.prepareDetachedWindowClose(tabID) else { return }
+    dismiss()
+  }
+
   private var commands: TaskWindowCommandContext {
-    search.commands(store: store, tabID: tabID, closeWindow: { dismiss() })
+    search.commands(store: store, tabID: tabID, closeWindow: { closeWindow() })
   }
 
   @ViewBuilder private var searchOverlay: some View {
-    let context = search.context(store: store, tabID: tabID, closeWindow: { dismiss() },
+    let context = search.context(store: store, tabID: tabID, closeWindow: { closeWindow() },
       showMain: showMainWindow, showDetached: { openWindow(value: $0) })
     switch search.mode {
     case .commands: CommandPaletteView(store: store, context: context)
@@ -210,7 +215,7 @@ struct WorkspaceTabWindowView: View {
     BrowserPanelContext(taskID: tab.owner,
       canFocus: { search.mode == nil && !store.shuttingDown && store.workspaceTabPlacement(tabID) == .detached },
       newTab: { _ = commands.execute("browser-new") },
-      closeTab: { store.closeBrowserTab($0); dismiss() },
+      closeTab: { store.closeBrowserTab($0); closeWindow() },
       reopen: { openOwnerChat(command: "browser-reopen") },
       openSettings: {
         store.openSettings(.browser)

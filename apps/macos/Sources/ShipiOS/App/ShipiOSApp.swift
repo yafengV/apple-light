@@ -136,6 +136,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !quitting else { return .terminateLater }
     quitting = true
+    Task {
+      let saved: Bool
+      if let store {
+        saved = await store.shutdown(beforeTeardown: { self.stopServicesForTermination() })
+      } else {
+        stopServicesForTermination()
+        saved = true
+      }
+      if !saved {
+        quitting = false
+        store?.showMainWindowHandler?()
+      }
+      sender.reply(toApplicationShouldTerminate: saved)
+    }
+    return .terminateLater
+  }
+
+  private func stopServicesForTermination() {
     stopAutomationPolling()
     stopSkillMonitoring()
     dockIconController.stop()
@@ -158,11 +176,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       NotificationCenter.default.removeObserver(appshotWindowFocusObserver)
       self.appshotWindowFocusObserver = nil
     }
-    Task {
-      await store?.shutdown()
-      sender.reply(toApplicationShouldTerminate: true)
-    }
-    return .terminateLater
   }
 
   func finishRestoration() async {

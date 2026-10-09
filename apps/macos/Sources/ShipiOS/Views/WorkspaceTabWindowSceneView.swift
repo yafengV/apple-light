@@ -15,17 +15,25 @@ struct WorkspaceTabWindowSceneView: View {
       } else {
         restorationContent.frame(minWidth: 620, minHeight: 520)
           .focusedSceneValue(\.taskWindowCommands,
-            TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in dismiss() }))
+            TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in closeWindow() }))
       }
     }
+    .disabled(store.shuttingDown)
+    .background(FileRecoveryWindowCloseGuard(prepare: { store.prepareDetachedWindowClose(route?.tabID) })
+      .frame(width: 0, height: 0))
     .task(id: restoration) {
       switch restoration {
       case .ready:
         if let route, let migrated = store.prepareDetachedWorkspaceTab(route) { self.route = migrated }
-      case .close: dismiss()
+      case .close: closeWindow()
       case .loading, .failed: break
       }
     }
+  }
+
+  private func closeWindow() {
+    guard store.prepareDetachedWindowClose(route?.tabID) else { return }
+    dismiss()
   }
 
   @ViewBuilder private var restorationContent: some View {
@@ -35,7 +43,7 @@ struct WorkspaceTabWindowSceneView: View {
         Label("无法恢复标签页窗口", systemImage: "exclamationmark.triangle")
       } description: { Text(message) } actions: {
         Button("重试") { Task { await store.restore() } }
-        Button("关闭窗口") { dismiss() }
+        Button("关闭窗口") { closeWindow() }
       }
     case .loading, .ready: ProgressView("正在恢复标签页…")
     case .close: Color.clear

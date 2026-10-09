@@ -200,7 +200,24 @@ import Observation
     tabs.activate(pin.sourceTabID)
     return true
   }
-  func shutdown() {
+  var fileRecoveryWorkspaces: [DeveloperWorkspace] {
+    files.allWorkspaces + panels.tasks.values.map(\.workspace)
+  }
+
+  func prepareToClose() -> Bool {
+    guard let store else { return true }
+    let saved = store.captureFileEditorRecovery(from: fileRecoveryWorkspaces, includePending: false, forceSave: true)
+    if saved { notices.completeAndDismiss("file-recovery-save") }
+    else {
+      notices.show(id: "file-recovery-save", title: store.error ?? "无法保存文件草稿。",
+        description: "草稿尚未保存。请检查数据目录后重试关闭。", level: .error)
+    }
+    return saved
+  }
+
+  @discardableResult func shutdown(force: Bool = false) -> Bool {
+    let saved = prepareToClose()
+    guard saved || force else { return false }
     // Foundation's persistence/weak-registry bridging can autorelease references
     // to this window. Drain them before returning from explicit window teardown.
     autoreleasepool {
@@ -215,5 +232,6 @@ import Observation
       navigate = nil; window = nil; windowAttachment = nil; displayedTaskID = nil
       store?.saveLibrary()
     }
+    return saved
   }
 }

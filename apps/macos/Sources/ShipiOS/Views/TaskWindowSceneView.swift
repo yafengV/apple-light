@@ -37,9 +37,12 @@ struct TaskWindowSceneView: View {
         restorationContent
           .frame(minWidth: 620, minHeight: 520)
           .focusedSceneValue(\.taskWindowCommands,
-            TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in dismiss() }))
+            TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in closeWindow() }))
       }
     }
+    .disabled(store.shuttingDown)
+    .background(FileRecoveryWindowCloseGuard(prepare: resources.prepareToClose,
+      didClose: { _ = resources.shutdown(force: true) }).frame(width: 0, height: 0))
     .background(TaskWindowResourceAttachment(resources: resources).frame(width: 0, height: 0))
     .onAppear { resources.navigate = visit }
     .onChange(of: route) { previous, current in
@@ -49,7 +52,7 @@ struct TaskWindowSceneView: View {
     .onDisappear {
       let closedTaskID = route?.taskID
       store.dismissTaskArchive(inWindow: resources.id)
-      resources.shutdown()
+      resources.shutdown(force: true)
       if let closedTaskID, store.library.tasks.contains(where: { $0.id == closedTaskID && $0.isSideChat }) {
         Task { await store.closeSideChat(closedTaskID) }
       }
@@ -62,7 +65,7 @@ struct TaskWindowSceneView: View {
       switch restoration {
       case .ready(let taskID):
         await prepareTask(taskID)
-      case .close: dismiss()
+      case .close: closeWindow()
       case .loading, .failed: break
       }
     }
@@ -77,7 +80,7 @@ struct TaskWindowSceneView: View {
         Text(message)
       } actions: {
         Button("重试") { Task { await store.restore() } }
-        Button("关闭窗口") { dismiss() }
+        Button("关闭窗口") { closeWindow() }
       }
     case .loading: ProgressView("正在恢复任务…")
     case .ready:
@@ -90,13 +93,18 @@ struct TaskWindowSceneView: View {
           Button("重试") {
             if let taskID = route?.taskID { Task { await prepareTask(taskID) } }
           }
-          Button("关闭窗口") { dismiss() }
+          Button("关闭窗口") { closeWindow() }
         }
       } else if restoringWorktree {
         ProgressView("正在恢复工作树…")
       } else { Color.clear }
     case .close: Color.clear
     }
+  }
+
+  private func closeWindow() {
+    guard resources.prepareToClose() else { return }
+    dismiss()
   }
 
   private func prepareTask(_ taskID: String) async {

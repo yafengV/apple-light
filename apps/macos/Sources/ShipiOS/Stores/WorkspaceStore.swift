@@ -187,6 +187,8 @@ final class WorkspaceStore {
   @ObservationIgnored var reopeningWorkspaceTabOwner: String?
   var workspace = DeveloperWorkspace()
   @ObservationIgnored var fileTabWorkspaces: [String: DeveloperWorkspace] = [:]
+  @ObservationIgnored var pendingFileEditorRecoveryWorkspaces: [ObjectIdentifier: DeveloperWorkspace] = [:]
+  @ObservationIgnored var fileEditorRecoveryError: String?
   @ObservationIgnored var workspaceFileTabRoots: [String: URL] = [:]
   @ObservationIgnored var legacyReviewFileRoots: [String: URL] = [:]
   var navigationBack: [TaskLocation] = []
@@ -329,7 +331,7 @@ final class WorkspaceStore {
       || appearanceThemeImport != nil || pendingSettingsNavigation != nil
       || hookSettings.selectedSourceID != nil
   }
-  @ObservationIgnored var shuttingDown = false
+  var shuttingDown = false
   var conversationReveal: ConversationRevealRequest?
   @ObservationIgnored var completionTracker = CompletionTracker()
   var showingModelPicker = false
@@ -1386,17 +1388,19 @@ final class WorkspaceStore {
     }
   }
 
-  func shutdown() async {
+  @discardableResult func shutdown(beforeTeardown: (() -> Void)? = nil) async -> Bool {
     await pendingHandoffRecoveryTask?.value
     await managedArchiveCleanupTask?.value
     await managedLimitCleanupTask?.value
     await managedDeletionCleanupTask?.value
     captureWorkspaceTabLayout()
-    captureFileEditorRecovery(from: workspace)
-    for session in fileTabWorkspaces.values { captureFileEditorRecovery(from: session) }
+    let editors = [workspace] + Array(fileTabWorkspaces.values)
+      + taskWindowResources.allObjects.flatMap(\.fileRecoveryWorkspaces)
+    guard captureFileEditorRecovery(from: editors, forceSave: true) else { return false }
+    shuttingDown = true
+    beforeTeardown?()
     dictation.stop()
     realtimeVoice.stop()
-    shuttingDown = true
     modelConfigurationReader.cancelPending()
     appshotIntroRequest = nil
     pendingAppshot = nil
@@ -1410,7 +1414,7 @@ final class WorkspaceStore {
     compatibilityModelTask?.cancel()
     workspace.cancelCommitMessageGeneration()
     workspace.terminals.shutdown()
-    taskWindowResources.allObjects.forEach { $0.shutdown() }
+    taskWindowResources.allObjects.forEach { _ = $0.shutdown(force: true) }
     additionalTaskWindowPanels.allObjects.forEach { $0.shutdown() }
     additionalBrowserSessions.allObjects.forEach { $0.shutdown() }
     workspace.browser.shutdown()
@@ -1424,5 +1428,6 @@ final class WorkspaceStore {
     saveLibrary()
     await environmentSettingsSession.close()
     await client.stop()
+    return true
   }
 }

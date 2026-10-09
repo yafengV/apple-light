@@ -173,7 +173,7 @@ struct TaskWindowView: View {
                     .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("返回主会话") { dismiss() }
+                Button("返回主会话") { closeWindow() }
               }.appFont(.caption).padding(.horizontal, 18).padding(.vertical, 9)
               Divider()
             }
@@ -673,6 +673,11 @@ struct TaskWindowView: View {
     }
   }
 
+  private func closeWindow() {
+    guard resources.prepareToClose() else { return }
+    dismiss()
+  }
+
   private func submitTaskDraft() {
     let command = store.taskWindowDraft(taskID).trimmingCharacters(in: .whitespacesAndNewlines)
     if let prompt = SideChatCommand.prompt(in: command) {
@@ -927,7 +932,7 @@ struct TaskWindowView: View {
         let path = taskWorkspace.selectedFile { taskWorkspace.closeFile(path) }
       else if let tab = tabs.commandContentTab { tabs.close(tab.id) }
       else if backgroundAgent { onCloseBackgroundAgent?() }
-      else { dismiss() }
+      else { closeWindow() }
       return
     }
     if id == "browser-address", let file = commandFileWorkspace { file.showingFileLine = true; return }
@@ -1048,7 +1053,7 @@ struct TaskWindowView: View {
   }
 
   private func finishWindowArchive() {
-    if store.library.tasks.first(where: { $0.id == taskID })?.archived == true { dismiss() }
+    if store.library.tasks.first(where: { $0.id == taskID })?.archived == true { closeWindow() }
     else if store.archiveConfirmation(inWindow: resources.id) == nil {
       actionError = store.activityError
       restoreArchiveFocus()

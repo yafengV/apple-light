@@ -4,6 +4,7 @@ import Foundation
 /// browser and terminal resources. A tab ID alone is not a cross-window identity.
 @MainActor final class TaskWindowFileEditors {
   private var workspaces: [WorkspaceContentTab: DeveloperWorkspace] = [:]
+  var allWorkspaces: [DeveloperWorkspace] { Array(workspaces.values) }
 
   func workspace(for tab: WorkspaceContentTab, store: WorkspaceStore?, windowID: String) -> DeveloperWorkspace {
     let context = FileEditorRecoveryContext.file(tab, windowID: windowID)
