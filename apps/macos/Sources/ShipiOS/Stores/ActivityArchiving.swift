@@ -24,7 +24,7 @@ extension WorkspaceStore {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, canMutateArchive,
       activityArchiveRequest == nil, archiveDeletion == nil,
       let task = library.tasks.first(where: { $0.id == id }) else { return false }
-    if windowID == nil, hasSettingsConfirmation || renameTaskID != nil { return false }
+    if windowID == nil, hasSettingsConfirmation || mainRenameDialogActive { return false }
     return taskCanArchive(task)
   }
 

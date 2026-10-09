@@ -104,6 +104,9 @@ final class WorkspaceStore {
   @ObservationIgnored var indexedFindText = ""
   @ObservationIgnored var indexedFindTask: String?
   var renameTaskID: String?
+  var pinnedBrowserRenameRequest: PinnedBrowserRenameRequest?
+  var pinnedBrowserRenameReturnPinID: String?
+  var pinnedBrowserRenameReturnFocus = UUID()
   var renameProjectPath: String?
   var editingProject: ProjectEditRequest?
   var renameDraft = ""

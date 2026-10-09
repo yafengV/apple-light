@@ -48,21 +48,28 @@ struct WorkspaceView: View {
     .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
       for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
     }
-    .onDisappear { store.endWorkspaceTabDrag(); store.workspace.browser.cancelRename() }
+    .onDisappear { store.endWorkspaceTabDrag(); store.workspace.browser.cancelRename(); store.cancelPinnedBrowserRename() }
+    .onChange(of: store.destination) { _, _ in store.cancelPinnedBrowserRename() }
     .onChange(of: store.currentWorkspaceTabOwner) { _, _ in store.workspace.browser.cancelRename() }
-    .disabled(store.renameTaskID != nil)
-    .accessibilityHidden(store.renameTaskID != nil)
+    .disabled(store.mainRenameDialogActive)
+    .accessibilityHidden(store.mainRenameDialogActive)
     .overlay {
       if let id = store.renameTaskID {
         TaskRenameDialog(initialTitle: store.renameDraft,
           save: { try renameHistory.rename(store: store, taskID: id, title: $0) },
           close: { store.renameTaskID = nil; store.focusComposer = UUID() })
           .id(id)
+      } else if let request = store.pinnedBrowserRenameRequest {
+        TaskRenameDialog(initialTitle: request.initialTitle,
+          save: { _ = store.savePinnedBrowserRename(request, title: $0) },
+          close: { store.closePinnedBrowserRename(request) },
+          configuration: .browser(defaultTitle: request.defaultTitle))
+          .id(request.id)
       }
     }
-    .focusedSceneValue(\.taskRenameActive, store.renameTaskID != nil)
+    .focusedSceneValue(\.taskRenameActive, store.mainRenameDialogActive)
     .taskRenameUndo(store: store, history: renameHistory,
-      blocked: store.renameTaskID != nil || store.presentedOverlay != nil || store.hasSettingsConfirmation
+      blocked: store.mainRenameDialogActive || store.presentedOverlay != nil || store.hasSettingsConfirmation
         || store.destination != .workspace || store.showingModelPicker || store.showingBranchPicker, revealInMain: true)
     .overlay(alignment: .top) {
       if store.draggingWorkspaceTabID != nil {
@@ -90,7 +97,7 @@ struct WorkspaceView: View {
         guard let owner = store.selectedTask?.id else { return false }
         return await revealPullRequest(request, taskID: owner, confirm: confirm)
       }) {
-      store.destination == .workspace && !store.restoringLibrary && store.renameTaskID == nil
+      store.destination == .workspace && !store.restoringLibrary && !store.mainRenameDialogActive
         && store.editingProject == nil && !store.showingModelPicker && !store.showingBranchPicker
         && !store.showingTaskStatus && !store.hasSettingsConfirmation
         && (store.presentedOverlay == nil || store.presentedOverlay == .commands)

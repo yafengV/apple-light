@@ -39,7 +39,7 @@ struct MCPApprovalKeyContext {
 extension WorkspaceStore {
   var mainMCPApprovalVisible: Bool {
     destination == .workspace && activeWorkspaceContentTab == nil && focusedWorkspaceContentTab == nil
-      && renameTaskID == nil && presentedOverlay == nil && !showingModelPicker && !showingBranchPicker && !showingFind
+      && !mainRenameDialogActive && presentedOverlay == nil && !showingModelPicker && !showingBranchPicker && !showingFind
   }
 
   func activeMCPApproval(taskID: String?) -> UUID? {

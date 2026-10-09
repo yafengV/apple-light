@@ -157,7 +157,7 @@ extension WorkspaceStore {
   var sidebarShortcutHintContext: SidebarShortcutHintContext {
     let modifier: NSEvent.ModifierFlags = shortcuts.primaryNumberShortcutTarget == .sidebar ? .command : .control
     guard libraryLoaded, !showingActivity, destination != .settings, !restoringLibrary, !shuttingDown,
-      presentedOverlay == nil, !hasSettingsConfirmation, renameTaskID == nil, renameProjectPath == nil,
+      presentedOverlay == nil, !hasSettingsConfirmation, !mainRenameDialogActive, renameProjectPath == nil,
       !showingModelPicker, !showingBranchPicker, shortcutCaptureCount == 0 else {
       return .init(modifier: modifier, labels: [:])
     }

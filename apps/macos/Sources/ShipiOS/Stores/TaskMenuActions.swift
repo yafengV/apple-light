@@ -6,7 +6,7 @@ extension WorkspaceStore {
   /// Menu actions resolve the latest task instead of selecting it or using a stale row snapshot.
   func taskMenuTarget(_ id: String) -> WorkspaceTask? {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, !hasSettingsConfirmation,
-      presentedOverlay == nil, renameTaskID == nil, renameProjectPath == nil,
+      presentedOverlay == nil, !mainRenameDialogActive, renameProjectPath == nil,
       !showingModelPicker, !showingBranchPicker,
       !activityArchivingTaskIDs.contains(id),
       let task = library.tasks.first(where: { $0.id == id }), !task.isTransient else { return nil }

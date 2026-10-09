@@ -1,0 +1,116 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "boundary": "Actual Rrs source resolution and ZJr identity guards. eYr menu rendering, controller instance lookup, deep equality, drag and closing registry are explicit mocks. No native menu/focus/foreground evidence.",
+  "cases": [
+    {
+      "name": "live",
+      "menuAvailable": true,
+      "captured": true,
+      "current": true
+    },
+    {
+      "name": "missing-reference",
+      "menuAvailable": false,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "cold-scope",
+      "menuAvailable": false,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "unpinned",
+      "menuAvailable": false,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "missing-tab",
+      "menuAvailable": false,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "kind-mismatch",
+      "menuAvailable": false,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "unpin-after-menu",
+      "menuAvailable": true,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "replace-pin-after-menu",
+      "menuAvailable": true,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "replace-scope-after-menu",
+      "menuAvailable": true,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "closed-scope-after-menu",
+      "menuAvailable": true,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "replace-render-panel-after-menu",
+      "menuAvailable": true,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "rename-unavailable",
+      "menuAvailable": true,
+      "captured": false,
+      "current": false
+    },
+    {
+      "name": "owner-change-after-capture",
+      "menuAvailable": true,
+      "captured": true,
+      "current": false
+    },
+    {
+      "name": "cwd-change-after-capture",
+      "menuAvailable": true,
+      "captured": true,
+      "current": false
+    },
+    {
+      "name": "phase-change-after-capture",
+      "menuAvailable": true,
+      "captured": true,
+      "current": false
+    },
+    {
+      "name": "drag-after-capture",
+      "menuAvailable": true,
+      "captured": true,
+      "current": false
+    },
+    {
+      "name": "closing-after-capture",
+      "menuAvailable": true,
+      "captured": true,
+      "current": false
+    },
+    {
+      "name": "instance-change-after-capture",
+      "menuAvailable": true,
+      "captured": true,
+      "current": false
+    }
+  ]
+}

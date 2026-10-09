@@ -119,7 +119,11 @@ final class BrowserSession {
   @discardableResult func saveRename(_ request: BrowserTabRenameRequest, title: String) -> Bool {
     guard renameRequest?.id == request.id, !request.tab.closed,
       tabs.contains(where: { $0 === request.tab }) else { return false }
-    if request.tab.setCustomTitle(title) { onTabRenamed?(request.tab.id) }
+    return renameTab(request.tab, title: title)
+  }
+  @discardableResult func renameTab(_ tab: BrowserTab, title: String?) -> Bool {
+    guard !tab.closed, tabs.contains(where: { $0 === tab }) else { return false }
+    if tab.setCustomTitle(title) { onTabRenamed?(tab.id) }
     return true
   }
   func endRename(_ request: BrowserTabRenameRequest) {

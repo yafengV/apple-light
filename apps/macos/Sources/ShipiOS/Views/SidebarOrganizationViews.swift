@@ -200,38 +200,58 @@ struct SidebarOrganizedSection: View {
 private struct SidebarPinnedContentTabRow: View {
   let store: WorkspaceStore
   let pin: PinnedWorkspaceTab
+  @FocusState private var rowFocused: Bool
+  @FocusState private var optionsFocused: Bool
+  @State private var hovered = false
 
   var body: some View {
-    Button {
-      Task { await store.openPinnedWorkspaceTab(pin.id) }
-    } label: {
-      HStack(spacing: 8) {
-        Image(systemName: pin.kind == .pullRequest ? "arrow.triangle.pullrequest" : pin.kind == .browser ? "globe" : pin.kind == .terminal ? "terminal" : "square.stack.3d.up")
-          .appFont(size: 11).foregroundStyle(.tertiary).frame(width: 12)
-        VStack(alignment: .leading, spacing: 3) {
-          Text(store.pinnedWorkspaceTabTitle(pin)).lineLimit(1).appFont(size: 12)
-          Text(store.pinnedWorkspaceTabIsLive(pin) ? "内容标签" : "可恢复的内容标签")
-            .appFont(size: 10).foregroundStyle(.secondary).lineLimit(1)
+    HStack(spacing: 0) {
+      Button {
+        Task { await store.openPinnedWorkspaceTab(pin.id) }
+      } label: {
+        HStack(spacing: 8) {
+          Image(systemName: pin.kind == .pullRequest ? "arrow.triangle.pullrequest" : pin.kind == .browser ? "globe" : pin.kind == .terminal ? "terminal" : "square.stack.3d.up")
+            .appFont(size: 11).foregroundStyle(.tertiary).frame(width: 12)
+          VStack(alignment: .leading, spacing: 3) {
+            Text(store.pinnedWorkspaceTabTitle(pin)).lineLimit(1).appFont(size: 12)
+            Text(store.pinnedWorkspaceTabIsLive(pin) ? "内容标签" : "可恢复的内容标签")
+              .appFont(size: 10).foregroundStyle(.secondary).lineLimit(1)
+          }
+          Spacer(minLength: 2)
         }
-        Spacer(minLength: 2)
+        .padding(.horizontal, 10).padding(.vertical, 9)
+        .background(
+          pin.sourceWindowID == nil && store.focusedWorkspaceContentTab?.id == pin.sourceTabID
+            ? Color.primary.opacity(0.09) : .clear,
+          in: RoundedRectangle(cornerRadius: 7))
+        .contentShape(Rectangle())
       }
-      .padding(.horizontal, 10).padding(.vertical, 9)
-      .background(
+      .buttonStyle(.plain)
+      .focused($rowFocused)
+      .help(store.pinnedWorkspaceTabTitle(pin))
+      .accessibilityLabel("固定标签：\(store.pinnedWorkspaceTabTitle(pin))")
+      .accessibilityAddTraits(
         pin.sourceWindowID == nil && store.focusedWorkspaceContentTab?.id == pin.sourceTabID
-          ? Color.primary.opacity(0.09) : .clear,
-        in: RoundedRectangle(cornerRadius: 7))
-      .contentShape(Rectangle())
+          ? .isSelected : [])
+      Menu { menuActions } label: { Image(systemName: "ellipsis").frame(width: 22, height: 24) }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .focused($optionsFocused).accessibilityLabel("标签页选项").help("标签页选项")
+        .opacity(hovered || rowFocused || optionsFocused || store.pinnedBrowserRenameRequest?.pin.id == pin.id ? 1 : 0)
     }
-    .buttonStyle(.plain)
-    .help(store.pinnedWorkspaceTabTitle(pin))
-    .accessibilityLabel("固定标签：\(store.pinnedWorkspaceTabTitle(pin))")
-    .accessibilityAddTraits(
-      pin.sourceWindowID == nil && store.focusedWorkspaceContentTab?.id == pin.sourceTabID
-        ? .isSelected : [])
-    .contextMenu {
-      Button("打开") { Task { await store.openPinnedWorkspaceTab(pin.id) } }
-      Button("从侧栏取消固定") { store.unpinWorkspaceTab(pin.id) }
+    .onHover { hovered = $0 }
+    .contextMenu { menuActions }
+    .onChange(of: store.pinnedBrowserRenameReturnFocus) { _, _ in
+      if store.pinnedBrowserRenameReturnPinID == pin.id { rowFocused = true }
     }
+    .onDisappear { store.cancelPinnedBrowserRename(pin.id) }
     .modifier(SidebarItemDrag(store: store, item: .contentTab(pin.id)))
+  }
+
+  @ViewBuilder private var menuActions: some View {
+    Button("从侧栏取消固定") { store.unpinWorkspaceTab(pin.id) }
+    if store.canRenamePinnedBrowser(pin.id) {
+      Divider()
+      Button("重命名") { store.beginPinnedBrowserRename(pin.id) }
+    }
   }
 }

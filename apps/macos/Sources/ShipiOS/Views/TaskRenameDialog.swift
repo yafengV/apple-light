@@ -5,11 +5,26 @@ struct TaskRenameDialog: View {
   let initialTitle: String
   let save: (String) throws -> Void
   let close: () -> Void
+  var configuration = Configuration.task
+  struct Configuration {
+    let title: String
+    let subtitle: String
+    let placeholder: String
+    let ariaLabel: String
+    let identifier: String
+    var allowsEmpty = false
+    static let task = Self(title: "重命名任务", subtitle: "使用简短、易于识别的名称",
+      placeholder: "添加名称…", ariaLabel: "任务名称", identifier: "task-rename-dialog")
+    static func browser(defaultTitle: String) -> Self {
+      Self(title: "重命名标签页", subtitle: "留空即可使用默认标题", placeholder: defaultTitle,
+        ariaLabel: "标签页标题", identifier: "pinned-browser-rename-dialog", allowsEmpty: true)
+    }
+  }
   @State private var title = ""
   @State private var error: String?
   @FocusState private var focus: Field?
   private enum Field: CaseIterable { case name, cancel, save }
-  private var valid: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  private var valid: Bool { configuration.allowsEmpty || !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
   var body: some View {
     GeometryReader { geometry in
@@ -18,16 +33,16 @@ struct TaskRenameDialog: View {
           .onTapGesture(perform: close).accessibilityHidden(true)
         VStack(alignment: .leading, spacing: 16) {
           HStack {
-            Text("重命名任务").font(.system(size: 17, weight: .semibold))
+            Text(configuration.title).font(.system(size: 17, weight: .semibold))
               .accessibilityAddTraits(.isHeader)
             Spacer()
             Button(action: close) { Image(systemName: "xmark") }
               .buttonStyle(.plain).accessibilityLabel("关闭重命名")
           }
-          Text("使用简短、易于识别的名称").foregroundStyle(.secondary)
-          TextField("添加名称…", text: $title)
+          Text(configuration.subtitle).foregroundStyle(.secondary)
+          TextField(configuration.placeholder, text: $title)
             .textFieldStyle(.roundedBorder).focused($focus, equals: .name)
-            .accessibilityLabel("任务名称").onSubmit(submit)
+            .accessibilityLabel(configuration.ariaLabel).onSubmit(submit)
           if let error { Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
           HStack {
             Spacer()
@@ -40,7 +55,7 @@ struct TaskRenameDialog: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.2), radius: 20, y: 8)
         .accessibilityElement(children: .contain).accessibilityAddTraits(.isModal)
-        .accessibilityIdentifier("task-rename-dialog")
+        .accessibilityIdentifier(configuration.identifier)
         .background(RenameDialogKeyboardBridge(onReady: { focus = .name }) { key in
           switch key {
           case .cancel: close()

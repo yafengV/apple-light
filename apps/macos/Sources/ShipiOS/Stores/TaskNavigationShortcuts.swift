@@ -14,7 +14,7 @@ extension WorkspaceStore {
   }
   var taskNavigationShortcutContext: RecentTaskShortcutContext? {
     guard destination == .workspace, !libraryRecoveryBlocksInteraction,
-      shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation,
+      shortcutCaptureCount == 0, presentedOverlay == nil, !hasSettingsConfirmation, !mainRenameDialogActive,
       !showingModelPicker, !showingBranchPicker, !busy, activeLocalRun == nil, !shuttingDown else { return nil }
     return RecentTaskShortcutContext(currentID: selectedTask?.id, recentIDs: library.recentTaskIDs,
       isAvailable: { [weak self] id in

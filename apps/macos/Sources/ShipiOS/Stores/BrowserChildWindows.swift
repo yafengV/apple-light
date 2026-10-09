@@ -42,9 +42,8 @@ extension WorkspaceStore {
 
   func savedBrowserTab(_ id: String) -> SavedWorkspaceTab? {
     guard let tab = workspaceTabs.first(where: { $0.id == id }), let browserID = tab.browserID,
-      let page = workspace.browser.tabs.first(where: { $0.id == browserID }) else { return nil }
-    return SavedWorkspaceTab(id: id, kind: .browser, placement: workspaceTabPlacement(id),
-      address: page.address, committedURL: page.committedURL?.absoluteString)
+      workspace.browser.tabs.contains(where: { $0.id == browserID && !$0.closed }) else { return nil }
+    return savedWorkspaceTab(tab)
   }
 
   func captureBackgroundBrowserTabs() {

@@ -207,7 +207,7 @@ extension WorkspaceStore {
     // Global voice commands are registered once by the application runtime;
     // adding them to the shared keymap must not create a second local action.
     guard VoiceShortcutPresentation.Mode(commandID: id) == nil else { return false }
-    guard renameTaskID == nil, editingProject == nil, !libraryRecoveryBlocksInteraction, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
+    guard !mainRenameDialogActive, editingProject == nil, !libraryRecoveryBlocksInteraction, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
     switch id {
     case "git.commit", "git.createPullRequest", "git.createDraftPullRequest", "git.createBranch", "git.openPullRequest", "git.mergePullRequest": return false
     case "approval-approve":

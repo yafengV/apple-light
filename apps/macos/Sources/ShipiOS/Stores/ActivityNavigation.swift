@@ -64,7 +64,7 @@ extension WorkspaceStore {
   func openActivityNumberedTask(_ id: String, sessionID: UUID) async {
     guard activitySession?.id == sessionID, destination != .settings,
       !shuttingDown, !restoringLibrary, shortcutCaptureCount == 0,
-      renameTaskID == nil, !showingModelPicker, !showingBranchPicker,
+      !mainRenameDialogActive, !showingModelPicker, !showingBranchPicker,
       presentedOverlay == nil, !hasSettingsConfirmation,
       activityNumberedTasks.contains(where: { $0.id == id }) else { return }
     _ = await openActivityTask(id)

@@ -47,3 +47,9 @@
 根据原清单重新核对固定检出源码、编译资源、测试程序、helper 与参考 CSS：摘要全部未变，终态审核保存在 `.cache/isolated-full-712-terminal-audit.json`。已完成可恢复归档，忽略目录中的原日志和产物保留。当前仍需一轮有完整终态的全量回归；不会因观察超时而直接重启同一仍存活进程，也不把旧不完整日志当作当前代码的全量结果。
 
 提交并推送 `57f924f` 后，已在独立管理检出 `full-regression-717` 启动固定该提交的完整回归。监督进程 PID 33407 已通过 `ps` 确认存活，当前阶段为 `swift-build-all-tests`，子进程 33420；日志、状态和输入清单分别为 `.cache/isolated-full-717.log`、`.cache/isolated-full-717-status.json`、`.cache/isolated-full-717-manifest.json`。独立进程写入终态，使用自己的 Swift 缓存及冻结 helper，不编辑该检出；构建后将先执行新菜单／旧失败组预检，再执行完整 Swift 和 IPC，最终检查冻结输入。此记录仅证明已开始和当前存活，不是全量通过。
+
+## 固定第 717 篇完整回归终态
+
+2026-10-09 14:24:37（UTC 06:24:37），上述固定 `57f924f00f70e16634c994ab6bbce676ca5b8c2f` 回归已经结束：全测试构建及失败组预检 exit 0；完整 Swift **3,367 项、2 跳过、1 个失败方法／2 条失败断言，4932.512 秒，exit 1**。原 runner／xctest PID 均已不在，状态文件有 `finishedAt` 和终态错误，属于已结束的失败，不再报告仍运行。源码、资源与执行产物的终态变化列表均为空；完整 Swift 失败后没有执行该轮 IPC。管理检出已可恢复归档，日志、清单、缓存及冻结 helper 仍在忽略目录。
+
+唯一失败为 `CommandBrowserSearchTests.testBrowserResultOpensOwnerAndPaneWithoutChangingDraftsAndRejectsClosedOrDetachedTabs`，第 64／67 行：搜索返回时浏览器目标未保留，选中 ID 为 nil。这是[第 719 篇](719-browser-search-draft-content-selection.md)修复的完整视图空白浏览器在临时聊天选择时被丢弃的问题；719／720／721 的专项与扩大回归不能替代修复后新版本的完整回归。两项跳过均为未设置 `SHIPIOS_VOICE_PREVIEW_FIXTURE_URL` 的本地语音夹具，不是 UI 验收。保留此轮失败记录，不改称全量通过。

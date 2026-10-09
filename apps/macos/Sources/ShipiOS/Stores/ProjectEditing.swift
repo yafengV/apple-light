@@ -3,7 +3,7 @@ import Foundation
 extension WorkspaceStore {
   func beginEditingProject(_ path: String) {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, !busy,
-      presentedOverlay == nil, !hasSettingsConfirmation, renameTaskID == nil,
+      presentedOverlay == nil, !hasSettingsConfirmation, !mainRenameDialogActive,
       editingProject == nil, library.projects.contains(path) else { return }
     showingModelPicker = false
     showingBranchPicker = false

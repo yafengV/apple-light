@@ -45,13 +45,15 @@ extension WorkspaceStore {
   }
 
   func beginRenamingProject(_ path: String) {
+    guard pinnedBrowserRenameRequest == nil else { return }
     renameDraft = library.projectTitle(path)
     renameTaskID = nil
     renameProjectPath = path
   }
 
   func beginRenamingTask(_ id: String) {
-    guard let task = library.tasks.first(where: { $0.id == id }) else { return }
+    guard pinnedBrowserRenameRequest == nil,
+      let task = library.tasks.first(where: { $0.id == id }) else { return }
     renameDraft = task.title
     renameProjectPath = nil
     renameTaskID = id
