@@ -31,9 +31,16 @@ import XCTest
         method = request['method']
         with (base / 'requests').open('a') as log:
             log.write(json.dumps({'project': os.path.basename(project), 'method': method, 'params': request.get('params', {})}) + '\n')
+        if os.path.basename(project) == 'Source' and method == 'initialize' and (base / 'source-gate').exists():
+            (base / 'source-reached').touch()
+            while (base / 'source-gate').exists(): time.sleep(0.01)
         if os.path.basename(project) == 'Target' and (base / 'gate').exists() and method == ((base / 'gate').read_text() or 'initialize'):
             (base / 'reached').write_text(method)
             while (base / 'gate').exists(): time.sleep(0.01)
+            if (base / 'run-state').exists() and method.startswith('environment.'):
+                print(json.dumps({'jsonrpc': '2.0', 'method': 'run.event', 'params': {
+                    'runId': 'remote-run', 'sequence': 1, 'timestamp': 2000,
+                    'kind': 'run.finished', 'payload': {}}}), flush=True)
         response = {'jsonrpc': '2.0', 'id': request['id']}
         if os.path.basename(project) == 'Target' and (base / 'fail').exists() and (base / 'fail').read_text() == method:
             response['error'] = {'code': -32000, 'message': 'fixture scope preparation failed'}
@@ -41,6 +48,12 @@ import XCTest
             values = {'initialize': {'protocolVersion': 1},
                       'project.inspect': {'root': project, 'containers': [], 'swiftPackages': [], 'diagnostics': [], 'scanTruncated': False},
                       'config.get': {}, 'run.list': [], 'environment.list': [], 'run.events': {'events': []}}
+            if os.path.basename(project) == 'Target' and (base / 'run-state').exists():
+                status = (base / 'run-state').read_text()
+                values['run.list'] = [{'id': 'remote-run', 'kind': 'build', 'project': project,
+                    'status': status, 'createdAt': 1000, 'updatedAt': 1000 if status == 'running' else 2000,
+                    'request': {}, 'result': None}]
+                values['run.get'] = values['run.list'][0]
             if (base / 'shared-mode').exists():
                 mode = (base / 'shared-mode').read_text()
                 values['environment.list'] = [{'id': 'environment.toml', 'fileName': 'environment.toml', 'name': 'Shared', 'error': None, 'inherited': False, 'sourceFolder': project}]
@@ -59,7 +72,19 @@ import XCTest
             if (base / 'detail-mode').exists() and (base / 'detail-mode').read_text() == 'error' and method == 'run.events':
                 response.pop('result')
                 response['error'] = {'code': -32000, 'message': 'old detail failure'}
-        print(json.dumps(response), flush=True)
+        if os.path.basename(project) == 'Target' and method == 'run.list' and (base / 'snapshot-late').exists():
+            mode = (base / 'snapshot-late').read_text()
+            (base / 'snapshot-late').unlink()
+            (base / 'run-state').write_text('succeeded')
+            notification = {'jsonrpc': '2.0', 'method': 'events.gap', 'params': {}}
+            if mode == 'event':
+                notification = {'jsonrpc': '2.0', 'method': 'run.event', 'params': {
+                    'runId': 'remote-run', 'sequence': 2, 'timestamp': 2000, 'kind': 'run.finished', 'payload': {}}}
+            # The snapshot was captured above. Deliver its newer notification in
+            # the same pipe write, before the waiting request can resume.
+            print(json.dumps(notification) + '\n' + json.dumps(response), flush=True)
+        else:
+            print(json.dumps(response), flush=True)
     """#
     try Data(script.utf8).write(to: executable)
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
@@ -73,6 +98,7 @@ import XCTest
     store.saveLibrary()
     addTeardownBlock { @MainActor in
       try? FileManager.default.removeItem(at: gate)
+      try? FileManager.default.removeItem(at: base.appendingPathComponent("source-gate"))
       try? FileManager.default.removeItem(at: failure)
       await store.shutdown()
       try? FileManager.default.removeItem(at: base)
@@ -263,6 +289,158 @@ import XCTest
 
   func testEnvironmentListDoesNotExposePartialTargetScope() async throws { try await checkEnvironmentCandidate("environment.list") }
   func testEnvironmentLoadDoesNotExposePartialTargetScope() async throws { try await checkEnvironmentCandidate("environment.load") }
+
+  func testRunCompletionDuringEnvironmentPreparationAppearsOnCommittedPage() async throws {
+    for method in ["environment.list", "environment.load"] {
+      for history in [false, true] {
+        let f = try await fixture(stage: "none"), store = f.store
+        let target = try environmentTarget(f), origin = store.currentTaskLocation
+        store.library.tasks[1].runIDs = ["remote-run"]
+        let state = f.source.deletingLastPathComponent().appendingPathComponent("run-state")
+        try Data("running".utf8).write(to: state)
+        store.navigationBack = [target]; store.navigationForward = []
+        try gate(f, method: method)
+        let navigation = Task {
+          if history { await store.navigate(back: true) }
+          else { await store.open(f.target, loadsDetails: false) }
+        }
+        try await waitForGate(f)
+        XCTAssertEqual(store.currentTaskLocation, origin)
+        try Data("succeeded".utf8).write(to: state, options: .atomic)
+        try FileManager.default.removeItem(at: f.gate); await navigation.value
+        let run = try XCTUnwrap(store.runs.first { $0.id == "remote-run" })
+        XCTAssertEqual(run.status, "succeeded", "\(method), history=\(history)")
+        XCTAssertEqual(run.updatedAt, 2000); XCTAssertNil(store.activeLocalRun)
+        XCTAssertTrue(store.connected); XCTAssertEqual(store.project?.path, f.target.path)
+        if history {
+          XCTAssertTrue(store.navigationBack.isEmpty); XCTAssertEqual(store.navigationForward, [origin])
+        }
+      }
+    }
+  }
+
+  func testBackgroundModelChangesDuringEnvironmentPreparationUseLatestLocalSnapshot() async throws {
+    for method in ["environment.list", "environment.load"] {
+      let f = try await fixture(stage: "none"), store = f.store
+      let target = try environmentTarget(f), origin = store.currentTaskLocation
+      func modelRun(_ id: String, status: String) -> AgentRun {
+        .init(id: id, kind: "chat", project: f.target.path, status: status,
+          createdAt: 1000, updatedAt: status == "running" ? 1000 : 2000,
+          request: .object([:]), result: nil)
+      }
+      store.library.chatRuns = [modelRun("model-run", status: "running")]
+      store.navigationBack = [target]; store.navigationForward = []
+      try gate(f, method: method)
+      let navigation = Task { await store.navigate(back: true) }; try await waitForGate(f)
+      XCTAssertEqual(store.currentTaskLocation, origin)
+      store.library.chatRuns = [modelRun("model-run", status: "succeeded"), modelRun("new-model-run", status: "succeeded")]
+      store.library.forkRuns = [modelRun("new-fork-run", status: "succeeded")]
+      try FileManager.default.removeItem(at: f.gate); await navigation.value
+      XCTAssertEqual(Set(store.runs.map(\.id)), ["model-run", "new-model-run", "new-fork-run"])
+      XCTAssertTrue(store.runs.allSatisfy { $0.status == "succeeded" && $0.updatedAt == 2000 })
+      XCTAssertEqual(store.runs.count, 3); XCTAssertEqual(store.currentTaskLocation, target)
+      XCTAssertTrue(store.navigationBack.isEmpty); XCTAssertEqual(store.navigationForward, [origin])
+      for run in store.runs { XCTAssertNotNil(store.library.task(containing: run.id)) }
+    }
+  }
+
+  func testNotificationsNewerThanFinalRunSnapshotAreReplayedAfterScopeCommit() async throws {
+    for mode in ["event", "gap"] {
+      let f = try await fixture(stage: "none"), store = f.store
+      let target = try environmentTarget(f)
+      store.library.tasks[1].runIDs = ["remote-run"]
+      let base = f.source.deletingLastPathComponent()
+      try Data("running".utf8).write(to: base.appendingPathComponent("run-state"))
+      try Data(mode.utf8).write(to: base.appendingPathComponent("snapshot-late"))
+      store.navigationBack = [target]; store.navigationForward = []
+      await store.navigate(back: true)
+      for _ in 0..<120 where store.runs.first(where: { $0.id == "remote-run" })?.isActive != false {
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      let run = try XCTUnwrap(store.runs.first { $0.id == "remote-run" })
+      XCTAssertEqual(run.status, "succeeded", mode); XCTAssertEqual(run.updatedAt, 2000)
+      XCTAssertNil(store.activeLocalRun); XCTAssertNil(store.error)
+      XCTAssertTrue(store.connected); XCTAssertEqual(store.project?.path, f.target.path)
+      XCTAssertTrue(store.navigationBack.isEmpty)
+    }
+  }
+
+  func testFinalRunSnapshotCancellationAndChangedHistoryKeepSourcePage() async throws {
+    for cancel in [false, true] {
+      let f = try await fixture(stage: "none"), store = f.store
+      let target = try environmentTarget(f), origin = store.currentTaskLocation
+      let form = store.currentEnvironmentFormState
+      store.navigationBack = [target]; store.navigationForward = []
+      try gate(f, method: "run.list")
+      let navigation = Task { await store.navigate(back: true) }; try await waitForGate(f)
+      if cancel { navigation.cancel() }
+      else { store.recordNavigation(.init(project: f.source.path, run: "new action")) }
+      let back = store.navigationBack, forward = store.navigationForward
+      try FileManager.default.removeItem(at: f.gate); await navigation.value
+      XCTAssertEqual(store.currentTaskLocation, origin); XCTAssertEqual(store.project?.path, f.source.path)
+      XCTAssertEqual(store.currentEnvironmentFormState, form); XCTAssertEqual(store.draft, "source draft")
+      XCTAssertEqual(store.navigationBack, back); XCTAssertEqual(store.navigationForward, forward)
+      XCTAssertFalse(store.connected); XCTAssertFalse(store.busy); XCTAssertFalse(store.navigatingWorkspaceHistory)
+    }
+  }
+
+  func testOldReloadReplyAndFailureCannotMutateScopeBeingPrepared() async throws {
+    for failure in [false, true] {
+      let f = try await fixture(stage: "none"), store = f.store
+      let base = f.source.deletingLastPathComponent()
+      try Data("succeeded".utf8).write(to: base.appendingPathComponent("run-state"))
+      await store.open(f.target, loadsDetails: false)
+      let previousRuns = store.runs
+      try Data("running".utf8).write(to: base.appendingPathComponent("run-state"))
+      try gate(f, method: "run.list")
+      let reload = Task { await store.reload() }; try await waitForGate(f)
+      if failure { try Data("run.list".utf8).write(to: f.failure) }
+      let sourceGate = base.appendingPathComponent("source-gate"), sourceReached = base.appendingPathComponent("source-reached")
+      try Data().write(to: sourceGate)
+      let navigation = Task { await store.open(f.source, loadsDetails: false) }
+      for _ in 0..<120 where !store.preparingProjectScope { try await Task.sleep(for: .milliseconds(25)) }
+      XCTAssertTrue(store.preparingProjectScope)
+      try FileManager.default.removeItem(at: f.gate)
+      await reload.value
+      for _ in 0..<120 where !FileManager.default.fileExists(atPath: sourceReached.path) {
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      XCTAssertTrue(FileManager.default.fileExists(atPath: sourceReached.path))
+      XCTAssertEqual(store.runs, previousRuns); XCTAssertNil(store.error)
+      try FileManager.default.removeItem(at: sourceGate); await navigation.value
+      XCTAssertEqual(store.project?.path, f.source.path); XCTAssertTrue(store.runs.isEmpty)
+      XCTAssertNil(store.error); XCTAssertTrue(store.connected)
+    }
+  }
+
+  func testReplayedRunReplyCannotOverwriteNextScopePreparation() async throws {
+    let f = try await fixture(stage: "none"), store = f.store
+    let target = try environmentTarget(f), base = f.source.deletingLastPathComponent()
+    store.library.tasks[1].runIDs = ["remote-run"]
+    // A terminal snapshot permits navigation. An active local build deliberately
+    // blocks switching projects, independently of a pending notification read.
+    try Data("succeeded".utf8).write(to: base.appendingPathComponent("run-state"))
+    try Data("event".utf8).write(to: base.appendingPathComponent("snapshot-late"))
+    try gate(f, method: "run.get")
+    store.navigationBack = [target]; store.navigationForward = []
+    await store.navigate(back: true); try await waitForGate(f)
+    let previousRuns = store.runs
+    let sourceGate = base.appendingPathComponent("source-gate"), sourceReached = base.appendingPathComponent("source-reached")
+    try Data().write(to: sourceGate)
+    let navigation = Task { await store.navigate(back: false) }
+    for _ in 0..<120 where !store.preparingProjectScope { try await Task.sleep(for: .milliseconds(25)) }
+    XCTAssertTrue(store.preparingProjectScope)
+    try FileManager.default.removeItem(at: f.gate)
+    for _ in 0..<120 where !FileManager.default.fileExists(atPath: sourceReached.path) {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: sourceReached.path))
+    XCTAssertEqual(store.runs, previousRuns); XCTAssertNil(store.error)
+    try FileManager.default.removeItem(at: sourceGate); await navigation.value
+    XCTAssertEqual(store.project?.path, f.source.path); XCTAssertTrue(store.runs.isEmpty)
+    XCTAssertEqual(store.draft, "source draft"); XCTAssertNil(store.error); XCTAssertTrue(store.connected)
+    XCTAssertEqual(store.navigationBack, [target]); XCTAssertTrue(store.navigationForward.isEmpty)
+  }
 
   func testCancellationDuringEnvironmentPreparationKeepsSourceDraftAndHistory() async throws {
     for method in ["environment.list", "environment.load"] {

@@ -391,6 +391,8 @@ final class WorkspaceStore {
   var libraryReadError: String?
   @ObservationIgnored var scopeLoaded = false
   @ObservationIgnored private(set) var preparingProjectScope = false
+  @ObservationIgnored private var preparedScopeRunUpdates: Set<String> = []
+  @ObservationIgnored private var preparedScopeEventGap = false
   var project: URL? {
     didSet {
       if project != oldValue {
@@ -638,13 +640,22 @@ final class WorkspaceStore {
     }
     workspace.browser.onDownloadEvent = { [weak self] event in self?.handleBrowserDownload(event) }
     client.onEvent = { [weak self] event in
-      guard let self, !self.preparingProjectScope else { return }
+      guard let self else { return }
+      if self.preparingProjectScope {
+        self.preparedScopeRunUpdates.insert(event.runId)
+        return
+      }
       let token = self.session
       Task { await self.refresh(runID: event.runId, token: token) }
     }
     client.onGap = { [weak self] in
-      guard let self, !self.preparingProjectScope else { return }
-      Task { await self.reload() }
+      guard let self else { return }
+      if self.preparingProjectScope {
+        self.preparedScopeEventGap = true
+        return
+      }
+      let token = self.session
+      Task { if self.session == token { await self.reload() } }
     }
     client.onDisconnect = { [weak self] message in
       self?.connected = false
@@ -828,7 +839,10 @@ final class WorkspaceStore {
     session = UUID()
     let token = session
     await client.stop()
-    defer { busy = false; preparingProjectScope = false }
+    defer {
+      busy = false; preparingProjectScope = false
+      preparedScopeRunUpdates.removeAll(); preparedScopeEventGap = false
+    }
     do {
       let digest = SHA256.hash(data: Data(canonical.path.utf8)).map { String(format: "%02x", $0) }
         .joined()
@@ -840,12 +854,17 @@ final class WorkspaceStore {
       }
       let preparedInspection = try await client.request("project.inspect").decode(ProjectInspection.self)
       let preparedConfig = try await client.request("config.get")
-      let preparedRuns =
-        try await client.request("run.list").decode([AgentRun].self)
-        + library.localRuns.filter { $0.project == canonical.path }
       guard session == token else { return }
       guard stillValid() else { await client.stop(); return }
       let preparedEnvironment = await prepareProjectScopeEnvironment(canonical)
+      guard session == token else { return }
+      guard stillValid() else { await client.stop(); return }
+      // Earlier events are covered by this final snapshot. Keep notifications
+      // that arrive while it is being read, since they may be newer than it.
+      preparedScopeRunUpdates.removeAll(); preparedScopeEventGap = false
+      let preparedRuns =
+        try await client.request("run.list").decode([AgentRun].self)
+        + library.localRuns.filter { $0.project == canonical.path }
       guard session == token else { return }
       guard stillValid() else { await client.stop(); return }
       // Failed initialization must not replace the task, draft, files or panels.
@@ -892,10 +911,24 @@ final class WorkspaceStore {
       chatMode = selectedTask.flatMap { library.goalSessions[$0.id] }?.status == .active
         ? .goal : .standard
       restoreWorkspaceTabLayout()
+      replayPreparedScopeUpdates(token: token)
       if loadsDetails { await loadDetails() }
     } catch {
       self.error = error.localizedDescription
       await client.stop()
+    }
+  }
+
+  private func replayPreparedScopeUpdates(token: UUID) {
+    let runIDs = preparedScopeRunUpdates, gap = preparedScopeEventGap
+    preparedScopeRunUpdates.removeAll(); preparedScopeEventGap = false
+    guard gap || !runIDs.isEmpty else { return }
+    Task {
+      guard session == token, connected, !preparingProjectScope else { return }
+      if gap { await reload() }
+      else {
+        for id in runIDs { await refresh(runID: id, token: token) }
+      }
     }
   }
 
@@ -983,22 +1016,24 @@ final class WorkspaceStore {
       observeCompletions(runs)
       return
     }
-    guard connected else { return }
+    guard connected, !preparingProjectScope else { return }
+    let token = session
     do {
-      runs =
-        try await client.request("run.list").decode([AgentRun].self)
-        + library.localRuns.filter { $0.project == project?.path }
+      let fetched = try await client.request("run.list").decode([AgentRun].self)
+      guard session == token, connected, !preparingProjectScope else { return }
+      runs = fetched + library.localRuns.filter { $0.project == project?.path }
       library.reconcile(runs, project: project?.path ?? "")
       observeCompletions(runs)
       saveLibrary()
       await loadDetails()
-    } catch { self.error = error.localizedDescription }
+    } catch { if session == token, !preparingProjectScope { self.error = error.localizedDescription } }
   }
 
   private func refresh(runID: String, token: UUID) async {
+    guard session == token, connected, !preparingProjectScope else { return }
     do {
       let run = try await client.request("run.get", ["runId": .string(runID)]).decode(AgentRun.self)
-      guard session == token else { return }
+      guard session == token, connected, !preparingProjectScope else { return }
       if let index = runs.firstIndex(where: { $0.id == run.id }) {
         // Late responses must never turn a terminal task back into an active task.
         if runs[index].updatedAt <= run.updatedAt && (runs[index].isActive || !run.isActive) {
