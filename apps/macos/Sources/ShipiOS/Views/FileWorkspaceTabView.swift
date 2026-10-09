@@ -53,9 +53,13 @@ struct FileWorkspaceTabView: View {
 
 extension WorkspaceStore {
   func fileTabWorkspace(_ tab: WorkspaceContentTab) -> DeveloperWorkspace {
-    if let existing = fileTabWorkspaces[tab.id] { return existing }
+    let context = FileEditorRecoveryContext.file(tab)
+    if let existing = fileTabWorkspaces[tab.id] {
+      if existing.fileEditorRecoveryContext != context { bindFileEditorRecovery(to: existing, context: context) }
+      return existing
+    }
     let workspace = DeveloperWorkspace()
-    bindFileEditorRecovery(to: workspace)
+    bindFileEditorRecovery(to: workspace, context: context)
     fileTabWorkspaces[tab.id] = workspace
     return workspace
   }

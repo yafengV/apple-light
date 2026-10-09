@@ -29,6 +29,9 @@ final class DeveloperWorkspace {
   var fileOpenRequest = UUID()
   var fileEditorSessions: [String: FileEditorSession] = [:]
   var recoveredFileDrafts: [String: FileEditorRecoveryDraft] = [:]
+  @ObservationIgnored var fileEditorRecoveryContext: FileEditorRecoveryContext?
+  @ObservationIgnored var previousFileEditorRecoveryContexts: Set<FileEditorRecoveryContext> = []
+  @ObservationIgnored var fileEditorRecoverySelections: [String: FileEditorRecoveryVersion] = [:]
   @ObservationIgnored var onFileEditResolved: ((String) -> Void)?
   var fileCloseRequest: String?
   @ObservationIgnored var fileAutosaveTasks: [String: Task<Void, Never>] = [:]
@@ -313,6 +316,7 @@ final class DeveloperWorkspace {
     }
     if fileEditorSessions[editorKey(for: path)] == nil,
       let recovered = recoveredFileDrafts[editorKey(for: path)] {
+      fileEditorRecoverySelections[editorKey(for: path)] = recovered.version
       fileEditorSessions[editorKey(for: path)] = FileEditorSession(
         baseText: recovered.baseText, text: recovered.text)
       fileText = recovered.text

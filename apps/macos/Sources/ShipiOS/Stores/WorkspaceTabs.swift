@@ -723,6 +723,9 @@ extension WorkspaceStore {
     }
     if oldID != newID, let session = fileTabWorkspaces.removeValue(forKey: oldID) {
       fileTabWorkspaces[newID] = session
+      if let tab = workspaceTabs.first(where: { $0.id == newID }) {
+        bindFileEditorRecovery(to: session, context: .file(tab))
+      }
     }
     if oldID != newID, let placement = workspaceTabPlacements.removeValue(forKey: oldID) {
       workspaceTabPlacements[newID] = placement

@@ -14,7 +14,7 @@ import Observation
   let files = TaskWindowFileEditors()
 
   func fileWorkspace(_ tab: WorkspaceContentTab) -> DeveloperWorkspace {
-    files.workspace(for: tab, store: store)
+    files.workspace(for: tab, store: store, windowID: id)
   }
   private(set) var tasks: [String: TaskWindowTabs] = [:]
   @ObservationIgnored private var deferredLayouts: [String: TaskWindowTabLayout] = [:]
@@ -42,8 +42,12 @@ import Observation
     captureLayouts()
     let project = store.library.tasks.first { $0.id == taskID }?.project ?? ""
     let oldRoot = panels.tasks[taskID]?.workspace.root
+    let nextRoot = project.isEmpty ? nil : GitBranchService.canonicalRoot(URL(fileURLWithPath: project))
+    if oldRoot != nextRoot, let old = panels.tasks[taskID]?.workspace {
+      store.captureFileEditorRecovery(from: old)
+    }
     let panel = panels.panels(for: taskID, project: project)
-    store.bindFileEditorRecovery(to: panel.workspace)
+    store.bindFileEditorRecovery(to: panel.workspace, context: .init(kind: .taskTree, windowID: id, owner: taskID))
     store.bindGitReviewPolicy(to: panel.workspace, taskID: taskID)
     store.additionalTaskWindowPanels.add(panels)
     if let existing = tasks[taskID] {

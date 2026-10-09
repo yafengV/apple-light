@@ -5,10 +5,14 @@ import Foundation
 @MainActor final class TaskWindowFileEditors {
   private var workspaces: [WorkspaceContentTab: DeveloperWorkspace] = [:]
 
-  func workspace(for tab: WorkspaceContentTab, store: WorkspaceStore?) -> DeveloperWorkspace {
-    if let existing = workspaces[tab] { return existing }
+  func workspace(for tab: WorkspaceContentTab, store: WorkspaceStore?, windowID: String) -> DeveloperWorkspace {
+    let context = FileEditorRecoveryContext.file(tab, windowID: windowID)
+    if let existing = workspaces[tab] {
+      if existing.fileEditorRecoveryContext != context { store?.bindFileEditorRecovery(to: existing, context: context) }
+      return existing
+    }
     let workspace = DeveloperWorkspace()
-    store?.bindFileEditorRecovery(to: workspace)
+    store?.bindFileEditorRecovery(to: workspace, context: context)
     workspaces[tab] = workspace
     return workspace
   }
