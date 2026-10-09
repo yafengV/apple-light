@@ -33,3 +33,7 @@
 最终标准 `script/build_and_run.sh --build-app` 构建成功，Swift 87.71 秒；应用与 helper 均使用既有 Apple Development，指定要求保持第 713 篇基线，旧要求及严格深度校验通过；正式包 helper IPC exit 0，未请求真实模型服务。打包／签名／IPC 前后 **1,628 项**源码、测试、执行文件及资源摘要未变化。日志与清单为 `.cache/pinned-browser-rename-{build-run-final,signature-final,package-final-provenance,ipc-final}-721.*`。本轮仅打包，不把此前签名复验启动的中间包作为最终 UI 包的前台验收。
 
 本阶段仍需前台菜单／指针／输入法／自动全选、Esc／Enter／Tab、失焦保存及关闭后的实际固定行焦点验收；省略号菜单关闭焦点、取消固定后的 fallback、全部来源 phase／关闭竞争和冷来源路由仍需继续核对。固定侧栏的其余浏览器动作、图标／状态／缩略图／行布局及重命名弹层精确材料／尺寸／字重仍未完全对齐。保留 **47 页面、29 核心项、完整双端配对 0/47** 的原范围，不把这次关联回归换算为开发完成百分比。
+
+## 固定本阶段的独立广泛回归
+
+提交并推送 `34e3a2833543689a2e7551a5e5981d83e45f3247` 后，2026-10-09 15:18:38 在独立管理检出 `full-regression-721` 启动回归。监督进程 PID 97076 已通过 `ps` 确认存活，当前为 `swift-build-all-tests`；使用独立 Swift 缓存、冻结 helper／源码／资源，后续进行旧失败与新功能预检、全部其他 Swift 方法和 IPC，并写入完整终态。唯一明确排除的前台方法仍是上述真实关键窗口焦点测试；不能称为所有方法全量通过。日志、状态及清单为 `.cache/isolated-full-721.log`、`.cache/isolated-full-721-status.json`、`.cache/isolated-full-721-manifest.json`。此记录仅证明已启动且当前存活，不是最终测试结论。
