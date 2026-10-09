@@ -120,7 +120,9 @@ extension WorkspaceStore {
 
   func prepareMainWindowClose() -> Bool {
     let mainFiles = fileTabWorkspaces.filter { workspaceTabPlacement($0.key) != .detached }.map(\.value)
-    return captureFileEditorRecovery(from: [workspace] + mainFiles, includePending: false, forceSave: true)
+    let saved = captureFileEditorRecovery(from: [workspace] + mainFiles, includePending: false, forceSave: true)
+    if saved { worktreeForkPresentation.close() }
+    return saved
   }
 
   func prepareDetachedWindowClose(_ tabID: String?) -> Bool {

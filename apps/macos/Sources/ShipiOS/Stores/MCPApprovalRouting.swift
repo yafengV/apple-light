@@ -38,7 +38,7 @@ struct MCPApprovalKeyContext {
 
 extension WorkspaceStore {
   var mainMCPApprovalVisible: Bool {
-    destination == .workspace && activeWorkspaceContentTab == nil && focusedWorkspaceContentTab == nil
+    destination == .workspace && !showingWorktreeForkPreparation && activeWorkspaceContentTab == nil && focusedWorkspaceContentTab == nil
       && !mainRenameDialogActive && presentedOverlay == nil && !showingModelPicker && !showingBranchPicker && !showingFind
   }
 

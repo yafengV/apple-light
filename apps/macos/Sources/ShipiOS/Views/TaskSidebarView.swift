@@ -83,6 +83,19 @@ struct TaskSidebarView: View {
       }.padding(.horizontal, 10).padding(.top, 12)
       ScrollView {
         VStack(alignment: .leading, spacing: 16) {
+          if let preparation = store.activeWorktreeForkPreparation,
+            let id = preparation.taskID, !store.library.tasks.contains(where: { $0.id == id }) {
+            Button {
+              store.destination = .workspace
+              store.worktreeForkPresentation.present(preparation)
+            } label: {
+              HStack(spacing: 8) {
+                ProgressView().controlSize(.mini)
+                Text(preparation.title).lineLimit(1).appFont(size: 12)
+                Spacer(minLength: 0)
+              }.padding(10)
+            }.buttonStyle(.plain).accessibilityIdentifier("sidebar-pending-worktree-fork")
+          }
           if !store.library.sidebarItems(in: SidebarLayout.pinned).isEmpty
             || store.draggingWorkspaceTabID != nil {
             SidebarOrganizedSection(store: store, id: SidebarLayout.pinned, title: "已置顶")

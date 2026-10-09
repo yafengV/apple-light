@@ -32,7 +32,7 @@ extension WorkspaceStore {
     }
     try config.validateEndpoint()
     guard !config.model.isEmpty else { throw AgentFailure(message: "请配置独立模型服务后继续创建分支。") }
-    managedTaskPreparationMessage = "正在创建原生聊天分支…"
+    setWorktreeForkPhase("正在创建原生聊天分支…")
     var created: (threadID: String, workspace: String)?
     do {
       _ = try await codexTransport.startTurn(taskID: id,

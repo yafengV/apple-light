@@ -175,12 +175,13 @@ struct WorkspaceView: View {
               ? "插件"
               : store.destination == .skills
                 ? "技能"
-              : store.destination == .automations ? "自动化" : store.selectedTask?.title ?? "新任务"
+              : store.destination == .automations ? "自动化"
+                : store.worktreeForkPresentation.preparation?.title ?? store.selectedTask?.title ?? "新任务"
       )
   }
 
   @ToolbarContentBuilder private var workspaceToolbar: some ToolbarContent {
-        if store.destination == .workspace {
+        if store.destination == .workspace && !store.showingWorktreeForkPreparation {
           ToolbarItem(placement: .navigation) {
             Menu {
               Button("无项目新任务") { Task { await store.newProjectlessTask() } }
@@ -391,6 +392,7 @@ struct WorkspaceView: View {
           let inspectorWidth = store.panelSizes.inspector(available: detail.size.width)
           let terminalHeight = store.panelSizes.terminal(available: detail.size.height)
           let summaryInline = taskSummary.showsInline && store.selectedTask != nil
+          ZStack {
           HStack(spacing: 0) {
             if store.showsWorkspaceInspector && store.workspaceContentPaneSide == .left {
               inspectorColumn(width: inspectorWidth, height: detail.size.height)
@@ -471,10 +473,11 @@ struct WorkspaceView: View {
             .onAppear { taskSummary.resize(to: detail.size.width) }
             .onChange(of: detail.size.width) { _, width in taskSummary.resize(to: width) }
             .appSurface()
-            .opacity(store.retainsStandalonePage ? 0 : 1)
-            .allowsHitTesting(!store.retainsStandalonePage)
-            .disabled(store.retainsStandalonePage)
-            .accessibilityHidden(store.retainsStandalonePage)
+            .opacity(store.retainsStandalonePage || store.showingWorktreeForkPreparation ? 0 : 1)
+            .allowsHitTesting(!store.retainsStandalonePage && !store.showingWorktreeForkPreparation)
+            .disabled(store.retainsStandalonePage || store.showingWorktreeForkPreparation)
+            .accessibilityElement(children: .contain)
+            .accessibilityHidden(store.retainsStandalonePage || store.showingWorktreeForkPreparation)
             .overlay {
               ZStack {
                 Group {
@@ -490,6 +493,15 @@ struct WorkspaceView: View {
                 if store.destination == .pluginDetail { PluginDetailView(store: store) }
               }
             }
+            if store.showingWorktreeForkPreparation,
+              let preparation = store.worktreeForkPresentation.preparation {
+              WorktreeForkPreparationView(store: store, presentation: store.worktreeForkPresentation,
+                preparation: preparation, back: {
+                  store.worktreeForkPresentation.dismiss()
+                  store.focusComposer = UUID()
+                })
+            }
+          }
         }
   }
 

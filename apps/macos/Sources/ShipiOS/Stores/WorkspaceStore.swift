@@ -67,7 +67,10 @@ final class WorkspaceStore {
   }
   var destination: AppDestination = .workspace {
     didSet {
-      if oldValue != destination { environmentSettingsNavigationRevision = UUID() }
+      if oldValue != destination {
+        environmentSettingsNavigationRevision = UUID()
+        worktreeForkPresentation.dismiss()
+      }
       if destination != .settings, let session = appearanceThemeImport {
         dismissAppearanceImport(session)
       }
@@ -446,6 +449,8 @@ final class WorkspaceStore {
   @ObservationIgnored var environmentReadRequest = UUID()
   var connected = false { didSet { updateSleepPrevention() } }
   var busy = false
+  let worktreeForkPresentation = WorktreeForkPresentation()
+  var activeWorktreeForkPreparation: WorktreeForkPreparation?
   var managedTaskPreparing = false
   var managedTaskPreparationMessage = "正在创建工作树…"
   @ObservationIgnored var managedArchiveCleanupTask: Task<Void, Never>?
@@ -705,6 +710,7 @@ final class WorkspaceStore {
   /// Switches to a scope with no filesystem root and no local Agent connection.
   func openProjectless(stillValid: () -> Bool = { true }) async {
     guard activeLocalRun == nil, !busy, await loadLibrary(), stillValid() else { return }
+    worktreeForkPresentation.dismiss()
     captureWorkspaceTabLayout()
     rememberProjectSelection()
     saveProfile()
@@ -761,8 +767,12 @@ final class WorkspaceStore {
     saveLibrary()
   }
 
-  @discardableResult func openTaskScope(_ key: String, loadsDetails: Bool = true, stillValid: () -> Bool = { true }) async -> Bool {
+  @discardableResult func openTaskScope(_ key: String, loadsDetails: Bool = true,
+    preservingWorktreePreparation: WorktreeForkPreparation? = nil, stillValid: () -> Bool = { true }) async -> Bool {
     guard stillValid() else { return false }
+    if let preparation = worktreeForkPresentation.preparation, preparation !== preservingWorktreePreparation {
+      worktreeForkPresentation.dismiss()
+    }
     if key == currentProjectKey && (key.isEmpty || connected) { return true }
     if let managed = library.managedWorktrees.first(where: { $0.path == key }),
       managed.archivedPruned == true || !FileManager.default.fileExists(atPath: managed.path) {
@@ -774,7 +784,10 @@ final class WorkspaceStore {
     }
     guard stillValid() else { return false }
     if key.isEmpty { await openProjectless(stillValid: stillValid) }
-    else { await open(URL(fileURLWithPath: key), usePrimary: false, loadsDetails: loadsDetails, stillValid: stillValid) }
+    else {
+      await open(URL(fileURLWithPath: key), usePrimary: false, loadsDetails: loadsDetails,
+        preservingWorktreePreparation: preservingWorktreePreparation, stillValid: stillValid)
+    }
     return stillValid() && currentProjectKey == key && (key.isEmpty || connected)
   }
 
@@ -827,8 +840,12 @@ final class WorkspaceStore {
     } catch { self.error = error.localizedDescription }
   }
 
-  func open(_ url: URL, usePrimary: Bool = true, loadsDetails: Bool = true, stillValid: () -> Bool = { true }) async {
+  func open(_ url: URL, usePrimary: Bool = true, loadsDetails: Bool = true,
+    preservingWorktreePreparation: WorktreeForkPreparation? = nil, stillValid: () -> Bool = { true }) async {
     guard activeLocalRun == nil || !connected, !busy else { return }
+    if let preparation = worktreeForkPresentation.preparation, preparation !== preservingWorktreePreparation {
+      worktreeForkPresentation.dismiss()
+    }
     guard await loadLibrary(), stillValid() else { return }
     let requested = url.resolvingSymlinksInPath().standardizedFileURL
     let canonical = usePrimary
@@ -1123,7 +1140,17 @@ final class WorkspaceStore {
   }
 
   func selectTask(_ task: WorkspaceTask) {
+    if let preparation = activeWorktreeForkPreparation, preparation.taskID == task.id {
+      destination = .workspace
+      worktreeForkPresentation.present(preparation)
+      return
+    }
+    if library.managedWorktrees.contains(where: { $0.containsTask(task.id) && $0.pendingForkSourceTaskID != nil }) {
+      Task { _ = await resumeWorktreeFork(task.id) }
+      return
+    }
     guard canSelectTask(task) else { return }
+    worktreeForkPresentation.dismiss()
     guard currentProjectKey == task.project else {
       Task { _ = await selectTaskAwaitingScope(task) }
       return
@@ -1137,10 +1164,20 @@ final class WorkspaceStore {
   /// Window search must reveal the main window after a cross-project scope has
   /// finished loading and its restored content windows have been scheduled.
   @discardableResult func selectTaskAwaitingScope(_ task: WorkspaceTask) async -> Bool {
+    if let preparation = activeWorktreeForkPreparation, preparation.taskID == task.id {
+      destination = .workspace
+      worktreeForkPresentation.present(preparation)
+      let result = await preparation.value()
+      return !Task.isCancelled && result != nil && destination == .workspace && selectedTask?.id == task.id
+    }
     guard let current = library.tasks.first(where: { $0.id == task.id }), canSelectTask(current) else { return false }
     if library.managedWorktrees.contains(where: {
       $0.containsTask(current.id) && $0.pendingForkSourceTaskID != nil
-    }), await resumeWorktreeFork(current.id, openTask: false) == nil { return false }
+    }) {
+      let result = await resumeWorktreeFork(current.id)
+      return !Task.isCancelled && result != nil && destination == .workspace && selectedTask?.id == current.id
+    }
+    worktreeForkPresentation.dismiss()
     if currentProjectKey == current.project {
       selectTask(current)
       return true
@@ -1432,6 +1469,10 @@ final class WorkspaceStore {
       + taskWindowResources.allObjects.flatMap(\.fileRecoveryWorkspaces)
     guard captureFileEditorRecovery(from: editors, forceSave: true) else { return false }
     shuttingDown = true
+    let forkWorker = activeWorktreeForkPreparation?.operation
+    activeWorktreeForkPreparation?.cancel()
+    worktreeForkPresentation.dismiss()
+    _ = await forkWorker?.value
     beforeTeardown?()
     dictation.stop()
     realtimeVoice.stop()

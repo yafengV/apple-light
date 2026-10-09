@@ -208,6 +208,10 @@ extension WorkspaceStore {
     // adding them to the shared keymap must not create a second local action.
     guard VoiceShortcutPresentation.Mode(commandID: id) == nil else { return false }
     guard !mainRenameDialogActive, editingProject == nil, !libraryRecoveryBlocksInteraction, !hasSettingsConfirmation, presentedOverlay != .imagePreview else { return false }
+    if showingWorktreeForkPreparation,
+      !["back", "sidebar", "settings", "search", "palette", "activity", "new", "new-standalone",
+        "open", "previous-task", "next-task", "previous-recent-task", "next-recent-task"].contains(id),
+      DesktopCommand.recentChatSlot(id) == nil { return false }
     switch id {
     case "git.commit", "git.createPullRequest", "git.createDraftPullRequest", "git.createBranch", "git.openPullRequest", "git.mergePullRequest": return false
     case "approval-approve":
@@ -315,7 +319,7 @@ extension WorkspaceStore {
       && (filePreviewFocused || !visibleWorkspaceContentTabs.isEmpty)
     case "previous-recent-task", "next-recent-task": return taskNavigationShortcutContext != nil
     case "back":
-      return destination != .workspace || (!navigationBack.isEmpty && activeLocalRun == nil && !busy && !navigatingWorkspaceHistory)
+      return showingWorktreeForkPreparation || destination != .workspace || (!navigationBack.isEmpty && activeLocalRun == nil && !busy && !navigatingWorkspaceHistory)
     case "forward":
       return canGoForwardToPluginDetail
         || (destination == .workspace && !navigationForward.isEmpty && activeLocalRun == nil && !busy && !navigatingWorkspaceHistory)
@@ -467,6 +471,11 @@ extension WorkspaceStore {
     navigationForward = []
   }
   func navigate(back: Bool) async {
+    if back, showingWorktreeForkPreparation {
+      worktreeForkPresentation.dismiss()
+      focusComposer = UUID()
+      return
+    }
     if back, destination == .pluginDetail {
       closePluginDetail()
       return

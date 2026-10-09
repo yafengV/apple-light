@@ -17,6 +17,9 @@ struct TaskWindowSceneView: View {
   @Environment(\.dismiss) private var dismiss
 
   private var availableTasks: Set<String> { Set(store.library.tasks.map(\.id)) }
+  private var pendingWorktreeTaskIDs: Set<String> {
+    Set(store.library.managedWorktrees.filter { $0.pendingForkSourceTaskID != nil }.map(\.taskID))
+  }
   private var restoration: TaskWindowRestoration {
     .resolve(route: route, dataRoot: store.dataRoot, loaded: store.libraryLoaded,
       restoring: store.restoringLibrary || store.libraryLoading || store.modelConfigurationLoading, readError: store.restorationReadError,
@@ -33,11 +36,31 @@ struct TaskWindowSceneView: View {
           canGoForward: navigation.destination(backwards: false, current: taskID, available: availableTasks) != nil,
           onMove: move)
           .id(taskID)
+          .opacity(resources.worktreeForkPresentation.preparation == nil ? 1 : 0)
+          .allowsHitTesting(resources.worktreeForkPresentation.preparation == nil)
+          .disabled(resources.worktreeForkPresentation.preparation != nil)
+          .accessibilityHidden(resources.worktreeForkPresentation.preparation != nil)
       } else {
         restorationContent
           .frame(minWidth: 620, minHeight: 520)
           .focusedSceneValue(\.taskWindowCommands,
             TaskWindowCommandContext(enabled: ["tab-close"], perform: { _ in closeWindow() }))
+      }
+    }
+    .overlay {
+      if let preparation = resources.worktreeForkPresentation.preparation {
+        WorktreeForkPreparationView(store: store, presentation: resources.worktreeForkPresentation,
+          preparation: preparation, back: leaveForkPreparation)
+          .focusedSceneValue(\.taskWindowCommands,
+            TaskWindowCommandContext(enabled: ["back", "tab-close"], perform: {
+              if $0 == "back" { leaveForkPreparation() }
+              else if $0 == "tab-close" { closeWindow() }
+            }))
+          .background(TaskWindowCommandKeyboardBridge(commands:
+            TaskWindowCommandContext(enabled: ["back", "tab-close"], perform: {
+              if $0 == "back" { leaveForkPreparation() }
+              else if $0 == "tab-close" { closeWindow() }
+            }), shortcuts: store.shortcuts, blocked: false).frame(width: 0, height: 0))
       }
     }
     .disabled(store.shuttingDown)
@@ -47,7 +70,10 @@ struct TaskWindowSceneView: View {
     .onAppear { resources.navigate = visit }
     .onChange(of: route) { previous, current in
       resources.navigate = visit
-      if previous?.taskID != current?.taskID { resources.display(nil) }
+      if previous?.taskID != current?.taskID {
+        resources.worktreeForkPresentation.dismiss()
+        resources.display(nil)
+      }
     }
     .onDisappear {
       let closedTaskID = route?.taskID
@@ -55,6 +81,11 @@ struct TaskWindowSceneView: View {
       resources.shutdown(force: true)
       if let closedTaskID, store.library.tasks.contains(where: { $0.id == closedTaskID && $0.isSideChat }) {
         Task { await store.closeSideChat(closedTaskID) }
+      }
+    }
+    .onChange(of: pendingWorktreeTaskIDs) { previous, current in
+      if let taskID = route?.taskID, previous.contains(taskID), !current.contains(taskID) {
+        Task { await prepareTask(taskID) }
       }
     }
     .onChange(of: availableTasks) { _, available in
@@ -107,7 +138,28 @@ struct TaskWindowSceneView: View {
     dismiss()
   }
 
+  private func leaveForkPreparation() {
+    let source = resources.worktreeForkPresentation.preparation?.sourceTaskID
+    resources.worktreeForkPresentation.dismiss()
+    if resources.displayedTaskID == nil {
+      if let source, availableTasks.contains(source) {
+        route = TaskWindowRoute(taskID: source, dataRoot: store.dataRoot, windowID: resources.id)
+      } else { closeWindow() }
+    }
+  }
+
   private func prepareTask(_ taskID: String) async {
+    resources.register(store: store, windowID: route?.id)
+    if store.library.managedWorktrees.contains(where: {
+      $0.containsTask(taskID) && $0.pendingForkSourceTaskID != nil
+    }) {
+      if let preparation = store.activeWorktreeForkPreparation, preparation.taskID == taskID {
+        resources.worktreeForkPresentation.present(preparation)
+      } else {
+        resources.forkToNewWorktree(taskID, store: store, resume: true)
+      }
+      return
+    }
     let request = UUID()
     worktreeRestoreRequest = request
     restoringWorktree = true
@@ -144,10 +196,15 @@ struct TaskWindowSceneView: View {
   private func visit(_ taskID: String) {
     guard store.archiveConfirmation(inWindow: resources.id) == nil else { return }
     guard let route, navigation.visit(taskID, from: route.taskID, available: availableTasks) else { return }
+    resources.worktreeForkPresentation.dismiss()
     self.route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
   }
 
   private func move(_ backwards: Bool) {
+    if backwards, resources.worktreeForkPresentation.preparation != nil {
+      leaveForkPreparation()
+      return
+    }
     guard let route,
       let next = navigation.move(backwards: backwards, current: route.taskID, available: availableTasks) else { return }
     self.route = TaskWindowRoute(taskID: next, dataRoot: store.dataRoot, windowID: resources.id)

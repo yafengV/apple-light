@@ -9,6 +9,11 @@ struct SidebarTaskRow: View {
   @FocusState private var focusedAction: SidebarTaskRowAction?
   @FocusState private var primaryFocused: Bool
   private var showsActions: Bool { hovered || primaryFocused || focusedAction != nil }
+  private var selected: Bool {
+    store.destination == .workspace && (store.worktreeForkPresentation.preparation.map {
+      $0.taskID == task.id
+    } ?? (store.selectedTask?.id == task.id))
+  }
   private var run: AgentRun? {
     task.runIDs.last.flatMap { id in
       store.runs.first { $0.id == id } ?? store.library.localRuns.first { $0.id == id }
@@ -23,7 +28,9 @@ struct SidebarTaskRow: View {
         }
       } label: {
         HStack(spacing: 8) {
-          if attention == .approval {
+          if store.activeWorktreeForkPreparation?.taskID == task.id {
+            ProgressView().controlSize(.mini).frame(width: 12)
+          } else if attention == .approval {
             Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
               .accessibilityLabel("等待工具批准")
           } else if attention == .question {
@@ -58,7 +65,7 @@ struct SidebarTaskRow: View {
         .contentShape(Rectangle())
       }.buttonStyle(.plain).disabled(!store.canSelectTask(task)).focused($primaryFocused)
         .accessibilityAddTraits(
-          store.destination == .workspace && store.selectedTask?.id == task.id ? .isSelected : []
+          selected ? .isSelected : []
         )
       ZStack(alignment: .trailing) {
         HStack(spacing: 6) {
@@ -75,7 +82,7 @@ struct SidebarTaskRow: View {
       }.frame(minWidth: 52).fixedSize(horizontal: true, vertical: false)
     }.padding(.horizontal, 10)
       .background(
-        store.destination == .workspace && store.selectedTask?.id == task.id || hovered || primaryFocused || focusedAction != nil
+        selected || hovered || primaryFocused || focusedAction != nil
           ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7)
       )
       .contentShape(Rectangle()).onHover { hovered = $0 }

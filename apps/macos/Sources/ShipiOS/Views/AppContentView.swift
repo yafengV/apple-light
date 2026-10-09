@@ -57,6 +57,9 @@ struct AppContentView: View {
           store.closeSettingsFromKeyboard()
         } else if store.showingActivity {
           store.closeActivity()
+        } else if store.showingWorktreeForkPreparation {
+          store.worktreeForkPresentation.dismiss()
+          store.focusComposer = UUID()
         } else if store.destination == .projects || store.destination == .plugins
           || store.destination == .skills
           || store.destination == .automations

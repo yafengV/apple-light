@@ -9,6 +9,8 @@ import Observation
   @ObservationIgnored weak var store: WorkspaceStore?
   @ObservationIgnored var navigate: ((String) -> Void)?
   let notices = WorkspaceNotices()
+  let worktreeForkPresentation = WorktreeForkPresentation()
+  @ObservationIgnored private var worktreeForkRequest: Task<Void, Never>?
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
   let files = TaskWindowFileEditors()
@@ -31,13 +33,40 @@ import Observation
   }
 
   func display(_ taskID: String?) {
+    if displayedTaskID != taskID { worktreeForkPresentation.dismiss() }
     displayedTaskID = taskID
   }
 
-  func prepare(_ taskID: String, store: WorkspaceStore, windowID: String? = nil) {
+  func forkToNewWorktree(_ taskID: String, store: WorkspaceStore, resume: Bool = false) {
+    self.store = store
+    store.taskWindowResources.add(self)
+    let originalWindowID = id
+    let originalDisplayedTaskID = displayedTaskID
+    worktreeForkPresentation.onReady = { [weak self] fork in
+      guard let self, id == originalWindowID, displayedTaskID == originalDisplayedTaskID,
+        !store.shuttingDown else { return }
+      navigate?(fork.id)
+    }
+    worktreeForkRequest = Task {
+      guard !Task.isCancelled else { return }
+      if resume {
+        _ = await store.resumeWorktreeFork(taskID, openTask: false,
+          presentation: worktreeForkPresentation, noticeBoard: notices)
+      } else {
+        _ = await store.forkTaskToNewWorktree(taskID, openTask: false,
+          presentation: worktreeForkPresentation, noticeBoard: notices)
+      }
+    }
+  }
+
+  func register(store: WorkspaceStore, windowID: String? = nil) {
     if tasks.isEmpty, let windowID { id = windowID }
     self.store = store
     store.taskWindowResources.add(self)
+  }
+
+  func prepare(_ taskID: String, store: WorkspaceStore, windowID: String? = nil) {
+    register(store: store, windowID: windowID)
     capturePins()
     captureLayouts()
     let project = store.library.tasks.first { $0.id == taskID }?.project ?? ""
@@ -227,6 +256,8 @@ import Observation
   @discardableResult func shutdown(force: Bool = false) -> Bool {
     let saved = prepareToClose()
     guard saved || force else { return false }
+    worktreeForkRequest?.cancel(); worktreeForkRequest = nil
+    worktreeForkPresentation.close()
     // Foundation's persistence/weak-registry bridging can autorelease references
     // to this window. Drain them before returning from explicit window teardown.
     autoreleasepool {

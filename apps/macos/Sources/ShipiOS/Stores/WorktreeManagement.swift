@@ -55,7 +55,7 @@ extension WorkspaceStore {
   }
 
   func beginWorktreeCreation(from path: String) {
-    guard libraryLoaded, !busy, activeLocalRun == nil, library.isKnownProjectScope(path) else { return }
+    guard libraryLoaded, !busy, activeWorktreeForkPreparation == nil, activeLocalRun == nil, library.isKnownProjectScope(path) else { return }
     worktreeSource = library.primaryFolder(for: path)
     worktreeError = nil
     setOverlay(.worktreeCreation, presented: true)
@@ -87,7 +87,7 @@ extension WorkspaceStore {
 
   @discardableResult func createPermanentWorktree(snapshot: GitBranchSnapshot,
     branch: GitBranchChoice?, title: String) async -> PermanentWorktree? {
-    guard libraryLoaded, !busy, activeLocalRun == nil,
+    guard libraryLoaded, !busy, activeWorktreeForkPreparation == nil, activeLocalRun == nil,
       library.projectScopePaths.contains(where: { GitBranchService.canonicalRoot(URL(fileURLWithPath: $0)) == snapshot.root }) else {
       worktreeError = "请等待当前任务完成，并从已添加的项目创建工作树。"
       return nil
@@ -108,7 +108,7 @@ extension WorkspaceStore {
   }
 
   @discardableResult func recoverWorktree(_ id: UUID) async -> PermanentWorktree? {
-    guard libraryLoaded, !busy, activeLocalRun == nil,
+    guard libraryLoaded, !busy, activeWorktreeForkPreparation == nil, activeLocalRun == nil,
       let record = library.permanentWorktrees.first(where: { $0.id == id && !$0.ready }) else { return nil }
     busy = true; worktreeError = nil
     defer { busy = false }
@@ -148,7 +148,7 @@ extension WorkspaceStore {
     sourceStashCommit: String? = nil,
     sourceCopiedFiles: [ManagedSourceFile] = [],
     environment: ManagedEnvironmentSnapshot? = nil) async -> ManagedWorktree? {
-    guard libraryLoaded, !busy, activeLocalRun == nil,
+    guard libraryLoaded, !busy, activeWorktreeForkPreparation == nil, activeLocalRun == nil,
       UUID(uuidString: taskID) != nil,
       !library.managedWorktrees.contains(where: { $0.path == snapshot.root.path }),
       library.projectScopePaths.contains(where: {
@@ -184,7 +184,7 @@ extension WorkspaceStore {
   }
 
   @discardableResult func recoverManagedWorktree(taskID: String) async -> ManagedWorktree? {
-    guard libraryLoaded, !busy, activeLocalRun == nil,
+    guard libraryLoaded, !busy, activeWorktreeForkPreparation == nil, activeLocalRun == nil,
       let record = library.managedWorktree(forTaskID: taskID) else { return nil }
     if record.ready { return record }
     busy = true; worktreeError = nil

@@ -409,21 +409,13 @@ struct TaskWindowView: View {
                 Button(store.taskMenuForkDestination(task)) { forkTask() }
                   .disabled(!store.canForkTaskWindow(taskID) || windowCommandsBlocked)
                 Button("在新工作树中创建聊天分支") {
-                  Task {
-                    if let fork = await store.forkTaskToNewWorktree(taskID, openTask: false) {
-                      onNavigate(fork.id)
-                      forkError = nil
-                    } else { forkError = store.worktreeError }
-                  }
+                  resources.forkToNewWorktree(taskID, store: store)
                 }.disabled(!store.canForkTaskToNewWorktree(taskID) || windowCommandsBlocked)
                 if store.library.managedWorktrees.contains(where: {
                   $0.containsTask(taskID) && $0.pendingForkSourceTaskID != nil
                 }) {
                   Button("继续创建分叉工作树") {
-                    Task {
-                      if await store.resumeWorktreeFork(taskID, openTask: false) != nil { forkError = nil }
-                      else { forkError = store.worktreeError }
-                    }
+                    resources.forkToNewWorktree(taskID, store: store, resume: true)
                   }.disabled(store.busy || store.managedTaskPreparing || windowCommandsBlocked)
                 }
                 Button("打开临时侧聊") { openSideChat() }
@@ -504,14 +496,14 @@ struct TaskWindowView: View {
     .background(TaskWindowCommandKeyboardBridge(commands: windowCommandContext,
       shortcuts: store.shortcuts, blocked: windowCommandsBlocked || (backgroundAgent && !backgroundAgentFocused)).frame(width: 0, height: 0))
     .environment(\.mcpApprovalSurfaceVisible,
-      tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+      tabs.chatVisible && !windowCommandsBlocked && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
         && store.archiveConfirmation(inWindow: resources.id) == nil)
     .background(MCPApprovalKeyboardBridge(store: store, taskID: taskID,
-      visible: (!backgroundAgent || backgroundAgentFocused) && tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+      visible: (!backgroundAgent || backgroundAgentFocused) && tabs.chatVisible && !windowCommandsBlocked && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
         && store.archiveConfirmation(inWindow: resources.id) == nil)
       .frame(width: 0, height: 0))
     .focusedSceneValue(\.mcpApprovalCommands, store.mcpApprovalCommands(taskID: taskID,
-      visible: (!backgroundAgent || backgroundAgentFocused) && tabs.chatVisible && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
+      visible: (!backgroundAgent || backgroundAgentFocused) && tabs.chatVisible && !windowCommandsBlocked && !showingFind && !showingGoalEditor && !showingTaskModelPicker && searchMode == nil && renameTitle == nil && previewFile == nil && previewImage == nil
         && store.archiveConfirmation(inWindow: resources.id) == nil))
     .environment(\.presentImageGallery) { image, images, returnFocus in
       guard previewImage == nil, previewFile == nil, !showingGoalEditor, !showingTaskModelPicker, searchMode == nil, renameTitle == nil else { return }
@@ -764,7 +756,9 @@ struct TaskWindowView: View {
       || store.archiveConfirmation(inWindow: resources.id) != nil
       || taskWorkspace.showingCommitPush || taskWorkspace.showingPullRequest || taskWorkspace.showingManagedBranchSetup
   }
-  private var windowCommandsBlocked: Bool { otherWindowModalActive || searchMode != nil }
+  private var windowCommandsBlocked: Bool {
+    otherWindowModalActive || searchMode != nil || resources.worktreeForkPresentation.preparation != nil
+  }
 
   private func openTaskFileSearch() { openSearch(.files) }
 

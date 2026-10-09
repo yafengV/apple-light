@@ -218,6 +218,7 @@ extension WorkspaceStore {
   func toggleActivity() {
     guard libraryLoaded, !hasSettingsConfirmation else { return }
     if showingActivity { closeActivity(); return }
+    worktreeForkPresentation.dismiss()
     if destination == .settings { closeSettings() }
     showingBranchPicker = false
     showingModelPicker = false

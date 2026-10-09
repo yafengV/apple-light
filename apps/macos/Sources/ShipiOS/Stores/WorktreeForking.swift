@@ -14,29 +14,33 @@ extension WorkspaceStore {
     return (try? library.forkHistory(taskID: id, availableRuns: taskWindowRuns(id))) != nil
   }
 
-  /// Snapshot the completed conversation and current checkout without moving the source task.
-  @discardableResult func forkTaskToNewWorktree(_ id: String, openTask: Bool = true) async -> WorkspaceTask? {
-    guard canForkTaskToNewWorktree(id),
+  /// Show a window-owned preparation page while the independent checkout is created.
+  @discardableResult func forkTaskToNewWorktree(_ id: String, openTask: Bool = true,
+    presentation: WorktreeForkPresentation? = nil, noticeBoard: WorkspaceNotices? = nil) async -> WorkspaceTask? {
+    guard canForkTaskToNewWorktree(id), !Task.isCancelled,
       let sourceTask = library.tasks.first(where: { $0.id == id }) else { return nil }
     let history = taskWindowRuns(id)
-    let boundary: String
-    do { boundary = try library.forkHistory(taskID: id, availableRuns: history).last!.id }
+    var frozen = library
+    let fork: WorkspaceTask
+    do { fork = try frozen.forkConversation(taskID: id, availableRuns: history) }
     catch { self.error = error.localizedDescription; return nil }
     let config = modelConfiguration(for: id)
     let permissions = runtimePermissions(for: id)
-    let ongoingChats = library.chatRuns.filter { modelTask(runID: $0.id) != nil }.map(\.id)
-    managedTaskPreparing = true
-    managedTaskPreparationMessage = "正在分叉到新工作树…"
-    taskMenuForkingID = id
-    busy = true
-    defer {
-      busy = false
-      taskMenuForkingID = nil
-      managedTaskPreparing = false
-      managedTaskPreparationMessage = "正在创建工作树…"
-      scheduleManagedLimitCleanup()
-      Task { await resumeChatsAfterWorktreePreparation(ongoingChats) }
+    let target = presentation ?? (openTask ? worktreeForkPresentation : nil)
+    if target === worktreeForkPresentation { destination = .workspace; closeActivity() }
+    let preparation = WorktreeForkPreparation(sourceTaskID: id, title: sourceTask.title,
+      notices: noticeBoard ?? notices)
+    return await runWorktreeForkPreparation(preparation, presentation: target) {
+      await self.performWorktreeFork(sourceTask, frozenLibrary: frozen, fork: fork, config: config, permissions: permissions, preparation: preparation)
     }
+  }
+
+  private func performWorktreeFork(_ sourceTask: WorkspaceTask, frozenLibrary: WorkspaceLibrary,
+    fork frozenFork: WorkspaceTask, config: ModelConfiguration, permissions: AgentRuntimePreferences,
+    preparation: WorktreeForkPreparation) async -> WorkspaceTask? {
+    let id = sourceTask.id
+    taskMenuForkingID = id
+    defer { taskMenuForkingID = nil }
     let source = URL(fileURLWithPath: sourceTask.project)
     var savedTaskID: String?
     var stashCommit: String?
@@ -58,14 +62,18 @@ extension WorkspaceStore {
       let checkout = PermanentWorktree(id: plan.id, source: stableSource, path: plan.path,
         commonDirectory: plan.commonDirectory, startingCommit: plan.startingCommit,
         startingName: plan.startingName, createdAt: plan.createdAt, title: plan.title)
-      var candidate = library
-      var fork = try candidate.forkConversation(taskID: id, through: boundary, availableRuns: history)
+      let candidate = frozenLibrary
+      var fork = frozenFork
       let needsNativeFork = config.apiProtocol == .codexResponses && fork.codexForkOrigin != nil
       if needsNativeFork {
         fork.modelSelection = .init(model: config.model, reasoning: config.reasoning,
           providerAccount: config.credentialAccount, apiProtocol: config.apiProtocol)
       }
       savedTaskID = fork.id
+      preparation.taskID = fork.id
+      preparation.path = checkout.path
+      setWorktreeForkPhase("正在保存来源文件…")
+      try Task.checkCancellation()
       let paths = try await ManagedSourceFiles.discover(at: source, excluding: dataRoot)
       let files = try ManagedSourceFiles.capture(paths, from: source, dataRoot: dataRoot, taskID: fork.id)
       let captured = try await GitReviewService.stashSnapshot(named: "shipios-fork-\(fork.id)", at: source)
@@ -125,10 +133,9 @@ extension WorkspaceStore {
       var profile = latest.profiles[sourceTask.project] ?? BuildProfile()
       environment.apply(to: &profile)
       latest.profiles[checkout.path] = profile
+      try Task.checkCancellation()
       try commitLibrary(latest)
-      busy = false
       try await finishWorktreeFork(fork.id)
-      if openTask { await revealWorktreeFork(fork) }
       return library.tasks.first { $0.id == fork.id }
     } catch {
       if let savedTaskID, !library.managedWorktrees.contains(where: { $0.taskID == savedTaskID }) {
@@ -144,34 +151,36 @@ extension WorkspaceStore {
   }
 
   /// Resume the saved checkout/boundary/environment, never fork or capture the source again.
-  @discardableResult func resumeWorktreeFork(_ id: String, openTask: Bool = true) async -> WorkspaceTask? {
+  @discardableResult func resumeWorktreeFork(_ id: String, openTask: Bool = true,
+    presentation: WorktreeForkPresentation? = nil, noticeBoard: WorkspaceNotices? = nil) async -> WorkspaceTask? {
     guard libraryLoaded, !restoringLibrary, !shuttingDown, !busy, !managedTaskPreparing,
       activeLocalRun == nil, !taskForkIsReserved(id),
       let task = library.tasks.first(where: { $0.id == id && !$0.archived }),
       library.managedWorktrees.contains(where: { $0.containsTask(id) && $0.pendingForkSourceTaskID != nil })
       else { return nil }
-    managedTaskPreparing = true
-    managedTaskPreparationMessage = "正在继续创建分叉工作树…"
-    let ongoingChats = library.chatRuns.filter { modelTask(runID: $0.id) != nil }.map(\.id)
-    defer {
-      managedTaskPreparing = false
-      managedTaskPreparationMessage = "正在创建工作树…"
-      scheduleManagedLimitCleanup()
-      Task { await resumeChatsAfterWorktreePreparation(ongoingChats) }
+    let target = presentation ?? (openTask ? worktreeForkPresentation : nil)
+    if target === worktreeForkPresentation { destination = .workspace; closeActivity() }
+    let record = library.managedWorktrees.first { $0.containsTask(id) && $0.pendingForkSourceTaskID != nil }
+    let preparation = WorktreeForkPreparation(sourceTaskID: record?.pendingForkSourceTaskID ?? id,
+      title: task.title, taskID: id, path: task.project, notices: noticeBoard ?? notices)
+    return await runWorktreeForkPreparation(preparation, presentation: target) {
+      await self.performResumeWorktreeFork(id)
     }
+  }
+
+  private func performResumeWorktreeFork(_ id: String) async -> WorkspaceTask? {
     do {
       try await finishWorktreeFork(id)
-      if openTask { await revealWorktreeFork(task) }
-      return library.tasks.first { $0.id == task.id }
+      return library.tasks.first { $0.id == id }
     } catch { reportWorktreeForkFailure(error, taskID: id); return nil }
   }
 
   private func finishWorktreeFork(_ id: String) async throws {
-    guard !busy, let saved = library.managedWorktrees.first(where: { $0.taskID == id }) else {
+    try Task.checkCancellation()
+    guard let saved = library.managedWorktrees.first(where: { $0.taskID == id }) else {
       throw AgentFailure(message: "分叉工作树记录不可用。")
     }
-    busy = true
-    defer { busy = false }
+    setWorktreeForkPhase("正在创建工作树…")
     let record: ManagedWorktree
     if saved.ready {
       try await WorktreeService.createOrRecover(saved.checkout)
@@ -185,7 +194,8 @@ extension WorkspaceStore {
       record.sourceStashCommit != nil || !(record.sourceCopiedFiles ?? []).isEmpty {
       try await applyManagedSourceChanges(record)
     }
-    managedTaskPreparationMessage = "正在初始化分叉工作树…"
+    try Task.checkCancellation()
+    setWorktreeForkPhase("正在初始化分叉工作树…")
     try await runManagedWorktreeSetup(record)
     var createdNativeFork = false
     do {
@@ -206,21 +216,11 @@ extension WorkspaceStore {
       candidate.managedWorktrees[index].pendingForkSourceTaskID = nil
       try commitLibrary(candidate)
       worktreeError = nil
-      error = nil
-      if showingActivity { activityError = nil }
+      if error?.hasPrefix("无法完成工作树分叉：") == true { error = nil }
+      if activityError?.hasPrefix("无法完成工作树分叉：") == true { activityError = nil }
     } catch {
       if createdNativeFork { await Task { await self.codexTransport.discard(taskID: id) }.value }
       throw error
-    }
-  }
-
-  private func revealWorktreeFork(_ task: WorkspaceTask) async {
-    if await selectTaskAwaitingScope(task) { action = .chat }
-    else {
-      let message = "分叉工作树已保存，但暂时无法打开。可从侧栏重新打开任务。"
-      error = message
-      if showingActivity { activityError = message }
-      notices.show(id: "fork-open-\(task.id)", title: message, level: .error, taskID: task.id)
     }
   }
 
@@ -228,10 +228,18 @@ extension WorkspaceStore {
     let retained = taskID.map { id in library.managedWorktrees.contains { $0.taskID == id } } ?? false
     let message = "无法完成工作树分叉：\(failure.localizedDescription)"
       + (retained ? "\n分叉已保存，可在任务菜单中继续创建。" : "")
+    if failure is CancellationError || Task.isCancelled {
+      activeWorktreeForkPreparation?.state = .cancelled
+      return
+    }
+    activeWorktreeForkPreparation?.state = .failed(message)
     worktreeError = message
-    error = message
-    if showingActivity { activityError = message }
-    notices.show(id: "worktree-fork-\(taskID ?? "source")", title: message, level: .error, taskID: taskID)
+    let board = activeWorktreeForkPreparation?.notices ?? notices
+    if board === notices {
+      error = message
+      if showingActivity { activityError = message }
+    }
+    board.show(id: "worktree-fork-\(taskID ?? "source")", title: message, level: .error, taskID: taskID)
   }
 
   private func stableWorktreeForkSource(_ path: String) throws -> String {
