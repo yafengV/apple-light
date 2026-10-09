@@ -4,6 +4,7 @@ struct ConversationTimelineView: View {
   @Bindable var store: WorkspaceStore
   @State private var childProjection = ChildElicitationProjection()
   @State private var scrolling = ConversationScrollState()
+  @State private var scrollSnapshot = ConversationScrollSnapshot()
   @State private var mountedTexts: Set<ConversationTextID> = []
   @State private var pendingText: ConversationTextID?
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
@@ -74,7 +75,7 @@ struct ConversationTimelineView: View {
           .environment(\.conversationRailFlashID, railFlash.id)
           .frame(maxWidth: .infinity)
           .background {
-            ConversationScrollObserver { event in
+            ConversationScrollObserver(snapshot: scrollSnapshot) { event in
               switch event {
               case .geometry(let metrics):
                 if scrolling.observe(metrics) { scrollToLatest(reader) }
@@ -143,10 +144,11 @@ struct ConversationTimelineView: View {
       .onChange(of: childProjectionInput, initial: true) { _, input in
         let old = Set(childProjection.entries.map(\.id))
         childProjection.update(input)
-        if childProjection.entries.contains(where: { !old.contains($0.id) }), scrolling.contentChanged() { scrollToLatest(reader) }
+        if childProjection.entries.contains(where: { !old.contains($0.id) }),
+          scrolling.contentChanged(latest: scrollSnapshot.metrics) { scrollToLatest(reader) }
       }
       .onChange(of: revisions) { _, _ in
-        if scrolling.contentChanged() { scrollToLatest(reader) }
+        if scrolling.contentChanged(latest: scrollSnapshot.metrics) { scrollToLatest(reader) }
       }
       .onChange(of: store.findRequest) { _, _ in findMatch(reader) }
       .onChange(of: store.conversationReveal, initial: true) { _, request in

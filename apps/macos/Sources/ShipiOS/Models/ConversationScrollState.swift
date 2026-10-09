@@ -26,8 +26,13 @@ struct ConversationScrollState {
       } ?? true
     let moved = previous.map { abs($0.offset - metrics.offset) > 0.5 } ?? false
     // Scrollbar, keyboard and accessibility scrolling need not have a live-scroll phase.
-    if moved && !layoutChanged && !seekingLatest && !interacting && !navigatingHistory {
-      followsLatest = metrics.isAtBottom
+    if moved, let previous, !seekingLatest && !interacting && !navigatingHistory {
+      let upward = previous.offset - metrics.offset
+      let layoutClamp = max(0, previous.contentHeight - metrics.contentHeight)
+        + max(0, metrics.viewportHeight - previous.viewportHeight)
+      // A scrollbar/history jump can coincide with a lazy layout update. Only
+      // offset reductions explained by a smaller scroll range are layout clamps.
+      if !layoutChanged || upward > layoutClamp + 0.5 { followsLatest = metrics.isAtBottom }
     }
     previous = metrics
     isAtBottom = metrics.isAtBottom
@@ -65,7 +70,8 @@ struct ConversationScrollState {
     followsLatest = isAtBottom
   }
 
-  mutating func contentChanged() -> Bool {
+  mutating func contentChanged(latest metrics: ConversationScrollMetrics? = nil) -> Bool {
+    if let metrics { _ = observe(metrics) }
     if !followsLatest { hasNewContent = true }
     return followsLatest && !interacting
   }

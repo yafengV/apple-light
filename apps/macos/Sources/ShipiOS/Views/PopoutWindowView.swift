@@ -390,6 +390,7 @@ struct PopoutThreadView: View {
   @State private var inspectedRun: AgentRun?
   @State private var inspectorTab = "overview"
   @State private var scrolling = ConversationScrollState()
+  @State private var scrollSnapshot = ConversationScrollSnapshot()
   @State private var railPositions: [String: CGRect] = [:]
   @State private var railViewportHeight: CGFloat = 0
   @State private var railFlash = ConversationRailFlash()
@@ -477,7 +478,7 @@ struct PopoutThreadView: View {
             .padding(.vertical, 20).frame(maxWidth: .infinity, alignment: .leading)
             .environment(\.conversationRailFlashID, railFlash.id)
             .background {
-              ConversationScrollObserver { event in
+              ConversationScrollObserver(snapshot: scrollSnapshot) { event in
                 switch event {
                 case .geometry(let metrics):
                   if scrolling.observe(metrics) { reader.scrollTo("end", anchor: .bottom) }
@@ -536,7 +537,7 @@ struct PopoutThreadView: View {
           }
         }
         .onChange(of: runRevisions) { _, _ in
-          if scrolling.contentChanged() { reader.scrollTo("end", anchor: .bottom) }
+          if scrolling.contentChanged(latest: scrollSnapshot.metrics) { reader.scrollTo("end", anchor: .bottom) }
         }
       }
       Divider()

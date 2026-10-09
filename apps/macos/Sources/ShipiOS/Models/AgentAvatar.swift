@@ -20,15 +20,17 @@ enum AgentAvatar {
 
   static let resourceBundle = ShipiOSResources.bundle
 
-  @MainActor private static let images = NSCache<NSString, NSImage>()
+  // The immutable catalog has only 56 vectors. Keep their identity stable even
+  // when an opportunistic system cache would evict an entry between row updates.
+  @MainActor private static var images: [String: NSImage] = [:]
 
   @MainActor static func image(seed: String, dark: Bool, palette: AgentAvatarPalette = .codex) -> NSImage? {
     let name = resourceName(seed: seed, dark: dark, palette: palette)
-    if let cached = images.object(forKey: name as NSString) { return cached }
+    if let cached = images[name] { return cached }
     guard let url = resourceBundle.url(forResource: name, withExtension: "svg", subdirectory: "AgentAvatars"),
       let image = NSImage(contentsOf: url) else { return nil }
     image.isTemplate = false
-    images.setObject(image, forKey: name as NSString)
+    images[name] = image
     return image
   }
 }

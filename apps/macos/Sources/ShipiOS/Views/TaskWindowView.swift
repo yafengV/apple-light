@@ -20,6 +20,8 @@ struct TaskWindowView: View {
   @Environment(\.layoutDirection) private var layoutDirection
   @Environment(\.dismiss) private var dismiss
   @State private var childProjection = ChildElicitationProjection()
+  @State private var scrolling = ConversationScrollState()
+  @State private var scrollSnapshot = ConversationScrollSnapshot()
   @State private var forkError: String?
   @State private var forkOperation: Task<Void, Never>?
   @State private var handoffError: String?
@@ -561,6 +563,7 @@ struct TaskWindowView: View {
   var body: some View {
     archiveRoutedTaskContent
     .onChange(of: taskID) { _, _ in
+      scrolling = ConversationScrollState()
       forkOperation?.cancel(); forkOperation = nil
       executionRunID = nil
     }
@@ -1336,6 +1339,18 @@ struct TaskWindowView: View {
         .padding(.horizontal, 30).padding(.vertical, 26)
         .frame(maxWidth: .infinity)
         .environment(\.conversationRailFlashID, railFlash.id)
+        .background {
+          ConversationScrollObserver(snapshot: scrollSnapshot) { event in
+            switch event {
+            case .geometry(let metrics):
+              if scrolling.observe(metrics) { reader.scrollTo("task-window-end", anchor: .bottom) }
+            case .began:
+              pendingText = nil; pendingMatch = nil
+              scrolling.beginUserScroll()
+            case .ended(let metrics): scrolling.endUserScroll(metrics)
+            }
+          }
+        }
       }
       .coordinateSpace(name: railSpace)
       .background {
@@ -1344,7 +1359,7 @@ struct TaskWindowView: View {
             value: proxy.size.height)
         }
       }
-      .defaultScrollAnchor(.bottom)
+      .defaultScrollAnchor(.top)
       .overlay(alignment: .leading) {
         if railItems.count >= ConversationNavigationRail.minimumItems {
           ConversationRailOverlay(items: railItems,
@@ -1352,6 +1367,7 @@ struct TaskWindowView: View {
             onSelect: { id in
               pendingText = nil
               pendingMatch = nil
+              scrolling.pauseFollowing()
               reader.scrollTo(id, anchor: .top)
               railFlash.flash(id, reduceMotion: store.appearance.shouldReduceMotion)
             }, onBookmark: { id, bookmarked in
@@ -1366,13 +1382,40 @@ struct TaskWindowView: View {
         railPositions = positions
       }
       .onPreferenceChange(ConversationRailViewportHeight.self) { railViewportHeight = $0 }
+      .overlay(alignment: .bottom) {
+        if !scrolling.isAtBottom {
+          Button {
+            pendingText = nil; pendingMatch = nil
+            scrolling.requestLatest()
+            reader.scrollTo("task-window-end", anchor: .bottom)
+          } label: {
+            Image(systemName: "arrow.down").appFont(size: 13, weight: .semibold)
+              .frame(width: 32, height: 32)
+              .background(.regularMaterial, in: Circle())
+              .overlay(Circle().strokeBorder(.primary.opacity(0.12)))
+              .overlay(alignment: .topTrailing) {
+                if scrolling.hasNewContent { Circle().fill(.tint).frame(width: 7, height: 7) }
+              }
+          }.buttonStyle(.plain).padding(.bottom, 12)
+            .help(scrolling.hasNewContent ? "有新内容，返回底部" : "返回底部")
+            .accessibilityLabel(scrolling.hasNewContent ? "有新内容，返回底部" : "返回底部")
+        }
+      }
       .onChange(of: childProjectionInput, initial: true) { _, input in
+        let old = Set(childProjection.entries.map(\.id))
         childProjection.update(input)
+        if childProjection.entries.contains(where: { !old.contains($0.id) }),
+          scrolling.contentChanged(latest: scrollSnapshot.metrics) {
+          reader.scrollTo("task-window-end", anchor: .bottom)
+        }
       }
       .onChange(of: taskRuns.map(\.updatedAt)) { _, _ in
         guard !showingFind else { return }
-        withAnimation(.easeOut(duration: 0.15)) { reader.scrollTo("task-window-end", anchor: .bottom) }
+        if scrolling.contentChanged(latest: scrollSnapshot.metrics) {
+          reader.scrollTo("task-window-end", anchor: .bottom)
+        }
       }
+      .onChange(of: showingFind) { _, visible in if !visible { scrolling.endNavigation() } }
       .onChange(of: findRequest) { _, _ in findMatch(reader) }
       .onPreferenceChange(ConversationTextAnchors.self) { anchors in
         mountedTexts = anchors
@@ -1442,6 +1485,7 @@ struct TaskWindowView: View {
 
   private func findMatch(_ reader: ScrollViewProxy) {
     guard let match = activeFindMatch else { return }
+    scrolling.pauseFollowing()
     if mountedOccurrences.contains(match.id) {
       pendingText = nil
       pendingMatch = nil

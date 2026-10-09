@@ -52,6 +52,23 @@ final class ConversationScrollTests: XCTestCase {
     XCTAssertFalse(state.hasNewContent)
   }
 
+  func testHistoryMovementDuringContentGrowthDetachesButLayoutClampingKeepsFollowing() {
+    var reading = ConversationScrollState()
+    _ = reading.observe(metrics(700))
+    XCTAssertFalse(reading.observe(metrics(0, height: 1400)),
+      "Content growth does not cancel an upward history jump")
+    XCTAssertFalse(reading.followsLatest)
+    XCTAssertFalse(reading.contentChanged())
+    XCTAssertTrue(reading.hasNewContent)
+
+    var following = ConversationScrollState()
+    _ = following.observe(metrics(700))
+    XCTAssertFalse(following.observe(metrics(400, height: 900)),
+      "A smaller document clamps the offset while preserving the bottom")
+    XCTAssertTrue(following.followsLatest)
+    XCTAssertTrue(following.contentChanged())
+  }
+
   func testResizeDoesNotLookLikeUserScrollingAndShortContentHasNoJumpButton() {
     var state = ConversationScrollState()
     _ = state.observe(metrics(700))

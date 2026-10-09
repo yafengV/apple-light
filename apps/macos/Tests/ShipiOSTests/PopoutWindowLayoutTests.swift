@@ -334,6 +334,16 @@ final class PopoutWindowLayoutTests: XCTestCase {
   }
 
   @MainActor func testScrolledThreadShowsReturnToLatestWhileReplyChanges() async throws {
+    try await verifyHistoryScrollDuringReply(delay: .milliseconds(180))
+  }
+
+  @MainActor func testHistoryScrollAndReplyInSameLayoutTurnKeepsReaderDetached() async throws {
+    for width in [400.0, 620.0] {
+      try await verifyHistoryScrollDuringReply(delay: nil, width: width)
+    }
+  }
+
+  @MainActor private func verifyHistoryScrollDuringReply(delay: Duration?, width: Double = 470) async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -350,7 +360,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
     store.library.tasks[store.library.tasks.firstIndex(where: { $0.id == task.id })!].runIDs =
       original.map(\.id)
     store.library.chatRuns = original
-    let size = NSSize(width: 470, height: 640)
+    let size = NSSize(width: width, height: 640)
     let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
       styleMask: [.borderless], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
@@ -382,7 +392,7 @@ final class PopoutWindowLayoutTests: XCTestCase {
       "An existing popout conversation should initially follow the newest reply")
     conversation.contentView.scroll(to: .zero)
     conversation.reflectScrolledClipView(conversation.contentView)
-    try await Task.sleep(for: .milliseconds(180))
+    if let delay { try await Task.sleep(for: delay) }
     let readingPosition = conversation.contentView.bounds.origin.y
     store.library.chatRuns[7] = AgentRun(id: original[7].id, kind: "chat", project: task.project,
       status: "succeeded", createdAt: original[7].createdAt, updatedAt: 100,
