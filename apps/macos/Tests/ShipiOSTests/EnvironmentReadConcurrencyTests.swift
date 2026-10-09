@@ -28,6 +28,9 @@ import XCTest
         if project.name == 'Other' and method == 'initialize' and (root / 'scope-gate').exists():
             (root / 'scope-reached').touch()
             while (root / 'scope-gate').exists(): time.sleep(0.01)
+        if project.name == 'Other' and method == 'environment.save' and (root / 'save-gate').exists():
+            (root / 'save-reached').touch()
+            while (root / 'save-gate').exists(): time.sleep(0.01)
         held = False
         error = False
         with lock:
@@ -46,7 +49,11 @@ import XCTest
             'project.inspect': {'root': str(project), 'containers': [], 'swiftPackages': [], 'diagnostics': [], 'scanTruncated': False},
             'environment.list': [{'id': f, 'fileName': f, 'name': f, 'error': None, 'inherited': False, 'sourceFolder': str(project)} for f in ['environment.toml', 'environment-2.toml']],
             'environment.load': {'exists': True, 'revision': label, 'error': None,
-                'config': {'name': label, 'setup': {'script': 'echo ' + label}, 'actions': []}}}
+                'config': {'name': label, 'setup': {'script': 'echo ' + label}, 'actions': []}},
+            'environment.save': {'exists': True, 'revision': 'saved:' + str(count)}}
+        if method == 'environment.save':
+            with lock:
+                (root / 'submitted.json').write_text(json.dumps(request['params']))
         response = {'jsonrpc': '2.0', 'id': request['id'], 'result': values.get(method, {})}
         if error:
             response.pop('result')
@@ -57,6 +64,9 @@ import XCTest
             print(json.dumps(response), flush=True)
     for line in sys.stdin:
         threading.Thread(target=respond, args=(json.loads(line),), daemon=True).start()
+    if project.name == 'Project' and (root / 'stop-gate').exists():
+        (root / 'stop-reached').touch()
+        while (root / 'stop-gate').exists(): time.sleep(0.01)
     """#
     try Data(script.utf8).write(to: executable)
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
@@ -91,6 +101,8 @@ import XCTest
     XCTAssertTrue(editor.connected, editor.status)
     addTeardownBlock { @MainActor in
       try? FileManager.default.removeItem(at: fixture.gate)
+      try? FileManager.default.removeItem(at: fixture.root.appendingPathComponent("stop-gate"))
+      try? FileManager.default.removeItem(at: fixture.root.appendingPathComponent("save-gate"))
       await editor.close()
     }
     return editor
@@ -216,5 +228,150 @@ import XCTest
     try FileManager.default.removeItem(at: scopeGate); await navigation.value
     XCTAssertEqual(store.project?.path, other.path); XCTAssertTrue(store.connected)
     XCTAssertEqual(store.environmentName, "environment.toml:1")
+  }
+
+  func testWorkspaceSaveOnlyMarksSubmittedFormAsSaved() async throws {
+    let f = try fixture(), store = await workspace(f)
+    store.environmentName = "submitted"; store.worktreeCleanupScript = "echo submitted"
+    let submitted = store.currentEnvironmentFormState
+    try hold(f, method: "environment.save", file: "environment.toml")
+    let save = Task { await store.saveSharedEnvironment() }; try await reached(f)
+    store.environmentName = "new draft"; store.worktreeCleanupScript = "echo new draft"
+    try FileManager.default.removeItem(at: f.gate)
+    let saved = await save.value
+    XCTAssertTrue(saved); XCTAssertEqual(store.environmentLoadedState, submitted)
+    XCTAssertTrue(store.environmentHasUnsavedChanges); XCTAssertEqual(store.environmentName, "new draft")
+    XCTAssertEqual(store.worktreeCleanupScript, "echo new draft"); XCTAssertEqual(store.environmentRevision, "saved:1")
+    XCTAssertFalse(store.environmentSaving)
+    let payload = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: f.root.appendingPathComponent("submitted.json")))
+    XCTAssertEqual(payload["config"]["name"].text, "submitted")
+    XCTAssertEqual(payload["config"]["cleanup"]["script"].text, "echo submitted")
+  }
+
+  func testEditorSaveOnlyMarksSubmittedFormAsSaved() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "submitted"; editor.cleanupScript = "echo submitted"
+    let submitted = editor.formState
+    try hold(f, method: "environment.save", file: "environment.toml")
+    let save = Task { await editor.save() }; try await reached(f)
+    editor.name = "new draft"; editor.cleanupScript = "echo new draft"
+    try FileManager.default.removeItem(at: f.gate)
+    let saved = await save.value
+    XCTAssertTrue(saved); XCTAssertEqual(editor.loadedState, submitted); XCTAssertTrue(editor.hasUnsavedChanges)
+    XCTAssertTrue(editor.canSave); XCTAssertEqual(editor.name, "new draft")
+    XCTAssertEqual(editor.cleanupScript, "echo new draft"); XCTAssertEqual(editor.revision, "saved:1")
+    XCTAssertFalse(editor.saving)
+  }
+
+  func testWorkspaceOldSaveAndCatalogReplyCannotApplyAfterABASelection() async throws {
+    for method in ["environment.save", "environment.list"] {
+      for error in [false, true] {
+        let f = try fixture(), store = await workspace(f)
+        store.environmentName = "submitted"
+        try hold(f, method: method, error: error)
+        let save = Task { await store.saveSharedEnvironment() }; try await reached(f)
+        await store.selectSharedEnvironment("environment-2.toml"); await store.selectSharedEnvironment("environment.toml")
+        let form = store.currentEnvironmentFormState, revision = store.environmentRevision, status = store.environmentStatus
+        try FileManager.default.removeItem(at: f.gate)
+        let saved = await save.value
+        XCTAssertFalse(saved, method); XCTAssertEqual(store.currentEnvironmentFormState, form)
+        XCTAssertEqual(store.environmentRevision, revision); XCTAssertEqual(store.environmentStatus, status)
+        XCTAssertEqual(store.environmentLoadedState, form); XCTAssertFalse(store.environmentSaving)
+      }
+    }
+  }
+
+  func testEditorOldSaveAndCatalogReplyCannotApplyAfterABASelection() async throws {
+    for method in ["environment.save", "environment.list"] {
+      for error in [false, true] {
+        let f = try fixture(), editor = await editor(f)
+        editor.name = "submitted"
+        try hold(f, method: method, error: error)
+        let save = Task { await editor.save() }; try await reached(f)
+        await editor.select("environment-2.toml"); await editor.select("environment.toml")
+        let form = editor.formState, revision = editor.revision, status = editor.status
+        try FileManager.default.removeItem(at: f.gate)
+        let saved = await save.value
+        XCTAssertFalse(saved, method); XCTAssertEqual(editor.formState, form); XCTAssertEqual(editor.revision, revision)
+        XCTAssertEqual(editor.status, status); XCTAssertEqual(editor.loadedState, form)
+        XCTAssertFalse(editor.readError); XCTAssertFalse(editor.saveConflict); XCTAssertFalse(editor.saving)
+      }
+    }
+  }
+
+  func testSavingInvalidatesOlderWorkspaceRead() async throws {
+    let f = try fixture(), store = await workspace(f)
+    try hold(f, method: "environment.load", file: "environment.toml")
+    let read = Task { await store.loadSharedEnvironment() }; try await reached(f)
+    store.environmentName = "submitted"
+    let saved = await store.saveSharedEnvironment(); XCTAssertTrue(saved)
+    let form = store.currentEnvironmentFormState, revision = store.environmentRevision, status = store.environmentStatus
+    try FileManager.default.removeItem(at: f.gate); await read.value
+    XCTAssertEqual(store.currentEnvironmentFormState, form); XCTAssertEqual(store.environmentRevision, revision)
+    XCTAssertEqual(store.environmentStatus, status); XCTAssertFalse(store.environmentHasUnsavedChanges)
+  }
+
+  func testSavingInvalidatesOlderEditorRead() async throws {
+    let f = try fixture(), editor = await editor(f)
+    try hold(f, method: "environment.load", file: "environment.toml")
+    let read = Task { await editor.load() }; try await reached(f)
+    editor.name = "submitted"
+    let saved = await editor.save(); XCTAssertTrue(saved)
+    let form = editor.formState, revision = editor.revision, status = editor.status
+    try FileManager.default.removeItem(at: f.gate); await read.value
+    XCTAssertEqual(editor.formState, form); XCTAssertEqual(editor.revision, revision)
+    XCTAssertEqual(editor.status, status); XCTAssertFalse(editor.hasUnsavedChanges)
+  }
+
+  func testClosingOldEditorCannotClearReopenedProject() async throws {
+    let f = try fixture(), editor = await editor(f)
+    let other = f.root.appendingPathComponent("Other"), stopGate = f.root.appendingPathComponent("stop-gate")
+    let stopReached = f.root.appendingPathComponent("stop-reached")
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    try Data().write(to: stopGate)
+    let close = Task { await editor.close() }
+    for _ in 0..<120 where !FileManager.default.fileExists(atPath: stopReached.path) {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: stopReached.path))
+    await editor.open(other.path, title: "Other", executable: f.executable)
+    let form = editor.formState, files = editor.files.map(\.id)
+    try FileManager.default.removeItem(at: stopGate); await close.value
+    XCTAssertEqual(editor.projectPath, other.path); XCTAssertEqual(editor.formState, form)
+    XCTAssertEqual(editor.files.map(\.id), files); XCTAssertFalse(files.isEmpty)
+    XCTAssertTrue(editor.connected); XCTAssertFalse(editor.loading)
+  }
+
+  func testOldSaveCleanupCannotClearNewEditorSavingFlag() async throws {
+    let f = try fixture(), editor = await editor(f)
+    editor.name = "old submitted"
+    try hold(f, method: "environment.save", file: "environment.toml")
+    let oldSave = Task { await editor.save() }; try await reached(f)
+    let stopGate = f.root.appendingPathComponent("stop-gate"), stopReached = f.root.appendingPathComponent("stop-reached")
+    try Data().write(to: stopGate)
+    let close = Task { await editor.close() }
+    for _ in 0..<120 where !FileManager.default.fileExists(atPath: stopReached.path) {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: stopReached.path))
+    let other = f.root.appendingPathComponent("Other")
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    await editor.open(other.path, title: "Other", executable: f.executable)
+    editor.name = "new submitted"
+    let saveGate = f.root.appendingPathComponent("save-gate"), saveReached = f.root.appendingPathComponent("save-reached")
+    try Data().write(to: saveGate)
+    let newSave = Task { await editor.save() }
+    for _ in 0..<120 where !FileManager.default.fileExists(atPath: saveReached.path) {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: saveReached.path)); XCTAssertTrue(editor.saving)
+    try FileManager.default.removeItem(at: stopGate)
+    let oldSaved = await oldSave.value; await close.value
+    XCTAssertFalse(oldSaved); XCTAssertTrue(editor.saving); XCTAssertEqual(editor.projectPath, other.path)
+    try FileManager.default.removeItem(at: f.gate)
+    try FileManager.default.removeItem(at: saveGate)
+    let newSaved = await newSave.value
+    XCTAssertTrue(newSaved); XCTAssertFalse(editor.saving); XCTAssertEqual(editor.name, "new submitted")
+    XCTAssertTrue(editor.connected); XCTAssertFalse(editor.hasUnsavedChanges)
   }
 }

@@ -56,6 +56,8 @@ final class EnvironmentSettingsSession {
   func open(_ path: String, title: String, executable: URL) async {
     let token = UUID()
     generation = token
+    readRequest = UUID()
+    saving = false
     loading = true
     await stopClient()
     guard generation == token else { return }
@@ -90,8 +92,12 @@ final class EnvironmentSettingsSession {
   }
 
   func close() async {
-    generation = UUID()
+    let token = UUID()
+    generation = token
+    readRequest = UUID()
+    saving = false
     await stopClient()
+    guard generation == token else { return }
     projectPath = nil
     files = []
     loading = false
@@ -217,17 +223,21 @@ final class EnvironmentSettingsSession {
   }
 
   @discardableResult func save() async -> Bool {
-    guard let client, canSave else { return false }
+    guard let client, canSave, !Task.isCancelled else { return false }
     let token = generation
     let selected = fileName
+    let submitted = formState
     let validName = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !validName.isEmpty else { status = "请填写环境名称。"; return false }
     guard actions.allSatisfy(\.isRunnable) else {
       status = "请为每个操作填写名称和命令。"
       return false
     }
+    let request = UUID()
+    readRequest = request
+    let isCurrent = { self.generation == token && self.readRequest == request && self.fileName == selected && self.connected }
     saving = true
-    defer { saving = false }
+    defer { if generation == token { saving = false } }
     var config: [String: JSONValue] = [
       "version": .number(1), "name": .string(validName),
       "setup": .object(platformScripts(setupScript, setupPlatforms)),
@@ -250,20 +260,20 @@ final class EnvironmentSettingsSession {
         "expectedRevision": revision.map(JSONValue.string) ?? .null,
         "config": .object(config),
       ])
-      guard generation == token, fileName == selected else { return false }
+      guard isCurrent() else { return false }
       revision = result["revision"].text
       exists = result["exists"].boolean == true
       saveConflict = false
       parseError = false
-      loadedState = formState
-      status = "已保存至项目共享环境文件。"
+      loadedState = submitted
+      status = hasUnsavedChanges ? "已保存提交的内容；当前还有未保存的修改。" : "已保存至项目共享环境文件。"
       if let entries = try? await client.request("environment.list")
         .decode([LocalEnvironmentEntry].self) {
-        if generation == token { files = entries }
+        if isCurrent() { files = entries }
       }
-      return generation == token
+      return isCurrent()
     } catch {
-      if generation == token, fileName == selected {
+      if isCurrent() {
         if let failure = error as? AgentFailure,
           failure.message == "environment file changed outside ShipiOS; reload before saving" {
           saveConflict = true
@@ -511,9 +521,12 @@ extension WorkspaceStore {
   }
 
   @discardableResult func saveSharedEnvironment() async -> Bool {
-    guard connected, let path = project?.path, !environmentSaving else { return false }
+    guard connected, !preparingProjectScope, !shuttingDown, let path = project?.path,
+      !environmentSaving, !Task.isCancelled else { return false }
+    let token = session
     let name = environmentName.trimmingCharacters(in: .whitespacesAndNewlines)
     let fileName = environmentFileName
+    let submitted = currentEnvironmentFormState
     guard !name.isEmpty else {
       environmentStatus = "请填写环境名称。"
       return false
@@ -522,8 +535,14 @@ extension WorkspaceStore {
       environmentStatus = "请为每个操作填写名称和命令。"
       return false
     }
+    let request = UUID()
+    environmentReadRequest = request
+    let isCurrent = {
+      self.session == token && self.environmentReadRequest == request && self.project?.path == path
+        && self.environmentFileName == fileName && self.connected && !self.preparingProjectScope && !self.shuttingDown
+    }
     environmentSaving = true
-    defer { environmentSaving = false }
+    defer { if session == token { environmentSaving = false } }
     var config: [String: JSONValue] = [
       "version": .number(1), "name": .string(name),
       "setup": .object(platformScripts(worktreeSetupScript, setupPlatformScripts)),
@@ -547,19 +566,19 @@ extension WorkspaceStore {
         "expectedRevision": environmentRevision.map(JSONValue.string) ?? .null,
         "config": .object(config),
       ])
-      guard project?.path == path, environmentFileName == fileName else { return false }
+      guard isCurrent() else { return false }
       environmentRevision = result["revision"].text
       environmentExists = result["exists"].boolean == true
-      environmentStatus = "已保存至项目共享环境文件。"
-      environmentLoadedState = currentEnvironmentFormState
+      environmentLoadedState = submitted
+      environmentStatus = environmentHasUnsavedChanges ? "已保存提交的内容；当前还有未保存的修改。" : "已保存至项目共享环境文件。"
       saveProfile()
       if let entries = try? await client.request("environment.list")
         .decode([LocalEnvironmentEntry].self) {
-        if project?.path == path, environmentFileName == fileName { environmentFiles = entries }
+        if isCurrent() { environmentFiles = entries }
       }
-      return project?.path == path && environmentFileName == fileName
+      return isCurrent()
     } catch {
-      guard project?.path == path, environmentFileName == fileName else { return false }
+      guard isCurrent() else { return false }
       environmentStatus = "共享环境保存失败：\(error.localizedDescription)"
       return false
     }

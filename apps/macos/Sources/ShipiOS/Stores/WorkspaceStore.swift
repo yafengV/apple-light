@@ -704,6 +704,7 @@ final class WorkspaceStore {
     defer { busy = false }
     connected = false
     session = UUID()
+    environmentSaving = false
     let token = session
     await client.stop()
     guard session == token, stillValid() else { return }
@@ -838,6 +839,7 @@ final class WorkspaceStore {
     connected = false
     error = nil
     session = UUID()
+    environmentSaving = false
     let token = session
     await client.stop()
     defer {
@@ -1446,6 +1448,7 @@ final class WorkspaceStore {
     saveLibrary()
     connected = false
     session = UUID()
+    environmentSaving = false
     await codexTransport.shutdown()
     // SessionEnd notifications can update historical runs during Agent teardown.
     saveLibrary()
