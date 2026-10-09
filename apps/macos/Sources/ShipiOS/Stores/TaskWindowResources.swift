@@ -11,6 +11,8 @@ import Observation
   let notices = WorkspaceNotices()
   let worktreeForkPresentation = WorktreeForkPresentation()
   @ObservationIgnored private var worktreeForkRequest: Task<Void, Never>?
+  @ObservationIgnored private var worktreeForkRequestID: UUID?
+  @ObservationIgnored private var worktreeForkNavigationRevision = UUID()
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
   let files = TaskWindowFileEditors()
@@ -33,22 +35,40 @@ import Observation
   }
 
   func display(_ taskID: String?) {
-    if displayedTaskID != taskID { worktreeForkPresentation.dismiss() }
+    if displayedTaskID != taskID { invalidateWorktreeForkNavigation() }
     displayedTaskID = taskID
   }
 
-  func forkToNewWorktree(_ taskID: String, store: WorkspaceStore, resume: Bool = false) {
+  /// Leaving a page invalidates queued starts while an already-started worker can finish in the background.
+  func invalidateWorktreeForkNavigation() {
+    worktreeForkNavigationRevision = UUID()
+    worktreeForkPresentation.dismiss()
+  }
+
+  @discardableResult func forkToNewWorktree(_ taskID: String, store: WorkspaceStore,
+    resume: Bool = false) -> Task<Void, Never>? {
+    guard !store.busy, !store.managedTaskPreparing, !store.shuttingDown,
+      resume || store.canForkTaskToNewWorktree(taskID) else { return nil }
     self.store = store
     store.taskWindowResources.add(self)
+    let requestID = UUID()
+    worktreeForkRequestID = requestID
+    let navigationRevision = worktreeForkNavigationRevision
     let originalWindowID = id
     let originalDisplayedTaskID = displayedTaskID
     worktreeForkPresentation.onReady = { [weak self] fork in
-      guard let self, id == originalWindowID, displayedTaskID == originalDisplayedTaskID,
+      guard let self, worktreeForkRequestID == requestID,
+        id == originalWindowID, displayedTaskID == originalDisplayedTaskID,
         !store.shuttingDown else { return }
       navigate?(fork.id)
     }
     worktreeForkRequest = Task {
-      guard !Task.isCancelled else { return }
+      defer {
+        if worktreeForkRequestID == requestID { worktreeForkRequest = nil }
+      }
+      guard !Task.isCancelled, worktreeForkRequestID == requestID,
+        worktreeForkNavigationRevision == navigationRevision, id == originalWindowID,
+        displayedTaskID == originalDisplayedTaskID, !store.shuttingDown else { return }
       if resume {
         _ = await store.resumeWorktreeFork(taskID, openTask: false,
           presentation: worktreeForkPresentation, noticeBoard: notices)
@@ -57,10 +77,14 @@ import Observation
           presentation: worktreeForkPresentation, noticeBoard: notices)
       }
     }
+    return worktreeForkRequest
   }
 
   func register(store: WorkspaceStore, windowID: String? = nil) {
-    if tasks.isEmpty, let windowID { id = windowID }
+    if tasks.isEmpty, let windowID, id != windowID {
+      id = windowID
+      invalidateWorktreeForkNavigation()
+    }
     self.store = store
     store.taskWindowResources.add(self)
   }
@@ -257,6 +281,8 @@ import Observation
     let saved = prepareToClose()
     guard saved || force else { return false }
     worktreeForkRequest?.cancel(); worktreeForkRequest = nil
+    worktreeForkRequestID = nil
+    worktreeForkNavigationRevision = UUID()
     worktreeForkPresentation.close()
     // Foundation's persistence/weak-registry bridging can autorelease references
     // to this window. Drain them before returning from explicit window teardown.

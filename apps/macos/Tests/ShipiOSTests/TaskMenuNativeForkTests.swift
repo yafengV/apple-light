@@ -236,6 +236,94 @@ import XCTest
     await store.shutdown()
   }
 
+  func testQueuedWindowWorktreeForkCannotStartAfterNavigationRoundTripOrClose() async throws {
+    for action in ["switch", "roundtrip", "close"] {
+      let f = try await fixture(), store = f.store
+      try await prepareWorktreeRepository(f)
+      let other = WorkspaceTask(id: UUID().uuidString, project: f.source.project, title: "Other", runIDs: [])
+      store.library.tasks.append(other)
+      let resources = TaskWindowResources()
+      resources.prepare(f.source.id, store: store); resources.display(f.source.id)
+      var navigated: [String] = []
+      resources.navigate = { navigated.append($0) }
+      try Data().write(to: f.release)
+      let operation = try XCTUnwrap(resources.forkToNewWorktree(f.source.id, store: store))
+      if action == "close" { XCTAssertTrue(resources.shutdown(force: true)) }
+      else {
+        resources.display(other.id)
+        if action == "roundtrip" { resources.display(f.source.id) }
+      }
+      await operation.value
+      XCTAssertEqual(store.library.tasks.map(\.id), [f.source.id, other.id], action)
+      XCTAssertTrue(store.library.managedWorktrees.isEmpty, action)
+      XCTAssertFalse(FileManager.default.fileExists(atPath: f.started.path), action)
+      XCTAssertTrue(navigated.isEmpty, action)
+      XCTAssertNil(resources.worktreeForkPresentation.preparation, action)
+      XCTAssertEqual(store.library.drafts[f.source.id], "keep current draft")
+      XCTAssertTrue(resources.shutdown(force: true))
+      await store.shutdown()
+    }
+  }
+
+  func testLatestQueuedWindowWorktreeForkUsesItsRequestedSourceAndCallback() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    var other = f.source
+    other.id = UUID().uuidString; other.title = "Other requested source"
+    other.codexThreadID = UUID().uuidString
+    let otherRun = AgentRun(id: UUID().uuidString, kind: "chat", project: other.project,
+      status: "succeeded", createdAt: 1, updatedAt: 2, request: .null,
+      result: .object(["response": .string("other source reply"),
+        "codex_thread_id": .string(try XCTUnwrap(other.codexThreadID)),
+        "codex_turn_id": .string(UUID().uuidString)]))
+    other.runIDs = [otherRun.id]
+    store.library.chatRuns.append(otherRun)
+    store.library.notes[otherRun.id] = "other source prompt"
+    store.library.tasks.append(other)
+    let resources = TaskWindowResources()
+    resources.prepare(f.source.id, store: store); resources.display(f.source.id)
+    var navigated: [String] = []
+    resources.navigate = { navigated.append($0) }
+    try Data().write(to: f.release)
+    let first = try XCTUnwrap(resources.forkToNewWorktree(f.source.id, store: store))
+    resources.display(other.id)
+    let latest = try XCTUnwrap(resources.forkToNewWorktree(other.id, store: store))
+    await first.value; await latest.value
+    let children = store.library.tasks.filter { ![f.source.id, other.id].contains($0.id) }
+    XCTAssertEqual(children.count, 1)
+    XCTAssertEqual(children.first?.title, other.title)
+    XCTAssertEqual(children.first?.forkOrigin?.taskID, other.id)
+    XCTAssertEqual(children.first.map { store.library.chatContext(taskID: $0.id).map(\.content) },
+      ["other source prompt", "other source reply"])
+    let started = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: f.started))
+    XCTAssertEqual(started["forkOrigin"]["taskId"].text, other.id)
+    XCTAssertEqual(navigated, children.map(\.id))
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertNil(resources.worktreeForkPresentation.preparation)
+    XCTAssertTrue(resources.shutdown(force: true))
+    await store.shutdown()
+  }
+
+  func testActiveWindowWorktreeRequestRejectsAnotherActionWithoutReplacingItsCancellation() async throws {
+    let f = try await fixture(), store = f.store
+    try await prepareWorktreeRepository(f)
+    let resources = TaskWindowResources()
+    resources.prepare(f.source.id, store: store); resources.display(f.source.id)
+    let first = try XCTUnwrap(resources.forkToNewWorktree(f.source.id, store: store))
+    _ = try await waitUntilStarted(f)
+    let page = try XCTUnwrap(resources.worktreeForkPresentation.preparation)
+    XCTAssertNil(resources.forkToNewWorktree(f.source.id, store: store))
+    XCTAssertTrue(resources.worktreeForkPresentation.owns(page))
+    first.cancel()
+    await first.value
+    XCTAssertEqual(page.state, .cancelled)
+    XCTAssertEqual(store.library.managedWorktrees.count, 1)
+    XCTAssertNotNil(store.library.managedWorktrees.first?.pendingForkSourceTaskID)
+    XCTAssertEqual(store.selectedTask?.id, f.source.id)
+    XCTAssertTrue(resources.shutdown(force: true))
+    await store.shutdown()
+  }
+
   func testExplicitProjectNavigationLeavesCancelledFailedAndReadyPreparationPages() async throws {
     for state in [WorktreeForkPreparation.State.cancelled, .failed("fixture failure"), .ready] {
       let f = try await fixture(), store = f.store

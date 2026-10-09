@@ -71,7 +71,7 @@ struct TaskWindowSceneView: View {
     .onChange(of: route) { previous, current in
       resources.navigate = visit
       if previous?.taskID != current?.taskID {
-        resources.worktreeForkPresentation.dismiss()
+        resources.invalidateWorktreeForkNavigation()
         resources.display(nil)
       }
     }
@@ -140,7 +140,7 @@ struct TaskWindowSceneView: View {
 
   private func leaveForkPreparation() {
     let source = resources.worktreeForkPresentation.preparation?.sourceTaskID
-    resources.worktreeForkPresentation.dismiss()
+    resources.invalidateWorktreeForkNavigation()
     if resources.displayedTaskID == nil {
       if let source, availableTasks.contains(source) {
         route = TaskWindowRoute(taskID: source, dataRoot: store.dataRoot, windowID: resources.id)
@@ -196,7 +196,7 @@ struct TaskWindowSceneView: View {
   private func visit(_ taskID: String) {
     guard store.archiveConfirmation(inWindow: resources.id) == nil else { return }
     guard let route, navigation.visit(taskID, from: route.taskID, available: availableTasks) else { return }
-    resources.worktreeForkPresentation.dismiss()
+    resources.invalidateWorktreeForkNavigation()
     self.route = TaskWindowRoute(taskID: taskID, dataRoot: store.dataRoot, windowID: resources.id)
   }
 
@@ -207,6 +207,7 @@ struct TaskWindowSceneView: View {
     }
     guard let route,
       let next = navigation.move(backwards: backwards, current: route.taskID, available: availableTasks) else { return }
+    resources.invalidateWorktreeForkNavigation()
     self.route = TaskWindowRoute(taskID: next, dataRoot: store.dataRoot, windowID: resources.id)
   }
 }
