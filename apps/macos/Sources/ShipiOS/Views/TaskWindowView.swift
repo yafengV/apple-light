@@ -624,6 +624,7 @@ struct TaskWindowView: View {
       store.dictation.stop(target: taskID)
       store.dictationCarets[taskID] = nil
       tabs.endDrag()
+      tabs.browser.session.cancelRename()
       resources.captureLayouts()
       store.saveLibrary()
       store.discardPopoutTaskIfEmpty(taskID)

@@ -41,7 +41,9 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
   var address = ""
   var editingAddress = false
   private(set) var hasAddressInputDraft = false
-  private(set) var title = "新标签页"
+  private(set) var pageTitle = "新标签页"
+  private(set) var customTitle: String?
+  var title: String { customTitle ?? pageTitle }
   private(set) var loading = false
   private(set) var canGoBack = false
   private(set) var canGoForward = false
@@ -201,11 +203,20 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     address = committedURL?.absoluteString ?? ""
   }
   var canDiscardEmptyNewTab: Bool {
-    !closed && !hasAddressInputDraft && address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    !closed && customTitle == nil && !hasAddressInputDraft && address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && committedURL == nil && view.url == nil && !loading && !view.isLoading
       && !canGoBack && !canGoForward && view.pageZoom == 1
       && !agentOperationActive && !capturingSnapshot && !commenting && !siteToolExecuting
       && downloads.isEmpty && pendingDownloads.isEmpty
+  }
+  /// Navigation updates the default title; it never overwrites a user's label.
+  @discardableResult func setCustomTitle(_ value: String?) -> Bool {
+    guard !closed else { return false }
+    let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let normalized = trimmed?.isEmpty == false ? trimmed : nil
+    guard customTitle != normalized else { return false }
+    customTitle = normalized
+    return true
   }
   func close() {
     guard !closed else { return }
@@ -275,7 +286,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       else { return nil }
       let reference = BrowserElementReference(
         url: committedURL?.absoluteString ?? "",
-        pageTitle: title,
+        pageTitle: pageTitle,
         selector: String(selector.prefix(1_024)),
         tag: String(tag.prefix(80)),
         text: String((value["text"] as? String ?? "").prefix(500)),
@@ -535,7 +546,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       committedURL = view.url
       if !editingAddress, !hasAddressInputDraft, let url = view.url { address = url.absoluteString }
     }
-    title = view.title.flatMap { $0.isEmpty ? nil : $0 } ?? view.url?.host ?? "新标签页"
+    pageTitle = view.title.flatMap { $0.isEmpty ? nil : $0 } ?? view.url?.host ?? "新标签页"
   }
   private func recordVisit() {
     guard !closed, !loading, error == nil, let url = committedURL else { return }
@@ -543,7 +554,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     // Fragment navigation keeps the same document and its original history key.
     // Title notifications must update that visit without inserting a new one.
     if newVisit { recordedVisitURL = url }
-    didVisit?(recordedVisitURL ?? url, title, newVisit)
+    didVisit?(recordedVisitURL ?? url, pageTitle, newVisit)
   }
   func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
     guard !closed else { return }

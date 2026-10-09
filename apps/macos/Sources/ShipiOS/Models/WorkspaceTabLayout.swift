@@ -29,6 +29,7 @@ struct SavedWorkspaceTab: Codable, Equatable {
   var watchTaskID: String? = nil
   /// Presence is independent of its text: typing and clearing still leaves a draft.
   var addressInputDraftPresent: Bool? = nil
+  var browserCustomTitle: String? = nil
 }
 
 struct WorkspaceTabLayout: Codable, Equatable {

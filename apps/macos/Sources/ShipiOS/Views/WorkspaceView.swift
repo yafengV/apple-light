@@ -48,7 +48,8 @@ struct WorkspaceView: View {
     .onChange(of: store.restoredDetachedWorkspaceTabIDs) { _, ids in
       for route in store.takePendingDetachedWindowRoutes() { openWindow(value: route) }
     }
-    .onDisappear { store.endWorkspaceTabDrag() }
+    .onDisappear { store.endWorkspaceTabDrag(); store.workspace.browser.cancelRename() }
+    .onChange(of: store.currentWorkspaceTabOwner) { _, _ in store.workspace.browser.cancelRename() }
     .disabled(store.renameTaskID != nil)
     .accessibilityHidden(store.renameTaskID != nil)
     .overlay {

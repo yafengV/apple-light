@@ -170,4 +170,5 @@ struct PinnedWorkspaceTab: Codable, Equatable, Identifiable {
   var fileRoot: String? = nil
   var watchAutomationID: UUID? = nil
   var watchTaskID: String? = nil
+  var browserCustomTitle: String? = nil
 }

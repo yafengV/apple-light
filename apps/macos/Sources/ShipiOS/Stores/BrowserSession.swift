@@ -7,21 +7,32 @@ enum BrowserTabCloseReason {
   var recordsUndo: Bool { if case .user = self { return true }; return false }
 }
 
+/// Retains the exact page instance, rather than trusting a reusable tab ID.
+@MainActor struct BrowserTabRenameRequest: Identifiable {
+  let id = UUID()
+  let tab: BrowserTab
+  let initialTitle: String
+  let defaultTitle: String
+}
+
 @MainActor @Observable
 final class BrowserSession {
   private struct ClosedTabState {
     let id: UUID
     let address: String
     let shouldNavigate: Bool
+    let customTitle: String?
   }
   private(set) var tabs: [BrowserTab] = []
   private var closedTabs: [ClosedTabState] = []
   private(set) var selection: UUID?
+  private(set) var renameRequest: BrowserTabRenameRequest?
   var addressFocus = UUID()
   var addressFocusTarget: UUID?
   var contentFocus = UUID()
   var contentFocusTarget: UUID?
   @ObservationIgnored weak var addressField: NSTextField?
+  @ObservationIgnored weak var titleField: NSTextField?
   @ObservationIgnored var onEmpty: (() -> Void)?
   @ObservationIgnored var createChildTab: ((UUID, WKWebViewConfiguration?) -> BrowserTab?)?
   @ObservationIgnored var onTabOpened: ((UUID) -> Void)?
@@ -32,6 +43,7 @@ final class BrowserSession {
   /// Content-tab owners choose the fallback within the closing tab's own pane.
   @ObservationIgnored var selectsAdjacentTabOnClose = true
   @ObservationIgnored var onVisit: ((URL, String, Bool) -> Void)?
+  @ObservationIgnored var onTabRenamed: ((UUID) -> Void)?
   @ObservationIgnored var chooseDownloadDestination:
     ((URL, String, @escaping (BrowserDownloadDestination) -> Void) -> Void)?
   @ObservationIgnored var onDownloadEvent: ((BrowserDownloadEvent) -> Void)?
@@ -98,6 +110,23 @@ final class BrowserSession {
     return configuration
   }
   func ensureTab() { if tabs.isEmpty { newTab() } }
+  @discardableResult func beginRename(_ id: UUID) -> Bool {
+    guard renameRequest == nil, let tab = tabs.first(where: { $0.id == id && !$0.closed }) else { return false }
+    renameRequest = BrowserTabRenameRequest(tab: tab,
+      initialTitle: tab.customTitle ?? "", defaultTitle: tab.pageTitle)
+    return true
+  }
+  @discardableResult func saveRename(_ request: BrowserTabRenameRequest, title: String) -> Bool {
+    guard renameRequest?.id == request.id, !request.tab.closed,
+      tabs.contains(where: { $0 === request.tab }) else { return false }
+    if request.tab.setCustomTitle(title) { onTabRenamed?(request.tab.id) }
+    return true
+  }
+  func endRename(_ request: BrowserTabRenameRequest) {
+    guard renameRequest?.id == request.id else { return }
+    renameRequest = nil
+  }
+  func cancelRename() { renameRequest = nil }
   func select(_ id: UUID, focus: Bool = true) {
     guard tabs.contains(where: { $0.id == id }) else { return }
     selection = id
@@ -119,11 +148,12 @@ final class BrowserSession {
   func close(_ id: UUID, reason: BrowserTabCloseReason = .user) {
     guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
     let tab = tabs.remove(at: index)
+    if renameRequest?.tab === tab { renameRequest = nil }
     if reason.recordsUndo {
       closedTabs.append(ClosedTabState(
         id: tab.id,
         address: tab.committedURL?.absoluteString ?? tab.address,
-        shouldNavigate: tab.committedURL != nil))
+        shouldNavigate: tab.committedURL != nil, customTitle: tab.customTitle))
       if closedTabs.count > 20 { closedTabs.removeFirst(closedTabs.count - 20) }
     }
     tab.close()
@@ -146,6 +176,7 @@ final class BrowserSession {
     guard let index else { return nil }
     let state = closedTabs.remove(at: index)
     let tab = newTab()
+    tab.setCustomTitle(state.customTitle)
     tab.address = state.address
     if state.shouldNavigate { tab.navigate() }
     return tab
@@ -225,6 +256,9 @@ final class BrowserSession {
     return false
   }
   func hasEditableFocus(tabID: UUID?, in window: NSWindow? = NSApp?.keyWindow) -> Bool {
+    if renameRequest != nil, let window, let responder = window.firstResponder,
+      let field = titleField, field.window === window,
+      responder === field || responder === field.currentEditor() { return true }
     guard let tabID, let tab = tabs.first(where: { $0.id == tabID }),
       let window, tab.view.window === window,
       let responder = window.firstResponder else { return false }
@@ -241,6 +275,7 @@ final class BrowserSession {
     pasteboard.clearContents(); pasteboard.setString(url.absoluteString, forType: .string)
   }
   func shutdown() {
+    cancelRename()
     linkDownloadWorker?.close(); linkDownloadWorker = nil
     tabs.forEach { $0.close() }; tabs = []; selection = nil
     addressFocusTarget = nil; contentFocusTarget = nil

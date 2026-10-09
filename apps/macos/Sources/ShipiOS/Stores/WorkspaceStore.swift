@@ -638,6 +638,7 @@ final class WorkspaceStore {
     workspace.browser.onVisit = { [weak self] url, title, newVisit in
       self?.recordBrowserVisit(url, title: title, newVisit: newVisit)
     }
+    workspace.browser.onTabRenamed = { [weak self] id in self?.workspaceBrowserRenamed(id) }
     workspace.browser.chooseDownloadDestination = { [weak self] source, filename, completion in
       self?.chooseBrowserDownloadDestination(source: source, filename: filename, completion: completion)
         ?? completion(.cancel)
@@ -1150,6 +1151,7 @@ final class WorkspaceStore {
   }
 
   func applyTaskSelection(_ task: WorkspaceTask) {
+    workspace.browser.cancelRename()
     captureWorkspaceTabLayout()
     workspaceLayoutActiveOwner = nil
     destination = .workspace

@@ -568,7 +568,8 @@ import WebKit
         fileRoot: tab.kind == .file ? panels.workspace.root?.path : nil,
         terminalSplitFraction: splitFraction,
         watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID,
-        addressInputDraftPresent: page?.savedAddressInputDraftPresent)
+        addressInputDraftPresent: page?.savedAddressInputDraftPresent,
+        browserCustomTitle: page?.customTitle)
     }
     return TaskWindowTabLayout(project: panels.workspace.root?.path,
       content: WorkspaceTabLayout(tabs: saved, active: selections[.left], right: selections[.right],
@@ -592,6 +593,7 @@ import WebKit
       case .browser:
         guard entry.id.hasPrefix("browser:"), let id = UUID(uuidString: String(entry.id.dropFirst(8))) else { continue }
         let page = browser.session.newTab(activate: false, id: id)
+        page.setCustomTitle(entry.browserCustomTitle)
         if let raw = entry.committedURL, let url = URL(string: raw), BrowserAddress.permits(url) {
           page.address = raw
           page.navigate()

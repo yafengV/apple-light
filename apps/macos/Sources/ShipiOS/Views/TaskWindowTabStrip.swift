@@ -70,21 +70,27 @@ private struct TaskWindowTabChip: View {
   let resources: TaskWindowResources
   @Bindable var tabs: TaskWindowTabs
   let tab: WorkspaceContentTab
+  @FocusState private var titleFocused: Bool
   @State private var width: CGFloat = 0
   @State private var targeted = false
   var body: some View {
     HStack(spacing: 5) {
-      Button { tabs.activate(tab.id) } label: {
-        Label(tabs.title(tab), systemImage: tab.icon).lineLimit(1).frame(maxWidth: 150)
-      }.buttonStyle(.plain).help(tabs.title(tab)).accessibilityLabel("内容标签：\(tabs.title(tab))")
-        .overlay {
-          ContentTabDragSource(title: tabs.title(tab), token: tabs.dragToken(tab.id),
-            select: { tabs.activate(tab.id) },
-            doubleClick: { tabs.toggleTabLayout(tab.id) },
-            begin: { tabs.beginDrag(tab.id); return tabs.dragSessionID },
-            end: { tabs.endDrag(session: $0) })
-            .accessibilityHidden(true)
-        }
+      if let request = tabs.browser.session.renameRequest, request.tab.id == tab.browserID {
+        BrowserTabTitleEditor(session: tabs.browser.session, request: request, onFinish: { titleFocused = true })
+          .id(request.id).frame(width: 130, height: 22)
+      } else {
+        Button { tabs.activate(tab.id) } label: {
+          Label(tabs.title(tab), systemImage: tab.icon).lineLimit(1).frame(maxWidth: 150)
+        }.buttonStyle(.plain).focused($titleFocused).help(tabs.title(tab)).accessibilityLabel("内容标签：\(tabs.title(tab))")
+          .overlay {
+            ContentTabDragSource(title: tabs.title(tab), token: tabs.dragToken(tab.id),
+              select: { tabs.activate(tab.id) },
+              doubleClick: { tabs.toggleTabLayout(tab.id) },
+              begin: { tabs.beginDrag(tab.id); return tabs.dragSessionID },
+              end: { tabs.endDrag(session: $0) })
+              .accessibilityHidden(true)
+          }
+      }
       Button { tabs.close(tab.id) } label: { Image(systemName: "xmark").appFont(size: 9) }
         .buttonStyle(.plain).accessibilityLabel("关闭标签：\(tabs.title(tab))")
     }
@@ -110,6 +116,10 @@ private struct TaskWindowTabChip: View {
       return tabs.reorder(source, relativeTo: tab.id, after: location.x > width / 2)
     } isTargeted: { targeted = $0 }
     .contextMenu {
+      if let id = tab.browserID {
+        Button("重命名") { tabs.browser.session.beginRename(id) }
+        Divider()
+      }
       Button(store.isWorkspaceTabPinned(tab.id, windowID: resources.id) ? "从侧栏取消固定" : "固定到侧栏") {
         if store.isWorkspaceTabPinned(tab.id, windowID: resources.id) {
           store.unpinWorkspaceTab(tab.id, windowID: resources.id)

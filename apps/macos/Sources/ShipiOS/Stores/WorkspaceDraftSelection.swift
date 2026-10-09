@@ -40,6 +40,7 @@ extension WorkspaceStore {
     guard identity.projectKey == (project == nil ? "" : currentDraftProjectKey),
       draftContentTargetAvailable(revealingContentTabID, owner: identity.owner),
       library.primaryFolder(for: identity.projectKey) == currentProjectKey else { return false }
+    workspace.browser.cancelRename()
     captureWorkspaceTabLayout()
     workspaceLayoutActiveOwner = nil
     if recordHistory { recordNavigation() }

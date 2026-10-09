@@ -24,7 +24,8 @@ extension WorkspaceStore {
       fileRoot: tab.kind == .file ? workspaceFileTabRoot(tab)?.path : nil,
       terminalSplitFraction: splitFraction,
       watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID,
-      addressInputDraftPresent: browser?.savedAddressInputDraftPresent)
+      addressInputDraftPresent: browser?.savedAddressInputDraftPresent,
+      browserCustomTitle: browser?.customTitle)
   }
 
   func captureWorkspaceTabLayout() {
@@ -105,6 +106,7 @@ extension WorkspaceStore {
       reopeningWorkspaceTabOwner = owner
       let browser = workspace.browser.newTab(activate: false, id: id)
       reopeningWorkspaceTabOwner = nil
+      browser.setCustomTitle(saved.browserCustomTitle)
       if let raw = saved.committedURL, let url = URL(string: raw), BrowserAddress.permits(url) {
         browser.address = raw
         browser.navigate()

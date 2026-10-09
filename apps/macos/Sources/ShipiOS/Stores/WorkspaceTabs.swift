@@ -108,7 +108,8 @@ extension WorkspaceStore {
       reference = PinnedWorkspaceTab(
         id: UUID().uuidString, sourceTabID: tab.id, owner: owner, kind: .browser,
         title: browser?.title ?? "浏览器",
-        restoreURL: browser?.committedURL?.absoluteString ?? browser?.address)
+        restoreURL: browser?.committedURL?.absoluteString ?? browser?.address,
+        browserCustomTitle: browser?.customTitle)
     case .file(let path, let owner):
       reference = PinnedWorkspaceTab(id: UUID().uuidString, sourceTabID: tab.id,
         owner: owner, kind: .file, title: workspaceTabTitle(tab), restoreURL: path,
@@ -222,6 +223,7 @@ extension WorkspaceStore {
     switch pin.kind {
     case .browser:
       let browser = workspace.browser.newTab()
+      browser.setCustomTitle(pin.browserCustomTitle)
       if let value = pin.restoreURL, !value.isEmpty {
         browser.address = value
         browser.navigate()

@@ -1,0 +1,369 @@
+{
+  "version": "26.930.51102",
+  "build": 13100,
+  "sourceSHA256": "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+  "localeSHA256": "c6ac10a9fb407a393ea002d9aa818a4c7ed0e215e9c8bf0cfe2b798a98e3756f",
+  "boundary": "Actual IJr inline editor callbacks; Lis pinned-sidebar guarded dialog save; kCa discard and LCa route with mocked host/address helper. Sidebar modal is distinct from tab-strip inline editing. No foreground, geometry or complete browser-menu evidence.",
+  "messages": {
+    "Title": "重命名标签页",
+    "Subtitle": "留空即可使用默认标题",
+    "Placeholder": "{title}",
+    "AriaLabel": "标签页标题"
+  },
+  "inlineCases": [
+    {
+      "oldTitle": null,
+      "input": "",
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": "  ",
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": " 工作页\n",
+      "writes": [
+        "工作页"
+      ]
+    },
+    {
+      "oldTitle": null,
+      "input": "  新名称  ",
+      "writes": [
+        "新名称"
+      ]
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "",
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "  ",
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "工作页",
+      "input": " 工作页\n",
+      "writes": []
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "  新名称  ",
+      "writes": [
+        "新名称"
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "",
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "  ",
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": " 工作页\n",
+      "writes": [
+        "工作页"
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "  新名称  ",
+      "writes": [
+        "新名称"
+      ]
+    }
+  ],
+  "inlineKeys": [
+    {
+      "key": "Enter",
+      "composing": false,
+      "writes": [
+        "Changed"
+      ],
+      "finished": 1,
+      "prevented": true,
+      "blurred": true,
+      "cancelled": false
+    },
+    {
+      "key": "Enter",
+      "composing": true,
+      "writes": [],
+      "finished": 0,
+      "prevented": false,
+      "blurred": false,
+      "cancelled": false
+    },
+    {
+      "key": "Escape",
+      "composing": false,
+      "writes": [],
+      "finished": 1,
+      "prevented": true,
+      "blurred": false,
+      "cancelled": true
+    },
+    {
+      "key": "Escape",
+      "composing": true,
+      "writes": [],
+      "finished": 0,
+      "prevented": false,
+      "blurred": false,
+      "cancelled": false
+    },
+    {
+      "key": "Tab",
+      "composing": false,
+      "writes": [],
+      "finished": 0,
+      "prevented": false,
+      "blurred": false,
+      "cancelled": false
+    },
+    {
+      "key": "Tab",
+      "composing": true,
+      "writes": [],
+      "finished": 0,
+      "prevented": false,
+      "blurred": false,
+      "cancelled": false
+    }
+  ],
+  "cases": [
+    {
+      "oldTitle": null,
+      "input": "",
+      "current": true,
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": "",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": "  ",
+      "current": true,
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": "  ",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": " 工作页\n",
+      "current": true,
+      "writes": [
+        "工作页"
+      ]
+    },
+    {
+      "oldTitle": null,
+      "input": " 工作页\n",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": null,
+      "input": "  新名称  ",
+      "current": true,
+      "writes": [
+        "新名称"
+      ]
+    },
+    {
+      "oldTitle": null,
+      "input": "  新名称  ",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "",
+      "current": true,
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "  ",
+      "current": true,
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "  ",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "工作页",
+      "input": " 工作页\n",
+      "current": true,
+      "writes": []
+    },
+    {
+      "oldTitle": "工作页",
+      "input": " 工作页\n",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "  新名称  ",
+      "current": true,
+      "writes": [
+        "新名称"
+      ]
+    },
+    {
+      "oldTitle": "工作页",
+      "input": "  新名称  ",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "",
+      "current": true,
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "  ",
+      "current": true,
+      "writes": [
+        null
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "  ",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": " 工作页\n",
+      "current": true,
+      "writes": [
+        "工作页"
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": " 工作页\n",
+      "current": false,
+      "writes": []
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "  新名称  ",
+      "current": true,
+      "writes": [
+        "新名称"
+      ]
+    },
+    {
+      "oldTitle": "  old  ",
+      "input": "  新名称  ",
+      "current": false,
+      "writes": []
+    }
+  ],
+  "discard": [
+    {
+      "customTitle": null,
+      "empty": true,
+      "disposable": true
+    },
+    {
+      "customTitle": null,
+      "empty": false,
+      "disposable": false
+    },
+    {
+      "customTitle": "工作页",
+      "empty": true,
+      "disposable": false
+    },
+    {
+      "customTitle": "工作页",
+      "empty": false,
+      "disposable": false
+    }
+  ],
+  "routes": [
+    {
+      "browserConversationId": "conversation",
+      "browserStorageId": "storage",
+      "browserTabId": "browser",
+      "deviceToolbarState": null,
+      "restoreUrl": ""
+    },
+    {
+      "browserConversationId": "conversation",
+      "browserStorageId": "storage",
+      "browserTabId": "browser",
+      "deviceToolbarState": null,
+      "restoreUrl": "https://example.invalid/page"
+    },
+    {
+      "browserConversationId": "conversation",
+      "browserStorageId": "storage",
+      "browserTabId": "browser",
+      "customTitle": "工作页",
+      "deviceToolbarState": null,
+      "restoreUrl": ""
+    },
+    {
+      "browserConversationId": "conversation",
+      "browserStorageId": "storage",
+      "browserTabId": "browser",
+      "customTitle": "工作页",
+      "deviceToolbarState": null,
+      "restoreUrl": "https://example.invalid/page"
+    }
+  ]
+}

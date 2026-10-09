@@ -94,6 +94,10 @@ import Observation
         store?.recordBrowserVisit(url, title: title, newVisit: newVisit)
         self?.capturePins()
       }
+      tasks[taskID]?.browser.session.onTabRenamed = { [weak self, weak store] _ in
+        self?.capturePins()
+        store?.saveLibrary()
+      }
       if store.libraryLoaded, let layout = store.library.taskWindowTabLayouts[id]?[taskID] {
         if !store.automationsLoaded, layout.content.tabs.contains(where: { $0.kind == .pullRequestWatch }) {
           deferredLayouts[taskID] = layout
@@ -171,7 +175,8 @@ import Observation
       kind: tab.kind, title: tabs.title(tab),
       restoreURL: filePath ?? tab.pullRequestURL ?? browser?.committedURL?.absoluteString ?? browser?.address,
       sourceWindowID: id, fileRoot: tab.kind == .file ? tabs.panels.workspace.root?.path : nil,
-      watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID)
+      watchAutomationID: tab.watchAutomationID, watchTaskID: tab.watchTaskID,
+      browserCustomTitle: browser?.customTitle)
   }
   func capturePins() {
     guard let store else { return }

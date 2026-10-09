@@ -83,25 +83,31 @@ private struct WorkspaceContentTabChip: View {
   @Bindable var store: WorkspaceStore
   let tab: WorkspaceContentTab
   let placement: WorkspaceTabPlacement
+  @FocusState private var titleFocused: Bool
   @State private var chipWidth: CGFloat = 0
   @State private var dropTargeted = false
 
   var body: some View {
     HStack(spacing: 5) {
-      Button { store.activateWorkspaceTab(tab.id) } label: {
-        HStack(spacing: 6) {
-          Image(systemName: tab.icon)
-          Text(store.workspaceTabTitle(tab)).lineLimit(1).frame(maxWidth: 150)
-        }
-      }.buttonStyle(.plain).help(store.workspaceTabTitle(tab))
-        .overlay {
-          ContentTabDragSource(title: store.workspaceTabTitle(tab), token: WorkspaceTabDragToken.encode(tab.id),
-            select: { store.activateWorkspaceTab(tab.id) },
-            doubleClick: { store.toggleWorkspaceTabLayout(tab.id) },
-            begin: { store.beginWorkspaceTabDrag(tab.id); return store.workspaceTabDragSessionID },
-            end: { store.endWorkspaceTabDrag(session: $0) })
-            .accessibilityHidden(true)
-        }
+      if let request = store.workspace.browser.renameRequest, request.tab.id == tab.browserID {
+        BrowserTabTitleEditor(session: store.workspace.browser, request: request, onFinish: { titleFocused = true })
+          .id(request.id).frame(width: 130, height: 22)
+      } else {
+        Button { store.activateWorkspaceTab(tab.id) } label: {
+          HStack(spacing: 6) {
+            Image(systemName: tab.icon)
+            Text(store.workspaceTabTitle(tab)).lineLimit(1).frame(maxWidth: 150)
+          }
+        }.buttonStyle(.plain).focused($titleFocused).help(store.workspaceTabTitle(tab))
+          .overlay {
+            ContentTabDragSource(title: store.workspaceTabTitle(tab), token: WorkspaceTabDragToken.encode(tab.id),
+              select: { store.activateWorkspaceTab(tab.id) },
+              doubleClick: { store.toggleWorkspaceTabLayout(tab.id) },
+              begin: { store.beginWorkspaceTabDrag(tab.id); return store.workspaceTabDragSessionID },
+              end: { store.endWorkspaceTabDrag(session: $0) })
+              .accessibilityHidden(true)
+          }
+      }
       Button { store.closeWorkspaceTab(tab.id) } label: {
         Image(systemName: "xmark").appFont(size: 9)
       }
@@ -140,6 +146,10 @@ private struct WorkspaceContentTabChip: View {
       dropTargeted = targeted
     }
     .contextMenu {
+      if tab.browserID != nil {
+        Button("重命名") { store.beginWorkspaceBrowserRename(tab.id) }
+        Divider()
+      }
       Button(store.isWorkspaceTabPinned(tab.id) ? "从侧栏取消固定" : "固定到侧栏") {
         if store.isWorkspaceTabPinned(tab.id) { store.unpinWorkspaceTab(tab.id) }
         else { store.pinWorkspaceTab(tab.id) }
