@@ -56,6 +56,12 @@ import XCTest
     for _ in 0..<3 {
       try send(.keyDown, code: 48, text: "\t", to: window); try await settle(host)
     }
+    // A failed Tab handoff must fail the test before opening a native menu's
+    // synchronous tracking loop. Keep the value and persistence checks below.
+    guard window.firstResponder != nil, !(window.firstResponder is SettingsMenuControl) else {
+      XCTFail("Tab did not leave the language menu before screen-context activation")
+      return
+    }
     try send(.keyDown, code: 49, text: " ", to: window); try await settle(host)
     XCTAssertFalse(store.voicePreferences.screenContextEnabled)
     try send(.keyUp, code: 49, text: " ", to: window); try await settle(host)
@@ -83,6 +89,11 @@ import XCTest
     for cancel in [false, true] {
       XCTAssertTrue(window.makeFirstResponder(language))
       for _ in 0..<2 { try send(.keyDown, code: 48, text: "\t", to: window); try await settle(host) }
+      guard let action = window.firstResponder as? VoiceShortcutActionButton.Control,
+        action.kind == .edit else {
+        XCTFail("Tab did not reach the hotkey edit action before Return activation")
+        return
+      }
       try send(.keyDown, code: 36, text: "\r", to: window); try await settle(host)
       let capture = try XCTUnwrap(descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
       // Inactive hidden windows intentionally do not auto-focus new captures.
