@@ -108,7 +108,7 @@ extension WorkspaceStore {
   ) async -> WorkspaceTask? {
     if let taskID, selectedTask?.id != taskID { return nil }
     guard canForkConversation(through: runID), let task = selectedTask else {
-      error = "当前任务还没有可分叉的已结束回合。"
+      error = "当前聊天暂时无法创建分支，请等待操作结束或恢复工作树后重试。"
       return nil
     }
     do {

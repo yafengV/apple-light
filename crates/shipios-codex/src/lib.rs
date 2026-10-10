@@ -590,6 +590,7 @@ enum SessionHistory {
     New,
     Resume(PathBuf),
     Fork(Vec<codex_history::RolloutItem>),
+    ForkInitial(ThreadId),
 }
 
 fn session_workspace_roots(
@@ -684,8 +685,16 @@ impl CodexSession {
         options: SessionOptions,
         rollout_path: PathBuf,
         source_thread_id: String,
-        through_turn_id: String,
+        through_turn_id: Option<String>,
     ) -> Result<Self> {
+        if through_turn_id.is_none() {
+            // An unstarted native thread may not have a rollout file yet. Its private
+            // saved identity is validated by the host before requesting this boundary.
+            // Core's resumed-history form preserves lineage even with zero items.
+            let source = ThreadId::from_string(&source_thread_id)?;
+            return Self::open(options, SessionHistory::ForkInitial(source), false).await;
+        }
+        let through_turn_id = through_turn_id.expect("completed boundary checked");
         let history = tokio::task::spawn_blocking(move || {
             fork_prefix(&rollout_path, &source_thread_id, &through_turn_id)
         })
@@ -873,6 +882,8 @@ impl CodexSession {
         });
         #[cfg(test)]
         let test_config = config.clone();
+        let durable_start = !text_only
+            && matches!(&history, SessionHistory::New | SessionHistory::ForkInitial(_));
         let NewThread {
             thread_id, thread, ..
         } = match history {
@@ -896,6 +907,19 @@ impl CodexSession {
                     )
                     .await?
             }
+            SessionHistory::ForkInitial(source) => {
+                manager
+                    .fork_thread_from_history(
+                        usize::MAX,
+                        StartThreadOptions::new(config),
+                        InitialHistory::Resumed(codex_history::ResumedHistory {
+                            conversation_id: source,
+                            history: Arc::new(Vec::new()),
+                            rollout_path: None,
+                        }),
+                    )
+                    .await?
+            }
             SessionHistory::New => {
                 let mut start = StartThreadOptions::new(config);
                 if text_only {
@@ -910,6 +934,13 @@ impl CodexSession {
                 manager.start_thread(start).await?
             }
         };
+        if durable_start {
+            thread.ensure_rollout_materialized().await;
+            if let Err(error) = thread.flush_rollout().await {
+                let _ = thread.shutdown_and_wait().await;
+                return Err(error).context("persist native thread before acknowledgement");
+            }
+        }
         Ok(Self {
             manager,
             thread_store,

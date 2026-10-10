@@ -72,7 +72,8 @@ pub struct ForkThreadOrigin {
     pub task_id: String,
     pub workspace: PathBuf,
     pub thread_id: String,
-    pub through_turn_id: String,
+    /// None denotes the immutable boundary before the source's first turn.
+    pub through_turn_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -396,10 +397,12 @@ impl CodexBridge {
             source_id != target,
             "a task cannot fork itself into the same identity"
         );
-        ensure!(
-            !origin.through_turn_id.is_empty() && origin.through_turn_id.len() <= 128,
-            "invalid fork turn ID"
-        );
+        if let Some(turn) = &origin.through_turn_id {
+            ensure!(
+                !turn.is_empty() && turn.len() <= 128,
+                "invalid fork turn ID"
+            );
+        }
         let (_, saved) = self.history_source(&source_id, &origin.workspace, &origin.thread_id)?;
         Ok(saved)
     }
@@ -800,8 +803,7 @@ impl CodexBridge {
         let handle = handles
             .get_mut(&key)
             .context("Codex thread is not active")?;
-        // Ordinary new threads write their first rollout asynchronously. They have
-        // no creation checkpoint to consume and must not wait for that file here.
+        // Ordinary threads have no creation checkpoint to consume.
         if !handle.fork_checkpoint_pending {
             return Ok(());
         }
@@ -1809,7 +1811,7 @@ mod tests {
             task_id: task_id.clone(),
             workspace: source,
             thread_id: saved.thread_id.clone(),
-            through_turn_id: "turn".to_owned(),
+            through_turn_id: Some("turn".to_owned()),
         };
         let child = Uuid::new_v4().to_string();
         assert_eq!(
@@ -1858,7 +1860,7 @@ mod tests {
             workspace: alias,
             task_id: task_id.clone(),
             thread_id: saved.thread_id.clone(),
-            through_turn_id: "turn".to_owned(),
+            through_turn_id: Some("turn".to_owned()),
         };
         assert_eq!(
             bridge.fork_source(&alias_origin, &child)?.thread_id,
@@ -1877,7 +1879,7 @@ mod tests {
             workspace: temp.path().join("NeverOwnedWorkspace"),
             task_id: task_id.clone(),
             thread_id: saved.thread_id.clone(),
-            through_turn_id: "turn".to_owned(),
+            through_turn_id: Some("turn".to_owned()),
         };
         assert!(bridge.fork_source(&unowned, &child).is_err());
         let standalone = CodexBridge::new(temp.path().join("Standalone"), bridge.project.clone());
@@ -2432,7 +2434,7 @@ mod tests {
             task_id: task_id.clone(),
             workspace: bridge.project.clone(),
             thread_id: thread.thread_id.clone(),
-            through_turn_id: turn_id.clone(),
+            through_turn_id: Some(turn_id.clone()),
         };
         let fork_request = |fork_origin| StartThread {
             task_id: child_id.clone(),
@@ -2461,7 +2463,7 @@ mod tests {
             pause_automation_id: None,
         };
         let mut missing_turn = origin();
-        missing_turn.through_turn_id = "missing-turn".to_owned();
+        missing_turn.through_turn_id = Some("missing-turn".to_owned());
         assert!(bridge.start(fork_request(missing_turn)).await.is_err());
         let mut wrong_thread = origin();
         wrong_thread.thread_id = Uuid::new_v4().to_string();
@@ -2481,7 +2483,7 @@ mod tests {
         let requests_before_recovery = server.received_requests().await.unwrap().len();
         bridge.stop(&child_id).await?;
         let mut changed_boundary = origin();
-        changed_boundary.through_turn_id = Uuid::new_v4().to_string();
+        changed_boundary.through_turn_id = Some(Uuid::new_v4().to_string());
         assert!(bridge.start(fork_request(changed_boundary)).await.is_err());
         let mut changed_source = origin();
         changed_source.thread_id = Uuid::new_v4().to_string();

@@ -2,18 +2,19 @@ import Foundation
 
 struct ConversationForkOrigin: Codable, Equatable {
   let taskID: String
-  let runID: String
+  let runID: String?
 }
 
 struct CodexForkOrigin: Codable, Equatable {
   let taskID: String
   let workspace: String
   let threadID: String
-  let throughTurnID: String
+  /// nil is an explicit snapshot before the source's first turn.
+  let throughTurnID: String?
 
   var wireValue: JSONValue {
     .object(["taskId": .string(taskID), "workspace": .string(workspace),
-      "threadId": .string(threadID), "throughTurnId": .string(throughTurnID)])
+      "threadId": .string(threadID), "throughTurnId": throughTurnID.map(JSONValue.string) ?? .null])
   }
 }
 
@@ -49,8 +50,11 @@ extension WorkspaceLibrary {
     var fork = WorkspaceTask(
       id: UUID().uuidString, project: source.project,
       title: source.title, runIDs: snapshots.map(\.id),
-      forkOrigin: ConversationForkOrigin(taskID: source.id, runID: ids.last!), modelSelection: source.modelSelection, createdAt: now, updatedAt: now)
-    if let lastChat = history.last(where: { $0.kind == "chat" }),
+      forkOrigin: ConversationForkOrigin(taskID: source.id, runID: ids.last), modelSelection: source.modelSelection, createdAt: now, updatedAt: now)
+    if history.isEmpty, let threadID = source.codexThreadID, let workspace = source.codexWorkspacePath {
+      fork.codexForkOrigin = CodexForkOrigin(taskID: source.id, workspace: workspace,
+        threadID: threadID, throughTurnID: nil)
+    } else if let lastChat = history.last(where: { $0.kind == "chat" }),
       let throughTurnID = lastChat.result?["codex_turn_id"].text,
       let threadID = lastChat.result?["codex_thread_id"].text,
       (source.codexThreadID == threadID || source.codexForkOrigin != nil),
@@ -96,7 +100,8 @@ extension WorkspaceLibrary {
       } ?? source.runIDs.count
     }
     let ids = Array(source.runIDs.prefix(end))
-    guard !ids.isEmpty else { throw AgentFailure(message: "至少需要一个已结束的回合才能分叉。") }
+    // A blank chat, or the prefix before its first active turn, has valid empty history.
+    // Missing persisted runs still take the complete-prefix validation below.
     let available = Dictionary(availableRuns.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     var historyProjects: Set<String> = [source.project]
     if let checkout = managedWorktree(forTaskID: taskID),

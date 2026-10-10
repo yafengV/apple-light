@@ -85,7 +85,7 @@ import XCTest
     XCTAssertFalse(store.canForkTaskWindow("source"))
     XCTAssertFalse(store.canForkTaskWindow("source", through: "middle"))
     XCTAssertTrue(store.canForkTaskWindow("source", through: "first"))
-    XCTAssertFalse(store.canForkTaskWindow("main"))
+    XCTAssertTrue(store.canForkTaskWindow("main"), "An empty chat has an initial fork boundary")
     do { _ = try await store.forkTaskWindowConversation("missing"); XCTFail("Expected fork failure") } catch {}
     do { _ = try await store.forkTaskWindowConversation("source", through: "missing"); XCTFail("Expected fork failure") } catch {}
     await store.shutdown()

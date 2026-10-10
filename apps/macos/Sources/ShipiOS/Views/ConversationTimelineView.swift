@@ -50,7 +50,7 @@ struct ConversationTimelineView: View {
           {
             Button {
               store.selectTask(source)
-              store.selection = origin.runID
+              if let runID = origin.runID { store.selection = runID }
             } label: {
               Label("分叉自 \(source.title)", systemImage: "arrow.triangle.branch")
                 .lineLimit(2)

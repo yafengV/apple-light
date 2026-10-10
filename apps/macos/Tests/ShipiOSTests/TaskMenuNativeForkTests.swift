@@ -887,7 +887,7 @@ import XCTest
 
   func testUnavailableSlashCommandReportsReasonWithoutClearingDraftOrSendingToModel() async throws {
     let f = try await fixture(), store = f.store
-    store.library.tasks[0].runIDs = []
+    store.library.tasks[0].runIDs = ["missing-history"]
     store.draft = "/fork"
     XCTAssertTrue(store.handleComposerCommand())
     XCTAssertNotNil(store.error)
@@ -896,6 +896,35 @@ import XCTest
     XCTAssertNil(store.taskMenuForkingID)
     XCTAssertFalse(FileManager.default.fileExists(atPath: f.started.path))
     await store.shutdown()
+  }
+
+  func testBlankAndFirstActiveMenuForksUseInitialNativeBoundaryAndKeepSourceInput() async throws {
+    for running in [false, true] {
+      let f = try await fixture(), store = f.store
+      var source = f.source
+      let active = AgentRun(id: UUID().uuidString, kind: "chat", project: source.project,
+        status: "running", createdAt: 3, updatedAt: 3, request: .null, result: nil)
+      source.runIDs = running ? [active.id] : []
+      store.library.tasks[0] = source
+      if running { store.library.chatRuns.append(active); store.runs.append(active) }
+      store.selectTask(source); store.draft = "keep initial source input"
+      XCTAssertTrue(store.canForkTaskFromMenu(source.id))
+      let operation = Task { try await store.forkTaskWindowConversation(source.id) }
+      let request = try await waitUntilStarted(f)
+      XCTAssertEqual(request["forkOrigin"]["threadId"].text, source.codexThreadID)
+      XCTAssertEqual(request["forkOrigin"]["throughTurnId"], .null)
+      try Data().write(to: f.release)
+      let child = try await operation.value
+      XCTAssertTrue(child.runIDs.isEmpty)
+      XCTAssertEqual(child.codexThreadID, f.childThread)
+      XCTAssertEqual(child.forkOrigin?.taskID, source.id)
+      XCTAssertNil(child.forkOrigin?.runID)
+      XCTAssertEqual(store.selectedTask?.id, source.id)
+      XCTAssertEqual(store.draft, "keep initial source input")
+      XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+      if running { XCTAssertEqual(store.activeRun(taskID: source.id)?.id, active.id) }
+      await store.shutdown()
+    }
   }
 
   func testNativeCommandIsConsumedOnlyAfterSaveAndCancellationPreservesItInCallingWindow() async throws {

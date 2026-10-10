@@ -3,6 +3,65 @@ import XCTest
 @testable import ShipiOS
 
 final class ConversationForkTests: XCTestCase {
+  func testEmptyAndFirstActivePrefixesForkWithoutInventingACompletedTurn() throws {
+    for running in [false, true] {
+      var state = WorkspaceLibrary()
+      let sourceID = UUID().uuidString, threadID = UUID().uuidString
+      var source = WorkspaceTask(id: sourceID, project: "/fixture", title: "Blank source",
+        runIDs: running ? ["active"] : [])
+      source.codexThreadID = threadID; source.codexWorkspacePath = "/fixture"
+      source.modelSelection = .init(model: "chosen", reasoning: "high", providerAccount: "fixture", apiProtocol: .codexResponses)
+      state.tasks = [source]; state.drafts[sourceID] = "source draft"
+      state.queuedMessages = [.init(taskID: sourceID, text: "source queue")]
+      state.taskRuntimePreferences[sourceID] = .fullAccess
+      let runs = running ? [run("active", status: "running")] : []
+      let child = try state.forkConversation(taskID: sourceID, availableRuns: runs)
+      XCTAssertTrue(child.runIDs.isEmpty)
+      XCTAssertTrue(state.forkRuns.isEmpty)
+      XCTAssertEqual(child.title, source.title)
+      XCTAssertEqual(child.modelSelection, source.modelSelection)
+      XCTAssertEqual(child.forkOrigin?.taskID, sourceID)
+      XCTAssertNil(child.forkOrigin?.runID)
+      XCTAssertEqual(child.codexForkOrigin?.threadID, threadID)
+      XCTAssertEqual(child.codexForkOrigin?.wireValue["throughTurnId"], .null)
+      XCTAssertEqual(state.taskRuntimePreferences[child.id], .fullAccess)
+      XCTAssertEqual(state.tasks.first { $0.id == sourceID }, source)
+      XCTAssertEqual(state.drafts[sourceID], "source draft")
+      XCTAssertNil(state.drafts[child.id])
+      XCTAssertEqual(state.queuedMessages.map(\.taskID), [sourceID])
+      let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: JSONEncoder().encode(state))
+      XCTAssertEqual(restored.tasks.first, child)
+      if running {
+        XCTAssertThrowsError(try state.forkConversation(taskID: sourceID, through: "active", availableRuns: runs))
+      }
+    }
+  }
+
+  @MainActor func testBlankChatForkFromCommandOpensEmptyChildAndRestoresSelectionWithoutService() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    let source = WorkspaceTask(id: UUID().uuidString, project: "/fixture", title: "Blank chat", runIDs: [])
+    store.project = URL(fileURLWithPath: "/fixture"); store.connected = true
+    store.libraryLoaded = true; store.library.tasks = [source]; store.selectTask(source)
+    store.draft = "/fork"
+    let operation = try XCTUnwrap(store.requestConversationFork(consumeCommand: true))
+    store.draft = "new input after command"
+    let created = await operation.value
+    let child = try XCTUnwrap(created)
+    XCTAssertEqual(store.selectedTask?.id, child.id)
+    XCTAssertTrue(child.runIDs.isEmpty)
+    XCTAssertNil(child.codexThreadID)
+    XCTAssertNil(child.codexForkOrigin)
+    XCTAssertEqual(child.forkOrigin?.taskID, source.id)
+    XCTAssertEqual(store.library.drafts[source.id], "new input after command")
+    XCTAssertEqual(store.draft, "")
+    let restored = try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(restored.rememberedSelection(project: "/fixture"), child.id)
+    XCTAssertEqual(restored.tasks.first { $0.id == child.id }, child)
+    await store.shutdown()
+  }
+
   func testNativeBoundaryMetadataUsesExactChatTurnAndNestedHistoricalPrefix() throws {
     var library = WorkspaceLibrary()
     let taskID = UUID().uuidString, threadID = UUID().uuidString

@@ -136,6 +136,66 @@ final class CodexNativeForkTests: XCTestCase {
     await resumed.shutdown()
   }
 
+  @MainActor func testInitialNativeForkPersistsBeforeFirstTurnAndCannotInheritLaterSourceInput() async throws {
+    for newWorktree in [false, true] {
+      let (store, project, agent) = try await fixture()
+      if newWorktree {
+        _ = try await GitReviewService.checked(["init", "-q"], at: project)
+        _ = try await GitReviewService.checked(["config", "user.name", "Fixture"], at: project)
+        _ = try await GitReviewService.checked(["config", "user.email", "fixture@example.invalid"], at: project)
+        try Data("initial\n".utf8).write(to: project.appendingPathComponent("tracked"))
+        _ = try await GitReviewService.checked(["add", "."], at: project)
+        _ = try await GitReviewService.checked(["commit", "-qm", "Initial"], at: project)
+        store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
+      }
+      let sourceID = UUID().uuidString
+      let started = try await store.client.request("codex.thread.start", [
+        "taskId": .string(sourceID), "baseUrl": .string(endpoint), "model": .string("gpt-5.4")])
+      let threadID = try XCTUnwrap(started["threadId"].text)
+      var source = WorkspaceTask(id: sourceID, project: project.path, title: "Before first turn", runIDs: [])
+      source.codexThreadID = threadID; source.codexWorkspacePath = project.path
+      store.library.tasks = [source]; store.selectTask(source); store.draft = "retain source input"
+      let sourcePath = try XCTUnwrap(store.codexConversationPath(for: source))
+      XCTAssertTrue(FileManager.default.fileExists(atPath: sourcePath.path), "Persist the empty source before acknowledging start")
+      let before = try modelRequestCount()
+      let child: WorkspaceTask
+      if newWorktree {
+        let created = await store.forkTaskToNewWorktree(sourceID, openTask: false)
+        child = try XCTUnwrap(created, store.error ?? "")
+        let record = try XCTUnwrap(store.library.managedWorktrees.first { $0.taskID == child.id })
+        XCTAssertTrue(record.ready)
+        XCTAssertNil(record.pendingForkSourceTaskID)
+      } else {
+        child = try await store.forkTaskWindowConversation(sourceID)
+      }
+      XCTAssertTrue(child.runIDs.isEmpty)
+      XCTAssertNil(child.codexForkOrigin?.throughTurnID)
+      XCTAssertNotNil(child.codexThreadID)
+      XCTAssertNotEqual(child.codexThreadID, threadID)
+      XCTAssertEqual(try modelRequestCount(), before)
+      let path = try XCTUnwrap(store.codexConversationPath(for: child))
+      let history = try String(contentsOf: path)
+      XCTAssertTrue(history.contains("forked_from_id"))
+      XCTAssertTrue(history.contains(threadID))
+      let dataRoot = store.dataRoot
+      await store.shutdown()
+      let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+      await reopened.restore(); await reopened.open(project)
+      reopened.selectTask(try XCTUnwrap(reopened.library.tasks.first { $0.id == sourceID }))
+      _ = try await send("source input after initial snapshot", store: reopened)
+      XCTAssertEqual(reopened.selectedTask?.codexThreadID, threadID, "Resume the empty source after restart")
+      let restoredChild = try XCTUnwrap(reopened.library.tasks.first { $0.id == child.id })
+      await reopened.selectTaskAwaitingScope(restoredChild)
+      let continued = try await send("skill-dependency-request-echo", store: reopened)
+      let body = try JSONDecoder().decode(JSONValue.self,
+        from: Data(try XCTUnwrap(continued.result?["response"].text).utf8))
+      XCTAssertFalse(body.pretty.contains("source input after initial snapshot"))
+      XCTAssertEqual(reopened.selectedTask?.codexThreadID, child.codexThreadID)
+      XCTAssertEqual(reopened.library.drafts[sourceID], "retain source input")
+      await reopened.shutdown()
+    }
+  }
+
   @MainActor func testHandoffKeepsNativeThreadToolHistoryAndForksAcrossCheckoutHistory() async throws {
     let (store, project, agent) = try await fixture()
     do {
