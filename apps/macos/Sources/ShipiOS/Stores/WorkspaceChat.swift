@@ -569,7 +569,7 @@ extension WorkspaceStore {
             if let delta = event["delta"].text, !delta.isEmpty {
               recordCodexRuntimeStatus(runID: runID, message: nil)
               appendChat(runID, delta: delta)
-              rendered += delta
+              rendered = event["shipios_message_text"].text ?? (rendered + delta)
             }
           case "agent_message":
             if let message = event["message"].text, !message.isEmpty {

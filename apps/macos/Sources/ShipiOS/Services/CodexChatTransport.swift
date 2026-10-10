@@ -53,6 +53,11 @@ final class CodexChatTransport {
   // Includes cancelled startups until their process cleanup finishes.
   private var startupTasks: [UUID: Task<Void, Never>] = [:]
   private var taskProjects: [String: String] = [:]
+  private struct NativeMessageCursor {
+    var attempts: [String: String] = [:]
+    var published: [String: String] = [:]
+  }
+  private var nativeMessages: [String: NativeMessageCursor] = [:]
   private var generation = UUID()
   private var activeThreads: Set<String> = []
   private var serviceIdentities: [String: ServiceIdentity] = [:]
@@ -253,6 +258,7 @@ final class CodexChatTransport {
     defer { if let staged { try? FileManager.default.removeItem(at: staged.url) } }
     let (stream, continuation) = AsyncThrowingStream<JSONValue, Error>.makeStream()
     streams[taskID] = continuation
+    nativeMessages[taskID] = NativeMessageCursor()
     turnTokens[taskID] = UUID()
     browserTurnTokens[taskID] = UUID()
     do {
@@ -322,6 +328,7 @@ final class CodexChatTransport {
       }
       if connectOnly || createForkOnly {
         streams.removeValue(forKey: taskID)?.finish()
+        nativeMessages.removeValue(forKey: taskID)
         turnTokens.removeValue(forKey: taskID); browserTurnTokens.removeValue(forKey: taskID)
         return stream
       }
@@ -370,6 +377,7 @@ final class CodexChatTransport {
       browserTurnTokens.removeValue(forKey: taskID)
       turnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
+      nativeMessages.removeValue(forKey: taskID)
       throw error
     }
   }
@@ -451,6 +459,7 @@ final class CodexChatTransport {
     activeTurnIDs.removeValue(forKey: taskID)
     turnTokens.removeValue(forKey: taskID)
     streams.removeValue(forKey: taskID)?.finish()
+    nativeMessages.removeValue(forKey: taskID)
   }
 
   /// Interrupt ends a model turn while unified-exec sessions can stay alive.
@@ -688,6 +697,7 @@ final class CodexChatTransport {
     taskProjects.removeAll()
     let pending = Array(streams.values)
     streams.removeAll()
+    nativeMessages.removeAll()
     for stream in pending { stream.finish(throwing: error) }
   }
 
@@ -704,6 +714,7 @@ final class CodexChatTransport {
       turnTokens.removeValue(forKey: taskID)
       browserTurnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish(throwing: error)
+      nativeMessages.removeValue(forKey: taskID)
     }
   }
 
@@ -789,13 +800,40 @@ final class CodexChatTransport {
       let activeTurnID = activeTurnIDs[taskID], eventTurnID != activeTurnID {
       return
     }
-    continuation.yield(event)
+    if event["type"].text == "item_started", event["item"]["type"].text == "AgentMessage",
+      let id = event["item"]["id"].text {
+      nativeMessages[taskID]?.attempts[id] = ""
+    }
+    if event["type"].text == "agent_message_content_delta",
+      let id = event["item_id"].text, let delta = event["delta"].text,
+      var cursor = nativeMessages[taskID], case .object(var fields) = event {
+      // Core replays an item's prefix when reconnecting. Publish its new
+      // suffix once, while retaining already displayed text on failure.
+      let candidate = (cursor.attempts[id] ?? "") + delta
+      let previous = cursor.published[id] ?? ""
+      cursor.attempts[id] = candidate
+      if previous.hasPrefix(candidate) {
+        nativeMessages[taskID] = cursor
+        return
+      }
+      let suffix = candidate.hasPrefix(previous) ? String(candidate.dropFirst(previous.count)) : delta
+      cursor.published[id] = candidate
+      nativeMessages[taskID] = cursor
+      // Keep all existing text consumers on the same transport contract.
+      fields["type"] = .string("agent_message_delta")
+      fields["delta"] = .string(suffix)
+      fields["shipios_message_text"] = .string(candidate)
+      continuation.yield(.object(fields))
+    } else {
+      continuation.yield(event)
+    }
     switch event["type"].text {
     case "task_complete", "turn_aborted", "error":
       activeTurnIDs.removeValue(forKey: taskID)
       turnTokens.removeValue(forKey: taskID)
       browserTurnTokens.removeValue(forKey: taskID)
       streams.removeValue(forKey: taskID)?.finish()
+      nativeMessages.removeValue(forKey: taskID)
     default: break
     }
   }

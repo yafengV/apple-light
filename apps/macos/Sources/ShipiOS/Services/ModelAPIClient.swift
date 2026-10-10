@@ -61,7 +61,9 @@ struct ModelAPIClient {
   ) async throws -> ModelTurnResult {
     var request = URLRequest(url: try config.endpoint("chat/completions"))
     request.httpMethod = "POST"
-    request.timeoutInterval = 120
+    // URLSession refreshes the request timeout as data arrives. A silent
+    // provider must fail within the same bounded-wait policy as Responses.
+    request.timeoutInterval = 25
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
     if let key, !key.isEmpty {

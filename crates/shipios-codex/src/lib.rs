@@ -765,6 +765,9 @@ impl CodexSession {
         config
             .features
             .enable(Feature::DefaultModeRequestUserInput)?;
+        // ShipiOS surfaces a terminal failure and explicit retry rather than
+        // inheriting the CLI's unlimited offline reconnection policy.
+        config.features.disable(Feature::UnboundedConnectionRetries)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         if named_permissions.is_some() {
             config
@@ -816,6 +819,11 @@ impl CodexSession {
         provider.requires_openai_auth = options.api_key.as_ref().is_some_and(|key| !key.is_empty());
         provider.supports_websockets = false;
         provider.supports_standalone_web_search = false;
+        // Activity refreshes this idle deadline; it does not cap a progressing
+        // turn or a tool/approval wait. One reconnect stays within the 60s gate.
+        provider.stream_idle_timeout_ms = Some(25_000);
+        provider.stream_max_retries = Some(1);
+        provider.request_max_retries = Some(1);
         config.model_provider_id = "shipios-api".to_owned();
         config
             .model_providers
