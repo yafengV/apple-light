@@ -15,6 +15,25 @@ from foreground_runtime import temporary_runtime
 
 
 class StorageTests(unittest.TestCase):
+    def test_disappearing_compile_file_retries_complete_measurement(self):
+        (self.root / 'target').mkdir()
+        raced = subprocess.CompletedProcess(['du'], 1, '9 target\n',
+                                            'du: temporary: No such file or directory\n')
+        complete = subprocess.CompletedProcess(['du'], 0, '12 target\n', '')
+        with patch.object(storage.subprocess, 'run', side_effect=[raced, complete]) as measured:
+            self.assertEqual(storage.cache_bytes(self.root), 12 * 1024)
+            self.assertEqual(measured.call_count, 2)
+
+    def test_incomplete_or_permission_measurement_never_accepted(self):
+        (self.root / 'target').mkdir()
+        for message, expected in [('du: temporary: No such file or directory\n', 3),
+                                  ('du: private: Permission denied\n', 1)]:
+            bad = subprocess.CompletedProcess(['du'], 1, '0 target\n', message)
+            with patch.object(storage.subprocess, 'run', return_value=bad) as measured:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    storage.cache_bytes(self.root)
+                self.assertEqual(measured.call_count, expected)
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)

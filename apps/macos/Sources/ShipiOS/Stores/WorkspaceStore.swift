@@ -357,6 +357,7 @@ final class WorkspaceStore {
   var previewImage: ImagePreviewItem?
   var previewImages: [ImagePreviewItem] = []
   @ObservationIgnored private var modelTasks: [String: Task<Void, Never>] = [:]
+  @ObservationIgnored var counterDeliveryTasks: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var compatibilityModelTask: Task<Void, Never>?
   var modelTask: Task<Void, Never>? {
     get {
@@ -513,6 +514,7 @@ final class WorkspaceStore {
     project != nil && connected && !busy && !libraryRecoveryBlocksInteraction && !managedTaskPreparing
       && !handoffBlocksProject(currentProjectKey)
       && activeLocalRun == nil && !shuttingDown
+      && !library.counterDeliveries.values.contains { $0.phase.isActive }
       && (selectedTask.map { !$0.archived && !activityArchivingTaskIDs.contains($0.id) } ?? true)
   }
   var canBuild: Bool {
@@ -543,7 +545,8 @@ final class WorkspaceStore {
     activeRun(taskID: taskID).flatMap { $0.kind == "chat" ? $0 : nil }
   }
 
-  func canStartChat(taskID: String?, continuingWatchInspectionRunID: String? = nil) -> Bool {
+  func canStartChat(taskID: String?, continuingWatchInspectionRunID: String? = nil,
+    counterRepairOperation: UUID? = nil) -> Bool {
     guard !busy, !libraryRecoveryBlocksInteraction, !managedTaskPreparing, !shuttingDown else { return false }
     if let taskID {
       if let preparation = watchWorktreePreparationRun(taskID: taskID),
@@ -558,6 +561,12 @@ final class WorkspaceStore {
       library.tasks.first(where: { $0.id == id })?.project
     } ?? currentProjectKey
     guard !handoffBlocksProject(requestedProject) else { return false }
+    if let delivery = library.counterDeliveries.values.first(where: {
+      $0.phase.isActive && $0.project == URL(fileURLWithPath: library.primaryFolder(for: requestedProject))
+        .resolvingSymlinksInPath().standardizedFileURL.path
+    }), !(delivery.id == counterRepairOperation && delivery.taskID == taskID && delivery.phase == .repairing) {
+      return false
+    }
     return taskID.map { taskID in
       activeRun(taskID: taskID) == nil
     } ?? true
@@ -1471,6 +1480,8 @@ final class WorkspaceStore {
       + taskWindowResources.allObjects.flatMap(\.fileRecoveryWorkspaces)
     guard captureFileEditorRecovery(from: editors, forceSave: true) else { return false }
     shuttingDown = true
+    for task in counterDeliveryTasks.values { task.cancel() }
+    for task in counterDeliveryTasks.values { await task.value }
     let forkWorker = activeWorktreeForkPreparation?.operation
     activeWorktreeForkPreparation?.cancel()
     worktreeForkPresentation.dismiss()

@@ -27,6 +27,31 @@ pub struct Config {
 }
 
 impl Config {
+    /// GUI runtime builds reuse one cache, not a new DerivedData tree per run.
+    /// Development builds must use the cache already validated by the outer guard.
+    pub fn derived_data_dir(&self) -> Result<PathBuf> {
+        if std::env::var("SHIPIOS_STORAGE_GUARDED").as_deref() == Ok("1") {
+            let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap();
+            let cache = PathBuf::from(
+                std::env::var_os("SHIPIOS_BUILD_CACHE_ROOT")
+                    .context("guarded Xcode execution requires a build cache root")?,
+            );
+            if cache == root.join(".cache") {
+                return Ok(cache.join("xcode-derived-data"));
+            }
+            ensure!(
+                (1..=2).any(|n| cache == root.join(format!(".cache/isolated/{n}"))),
+                "guarded Xcode execution requires a fixed cache slot"
+            );
+            return Ok(cache.join("DerivedData"));
+        }
+        Ok(self.data_dir.join("BuildCache/DerivedData"))
+    }
+
     pub fn load(
         data_dir: &Path,
         project: &Path,

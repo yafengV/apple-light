@@ -55,12 +55,13 @@ impl ProcessGroup {
         &self,
         child: &mut tokio::process::Child,
         xcode: bool,
+        guarded: bool,
     ) -> std::io::Result<std::process::ExitStatus> {
         // Xcode owns work in a separate build service. Let its client send the cancellation
         // message before falling back to process-group termination.
         unsafe {
             libc::kill(
-                if xcode {
+                if xcode || guarded {
                     self.0 as i32
                 } else {
                     -(self.0 as i32)
@@ -68,8 +69,18 @@ impl ProcessGroup {
                 if xcode { libc::SIGINT } else { libc::SIGTERM },
             );
         }
-        match tokio::time::timeout(Duration::from_secs(if xcode { 4 } else { 1 }), child.wait())
-            .await
+        // The guard owns a separate child group and needs time to reap it before exiting.
+        match tokio::time::timeout(
+            Duration::from_secs(if guarded {
+                8
+            } else if xcode {
+                4
+            } else {
+                1
+            }),
+            child.wait(),
+        )
+        .await
         {
             Ok(status) => status,
             Err(_) => {
@@ -130,10 +141,15 @@ pub async fn execute(
         .executable
         .file_name()
         .is_some_and(|name| name == "xcodebuild");
+    let guarded = spec
+        .args
+        .first()
+        .is_some_and(|path| path.ends_with("/script/dev_storage.py"))
+        && spec.args.get(1).is_some_and(|arg| arg == "run");
     let status = tokio::select! {
         biased;
-        _ = cancel.cancelled() => { cancelled=true; group.stop(&mut child, xcode).await? }
-        _ = tokio::time::sleep(Duration::from_secs(spec.timeout_seconds)) => { timed_out=true; group.stop(&mut child, xcode).await? }
+        _ = cancel.cancelled() => { cancelled=true; group.stop(&mut child, xcode, guarded).await? }
+        _ = tokio::time::sleep(Duration::from_secs(spec.timeout_seconds)) => { timed_out=true; group.stop(&mut child, xcode, guarded).await? }
         status = child.wait() => status?,
     };
     // Also close pipes held by grandchildren after the leader has exited.

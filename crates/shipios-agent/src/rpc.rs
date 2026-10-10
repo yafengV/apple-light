@@ -106,7 +106,7 @@ async fn dispatch(
                 return Some(response(
                     id,
                     json!({"protocolVersion":PROTOCOL_VERSION,"serverVersion":env!("CARGO_PKG_VERSION"),
-                    "capabilities":{"runKinds":["doctor","build"],"cancellation":true,"eventReplay":true,
+                    "capabilities":{"runKinds":["doctor","build","verify_counter"],"cancellation":true,"eventReplay":true,
                         "modelCalls":true,"codexEmbedded":true,"codexResponses":true,"codexEventReplay":false,
                         "uiVerification":false,"release":false,"reportExport":true,"artifactRead":true},
                     "project":service.config.project,"dataDirectory":service.config.data_dir}),

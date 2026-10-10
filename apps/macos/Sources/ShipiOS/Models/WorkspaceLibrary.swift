@@ -431,6 +431,7 @@ struct WorkspaceLibrary: Codable {
   /// A popout worktree can be resumed after checkout/setup succeeds but before its task is saved.
   var pendingPopoutWorktreeTaskIDs: [String: String] = [:]
   var goalSessions: [String: GoalSession] = [:]
+  var counterDeliveries: [String: CounterDelivery] = [:]
 
   init() {}
   enum CodingKeys: String, CodingKey {
@@ -452,7 +453,7 @@ struct WorkspaceLibrary: Codable {
       worktreeRoot, automaticallyDeleteManagedWorktrees, managedWorktreeLimit,
       permanentWorktrees, managedWorktrees, pendingManagedWorktreeDeletions,
       newTaskExecutions, newTaskEnvironmentSelections,
-      pendingManagedDraftTaskIDs, pendingPopoutWorktreeTaskIDs, goalSessions
+      pendingManagedDraftTaskIDs, pendingPopoutWorktreeTaskIDs, goalSessions, counterDeliveries
   }
   private enum LegacyAppshotCodingKey: String, CodingKey { case appshotHotkeyEnabled }
   init(from decoder: Decoder) throws {
@@ -619,6 +620,7 @@ struct WorkspaceLibrary: Codable {
     pendingPopoutWorktreeTaskIDs = try c.decodeIfPresent([String: String].self,
       forKey: .pendingPopoutWorktreeTaskIDs) ?? [:]
     goalSessions = try c.decodeIfPresent([String: GoalSession].self, forKey: .goalSessions) ?? [:]
+    counterDeliveries = try c.decodeIfPresent([String: CounterDelivery].self, forKey: .counterDeliveries) ?? [:]
   }
   func projectTitle(_ path: String) -> String {
     if path.isEmpty { return "无项目" }
@@ -754,6 +756,7 @@ struct WorkspaceLibrary: Codable {
         if taskWindowTabLayouts[windowID]?.isEmpty == true { taskWindowTabLayouts[windowID] = nil }
       }
       goalSessions[id] = nil
+      counterDeliveries[id] = nil
       taskRuntimePreferences[id] = nil
       projectlessTaskDirectories[id] = nil
       drafts[id] = nil

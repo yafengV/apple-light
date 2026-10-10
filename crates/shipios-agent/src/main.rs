@@ -1,4 +1,5 @@
 mod codex_bridge;
+mod counter_verification;
 mod descendant_monitor;
 mod local_environment;
 mod rpc;

@@ -99,6 +99,11 @@ extension WorkspaceStore {
       session.status = .paused
       library.goalSessions[taskID] = session
     }
+    for (taskID, var delivery) in library.counterDeliveries where delivery.phase.isActive {
+      delivery.phase = .interrupted
+      delivery.message = "应用已重启，验证不会自动继续；代码和已完成工件保留。"
+      library.counterDeliveries[taskID] = delivery
+    }
     saveLibrary()
   }
   @discardableResult func startChat(
@@ -107,7 +112,7 @@ extension WorkspaceStore {
     queuedMessageID: UUID? = nil, mode: ChatMode = .standard,
     review: ModelCodeReviewContext? = nil, compact: Bool = false,
     automationID: UUID? = nil, pullRequestChecks: PullRequestCheckDraft? = nil,
-    watchInspectionRunID: String? = nil
+    watchInspectionRunID: String? = nil, counterRepairOperation: UUID? = nil
   )
     async -> String?
   {
@@ -118,7 +123,8 @@ extension WorkspaceStore {
     let requestedTaskID = explicitTaskID ?? selectedTask?.id
     let submittedCheckPrompt = consumeDraft ? library.drafts[requestedTaskID ?? draftKey] : nil
     guard canStartChat(taskID: requestedTaskID,
-      continuingWatchInspectionRunID: watchInspectionRunID) else { return nil }
+      continuingWatchInspectionRunID: watchInspectionRunID,
+      counterRepairOperation: counterRepairOperation) else { return nil }
     if requestedTaskID == nil,
       library.managedWorktrees.contains(where: { $0.path == currentProjectKey }) {
       error = "此工作树仅属于原任务。请返回来源项目创建新任务。"

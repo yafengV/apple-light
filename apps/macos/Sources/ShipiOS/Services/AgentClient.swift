@@ -36,6 +36,11 @@ final class AgentClient {
       "TMPDIR": NSTemporaryDirectory(), "LANG": "en_US.UTF-8",
       "CODEX_HOME": (codexDataDirectory ?? dataDirectory).appendingPathComponent("Codex").path,
     ]
+    if ProcessInfo.processInfo.environment["SHIPIOS_STORAGE_GUARDED"] == "1",
+      let cache = ProcessInfo.processInfo.environment["SHIPIOS_BUILD_CACHE_ROOT"] {
+      child.environment?["SHIPIOS_STORAGE_GUARDED"] = "1"
+      child.environment?["SHIPIOS_BUILD_CACHE_ROOT"] = cache
+    }
     child.standardInput = stdin
     child.standardOutput = stdout
     child.standardError = stderr
@@ -122,7 +127,7 @@ final class AgentClient {
     }
   }
 
-  func stop(waitForEOF: Bool = true) async {
+  func stop(waitForEOF: Bool = true, eofGraceSeconds: Int = 5) async {
     let token = generation
     let child = process
     stopping = true
@@ -130,7 +135,7 @@ final class AgentClient {
     input = nil
     // EOF requests cancellation. Wait without blocking the UI before falling back to SIGTERM.
     if waitForEOF {
-      for _ in 0..<100 {
+      for _ in 0..<(max(0, eofGraceSeconds) * 20) {
         if child?.isRunning != true { break }
         try? await Task.sleep(for: .milliseconds(50))
       }

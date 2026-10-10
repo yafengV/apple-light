@@ -19,6 +19,7 @@ use tokio_util::sync::CancellationToken;
 pub enum RunRequest {
     Doctor,
     Build(BuildRequest),
+    VerifyCounter,
 }
 
 pub struct Service {
@@ -63,9 +64,13 @@ impl Service {
         if let RunRequest::Build(build) = &request {
             build.command(&self.config, &self.config.data_dir.join("Artifacts"))?;
         }
+        if let RunRequest::VerifyCounter = &request {
+            crate::counter_verification::validate_project(&self.config.project)?;
+        }
         let kind = match request {
             RunRequest::Doctor => "doctor",
             RunRequest::Build(_) => "build",
+            RunRequest::VerifyCounter => "verify_counter",
         };
         let (run, event) = self.store.lock().unwrap().create(
             kind,
@@ -114,6 +119,24 @@ impl Service {
     ) -> Result<()> {
         self.transition(id, RunStatus::Running, None)?;
         let artifacts = private_dir(&self.config.data_dir.join("Artifacts").join(id))?;
+        if matches!(request, RunRequest::VerifyCounter) {
+            let result = crate::counter_verification::execute(
+                &self.config,
+                &artifacts,
+                cancel.clone(),
+                |payload| self.step_started(id, payload),
+            )
+            .await?;
+            let status = if cancel.is_cancelled() {
+                RunStatus::Cancelled
+            } else if result["verification"] == "passed" {
+                RunStatus::Succeeded
+            } else {
+                RunStatus::Failed
+            };
+            self.transition(id, status, Some(result))?;
+            return Ok(());
+        }
         let (spec, project) = match request {
             RunRequest::Doctor => (
                 CommandSpec {
@@ -126,6 +149,7 @@ impl Service {
                 Some(shipios_tools::project::inspect(&self.config.project)?),
             ),
             RunRequest::Build(build) => (build.command(&self.config, &artifacts)?, None),
+            RunRequest::VerifyCounter => unreachable!(),
         };
         let event = self.store.lock().unwrap().append(
             id,
@@ -143,6 +167,16 @@ impl Service {
         };
         self.transition(id,status,Some(json!({"command":output,"project":project,"artifactDirectory":artifacts,
             "verification":"not_run","note":"A successful diagnostic/build is not UI verification or release readiness."})))?;
+        Ok(())
+    }
+
+    fn step_started(&self, id: &str, payload: Value) -> Result<()> {
+        let event = self
+            .store
+            .lock()
+            .unwrap()
+            .append(id, "step.started", payload)?;
+        self.emit(event);
         Ok(())
     }
 
@@ -169,7 +203,8 @@ impl Service {
         );
         Ok(
             json!({"schemaVersion":1,"run":run,"events":self.events(id,0)?,
-            "scope":"Local diagnostics/build only. No UI verification or model execution."}),
+            "scope": if run.kind == "verify_counter" { "Fixed HelloShipiOS iOS UI verification; model provenance is recorded separately by the desktop." }
+                else { "Local diagnostics/build only. No UI verification or model execution." }}),
         )
     }
 

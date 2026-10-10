@@ -1498,6 +1498,7 @@ struct TaskWindowView: View {
   private func taskComposer(_ task: WorkspaceTask) -> some View {
     VStack(spacing: 8) {
       GoalStatusCard(store: store, taskID: taskID) { showingGoalEditor = true }
+      CounterDeliveryCard(store: store, taskID: taskID)
       TaskWindowBrowserComments(store: store, taskID: taskID)
       PullRequestCheckComposerAttachments(store: store, taskID: taskID)
       if let tip = store.educationalTip(taskID: taskID) {

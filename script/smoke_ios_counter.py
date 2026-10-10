@@ -44,6 +44,7 @@ def main():
     parser.add_argument('--simulator', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--agent', type=Path, default=ROOT / 'dist/ShipiOS.app/Contents/Helpers/shipios-agent')
+    parser.add_argument('--native-verifier', action='store_true', help='Use the production Agent verification RPC instead of the development Python verifier.')
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
@@ -98,7 +99,7 @@ def main():
 
     server = ThreadingHTTPServer(('127.0.0.1', 0), Responses)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    client = Client(args.agent.resolve(), data, project, home)
+    client = Client(args.agent.resolve(), data, project, home, ROOT / '.cache' if args.native_verifier else None)
     events = []
     manifest = {'scenario': args.scenario, 'modelEvidence': 'controlled_loopback_only',
                 'agentSHA256': hashlib.sha256(args.agent.read_bytes()).hexdigest(),
@@ -141,26 +142,51 @@ def main():
         manifest['changedByCore'] = changed
         manifest['outputSHA256'] = after
         (output / 'core-events.json').write_text(json.dumps(events, indent=2) + '\n')
-        command = [sys.executable, str(ROOT / 'script/verify_ios_counter.py'), '--project', str(project),
-                   '--simulator', args.simulator, '--output', str(output / 'Validation')]
-        verified = run(command, output / 'verifier.log', 720)
-        manifest['verifierExitCode'] = verified['exitCode']
-        assert not verified['timedOut'], 'Verification process timed out'
-        result = json.loads((output / 'Validation/manifest.json').read_text())
-        manifest['verification'] = result['verification']
-        if args.scenario == 'correct':
-            assert verified['exitCode'] == 0 and result['passed'], result
-        elif args.scenario == 'bad-increment':
-            assert verified['exitCode'] == 1 and not result['passed']
-            assert result['failureStage'] == 'test' and result['testSummary']['failedTests'] == 1
-            assert 'exactly one' in json.dumps(result['testSummary']['testFailures'])
-        else:
-            assert verified['exitCode'] == 1 and not result['passed']
-            assert result['failureStage'] == 'build' and result['verification'] == 'not_run'
-            assert len(result['steps']) == 1, 'UI tests must not run after compilation failure'
-            assert 'missingCounterIncrement' in (output / 'Validation/build.log').read_text()
-        assert not result['changedInputs'], 'Verification changed the source tree'
-        manifest['passed'] = True
+        if args.native_verifier:
+            started = client.request('run.start', {'kind': 'verify_counter'})
+            deadline = time.monotonic() + 810
+            while True:
+                verified = client.request('run.get', {'runId': started['id']})
+                if verified['status'] not in ('queued', 'running'):
+                    break
+                assert time.monotonic() < deadline, 'Native verification exceeded its aggregate deadline'
+                time.sleep(0.1)
+            result = verified['result']
+            manifest['verification'] = result['verification']
+            manifest['nativeRun'] = verified
+            assert not result['changedInputs']
+            if args.scenario == 'correct':
+                assert verified['status'] == 'succeeded' and result['verification'] == 'passed'
+            elif args.scenario == 'bad-increment':
+                assert verified['status'] == 'failed' and result['verification'] == 'failed'
+                assert result['testSummary']['failedTests'] == 1
+                assert 'exactly one' in json.dumps(result['testSummary']['testFailures'])
+            else:
+                assert verified['status'] == 'failed' and result['verification'] == 'not_run'
+                assert result['command']['exitCode'] == 65
+                assert not any(step['stage'] == 'test' for step in result['steps'])
+            manifest['passed'] = True
+        if not args.native_verifier:
+            command = [sys.executable, str(ROOT / 'script/verify_ios_counter.py'), '--project', str(project),
+                       '--simulator', args.simulator, '--output', str(output / 'Validation')]
+            verified = run(command, output / 'verifier.log', 720)
+            manifest['verifierExitCode'] = verified['exitCode']
+            assert not verified['timedOut'], 'Verification process timed out'
+            result = json.loads((output / 'Validation/manifest.json').read_text())
+            manifest['verification'] = result['verification']
+            if args.scenario == 'correct':
+                assert verified['exitCode'] == 0 and result['passed'], result
+            elif args.scenario == 'bad-increment':
+                assert verified['exitCode'] == 1 and not result['passed']
+                assert result['failureStage'] == 'test' and result['testSummary']['failedTests'] == 1
+                assert 'exactly one' in json.dumps(result['testSummary']['testFailures'])
+            else:
+                assert verified['exitCode'] == 1 and not result['passed']
+                assert result['failureStage'] == 'build' and result['verification'] == 'not_run'
+                assert len(result['steps']) == 1, 'UI tests must not run after compilation failure'
+                assert 'missingCounterIncrement' in (output / 'Validation/build.log').read_text()
+            assert not result['changedInputs'], 'Verification changed the source tree'
+            manifest['passed'] = True
     except Exception as error:
         manifest['error'] = type(error).__name__ + ': ' + str(error)
     finally:

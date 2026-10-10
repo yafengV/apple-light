@@ -25,6 +25,7 @@ struct ComposerView: View {
         store.showingGoalEditor = true
       }
       ComposerQueueView(store: store)
+      CounterDeliveryCard(store: store, taskID: store.selectedTask?.id)
       ComposerReviewComments(store: store)
       ComposerBrowserComments(store: store)
       PullRequestCheckComposerAttachments(store: store, taskID: store.selectedTask?.id)

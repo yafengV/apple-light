@@ -40,8 +40,20 @@ def cache_bytes(root):
              if p.exists()]
     if not paths:
         return 0
-    result = subprocess.run(['du', '-sk', *map(str, paths)], check=True,
-                            capture_output=True, text=True)
+    # SwiftPM/Xcode remove temporary files while compiling. Retry a raced sample,
+    # but never accept an incomplete measurement or hide a permissions failure.
+    for attempt in range(3):
+        result = subprocess.run(['du', '-sk', *map(str, paths)],
+                                capture_output=True, text=True)
+        if result.returncode == 0:
+            break
+        missing_only = result.stderr.strip() and all(
+            line.endswith(': No such file or directory')
+            for line in result.stderr.strip().splitlines())
+        if not missing_only or attempt == 2:
+            raise subprocess.CalledProcessError(result.returncode, result.args,
+                                                result.stdout, result.stderr)
+        time.sleep(0.05)
     return sum(int(line.split()[0]) * 1024 for line in result.stdout.splitlines())
 
 

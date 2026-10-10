@@ -58,7 +58,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 PLIST
 shipios_sign_macos_app "$app"
 if [ "$mode" == "--build-app" ]; then exit 0; fi
-/usr/bin/open -n "$app" --args "$@"
+/usr/bin/open -n "$app" --env "SHIPIOS_STORAGE_GUARDED=1" --env "SHIPIOS_BUILD_CACHE_ROOT=$build_cache" --args "$@"
 if [ "$mode" == "--verify" ]; then
     sleep 2
     pgrep -x ShipiOS
