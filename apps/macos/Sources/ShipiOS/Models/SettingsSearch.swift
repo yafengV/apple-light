@@ -604,7 +604,7 @@ extension WorkspaceStore {
     }
     guard result.field == nil || result.field?.page == result.page else { return }
     guard result.field?.requiresProject != true || project != nil else { return }
-    if destination == .settings, result.page != settingsPage, hasUnsavedSettingsEdits {
+    if destination == .settings, (result.page != settingsPage || mcpServerEditor != nil), hasUnsavedSettingsEdits {
       beginSettingsNavigationConfirmation(.reveal(result), onCancelFocus: onCancelFocus,
         onConfirmFocus: onCancelFocus ?? { [weak self] in self?.settingsSearchFocusRequest = UUID() })
       return

@@ -270,7 +270,10 @@ final class WorkspaceStore {
   var mcpServersLoaded = false
   var mcpServersLoading = false
   var mcpServersError: String?
-  var mcpServerEditor: MCPServerConfiguration?
+  var mcpServerEditor: MCPServerConfiguration? {
+    didSet { if mcpServerEditor == nil { mcpServerEditorOriginal = nil } }
+  }
+  @ObservationIgnored var mcpServerEditorOriginal: MCPServerConfiguration?
   var mcpConnectionStates: [UUID: MCPConnectionState] = [:]
   var mcpRefreshingServers: Set<UUID> = []
   var codexBackgroundTerminals: [UUID: CodexBackgroundTerminal] = [:]

@@ -8,6 +8,7 @@ enum PendingSettingsNavigation: Equatable {
   case page(SettingsPage)
   case reveal(SettingsSearchResult)
   case close
+  case mcpEditorBack
 }
 
 enum WorkspaceOverlay: String, Identifiable, CaseIterable {
@@ -70,8 +71,8 @@ extension WorkspaceStore {
   }
   func openSettings(_ page: SettingsPage? = nil) {
     guard !hasSettingsConfirmation else { return }
-    if destination == .settings, let page, page != settingsPage {
-      requestSettingsPage(page)
+    if destination == .settings {
+      if let page, page != settingsPage { requestSettingsPage(page) }
       return
     }
     showingOpenSourceLicenses = false
@@ -110,6 +111,10 @@ extension WorkspaceStore {
       return
     }
     if mcpServerEditor != nil {
+      if hasUnsavedMCPServerEdits {
+        beginSettingsNavigationConfirmation(.mcpEditorBack, onCancelFocus: onCancelFocus)
+        return
+      }
       mcpServerEditor = nil
       mcpServersError = nil
       return
@@ -128,7 +133,8 @@ extension WorkspaceStore {
   }
 
   var hasUnsavedSettingsEdits: Bool {
-    switch settingsPage {
+    if hasUnsavedMCPServerEdits { return true }
+    return switch settingsPage {
     case .model: modelSettingsDirty
     case .personalization: canSavePersonalizationEdits
     default: false
@@ -168,6 +174,7 @@ extension WorkspaceStore {
     let returnFocus = settingsDiscardReturnFocus
     settingsDiscardFocusRevision = UUID()
     settingsDiscardReturnFocus = nil
+    if mcpServerEditor != nil { mcpServerEditor = nil; mcpServersError = nil }
     switch settingsPage {
     case .model:
       modelSettingsDirty = false
@@ -185,6 +192,7 @@ extension WorkspaceStore {
       revealSetting(result)
       returnFocus?.restore(store: self, afterNavigation: true)
     case .close: closeSettings()
+    case .mcpEditorBack: settingsSearchFocusRequest = UUID()
     }
   }
 

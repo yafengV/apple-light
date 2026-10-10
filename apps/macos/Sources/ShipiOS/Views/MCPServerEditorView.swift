@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MCPServerEditorView: View {
   @Bindable var store: WorkspaceStore
-  @State var server: MCPServerConfiguration
+  @Binding var server: MCPServerConfiguration
   @State private var confirmingRemoval = false
   private var existing: Bool { store.mcpServers.contains { $0.id == server.id } }
   private var editState: MCPServerEditState { store.mcpServerEditState(server) }
@@ -10,7 +10,7 @@ struct MCPServerEditorView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Button { store.mcpServerEditor = nil; store.mcpServersError = nil } label: {
+        Button { store.closeSettings() } label: {
           Label("返回", systemImage: "chevron.left")
         }
         Text(existing ? "更新 \(server.name) MCP" : "连接自定义 MCP")
@@ -59,7 +59,7 @@ struct MCPServerEditorView: View {
             MCPKeyValueEditor(title: "从环境变量读取请求头", addLabel: "添加变量", entries: $server.environmentHeaders)
           }
         }
-        if let error = store.mcpServersError ?? (server != store.mcpServerEditor ? editState.validationMessage : nil) {
+        if let error = store.mcpServersError ?? (store.hasUnsavedMCPServerEdits ? editState.validationMessage : nil) {
           Section { Text(error).foregroundStyle(.red).textSelection(.enabled) }
         }
         Section {

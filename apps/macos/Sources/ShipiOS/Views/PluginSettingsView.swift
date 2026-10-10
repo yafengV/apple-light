@@ -11,7 +11,9 @@ struct PluginSettingsView: View {
         .disabled(store.mcpServerEditor != nil)
         .accessibilityHidden(store.mcpServerEditor != nil)
       if let server = store.mcpServerEditor {
-        MCPServerEditorView(store: store, server: server).id(server.id)
+        MCPServerEditorView(store: store, server: Binding(
+          get: { store.mcpServerEditor ?? server },
+          set: { store.mcpServerEditor = $0 })).id(server.id)
       }
     }.task { if !store.mcpServersLoaded { await store.loadMCPServers() } }
   }

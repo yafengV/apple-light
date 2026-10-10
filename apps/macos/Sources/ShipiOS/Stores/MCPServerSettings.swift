@@ -23,9 +23,15 @@ extension WorkspaceStore {
       guard let server = mcpServers.first(where: { $0.id == id }) else { return }
       mcpServerEditor = server
     } else { mcpServerEditor = MCPServerConfiguration() }
+    mcpServerEditorOriginal = mcpServerEditor
     pluginSettingsSection = .mcpServers
     settingsSearchRequest = nil
     mcpServersError = nil
+  }
+
+  var hasUnsavedMCPServerEdits: Bool {
+    guard let draft = mcpServerEditor, let original = mcpServerEditorOriginal else { return false }
+    return draft != original
   }
 
   @discardableResult func saveMCPServer(_ server: MCPServerConfiguration) -> Bool {
