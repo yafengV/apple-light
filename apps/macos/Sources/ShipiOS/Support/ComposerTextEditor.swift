@@ -376,6 +376,7 @@ struct ComposerTextEditor: NSViewRepresentable {
       guard let key else { return false }
       let modifiers = event.modifierFlags.intersection([.shift, .command, .control, .option])
       if parent.onKey(key, modifiers, editor.hasMarkedText()) { return true }
+      guard !editor.hasMarkedText() else { return false }
       if key == .enter, modifiers.isEmpty, !parent.plainTextMode {
         let line = currentLine(in: editor)
         if ComposerTextStylePlan.isEmptyListItem(line.text) {

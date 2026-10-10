@@ -203,4 +203,65 @@ final class ComposerTextEditorTests: XCTestCase {
     XCTAssertTrue(ComposerTextStylePlan.isEmptyListItem("  3.  "))
     XCTAssertFalse(ComposerTextStylePlan.isEmptyListItem("- content"))
   }
+
+  @MainActor func testMarkedReturnDefersToInputMethodBeforeRichListContinuation() throws {
+    _ = NSApplication.shared
+    for prefix in ["- ", "3. "] {
+      var draft = prefix + "original"
+      var composingKeys = 0
+      let component = ComposerTextEditor(text: Binding(get: { draft }, set: { draft = $0 }),
+        focused: .constant(true), plainTextMode: false, placeholder: "Message",
+        accessibilityLabel: "Composer", focusRequest: UUID(),
+        onKey: { key, _, composing in
+          XCTAssertEqual(key, .enter); XCTAssertTrue(composing)
+          composingKeys += 1
+          return false
+        }, onPasteAttachments: { _ in })
+      let editor = ComposerNativeTextView()
+      let owner = ComposerTextEditor.Coordinator(component)
+      editor.delegate = owner; editor.coordinator = owner
+      owner.install(draft, in: editor)
+      editor.setMarkedText("中文", selectedRange: .init(location: 2, length: 0),
+        replacementRange: .init(location: prefix.utf16.count, length: "original".utf16.count))
+      XCTAssertTrue(editor.hasMarkedText())
+      let text = editor.string, selection = editor.selectedRange(), before = draft
+      let enter = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+        characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+      XCTAssertFalse(owner.handle(enter, in: editor), "IME confirmation must remain a native key")
+      XCTAssertEqual(composingKeys, 1)
+      XCTAssertEqual(editor.string, text)
+      XCTAssertEqual(editor.selectedRange(), selection)
+      XCTAssertTrue(editor.hasMarkedText())
+      XCTAssertEqual(draft, before)
+    }
+  }
+
+  @MainActor func testCommittedListReturnContinuesOnlyInRichMode() throws {
+    _ = NSApplication.shared
+    for plain in [false, true] {
+      for (prefix, next) in [("- ", "- "), ("3. ", "4. ")] {
+        var draft = prefix + "中文"
+        let original = draft
+        let component = ComposerTextEditor(text: Binding(get: { draft }, set: { draft = $0 }),
+          focused: .constant(true), plainTextMode: plain, placeholder: "Message",
+          accessibilityLabel: "Composer", focusRequest: UUID(),
+          onKey: { key, _, composing in
+            XCTAssertEqual(key, .enter); XCTAssertFalse(composing)
+            return false
+          }, onPasteAttachments: { _ in })
+        let editor = ComposerNativeTextView()
+        let owner = ComposerTextEditor.Coordinator(component)
+        editor.delegate = owner; editor.coordinator = owner
+        owner.install(draft, in: editor)
+        editor.setSelectedRange(.init(location: draft.utf16.count, length: 0))
+        let enter = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+          modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+          characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+        XCTAssertEqual(owner.handle(enter, in: editor), !plain)
+        XCTAssertEqual(editor.string, plain ? original : original + "\n" + next)
+        XCTAssertEqual(draft, plain ? original : original + "\n" + next)
+      }
+    }
+  }
 }
