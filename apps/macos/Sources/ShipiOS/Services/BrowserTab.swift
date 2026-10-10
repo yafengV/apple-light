@@ -544,7 +544,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     canGoBack = view.canGoBack; canGoForward = view.canGoForward
     if committedURL != view.url {
       committedURL = view.url
-      if !editingAddress, !hasAddressInputDraft, let url = view.url { address = url.absoluteString }
+      if error == nil, !editingAddress, !hasAddressInputDraft, let url = view.url { address = url.absoluteString }
     }
     pageTitle = view.title.flatMap { $0.isEmpty ? nil : $0 } ?? view.url?.host ?? "新标签页"
   }
@@ -596,6 +596,12 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
       && nsError.code == 102
     if nsError.code != NSURLErrorCancelled, !becameDownload {
       self.error = error.localizedDescription
+      // A provisional failure can leave WebKit on the previous page. Retry must
+      // use the failed destination while preserving a newer address-bar draft.
+      if !editingAddress, !hasAddressInputDraft,
+        let url = nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL {
+        address = url.absoluteString
+      }
     }
   }
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {

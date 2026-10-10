@@ -1,8 +1,13 @@
 """HTTP pages for WebKit tests. Bound only to loopback; no external data."""
+import argparse
 import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 counts = {}
+parser = argparse.ArgumentParser()
+parser.add_argument('--recovery-gate', type=Path)
+options = parser.parse_args()
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -10,6 +15,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?')[0]
+        if path == '/recoverable' and (
+            options.recovery_gate is None or not options.recovery_gate.exists()
+        ):
+            self.close_connection = True
+            return
         if path == '/disconnect':
             self.close_connection = True
             return
@@ -102,7 +112,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         counts[path] = counts.get(path, 0) + 1
-        title = {'/one': 'One', '/two': 'Two', '/popup': 'Popup', '/tall': 'Tall'}.get(path, path)
+        title = {'/one': 'One', '/two': 'Two', '/popup': 'Popup', '/tall': 'Tall',
+                 '/recoverable': 'Recovered'}.get(path, path)
         if path == '/cache':
             title = 'Cache ' + str(counts[path])
         if path == '/tall':
