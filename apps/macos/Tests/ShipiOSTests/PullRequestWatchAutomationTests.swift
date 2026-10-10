@@ -201,6 +201,26 @@ import XCTest
     XCTAssertTrue(store.automationsError?.contains("已结束的回合") == true)
   }
 
+  func testSourceHistoryRemovedDuringPRRefreshCannotCreateWatchOrPersistFork() async throws {
+    let (store, root) = fixture()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try store.commitLibrary(store.library)
+    let file = root.appendingPathComponent("workspace.json")
+    let saved = try Data(contentsOf: file)
+    let open = details(state: "OPEN")
+    let started = await store.startPullRequestWatch(request, taskID: "owner", root: root,
+      read: { _, _ in
+        await MainActor.run { store.library.tasks[0].runIDs = [] }
+        return open
+      }, runImmediately: false)
+    XCTAssertFalse(started)
+    XCTAssertEqual(store.library.tasks.map(\.id), ["owner"])
+    XCTAssertTrue(store.library.forkRuns.isEmpty)
+    XCTAssertTrue(store.automationPreferences.items.isEmpty)
+    XCTAssertTrue(store.automationsError?.contains("已结束的回合") == true)
+    XCTAssertEqual(try Data(contentsOf: file), saved)
+  }
+
   func testSourceArchivedDuringPRRefreshCannotStartWatch() async throws {
     let (store, root) = fixture()
     defer { try? FileManager.default.removeItem(at: root) }

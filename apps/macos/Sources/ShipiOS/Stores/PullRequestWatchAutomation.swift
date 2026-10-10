@@ -65,8 +65,14 @@ extension WorkspaceStore {
         }
       } else {
         var candidate = library
+        let sourceRuns = taskWindowRuns(taskID)
+        // Ordinary forks may start before the first turn; a new PR watch must
+        // inherit at least one finished source run before creating a task.
+        guard !(try candidate.forkHistory(taskID: taskID, availableRuns: sourceRuns)).isEmpty else {
+          throw AgentFailure(message: "来源任务暂无已结束的回合，无法开始 PR 监控。")
+        }
         let fork = try candidate.forkConversation(taskID: taskID,
-          availableRuns: taskWindowRuns(taskID))
+          availableRuns: sourceRuns)
         guard let index = candidate.tasks.firstIndex(where: { $0.id == fork.id }) else {
           throw AgentFailure(message: "无法保存 PR 监控分叉任务。")
         }
