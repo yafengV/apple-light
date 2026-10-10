@@ -64,9 +64,6 @@ impl Service {
         if let RunRequest::Build(build) = &request {
             build.command(&self.config, &self.config.data_dir.join("Artifacts"))?;
         }
-        if let RunRequest::VerifyCounter = &request {
-            crate::counter_verification::validate_project(&self.config.project)?;
-        }
         let kind = match request {
             RunRequest::Doctor => "doctor",
             RunRequest::Build(_) => "build",
@@ -276,6 +273,54 @@ impl Service {
 mod tests {
     use super::*;
     use shipios_core::config::Layer;
+
+    #[tokio::test]
+    async fn blocked_counter_contract_has_a_terminal_report_without_commands() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let project = temp.path().join("project");
+        std::fs::create_dir(&project)?;
+        std::fs::write(
+            project.join("HelloShipiOSUITests.swift"),
+            "invalid contract",
+        )?;
+        let service = Arc::new(Service::new(Config::load(
+            &temp.path().join("data"),
+            &project,
+            false,
+            Layer::default(),
+        )?)?);
+        let run = service.start(RunRequest::VerifyCounter)?;
+        tokio::time::timeout(std::time::Duration::from_secs(2), service.wait_idle()).await?;
+        let result = service.get(&run.id)?;
+        assert_eq!(result.status, RunStatus::Failed);
+        let report = service.report(&run.id)?;
+        assert_eq!(report["run"]["result"]["verification"], "blocked");
+        assert_eq!(report["run"]["result"]["steps"], json!([]));
+        assert_eq!(report["run"]["result"]["build"], "not_run");
+        assert_eq!(report["run"]["result"]["ui"], "not_run");
+        let artifact: Value = serde_json::from_slice(&std::fs::read(
+            service
+                .config
+                .data_dir
+                .join("Artifacts")
+                .join(&run.id)
+                .join("counter-report.json"),
+        )?)?;
+        assert_eq!(artifact["verification"], "blocked");
+        assert_eq!(
+            std::fs::read_to_string(project.join("HelloShipiOSUITests.swift"))?,
+            "invalid contract"
+        );
+        assert_eq!(
+            service
+                .events(&run.id, 0)?
+                .iter()
+                .filter(|e| e.kind == "step.started")
+                .count(),
+            0
+        );
+        Ok(())
+    }
 
     #[test]
     fn reports_and_artifacts_enforce_run_and_path_boundaries() -> Result<()> {

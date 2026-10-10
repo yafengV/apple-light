@@ -24,6 +24,10 @@ struct CounterDeliveryCard: View {
         Text("固定 UI 断言：0 → 1 → 2 → 重置 0 · 专用 iOS 26.2 设备")
           .appFont(.caption).foregroundStyle(.secondary)
         if let record {
+          if record.phase == .blocked {
+            Text("请先恢复固定验收合同或工程访问；未请求模型修复。")
+              .appFont(.caption).foregroundStyle(.secondary)
+          }
           if !record.message.isEmpty {
             Text(String(record.message.prefix(300))).appFont(.caption).lineLimit(3).textSelection(.enabled)
           }

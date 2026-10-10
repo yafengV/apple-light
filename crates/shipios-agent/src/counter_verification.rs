@@ -379,8 +379,23 @@ pub async fn execute(
     cancel: CancellationToken,
     started: impl Fn(Value) -> Result<()>,
 ) -> Result<Value> {
-    validate_project(&config.project)?;
-    let before = snapshot(&config.project)?;
+    let preflight = validate_project(&config.project).and_then(|()| snapshot(&config.project));
+    let before = match preflight {
+        Ok(before) => before,
+        Err(error) => {
+            let report = json!({
+                "verification":"blocked", "errorCode":"COUNTER_PREFLIGHT_BLOCKED",
+                "message":error.to_string(), "build":"not_run", "ui":"not_run",
+                "steps":[], "command":null, "sourceSHA256":{}, "changedInputs":[],
+                "artifactDirectory":artifacts, "modelEvidence":"not_run"
+            });
+            fs::write(
+                artifacts.join("counter-report.json"),
+                serde_json::to_vec_pretty(&report)?,
+            )?;
+            return Ok(report);
+        }
+    };
     let mut workflow = Workflow {
         config,
         artifacts,

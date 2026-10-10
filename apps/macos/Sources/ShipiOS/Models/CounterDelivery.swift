@@ -1,7 +1,7 @@
 import Foundation
 
 enum CounterDeliveryPhase: String, Codable {
-  case verifying, repairing, succeeded, failed, cancelled, interrupted
+  case verifying, repairing, succeeded, failed, blocked, cancelled, interrupted
   var isActive: Bool { self == .verifying || self == .repairing }
   var title: String {
     switch self {
@@ -9,6 +9,7 @@ enum CounterDeliveryPhase: String, Codable {
     case .repairing: "正在请求模型修复"
     case .succeeded: "计数器 UI 断言通过"
     case .failed: "验证未通过，可接管或重试"
+    case .blocked: "验证受阻，构建与 UI 未运行"
     case .cancelled: "已停止验证"
     case .interrupted: "验证已中断，请检查工件后重试"
     }
@@ -66,6 +67,10 @@ struct CounterDelivery: Codable, Equatable {
         state.message = result.result?["message"].text
           ?? result.result?["testSummary"]["testFailures"].items.first?["failureText"].text
           ?? "构建或固定 UI 断言未通过，请查看工件。"
+        if result.result?["verification"].text == "blocked" {
+          state.phase = .blocked
+          break
+        }
         guard repairFailures, result.status == "failed",
           state.repairs < CounterDelivery.maximumRepairs else {
           state.phase = result.status == "cancelled" ? .cancelled : .failed

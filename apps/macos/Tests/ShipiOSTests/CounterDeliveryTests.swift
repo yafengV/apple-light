@@ -61,6 +61,22 @@ import XCTest
     XCTAssertEqual(final.phase, .failed); XCTAssertEqual(repairs, 0)
   }
 
+  func testBlockedContractRetainsReportWithoutRequestingModelRepair() async throws {
+    let blocked = AgentRun(id: UUID().uuidString, kind: "verify_counter", project: "/isolated",
+      status: "failed", createdAt: 0, updatedAt: 0, request: .object([:]),
+      result: .object(["verification": .string("blocked"),
+        "message": .string("Fixed acceptance input was changed"),
+        "steps": .array([]), "build": .string("not_run"), "ui": .string("not_run")]))
+    let final = await CounterDeliveryOperation.run(initial(), repairFailures: true,
+      verify: { blocked }, repair: { _ in XCTFail("Blocked contract cannot request model repair"); return "bad" },
+      publish: { _ in true })
+    XCTAssertEqual(final.phase, .blocked)
+    XCTAssertEqual(final.repairs, 0)
+    XCTAssertEqual(final.verifications, [blocked])
+    XCTAssertEqual(final.message, "Fixed acceptance input was changed")
+    XCTAssertEqual(try JSONDecoder().decode(CounterDelivery.self, from: JSONEncoder().encode(final)), final)
+  }
+
   func testMissingCountsSkippedOrChangedSourcesCannotDeclareSuccess() async {
     let candidates = [result(passed: true, summary: [:]),
       result(passed: true, summary: ["totalTestCount": .number(1), "passedTests": .number(1),
