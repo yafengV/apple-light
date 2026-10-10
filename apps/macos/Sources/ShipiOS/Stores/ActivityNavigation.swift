@@ -183,11 +183,17 @@ extension WorkspaceStore {
     defer { activityOpeningTaskID = nil }
     activityError = nil
     let origin = destination
+    destination = .workspace
     let sessionID = activitySession?.id
-    let opened = await selectTaskAwaitingScope(task)
+    let revision = conversationForkNavigationRevision
+    let stillValid = { !self.shuttingDown && !Task.isCancelled
+      && self.conversationForkNavigationRevision == revision && self.activitySession?.id == sessionID
+      && self.presentedOverlay == nil && !self.hasSettingsConfirmation
+      && self.library.tasks.contains { $0.id == id && $0.project == task.project && !$0.archived } }
+    let opened = await selectTaskAwaitingScope(task, stillValid: stillValid)
     if opened {
       reviewActivityAutomation(task)
-    } else if activitySession?.id == sessionID {
+    } else if stillValid() {
       activityError = "无法打开此任务。请检查所属项目是否可用。"
       destination = origin
     }

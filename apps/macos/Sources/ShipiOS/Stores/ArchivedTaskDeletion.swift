@@ -49,17 +49,32 @@ extension WorkspaceStore {
       return
     }
     recordNavigation()
+    destination = .workspace
+    let revision = conversationForkNavigationRevision, activity = activitySession?.id
+    let stillValid = { !self.shuttingDown && !Task.isCancelled
+      && self.conversationForkNavigationRevision == revision && self.activitySession?.id == activity
+      && self.presentedOverlay == nil && !self.hasSettingsConfirmation
+      && self.library.tasks.contains { $0.id == taskID && $0.project == task.project && !$0.isPopoutDraft } }
     if currentProjectKey != task.project {
       notices.show(id: notice.id, title: "正在打开任务…", level: .pending)
       guard let opening = notices.items.first(where: { $0.id == notice.id }) else { return }
-      let opened = await openTaskScope(task.project)
+      let opened = await openTaskScope(task.project, stillValid: {
+        stillValid() && self.notices.items.contains { $0.id == opening.id && $0.generation == opening.generation }
+      })
       guard notices.items.contains(where: { $0.id == notice.id && $0.generation == opening.generation }) else { return }
+      guard stillValid() else {
+        // Keep the original action available without leaving an abandoned open pending forever.
+        notices.show(id: notice.id, title: notice.title, description: notice.description,
+          level: notice.level, taskID: notice.taskID,
+          watchAutomationID: notice.watchAutomationID, watchTaskID: notice.watchTaskID)
+        return
+      }
       guard opened else {
         notices.show(id: notice.id, title: "任务已恢复，但无法打开项目。", level: .error, taskID: taskID)
         return
       }
     }
-    guard let latest = library.tasks.first(where: { $0.id == taskID }) else {
+    guard let latest = library.tasks.first(where: { $0.id == taskID }), canSelectTask(latest) else {
       notices.show(id: notice.id, title: "任务已恢复，但无法打开：任务已不存在。", level: .error)
       return
     }

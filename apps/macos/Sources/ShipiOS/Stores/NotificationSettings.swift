@@ -75,8 +75,16 @@ extension WorkspaceStore {
       return false
     }
     recordNavigation()
-    guard await openTaskScope(task.project) else { return false }
-    applyTaskSelection(task)
+    destination = .workspace
+    let revision = conversationForkNavigationRevision, activity = activitySession?.id
+    let stillValid = { !self.shuttingDown && !Task.isCancelled
+      && self.conversationForkNavigationRevision == revision && self.activitySession?.id == activity
+      && self.presentedOverlay == nil && !self.hasSettingsConfirmation
+      && self.library.tasks.contains { $0.id == target.taskID && $0.project == target.project
+        && $0.runIDs.contains(target.runID) } }
+    guard await openTaskScope(task.project, stillValid: stillValid), stillValid(),
+      let latest = library.tasks.first(where: { $0.id == target.taskID }), canSelectTask(latest) else { return false }
+    applyTaskSelection(latest)
     showingFind = false
     selection = target.runID
     rememberProjectSelection()
