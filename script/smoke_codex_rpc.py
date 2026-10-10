@@ -88,13 +88,13 @@ class Responses(BaseHTTPRequestHandler):
 
 
 class Client:
-    def __init__(self, binary, data, project, home, build_cache=None):
+    def __init__(self, binary, data, project, home, build_cache=None, parent_codex_home=None):
         self.process = subprocess.Popen(
             [str(binary), "--data-dir", str(data), "--project", str(project), "serve"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
             env={
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": str(home),
-                "CODEX_HOME": str(data / "Codex"), "LANG": "en_US.UTF-8",
+                "CODEX_HOME": str(parent_codex_home or data / "Codex"), "LANG": "en_US.UTF-8",
                 "OPENAI_API_KEY": "environment-poison-token",
                 **({"SHIPIOS_STORAGE_GUARDED": "1", "SHIPIOS_BUILD_CACHE_ROOT": str(build_cache)} if build_cache else {}),
             },

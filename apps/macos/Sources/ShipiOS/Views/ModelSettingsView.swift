@@ -6,7 +6,7 @@ struct ModelSettingsView: View {
   @State private var realtimeModelDraft = ""
   @State private var key = ""
   @State private var status = ""
-  @State private var testing = false
+  @State private var connection = ModelConnectionTest()
   var body: some View {
     SettingsForm {
       SettingsSection("独立 API 服务") {
@@ -47,20 +47,14 @@ struct ModelSettingsView: View {
           .appFont(.caption).foregroundStyle(.secondary)
         HStack {
           Button("保存配置") { save() }
-          Button(testing ? "测试中…" : "测试连接") {
+          Button(connection.testing ? "测试中…" : "测试连接") {
             guard save() else { return }
-            testing = true
-            Task {
-              defer { testing = false }
-              do {
-                let key = try ModelKeychain.read(account: draft.credentialAccount)
-                let count = try await ModelAPIClient().test(config: draft, key: key)
-                status = "模型列表可用，服务返回 \(count) 个模型。"
-              } catch { status = error.localizedDescription }
-            }
-          }.disabled(testing)
+            connection.start(config: draft, keyDraft: key)
+          }.disabled(connection.testing)
         }
-        if !status.isEmpty { Text(status).appFont(.callout).textSelection(.enabled) }
+        if !connection.status.isEmpty {
+          Text(connection.status).appFont(.callout).textSelection(.enabled)
+        } else if !status.isEmpty { Text(status).appFont(.callout).textSelection(.enabled) }
       }
       SettingsSection {
         Button("回复风格与自定义指令…") { store.requestSettingsPage(.personalization) }
@@ -68,15 +62,24 @@ struct ModelSettingsView: View {
     }.settingsFormStyle().appSurface().onAppear {
       reloadDraft()
     }
-    .onChange(of: draft) { _, _ in updateDirtyState() }
+    .onChange(of: draft) { _, _ in
+      connection.invalidateIfChanged(config: draft, keyDraft: key)
+      updateDirtyState()
+    }
     .onChange(of: realtimeModelDraft) { _, _ in updateDirtyState() }
-    .onChange(of: key) { _, _ in updateDirtyState() }
+    .onChange(of: key) { _, _ in
+      connection.invalidateIfChanged(config: draft, keyDraft: key)
+      updateDirtyState()
+    }
     .onChange(of: store.modelSettingsResetRequest) { _, _ in reloadDraft() }
     .onChange(of: store.settingsPage) { _, page in
+      if page != .model { connection.cancel() }
       if page == .model && !store.modelSettingsDirty { reloadDraft() }
     }
+    .onDisappear { connection.cancel() }
   }
   private func reloadDraft() {
+    connection.cancel()
     draft = store.modelConfiguration
     realtimeModelDraft = store.voicePreferences.realtimeModelID
     key = ""
@@ -88,6 +91,7 @@ struct ModelSettingsView: View {
       || realtimeModelDraft != store.voicePreferences.realtimeModelID || !key.isEmpty
   }
   @discardableResult private func save() -> Bool {
+    connection.cancel()
     do {
       try draft.validateEndpoint()
       guard !draft.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
