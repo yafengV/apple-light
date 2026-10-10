@@ -355,6 +355,8 @@ final class DeveloperWorkspace {
     guard let index = openFiles.firstIndex(of: path) else { return }
     let key = editorKey(for: path)
     if !preservingDraft, let session = fileEditorSessions[key], session.hasUnsavedChanges || session.saving {
+      if fileCloseRequest != path { cancelFileClose() }
+      fileAutosaveTasks.removeValue(forKey: key)?.cancel()
       fileCloseRequest = path
       return
     }

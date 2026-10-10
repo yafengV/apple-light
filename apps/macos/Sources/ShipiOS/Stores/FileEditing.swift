@@ -34,12 +34,14 @@ extension DeveloperWorkspace {
 
   func scheduleFileAutosave(key: String) {
     fileAutosaveTasks.removeValue(forKey: key)?.cancel()
-    guard fileEditorSessions[key]?.hasUnsavedChanges == true else { return }
+    guard fileEditorSessions[key]?.hasUnsavedChanges == true,
+      fileCloseRequest.map({ editorKey(for: $0) }) != key else { return }
     fileAutosaveTasks[key] = Task { [weak self] in
       try? await Task.sleep(for: .seconds(3))
       guard !Task.isCancelled else { return }
       guard let self else { return }
       self.fileAutosaveTasks[key] = nil
+      guard self.fileCloseRequest.map({ self.editorKey(for: $0) }) != key else { return }
       _ = await self.saveFileEdits(key: key)
     }
   }
@@ -126,5 +128,14 @@ extension DeveloperWorkspace {
     onFileEditResolved?(key)
     fileCloseRequest = nil
     closeFile(path)
+  }
+
+  func cancelFileClose() {
+    guard let path = fileCloseRequest else { return }
+    fileCloseRequest = nil
+    let key = editorKey(for: path)
+    if openFiles.contains(path), fileEditorSessions[key]?.changedOnDisk == nil {
+      scheduleFileAutosave(key: key)
+    }
   }
 }

@@ -342,6 +342,66 @@ final class FileWorkspaceTests: XCTestCase {
     XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("first.txt")), "first")
   }
 
+  func testPendingFileClosePausesOnlyItsAutosaveAndDiscardKeepsDisk() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = root.appendingPathComponent("first.txt"), second = root.appendingPathComponent("second.txt")
+    try "first".write(to: first, atomically: true, encoding: .utf8)
+    try "second".write(to: second, atomically: true, encoding: .utf8)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    defer { workspace.setProject(nil) }
+    await workspace.openFile("first.txt")
+    workspace.editSelectedFile("discard this draft")
+    await workspace.openFile("second.txt")
+    workspace.editSelectedFile("save other file")
+    workspace.closeFile("first.txt")
+    // A monitor/conflict refresh must not rearm the paused file while its dialog is open.
+    workspace.scheduleFileAutosave(key: first.path)
+    try await Task.sleep(for: .milliseconds(3400))
+    XCTAssertEqual(workspace.fileCloseRequest, "first.txt")
+    XCTAssertTrue(workspace.openFiles.contains("first.txt"))
+    XCTAssertEqual(try String(contentsOf: first), "first")
+    XCTAssertEqual(try String(contentsOf: second), "save other file")
+    XCTAssertEqual(workspace.fileEditorSessions[first.path]?.text, "discard this draft")
+    workspace.discardAndCloseFile("first.txt")
+    XCTAssertFalse(workspace.openFiles.contains("first.txt"))
+    XCTAssertEqual(try String(contentsOf: first), "first")
+  }
+
+  func testCancelFileCloseResumesAutosaveAndExplicitSaveStillWorks() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("file.txt")
+    try "original".write(to: file, atomically: true, encoding: .utf8)
+    let workspace = DeveloperWorkspace()
+    workspace.root = root
+    defer { workspace.setProject(nil) }
+    await workspace.openFile("file.txt")
+    workspace.editSelectedFile("keep editing")
+    workspace.closeFile("file.txt")
+    XCTAssertNil(workspace.fileAutosaveTasks[file.path])
+    workspace.cancelFileClose()
+    XCTAssertNil(workspace.fileCloseRequest)
+    XCTAssertTrue(workspace.openFiles.contains("file.txt"))
+    XCTAssertEqual(workspace.fileText, "keep editing")
+    for _ in 0..<90 {
+      if try String(contentsOf: file) == "keep editing" { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertEqual(try String(contentsOf: file), "keep editing")
+    workspace.editSelectedFile("explicit save")
+    workspace.closeFile("file.txt")
+    let saved = await workspace.saveSelectedFileEdits()
+    XCTAssertTrue(saved)
+    XCTAssertEqual(try String(contentsOf: file), "explicit save")
+    workspace.fileCloseRequest = nil
+    workspace.closeFile("file.txt")
+    XCTAssertFalse(workspace.openFiles.contains("file.txt"))
+  }
+
   func testEditorAutosavesAndCannotSaveAfterAttachedFolderRemoval() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let primary = root.appendingPathComponent("Primary")

@@ -43,7 +43,7 @@ struct FileWorkspaceView: View {
     }
     .confirmationDialog("保存此文件的更改？", isPresented: Binding(
       get: { workspace.fileCloseRequest != nil },
-      set: { if !$0 { workspace.fileCloseRequest = nil } }
+      set: { if !$0 { workspace.cancelFileClose() } }
     )) {
       Button("保存并关闭") {
         guard let path = workspace.fileCloseRequest else { return }
@@ -59,7 +59,7 @@ struct FileWorkspaceView: View {
       }.disabled(workspace.fileCloseRequest.flatMap {
         workspace.fileEditorSessions[workspace.editorKey(for: $0)]?.saving
       } == true)
-      Button("继续编辑", role: .cancel) { workspace.fileCloseRequest = nil }
+      Button("继续编辑", role: .cancel) { workspace.cancelFileClose() }
     } message: {
       Text("当前内容尚未写入磁盘。")
     }
