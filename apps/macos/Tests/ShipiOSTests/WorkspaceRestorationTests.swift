@@ -3,6 +3,45 @@ import XCTest
 @testable import ShipiOS
 
 final class WorkspaceRestorationTests: XCTestCase {
+  @MainActor func testMissingLastProjectReportsFailureWithoutReplacingSavedRecoveryLocation() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      .resolvingSymlinksInPath().standardizedFileURL
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let missing = root.resolvingSymlinksInPath().appendingPathComponent("missing project")
+    var saved = WorkspaceLibrary()
+    saved.projects = [missing.path]
+    saved.lastWorkspace = missing.path
+    saved.tasks = [.init(id: "saved-task", project: missing.path, title: "Saved", runIDs: [])]
+    saved.projectSelections[missing.path] = "saved-task"
+    saved.drafts["saved-task"] = "Keep this draft"
+    saved.unreadTasks = ["saved-task"]
+    let file = root.appendingPathComponent("data/workspace.json")
+    try saved.save(to: file)
+    let helper = try XCTUnwrap(ProcessInfo.processInfo.environment["SHIPIOS_TEST_AGENT"])
+    let store = WorkspaceStore(dataRoot: file.deletingLastPathComponent(), agentExecutable: URL(fileURLWithPath: helper))
+    await store.restore()
+    XCTAssertTrue(store.libraryLoaded)
+    XCTAssertFalse(store.restoringLibrary)
+    XCTAssertFalse(store.busy)
+    XCTAssertTrue(store.error?.contains(missing.path) == true)
+    XCTAssertEqual(store.library.lastWorkspace, missing.path)
+    XCTAssertEqual(store.library.projectSelections[missing.path], "saved-task")
+    XCTAssertEqual(store.library.drafts["saved-task"], "Keep this draft")
+    XCTAssertTrue(store.library.unreadTasks.contains("saved-task"))
+    XCTAssertEqual(try WorkspaceLibrary.load(from: file).lastWorkspace, missing.path)
+    XCTAssertEqual(store.projectRecoveryPath, missing.path)
+    try FileManager.default.createDirectory(at: missing, withIntermediateDirectories: true)
+    await store.retryProjectOpen()
+    XCTAssertTrue(store.connected)
+    XCTAssertEqual(store.project?.path, missing.path)
+    XCTAssertEqual(store.selectedTask?.id, "saved-task")
+    XCTAssertEqual(store.draft, "Keep this draft")
+    XCTAssertNil(store.projectRecoveryPath)
+    XCTAssertNil(store.error)
+    await store.shutdown()
+  }
+
   @MainActor func testLibraryReadFailureRemainsDistinctFromEmptyAndClearsAfterSuccessfulRestore() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }

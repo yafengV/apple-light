@@ -1,6 +1,54 @@
 import Foundation
 
+struct ProjectOpenFailure {
+  let path: String
+  let message: String
+}
+
 extension WorkspaceStore {
+  var projectRecoveryPath: String? {
+    guard let failure = projectOpenFailure, error == failure.message else { return nil }
+    return failure.path
+  }
+
+  func reportProjectOpenFailure(_ path: String, message: String) {
+    projectOpenFailure = .init(path: path, message: message)
+    error = message
+  }
+
+  func retryProjectOpen() async {
+    guard let path = projectRecoveryPath, !busy, !shuttingDown else { return }
+    await open(URL(fileURLWithPath: path), usePrimary: false)
+  }
+
+  func canRemoveProject(_ path: String) -> Bool {
+    libraryLoaded && !restoringLibrary && !shuttingDown && !busy && !managedTaskPreparing
+      && activeLocalRun == nil && library.projects.contains(path)
+  }
+
+  /// Removing a navigation entry preserves its project metadata, files and history.
+  @discardableResult func removeProject(_ path: String) async -> Bool {
+    guard canRemoveProject(path) else { return false }
+    let leavesCurrentScope = library.projectOwner(for: currentProjectKey) == path
+    var candidate = library
+    candidate.projects.removeAll { $0 == path }
+    candidate.pinnedProjects.remove(path)
+    candidate.collapsedProjects.remove(path)
+    let item = SidebarItem.project(path)
+    candidate.sidebar.placement[item.id] = nil
+    for section in Array(candidate.sidebar.order.keys) {
+      candidate.sidebar.order[section]?.removeAll { $0 == item.id }
+    }
+    if leavesCurrentScope || candidate.lastWorkspace.map({ candidate.projectOwner(for: $0) == path }) == true {
+      candidate.lastWorkspace = ""
+    }
+    do { try commitLibrary(candidate) }
+    catch { self.error = "无法移除项目：\(error.localizedDescription)"; return false }
+    if leavesCurrentScope { await openProjectless() }
+    notices.show(id: "project-removed", title: "项目已移除，文件和任务历史已保留。", level: .success)
+    return true
+  }
+
   func openProjectPicker(createNewTask: Bool) {
     guard commandEnabled("project-picker") else { return }
     projectPickerCreatesNewTask = createNewTask

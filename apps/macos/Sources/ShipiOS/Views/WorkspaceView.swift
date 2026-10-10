@@ -522,18 +522,23 @@ struct WorkspaceView: View {
           WorkspaceTabStrip(store: store)
           Divider()
         }
+        if let error = store.error {
+          HStack(alignment: .top) {
+            Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+            Text(error).appFont(.callout).textSelection(.enabled)
+            Spacer()
+            if store.projectRecoveryPath != nil {
+              Button("重试打开项目") { Task { await store.retryProjectOpen() } }
+                .disabled(store.busy || store.activeLocalRun != nil)
+                .accessibilityIdentifier("project-open-retry")
+            }
+            Button { store.error = nil } label: { Image(systemName: "xmark") }
+              .buttonStyle(.plain).help("关闭提示")
+          }.padding(12).background(.orange.opacity(0.08))
+        }
         if let tab = store.activeWorkspaceContentTab {
           WorkspaceTabContentView(store: store, tab: tab)
         } else {
-          if let error = store.error {
-            HStack(alignment: .top) {
-              Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
-              Text(error).appFont(.callout).textSelection(.enabled)
-              Spacer()
-              Button { store.error = nil } label: { Image(systemName: "xmark") }
-                .buttonStyle(.plain).help("关闭提示")
-            }.padding(12).background(.orange.opacity(0.08))
-          }
           if store.showingFind { ConversationFindBar(store: store) }
           ConversationView(store: store)
             .frame(minHeight: 0, maxHeight: .infinity)

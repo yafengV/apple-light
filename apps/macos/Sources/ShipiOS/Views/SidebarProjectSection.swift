@@ -75,5 +75,8 @@ struct ProjectActionsMenu: View {
     Button("在 Finder 中显示") {
       NSWorkspace.shared.open(URL(fileURLWithPath: store.library.primaryFolder(for: path)))
     }
+    Button("移除项目") { Task { await store.removeProject(path) } }
+      .disabled(!store.canRemoveProject(path))
+      .help("从项目列表移除，保留文件、任务历史和草稿")
   }
 }

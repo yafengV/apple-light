@@ -472,6 +472,7 @@ final class WorkspaceStore {
     restoringLibrary || modelConfigurationRecoveryPending || restorationReadError != nil
   }
   var error: String?
+  var projectOpenFailure: ProjectOpenFailure?
   var logText = ""
   var logName = "stdout.log"
   var config: JSONValue = .null
@@ -710,9 +711,7 @@ final class WorkspaceStore {
     await loadComputerUsePreferences()
     restoreInterruptedChats()
     // visit() keeps this data root's most recently opened project first.
-    if let path = library.lastWorkspace ?? library.projects.first, !path.isEmpty,
-      FileManager.default.fileExists(atPath: path)
-    {
+    if let path = library.lastWorkspace ?? library.projects.first, !path.isEmpty {
       await open(URL(fileURLWithPath: path), usePrimary: library.lastWorkspace == nil)
     } else {
       await openProjectless()
@@ -865,6 +864,15 @@ final class WorkspaceStore {
     let canonical = usePrimary
       ? URL(fileURLWithPath: library.primaryFolder(for: requested.path), isDirectory: true)
         .resolvingSymlinksInPath().standardizedFileURL : requested
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: canonical.path, isDirectory: &isDirectory),
+      isDirectory.boolValue else {
+      reportProjectOpenFailure(canonical.path,
+        message: "项目目录不可用：\(canonical.path)\n请恢复此目录后重试，或打开其他项目。任务历史和草稿已保留。")
+      return
+    }
+    projectOpenFailure = nil
+    error = nil
     if project == canonical && connected {
       returnToWorkspace()
       return
@@ -956,7 +964,10 @@ final class WorkspaceStore {
       replayPreparedScopeUpdates(token: token)
       if loadsDetails { await loadDetails() }
     } catch {
-      self.error = error.localizedDescription
+      guard session == token else { return }
+      if !shuttingDown, stillValid() {
+        reportProjectOpenFailure(canonical.path, message: error.localizedDescription)
+      }
       await client.stop()
     }
   }
