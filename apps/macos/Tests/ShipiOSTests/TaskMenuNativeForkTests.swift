@@ -563,38 +563,54 @@ import XCTest
     window.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
     defer { window.contentView = nil; window.close() }
-    func element(_ identifier: String, in object: Any) -> (any NSAccessibilityProtocol)? {
-      guard let node = object as? any NSAccessibilityProtocol else { return nil }
-      if node.accessibilityIdentifier() == identifier { return node }
-      for child in node.accessibilityChildren() ?? [] {
+    func element(_ identifier: String, in object: Any) -> AnyObject? {
+      guard let node = object as? NSObject else { return nil }
+      // SwiftUI's AccessibilityNode implements the Objective-C selectors but
+      // does not declare NSAccessibilityProtocol conformance.
+      let dynamic: AnyObject = node
+      if dynamic.accessibilityIdentifier?() == identifier { return dynamic }
+      let children = dynamic.accessibilityChildren?() ?? []
+      for child in children {
         if let found = element(identifier, in: child) { return found }
       }
       return nil
     }
-    func find(_ identifier: String) async throws -> any NSAccessibilityProtocol {
+    func find(_ identifier: String) async throws -> AnyObject {
       let deadline = ContinuousClock.now.advanced(by: .seconds(3))
       repeat {
         host.layoutSubtreeIfNeeded()
         if let found = element(identifier, in: host) { return found }
         try await Task.sleep(for: .milliseconds(30))
       } while ContinuousClock.now < deadline
+      func describe(_ object: Any, depth: Int) -> [String] {
+        guard depth < 8 else { return [] }
+        guard let node = object as? NSObject else { return [] }
+        let dynamic: AnyObject = node
+        let children = dynamic.accessibilityChildren?() ?? []
+        return ["\(depth): \(type(of: object)), id=\(dynamic.accessibilityIdentifier?() ?? ""), children=\(children.count)"]
+          + children.prefix(12).flatMap { describe($0, depth: depth + 1) }
+      }
+      let diagnostic = "Mounted preparation control not found: " + identifier
+        + "; key=\(window.isKeyWindow), visible=\(window.isVisible), preparation=\(String(describing: store.worktreeForkPresentation.preparation))"
+        + "; host children=" + describe(host, depth: 0).joined(separator: "; ")
       await store.shutdown()
-      throw AgentFailure(message: "Mounted preparation control not found: " + identifier)
+      throw AgentFailure(message: diagnostic)
     }
-    let windows = Set(NSApp.windows.map(\.windowNumber))
+    let windows = Set(nativeInteractionWindows().map(\.windowNumber))
     let operation = Task { await store.forkTaskToNewWorktree(f.source.id) }
     _ = try await waitUntilStarted(f)
     let cancel = try await find("worktree-fork-cancel")
-    XCTAssertTrue(cancel.accessibilityPerformPress())
+    XCTAssertEqual(cancel.accessibilityPerformPress?(), true)
     let result = await operation.value
     XCTAssertNil(result)
     XCTAssertEqual(store.worktreeForkPresentation.preparation?.state, .cancelled)
     XCTAssertEqual(store.selectedTask?.id, f.source.id)
     XCTAssertTrue(window.isVisible)
-    XCTAssertEqual(Set(NSApp.windows.map(\.windowNumber)), windows)
+    XCTAssertEqual(Set(nativeInteractionWindows().map(\.windowNumber)), windows,
+      NSApp.windows.map { "\($0.windowNumber): \(type(of: $0)) title=\($0.title) visible=\($0.isVisible) level=\($0.level.rawValue)" }.joined(separator: "; "))
     try Data().write(to: f.release)
     let retry = try await find("worktree-fork-retry")
-    XCTAssertTrue(retry.accessibilityPerformPress())
+    XCTAssertEqual(retry.accessibilityPerformPress?(), true)
     let deadline = ContinuousClock.now.advanced(by: .seconds(5))
     while store.worktreeForkPresentation.preparation != nil {
       guard ContinuousClock.now < deadline else { throw AgentFailure(message: "Retry did not open the child") }

@@ -51,6 +51,7 @@ struct WorktreeForkPreparationView: View {
       }.frame(maxWidth: 560, alignment: .leading).padding(24)
       Spacer(minLength: 24)
     }.frame(maxWidth: .infinity, maxHeight: .infinity).appSurface()
+      .accessibilityElement(children: .contain)
       .accessibilityIdentifier("worktree-fork-preparation")
       .onExitCommand(perform: back)
   }

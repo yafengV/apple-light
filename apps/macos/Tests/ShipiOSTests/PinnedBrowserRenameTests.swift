@@ -269,6 +269,9 @@ import XCTest
     XCTAssertEqual(f.page.customTitle,"Original")
   }
   func testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Requires an explicitly enabled interactive macOS AppKit test host; run script/test_macos_foreground.py.")
+    }
     let f=try fixture(); f.store.applyTaskSelection(f.store.library.tasks[0])
     let policy=NSApp.activationPolicy()
     NSApp.setActivationPolicy(.regular)
@@ -292,10 +295,11 @@ import XCTest
     try await Task.sleep(for:.milliseconds(100))
     XCTAssertEqual(f.page.customTitle,"Inline saved")
     XCTAssertNil(f.session.renameRequest)
-    let visible=Set(NSApp.windows.filter(\.isVisible).map(\.windowNumber))
+    let visible=Set(nativeInteractionWindows().filter(\.isVisible).map(\.windowNumber))
     XCTAssertTrue(f.store.beginPinnedBrowserRename(f.pin.id))
     try await Task.sleep(for:.milliseconds(170)); host.layoutSubtreeIfNeeded()
-    XCTAssertEqual(Set(NSApp.windows.filter(\.isVisible).map(\.windowNumber)),visible)
+    XCTAssertEqual(Set(nativeInteractionWindows().filter(\.isVisible).map(\.windowNumber)),visible,
+      NSApp.windows.filter(\.isVisible).map { "\($0.windowNumber): \(type(of: $0)) title=\($0.title) level=\($0.level.rawValue)" }.joined(separator: "; "))
     XCTAssertTrue(window.isKeyWindow)
     let modalEditor=try XCTUnwrap(window.firstResponder as? NSTextView)
     XCTAssertTrue(modalEditor.isFieldEditor)

@@ -19,7 +19,9 @@ cargo build --locked -p shipios-agent
 build_cache="${SHIPIOS_BUILD_CACHE_ROOT:-$PWD/.cache}"
 mkdir -p "$build_cache/clang-module-cache" "$build_cache/swiftpm-cache"
 export CLANG_MODULE_CACHE_PATH="$build_cache/clang-module-cache"
-swift build --package-path apps/macos --scratch-path "$build_cache/macos-build" --cache-path "$build_cache/swiftpm-cache" --disable-sandbox
+# Use the selected Xcode toolchain, independent of a user's standalone Swift.
+# The native builder preserves this package's existing SwiftTerm resource flow.
+xcrun swift build --build-system "${SHIPIOS_SWIFTPM_BUILD_SYSTEM:-native}" --package-path apps/macos --scratch-path "$build_cache/macos-build" --cache-path "$build_cache/swiftpm-cache" --disable-sandbox
 app="$PWD/dist/ShipiOS.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
 cp "$build_cache/macos-build/debug/ShipiOS" "$app/Contents/MacOS/ShipiOS"
