@@ -4,6 +4,9 @@ struct ShortcutSettingsView: View {
   let store: WorkspaceStore
   @State var editor = ShortcutSettingsState()
   @FocusState private var resetFocus: Bool?
+  @FocusState private var rowFocus: String?
+  @State private var captureReturnTarget: String?
+  @State private var captureFocusRequest = UUID()
   @State private var numberShortcutError: String?
   @State private var linkShortcutError: String?
 
@@ -101,6 +104,7 @@ struct ShortcutSettingsView: View {
         }
       }
       .onChange(of: editor.query) { _, value in
+        invalidateCaptureFocus()
         editor.searchChanged(preferences: store.shortcuts)
         if !value.isEmpty { clearCommandTarget() }
         if store.destination == .settings, store.settingsPage == .shortcuts,
@@ -124,11 +128,14 @@ struct ShortcutSettingsView: View {
       if store.shortcuts.hasCustomizations { resetFocus = true }
       else { store.settingsSearchFocusRequest = UUID() }
     }
-    .onChange(of: store.settingsPage) { _, page in if page != .shortcuts { editor.leavePage() } }
-    .onChange(of: store.destination) { _, destination in if destination != .settings { editor.leavePage() } }
-    .onDisappear { editor.leavePage() }
+    .onChange(of: store.settingsPage) { _, page in if page != .shortcuts { leavePage() } }
+    .onChange(of: store.destination) { _, destination in if destination != .settings { leavePage() } }
+    .onDisappear { leavePage() }
     .onChange(of: dictationGroup.showsCard) { _, shown in if !shown { editor.dictationGroupRemoved() } }
-    .onChange(of: editor.searchByKeys) { _, value in if value { clearCommandTarget() } }
+    .onChange(of: editor.searchByKeys) { _, value in
+      invalidateCaptureFocus()
+      if value { clearCommandTarget() }
+    }
   }
 
   private var cardDivider: some View {
@@ -173,6 +180,7 @@ struct ShortcutSettingsView: View {
   }
 
   private func requestReset() {
+    invalidateCaptureFocus()
     editor.capture = nil
     store.requestShortcutReset()
   }
@@ -255,7 +263,8 @@ struct ShortcutSettingsView: View {
           if let session, session.original == rows[index] {
             captureRow(session, title: item.title)
           } else {
-            bindingRow(rows[index], command: item, canReset: index == resetIndex(item, values: values))
+            bindingRow(rows[index], command: item, index: index,
+              canReset: index == resetIndex(item, values: values))
           }
         }
       }
@@ -267,20 +276,21 @@ struct ShortcutSettingsView: View {
     return layout { label; controls }
   }
 
-  private func bindingRow(_ binding: ShortcutBinding?, command: DesktopCommand, canReset: Bool) -> some View {
-    HStack(spacing: 4) {
+  private func bindingRow(_ binding: ShortcutBinding?, command: DesktopCommand, index: Int,
+    canReset: Bool) -> some View {
+    let edit = { beginCapture(command, replacing: binding, index: index) }
+    let focusID = "edit:\(command.id):\(index)"
+    return HStack(spacing: 4) {
       Text(binding?.display ?? "未设置").appFont(.callout, design: .monospaced)
         .foregroundStyle(.secondary).padding(.horizontal, 8).padding(.vertical, 4)
         .background(binding == nil ? Color.clear : Color.primary.opacity(0.05),
           in: RoundedRectangle(cornerRadius: 5))
-      Button {
-        let append = !command.isOSGlobal && NSApp.currentEvent?.modifierFlags.contains(.shift) == true && binding != nil
-        editor.begin(command.id, replacing: append ? nil : binding)
-      } label: { Image(systemName: "pencil").frame(width: 24, height: 28) }
+      Button(action: edit) { Image(systemName: "pencil").frame(width: 24, height: 28) }
         .buttonStyle(.plain).accessibilityLabel("修改\(command.title)快捷键")
+        .settingsActionFocus($rowFocus, equals: focusID, activate: edit)
         .help(command.isOSGlobal ? "修改快捷键" : "修改快捷键；按住 Shift 点按可添加另一个绑定")
         .contextMenu {
-          Button("添加快捷键") { editor.begin(command.id, replacing: nil) }
+          Button("添加快捷键") { beginCapture(command, replacing: nil, index: index) }
             .disabled(command.isOSGlobal || store.shortcuts.bindings(command.id).count >= 6)
         }
       Spacer(minLength: 8)
@@ -303,14 +313,19 @@ struct ShortcutSettingsView: View {
     VStack(alignment: .leading, spacing: 4) {
       HStack(spacing: 8) {
         ShortcutCapture(text: "按下快捷键", accessibilityLabel: "录制\(title)快捷键",
-          receive: { editor.receive($0, sessionID: session.id, preferences: store.shortcuts) },
+          receive: { event in
+            finishCapture(session) { editor.receive(event, sessionID: session.id, preferences: store.shortcuts) }
+          },
           activityChanged: captureActivity, onBlur: { editor.cancel(session.id) }, receiveModifier: { event in
-            editor.receiveModifier(event, sessionID: session.id, preferences: store.shortcuts)
+            finishCapture(session) { editor.receiveModifier(event, sessionID: session.id, preferences: store.shortcuts) }
           }, receiveRegistered: { binding in
-            editor.receive(binding, sessionID: session.id, preferences: store.shortcuts)
+            finishCapture(session) { editor.receive(binding, sessionID: session.id, preferences: store.shortcuts) }
           })
           .frame(width: 144, height: 28).id(session.id)
-        Button("取消") { editor.cancel(session.id) }.buttonStyle(.plain)
+        VoiceShortcutActionButton(kind: .cancel, label: "取消录制\(title)快捷键",
+          identifier: "shortcut-cancel-\(session.commandID)") {
+            finishCapture(session) { editor.cancel(session.id) }
+          }.fixedSize().settingsFocusReveal()
       }
       if let warning = session.warning { Text(warning).foregroundStyle(.orange).appFont(.caption) }
     }.padding(.vertical, 2)
@@ -324,6 +339,50 @@ struct ShortcutSettingsView: View {
   }
   private func captureActivity(_ active: Bool) {
     store.shortcutCaptureCount = max(0, store.shortcutCaptureCount + (active ? 1 : -1))
+  }
+
+  private func beginCapture(_ command: DesktopCommand, replacing binding: ShortcutBinding?, index: Int) {
+    invalidateCaptureFocus()
+    rowFocus = nil
+    captureReturnTarget = "edit:\(command.id):\(index)"
+    let append = !command.isOSGlobal && NSApp.currentEvent?.modifierFlags.contains(.shift) == true && binding != nil
+    editor.begin(command.id, replacing: append ? nil : binding)
+  }
+
+  private func finishCapture(_ session: ShortcutSettingsState.Capture, action: () -> Void) {
+    guard editor.capture?.id == session.id else { return }
+    action()
+    guard editor.capture == nil, let target = captureReturnTarget,
+      let window = NSApp.keyWindow, window.identifier?.rawValue == "main" else { return }
+    let request = UUID(), query = editor.query, route = store.environmentSettingsNavigationRevision
+    let workspaceSession = store.session
+    captureFocusRequest = request
+    captureReturnTarget = nil
+    // The recorder must finish dismantling before the replacement edit button
+    // can take focus. Blur alone does not schedule this restoration.
+    DispatchQueue.main.async { [weak window] in
+      guard captureFocusRequest == request, editor.capture == nil, editor.query == query,
+        !editor.searchByKeys, store.destination == .settings, store.settingsPage == .shortcuts,
+        store.environmentSettingsNavigationRevision == route, store.session == workspaceSession,
+        !store.hasSettingsConfirmation, store.presentedOverlay == nil,
+        store.appshotIntroRequest == nil, !store.libraryRecoveryBlocksInteraction,
+        !store.shuttingDown, NSApp.isActive, let window, window.isKeyWindow, window.isVisible,
+        window.attachedSheet == nil, NSApp.modalWindow == nil,
+        !SettingsPopupMenuButton.hasOpenMenu(in: window) else { return }
+      if let view = window.firstResponder as? NSView,
+        view !== window.contentView, !(view is ShortcutCapture.Field) { return }
+      rowFocus = target
+    }
+  }
+
+  private func invalidateCaptureFocus() {
+    captureFocusRequest = UUID()
+    captureReturnTarget = nil
+  }
+
+  private func leavePage() {
+    invalidateCaptureFocus()
+    editor.leavePage()
   }
   private func clearCommandTarget() {
     if store.settingsSearchRequest?.result.commandID != nil { store.settingsSearchRequest = nil }
