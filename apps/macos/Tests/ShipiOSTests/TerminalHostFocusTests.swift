@@ -107,6 +107,61 @@ import XCTest
     XCTAssertFalse(window.firstResponder === view)
   }
 
+  func testPendingFocusResumesWhenItsMountedWindowBecomesKey() async {
+    let (window, view, coordinator) = fixture()
+    defer { coordinator.detach(); window.close() }
+    window.active = false
+    window.contentView?.addSubview(view)
+    let focus = request()
+    coordinator.update(view: view, request: focus, canFocus: { $0 == focus })
+    await flush()
+    XCTAssertNil(coordinator.handled)
+    window.active = true
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+    await flush()
+    XCTAssertEqual(coordinator.handled, focus.id)
+    XCTAssertTrue(window.firstResponder === view)
+
+    let input = NSTextView(frame: .init(x: 0, y: 260, width: 300, height: 30))
+    window.contentView?.addSubview(input)
+    XCTAssertTrue(window.makeFirstResponder(input))
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+    await flush()
+    XCTAssertTrue(window.firstResponder === input, "A handled request must not reclaim the composer")
+  }
+
+  func testWindowActivationKeepsPendingFocusBoundToCurrentPermissionAndHost() async {
+    let (window, view, coordinator) = fixture()
+    let (other, _, unused) = fixture()
+    defer { coordinator.detach(); unused.detach(); window.close(); other.close() }
+    window.active = false
+    window.contentView?.addSubview(view)
+    let focus = request()
+    var allowed = false
+    coordinator.update(view: view, request: focus, canFocus: { $0 == focus && allowed })
+    await flush()
+    window.active = true
+    allowed = true
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: other)
+    await flush()
+    XCTAssertNil(coordinator.handled, "Another window cannot satisfy this window's pending focus")
+    allowed = false
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+    await flush()
+    XCTAssertNil(coordinator.handled)
+    allowed = true
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+    await flush()
+    XCTAssertEqual(coordinator.handled, focus.id)
+    XCTAssertTrue(window.firstResponder === view)
+    window.makeFirstResponder(nil)
+    coordinator.update(view: view, request: request(), canFocus: { _ in true })
+    coordinator.detach()
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+    await flush()
+    XCTAssertFalse(window.firstResponder === view)
+  }
+
   func testHandledRequestDoesNotStealFocusOnUnrelatedUpdate() async {
     let (window, view, coordinator) = fixture()
     defer { coordinator.detach(); window.close() }

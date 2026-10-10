@@ -114,6 +114,7 @@ struct TerminalHost: NSViewRepresentable {
   @MainActor final class Coordinator {
     private weak var view: SessionTerminalView?
     private var clearShortcutMonitor: Any?
+    private var windowActivationObserver: NSObjectProtocol?
     private var request: TerminalFocusRequest?
     private var canFocus: ((TerminalFocusRequest) -> Bool)?
     private(set) var handled: UUID?
@@ -122,6 +123,16 @@ struct TerminalHost: NSViewRepresentable {
       canFocus: @escaping (TerminalFocusRequest) -> Bool) {
       if self.view !== view {
         detach()
+        windowActivationObserver = NotificationCenter.default.addObserver(
+          forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
+        ) { [weak self, weak view] notification in
+          MainActor.assumeIsolated {
+            guard let self, let view, view.focusCoordinator === self,
+              let activated = notification.object as? NSWindow,
+              activated === view.window else { return }
+            self.scheduleFocus()
+          }
+        }
         clearShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak view] event in
           MainActor.assumeIsolated {
             guard let view, let window = view.window, window.isKeyWindow,
@@ -152,6 +163,8 @@ struct TerminalHost: NSViewRepresentable {
     }
 
     func detach() {
+      if let windowActivationObserver { NotificationCenter.default.removeObserver(windowActivationObserver) }
+      windowActivationObserver = nil
       if let clearShortcutMonitor { NSEvent.removeMonitor(clearShortcutMonitor) }
       clearShortcutMonitor = nil
       if view?.focusCoordinator === self { view?.focusCoordinator = nil }
@@ -160,6 +173,7 @@ struct TerminalHost: NSViewRepresentable {
       canFocus = nil
     }
     deinit {
+      if let windowActivationObserver { NotificationCenter.default.removeObserver(windowActivationObserver) }
       if let clearShortcutMonitor { NSEvent.removeMonitor(clearShortcutMonitor) }
     }
   }
