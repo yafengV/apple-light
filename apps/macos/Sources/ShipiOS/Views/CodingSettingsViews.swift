@@ -317,6 +317,9 @@ struct LocalEnvironmentSettingsView: View {
   @State private var reloadingEnvironment = false
   @State private var returningToOverview = false
   @State private var showingDiscardConfirmation = false
+  private enum Focus: Hashable { case overviewEdit, overviewBack, editorBack, project(String) }
+  @FocusState private var focusedControl: Focus?
+  @State private var pageFocusRequest = UUID()
 
   private var managedSnapshot: ManagedEnvironmentSnapshot? {
     guard let path = environment.projectPath else { return nil }
@@ -371,6 +374,7 @@ struct LocalEnvironmentSettingsView: View {
       }
     }
     .onChange(of: page) { _, newPage in
+      restorePageFocus(newPage)
       if newPage == .projects && store.destination == .settings && store.settingsPage == .environments {
         Task { await store.refreshEnvironmentCatalog() }
       }
@@ -378,7 +382,7 @@ struct LocalEnvironmentSettingsView: View {
     .onAppear {
       honorEnvironmentRoute()
     }
-    .onDisappear { navigation.invalidate() }
+    .onDisappear { navigation.invalidate(); pageFocusRequest = UUID() }
     .onChange(of: store.environmentSettingsOpenProject) { _, shouldOpen in
       if shouldOpen && store.destination == .settings { honorEnvironmentRoute() }
     }
@@ -406,6 +410,46 @@ struct LocalEnvironmentSettingsView: View {
   private func clearPendingNavigation() {
     reloadingEnvironment = false
     returningToOverview = false
+  }
+
+  private func restorePageFocus(_ targetPage: EnvironmentPage) {
+    let request = UUID()
+    pageFocusRequest = request
+    focusedControl = nil
+    let route = store.environmentSettingsNavigationRevision
+    let session = store.session
+    let projectPath = environment.projectPath
+    guard let window = NSApp.keyWindow, window.identifier?.rawValue == "main", window.isKeyWindow else { return }
+    // The old subpage's responder must finish dismantling before focusing its
+    // replacement. A late save or another window must not take focus back.
+    DispatchQueue.main.async { [weak window] in
+      guard pageFocusRequest == request, page == targetPage,
+        store.destination == .settings, store.settingsPage == .environments,
+        store.environmentSettingsNavigationRevision == route, store.session == session,
+        environment.projectPath == projectPath, !environment.loading, !environment.saving,
+        !store.hasSettingsConfirmation, store.presentedOverlay == nil, store.appshotIntroRequest == nil,
+        store.settingsSearchRequest == nil, !store.libraryRecoveryBlocksInteraction,
+        !store.shuttingDown, NSApp.isActive, let window, window.isKeyWindow, window.isVisible,
+        window.attachedSheet == nil, NSApp.modalWindow == nil,
+        !SettingsPopupMenuButton.hasOpenMenu(in: window) else { return }
+      window.makeFirstResponder(nil)
+      switch targetPage {
+      case .overview: focusedControl = managedSnapshot == nil ? .overviewEdit : .overviewBack
+      case .editor: focusedControl = .editorBack
+      case .projects:
+        if let path = store.library.orderedProjects.first(where: {
+          store.library.primaryFolder(for: $0) == projectPath
+        }) { focusedControl = .project(path) }
+      }
+      window.contentView?.layoutSubtreeIfNeeded()
+    }
+  }
+
+  private func returnToOverview() {
+    if environment.hasUnsavedChanges {
+      returningToOverview = true
+      showingDiscardConfirmation = true
+    } else { page = .overview }
   }
 
   private func saveEnvironment(returnToOverview: Bool = false) async {
@@ -463,6 +507,9 @@ struct LocalEnvironmentSettingsView: View {
                     Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                   }.contentShape(Rectangle())
                 }.buttonStyle(.plain)
+                  .settingsActionFocus($focusedControl, equals: .project(path), activate: {
+                    Task { await openEnvironmentProject(store.library.primaryFolder(for: path)) }
+                  })
                   .disabled(projectUnavailable(store.library.primaryFolder(for: path)))
                   .accessibilityLabel("打开项目环境：\(store.library.projectTitle(path))")
                 Button {
@@ -539,6 +586,7 @@ struct LocalEnvironmentSettingsView: View {
       SettingsSection {
         Button("‹ 环境") { page = .projects }
           .buttonStyle(.plain)
+          .settingsActionFocus($focusedControl, equals: .overviewBack, activate: { page = .projects })
         if let path = environment.projectPath {
           Text(environment.projectTitle).appFont(.title2, weight: .semibold)
           Text(path).appFont(.caption).foregroundStyle(.secondary)
@@ -578,7 +626,8 @@ struct LocalEnvironmentSettingsView: View {
           LabeledContent("快捷操作", value: "\(environment.actions.count) 个")
           Button(environment.exists ? "编辑本地环境" : "创建本地环境") {
             page = .editor
-          }.disabled(!environment.connected)
+          }.settingsActionFocus($focusedControl, equals: .overviewEdit, activate: { page = .editor })
+            .disabled(!environment.connected)
         }
       }
       if !environment.status.isEmpty {
@@ -638,12 +687,10 @@ struct LocalEnvironmentSettingsView: View {
   private var editor: some View {
     SettingsForm {
       SettingsSection {
-        Button("‹ \(environment.projectTitle.isEmpty ? "项目" : environment.projectTitle)") {
-          if environment.hasUnsavedChanges {
-            returningToOverview = true
-            showingDiscardConfirmation = true
-          } else { page = .overview }
-        }.buttonStyle(.plain).disabled(environment.saving)
+        Button("‹ \(environment.projectTitle.isEmpty ? "项目" : environment.projectTitle)", action: returnToOverview)
+          .buttonStyle(.plain)
+          .settingsActionFocus($focusedControl, equals: .editorBack, activate: returnToOverview)
+          .disabled(environment.saving)
         Text("编辑本地环境").appFont(.title2, weight: .semibold)
       }
       if let path = environment.projectPath {
