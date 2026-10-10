@@ -100,6 +100,14 @@ struct ShortcutSettingsView: View {
           ContentUnavailableView("没有匹配的快捷键", systemImage: "keyboard")
         }
       }
+      .onChange(of: editor.query) { _, value in
+        editor.searchChanged(preferences: store.shortcuts)
+        if !value.isEmpty { clearCommandTarget() }
+        if store.destination == .settings, store.settingsPage == .shortcuts,
+          store.settingsSearchRequest?.result.commandID == nil {
+          proxy.scrollTo(SettingsPageLayout.topAnchorID, anchor: .top)
+        }
+      }
       .task(id: store.settingsSearchRequest?.token) {
         guard store.destination == .settings, store.settingsPage == .shortcuts,
           let request = store.settingsSearchRequest, request.result.page == .shortcuts else { return }
@@ -120,10 +128,6 @@ struct ShortcutSettingsView: View {
     .onChange(of: store.destination) { _, destination in if destination != .settings { editor.leavePage() } }
     .onDisappear { editor.leavePage() }
     .onChange(of: dictationGroup.showsCard) { _, shown in if !shown { editor.dictationGroupRemoved() } }
-    .onChange(of: editor.query) { _, value in
-      editor.searchChanged(preferences: store.shortcuts)
-      if !value.isEmpty { clearCommandTarget() }
-    }
     .onChange(of: editor.searchByKeys) { _, value in if value { clearCommandTarget() } }
   }
 

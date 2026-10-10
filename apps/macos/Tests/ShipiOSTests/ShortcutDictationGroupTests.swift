@@ -149,9 +149,29 @@ import XCTest
       XCTAssertTrue(editor.query.isEmpty)
       editor.query = "听写"; try await self.settle(host)
       XCTAssertTrue(try self.advanced(host).expanded)
+      XCTAssertNil(store.settingsSearchRequest)
+      let scroll = try XCTUnwrap(self.descendants(host).compactMap { $0 as? NSScrollView }.first)
+      XCTAssertEqual(scroll.contentView.bounds.minY, 0, accuracy: 1)
+      XCTAssertLessThan(try XCTUnwrap(scroll.documentView).bounds.height, host.bounds.height)
       store.settingsPage = .general; try await self.settle(host)
       XCTAssertFalse(editor.dictationAdvancedExpanded)
       store.settingsPage = .shortcuts; try await self.settle(host)
+      XCTAssertFalse(try self.advanced(host).expanded)
+    }
+  }
+
+  func testFilteringKeepsSearchEditorIdentityAndKeyboardFocus() async throws {
+    try await withPage { _, window, host, editor in
+      let field = try XCTUnwrap(self.descendants(host).compactMap { $0 as? NSTextField }
+        .first { $0.placeholderString == "搜索快捷键…" })
+      XCTAssertTrue(window.makeFirstResponder(field))
+      let responder = try XCTUnwrap(window.firstResponder)
+      for query in ["没有匹配的命令", "", "听写"] {
+        editor.query = query; try await self.settle(host)
+        XCTAssertTrue(field.window === window)
+        XCTAssertTrue(window.firstResponder === responder)
+        XCTAssertTrue(self.descendants(host).contains { $0 === field })
+      }
       XCTAssertFalse(try self.advanced(host).expanded)
     }
   }

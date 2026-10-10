@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum SettingsPageLayout {
+  static let topAnchorID = "settings-page-top"
   static let contentWidth: CGFloat = 768
   static let horizontalInset: CGFloat = 20
   static let viewportWidth = contentWidth + horizontalInset * 2
@@ -100,6 +101,7 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
             actions()
           }.padding(.top, SettingsPageLayout.horizontalInset)
             .padding(.bottom, SettingsPageLayout.headingContentSpacing)
+            .id(SettingsPageLayout.topAnchorID)
         }
         Section {
           VStack(alignment: .leading, spacing: SettingsPageLayout.sectionSpacing) { content() }
