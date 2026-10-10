@@ -76,6 +76,12 @@ struct CodexQuestionView: View {
       if pending {
         HStack {
           Spacer()
+          Button("取消本轮") {
+            drafts.removeAll()
+            selections.removeAll()
+            store.cancelCodexQuestion(request.id)
+          }
+          .help("取消这个问题及其所属回合")
           Button("提交回答") {
             let submitted = answers
             drafts.removeAll()

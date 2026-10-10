@@ -617,6 +617,7 @@ final class WorkspaceStore {
     codexTransport.onThreadDisconnected = { [weak self] taskID in
       self?.disconnectBackgroundTerminals(taskID: taskID)
       self?.disconnectSubagents(taskID: taskID)
+      self?.expireCodexInteractiveRequests(taskID: taskID)
     }
     codexTransport.onSubagentEvent = { [weak self] taskID, threadID, event in
       self?.recordSubagentEvent(taskID: taskID, threadID: threadID, event: event)

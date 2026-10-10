@@ -31,7 +31,13 @@ extension WorkspaceStore {
       Task { @MainActor [weak self] in self?.cancelCodexQuestion(request.id) }
     }
     try Task.checkCancellation()
-    guard let answers else { throw CancellationError() }
+    guard let answers else {
+      if library.chatRuns.first(where: { $0.id == runID })?.codexQuestions
+        .first(where: { $0.id == request.id })?.status == .expired {
+        throw AgentFailure(message: "Codex 提问所属会话已断开，回答请求已过期。")
+      }
+      throw CancellationError()
+    }
     do {
       try await codexTransport.answer(taskID: taskID, turnID: request.turnID, answers: answers)
       updateCodexQuestion(request.id, runID: runID, status: .answered)
@@ -67,8 +73,26 @@ extension WorkspaceStore {
 
   func cancelCodexQuestion(_ id: UUID) {
     guard let context = codexPendingQuestions.removeValue(forKey: id) else { return }
-    codexQuestionContinuations.removeValue(forKey: id)?.resume(returning: nil)
+    if let continuation = codexQuestionContinuations.removeValue(forKey: id) {
+      continuation.resume(returning: nil)
+    } else if !context.request.isBlocking {
+      modelTask(runID: context.runID)?.cancel()
+    }
     updateCodexQuestion(id, runID: context.runID, status: .cancelled)
+  }
+
+  // The stream consumer can be suspended inside an interactive request when
+  // its Agent exits. Release that wait so it can observe the failed transport.
+  func expireCodexInteractiveRequests(taskID: String) {
+    let runs = Set(library.tasks.first(where: { $0.id == taskID })?.runIDs ?? [])
+    for runID in runs {
+      expireCodexQuestions(runID: runID)
+      expireCodexElicitations(runID: runID)
+    }
+    let approvals = mcpPendingApprovals.compactMap { id, context in
+      runs.contains(context.runID) ? id : nil
+    }
+    for id in approvals { resolveMCPApproval(id, decision: .deny) }
   }
 
   func expireCodexQuestions(runID: String) {
