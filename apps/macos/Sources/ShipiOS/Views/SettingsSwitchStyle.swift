@@ -38,7 +38,9 @@ private struct SettingsSwitchRow<Label: View>: View {
     .settingsFocusReveal(focused: focused)
     .background(SettingsKeyReleaseCancellation { if spacePressed { spacePressed = false } })
     .onKeyPress(keys: [.space], phases: [.down, .repeat, .up]) { press in
-      guard isEnabled, focused,
+      // Native focus already routes this event to the switch. FocusState can
+      // still describe the previous control immediately after a Tab event.
+      guard isEnabled,
         press.modifiers.intersection([.command, .control, .option]).isEmpty else {
         spacePressed = false
         return .ignored
@@ -55,12 +57,13 @@ private struct SettingsSwitchRow<Label: View>: View {
       return .handled
     }
     .onKeyPress(keys: [.return, KeyEquivalent("\u{3}")], phases: [.down, .repeat]) { press in
-      guard isEnabled, focused,
+      guard isEnabled,
         press.modifiers.intersection([.command, .control, .option]).isEmpty else { return .ignored }
       keyboardFocus = true; valueAction.toggle()
       return .handled
     }
     .onKeyPress(phases: .down) { press in
+      if press.key == .tab || press.key == KeyEquivalent("\u{19}") { spacePressed = false }
       if press.modifiers.intersection([.command, .control, .option]).isEmpty { keyboardFocus = true }
       return .ignored
     }
