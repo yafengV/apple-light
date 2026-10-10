@@ -69,6 +69,10 @@ extension WorkspaceStore {
       throw AgentFailure(message: "聊天来源不可用或已有分支正在创建，请稍后重试。")
     }
     let board = noticeBoard ?? notices
+    let revealOrigin = currentTaskLocation
+    let revealRevision = conversationForkNavigationRevision
+    let revealActivity = activitySession?.id
+    let revealContent = focusedWorkspaceTabID
     let rawCommand = consumeCommand ? (expectedCommandDraft ?? library.drafts[taskID]) : nil
     let commandDraft = rawCommand?.trimmingCharacters(in: .whitespacesAndNewlines) == ComposerCommand.fork.token
       ? rawCommand : nil
@@ -79,14 +83,26 @@ extension WorkspaceStore {
     do {
       let fork = try await persistConversationFork(taskID, through: runID, commandDraft: commandDraft)
       if revealInMainWindow {
-        if await selectTaskAwaitingScope(fork) {
+        let stillValid = { !self.shuttingDown && !Task.isCancelled
+          && self.conversationForkNavigationRevision == revealRevision
+          && self.activitySession?.id == revealActivity }
+        guard stillValid(), currentTaskLocation == revealOrigin,
+          focusedWorkspaceTabID == revealContent else {
+          board.show(id: "fork-ready-\(fork.id)", title: "聊天分支已创建",
+            level: .success, taskID: fork.id)
+          return fork
+        }
+        if await selectTaskAwaitingScope(fork, stillValid: stillValid) {
           action = .chat; error = nil
           if showingActivity { activityError = nil }
-        } else {
+        } else if stillValid() {
           let message = "聊天分支已保存，但暂时无法打开其项目。可从侧栏重新打开任务。"
           error = message
           if showingActivity { activityError = message }
           board.show(id: "fork-open-\(fork.id)", title: message, level: .error, taskID: fork.id)
+        } else {
+          board.show(id: "fork-ready-\(fork.id)", title: "聊天分支已创建",
+            level: .success, taskID: fork.id)
         }
       }
       return fork

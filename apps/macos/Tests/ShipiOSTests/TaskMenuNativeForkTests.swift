@@ -848,6 +848,43 @@ import XCTest
     await store.shutdown()
   }
 
+  func testPendingMainForkPersistsInBackgroundAfterChatOrPageNavigation() async throws {
+    for navigation in ["other-chat", "chat-round-trip", "settings", "settings-round-trip"] {
+      let f = try await fixture(), store = f.store
+      let other = WorkspaceTask(id: UUID().uuidString, project: f.source.project,
+        title: "Other", runIDs: [])
+      store.library.tasks.append(other)
+      let operation = try XCTUnwrap(store.requestConversationFork())
+      _ = try await waitUntilStarted(f)
+      if navigation.hasPrefix("other") || navigation.hasPrefix("chat") {
+        store.selectTask(other)
+        store.draft = "other input while branch is pending"
+        if navigation == "chat-round-trip" { store.selectTask(f.source) }
+      } else {
+        store.destination = .settings
+        if navigation == "settings-round-trip" { store.destination = .workspace }
+      }
+      let selection = store.selection, location = store.currentTaskLocation
+      let destination = store.destination, back = store.navigationBack, forward = store.navigationForward
+      let input = store.draft
+      try Data().write(to: f.release)
+      let result = await operation.value
+      let child = try XCTUnwrap(result)
+      XCTAssertEqual(child.codexThreadID, f.childThread)
+      XCTAssertEqual(store.library.tasks.count, 3)
+      XCTAssertEqual(store.selection, selection, navigation)
+      XCTAssertEqual(store.currentTaskLocation, location, navigation)
+      XCTAssertEqual(store.destination, destination, navigation)
+      XCTAssertEqual(store.navigationBack, back, navigation)
+      XCTAssertEqual(store.navigationForward, forward, navigation)
+      XCTAssertEqual(store.draft, input, navigation)
+      XCTAssertEqual(store.library.drafts[f.source.id], "keep current draft")
+      XCTAssertEqual(store.library.tasks.first { $0.id == f.source.id }?.codexThreadID, f.source.codexThreadID)
+      XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+      await store.shutdown()
+    }
+  }
+
   func testMainHistoricalActionCanForkLoadedPrefixWhenLaterHistoryIsUnavailable() async throws {
     let f = try await fixture(), store = f.store
     let boundary = try XCTUnwrap(f.source.runIDs.first)

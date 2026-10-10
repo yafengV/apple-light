@@ -68,6 +68,7 @@ final class WorkspaceStore {
   var destination: AppDestination = .workspace {
     didSet {
       if oldValue != destination {
+        conversationForkNavigationRevision = UUID()
         environmentSettingsNavigationRevision = UUID()
         worktreeForkPresentation.dismiss()
       }
@@ -83,6 +84,7 @@ final class WorkspaceStore {
   var archivingActivity = false
   var activityArchivingTaskIDs: Set<String> = []
   var taskMenuForkingID: String?
+  @ObservationIgnored var conversationForkNavigationRevision = UUID()
   var activitySession: ActivitySession?
   var showingActivity: Bool { activitySession != nil }
   var taskWindowOpenRequest: TaskWindowRoute?
@@ -1175,7 +1177,9 @@ final class WorkspaceStore {
 
   /// Window search must reveal the main window after a cross-project scope has
   /// finished loading and its restored content windows have been scheduled.
-  @discardableResult func selectTaskAwaitingScope(_ task: WorkspaceTask) async -> Bool {
+  @discardableResult func selectTaskAwaitingScope(_ task: WorkspaceTask,
+    stillValid: () -> Bool = { true }) async -> Bool {
+    guard stillValid() else { return false }
     if let preparation = activeWorktreeForkPreparation, preparation.taskID == task.id {
       destination = .workspace
       worktreeForkPresentation.present(preparation)
@@ -1196,7 +1200,7 @@ final class WorkspaceStore {
     }
     if let previous = selectedTask, library.recordTaskVisit(previous.id) { saveLibrary() }
     let origin = currentTaskLocation
-    guard await openTaskScope(current.project), !shuttingDown,
+    guard await openTaskScope(current.project, stillValid: stillValid), !shuttingDown, stillValid(),
       let refreshed = library.tasks.first(where: { $0.id == task.id }), canSelectTask(refreshed) else { return false }
     recordNavigation(origin)
     applyTaskSelection(refreshed)

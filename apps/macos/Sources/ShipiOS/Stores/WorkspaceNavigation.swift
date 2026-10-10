@@ -466,6 +466,7 @@ extension WorkspaceStore {
     TaskLocation(project: currentProjectKey, run: selection, draftOwner: selection == nil ? draftKey : nil)
   }
   func recordNavigation(_ origin: TaskLocation? = nil) {
+    conversationForkNavigationRevision = UUID()
     let location = origin ?? currentTaskLocation
     if navigationBack.last != location { navigationBack.append(location) }
     navigationForward = []
