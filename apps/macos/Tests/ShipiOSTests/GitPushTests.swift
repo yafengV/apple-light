@@ -178,6 +178,82 @@ final class GitPushTests: XCTestCase {
     XCTAssertFalse(blocked)
   }
 
+  @MainActor func testReviewSelectionCommitAndRejectedPushPreserveUnselectedContentThroughRetry() async throws {
+    let (folder, repo, remote) = try await fixture()
+    _ = try await commit("context\ninitial\ntrailing\n", repo, amend: true)
+    let selected = "context\nselected 中文\ntrailing\n"
+    let working = "context\nlater working edit\ntrailing\n"
+    let unselectedPath = "未选文件.txt"
+    try Data(selected.utf8).write(to: repo.appendingPathComponent("file.txt"))
+    try Data("keep untracked\n".utf8).write(to: repo.appendingPathComponent(unselectedPath))
+    let store = WorkspaceStore(dataRoot: folder.appendingPathComponent("settings"))
+    let workspace = store.workspace
+    workspace.root = repo
+    await workspace.refreshGit()
+    let file = try XCTUnwrap(workspace.visibleChanges.first { $0.path == "file.txt" })
+    let patch = try await GitReviewService.fileDiff(file, scope: workspace.reviewScope,
+      arguments: workspace.reviewArguments, at: repo)
+    XCTAssertEqual(patch.lines.filter { $0.kind == .context }.map(\.newLine), [1, 3])
+    XCTAssertEqual(patch.lines.filter { $0.kind == .addition }.map(\.text), ["+selected 中文"])
+
+    await workspace.stage("file.txt", undo: false)
+    workspace.reviewScope = .staged
+    await workspace.loadDiff()
+    XCTAssertEqual(workspace.visibleChanges.map(\.path), ["file.txt"])
+    try Data(working.utf8).write(to: repo.appendingPathComponent("file.txt"))
+    workspace.reviewScope = .unstaged
+    await workspace.loadDiff()
+    XCTAssertTrue(workspace.diff.contains("-selected 中文"))
+    XCTAssertTrue(workspace.diff.contains("+later working edit"))
+    workspace.reviewScope = .staged
+    await workspace.loadDiff()
+    await workspace.stage("file.txt", undo: true)
+    let emptyIndex = try await git(["diff", "--cached", "--name-only"], repo)
+    XCTAssertTrue(emptyIndex.isEmpty)
+    XCTAssertEqual(try LocalWorkspaceService.read("file.txt", root: repo), working)
+
+    workspace.reviewScope = .unstaged
+    try Data(selected.utf8).write(to: repo.appendingPathComponent("file.txt"))
+    await workspace.stage("file.txt", undo: false)
+    try Data(working.utf8).write(to: repo.appendingPathComponent("file.txt"))
+    workspace.reviewScope = .staged
+    await workspace.loadDiff()
+    workspace.commitMessage = "Only reviewed selection"
+    let hook = remote.appendingPathComponent("hooks/pre-receive")
+    try Data("#!/bin/sh\necho 'controlled receive rejection' >&2\nexit 1\n".utf8).write(to: hook)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+    let rejected = await store.performGitAction(.commitAndPush, in: workspace,
+      remote: "origin", destination: "main", includeUnstaged: false)
+    XCTAssertFalse(rejected)
+    XCTAssertTrue(workspace.error?.contains("controlled receive rejection") == true)
+    XCTAssertTrue(workspace.gitActionStatus?.contains("已提交") == true)
+    XCTAssertFalse(workspace.gitBusy)
+    XCTAssertFalse(workspace.gitActionRunning)
+    let committed = try await git(["rev-parse", "HEAD"], repo)
+    let committedText = try await git(["show", "HEAD:file.txt"], repo)
+    XCTAssertEqual(committedText, selected.trimmingCharacters(in: .newlines))
+    let absent = try await LocalWorkspaceService.git(["cat-file", "-e", "HEAD:" + unselectedPath], at: repo)
+    XCTAssertNotEqual(absent.status, 0)
+    let rejectedRefs = try await git(["for-each-ref", "--format=%(refname)", "refs/heads"], remote)
+    XCTAssertTrue(rejectedRefs.isEmpty)
+
+    try FileManager.default.removeItem(at: hook)
+    let retried = await store.performGitAction(.push, in: workspace, remote: "origin", destination: "main")
+    XCTAssertTrue(retried, workspace.error ?? "")
+    XCTAssertNil(workspace.error)
+    let localHead = try await git(["rev-parse", "HEAD"], repo)
+    let remoteHead = try await git(["rev-parse", "refs/heads/main"], remote)
+    let localTree = try await git(["rev-parse", "HEAD^{tree}"], repo)
+    let remoteTree = try await git(["rev-parse", "refs/heads/main^{tree}"], remote)
+    XCTAssertEqual(localHead, committed, "Retry must not create another commit")
+    XCTAssertEqual(remoteHead, committed)
+    XCTAssertEqual(remoteTree, localTree)
+    XCTAssertEqual(try LocalWorkspaceService.read("file.txt", root: repo), working)
+    XCTAssertEqual(try LocalWorkspaceService.read(unselectedPath, root: repo), "keep untracked\n")
+    let remaining = try await git(["status", "--porcelain=v1", "-z"], repo)
+    XCTAssertEqual(Set(GitFile.parse(remaining).map(\.path)), ["file.txt", unselectedPath])
+  }
+
   @MainActor func testUnbornRepositoryCanCommitAndPushFromSameAction() async throws {
     let (folder, repo, remote) = try await fixture()
     _ = try await git(["checkout", "--orphan", "new-branch"], repo)
