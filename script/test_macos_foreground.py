@@ -13,8 +13,10 @@ from pathlib import Path
 import plistlib
 import shutil
 import signal
+import sys
 import subprocess
-import tempfile
+
+from foreground_runtime import temporary_runtime
 
 
 def fingerprints(paths):
@@ -41,75 +43,80 @@ def main():
     resources = sorted(build.glob('*.bundle'))
     inputs += [p for bundle in resources for p in bundle.rglob('*') if p.is_file()]
     before = fingerprints(inputs)
-    runtime = Path(tempfile.mkdtemp(prefix='shipios-foreground-'))
-    app = runtime / 'ShipiOSForegroundTests.app'
-    binary = app / 'Contents/MacOS/ShipiOSForegroundTests'
-    binary.parent.mkdir(parents=True)
-    developer = Path(subprocess.check_output(['xcode-select', '-p'], text=True).strip())
-    platform = developer / 'Platforms/MacOSX.platform/Developer'
-    frameworks = platform / 'Library/Frameworks'
-    command = ['xcrun', 'swiftc', str(root / 'script/macos_foreground_test_host.swift'),
-               '-o', str(binary), '-F', str(frameworks)]
-    for path in (frameworks, platform / 'usr/lib'):
-        command += ['-Xlinker', '-rpath', '-Xlinker', str(path)]
-    with (output / 'compile.log').open('w') as log:
-        subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
-    with (app / 'Contents/Info.plist').open('wb') as f:
-        plistlib.dump({'CFBundleExecutable': binary.name,
-                      'CFBundleIdentifier': 'dev.shipios.foreground-tests',
-                      'CFBundleName': 'ShipiOS Foreground Tests',
-                      'CFBundlePackageType': 'APPL', 'LSMinimumSystemVersion': '14.0',
-                      'NSPrincipalClass': 'NSApplication'}, f)
-    copied_test = runtime / test.name
-    shutil.copytree(test, copied_test)
-    for bundle in resources:
-        # SwiftPM's generated Bundle.module first checks the main bundle root.
-        shutil.copytree(bundle, app / bundle.name)
-        # The real settings root also resolves packaged resources through
-        # Contents/Resources, as the product does, without a build-cache fallback.
-        shutil.copytree(bundle, app / 'Contents/Resources' / bundle.name)
-    copied_agent = runtime / 'shipios-agent'
-    shutil.copy2(agent, copied_agent)
-    result, log = runtime / 'result.json', runtime / 'test.log'
-    descriptor = {'host': str(app), 'result': str(result), 'log': str(log)}
-    (output / 'runtime.json').write_text(json.dumps(descriptor, indent=2) + '\n')
-    print(json.dumps(descriptor), flush=True)
-    environment = {k: os.environ[k] for k in ('PATH', 'HOME', 'TMPDIR') if k in os.environ}
-    command = ['/usr/bin/open', '-n', '-W', '--env', 'SHIPIOS_TEST_FOREGROUND_ALLOWED=1',
-               '--env', 'SHIPIOS_TEST_AGENT=' + str(copied_agent), '--stdout', str(log),
-               '--stderr', str(log), str(app), '--args', str(copied_test), str(result)]
-    timed_out = False
-    process = subprocess.Popen(command, env=environment)
-    try:
-        exit_code = process.wait(timeout=300)
-    except subprocess.TimeoutExpired:
-        timed_out = True
+    with temporary_runtime(output) as runtime:
+        app = runtime / 'ShipiOSForegroundTests.app'
+        binary = app / 'Contents/MacOS/ShipiOSForegroundTests'
+        binary.parent.mkdir(parents=True)
+        developer = Path(subprocess.check_output(['xcode-select', '-p'], text=True).strip())
+        platform = developer / 'Platforms/MacOSX.platform/Developer'
+        frameworks = platform / 'Library/Frameworks'
+        command = ['xcrun', 'swiftc', str(root / 'script/macos_foreground_test_host.swift'),
+                   '-o', str(binary), '-F', str(frameworks)]
+        for path in (frameworks, platform / 'usr/lib'):
+            command += ['-Xlinker', '-rpath', '-Xlinker', str(path)]
+        with (output / 'compile.log').open('w') as log:
+            subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+        with (app / 'Contents/Info.plist').open('wb') as f:
+            plistlib.dump({'CFBundleExecutable': binary.name,
+                          'CFBundleIdentifier': 'dev.shipios.foreground-tests',
+                          'CFBundleName': 'ShipiOS Foreground Tests',
+                          'CFBundlePackageType': 'APPL', 'LSMinimumSystemVersion': '14.0',
+                          'NSPrincipalClass': 'NSApplication'}, f)
+        copied_test = runtime / test.name
+        shutil.copytree(test, copied_test)
+        for bundle in resources:
+            # SwiftPM's generated Bundle.module first checks the main bundle root.
+            shutil.copytree(bundle, app / bundle.name)
+            # The real settings root also resolves packaged resources through
+            # Contents/Resources, as the product does, without a build-cache fallback.
+            shutil.copytree(bundle, app / 'Contents/Resources' / bundle.name)
+        copied_agent = runtime / 'shipios-agent'
+        shutil.copy2(agent, copied_agent)
+        result, log = runtime / 'result.json', runtime / 'test.log'
+        descriptor = {'host': str(app), 'result': str(result), 'log': str(log)}
+        (output / 'runtime.json').write_text(json.dumps(descriptor, indent=2) + '\n')
+        print(json.dumps(descriptor), flush=True)
+        environment = {k: os.environ[k] for k in ('PATH', 'HOME', 'TMPDIR') if k in os.environ}
+        command = ['/usr/bin/open', '-n', '-W', '--env', 'SHIPIOS_TEST_FOREGROUND_ALLOWED=1',
+                   '--env', 'SHIPIOS_TEST_AGENT=' + str(copied_agent), '--stdout', str(log),
+                   '--stderr', str(log), str(app), '--args', str(copied_test), str(result)]
+        timed_out = False
+        process = subprocess.Popen(command, env=environment)
+        try:
+            exit_code = process.wait(timeout=300)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            state = json.loads(result.read_text()) if result.exists() else {}
+            pid = state.get('pid')
+            if isinstance(pid, int):
+                actual = subprocess.check_output(['ps', '-p', str(pid), '-o', 'comm='], text=True).strip()
+                if actual == str(binary):
+                    os.kill(pid, signal.SIGTERM)
+            process.terminate()
+            exit_code = process.wait(timeout=10)
         state = json.loads(result.read_text()) if result.exists() else {}
-        pid = state.get('pid')
-        if isinstance(pid, int):
-            actual = subprocess.check_output(['ps', '-p', str(pid), '-o', 'comm='], text=True).strip()
-            if actual == str(binary):
-                os.kill(pid, signal.SIGTERM)
-        process.terminate()
-        exit_code = process.wait(timeout=10)
-    state = json.loads(result.read_text()) if result.exists() else {}
-    if result.exists():
-        shutil.copy2(result, output / 'result.json')
-    if log.exists():
-        shutil.copy2(log, output / 'test.log')
-    after = fingerprints(inputs)
-    changed = [p for p, digest in before.items() if after.get(p) != digest]
-    passed = (not timed_out and exit_code == 0 and not changed
-              and state.get('stage') == 'finished' and state.get('executed') == 8
-              and state.get('failures') == 0 and state.get('unexpected') == 0
-              and state.get('skipped') == 0 and state.get('succeeded') is True)
-    manifest = {'exitCode': exit_code, 'timedOut': timed_out, 'passed': passed,
-                'result': state, 'changedInputs': changed, 'sha256': before,
-                'runtime': descriptor, 'scope': 'Eight native-window XCTest methods, not all R1–R8.'}
-    (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    print(json.dumps({k: v for k, v in manifest.items() if k != 'sha256'}), flush=True)
-    return 0 if passed else 1
+        if result.exists():
+            shutil.copy2(result, output / 'result.json')
+        if log.exists():
+            shutil.copy2(log, output / 'test.log')
+        after = fingerprints(inputs)
+        changed = [p for p, digest in before.items() if after.get(p) != digest]
+        passed = (not timed_out and exit_code == 0 and not changed
+                  and state.get('stage') == 'finished' and state.get('executed') == 8
+                  and state.get('failures') == 0 and state.get('unexpected') == 0
+                  and state.get('skipped') == 0 and state.get('succeeded') is True)
+        manifest = {'exitCode': exit_code, 'timedOut': timed_out, 'passed': passed,
+                    'result': state, 'changedInputs': changed, 'sha256': before,
+                    'runtime': descriptor, 'scope': 'Eight native-window XCTest methods, not all R1–R8.'}
+        (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        print(json.dumps({k: v for k, v in manifest.items() if k != 'sha256'}), flush=True)
+        return 0 if passed else 1
 
 
 if __name__ == '__main__':
+    if os.environ.get('SHIPIOS_STORAGE_GUARDED') != '1':
+        guard = Path(__file__).resolve().parent / 'dev_storage.py'
+        os.execv(sys.executable, [sys.executable, str(guard), 'run', '--',
+                                sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]])
+    signal.signal(signal.SIGTERM, lambda _sig, _frame: sys.exit(143))
     raise SystemExit(main())

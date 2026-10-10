@@ -1,0 +1,14 @@
+# Applies to direct cargo commands as well as the standard scripts.
+[build]
+incremental = false
+
+# Cargo still passes strip=debuginfo for debug=0 dependencies. Override the final
+# rustc flag to avoid unloadable macOS 27 proc-macros (rust-lang/rust#157750).
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "strip=none"]
+
+[profile.dev]
+debug = 1
+
+[profile.dev.package."*"]
+debug = 0

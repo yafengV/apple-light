@@ -3,6 +3,10 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
+if [[ "${SHIPIOS_STORAGE_GUARDED:-}" != "1" ]]; then
+  export CARGO_TARGET_DIR="$repo_root/.cache/codex-upstream-target"
+  exec python3 script/dev_storage.py run -- "$0" "$@"
+fi
 
 python3 script/audit_codex.py
 if [[ -n "$(git -C .cache/codex-upstream status --porcelain)" ]]; then

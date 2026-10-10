@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [[ "${SHIPIOS_STORAGE_GUARDED:-}" != "1" ]]; then
+    exec python3 script/dev_storage.py run -- "$0" "$@"
+fi
 agent_target="${CARGO_TARGET_DIR:-$PWD/target}"
 mode="${1:---app}"
 case "$mode" in
