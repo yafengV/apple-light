@@ -7,6 +7,7 @@ struct AppshotIntroDialog: View {
   let enable: () -> Void
   @Environment(\.appAppearance) private var appearance
   @FocusState private var focusedButton: Action?
+  @State private var keyboardSelection = ModalButtonSelection<Action>(.cancel)
   private enum Action { case cancel, enable }
 
   var body: some View {
@@ -47,11 +48,16 @@ struct AppshotIntroDialog: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier("appshot-intro-dialog")
-        .background(ModalKeyboardBridge(onReady: { focusedButton = .cancel }) { key in
+        .onChange(of: focusedButton) { _, value in
+          if let value { keyboardSelection.current = value }
+        }
+        .background(ModalKeyboardBridge(onReady: {
+          keyboardSelection.current = .cancel; focusedButton = .cancel
+        }) { key in
           switch key {
           case .cancel: cancel()
-          case .activate: focusedButton == .enable ? enable() : cancel()
-          case .next: focusedButton = focusedButton == .cancel ? .enable : .cancel
+          case .activate: keyboardSelection.current == .enable ? enable() : cancel()
+          case .next: focusedButton = keyboardSelection.advance(between: .cancel, and: .enable)
           }
         }.frame(width: 0, height: 0))
       }.frame(maxWidth: .infinity, maxHeight: .infinity)

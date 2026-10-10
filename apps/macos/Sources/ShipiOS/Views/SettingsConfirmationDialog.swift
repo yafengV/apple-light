@@ -15,10 +15,8 @@ struct SettingsConfirmationDialog: View {
   let confirm: () -> Void
   @Environment(\.appAppearance) private var appearance
   @FocusState private var focusedButton: Action?
+  @State private var keyboardSelection = ModalButtonSelection<Action>(.cancel)
   enum Action { case cancel, confirm }
-  static func activationTarget(_ focused: Action?) -> Action {
-    focused == .confirm ? .confirm : .cancel
-  }
 
   var body: some View {
     GeometryReader { geometry in
@@ -59,13 +57,18 @@ struct SettingsConfirmationDialog: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier(identifier)
-        .background(ModalKeyboardBridge(onReady: { focusedButton = .cancel }) { key in
+        .onChange(of: focusedButton) { _, value in
+          if let value { keyboardSelection.current = value }
+        }
+        .background(ModalKeyboardBridge(onReady: {
+          keyboardSelection.current = .cancel; focusedButton = .cancel
+        }) { key in
           guard !busy else { return }
           switch key {
           case .cancel: cancel()
           case .activate:
-            if Self.activationTarget(focusedButton) == .confirm { confirm() } else { cancel() }
-          case .next: focusedButton = focusedButton == .cancel ? .confirm : .cancel
+            if keyboardSelection.current == .confirm { confirm() } else { cancel() }
+          case .next: focusedButton = keyboardSelection.advance(between: .cancel, and: .confirm)
           }
         }.frame(width: 0, height: 0))
       }.frame(maxWidth: .infinity, maxHeight: .infinity)
