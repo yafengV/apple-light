@@ -2,6 +2,7 @@ mod codex_bridge;
 mod counter_verification;
 mod descendant_monitor;
 mod local_environment;
+mod local_environment_script;
 mod rpc;
 mod service;
 mod subagent_approvals;
@@ -74,6 +75,11 @@ enum Action {
         #[arg(long)]
         config_path: PathBuf,
     },
+    /// Run a local setup/cleanup script while the desktop owns the stdin pipe.
+    RunLocalEnvironment {
+        #[arg(long)]
+        request_file: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -101,6 +107,9 @@ fn main() -> Result<()> {
 
 async fn run() -> Result<()> {
     let args = Args::parse();
+    if let Action::RunLocalEnvironment { request_file } = &args.command {
+        return local_environment_script::run(request_file).await;
+    }
     if let Action::SearchFilesSession { additional_roots } = &args.command {
         return shipios_tools::file_search_session::serve_roots(&args.project, additional_roots);
     }

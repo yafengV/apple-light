@@ -98,7 +98,9 @@ import XCTest
   private func waitUntilStarted(_ fixture: Fixture) async throws -> JSONValue {
     let deadline = ContinuousClock.now.advanced(by: .seconds(5))
     while !FileManager.default.fileExists(atPath: fixture.started.path) {
-      guard ContinuousClock.now < deadline else { throw AgentFailure(message: "Native fork request did not start") }
+      guard ContinuousClock.now < deadline else {
+        throw AgentFailure(message: "Native fork request did not start; worktreeError=\(fixture.store.worktreeError ?? "none"), preparation=\(String(describing: fixture.store.activeWorktreeForkPreparation?.state)), phase=\(fixture.store.activeWorktreeForkPreparation?.phase ?? "none"), trace=\((try? String(contentsOf: fixture.trace)) ?? "none")")
+      }
       try await Task.sleep(for: .milliseconds(10))
     }
     return try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: fixture.started))

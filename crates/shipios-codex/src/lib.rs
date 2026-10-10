@@ -767,7 +767,9 @@ impl CodexSession {
             .enable(Feature::DefaultModeRequestUserInput)?;
         // ShipiOS surfaces a terminal failure and explicit retry rather than
         // inheriting the CLI's unlimited offline reconnection policy.
-        config.features.disable(Feature::UnboundedConnectionRetries)?;
+        config
+            .features
+            .disable(Feature::UnboundedConnectionRetries)?;
         config.cli_auth_credentials_store_mode = AuthCredentialsStoreMode::Ephemeral;
         if named_permissions.is_some() {
             config

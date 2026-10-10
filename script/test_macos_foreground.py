@@ -80,6 +80,13 @@ def main():
             shutil.copytree(bundle, app / 'Contents/Resources' / bundle.name)
         copied_agent = runtime / 'shipios-agent'
         shutil.copy2(agent, copied_agent)
+        # A product workspace connects to its real helper before offering fork
+        # actions. Some focused window tests use a protocol fixture instead.
+        # Validate the copied helper before timing their existing action bounds;
+        # first execution of the large debug binary belongs to host setup.
+        with (output / 'agent-preflight.log').open('w') as helper_log:
+            subprocess.run([str(copied_agent), '--help'], stdout=helper_log,
+                           stderr=subprocess.STDOUT, timeout=30, check=True)
         result, log = runtime / 'result.json', runtime / 'test.log'
         descriptor = {'host': str(app), 'result': str(result), 'log': str(log)}
         (output / 'runtime.json').write_text(json.dumps(descriptor, indent=2) + '\n')
