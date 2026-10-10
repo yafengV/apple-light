@@ -314,4 +314,43 @@ import XCTest
     XCTAssertEqual(f.page.customTitle,"Inline saved")
     XCTAssertNil(f.session.titleField)
   }
+
+  func testNativeRenameMountedBeforeWindowBecomesKeyFocusesOnlyOnce() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Requires the interactive AppKit test host.")
+    }
+    let f = try fixture()
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 750),
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: WorkspaceView(store: f.store))
+    window.contentView = host
+    defer { window.contentView = nil; window.close() }
+    XCTAssertTrue(f.store.beginPinnedBrowserRename(f.pin.id))
+    try await Task.sleep(for: .milliseconds(200))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertFalse(window.isKeyWindow)
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+    try await Task.sleep(for: .milliseconds(250))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertTrue(window.isKeyWindow)
+    let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
+    XCTAssertTrue(editor.isFieldEditor)
+    XCTAssertEqual(editor.string, "Original")
+    XCTAssertEqual(editor.selectedRange(), NSRange(location: 0, length: editor.string.utf16.count))
+    editor.insertText("User edit", replacementRange: editor.selectedRange())
+    XCTAssertEqual(editor.selectedRange(), NSRange(location: "User edit".utf16.count, length: 0))
+    window.orderOut(nil)
+    window.makeKeyAndOrderFront(nil)
+    try await Task.sleep(for: .milliseconds(150))
+    XCTAssertTrue(window.isKeyWindow)
+    let returnedEditor = try XCTUnwrap(window.firstResponder as? NSTextView)
+    XCTAssertEqual(returnedEditor.string, "User edit")
+    XCTAssertEqual(returnedEditor.selectedRange(), NSRange(location: "User edit".utf16.count, length: 0),
+      "Later activation must not select the user's edited name again")
+    let request = try XCTUnwrap(f.store.pinnedBrowserRenameRequest)
+    f.store.closePinnedBrowserRename(request)
+    XCTAssertEqual(f.page.customTitle, "Original", "Closing without saving keeps the original title")
+  }
 }

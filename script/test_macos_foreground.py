@@ -97,12 +97,12 @@ def main():
     after = fingerprints(inputs)
     changed = [p for p, digest in before.items() if after.get(p) != digest]
     passed = (not timed_out and exit_code == 0 and not changed
-              and state.get('stage') == 'finished' and state.get('executed') == 2
+              and state.get('stage') == 'finished' and state.get('executed') == 3
               and state.get('failures') == 0 and state.get('unexpected') == 0
               and state.get('skipped') == 0 and state.get('succeeded') is True)
     manifest = {'exitCode': exit_code, 'timedOut': timed_out, 'passed': passed,
                 'result': state, 'changedInputs': changed, 'sha256': before,
-                'runtime': descriptor, 'scope': 'Two native-window XCTest methods, not all R1–R8.'}
+                'runtime': descriptor, 'scope': 'Three native-window XCTest methods, not all R1–R8.'}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print(json.dumps({k: v for k, v in manifest.items() if k != 'sha256'}), flush=True)
     return 0 if passed else 1

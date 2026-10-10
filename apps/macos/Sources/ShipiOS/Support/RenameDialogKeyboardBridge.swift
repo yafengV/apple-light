@@ -38,13 +38,35 @@ struct RenameDialogKeyboardBridge: NSViewRepresentable {
     var onReady: () -> Void
     var action: (Key) -> Void
     private var monitor: Any?
+    private weak var anchor: NSView?
+    private weak var pendingWindow: NSWindow?
+    private var needsInitialFocus = false
+    private var keyObserver: NSObjectProtocol?
     init(onReady: @escaping () -> Void, action: @escaping (Key) -> Void) {
       self.onReady = onReady; self.action = action
     }
     func capture(_ window: NSWindow) {
-      window.makeFirstResponder(nil)
+      guard pendingWindow !== window else { return }
+      removeKeyObserver()
+      pendingWindow = window
+      needsInitialFocus = true
+      keyObserver = NotificationCenter.default.addObserver(
+        forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main
+      ) { [weak self, weak window] _ in
+        MainActor.assumeIsolated {
+          if let window { self?.focusWhenReady(in: window) }
+        }
+      }
+      focusWhenReady(in: window)
+    }
+    private func focusWhenReady(in window: NSWindow) {
       DispatchQueue.main.async { [weak self, weak window] in
-        guard let self, let window, window.isKeyWindow, self.monitor != nil else { return }
+        guard let self, let window, window.isKeyWindow, self.monitor != nil,
+          self.needsInitialFocus, self.pendingWindow === window,
+          self.anchor?.window === window else { return }
+        self.needsInitialFocus = false
+        self.removeKeyObserver()
+        window.makeFirstResponder(nil)
         self.onReady()
         DispatchQueue.main.async { [weak self, weak window] in
           guard self?.monitor != nil, let window, window.isKeyWindow,
@@ -54,6 +76,7 @@ struct RenameDialogKeyboardBridge: NSViewRepresentable {
       }
     }
     func install(_ view: NSView) {
+      anchor = view
       monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak view] event in
         MainActor.assumeIsolated {
           guard let self, let window = view?.window, window.isKeyWindow, event.window === window,
@@ -65,7 +88,18 @@ struct RenameDialogKeyboardBridge: NSViewRepresentable {
         }
       }
     }
-    func stop() { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+    private func removeKeyObserver() {
+      if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+      keyObserver = nil
+    }
+    func stop() {
+      removeKeyObserver()
+      needsInitialFocus = false
+      pendingWindow = nil
+      anchor = nil
+      if let monitor { NSEvent.removeMonitor(monitor) }
+      monitor = nil
+    }
     deinit { stop() }
   }
 }
