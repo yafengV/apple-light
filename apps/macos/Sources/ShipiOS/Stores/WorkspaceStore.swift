@@ -91,6 +91,8 @@ final class WorkspaceStore {
   var settingsReturnDestination: AppDestination = .workspace
   @ObservationIgnored var settingsReturnFocus: SettingsReturnFocus?
   @ObservationIgnored var settingsFocusRevision = UUID()
+  @ObservationIgnored var settingsDiscardReturnFocus: SettingsDiscardReturnFocus?
+  @ObservationIgnored var settingsDiscardFocusRevision = UUID()
   var showingFileSearch: Bool {
     get { presentedOverlay == .fileSearch }
     set { setOverlay(.fileSearch, presented: newValue) }

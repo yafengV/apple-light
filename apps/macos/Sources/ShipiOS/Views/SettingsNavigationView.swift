@@ -28,7 +28,7 @@ struct SettingsNavigationView: View {
       // sidebar focus section remembers a list anchor after wrapping from the
       // form, so Shift-Tab from Back can incorrectly re-enter the sidebar.
       VStack(alignment: .leading, spacing: 8) {
-        Button { store.closeSettings() } label: {
+        Button { returnToApp() } label: {
           HStack(spacing: 8) {
             Image(systemName: "arrow.left").frame(width: 16)
             Text(store.showingOpenSourceLicenses ? "返回通用" : "返回应用")
@@ -40,7 +40,7 @@ struct SettingsNavigationView: View {
         .focused($returnFocused)
         .onKeyPress(keys: [.space, .return], phases: .down) { press in
           guard press.modifiers.isEmpty else { return .ignored }
-          store.closeSettings()
+          returnToApp()
           return .handled
         }
         .onKeyPress(keys: [.tab], phases: .down) { press in
@@ -207,13 +207,22 @@ struct SettingsNavigationView: View {
     if let window = NSApp.keyWindow, window.firstResponder is SettingsMenuControl {
       window.makeFirstResponder(window.contentView)
     }
-    store.requestSettingsPage(page)
-    focusedPage = store.settingsPage
+    let sourcePage = NSApp.currentEvent?.type == .keyDown ? (focusedPage ?? page) : page
+    store.requestSettingsPage(page, onCancelFocus: { focusedPage = sourcePage },
+      onConfirmFocus: { focusedPage = page })
+    focusedPage = store.pendingSettingsNavigation == nil ? store.settingsPage : nil
   }
 
-  private func reveal(_ result: SettingsSearchResult) {
+  private func returnToApp() {
+    store.closeSettings(onCancelFocus: { returnFocused = true })
+    if store.pendingSettingsNavigation != nil { returnFocused = false }
+  }
+
+  private func reveal(_ result: SettingsSearchResult, fromResultButton: Bool = false) {
     exitingSidebar = false
-    store.revealSetting(result)
+    let restore: (() -> Void)? = fromResultButton ? { focusedResultID = result.id } : nil
+    store.revealSetting(result, onCancelFocus: restore)
+    if store.pendingSettingsNavigation != nil { focusedResultID = nil }
   }
 
   private var acceptsNavigationMove: Bool {
@@ -229,7 +238,7 @@ struct SettingsNavigationView: View {
   }
 
   private func searchResultButton(_ result: SettingsSearchResult) -> some View {
-    Button { reveal(result) } label: {
+    Button { reveal(result, fromResultButton: true) } label: {
       Text(result.title)
         .appFont(size: 13).lineLimit(2)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -241,7 +250,7 @@ struct SettingsNavigationView: View {
     .buttonStyle(.plain).focusable().focused($focusedResultID, equals: result.id).id(result.id)
     .onKeyPress(keys: [.space, .return], phases: .down) { press in
       guard press.modifiers.isEmpty else { return .ignored }
-      reveal(result)
+      reveal(result, fromResultButton: true)
       return .handled
     }
     .onKeyPress(keys: [.tab], phases: .down) { press in

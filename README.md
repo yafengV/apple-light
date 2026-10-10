@@ -1,6 +1,8 @@
 # ShipiOS
 
-第 743 篇[确认弹层连续按键选择](docs/743-modal-confirmation-keyboard-selection.md)修复快速 Tab／Shift-Tab 后 Enter／Space 执行旧选择的问题。关联 **70 项**及原生前台 **6 项**通过，前台冻结输入未变；标准打包／签名／IPC 通过。实际草稿丢弃、双 Tab 取消、Cmd+W 取消和返回聊天输入焦点通过；取消后留在设置页的焦点续接及其他核心交互继续验收。
+第 744 篇[未保存设置导航焦点续接](docs/744-unsaved-settings-navigation-focus.md)补取消及确认后的控件焦点恢复。最终关联 **92 项**、打包／签名／IPC 通过；取消路径已有正式应用实际证据。新增前台方法及确认导航最新包复验因锁屏尚未完成，搜索快速 Tab→Enter 另待定位，全部核心交互继续验收。
+
+第 743 篇[确认弹层连续按键选择](docs/743-modal-confirmation-keyboard-selection.md)修复快速 Tab／Shift-Tab 后 Enter／Space 执行旧选择的问题。关联 **70 项**及原生前台 **6 项**通过，前台冻结输入未变；标准打包／签名／IPC 通过。实际草稿丢弃、双 Tab 取消、Cmd+W 取消和返回聊天输入焦点通过；取消后留在设置页的焦点续接后续见第 744 篇。
 
 第 742 篇[设置开关连续按键与表单实际验收](docs/742-settings-switch-keyboard-timing-and-visible-forms.md)修复 Tab 后第一下 Space／Enter 被旧焦点状态拦截，以及按住 Space 移走焦点后误提交的问题。关联 **25 项**及原生前台 **5 项**通过，冻结前台输入未变；标准打包／签名／IPC 通过。设置搜索、个性化保存／丢弃／重启、无效 API 草稿返回及菜单取消焦点已有实际证据；快速确认和其他常用页面继续验收。
 

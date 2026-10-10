@@ -103,7 +103,7 @@ extension WorkspaceStore {
     window?.makeFirstResponder(nil)
   }
 
-  func closeSettings() {
+  func closeSettings(onCancelFocus: (() -> Void)? = nil) {
     guard destination == .settings, !hasSettingsConfirmation else { return }
     if showingOpenSourceLicenses {
       showingOpenSourceLicenses = false
@@ -115,7 +115,7 @@ extension WorkspaceStore {
       return
     }
     if hasUnsavedSettingsEdits {
-      pendingSettingsNavigation = .close
+      beginSettingsNavigationConfirmation(.close, onCancelFocus: onCancelFocus)
       return
     }
     settingsSearchRequest = nil
@@ -135,21 +135,39 @@ extension WorkspaceStore {
     }
   }
 
-  func requestSettingsPage(_ page: SettingsPage) {
+  func requestSettingsPage(_ page: SettingsPage, onCancelFocus: (() -> Void)? = nil,
+    onConfirmFocus: (() -> Void)? = nil) {
     guard !hasSettingsConfirmation, page != settingsPage else { return }
     if destination == .settings && hasUnsavedSettingsEdits {
-      pendingSettingsNavigation = .page(page)
+      beginSettingsNavigationConfirmation(.page(page), onCancelFocus: onCancelFocus,
+        onConfirmFocus: onConfirmFocus ?? { [weak self] in self?.settingsSearchFocusRequest = UUID() })
     } else {
       settingsPage = page
     }
   }
 
   func cancelDiscardSettingsChanges() {
+    guard pendingSettingsNavigation != nil else { return }
+    let returnFocus = settingsDiscardReturnFocus
+    settingsDiscardReturnFocus = nil
     pendingSettingsNavigation = nil
+    returnFocus?.restore(store: self)
+  }
+
+  func beginSettingsNavigationConfirmation(_ pending: PendingSettingsNavigation,
+    onCancelFocus: (() -> Void)? = nil, onConfirmFocus: (() -> Void)? = nil) {
+    guard destination == .settings, !hasSettingsConfirmation else { return }
+    settingsDiscardFocusRevision = UUID()
+    settingsDiscardReturnFocus = SettingsDiscardReturnFocus(window: mainInteractionWindow,
+      store: self, restoreControl: onCancelFocus, confirmControl: onConfirmFocus)
+    pendingSettingsNavigation = pending
   }
 
   func confirmDiscardSettingsChanges() {
     guard let pending = pendingSettingsNavigation else { return }
+    let returnFocus = settingsDiscardReturnFocus
+    settingsDiscardFocusRevision = UUID()
+    settingsDiscardReturnFocus = nil
     switch settingsPage {
     case .model:
       modelSettingsDirty = false
@@ -160,8 +178,12 @@ extension WorkspaceStore {
     }
     pendingSettingsNavigation = nil
     switch pending {
-    case .page(let page): requestSettingsPage(page)
-    case .reveal(let result): revealSetting(result)
+    case .page(let page):
+      requestSettingsPage(page)
+      returnFocus?.restore(store: self, afterNavigation: true)
+    case .reveal(let result):
+      revealSetting(result)
+      returnFocus?.restore(store: self, afterNavigation: true)
     case .close: closeSettings()
     }
   }
