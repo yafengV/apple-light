@@ -313,8 +313,14 @@ final class CodexChatTransport {
             threadID != forkOrigin?.threadID else {
             throw AgentFailure(message: "Core 未确认独立聊天分支，原聊天未被更改。")
           }
+          if thread["historyWorkspace"] != .null {
+            guard let reported = thread["historyWorkspace"].text, reported.hasPrefix("/"),
+              URL(fileURLWithPath: reported).resolvingSymlinksInPath().standardizedFileURL.path == path else {
+              throw AgentFailure(message: "Core 返回的聊天分支目录与目标工作区不一致，请重试。")
+            }
+          }
           try Task.checkCancellation()
-          onForkCreated?(threadID, thread["historyWorkspace"].text ?? path)
+          onForkCreated?(threadID, path)
         } else {
           if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
             onThreadStarted?(taskID, threadID, thread["historyWorkspace"].text ?? path)

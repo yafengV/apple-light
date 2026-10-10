@@ -50,6 +50,10 @@ import XCTest
               else:
                   response['result'] = {'threadId': child if mode != 'invalid-id' else 'invalid',
                                         'forked': mode != 'not-forked', 'resumed': mode == 'resumed'}
+                  if mode == 'foreign-workspace': response['result']['historyWorkspace'] = os.path.join(root, 'outside')
+                  if mode == 'relative-workspace': response['result']['historyWorkspace'] = '../../outside'
+                  if mode == 'invalid-workspace-type': response['result']['historyWorkspace'] = 27
+                  if mode == 'aliased-workspace': response['result']['historyWorkspace'] = os.path.join(root, 'project-alias')
           else:
               values = {'initialize': {'protocolVersion': 1},
                         'project.inspect': {'root': project, 'containers': [], 'swiftPackages': [],
@@ -1041,6 +1045,50 @@ import XCTest
     }
   }
 
+  func testForeignOrInvalidForkWorkspaceDoesNotPublishChildAndCanRetry() async throws {
+    for mode in ["foreign-workspace", "relative-workspace", "invalid-workspace-type"] {
+      let f = try await fixture(mode: mode), store = f.store
+      let operation = Task { await store.forkTaskFromMenu(f.source.id) }
+      let request = try await waitUntilStarted(f)
+      let rejectedID = try XCTUnwrap(request["taskId"].text)
+      try Data().write(to: f.release)
+      let result = await operation.value
+      XCTAssertNil(result, mode)
+      XCTAssertEqual(store.library.tasks.map(\.id), [f.source.id], mode)
+      XCTAssertTrue(store.library.forkRuns.isEmpty, mode)
+      XCTAssertEqual(store.selectedTask?.id, f.source.id, mode)
+      XCTAssertEqual(store.draft, "keep current draft", mode)
+      XCTAssertFalse(store.codexTransport.isConnected(taskID: rejectedID), mode)
+      let trace = try events(f)
+      XCTAssertTrue(trace.contains { $0["method"].text == "codex.thread.stop" && $0["taskId"].text == rejectedID }, mode)
+      XCTAssertFalse(trace.contains { $0["method"].text == "codex.turn.submit" }, mode)
+      XCTAssertFalse(trace.contains { $0["method"].text == "codex.thread.stop" && $0["taskId"].text == f.source.id }, mode)
+      try JSONEncoder().encode("success").write(to: f.root.appendingPathComponent("mode.json"))
+      let retried = await store.forkTaskFromMenu(f.source.id)
+      let child = try XCTUnwrap(retried, store.error ?? mode)
+      XCTAssertNotEqual(child.id, rejectedID)
+      XCTAssertEqual(child.codexWorkspacePath, f.source.project)
+      XCTAssertEqual(store.library.tasks.count, 2)
+      XCTAssertEqual(store.library.drafts[f.source.id], "keep current draft")
+      await store.shutdown()
+    }
+  }
+  func testEquivalentForkWorkspaceAliasIsAcceptedAndStoredCanonically() async throws {
+    let f = try await fixture(mode: "aliased-workspace"), store = f.store
+    try FileManager.default.createSymbolicLink(at: f.root.appendingPathComponent("project-alias"),
+      withDestinationURL: URL(fileURLWithPath: f.source.project))
+    let operation = Task { await store.forkTaskFromMenu(f.source.id) }
+    _ = try await waitUntilStarted(f)
+    try Data().write(to: f.release)
+    let created = await operation.value
+    let child = try XCTUnwrap(created, store.error ?? "Equivalent directory rejected")
+    XCTAssertEqual(child.codexWorkspacePath, f.source.project)
+    XCTAssertNotEqual(child.codexThreadID, f.source.codexThreadID)
+    XCTAssertEqual(store.library.drafts[f.source.id], "keep current draft")
+    let saved = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(saved.tasks.first { $0.id == child.id }?.codexWorkspacePath, f.source.project)
+    await store.shutdown()
+  }
   func testCancelledStaleOrUnsavedForkStopsOnlyItsUnpublishedChild() async throws {
     for condition in ["cancel", "archive", "move", "save-failure"] {
       let f = try await fixture(), store = f.store
