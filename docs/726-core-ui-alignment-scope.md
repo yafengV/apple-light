@@ -1,5 +1,7 @@
 # 核心功能与常用 UI 对齐范围
 
+2026-10-10 目标调整：本文的 R1–R8 保留为范围来源及历史证据。当前执行和完成判断统一以[首版设计方案](delivery/v0.1-design.md)、[固定 32 项验收](delivery/v0.1-acceptance.md)、[T00–T11 任务看板](delivery/v0.1-tasks.md)为准；下文阶段优先顺序及“继续验收”不再构成无限扩展的独立目标。
+
 第 745 篇修复设置搜索快速 Tab→Enter／Shift-Tab→Enter，关联 104 项及真实前台 8 项通过、冻结输入未变，标准打包／签名／IPC 通过；补齐第 744 篇取消／确认导航最新包及默认实例交互证据。全部 R1–R8 继续验收，详见[第 745 篇](745-settings-search-synchronous-focus-handoff.md)。
 
 第 744 篇补未保存设置取消／确认后的焦点续接，最终关联 92 项、打包／签名／IPC 通过；取消路径已实际验证。新增前台方法及确认导航最新包复验因锁屏未完成，搜索快速 Tab→Enter 仍待定位；全部 R1–R8 继续验收，详见[第 744 篇](744-unsaved-settings-navigation-focus.md)。
