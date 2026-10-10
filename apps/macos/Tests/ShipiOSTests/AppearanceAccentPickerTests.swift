@@ -52,15 +52,18 @@ import XCTest
       document.documentElement.dataset.codexWindowType='electron';
       const style=document.createElement('style');style.textContent=css;document.head.appendChild(style);
       const item=document.createElement('div');item.className=classes;item.style.width='212px';item.textContent='自定义';document.body.appendChild(item);
-      const c=getComputedStyle(item);return [parseFloat(c.fontSize),parseFloat(c.lineHeight),parseFloat(c.paddingTop),parseFloat(c.paddingBottom),parseFloat(c.paddingLeft),item.getBoundingClientRect().height];
+      const c=getComputedStyle(item);
+      const sized=item.cloneNode(true);sized.style.boxSizing='content-box';sized.style.height=c.lineHeight;document.body.appendChild(sized);
+      return [parseFloat(c.fontSize),parseFloat(c.lineHeight),parseFloat(c.paddingTop),parseFloat(c.paddingBottom),parseFloat(c.paddingLeft),item.getBoundingClientRect().height,sized.getBoundingClientRect().height];
       """#, arguments: ["css": f.css, "classes": f.itemClasses], in: nil, contentWorld: .defaultClient)
-    let values = try XCTUnwrap(output as? [Double]); XCTAssertEqual(values.count, 6)
+    let values = try XCTUnwrap(output as? [Double]); XCTAssertEqual(values.count, 7)
     XCTAssertEqual(values[0], 13); XCTAssertEqual(values[1], 13 * (1.25 / 0.875), accuracy: 0.001)
     XCTAssertEqual(Array(values[2...4]), [5, 5, 8])
     XCTAssertEqual(AppearanceAccentMenuState.rowHeight(fontSize: 13), values[1] + values[2] + values[3], accuracy: 0.001)
-    // WebKit rounds this inline line box to 18px, despite computed 18.5714px.
-    // Verify that observation separately. It is not evidence of Chromium's paint.
-    XCTAssertEqual(values[5], 28)
+    // Compare against the same engine's explicit CSS line-height plus padding,
+    // rather than a historical integer-pixel observation from another WebKit.
+    // This remains WebKit evidence, not evidence of Chromium's paint.
+    XCTAssertEqual(values[5], values[6], accuracy: 0.001)
     XCTAssertNil(web.window)
   }
   func testKeyboardSkipsDisabledChoicesAndTypeaheadSpaceExpires() {
