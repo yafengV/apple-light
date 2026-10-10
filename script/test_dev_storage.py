@@ -52,6 +52,14 @@ class StorageTests(unittest.TestCase):
                                 min_free=0, max_cache=99)
         self.assertFalse(marker.exists())
 
+    def test_legacy_upstream_cache_cannot_bypass_fixed_paths(self):
+        legacy = '.cache/codex-upstream-target'
+        with self.assertRaises(RuntimeError):
+            storage.build_environment(self.root, {'CARGO_TARGET_DIR': legacy})
+        for flags in (['--target-dir', legacy], ['--target-dir=' + legacy]):
+            with self.assertRaises(RuntimeError):
+                storage.validate_output_paths(self.root, ['cargo', 'run', *flags])
+
     def test_command_flags_cannot_create_unbounded_build_directories(self):
         storage.validate_output_paths(self.root, ['swift', 'test', '--scratch-path',
                                      '.cache/macos-build', '--cache-path=.cache/swiftpm-cache'])

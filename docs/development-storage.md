@@ -8,7 +8,7 @@ macOS 配置向 rustc 显式传入 `-C strip=none`，避免无调试信息的宏
 
 ```sh
 python3 script/dev_storage.py run -- cargo test --locked -p shipios-core
-python3 script/dev_storage.py run -- xcrun swift test --package-path apps/macos --scratch-path .cache/macos-build --disable-sandbox --filter SomeTests
+python3 script/dev_storage.py run -- xcrun swift test --build-system native --package-path apps/macos --scratch-path .cache/macos-build --cache-path .cache/swiftpm-cache --disable-sandbox --filter SomeTests
 python3 script/dev_storage.py check
 ```
 
@@ -22,7 +22,7 @@ SHIPIOS_BUILD_CACHE_ROOT="$PWD/.cache/isolated/1" \
   script/build_and_run.sh --build-app
 ```
 
-第二个槽位为 `.cache/isolated/2`。独立上游嵌入检查沿用固定 `.cache/codex-upstream-target`。不得创建 `native-ui-阶段`、`isolated-full-阶段` 等新的编译目录，也不得关闭 `SHIPIOS_STORAGE_GUARDED` 的保护来绕开预算。定向 Swift 命令仍需显式复用同一 scratch/cache 路径。
+第二个槽位为 `.cache/isolated/2`。独立上游嵌入实验默认也复用 `target/`，若需隔离，显式选择上述固定槽位；守卫拒绝旧 `.cache/codex-upstream-target` 环境或命令参数，历史证据保留。不得创建 `native-ui-阶段`、`isolated-full-阶段` 等新的编译目录，也不得关闭 `SHIPIOS_STORAGE_GUARDED` 的保护来绕开预算。定向 Swift 命令仍需显式复用同一 scratch/cache 路径。
 
 阶段结束或达到预算后清理：
 

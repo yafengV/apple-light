@@ -62,8 +62,7 @@ def build_environment(root, environment):
     env = environment.copy()
     slots = [root / '.cache/isolated' / str(n) for n in (1, 2)]
     allowed_swift = [root / '.cache', *slots]
-    allowed_rust = [root / 'target', root / '.cache/codex-upstream-target',
-                    *(p / 'target' for p in slots)]
+    allowed_rust = [root / 'target', *(p / 'target' for p in slots)]
     for key, default, allowed in (
         ('SHIPIOS_BUILD_CACHE_ROOT', allowed_swift[0], allowed_swift),
         ('CARGO_TARGET_DIR', allowed_rust[0], allowed_rust),
@@ -84,8 +83,7 @@ def build_environment(root, environment):
 def validate_output_paths(root, command):
     slots = [root / '.cache/isolated' / str(n) for n in (1, 2)]
     allowed = {
-        '--target-dir': [root / 'target', root / '.cache/codex-upstream-target',
-                         *(p / 'target' for p in slots)],
+        '--target-dir': [root / 'target', *(p / 'target' for p in slots)],
         '--scratch-path': [root / '.cache/macos-build', *(p / 'macos-build' for p in slots)],
         '--cache-path': [root / '.cache/swiftpm-cache', *(p / 'swiftpm-cache' for p in slots)],
         '-derivedDataPath': [root / '.cache/xcode-derived-data',
