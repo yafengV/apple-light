@@ -7,7 +7,7 @@ final class Delegate: NSObject, NSApplicationDelegate {
  let bundlePath: String
  var activationDeadline: Date?
  var launcher: NSWindow?
- let selected = ["testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves", "testNativeActualMainPreparationCancelAndRetryActionsStayInExistingWindow", "testNativeRenameMountedBeforeWindowBecomesKeyFocusesOnlyOnce", "testNativeReturningFromFullBrowserMountsFocusedComposer", "testNativeTabThenImmediateSpaceActivatesTheNewSwitch", "testNativeRapidConfirmationKeysUseTheLatestSelection", "testNativeCancelledSettingsExitRestoresSearchAndBackKeyboardFocus"]
+ let selected = ["testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves", "testNativeActualMainPreparationCancelAndRetryActionsStayInExistingWindow", "testNativeRenameMountedBeforeWindowBecomesKeyFocusesOnlyOnce", "testNativeReturningFromFullBrowserMountsFocusedComposer", "testNativeTabThenImmediateSpaceActivatesTheNewSwitch", "testNativeRapidConfirmationKeysUseTheLatestSelection", "testNativeCancelledSettingsExitRestoresSearchAndBackKeyboardFocus", "testNativeSearchTabThenImmediateActivationKeepsNavigationOrder"]
  init(bundlePath: String, resultPath: String) { self.bundlePath=bundlePath; self.resultPath=resultPath }
  func applicationDidFinishLaunching(_ notification: Notification) {
   let window = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 460,height: 180),styleMask: [.titled,.closable],backing: .buffered,defer: false)

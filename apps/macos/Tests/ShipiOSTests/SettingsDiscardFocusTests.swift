@@ -4,6 +4,65 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsDiscardFocusTests: XCTestCase {
+  func testNativeSearchTabThenImmediateActivationKeepsNavigationOrder() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Requires the interactive AppKit test host and an actual key window")
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root, agentExecutable: try AgentTestExecutable.url())
+    await store.restore()
+    XCTAssertFalse(store.libraryRecoveryBlocksInteraction)
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 750),
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; window.identifier = .init("main")
+    let host = NSHostingView(rootView: AppContentView(store: store))
+    window.contentView = host
+    defer { window.contentView = nil; window.close() }
+    window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    func settle() async throws {
+      try await Task.sleep(for: .milliseconds(250)); host.layoutSubtreeIfNeeded()
+    }
+    func post(_ code: UInt16, _ characters: String, flags: NSEvent.ModifierFlags = []) throws {
+      for type in [NSEvent.EventType.keyDown, .keyUp] {
+        let event = try XCTUnwrap(NSEvent.keyEvent(with: type, location: .zero,
+          modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+          windowNumber: window.windowNumber, context: nil, characters: characters,
+          charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code))
+        NSApp.postEvent(event, atStart: false)
+      }
+    }
+    func fields(_ view: NSView) -> [NSSearchField] {
+      (view as? NSSearchField).map { [$0] } ?? view.subviews.flatMap(fields)
+    }
+    try await settle()
+    XCTAssertTrue(window.isKeyWindow)
+    store.openSettings(.model); try await settle()
+    let search = try XCTUnwrap(fields(host).first { $0.accessibilityLabel() == "搜索设置" })
+    for text in ["", "菜单栏"] {
+      store.requestSettingsPage(.model); try await settle()
+      XCTAssertTrue(window.makeFirstResponder(search))
+      let editor = try XCTUnwrap(search.currentEditor() as? NSTextView)
+      editor.insertText(text, replacementRange: .init(location: 0, length: editor.string.utf16.count))
+      try await settle()
+      let before = store.settingsSearchRequest?.token
+      // Deliver both keys without an intervening render/layout or task yield.
+      try post(48, "\t"); try post(36, "\r")
+      try await settle()
+      XCTAssertEqual(store.settingsPage, .general, "query=\(text)")
+      if !text.isEmpty {
+        XCTAssertEqual(store.settingsSearchRequest?.result.field, .menuBar)
+        XCTAssertNotEqual(store.settingsSearchRequest?.token, before)
+      }
+    }
+    store.requestSettingsPage(.model); try await settle()
+    XCTAssertTrue(window.makeFirstResponder(search))
+    try post(48, "\u{19}", flags: .shift); try post(36, "\r")
+    try await settle()
+    XCTAssertEqual(store.destination, .workspace, "Immediate Shift-Tab→Enter must activate Back")
+    await store.shutdown()
+  }
+
   func testNativeCancelledSettingsExitRestoresSearchAndBackKeyboardFocus() async throws {
     guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
       throw XCTSkip("Requires the interactive AppKit test host and an actual key window")

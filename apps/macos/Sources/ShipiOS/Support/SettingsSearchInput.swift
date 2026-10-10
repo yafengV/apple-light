@@ -10,7 +10,10 @@ struct SettingsSearchInput: NSViewRepresentable {
   let visible: Bool
   let onMove: (MoveCommandDirection) -> Void
   let onSubmit: () -> Void
-  var onTab: ((Bool) -> Bool)? = nil
+  // Plan the destination before editing ends; apply its focus only after the
+  // shared native field editor has resigned. Nil keeps ordinary AppKit traversal.
+  typealias TabHandoff = () -> Void
+  var onTab: ((Bool) -> TabHandoff?)? = nil
   var onCancelEmpty: (() -> Void)? = nil
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -80,11 +83,9 @@ struct SettingsSearchInput: NSViewRepresentable {
       case #selector(NSResponder.moveDown(_:)): parent.onMove(.down)
       case #selector(NSResponder.insertNewline(_:)): parent.onSubmit()
       case #selector(NSResponder.insertTab(_:)):
-        guard parent.onTab?(false) == true else { return false }
-        if let window = control.window { window.makeFirstResponder(window.contentView) }
+        return handoff(control, backwards: false)
       case #selector(NSResponder.insertBacktab(_:)):
-        guard parent.onTab?(true) == true else { return false }
-        if let window = control.window { window.makeFirstResponder(window.contentView) }
+        return handoff(control, backwards: true)
       case #selector(NSResponder.cancelOperation(_:)):
         if control.stringValue.isEmpty && parent.query.isEmpty {
           parent.onCancelEmpty?()
@@ -94,6 +95,16 @@ struct SettingsSearchInput: NSViewRepresentable {
         }
       default: return false
       }
+      return true
+    }
+
+    private func handoff(_ control: NSControl, backwards: Bool) -> Bool {
+      guard let plan = parent.onTab, let apply = plan(backwards) else { return false }
+      if let window = control.window, !window.makeFirstResponder(nil) { return true }
+      apply()
+      // Commit the hosting view's pending focus change before AppKit dispatches
+      // another already-queued key event to this window.
+      control.window?.contentView?.layoutSubtreeIfNeeded()
       return true
     }
   }

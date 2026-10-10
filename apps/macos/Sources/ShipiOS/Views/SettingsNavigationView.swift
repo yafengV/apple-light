@@ -8,7 +8,6 @@ struct SettingsNavigationView: View {
   // Preserve native traversal through the form, then include Back and Search
   // when SwiftUI wraps into the sidebar again.
   @State private var exitingSidebar = false
-  @State private var searchTabRequest: UUID?
   @FocusState private var focusedPage: SettingsPage?
   @FocusState private var focusedResultID: String?
   @FocusState private var returnFocused: Bool
@@ -70,22 +69,21 @@ struct SettingsNavigationView: View {
               reveal(result)
             }
           }, onTab: { backwards in
-            if !backwards, searching, results.isEmpty { return false }
-            exitingSidebar = false
-            focusedPage = nil
-            focusedResultID = nil
-            returnFocused = false
-            let request = UUID()
-            searchTabRequest = request
-            DispatchQueue.main.async {
-              guard searchTabRequest == request, store.destination == .settings, !store.hasSettingsConfirmation,
+            let resultID = searching ? results.first?.id : nil
+            guard backwards || !searching || resultID != nil,
+              store.destination == .settings, !store.hasSettingsConfirmation,
+              store.presentedOverlay == nil else { return nil }
+            return {
+              guard store.destination == .settings, !store.hasSettingsConfirmation,
                 store.presentedOverlay == nil else { return }
-              searchTabRequest = nil
+              exitingSidebar = false
+              focusedPage = nil
+              focusedResultID = nil
+              returnFocused = false
               if backwards { returnFocused = true }
-              else if searching, let first = results.first { focusedResultID = first.id }
+              else if let resultID { focusedResultID = resultID }
               else { focusedPage = SettingsNavigation.pages.first }
             }
-            return true
           }, onCancelEmpty: { store.closeSettings() })
           .frame(height: 28).padding(.bottom, 8)
       }.focusSection()
@@ -145,10 +143,8 @@ struct SettingsNavigationView: View {
     .padding(.horizontal, 12).padding(.top, 16)
     .frame(width: 275).appSidebarSurface()
     .onAppear { store.settingsSearchFocusRequest = UUID() }
-    .onDisappear { searchTabRequest = nil }
     .onChange(of: store.settingsSearchFocusRequest) { _, _ in
       exitingSidebar = false
-      searchTabRequest = nil
     }
     .onChange(of: query) { _, _ in highlightedResultID = nil; exitingSidebar = false }
   }

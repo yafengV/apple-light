@@ -39,7 +39,7 @@ final class SettingsInteractionTests: XCTestCase {
     window.makeFirstResponder(field)
     let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
     let view = SettingsSearchInput(query: .constant(""), focusRequest: UUID(), visible: true,
-      onMove: { _ in }, onSubmit: {}, onTab: { _ in false })
+      onMove: { _ in }, onSubmit: {}, onTab: { _ in nil })
     let coordinator = view.makeCoordinator()
     XCTAssertFalse(coordinator.control(field, textView: editor,
       doCommandBy: #selector(NSResponder.insertTab(_:))))
@@ -51,7 +51,7 @@ final class SettingsInteractionTests: XCTestCase {
     var directions: [Bool] = []
     let view = SettingsSearchInput(query: Binding(get: { query }, set: { query = $0 }),
       focusRequest: UUID(), visible: true, onMove: { _ in }, onSubmit: {},
-      onTab: { directions.append($0); return true })
+      onTab: { backwards in { directions.append(backwards) } })
     let coordinator = view.makeCoordinator()
     let field = NSSearchField()
     let editor = NSTextView()
@@ -81,11 +81,37 @@ final class SettingsInteractionTests: XCTestCase {
     XCTAssertEqual(query, "browser")
   }
 
+  @MainActor func testSearchTabDoesNotOverwriteTheResponderSelectedByItsHandoff() throws {
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 420, height: 180),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let field = NSSearchField(frame: .init(x: 10, y: 120, width: 250, height: 24))
+    let destination = NSTextView(frame: .init(x: 10, y: 10, width: 250, height: 80))
+    window.contentView?.addSubview(field); window.contentView?.addSubview(destination)
+    let view = SettingsSearchInput(query: .constant("保留查询"), focusRequest: UUID(), visible: true,
+      onMove: { _ in }, onSubmit: {}, onTab: { _ in {
+        XCTAssertTrue(window.makeFirstResponder(destination))
+      } })
+    let coordinator = view.makeCoordinator()
+    field.stringValue = "保留查询"
+    for command in [#selector(NSResponder.insertTab(_:)), #selector(NSResponder.insertBacktab(_:))] {
+      XCTAssertTrue(window.makeFirstResponder(field))
+      let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
+      XCTAssertTrue(coordinator.control(field, textView: editor, doCommandBy: command))
+      XCTAssertTrue(window.firstResponder === destination, "The search editor must not clear the new responder after the handoff")
+      (window.firstResponder as? NSTextView)?.insertText("继续输入", replacementRange: .init(location: 0, length: destination.string.utf16.count))
+      XCTAssertEqual(destination.string, "继续输入")
+      XCTAssertEqual(field.stringValue, "保留查询")
+    }
+  }
+
   @MainActor func testHiddenSearchDoesNotMoveFocusOrPublishStaleInput() {
     var query = "Original"
     let hidden = SettingsSearchInput(query: Binding(get: { query }, set: { query = $0 }),
       focusRequest: UUID(), visible: false, onMove: { _ in XCTFail("Hidden search") },
-      onSubmit: { XCTFail("Hidden search") }, onTab: { _ in XCTFail("Hidden search"); return true })
+      onSubmit: { XCTFail("Hidden search") }, onTab: { _ in XCTFail("Hidden search"); return nil })
     let coordinator = hidden.makeCoordinator()
     let field = NSSearchField()
     field.stringValue = "Stale input"
