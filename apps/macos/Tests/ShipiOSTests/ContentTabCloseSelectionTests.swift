@@ -440,6 +440,8 @@ import XCTest
     editor.beginEditingSelectedFile(); editor.editSelectedFile("local draft")
     try "external".write(to: path, atomically: true, encoding: .utf8)
     close(tab.id); close(tab.id)
+    XCTAssertEqual(editor.fileCloseRequest, "file.txt")
+    let conflictSave = await editor.saveAndCloseRequestedFile(); XCTAssertFalse(conflictSave)
     for _ in 0..<80 where editor.selectedFileEditor?.changedOnDisk == nil { try await Task.sleep(for: .milliseconds(20)) }
     XCTAssertEqual(editor.selectedFileEditor?.changedOnDisk, "external")
     XCTAssertTrue(contains(tab)); XCTAssertEqual(selected(), tab)
@@ -463,10 +465,16 @@ import XCTest
     let old = store.fileTabWorkspace(tab); old.root = root; await old.openFile("file.txt")
     old.beginEditingSelectedFile(); old.editSelectedFile("saved old draft")
     store.closeWorkspaceTab(tab.id)
+    XCTAssertEqual(old.fileCloseRequest, "file.txt")
+    let save = Task {
+      if await old.saveAndCloseRequestedFile() { store.closeFileContentTab(tab, editor: old) }
+    }
+    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+    while old.selectedFileEditor?.saving != true && ContinuousClock.now < deadline { await Task.yield() }
+    XCTAssertTrue(old.selectedFileEditor?.saving == true)
     let replacement = DeveloperWorkspace(); replacement.root = root
     store.fileTabWorkspaces[tab.id] = replacement
-    for _ in 0..<80 where store.pendingWorkspaceTabCloses[tab.id] != nil { try await Task.sleep(for: .milliseconds(20)) }
-    XCTAssertNil(store.pendingWorkspaceTabCloses[tab.id])
+    await save.value
     XCTAssertTrue(store.workspaceTabs.contains(tab)); XCTAssertEqual(store.activeWorkspaceContentTab, tab)
     XCTAssertTrue(store.fileTabWorkspace(tab) === replacement)
     XCTAssertEqual(try String(contentsOf: path, encoding: .utf8), "saved old draft")

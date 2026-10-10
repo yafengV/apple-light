@@ -495,19 +495,17 @@ extension WorkspaceStore {
     closeWorkspaceTab(tab.id)
   }
 
+  func closeFileContentTab(_ tab: WorkspaceContentTab, editor: DeveloperWorkspace) {
+    guard tab.kind == .file, workspaceTabs.contains(tab), fileTabWorkspaces[tab.id] === editor else { return }
+    closeWorkspaceTab(tab.id)
+  }
+
   func closeWorkspaceTab(_ id: String) {
     guard let tab = workspaceTabs.first(where: { $0.id == id }) else { return }
-    if case .file = tab, let session = fileTabWorkspaces[id],
-      session.selectedFileEditor?.hasUnsavedChanges == true {
-      guard pendingWorkspaceTabCloses[id] == nil else { return }
-      let request = UUID(); pendingWorkspaceTabCloses[id] = request
-      Task { [weak self] in
-        let saved = await session.saveSelectedFileEdits()
-        guard let self, pendingWorkspaceTabCloses[id] == request else { return }
-        pendingWorkspaceTabCloses[id] = nil
-        guard saved, !shuttingDown, workspaceTabs.contains(tab), fileTabWorkspaces[id] === session else { return }
-        closeWorkspaceTab(id)
-      }
+    if case .file = tab, let session = fileTabWorkspaces[id], let path = session.selectedFile,
+      session.selectedFileEditor.map({ $0.hasUnsavedChanges || $0.saving }) == true {
+      activateWorkspaceTab(id)
+      session.closeFile(path)
       return
     }
     if tab.kind == .file { closedFilePlacements[tab.id] = workspaceTabPlacement(tab.id) }

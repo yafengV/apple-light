@@ -175,7 +175,6 @@ final class WorkspaceStore {
   var workspaceTabs: [WorkspaceContentTab] = []
   @ObservationIgnored var workspaceTabCloseControllers: [ContentTabCloseScope: ContentTabCloseController] = [:]
   @ObservationIgnored var synchronizingWorkspaceBrowserSelection = false
-  @ObservationIgnored var pendingWorkspaceTabCloses: [String: UUID] = [:]
   @ObservationIgnored var workspaceLayoutActiveOwner: String?
   @ObservationIgnored var restoredWorkspaceTabOwners: Set<String> = []
   @ObservationIgnored var restoringWorkspaceTabLayout = false

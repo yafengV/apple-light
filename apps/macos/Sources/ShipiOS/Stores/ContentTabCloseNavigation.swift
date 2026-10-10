@@ -52,7 +52,6 @@ extension WorkspaceStore {
     let wasSelected = controller.selectedID == id
     let next = transferring ? controller.transfer(id, in: ids) : controller.close(id, in: ids)
     workspaceTabCloseControllers[scope] = controller
-    pendingWorkspaceTabCloses[id] = nil
     workspaceTabs.removeAll { $0.id == id }
     if draggingWorkspaceTabID == id { endWorkspaceTabDrag() }
     workspaceTabPlacements[id] = nil

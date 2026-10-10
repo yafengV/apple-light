@@ -81,7 +81,12 @@ import XCTest
     XCTAssertEqual(main.root?.path, original.path); XCTAssertEqual(main.fileText, "main draft")
     child.beginEditingSelectedFile(); child.editSelectedFile("child saved")
     tabs.close(childTab.id)
-    for _ in 0..<80 where tabs.tabs.contains(childTab) { try await Task.sleep(for: .milliseconds(25)) }
+    XCTAssertTrue(tabs.tabs.contains(childTab))
+    XCTAssertEqual(child.fileCloseRequest, "same.txt")
+    XCTAssertEqual(try String(contentsOf: next.appendingPathComponent("same.txt"), encoding: .utf8), "next")
+    let saved = await child.saveAndCloseRequestedFile()
+    XCTAssertTrue(saved)
+    tabs.close(childTab.id)
     XCTAssertFalse(tabs.tabs.contains(childTab))
     XCTAssertEqual(try String(contentsOf: next.appendingPathComponent("same.txt"), encoding: .utf8), "child saved")
     XCTAssertEqual(try String(contentsOf: original.appendingPathComponent("same.txt"), encoding: .utf8), "original")

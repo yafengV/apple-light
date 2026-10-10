@@ -24,10 +24,14 @@ struct FileWorkspaceTabView: View {
   var body: some View {
     Group {
       if let root {
-        FileWorkspaceView(store: store, workspace: contentWorkspace,
+        let editor = contentWorkspace
+        FileWorkspaceView(store: store, workspace: editor,
           taskID: tab.owner.hasPrefix("new:") ? nil : tab.owner,
           draftOwner: tab.owner,
-          openInContentTab: openFile, closeContentTab: close)
+          openInContentTab: openFile, closeContentTab: {
+            if fileWorkspace == nil { store.closeFileContentTab(tab, editor: editor) }
+            else { close() }
+          })
           .task(id: scopeKey) {
             guard !Task.isCancelled else { return }
             let workspace = contentWorkspace

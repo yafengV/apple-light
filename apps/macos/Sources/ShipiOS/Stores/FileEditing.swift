@@ -137,5 +137,27 @@ extension DeveloperWorkspace {
     if openFiles.contains(path), fileEditorSessions[key]?.changedOnDisk == nil {
       scheduleFileAutosave(key: key)
     }
+    fileFocusRequest = UUID()
+  }
+
+  /// An explicit save choice is the only close path that may write the file.
+  /// Preserve the request on failure, and never complete a replaced request.
+  @discardableResult func saveAndCloseRequestedFile() async -> Bool {
+    guard let path = fileCloseRequest, openFiles.contains(path) else { return false }
+    let requestID = fileCloseRequestID, projectRoot = root, key = editorKey(for: path)
+    guard await saveFileEdits(key: key), fileCloseRequestID == requestID,
+      fileCloseRequest == path, root == projectRoot,
+      fileEditorSessions[key]?.hasUnsavedChanges == false,
+      fileEditorSessions[key]?.saving == false else { return false }
+    fileCloseRequest = nil
+    closeFile(path)
+    return !openFiles.contains(path)
+  }
+
+  @discardableResult func discardRequestedFileClose() -> Bool {
+    guard let path = fileCloseRequest,
+      fileEditorSessions[editorKey(for: path)]?.saving != true else { return false }
+    discardAndCloseFile(path)
+    return !openFiles.contains(path)
   }
 }

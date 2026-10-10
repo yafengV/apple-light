@@ -177,7 +177,7 @@ import XCTest
     XCTAssertTrue(store.mainMCPApprovalVisible)
   }
 
-  func testClosingDirtyFileTabSavesBeforeRemoval() async throws {
+  func testClosingDirtyFileTabWaitsForChoiceWithoutWriting() async throws {
     let (store, _, project) = try fixture()
     XCTAssertTrue(store.openFileTab("First.swift"))
     let tab = try XCTUnwrap(store.activeWorkspaceContentTab)
@@ -188,11 +188,12 @@ import XCTest
     session.editSelectedFile("changed")
     XCTAssertTrue(session.selectedFileEditor?.hasUnsavedChanges == true)
     store.closeWorkspaceTab(tab.id)
-    for _ in 0..<60 where store.workspaceTabs.contains(tab) {
-      try await Task.sleep(for: .milliseconds(25))
-    }
-    XCTAssertFalse(store.workspaceTabs.contains(tab))
-    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("First.swift"), encoding: .utf8), "changed")
+    try await Task.sleep(for: .milliseconds(3200))
+    XCTAssertTrue(store.workspaceTabs.contains(tab))
+    XCTAssertEqual(session.fileCloseRequest, "First.swift")
+    XCTAssertEqual(session.fileText, "changed")
+    XCTAssertTrue(session.selectedFileEditor?.hasUnsavedChanges == true)
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("First.swift"), encoding: .utf8), "first")
   }
 
   func testFileTabFindAndLineCommandsTargetItsEditor() async throws {
@@ -211,7 +212,7 @@ import XCTest
     XCTAssertFalse(store.workspace.fileFind.isPresented)
   }
 
-  func testTaskWindowClosingDirtyFileTabSavesBeforeRemoval() async throws {
+  func testTaskWindowClosingDirtyFileTabWaitsForChoiceWithoutWriting() async throws {
     let (store, _, project) = try fixture()
     let resources = TaskWindowResources()
     defer { resources.shutdown() }
@@ -225,11 +226,12 @@ import XCTest
     session.beginEditingSelectedFile()
     session.editSelectedFile("task change")
     tabs.close(tab.id)
-    for _ in 0..<60 where tabs.tabs.contains(tab) {
-      try await Task.sleep(for: .milliseconds(25))
-    }
-    XCTAssertFalse(tabs.tabs.contains(tab))
-    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("First.swift"), encoding: .utf8), "task change")
+    try await Task.sleep(for: .milliseconds(3200))
+    XCTAssertTrue(tabs.tabs.contains(tab))
+    XCTAssertEqual(session.fileCloseRequest, "First.swift")
+    XCTAssertEqual(session.fileText, "task change")
+    XCTAssertTrue(session.selectedFileEditor?.hasUnsavedChanges == true)
+    XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("First.swift"), encoding: .utf8), "first")
     XCTAssertTrue(store.workspaceTabs.isEmpty)
   }
 }

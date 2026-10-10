@@ -28,7 +28,6 @@ import Observation
   }
   private(set) var tasks: [String: TaskWindowTabs] = [:]
   @ObservationIgnored private var deferredLayouts: [String: TaskWindowTabLayout] = [:]
-  @ObservationIgnored private var pendingFileTabCloses: [String: UUID] = [:]
 
   func attach(window: NSWindow?, from view: NSView) {
     if let window {
@@ -136,7 +135,6 @@ import Observation
     store.additionalTaskWindowPanels.add(panels)
     if let existing = tasks[taskID] {
       if oldRoot != panel.workspace.root {
-        for tab in existing.tabs where tab.kind == .file { pendingFileTabCloses[tab.id] = nil }
         files.remove(owner: taskID, store: store)
         existing.resetProjectTabs()
       }
@@ -156,7 +154,6 @@ import Observation
         store?.pullRequestWatchContent(.pullRequestWatch(id, task: target, owner: taskID))
       }
       tasks[taskID]?.onTabWillClose = { [weak self] tab in
-        self?.pendingFileTabCloses[tab.id] = nil
         self?.capturePins()
       }
       tasks[taskID]?.isTabPinned = { [weak self, weak store] tabID in
@@ -188,19 +185,11 @@ import Observation
         } else { tasks[taskID]?.restoreLayout(layout) }
       }
     }
-    tasks[taskID]?.canCloseFileTab = { [weak self, weak store] tab in
-      guard let store, let session = self?.files.existing(tab),
-        session.selectedFileEditor?.hasUnsavedChanges == true else { return true }
-      guard let self, pendingFileTabCloses[tab.id] == nil, let target = tasks[taskID] else { return false }
-      let request = UUID(); pendingFileTabCloses[tab.id] = request
-      Task { [weak self, weak store, weak target] in
-        let saved = await session.saveSelectedFileEdits()
-        guard let self, pendingFileTabCloses[tab.id] == request else { return }
-        pendingFileTabCloses[tab.id] = nil
-        guard saved, let store, let target, tasks[taskID] === target,
-          target.tabs.contains(tab), files.existing(tab) === session else { return }
-        target.close(tab.id)
-      }
+    tasks[taskID]?.canCloseFileTab = { [weak self] tab in
+      guard let self, let session = files.existing(tab), let path = session.selectedFile,
+        session.selectedFileEditor.map({ $0.hasUnsavedChanges || $0.saving }) == true else { return true }
+      tasks[taskID]?.activate(tab.id)
+      session.closeFile(path)
       return false
     }
   }
@@ -210,6 +199,11 @@ import Observation
       && store.library.tasks.contains(where: { $0.id == taskID }) {
       store.library.taskWindowTabLayouts[id, default: [:]][taskID] = tabs.layoutSnapshot
     }
+  }
+
+  func closeFileContentTab(_ tab: WorkspaceContentTab, taskID: String, editor: DeveloperWorkspace) {
+    guard files.existing(tab) === editor, let target = tasks[taskID], target.tabs.contains(tab) else { return }
+    target.close(tab.id)
   }
   func restoreDeferredWatchLayouts() {
     guard store?.automationsLoaded == true else { return }
@@ -327,7 +321,6 @@ import Observation
       store?.taskWindowResources.remove(self)
       browsers.shutdown(); panels.shutdown(); tasks.removeAll()
       deferredLayouts.removeAll()
-      pendingFileTabCloses.removeAll()
       navigate = nil; window = nil; windowAttachment = nil; displayedTaskID = nil
       store?.saveLibrary()
     }

@@ -1226,10 +1226,11 @@ struct TaskWindowView: View {
       case .browser(let id, _):
         BrowserPanel(store: store, session: browser.session, context: browserPanelContext(tab), showsTabStrip: false, tabID: id)
       case .file:
+        let editor = resources.fileWorkspace(tab)
         FileWorkspaceTabView(store: store, tab: tab,
           openFile: { _ = tabs.openFile($0, in: tabs.stripPlacement(tab.id)) },
-          close: { tabs.close(tab.id) },
-          fileWorkspace: resources.fileWorkspace(tab), fileRoot: taskWorkspace.root)
+          close: { resources.closeFileContentTab(tab, taskID: taskID, editor: editor) },
+          fileWorkspace: editor, fileRoot: taskWorkspace.root)
       case .review:
         GitReviewView(store: store, workspace: taskWorkspace, taskID: taskID, focusComposer: { tabs.revealChat() })
       case .plan(let runID, _):

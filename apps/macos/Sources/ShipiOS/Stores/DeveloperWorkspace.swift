@@ -35,7 +35,10 @@ final class DeveloperWorkspace {
   @ObservationIgnored var pendingFileEditorRecoveryResolutions: Set<String> = []
   @ObservationIgnored var fileEditingAllowed: () -> Bool = { true }
   @ObservationIgnored var onFileEditResolved: ((String) -> Void)?
-  var fileCloseRequest: String?
+  var fileCloseRequest: String? {
+    didSet { if fileCloseRequest != oldValue { fileCloseRequestID = UUID() } }
+  }
+  var fileCloseRequestID = UUID()
   @ObservationIgnored var fileAutosaveTasks: [String: Task<Void, Never>] = [:]
   @ObservationIgnored var fileMonitorTasks: [String: Task<Void, Never>] = [:]
   @ObservationIgnored var fileMonitorTokens: [String: UUID] = [:]

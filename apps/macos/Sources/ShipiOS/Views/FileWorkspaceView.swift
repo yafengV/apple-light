@@ -41,27 +41,14 @@ struct FileWorkspaceView: View {
     .onChange(of: workspace.selectedFile) { _, path in
       if path != nil { compactTreePresented = false }
     }
-    .confirmationDialog("保存此文件的更改？", isPresented: Binding(
+    .sheet(isPresented: Binding(
       get: { workspace.fileCloseRequest != nil },
       set: { if !$0 { workspace.cancelFileClose() } }
     )) {
-      Button("保存并关闭") {
-        guard let path = workspace.fileCloseRequest else { return }
-        Task {
-          if await workspace.saveFileEdits(key: workspace.editorKey(for: path)) {
-            workspace.fileCloseRequest = nil
-            closeFile(path)
-          }
-        }
+      FileCloseConfirmationView(workspace: workspace) {
+        if let closeContentTab { closeContentTab() }
+        else if workspace === store.workspace, store.filesVisible { store.focusComposer = UUID() }
       }
-      Button("放弃更改并关闭", role: .destructive) {
-        if let path = workspace.fileCloseRequest { workspace.discardAndCloseFile(path) }
-      }.disabled(workspace.fileCloseRequest.flatMap {
-        workspace.fileEditorSessions[workspace.editorKey(for: $0)]?.saving
-      } == true)
-      Button("继续编辑", role: .cancel) { workspace.cancelFileClose() }
-    } message: {
-      Text("当前内容尚未写入磁盘。")
     }
     .sheet(isPresented: $showingConflict) { conflictSheet }
     .overlay(alignment: .topTrailing) {
