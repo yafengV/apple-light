@@ -2237,6 +2237,51 @@ final class ModelTransportTests: XCTestCase {
     XCTAssertTrue(try String(contentsOf: callLog, encoding: .utf8).contains("\"name\": \"first\""))
     await store.shutdown()
   }
+  @MainActor func testUnsupportedCoreMCPFormFailsUnblocksAndAllowsSameChatToContinue() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("unsupported-form-\(UUID())")
+    let project = root.appendingPathComponent("Project")
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    let store = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: try AgentTestExecutable.url())
+    addTeardownBlock { await store.shutdown(); try? FileManager.default.removeItem(at: root) }
+    await store.restore()
+    config.apiProtocol = .codexResponses; config.model = "gpt-5.4"
+    try store.saveModelConfiguration(config)
+    store.notificationPreferences = .init(timing: .never)
+    var mcp = MCPServerConfiguration()
+    mcp.name = "shipios_fixture"; mcp.command = "/usr/bin/python3"
+    mcp.arguments = [URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("Fixtures/mcp_server.py").path,
+      "stdio_form_unsupported"]
+    mcp.environment = [MCPKeyValue(key: "SHIPIOS_CODEX_PROBE", value: "1")]
+    XCTAssertTrue(store.saveMCPServer(mcp), store.mcpServersError ?? "MCP settings failed")
+    await store.open(project)
+    let started = await store.startChat("codex-mcp-form-probe")
+    let run = try XCTUnwrap(started)
+    let owner = try XCTUnwrap(store.library.task(containing: run)?.id)
+    let deadline = ContinuousClock.now.advanced(by: .seconds(15))
+    while store.library.chatRuns.first(where: { $0.id == run })?.isActive == true,
+      ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+    let failed = try XCTUnwrap(store.library.chatRuns.first { $0.id == run })
+    XCTAssertEqual(failed.status, "failed", failed.result?["message"].text ?? "Still waiting")
+    XCTAssertTrue(failed.result?["message"].text?.contains("不支持的 MCP 表单") == true)
+    XCTAssertTrue(store.codexPendingElicitations.isEmpty)
+    XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
+    if failed.isActive { await store.cancel(taskID: owner) }
+    await store.modelTask(runID: run)?.value
+    XCTAssertNil(store.codexTransport.turnToken(taskID: owner))
+    XCTAssertEqual(store.liveModelRequestCount, 0)
+    let nextStarted = await store.startChat("Continue after the unsupported form", taskID: owner)
+    let next = try XCTUnwrap(nextStarted)
+    let nextDeadline = ContinuousClock.now.advanced(by: .seconds(15))
+    while store.library.chatRuns.first(where: { $0.id == next })?.isActive == true,
+      ContinuousClock.now < nextDeadline { try await Task.sleep(for: .milliseconds(20)) }
+    let recovered = try XCTUnwrap(store.library.chatRuns.first { $0.id == next })
+    XCTAssertEqual(recovered.status, "succeeded", recovered.result?["message"].text ?? "Still waiting")
+    if recovered.isActive { await store.cancel(taskID: owner) }
+    XCTAssertTrue(store.codexPendingElicitations.isEmpty)
+    XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
+  }
   @MainActor func testCodexResponsesMCPFormElicitationReturnsTypedContent() async throws {
     let binary = try AgentTestExecutable.url()
     let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()

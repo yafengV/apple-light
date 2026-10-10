@@ -2,7 +2,7 @@ import XCTest
 @testable import ShipiOS
 
 final class CodexPlanDocumentTests: XCTestCase {
-  private func event(type: String = "item_completed", itemType: String = "plan", text: String = "# Release plan\nShip the app") -> JSONValue {
+  private func event(type: String = "item_completed", itemType: String = "Plan", text: String = "# Release plan\nShip the app") -> JSONValue {
     .object([
       "type": .string(type),
       "item": .object(["type": .string(itemType), "id": .string("plan-1"), "text": .string(text)]),
@@ -13,8 +13,9 @@ final class CodexPlanDocumentTests: XCTestCase {
     let document = CodexPlanDocument.completed(event())
     XCTAssertEqual(document?.id, "plan-1")
     XCTAssertEqual(document?.title, "Release plan")
+    XCTAssertEqual(CodexPlanDocument.completed(event(itemType: "plan")), document)
     XCTAssertNil(CodexPlanDocument.completed(event(type: "item_started")))
-    XCTAssertNil(CodexPlanDocument.completed(event(itemType: "agentMessage")))
+    XCTAssertNil(CodexPlanDocument.completed(event(itemType: "AgentMessage")))
     XCTAssertNil(CodexPlanDocument.completed(event(type: "plan_update")))
   }
 

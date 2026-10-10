@@ -171,4 +171,107 @@ final class CodexRequestRecoveryTests: XCTestCase {
     try await waitFor { store.library.chatRuns.first { $0.id == second }?.isActive == false }
     XCTAssertEqual(store.library.chatRuns.first { $0.id == second }?.status, "cancelled")
   }
+  @MainActor func testActualCommandFailureRetainsOneFailedToolAndRestoresIt() async throws {
+    let (store, root) = try await setup()
+    let started = await store.startChat("tool failure")
+    let run = try XCTUnwrap(started)
+    try await waitFor { store.library.chatRuns.first { $0.id == run }?.isActive == false }
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    XCTAssertEqual(finished.toolExecutions.count, 1)
+    let tool = try XCTUnwrap(finished.toolExecutions.first)
+    XCTAssertEqual(tool.status, .failed)
+    XCTAssertTrue(tool.output?.contains("T04_TOOL_FAILURE") == true, tool.output ?? "Missing error output")
+    XCTAssertEqual(finished.responseItems?.filter {
+      if case .tool = $0 { return true }; return false
+    }.count, 1)
+    XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: try AgentTestExecutable.url())
+    addTeardownBlock { await restored.shutdown() }
+    await restored.restore()
+    let saved = try XCTUnwrap(restored.library.chatRuns.first { $0.id == run })
+    XCTAssertEqual(saved.toolExecutions, finished.toolExecutions)
+    XCTAssertEqual(saved.responseItems, finished.responseItems)
+    XCTAssertFalse(saved.isActive)
+    XCTAssertTrue(restored.mcpPendingApprovals.isEmpty)
+  }
+  @MainActor func testActualCorePlanDocumentOpensOnlyForOwnerAndRestores() async throws {
+    let (store, root) = try await setup()
+    let started = await store.startChat("document plan", mode: .plan)
+    let run = try XCTUnwrap(started)
+    try await waitFor { store.library.chatRuns.first { $0.id == run }?.isActive == false }
+    let finished = try XCTUnwrap(store.library.chatRuns.first { $0.id == run })
+    XCTAssertEqual(finished.status, "succeeded", finished.result?["message"].text ?? "")
+    let document = try XCTUnwrap(finished.codexPlanDocument, "Native Core Plan item was not retained")
+    XCTAssertEqual(document.title, "T04 release plan")
+    XCTAssertEqual(document.text.trimmingCharacters(in: .whitespacesAndNewlines),
+      "# T04 release plan\n\n1. Inspect the project\n2. Verify behavior")
+    XCTAssertFalse(finished.result?["response"].text?.contains("<proposed_plan>") == true)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Project/patch-proof.txt").path))
+    let owner = try XCTUnwrap(store.library.task(containing: run))
+    XCTAssertTrue(store.openPlanDocument(runID: run))
+    XCTAssertEqual(store.activeWorkspaceContentTab, .plan(run, owner: owner.id))
+    store.newTask()
+    let peerStarted = await store.startChat("unrelated reply")
+    let peer = try XCTUnwrap(peerStarted)
+    try await waitFor { store.library.chatRuns.first { $0.id == peer }?.isActive == false }
+    XCTAssertFalse(store.openPlanDocument(runID: run))
+    store.selectTask(owner)
+    XCTAssertTrue(store.openPlanDocument(runID: run))
+    await store.shutdown()
+    let restored = WorkspaceStore(dataRoot: root.appendingPathComponent("Data"),
+      agentExecutable: try AgentTestExecutable.url())
+    addTeardownBlock { await restored.shutdown() }
+    await restored.restore()
+    XCTAssertEqual(restored.library.chatRuns.first { $0.id == run }?.codexPlanDocument, document)
+    XCTAssertTrue(restored.openPlanDocument(runID: run))
+    XCTAssertEqual(restored.activeWorkspaceContentTab, .plan(run, owner: owner.id))
+  }
+  @MainActor func testCancelledApprovalDoesNotWriteAndOldCardCannotApproveRetry() async throws {
+    let (store, root) = try await setup()
+    let started = await store.startChat("approval cancel")
+    let run = try XCTUnwrap(started)
+    let owner = try XCTUnwrap(store.library.task(containing: run)?.id)
+    try await waitFor { store.mcpPendingApprovals.values.contains { $0.runID == run } }
+    let old = try XCTUnwrap(store.mcpPendingApprovals.values.first { $0.runID == run })
+    await store.cancel(taskID: owner)
+    try await waitFor { store.library.chatRuns.first { $0.id == run }?.isActive == false }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == run }?.status, "cancelled")
+    XCTAssertNil(store.mcpPendingApprovals[old.execution.id])
+    let proof = root.appendingPathComponent("Project/approval-proof.txt")
+    XCTAssertFalse(FileManager.default.fileExists(atPath: proof.path))
+    let nextStarted = await store.startChat("approval after cancel", taskID: owner)
+    let next = try XCTUnwrap(nextStarted)
+    try await waitFor { store.mcpPendingApprovals.values.contains { $0.runID == next } }
+    let current = try XCTUnwrap(store.mcpPendingApprovals.values.first { $0.runID == next })
+    store.resolveMCPApproval(old.execution.id, decision: .allowOnce)
+    XCTAssertNotNil(store.mcpPendingApprovals[current.execution.id])
+    XCTAssertFalse(FileManager.default.fileExists(atPath: proof.path))
+    store.resolveMCPApproval(current.execution.id, decision: .allowOnce)
+    try await waitFor { store.library.chatRuns.first { $0.id == next }?.isActive == false }
+    XCTAssertEqual(try String(contentsOf: proof, encoding: .utf8), "approved")
+  }
+  @MainActor func testBackgroundApprovalCompletesOnlyItsRequestAndPeerCanBeDenied() async throws {
+    let (store, _) = try await setup()
+    let firstStarted = await store.startChat("approval background")
+    let first = try XCTUnwrap(firstStarted)
+    try await waitFor { store.mcpPendingApprovals.values.contains { $0.runID == first } }
+    let firstApproval = try XCTUnwrap(store.mcpPendingApprovals.values.first { $0.runID == first })
+    store.newTask()
+    let peerStarted = await store.startChat("approval foreground peer")
+    let peer = try XCTUnwrap(peerStarted)
+    try await waitFor { store.mcpPendingApprovals.values.contains { $0.runID == peer } }
+    let peerApproval = try XCTUnwrap(store.mcpPendingApprovals.values.first { $0.runID == peer })
+    store.resolveMCPApproval(firstApproval.execution.id, decision: .allowOnce)
+    try await waitFor { store.library.chatRuns.first { $0.id == first }?.isActive == false }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == first }?.toolExecutions.last?.status, .succeeded)
+    XCTAssertNotNil(store.mcpPendingApprovals[peerApproval.execution.id])
+    XCTAssertTrue(store.library.chatRuns.first { $0.id == peer }?.isActive == true)
+    store.resolveMCPApproval(peerApproval.execution.id, decision: .deny)
+    try await waitFor { store.library.chatRuns.first { $0.id == peer }?.isActive == false }
+    XCTAssertEqual(store.library.chatRuns.first { $0.id == peer }?.toolExecutions.last?.status, .denied)
+    XCTAssertTrue(store.mcpPendingApprovals.isEmpty)
+  }
 }

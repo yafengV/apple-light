@@ -99,7 +99,7 @@ else:
             f.write(str(os.getpid()))
     for line in sys.stdin:
         message = json.loads(line)
-        if mode in ("stdio_form", "stdio_form_rich", "stdio_url") and message.get("method") == "tools/call":
+        if mode in ("stdio_form", "stdio_form_rich", "stdio_form_unsupported", "stdio_url") and message.get("method") == "tools/call":
             pending_form_call = message["id"]
             rich_schema = {"type": "object", "properties": {
                 "stage": {"type": "string", "oneOf": [
@@ -121,11 +121,14 @@ else:
                                "reason": {"type": "string", "title": "Reason", "minLength": 3},
                                "count": {"type": "integer", "title": "Count"}},
                                "required": ["reason", "count"]}})
+            if mode == "stdio_form_unsupported":
+                params["requestedSchema"] = {"type": "object", "properties": {
+                    f"field{i}": {"type": "string"} for i in range(33)}}
             request = {"jsonrpc": "2.0", "id": "fixture-form-request",
                        "method": "elicitation/create", "params": params}
             print(json.dumps(request), flush=True)
             continue
-        if mode in ("stdio_form", "stdio_form_rich", "stdio_url") and message.get("id") == "fixture-form-request" \
+        if mode in ("stdio_form", "stdio_form_rich", "stdio_form_unsupported", "stdio_url") and message.get("id") == "fixture-form-request" \
                 and message.get("method") is None:
             answer = message.get("result", {})
             if os.getenv("CALL_LOG"):

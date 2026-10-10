@@ -7,7 +7,7 @@ struct CodexPlanDocument: Codable, Equatable, Identifiable, Sendable {
 
   static func completed(_ event: JSONValue) -> Self? {
     guard event["type"].text == "item_completed",
-      event["item"]["type"].text == "plan",
+      ["Plan", "plan"].contains(event["item"]["type"].text ?? ""),
       let id = event["item"]["id"].text, !id.isEmpty, id.utf8.count <= 256,
       let text = event["item"]["text"].text, !text.isEmpty,
       text.utf8.count <= 1_048_576 else { return nil }

@@ -21,7 +21,10 @@ class Handler(BaseHTTPRequestHandler):
         call_id = 'recovery-' + hashlib.sha256(prompt.encode()).hexdigest()[:16]
         answered = any(item.get('call_id') == call_id and item.get('type') in
                        ('function_call_output', 'custom_tool_call_output') for item in inputs[user_index + 1:])
-        if not answered and 'patch' in prompt:
+        if not answered and 'tool failure' in prompt:
+            item = {'type': 'function_call', 'call_id': call_id, 'name': 'exec_command',
+                    'arguments': json.dumps({'cmd': "printf 'T04_TOOL_FAILURE\\n' >&2; exit 7"})}
+        elif not answered and 'patch' in prompt:
             item = {'type': 'custom_tool_call', 'call_id': call_id, 'name': 'apply_patch',
                     'input': '*** Begin Patch\n*** Add File: patch-proof.txt\n+patched\n*** End Patch'}
         elif not answered and 'approval' in prompt:
@@ -35,10 +38,15 @@ class Handler(BaseHTTPRequestHandler):
                         'question': 'Choose the fixture value?', 'isOther': True,
                         'options': [{'label': 'Provided value', 'description': 'Use the fixture value.'}]}]})}
         else:
+            text = ('<proposed_plan>\n# T04 release plan\n\n1. Inspect the project\n2. Verify behavior\n</proposed_plan>'
+                    if 'document plan' in prompt else 'Request recovery fixture complete')
             item = {'type': 'message', 'role': 'assistant', 'id': call_id + '-reply',
-                    'content': [{'type': 'output_text', 'text': 'Request recovery fixture complete'}]}
-        events = [{'type': 'response.created', 'response': {'id': call_id}},
-                  {'type': 'response.output_item.done', 'item': item},
+                    'content': [{'type': 'output_text', 'text': text}]}
+        events = [{'type': 'response.created', 'response': {'id': call_id}}]
+        if item['type'] == 'message':
+            events += [{'type': 'response.output_item.added', 'item': dict(item, content=[])},
+                       {'type': 'response.output_text.delta', 'item_id': item['id'], 'delta': text}]
+        events += [{'type': 'response.output_item.done', 'item': item},
                   {'type': 'response.completed', 'response': {'id': call_id,
                     'usage': {'input_tokens': 0, 'output_tokens': 0, 'total_tokens': 0}}}]
         data = ''.join('event: ' + e['type'] + '\ndata: ' + json.dumps(e) + '\n\n' for e in events).encode()
