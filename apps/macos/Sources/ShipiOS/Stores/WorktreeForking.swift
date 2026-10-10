@@ -17,6 +17,17 @@ extension WorkspaceStore {
   /// Show a window-owned preparation page while the independent checkout is created.
   @discardableResult func forkTaskToNewWorktree(_ id: String, openTask: Bool = true,
     presentation: WorktreeForkPresentation? = nil, noticeBoard: WorkspaceNotices? = nil) async -> WorkspaceTask? {
+    guard canForkTaskToNewWorktree(id), !Task.isCancelled else { return nil }
+    // Reserve initialization as well as checkout creation: two windows cannot
+    // create different parent identities for the same unsent source.
+    taskMenuForkingID = id
+    do { try await initializeEmptyForkSource(id) }
+    catch {
+      taskMenuForkingID = nil
+      if !(error is CancellationError) { self.error = error.localizedDescription }
+      return nil
+    }
+    taskMenuForkingID = nil
     guard canForkTaskToNewWorktree(id), !Task.isCancelled,
       let sourceTask = library.tasks.first(where: { $0.id == id }) else { return nil }
     let history = taskWindowRuns(id)

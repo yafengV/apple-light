@@ -205,9 +205,18 @@ final class CodexChatTransport {
     webSearchMode: AgentWebSearchMode, confettiEnabled: Bool = false, pauseAutomationID: UUID? = nil,
     compact: Bool = false, connectOnly: Bool = false, forkOrigin: CodexForkOrigin? = nil,
     resumeOrigin: CodexResumeOrigin? = nil, createForkOnly: Bool = false,
+    initializeOnly: Bool = false, onThreadInitialized: ((String, String) -> Void)? = nil,
     onForkCreated: ((String, String) -> Void)? = nil
   ) async throws -> AsyncThrowingStream<JSONValue, Error> {
     try Task.checkCancellation()
+    if initializeOnly {
+      guard forkOrigin == nil, resumeOrigin == nil, !createForkOnly, !compact,
+        !connectOnly, !textOnly, !activeThreads.contains(taskID),
+        initialText.isEmpty, continuationText.isEmpty, images.isEmpty, fileAppendix == nil,
+        onThreadInitialized != nil else {
+        throw AgentFailure(message: "初始化空聊天不能包含模型输入或历史来源。")
+      }
+    }
     if createForkOnly {
       guard forkOrigin != nil, resumeOrigin == nil, !compact, !connectOnly, !textOnly,
         !activeThreads.contains(taskID), onForkCreated != nil else {
@@ -321,6 +330,19 @@ final class CodexChatTransport {
           }
           try Task.checkCancellation()
           onForkCreated?(threadID, path)
+        } else if initializeOnly {
+          guard let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil,
+            thread["forked"].boolean != true else {
+            throw AgentFailure(message: "Core 未确认空聊天来源，请重试。")
+          }
+          if thread["historyWorkspace"] != .null {
+            guard let reported = thread["historyWorkspace"].text, reported.hasPrefix("/"),
+              URL(fileURLWithPath: reported).resolvingSymlinksInPath().standardizedFileURL.path == path else {
+              throw AgentFailure(message: "Core 返回的空聊天目录与来源工作区不一致，请重试。")
+            }
+          }
+          try Task.checkCancellation()
+          onThreadInitialized?(threadID, path)
         } else {
           if let threadID = thread["threadId"].text, UUID(uuidString: threadID) != nil {
             onThreadStarted?(taskID, threadID, thread["historyWorkspace"].text ?? path)
@@ -332,7 +354,7 @@ final class CodexChatTransport {
           throw AgentFailure(message: "Codex 会话记录已不可用，无法整理上下文。")
         }
       }
-      if connectOnly || createForkOnly {
+      if connectOnly || createForkOnly || initializeOnly {
         streams.removeValue(forKey: taskID)?.finish()
         nativeMessages.removeValue(forKey: taskID)
         turnTokens.removeValue(forKey: taskID); browserTurnTokens.removeValue(forKey: taskID)
@@ -375,9 +397,9 @@ final class CodexChatTransport {
       try Task.checkCancellation()
       return stream
     } catch {
-      if createForkOnly {
-        // A cancelled caller still waits for the acknowledged child to shut down.
-        // Never stop the shared project process or the source conversation.
+      if createForkOnly || initializeOnly {
+        // Release only this newly initialized task, even when its caller was
+        // cancelled. Existing source threads and the project process stay alive.
         await Task { await self.discard(taskID: taskID) }.value
       } else if Task.isCancelled { await interrupt(taskID: taskID) }
       browserTurnTokens.removeValue(forKey: taskID)

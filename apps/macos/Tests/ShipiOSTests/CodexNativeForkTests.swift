@@ -136,6 +136,55 @@ final class CodexNativeForkTests: XCTestCase {
     await resumed.shutdown()
   }
 
+  @MainActor func testFreshDraftForkCreatesActualCoreLineageWithoutSendingDraft() async throws {
+    let (store, project, agent) = try await fixture()
+    do {
+      await store.newChat()
+      XCTAssertNil(store.selectedTask)
+      let owner = store.draftKey
+      store.draft = "unsent source draft must not reach model"
+      XCTAssertTrue(store.saveShowFullAccessInComposer(true))
+      XCTAssertTrue(store.saveComposerRuntimePreferences(.fullAccess, taskID: nil, draftKey: owner))
+      let before = try modelRequestCount()
+      let operation = try XCTUnwrap(store.requestConversationFork(), "Fresh chat must expose fork")
+      let created = await operation.value
+      let child = try XCTUnwrap(created, store.error ?? "No fresh native child")
+      let source = try XCTUnwrap(store.library.tasks.first { $0.id == child.forkOrigin?.taskID })
+      XCTAssertNotNil(source.codexThreadID)
+      XCTAssertNotNil(child.codexThreadID)
+      XCTAssertNotEqual(child.codexThreadID, source.codexThreadID)
+      XCTAssertTrue(source.runIDs.isEmpty)
+      XCTAssertTrue(child.runIDs.isEmpty)
+      XCTAssertTrue(store.library.chatRuns.isEmpty)
+      XCTAssertEqual(try modelRequestCount(), before)
+      XCTAssertEqual(store.library.drafts[source.id], "unsent source draft must not reach model")
+      XCTAssertNil(store.library.drafts[owner])
+      XCTAssertEqual(store.runtimePermissions(for: source.id), .fullAccess)
+      XCTAssertEqual(store.runtimePermissions(for: child.id), .fullAccess)
+      XCTAssertEqual(store.selectedTask?.id, child.id)
+      let history = try String(contentsOf: XCTUnwrap(store.codexConversationPath(for: child)))
+      XCTAssertTrue(history.contains("forked_from_id"))
+      XCTAssertTrue(history.contains(try XCTUnwrap(source.codexThreadID)))
+      XCTAssertFalse(history.contains("unsent source draft must not reach model"))
+      let dataRoot = store.dataRoot
+      await store.shutdown()
+      let reopened = WorkspaceStore(dataRoot: dataRoot, agentExecutable: agent)
+      await reopened.restore(); await reopened.open(project)
+      do {
+        reopened.selectTask(try XCTUnwrap(reopened.library.tasks.first { $0.id == source.id }))
+        _ = try await send("later-parent-input", store: reopened)
+        reopened.selectTask(try XCTUnwrap(reopened.library.tasks.first { $0.id == child.id }))
+        let continued = try await send("skill-dependency-request-echo", store: reopened)
+        let body = try XCTUnwrap(continued.result?["response"].text)
+        XCTAssertFalse(body.contains("later-parent-input"))
+        XCTAssertFalse(body.contains("unsent source draft must not reach model"))
+        XCTAssertEqual(reopened.selectedTask?.codexThreadID, child.codexThreadID)
+        XCTAssertEqual(reopened.library.drafts[source.id], "unsent source draft must not reach model")
+        await reopened.shutdown()
+      } catch { await reopened.shutdown(); throw error }
+    } catch { await store.shutdown(); throw error }
+  }
+
   @MainActor func testInitialNativeForkPersistsBeforeFirstTurnAndCannotInheritLaterSourceInput() async throws {
     for newWorktree in [false, true] {
       let (store, project, agent) = try await fixture()
@@ -149,14 +198,8 @@ final class CodexNativeForkTests: XCTestCase {
         store.library.newTaskEnvironmentSelections[project.path] = WorktreeEnvironmentChoice.none
       }
       let sourceID = UUID().uuidString
-      let started = try await store.client.request("codex.thread.start", [
-        "taskId": .string(sourceID), "baseUrl": .string(endpoint), "model": .string("gpt-5.4")])
-      let threadID = try XCTUnwrap(started["threadId"].text)
-      var source = WorkspaceTask(id: sourceID, project: project.path, title: "Before first turn", runIDs: [])
-      source.codexThreadID = threadID; source.codexWorkspacePath = project.path
+      let source = WorkspaceTask(id: sourceID, project: project.path, title: "Before first turn", runIDs: [])
       store.library.tasks = [source]; store.selectTask(source); store.draft = "retain source input"
-      let sourcePath = try XCTUnwrap(store.codexConversationPath(for: source))
-      XCTAssertTrue(FileManager.default.fileExists(atPath: sourcePath.path), "Persist the empty source before acknowledging start")
       let before = try modelRequestCount()
       let child: WorkspaceTask
       if newWorktree {
@@ -168,6 +211,10 @@ final class CodexNativeForkTests: XCTestCase {
       } else {
         child = try await store.forkTaskWindowConversation(sourceID)
       }
+      let initializedSource = try XCTUnwrap(store.library.tasks.first { $0.id == sourceID })
+      let threadID = try XCTUnwrap(initializedSource.codexThreadID)
+      let sourcePath = try XCTUnwrap(store.codexConversationPath(for: initializedSource))
+      XCTAssertTrue(FileManager.default.fileExists(atPath: sourcePath.path))
       XCTAssertTrue(child.runIDs.isEmpty)
       XCTAssertNil(child.codexForkOrigin?.throughTurnID)
       XCTAssertNotNil(child.codexThreadID)

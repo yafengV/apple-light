@@ -1,10 +1,57 @@
 import Foundation
 
 extension WorkspaceStore {
+  /// An unsent saved chat needs a real, durable parent rollout before cloning it.
+  /// This initializes Core only; the draft and attachments never become a model turn.
+  func initializeEmptyForkSource(_ id: String) async throws {
+    guard let source = library.tasks.first(where: { $0.id == id }),
+      source.runIDs.isEmpty, source.codexThreadID == nil, source.codexForkOrigin == nil,
+      modelConfiguration(for: id).apiProtocol == .codexResponses else { return }
+    guard forkSourceIsAvailable(id) else { throw AgentFailure(message: "空聊天来源已不可用，请重试。") }
+    let config = modelConfiguration(for: id)
+    try config.validateEndpoint()
+    guard !config.model.isEmpty else { throw AgentFailure(message: "请配置独立模型服务后重试。") }
+    let permissions = runtimePermissions(for: id)
+    let workspace = source.project.isEmpty
+      ? try projectlessWorkspace(taskID: id, create: true)
+      : URL(fileURLWithPath: source.project, isDirectory: true)
+    var initialized: (threadID: String, workspace: String)?
+    do {
+      _ = try await codexTransport.startTurn(taskID: id, workspace: workspace, executable: executable,
+        additionalFolders: library.additionalFolders(for: source.project), config: config,
+        key: try ModelKeychain.read(account: config.credentialAccount),
+        initialText: "", continuationText: "", images: [], fileAppendix: nil,
+        mcpServers: mcpServers, hooks: try hookSettings.sessionBindings(), permissions: permissions,
+        responses: library.agentResponsePreferences, webSearchMode: library.agentWebSearchMode,
+        confettiEnabled: confettiEnabled && !appearance.shouldReduceMotion,
+        initializeOnly: true, onThreadInitialized: { initialized = ($0, $1) })
+      try Task.checkCancellation()
+      guard forkSourceIsAvailable(id),
+        let index = library.tasks.firstIndex(where: { $0.id == id }),
+        library.tasks[index] == source, modelConfiguration(for: id) == config,
+        runtimePermissions(for: id) == permissions,
+        let initialized, codexTransport.isConnected(taskID: id) else {
+        throw AgentFailure(message: "初始化期间聊天来源或服务已改变，请重试。")
+      }
+      var candidate = library
+      candidate.tasks[index].codexThreadID = initialized.threadID
+      candidate.tasks[index].codexWorkspacePath = initialized.workspace
+      candidate.tasks[index].modelSelection = .init(model: config.model, reasoning: config.reasoning,
+        providerAccount: config.credentialAccount, apiProtocol: config.apiProtocol)
+      candidate.taskRuntimePreferences[id] = permissions
+      if source.project.isEmpty { candidate.projectlessTaskDirectories[id] = workspace.path }
+      try commitLibrary(candidate)
+    } catch {
+      await Task { await self.codexTransport.discard(taskID: id) }.value
+      throw error
+    }
+  }
+
   /// Freeze the source boundary, create its actual Core child without a model turn,
   /// then merge only that child into the latest library. No unpublished child navigates.
   func persistConversationFork(_ id: String, through runID: String? = nil,
     commandDraft: String? = nil) async throws -> WorkspaceTask {
+    try await initializeEmptyForkSource(id)
     guard forkSourceIsAvailable(id, through: runID), let source = library.tasks.first(where: { $0.id == id }) else {
       throw AgentFailure(message: "聊天来源已不可用，请返回任务列表。")
     }

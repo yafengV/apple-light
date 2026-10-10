@@ -50,6 +50,10 @@ import XCTest
               else:
                   response['result'] = {'threadId': child if mode != 'invalid-id' else 'invalid',
                                         'forked': mode != 'not-forked', 'resumed': mode == 'resumed'}
+                  if params.get('forkOrigin') is None:
+                      response['result'] = {'threadId': params['taskId'], 'forked': False, 'resumed': False}
+                      if mode == 'invalid-empty-workspace':
+                          response['result']['historyWorkspace'] = os.path.join(root, 'outside')
                   if mode == 'foreign-workspace': response['result']['historyWorkspace'] = os.path.join(root, 'outside')
                   if mode == 'relative-workspace': response['result']['historyWorkspace'] = '../../outside'
                   if mode == 'invalid-workspace-type': response['result']['historyWorkspace'] = 27
@@ -789,6 +793,41 @@ import XCTest
     XCTAssertEqual(fork.codexThreadID, f.childThread)
     XCTAssertTrue(board.items.isEmpty)
     XCTAssertTrue(store.notices.items.isEmpty)
+    await store.shutdown()
+  }
+
+  func testEmptySourceInitializationFailureRetainsDraftAndRetryCreatesOnlyOneChild() async throws {
+    let f = try await fixture(mode: "invalid-empty-workspace"), store = f.store
+    store.library.tasks[0].runIDs = []
+    store.library.tasks[0].codexThreadID = nil
+    store.library.tasks[0].codexWorkspacePath = nil
+    store.library.chatRuns = []
+    let source = try XCTUnwrap(store.library.tasks.first)
+    store.selectTask(source)
+    store.draft = "recoverable unsent input"
+    try Data().write(to: f.release)
+    let failed = await store.forkConversation()
+    XCTAssertNil(failed)
+    XCTAssertEqual(store.library.tasks.count, 1)
+    XCTAssertNil(store.library.tasks[0].codexThreadID)
+    XCTAssertEqual(store.selectedTask?.id, source.id)
+    XCTAssertEqual(store.draft, "recoverable unsent input")
+    XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+    XCTAssertTrue(try events(f).contains {
+      $0["method"].text == "codex.thread.stop" && $0["taskId"].text == source.id
+    })
+    try JSONEncoder().encode("success").write(to: f.root.appendingPathComponent("mode.json"))
+    let created = await store.forkConversation()
+    let child = try XCTUnwrap(created, store.error ?? "")
+    XCTAssertEqual(store.library.tasks.count, 2)
+    XCTAssertEqual(child.codexThreadID, f.childThread)
+    XCTAssertEqual(child.codexForkOrigin?.threadID, source.id)
+    XCTAssertNotEqual(child.codexThreadID, child.codexForkOrigin?.threadID)
+    XCTAssertEqual(store.library.drafts[source.id], "recoverable unsent input")
+    XCTAssertFalse(try events(f).contains { $0["method"].text == "codex.turn.submit" })
+    let saved = try WorkspaceLibrary.load(from: store.dataRoot.appendingPathComponent("workspace.json"))
+    XCTAssertEqual(saved.tasks.first { $0.id == source.id }?.codexThreadID, source.id)
+    XCTAssertEqual(saved.tasks.first { $0.id == child.id }?.codexThreadID, f.childThread)
     await store.shutdown()
   }
 

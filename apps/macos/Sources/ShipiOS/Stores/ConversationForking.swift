@@ -6,8 +6,14 @@ extension WorkspaceStore {
   }
 
   func canForkConversation(through runID: String?) -> Bool {
-    guard libraryLoaded, taskMenuForkingID == nil, !busy, !shuttingDown, !restoringLibrary, !managedTaskPreparing,
-      let task = selectedTask, !task.isTransient, !task.archived,
+    guard libraryLoaded, taskMenuForkingID == nil, !busy, !shuttingDown, !restoringLibrary,
+      !libraryRecoveryBlocksInteraction, !managedTaskPreparing else { return false }
+    guard let task = selectedTask else {
+      return selection == nil && runID == nil && (project == nil || connected) && activeLocalRun == nil
+        && !handoffBlocksProject(currentProjectKey)
+        && !library.managedWorktrees.contains(where: { $0.path == currentProjectKey })
+    }
+    guard !task.isTransient, !task.archived,
       !taskForkIsReserved(task.id),
       task.project == currentProjectKey else { return false }
     guard canForkInCurrentCheckout(task.id) else { return false }
@@ -96,10 +102,50 @@ extension WorkspaceStore {
   /// Capture the clicked owner/command before scheduling work on the main actor.
   @discardableResult func requestConversationFork(through runID: String? = nil,
     consumeCommand: Bool = false) -> Task<WorkspaceTask?, Never>? {
-    guard canForkConversation(through: runID), let task = selectedTask else { return nil }
-    let commandDraft = consumeCommand ? library.drafts[task.id] : nil
-    return Task { await forkConversation(taskID: task.id, through: runID,
-      consumeCommand: consumeCommand, expectedCommandDraft: commandDraft) }
+    guard canForkConversation(through: runID) else { return nil }
+    let taskID = selectedTask?.id, owner = draftKey
+    let commandDraft = consumeCommand ? library.drafts[owner] : nil
+    return Task {
+      guard taskID != nil || (selectedTask == nil && draftKey == owner) else { return nil }
+      return await forkConversation(taskID: taskID, through: runID,
+        consumeCommand: consumeCommand, expectedCommandDraft: commandDraft)
+    }
+  }
+
+  /// Save an unsent source only when the user explicitly forks it. Keeping its
+  /// own task ID makes drafts recoverable even if Core initialization fails.
+  private func materializeUnsentForkSource() async throws -> WorkspaceTask {
+    guard selectedTask == nil, canForkConversation else {
+      throw AgentFailure(message: "新聊天来源已改变，请重试。")
+    }
+    if project != nil, newTaskExecution == .worktree {
+      guard await prepareManagedWorktreeTask(), let task = selectedTask else {
+        throw AgentFailure(message: error ?? "无法准备来源工作树，请重试。")
+      }
+      return task
+    }
+    let owner = draftKey, config = modelConfiguration(for: nil)
+    if config.apiProtocol == .codexResponses {
+      try config.validateEndpoint()
+      guard !config.model.isEmpty else { throw AgentFailure(message: "请配置独立模型服务后重试。") }
+    }
+    var candidate = library
+    var source = WorkspaceTask(id: UUID().uuidString, project: currentProjectKey,
+      title: "新任务", runIDs: [])
+    if !config.model.isEmpty {
+      source.modelSelection = .init(model: config.model, reasoning: config.reasoning,
+        providerAccount: config.credentialAccount, apiProtocol: config.apiProtocol)
+    }
+    candidate.tasks.insert(source, at: 0)
+    candidate.drafts[source.id] = candidate.drafts.removeValue(forKey: owner)
+    candidate.draftImages[source.id] = candidate.draftImages.removeValue(forKey: owner)
+    candidate.draftFiles[source.id] = candidate.draftFiles.removeValue(forKey: owner)
+    candidate.pullRequestCheckDrafts[source.id] = candidate.pullRequestCheckDrafts.removeValue(forKey: owner)
+    candidate.taskRuntimePreferences[source.id] = candidate.newTaskRuntimePreferences.removeValue(forKey: owner)
+      ?? candidate.agentRuntimePreferences
+    try commitLibrary(candidate)
+    selectTask(source)
+    return source
   }
 
   @discardableResult func forkConversation(taskID: String? = nil,
@@ -107,11 +153,14 @@ extension WorkspaceStore {
     expectedCommandDraft: String? = nil
   ) async -> WorkspaceTask? {
     if let taskID, selectedTask?.id != taskID { return nil }
-    guard canForkConversation(through: runID), let task = selectedTask else {
+    guard canForkConversation(through: runID) else {
       error = "当前聊天暂时无法创建分支，请等待操作结束或恢复工作树后重试。"
       return nil
     }
     do {
+      let task: WorkspaceTask
+      if let selectedTask { task = selectedTask }
+      else { task = try await materializeUnsentForkSource() }
       let fork = try await forkTaskWindowConversation(task.id, through: runID,
         consumeCommand: consumeCommand, expectedCommandDraft: expectedCommandDraft,
         revealInMainWindow: true)
