@@ -36,7 +36,7 @@ import XCTest
     let notificationFlags: [Bool]
   }
 
-  private func fixture() async throws -> Fixture {
+  private func fixture(flipped: Bool = true) async throws -> Fixture {
     _ = NSApplication.shared
     let size = NSSize(width: 470, height: 500)
     let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
@@ -44,11 +44,12 @@ import XCTest
     window.isReleasedWhenClosed = false
     let scroll = NSScrollView(frame: NSRect(origin: .zero, size: size))
     scroll.hasVerticalScroller = true
-    let document = FlippedDocument(frame: NSRect(x: 0, y: 0, width: 470, height: 1200))
+    let frame = NSRect(x: 0, y: 0, width: 470, height: 1200)
+    let document: NSView = flipped ? FlippedDocument(frame: frame) : NSView(frame: frame)
     scroll.documentView = document
     window.contentView = scroll
     scroll.layoutSubtreeIfNeeded()
-    scroll.contentView.scroll(to: NSPoint(x: 0, y: 1200 - scroll.contentView.bounds.height))
+    scroll.contentView.scroll(to: NSPoint(x: 0, y: flipped ? 1200 - scroll.contentView.bounds.height : 0))
     scroll.reflectScrolledClipView(scroll.contentView)
     let flags = [scroll.contentView.postsBoundsChangedNotifications,
       scroll.contentView.postsFrameChangedNotifications, document.postsFrameChangedNotifications]
@@ -127,5 +128,23 @@ import XCTest
     XCTAssertEqual([f.scroll.contentView.postsBoundsChangedNotifications,
       f.scroll.contentView.postsFrameChangedNotifications, f.document.postsFrameChangedNotifications],
       f.notificationFlags)
+  }
+
+  func testNativeReadingRestoreClampsBothCoordinateDirectionsAndCannotActAfterDismantle() async throws {
+    for flipped in [false, true] {
+      let f = try await fixture(flipped: flipped)
+      let x = f.scroll.contentView.bounds.minX
+      let restored = try XCTUnwrap(f.snapshot.restore(offset: 120))
+      XCTAssertEqual(restored.offset, 120, accuracy: 1)
+      XCTAssertEqual(f.scroll.contentView.bounds.minX, x)
+      let bottom = try XCTUnwrap(f.snapshot.restore(offset: 99999))
+      XCTAssertEqual(bottom.offset, bottom.contentHeight - bottom.viewportHeight, accuracy: 1)
+      XCTAssertEqual(try XCTUnwrap(f.snapshot.restore(offset: -100)).offset, 0, accuracy: 1)
+      XCTAssertNil(f.snapshot.restore(offset: .infinity))
+      XCTAssertEqual(try XCTUnwrap(f.snapshot.metrics).offset, 0, accuracy: 1)
+      f.probe.deactivate()
+      XCTAssertNil(f.snapshot.restore(offset: 120))
+      XCTAssertFalse(f.window.isVisible)
+    }
   }
 }

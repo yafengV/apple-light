@@ -22,6 +22,8 @@ struct TaskWindowView: View {
   @State private var childProjection = ChildElicitationProjection()
   @State private var scrolling = ConversationScrollState()
   @State private var scrollSnapshot = ConversationScrollSnapshot()
+  @State private var pendingReadingPosition: ConversationReadingPosition?
+  @State private var restoredReadingHistory = false
   @State private var forkError: String?
   @State private var forkOperation: Task<Void, Never>?
   @State private var handoffError: String?
@@ -1295,6 +1297,16 @@ struct TaskWindowView: View {
   }
   private var projectedEntries: [ChildElicitationProjection.Entry] { childProjection.projected(childProjectionInput) }
 
+  private var readingRevisions: [ConversationReadingRevision] {
+    taskRuns.map { .init(id: $0.id, updatedAt: $0.updatedAt, status: $0.status) }
+  }
+  private func rememberReadingPosition(_ metrics: ConversationScrollMetrics?, preservingRevision: Bool = false) {
+    guard pendingReadingPosition == nil else { return }
+    let revision = preservingRevision
+      ? resources.conversationReadingPositions.position(for: taskID)?.revisions ?? readingRevisions : readingRevisions
+    resources.conversationReadingPositions.remember(taskID, metrics: metrics, state: scrolling, revisions: revision)
+  }
+
   private var taskTimeline: some View {
     ScrollViewReader { reader in
       ScrollView {
@@ -1338,11 +1350,21 @@ struct TaskWindowView: View {
           ConversationScrollObserver(snapshot: scrollSnapshot) { event in
             switch event {
             case .geometry(let metrics):
+              if let saved = pendingReadingPosition {
+                guard let restored = scrollSnapshot.restore(offset: saved.metrics.offset) else { return }
+                pendingReadingPosition = nil
+                _ = scrolling.observe(restored)
+                rememberReadingPosition(restored)
+                return
+              }
               if scrolling.observe(metrics) { reader.scrollTo("task-window-end", anchor: .bottom) }
+              rememberReadingPosition(metrics)
             case .began:
               pendingText = nil; pendingMatch = nil
               scrolling.beginUserScroll()
-            case .ended(let metrics): scrolling.endUserScroll(metrics)
+            case .ended(let metrics):
+              scrolling.endUserScroll(metrics)
+              rememberReadingPosition(metrics)
             }
           }
         }
@@ -1355,11 +1377,22 @@ struct TaskWindowView: View {
         }
       }
       .defaultScrollAnchor(.top)
+      .onAppear {
+        let saved = resources.conversationReadingPositions.position(for: taskID)
+        scrolling = ConversationScrollState(restoring: saved)
+        restoredReadingHistory = saved?.followsLatest == false
+        if let saved, restoredReadingHistory, saved.revisions != readingRevisions {
+          _ = scrolling.contentChanged()
+        }
+        pendingReadingPosition = saved?.followsLatest == false ? saved : nil
+      }
+      .onDisappear { rememberReadingPosition(scrollSnapshot.metrics, preservingRevision: true) }
       .overlay(alignment: .leading) {
         if railItems.count >= ConversationNavigationRail.minimumItems {
           ConversationRailOverlay(items: railItems,
             currentIDs: railVisibleIDs,
             onSelect: { id in
+              pendingReadingPosition = nil
               pendingText = nil
               pendingMatch = nil
               scrolling.pauseFollowing()
@@ -1381,6 +1414,7 @@ struct TaskWindowView: View {
         if !scrolling.isAtBottom {
           Button {
             pendingText = nil; pendingMatch = nil
+            pendingReadingPosition = nil
             scrolling.requestLatest()
             reader.scrollTo("task-window-end", anchor: .bottom)
           } label: {
@@ -1399,14 +1433,15 @@ struct TaskWindowView: View {
       .onChange(of: childProjectionInput, initial: true) { _, input in
         let old = Set(childProjection.entries.map(\.id))
         childProjection.update(input)
+        if old.isEmpty && restoredReadingHistory { return }
         if childProjection.entries.contains(where: { !old.contains($0.id) }),
-          scrolling.contentChanged(latest: scrollSnapshot.metrics) {
+          scrolling.contentChanged(latest: scrollSnapshot.metrics), pendingReadingPosition == nil {
           reader.scrollTo("task-window-end", anchor: .bottom)
         }
       }
       .onChange(of: taskRuns.map(\.updatedAt)) { _, _ in
         guard !showingFind else { return }
-        if scrolling.contentChanged(latest: scrollSnapshot.metrics) {
+        if scrolling.contentChanged(latest: scrollSnapshot.metrics), pendingReadingPosition == nil {
           reader.scrollTo("task-window-end", anchor: .bottom)
         }
       }
@@ -1480,6 +1515,7 @@ struct TaskWindowView: View {
 
   private func findMatch(_ reader: ScrollViewProxy) {
     guard let match = activeFindMatch else { return }
+    pendingReadingPosition = nil
     scrolling.pauseFollowing()
     if mountedOccurrences.contains(match.id) {
       pendingText = nil

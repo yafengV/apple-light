@@ -102,6 +102,15 @@ struct ConversationScrollObserver: NSViewRepresentable {
         offset: Double(offset), contentHeight: Double(height),
         viewportHeight: Double(visible.height))
     }
+    fileprivate func restore(offset: Double) -> ConversationScrollMetrics? {
+      guard !disposed, offset.isFinite, let observed, let document, let current = metrics,
+        current.viewportHeight > 0 else { return nil }
+      let clamped = max(0, min(offset, current.contentHeight - current.viewportHeight))
+      let y = document.isFlipped ? clamped : current.contentHeight - current.viewportHeight - clamped
+      observed.contentView.scroll(to: NSPoint(x: observed.contentView.bounds.minX, y: y))
+      observed.reflectScrolledClipView(observed.contentView)
+      return metrics
+    }
     private func observe(
       _ name: Notification.Name, object: AnyObject, action: @escaping (Probe) -> Void
     ) {
@@ -152,9 +161,10 @@ struct ConversationScrollObserver: NSViewRepresentable {
   }
 }
 
-/// Read-only access to the current native position before a model revision is
-/// allowed to request scrolling. It does not publish SwiftUI state during layout.
+/// Access to the native position before revisions scroll, and a narrow restore
+/// operation invoked from the observer's deferred events, outside layout.
 @MainActor final class ConversationScrollSnapshot {
   fileprivate weak var probe: ConversationScrollObserver.Probe?
   var metrics: ConversationScrollMetrics? { probe?.metrics }
+  func restore(offset: Double) -> ConversationScrollMetrics? { probe?.restore(offset: offset) }
 }

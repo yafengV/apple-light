@@ -37,6 +37,7 @@ final class WorkspaceStore {
   var appshotHandoff: AppshotHandoff?
   @ObservationIgnored let appshotHandoffAnimator = AppshotHandoffAnimator()
   @ObservationIgnored let prCodePresentationCache = GitHubPRCodePresentationCache()
+  @ObservationIgnored let conversationReadingPositions = ConversationReadingPositions()
   @ObservationIgnored var appshotHandoffStarted = false
   @ObservationIgnored var dictationCarets: [String: DictationCaret] = [:]
   var shortcuts: ShortcutPreferences

@@ -5,6 +5,10 @@ struct ConversationTimelineView: View {
   @State private var childProjection = ChildElicitationProjection()
   @State private var scrolling = ConversationScrollState()
   @State private var scrollSnapshot = ConversationScrollSnapshot()
+  @State private var readingTaskID: String?
+  @State private var pendingReadingPosition: ConversationReadingPosition?
+  @State private var revealedOnMount = false
+  @State private var restoredReadingHistory = false
   @State private var mountedTexts: Set<ConversationTextID> = []
   @State private var pendingText: ConversationTextID?
   @State private var mountedOccurrences: Set<ConversationMatch.ID> = []
@@ -27,6 +31,12 @@ struct ConversationTimelineView: View {
     .init(root: store.selectedTask?.codexThreadID, turns: store.conversationRuns.map(\.id), requests: childRequests.map(\.id))
   }
   private var projectedEntries: [ChildElicitationProjection.Entry] { childProjection.projected(childProjectionInput) }
+  private var pendingReveal: ConversationRevealRequest? {
+    guard let request = store.conversationReveal,
+      !store.conversationReadingPositions.hasConsumedReveal(request.id),
+      store.conversationRuns.contains(where: { $0.id == request.runID }) else { return nil }
+    return request
+  }
 
   private struct Revision: Equatable {
     let id: String
@@ -78,12 +88,22 @@ struct ConversationTimelineView: View {
             ConversationScrollObserver(snapshot: scrollSnapshot) { event in
               switch event {
               case .geometry(let metrics):
+                if let saved = pendingReadingPosition {
+                  guard let restored = scrollSnapshot.restore(offset: saved.metrics.offset) else { return }
+                  pendingReadingPosition = nil
+                  _ = scrolling.observe(restored)
+                  rememberReadingPosition(restored)
+                  return
+                }
                 if scrolling.observe(metrics) { scrollToLatest(reader) }
+                rememberReadingPosition(metrics)
               case .began:
                 pendingText = nil
                 pendingMatch = nil
                 scrolling.beginUserScroll()
-              case .ended(let metrics): scrolling.endUserScroll(metrics)
+              case .ended(let metrics):
+                scrolling.endUserScroll(metrics)
+                rememberReadingPosition(metrics)
               }
             }
           }
@@ -96,11 +116,27 @@ struct ConversationTimelineView: View {
         }
       }
       .defaultScrollAnchor(.top)
+      .onAppear {
+        readingTaskID = store.selectedTask?.id
+        let saved = revealedOnMount || pendingReveal != nil ? nil
+          : readingTaskID.flatMap { store.conversationReadingPositions.position(for: $0) }
+        scrolling = ConversationScrollState(restoring: saved)
+        restoredReadingHistory = saved?.followsLatest == false
+        if let saved, restoredReadingHistory, saved.revisions != readingRevisions {
+          _ = scrolling.contentChanged()
+        }
+        pendingReadingPosition = saved?.followsLatest == false ? saved : nil
+      }
+      .onDisappear {
+        rememberReadingPosition(scrollSnapshot.metrics, preservingRevision: true)
+        revealedOnMount = false
+      }
       .overlay(alignment: .leading) {
         if railItems.count >= ConversationNavigationRail.minimumItems {
           ConversationRailOverlay(items: railItems,
             currentIDs: railVisibleIDs,
             onSelect: { id in
+              pendingReadingPosition = nil
               pendingText = nil
               pendingMatch = nil
               scrolling.pauseFollowing()
@@ -122,6 +158,7 @@ struct ConversationTimelineView: View {
       .overlay(alignment: .bottom) {
         if !scrolling.isAtBottom {
           Button {
+            pendingReadingPosition = nil
             pendingText = nil
             pendingMatch = nil
             scrolling.requestLatest()
@@ -144,15 +181,27 @@ struct ConversationTimelineView: View {
       .onChange(of: childProjectionInput, initial: true) { _, input in
         let old = Set(childProjection.entries.map(\.id))
         childProjection.update(input)
+        if old.isEmpty && restoredReadingHistory { return }
         if childProjection.entries.contains(where: { !old.contains($0.id) }),
-          scrolling.contentChanged(latest: scrollSnapshot.metrics) { scrollToLatest(reader) }
+          scrolling.contentChanged(latest: scrollSnapshot.metrics), pendingReadingPosition == nil { scrollToLatest(reader) }
       }
       .onChange(of: revisions) { _, _ in
-        if scrolling.contentChanged(latest: scrollSnapshot.metrics) { scrollToLatest(reader) }
+        if scrolling.contentChanged(latest: scrollSnapshot.metrics), pendingReadingPosition == nil { scrollToLatest(reader) }
       }
       .onChange(of: store.findRequest) { _, _ in findMatch(reader) }
       .onChange(of: store.conversationReveal, initial: true) { _, request in
-        guard let request else { return }
+        guard let request, pendingReveal?.id == request.id else { return }
+        pendingReadingPosition = nil
+        revealedOnMount = true
+        store.conversationReadingPositions.consumeReveal(request.id)
+        let owner = store.selectedTask?.id
+        // Initial projection mounts on the next SwiftUI update. Keep the reveal
+        // bounded to this request and owner rather than restoring cached history.
+        let target = request.childRequestID.map { "child-elicitation:" + $0 } ?? request.runID
+        DispatchQueue.main.async {
+          guard store.selectedTask?.id == owner, store.conversationReveal?.id == request.id else { return }
+          reader.scrollTo(target, anchor: .top)
+        }
         if let child = request.childRequestID,
           projectedEntries.contains(where: { $0.id == "child-elicitation:" + child }) {
           pendingText = nil; pendingMatch = nil; scrolling.pauseFollowing()
@@ -205,6 +254,7 @@ struct ConversationTimelineView: View {
 
   private func findMatch(_ reader: ScrollViewProxy) {
     guard let match = store.activeFindMatch else { return }
+    pendingReadingPosition = nil
     scrolling.pauseFollowing()
     if mountedOccurrences.contains(match.id) {
       pendingText = nil
@@ -223,5 +273,16 @@ struct ConversationTimelineView: View {
   }
   private func scrollToLatest(_ reader: ScrollViewProxy) {
     reader.scrollTo("conversation-end", anchor: .bottom)
+  }
+  private var readingRevisions: [ConversationReadingRevision] {
+    readingTaskID.map { id in store.taskWindowRuns(id).map {
+      .init(id: $0.id, updatedAt: $0.updatedAt, status: $0.status)
+    } } ?? []
+  }
+  private func rememberReadingPosition(_ metrics: ConversationScrollMetrics?, preservingRevision: Bool = false) {
+    guard pendingReadingPosition == nil, let readingTaskID else { return }
+    let revision = preservingRevision
+      ? store.conversationReadingPositions.position(for: readingTaskID)?.revisions ?? readingRevisions : readingRevisions
+    store.conversationReadingPositions.remember(readingTaskID, metrics: metrics, state: scrolling, revisions: revision)
   }
 }

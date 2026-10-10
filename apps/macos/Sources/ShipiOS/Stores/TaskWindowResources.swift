@@ -22,6 +22,7 @@ import Observation
   let browsers = TaskWindowBrowsers()
   let panels = TaskWindowPanelSessions()
   let files = TaskWindowFileEditors()
+  let conversationReadingPositions = ConversationReadingPositions()
 
   func fileWorkspace(_ tab: WorkspaceContentTab) -> DeveloperWorkspace {
     files.workspace(for: tab, store: store, windowID: id)

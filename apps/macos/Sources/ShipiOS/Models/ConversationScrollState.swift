@@ -17,6 +17,15 @@ struct ConversationScrollState {
   private var navigatingHistory = false
   private var previous: ConversationScrollMetrics?
 
+  init(restoring position: ConversationReadingPosition? = nil) {
+    if let position, !position.followsLatest {
+      followsLatest = false
+      isAtBottom = position.metrics.isAtBottom
+      hasNewContent = position.hasNewContent
+      seekingLatest = false
+    }
+  }
+
   mutating func observe(_ metrics: ConversationScrollMetrics) -> Bool {
     guard metrics.viewportHeight > 0 else { return false }
     let layoutChanged =
