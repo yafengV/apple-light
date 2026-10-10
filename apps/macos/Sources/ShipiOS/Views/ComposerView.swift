@@ -202,7 +202,9 @@ struct ComposerView: View {
       skillSelection = SkillMentionSelection()
       updateCommands()
     }
-    .onChange(of: store.focusComposer) { _, _ in focused = true }
+    .onChange(of: store.focusComposer, initial: true) { _, _ in
+      if store.focusedWorkspaceContentTab == nil { focused = true }
+    }
     .onChange(of: store.blurComposer) { _, _ in focused = false }
     .onChange(of: store.showingModelPicker) { _, showing in
       if showing { focused = false }

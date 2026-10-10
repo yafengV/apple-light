@@ -4,6 +4,59 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class ContentLayoutNavigationTests: XCTestCase {
+  func testNativeReturningFromFullBrowserMountsFocusedComposer() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Requires the interactive AppKit test host and an actual key window")
+    }
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = store(root)
+    store.connected = true
+    store.newBrowserTab()
+    let browser = try XCTUnwrap(store.workspace.browser.selected)
+    browser.setAddressDraft("http://127.0.0.1:9/unsent")
+    let tab = try XCTUnwrap(store.activeWorkspaceContentTab)
+    XCTAssertTrue(store.saveLibrary())
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1050, height: 740),
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let host = NSHostingView(rootView: WorkspaceView(store: store))
+    window.contentView = host
+    defer {
+      window.contentView = nil; window.close()
+      store.workspace.browser.shutdown(); store.workspace.terminals.shutdown()
+    }
+    window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    try await Task.sleep(for: .milliseconds(250))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertTrue(window.isKeyWindow)
+    func editor(_ view: NSView) -> ComposerNativeTextView? {
+      if let found = view as? ComposerNativeTextView { return found }
+      return view.subviews.lazy.compactMap { editor($0) }.first
+    }
+    XCTAssertNil(editor(host), "Full browser view must actually unmount the composer")
+    for attempt in 0..<2 {
+      store.activateChatTab()
+      for _ in 0..<40 {
+        host.layoutSubtreeIfNeeded()
+        if let current = editor(host), window.firstResponder === current { break }
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      let current = try XCTUnwrap(editor(host))
+      XCTAssertTrue(window.firstResponder === current, "Returning must focus the newly mounted editor, attempt \(attempt)")
+      XCTAssertEqual(store.effectiveWorkspaceContentLayoutMode, .full)
+      if attempt == 0 {
+        current.insertText("返回聊天后的草稿", replacementRange: .init(location: 0, length: 0))
+        XCTAssertEqual(store.draft, "返回聊天后的草稿")
+        store.activateWorkspaceTab(tab.id)
+        try await Task.sleep(for: .milliseconds(100))
+        host.layoutSubtreeIfNeeded()
+        XCTAssertNil(editor(host))
+      } else { XCTAssertEqual(current.string, "返回聊天后的草稿") }
+    }
+  }
+
   private struct Reference: Decodable {
     struct Transition: Decodable { let mode: String; let resultingMode: String; let resultingKind: String }
     struct Selection: Decodable { let ids: [String]; let direction: String; let handled: Bool; let selected: [String] }
