@@ -13,3 +13,4 @@ export SHIPIOS_TEST_AGENT="${SHIPIOS_TEST_AGENT:-${CARGO_TARGET_DIR:-$PWD/target
 cargo test --workspace --locked
 CLANG_MODULE_CACHE_PATH="$build_cache/clang-module-cache" xcrun swift test --build-system "${SHIPIOS_SWIFTPM_BUILD_SYSTEM:-native}" --package-path apps/macos --scratch-path "$build_cache/macos-build" --cache-path "$build_cache/swiftpm-cache" --disable-sandbox
 python3 script/smoke_ipc.py
+python3 script/test_ios_counter.py
