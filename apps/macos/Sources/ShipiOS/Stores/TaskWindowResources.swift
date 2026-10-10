@@ -33,6 +33,7 @@ import Observation
     if let window {
       windowAttachment = view
       self.window = window
+      store?.rememberTaskWindow(self)
     } else if windowAttachment === view {
       windowAttachment = nil
       self.window = nil
@@ -42,6 +43,7 @@ import Observation
   func display(_ taskID: String?) {
     if displayedTaskID != taskID { invalidateWorktreeForkNavigation() }
     displayedTaskID = taskID
+    store?.rememberTaskWindow(self)
   }
 
   /// Leaving a page invalidates queued starts while an already-started worker can finish in the background.
@@ -305,6 +307,7 @@ import Observation
   @discardableResult func shutdown(force: Bool = false) -> Bool {
     let saved = prepareToClose()
     guard saved || force else { return false }
+    store?.forgetTaskWindow(self)
     isClosed = true
     worktreeRestoreWait = nil
     worktreeForkRequest?.cancel(); worktreeForkRequest = nil

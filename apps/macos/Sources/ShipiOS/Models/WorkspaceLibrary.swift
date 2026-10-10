@@ -362,6 +362,7 @@ struct WorkspaceLibrary: Codable {
   var pinnedContentTabs: [PinnedWorkspaceTab] = []
   var workspaceTabLayouts: [String: WorkspaceTabLayout] = [:]
   var taskWindowTabLayouts: [String: [String: TaskWindowTabLayout]] = [:]
+  var openTaskWindowRoutes: [TaskWindowRoute] = []
   var unreadTasks: Set<String> = []
   var recentTaskIDs: [String] = []
   var collapsedProjects: Set<String> = []
@@ -436,7 +437,7 @@ struct WorkspaceLibrary: Codable {
   init() {}
   enum CodingKeys: String, CodingKey {
     case activityPreferences, tasks, projects, projectAdditionalFolders, projectPrimaryFolders, projectScopeOwners, lastWorkspace, notes, bookmarkedRunIDs, runBranches, drafts, linkedNewTaskDraftIDs, draftImages, runImages, draftFiles, runFiles, subagentSubmissions, subagentDrafts, profiles, chatRuns, queuedMessages, projectNames,
-      pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
+      pinnedProjects, pinnedContentTabs, workspaceTabLayouts, taskWindowTabLayouts, openTaskWindowRoutes, unreadTasks, recentTaskIDs, collapsedProjects, projectSelections, sidebar, panelSizes,
       reviewComments, taskPullRequests, pullRequestCheckDrafts, browserComments, preferredEditor, appearance, reviewWordDiffs, reviewDiffSplit, reviewDiffWrap, forkRuns, forkRunOrigins, deletedRunIDs, notifications, preventIdleSleep,
       followUpBehavior, browserHistory, browserPermissions, fileEditorRecovery, mcpPersistentToolGrants, browserDownloadPreferences,
       browserDownloads,
@@ -493,6 +494,7 @@ struct WorkspaceLibrary: Codable {
     // Layout is a recoverable cache: malformed optional metadata must not block task loading.
     workspaceTabLayouts = (try? c.decode([String: WorkspaceTabLayout].self, forKey: .workspaceTabLayouts)) ?? [:]
     taskWindowTabLayouts = (try? c.decode([String: [String: TaskWindowTabLayout]].self, forKey: .taskWindowTabLayouts)) ?? [:]
+    openTaskWindowRoutes = (try? c.decode([TaskWindowRoute].self, forKey: .openTaskWindowRoutes)) ?? []
     unreadTasks = try c.decodeIfPresent(Set<String>.self, forKey: .unreadTasks) ?? []
     recentTaskIDs = try c.decodeIfPresent([String].self, forKey: .recentTaskIDs) ?? []
     collapsedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .collapsedProjects) ?? []
@@ -749,6 +751,7 @@ struct WorkspaceLibrary: Codable {
     }
     subagentSubmissions.removeAll { deletedTaskIDs.contains($0.taskID) }
     subagentDrafts.removeAll { deletedTaskIDs.contains($0.scope.taskID) }
+    openTaskWindowRoutes.removeAll { deletedTaskIDs.contains($0.taskID) }
     for id in deletedTaskIDs {
       workspaceTabLayouts[id] = nil
       for windowID in Array(taskWindowTabLayouts.keys) {

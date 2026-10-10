@@ -37,6 +37,10 @@ struct AppContentView: View {
           }
         }
       }
+      .onChange(of: store.taskWindowRestorationReady, initial: true) { _, ready in
+        guard ready else { return }
+        for route in store.takePendingTaskWindowRoutes() { openWindow(value: route) }
+      }
       .background(FileRecoveryWindowCloseGuard(prepare: store.prepareMainWindowClose).frame(width: 0, height: 0))
       .background(ModifiedEscapeBridge(store: store).frame(width: 0, height: 0))
       .background(MCPApprovalKeyboardBridge(store: store, taskID: store.selectedTask?.id,

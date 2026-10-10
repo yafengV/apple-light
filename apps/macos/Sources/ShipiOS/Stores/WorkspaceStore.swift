@@ -88,6 +88,8 @@ final class WorkspaceStore {
   var activitySession: ActivitySession?
   var showingActivity: Bool { activitySession != nil }
   var taskWindowOpenRequest: TaskWindowRoute?
+  @ObservationIgnored var taskWindowRestorationClaimed = false
+  @ObservationIgnored var taskWindowRouteOwners: [String: ObjectIdentifier] = [:]
   var taskSummaryToggleRequest = UUID()
   var showingTaskStatus = false
   var settingsReturnDestination: AppDestination = .workspace
@@ -1443,6 +1445,11 @@ final class WorkspaceStore {
       throw AgentFailure(message: "模型配置尚未恢复，任务记录未被更改。请重试恢复。")
     }
     var candidate = candidate
+    // Window attachment/close can happen while another operation holds a library snapshot.
+    // Keep current scene lifecycle state, except routes for tasks this transaction deletes.
+    candidate.openTaskWindowRoutes = library.openTaskWindowRoutes.filter { route in
+      candidate.tasks.contains { $0.id == route.taskID }
+    }
     let updatedDraft = scope.flatMap { scope in candidate.subagentDrafts.first { $0.scope == scope } }
     // Other operations may have captured a library snapshot before an await.
     // Preserve current child input unless this commit explicitly edits that scope.
