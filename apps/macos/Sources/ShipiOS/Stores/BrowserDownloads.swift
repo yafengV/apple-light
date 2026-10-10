@@ -43,21 +43,36 @@ extension WorkspaceStore {
       browserSettingsError = "请选择可写入的文件夹。"
       return false
     }
-    library.browserDownloadPreferences.directory = url.path
-    browserSettingsError = nil
-    saveLibrary()
-    return true
+    var candidate = library
+    candidate.browserDownloadPreferences.directory = url.path
+    return commitBrowserDownloadSettings(candidate)
   }
 
   func useSystemBrowserDownloadFolder() {
-    library.browserDownloadPreferences.directory = nil
-    browserSettingsError = nil
-    saveLibrary()
+    var candidate = library
+    candidate.browserDownloadPreferences.directory = nil
+    commitBrowserDownloadSettings(candidate)
   }
 
   func setBrowserAskWhereToSave(_ value: Bool) {
-    library.browserDownloadPreferences.askWhereToSave = value
-    saveLibrary()
+    var candidate = library
+    candidate.browserDownloadPreferences.askWhereToSave = value
+    commitBrowserDownloadSettings(candidate)
+  }
+
+  @discardableResult private func commitBrowserDownloadSettings(_ candidate: WorkspaceLibrary) -> Bool {
+    guard libraryLoaded else {
+      browserSettingsError = "工作区记录尚未恢复，请稍后重试。"
+      return false
+    }
+    do {
+      try commitLibrary(candidate)
+      browserSettingsError = nil
+      return true
+    } catch {
+      browserSettingsError = "无法保存浏览器下载设置：\(error.localizedDescription)"
+      return false
+    }
   }
 
   func clearFinishedBrowserDownloads() {
@@ -65,17 +80,19 @@ extension WorkspaceStore {
       $0.status == .preparing || $0.status == .downloading
     }
     let removedIDs = Set(library.browserDownloads.map(\.id)).subtracting(retained.map(\.id))
-    library.browserDownloads = retained
+    var candidate = library
+    candidate.browserDownloads = retained
+    guard commitBrowserDownloadSettings(candidate) else { return }
     for id in removedIDs { browserDownloadProgress[id] = nil }
-    saveLibrary()
   }
 
   func removeBrowserDownload(_ id: UUID) {
     guard let record = library.browserDownloads.first(where: { $0.id == id }),
       record.status != .preparing, record.status != .downloading else { return }
-    library.browserDownloads.removeAll { $0.id == id }
+    var candidate = library
+    candidate.browserDownloads.removeAll { $0.id == id }
+    guard commitBrowserDownloadSettings(candidate) else { return }
     browserDownloadProgress[id] = nil
-    saveLibrary()
   }
 
   func cancelBrowserDownload(_ id: UUID) {
