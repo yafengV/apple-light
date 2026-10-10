@@ -7,8 +7,13 @@ final class Delegate: NSObject, NSApplicationDelegate {
  let bundlePath: String
  var activationDeadline: Date?
  var launcher: NSWindow?
- let selected = ["testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves", "testNativeActualMainPreparationCancelAndRetryActionsStayInExistingWindow", "testNativeRenameMountedBeforeWindowBecomesKeyFocusesOnlyOnce", "testNativeReturningFromFullBrowserMountsFocusedComposer", "testNativeTabThenImmediateSpaceActivatesTheNewSwitch", "testNativeRapidConfirmationKeysUseTheLatestSelection", "testNativeCancelledSettingsExitRestoresSearchAndBackKeyboardFocus", "testNativeSearchTabThenImmediateActivationKeepsNavigationOrder"]
- init(bundlePath: String, resultPath: String) { self.bundlePath=bundlePath; self.resultPath=resultPath }
+ let available = ["testNativeActualMainMountsSidebarModalInsideExistingWindowAndInlineEditorBlurSaves", "testNativeActualMainPreparationCancelAndRetryActionsStayInExistingWindow", "testNativeRenameMountedBeforeWindowBecomesKeyFocusesOnlyOnce", "testNativeReturningFromFullBrowserMountsFocusedComposer", "testNativeTabThenImmediateSpaceActivatesTheNewSwitch", "testNativeRapidConfirmationKeysUseTheLatestSelection", "testNativeCancelledSettingsExitRestoresSearchAndBackKeyboardFocus", "testNativeSearchTabThenImmediateActivationKeepsNavigationOrder", "testNativeEnvironmentSaveAndDiscardResumeOverviewKeyboardFocus", "testActualScreenContextUsesReleaseActivationAndPersistsWithoutStartingVoice", "testActualVoiceHotkeyCaptureSavesAndEscapeLeavesBindingUnchanged", "testActualAdvancedSpaceReleaseThenTabCaptureSavesAndCollapsePreservesBinding", "testActualBareModifierOverlapEndsCaptureAndPreservesSavedBinding", "testActualClearIsTabReachableAndSpaceReleasePersistsOnlyItsBinding", "testActualVoiceChatAndSingleTapFailuresStayInTheirRowsAndRetryClearsOnlyItsError", "testCollapsingDuringActualCaptureUnmountsItAndReturnsFocusWithoutChangingBinding", "testConflictingCaptureExitsWithoutChangingSavedShortcutOrRegisteringAgain", "testLeavingVoicePageResetsDisclosureAndCancelsCaptureWithoutClearingSavedBinding", "testOldCaptureCallbacksCannotCancelOrWriteIntoNewCaptureOfSameMode", "testRejectedReservedKeyEndsActualCaptureWithoutReplacingExistingBinding", "testRepeatedKeyDoesNotConsumeActualCaptureButNextOrdinaryKeySaves", "testSecondEventBeforeRecorderUnmountCannotOverwriteBindingAfterConflict"]
+ let selected: [String]
+ init(bundlePath: String, resultPath: String) {
+  self.bundlePath=bundlePath; self.resultPath=resultPath
+  let requested = Array(CommandLine.arguments.dropFirst(3))
+  selected = requested.isEmpty ? available : requested
+ }
  func applicationDidFinishLaunching(_ notification: Notification) {
   let window = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 460,height: 180),styleMask: [.titled,.closable],backing: .buffered,defer: false)
   window.title = "ShipiOS 原生交互验收"
@@ -33,6 +38,10 @@ final class Delegate: NSObject, NSApplicationDelegate {
   perform(#selector(waitForActivation), with:nil, afterDelay:0.1)
  }
  @objc func runTests() {
+   guard !selected.isEmpty, Set(selected).count == selected.count,
+     selected.allSatisfy(available.contains) else {
+    write(["stage":"failed", "error":"Invalid selected methods"]); NSApp.terminate(nil); return
+   }
    guard let bundle=Bundle(path:bundlePath) else { write(["error":"Invalid bundle path"]); NSApp.terminate(nil); return }
    do { try bundle.loadAndReturnError() } catch { write(["error":String(describing:error)]); NSApp.terminate(nil); return }
    let all=XCTestSuite.default

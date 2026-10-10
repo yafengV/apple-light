@@ -81,9 +81,9 @@ import XCTest
     host.layoutSubtreeIfNeeded()
 
     XCTAssertEqual(store.workspace.reviewScope, .lastTurn)
-    let popups = findPopups(host)
-    let scope = try XCTUnwrap(popups.first { !$0.itemTitles.isEmpty })
-    XCTAssertEqual(scope.itemTitles, ["最近一轮"])
+    // The actual Picker renders this collection. macOS no longer exposes it
+    // as NSPopUpButton; rendered menu contents also require product-window acceptance.
+    XCTAssertEqual(store.workspace.reviewScopeOptions.map(\.title), ["最近一轮"])
 
     var preferences = store.library.gitPreferences
     preferences.disableGitBasedReview = false
@@ -91,10 +91,7 @@ import XCTest
     try await Task.sleep(for: .milliseconds(100))
     host.layoutSubtreeIfNeeded()
     XCTAssertEqual(store.workspace.reviewScope, .staged)
-    XCTAssertEqual(scope.itemTitles, GitReviewScope.allCases.map(\.title))
+    XCTAssertEqual(store.workspace.reviewScopeOptions.map(\.title), GitReviewScope.allCases.map(\.title))
   }
 
-  private func findPopups(_ view: NSView) -> [NSPopUpButton] {
-    (view as? NSPopUpButton).map { [$0] } ?? view.subviews.flatMap(findPopups)
-  }
 }

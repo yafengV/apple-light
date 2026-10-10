@@ -77,7 +77,7 @@ struct GitReviewView: View {
             .disabled(workspace.gitRefreshing || workspace.gitBusy || workspace.reviewLoading)
         }.appFont(.caption).padding(12)
         Picker("变更范围", selection: $workspace.reviewScope) {
-          ForEach(workspace.gitReviewLastTurnOnly ? [.lastTurn] : GitReviewScope.allCases) {
+          ForEach(workspace.reviewScopeOptions) {
             Text($0.title).tag($0)
           }
         }.pickerStyle(.menu).padding(.horizontal, 12).padding(.bottom, 8)

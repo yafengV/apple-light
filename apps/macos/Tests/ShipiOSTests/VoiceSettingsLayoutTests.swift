@@ -8,7 +8,7 @@ import XCTest
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
-    let (window, host) = host(store); defer { window.close() }
+    let (window, host) = host(store); defer { window.contentView = nil; window.close() }
     for width: CGFloat in [760, 400] {
       window.setContentSize(.init(width: width, height: 1800)); try await settle(host)
       let controls = descendants(host).compactMap { $0 as? SettingsMenuControl }
@@ -26,7 +26,7 @@ import XCTest
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     store.voicePreferences.dictationDictionary = ["ShipiOS"]
-    let (window, host) = host(store); defer { window.close() }; try await settle(host)
+    let (window, host) = host(store); defer { window.contentView = nil; window.close() }; try await settle(host)
     let field = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Jane Doe" })
     XCTAssertTrue(window.makeFirstResponder(field))
     let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
@@ -44,13 +44,19 @@ import XCTest
   }
 
   func testActualScreenContextUsesReleaseActivationAndPersistsWithoutStartingVoice() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     store.modelConfiguration.baseURL = "http://127.0.0.1:9/v1"
     store.voicePreferences.realtimeModelID = "fixture-realtime"
-    let (window, host) = host(store); defer { window.close() }; try await settle(host)
-    window.makeKey()
+    let (window, host) = host(store); defer { window.contentView = nil; window.close() }; try await settle(host)
+    if ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" {
+      window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); try await settle(host)
+      XCTAssertTrue(window.isKeyWindow); XCTAssertTrue(NSApp.isActive)
+    } else { window.makeKey() }
     let language = try XCTUnwrap(descendants(host).compactMap { $0 as? SettingsMenuControl }.first { $0.accessibilityLabel() == "语言" })
     XCTAssertTrue(window.makeFirstResponder(language))
     for _ in 0..<3 {
@@ -69,7 +75,7 @@ import XCTest
     let restored = try JSONDecoder().decode(WorkspaceLibrary.self, from: Data(contentsOf: root.appendingPathComponent("workspace.json")))
     XCTAssertTrue(restored.voicePreferences.screenContextEnabled)
     XCTAssertFalse(store.voiceChatPresented)
-    XCTAssertFalse(window.isVisible)
+    XCTAssertEqual(window.isVisible, ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1")
     if let path = ProcessInfo.processInfo.environment["SHIPIOS_VOICE_LAYOUT_RENDER_PATH"] {
       let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: bitmap)
@@ -78,13 +84,19 @@ import XCTest
   }
 
   func testActualVoiceHotkeyCaptureSavesAndEscapeLeavesBindingUnchanged() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     store.modelConfiguration.baseURL = "http://127.0.0.1:9/v1"
     store.voicePreferences.realtimeModelID = "fixture-realtime"
-    let (window, host) = host(store); defer { window.close() }; try await settle(host)
-    window.makeKey()
+    let (window, host) = host(store); defer { window.contentView = nil; window.close() }; try await settle(host)
+    if ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" {
+      window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); try await settle(host)
+      XCTAssertTrue(window.isKeyWindow); XCTAssertTrue(NSApp.isActive)
+    } else { window.makeKey() }
     let language = try XCTUnwrap(descendants(host).compactMap { $0 as? SettingsMenuControl }.first { $0.accessibilityLabel() == "语言" })
     for cancel in [false, true] {
       XCTAssertTrue(window.makeFirstResponder(language))
@@ -132,7 +144,7 @@ import XCTest
   private func host(_ store: WorkspaceStore) -> (NSWindow, NSView) {
     _ = NSApplication.shared
     let window = VoiceLayoutWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 1800), styleMask: [.borderless], backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false
+    window.isReleasedWhenClosed = false; window.autorecalculatesKeyViewLoop = true
     let view = NSHostingView(rootView: VoiceSettingsView(store: store).environment(\.appAppearance, store.appearance))
     window.contentView = view
     return (window, view)
@@ -144,8 +156,10 @@ import XCTest
     return host.isFlipped ? frame.minY : host.bounds.height - frame.maxY
   }
   private func send(_ type: NSEvent.EventType, code: UInt16, text: String, modifiers: NSEvent.ModifierFlags = [], to window: NSWindow) throws {
-    let event = try XCTUnwrap(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: modifiers, timestamp: 1, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code))
-    window.sendEvent(event)
+    let event = try XCTUnwrap(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code))
+    if ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" {
+      NSApp.postEvent(event, atStart: false)
+    } else { window.sendEvent(event) }
   }
 }
 @MainActor private final class VoiceLayoutWindow: NSWindow { override var canBecomeKey: Bool { true } }

@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import signal
 import sys
@@ -30,8 +31,14 @@ def main():
     parser.add_argument('--build-path', type=Path, required=True)
     parser.add_argument('--agent', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--method', action='append', help='Focus on an existing host method; default executes the full mandatory suite.')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    host_source = root / 'script/macos_foreground_test_host.swift'
+    available = json.loads(re.search(r'let available = (\[.*\])', host_source.read_text()).group(1))
+    selected = args.method or available
+    if not selected or len(set(selected)) != len(selected) or any(m not in available for m in selected):
+        parser.error('Methods must be unique members of the mandatory host suite.')
     build, agent, output = args.build_path.resolve(), args.agent.resolve(), args.output.resolve()
     test = build / 'ShipiOSPackageTests.xctest'
     if not test.is_dir() or not agent.is_file():
@@ -51,7 +58,8 @@ def main():
         platform = developer / 'Platforms/MacOSX.platform/Developer'
         frameworks = platform / 'Library/Frameworks'
         command = ['xcrun', 'swiftc', str(root / 'script/macos_foreground_test_host.swift'),
-                   '-o', str(binary), '-F', str(frameworks)]
+                   '-o', str(binary), '-F', str(frameworks),
+                   '-module-cache-path', str(root / '.cache/clang-module-cache')]
         for path in (frameworks, platform / 'usr/lib'):
             command += ['-Xlinker', '-rpath', '-Xlinker', str(path)]
         with (output / 'compile.log').open('w') as log:
@@ -79,7 +87,7 @@ def main():
         environment = {k: os.environ[k] for k in ('PATH', 'HOME', 'TMPDIR') if k in os.environ}
         command = ['/usr/bin/open', '-n', '-W', '--env', 'SHIPIOS_TEST_FOREGROUND_ALLOWED=1',
                    '--env', 'SHIPIOS_TEST_AGENT=' + str(copied_agent), '--stdout', str(log),
-                   '--stderr', str(log), str(app), '--args', str(copied_test), str(result)]
+                   '--stderr', str(log), str(app), '--args', str(copied_test), str(result), *selected]
         timed_out = False
         process = subprocess.Popen(command, env=environment)
         try:
@@ -102,12 +110,12 @@ def main():
         after = fingerprints(inputs)
         changed = [p for p, digest in before.items() if after.get(p) != digest]
         passed = (not timed_out and exit_code == 0 and not changed
-                  and state.get('stage') == 'finished' and state.get('executed') == 8
+                  and state.get('stage') == 'finished' and state.get('executed') == len(selected)
                   and state.get('failures') == 0 and state.get('unexpected') == 0
                   and state.get('skipped') == 0 and state.get('succeeded') is True)
         manifest = {'exitCode': exit_code, 'timedOut': timed_out, 'passed': passed,
                     'result': state, 'changedInputs': changed, 'sha256': before,
-                    'runtime': descriptor, 'scope': 'Eight native-window XCTest methods, not all R1–R8.'}
+                    'runtime': descriptor, 'selectedMethods': selected, 'fullSuite': not bool(args.method), 'scope': ('Focused existing methods' if args.method else 'Twenty-two selected XCTest methods: nine native-window methods and thirteen voice keyboard components; not all R1–R8.')}
         (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         print(json.dumps({k: v for k, v in manifest.items() if k != 'sha256'}), flush=True)
         return 0 if passed else 1

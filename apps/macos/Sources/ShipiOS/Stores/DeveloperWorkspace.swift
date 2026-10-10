@@ -69,6 +69,9 @@ final class DeveloperWorkspace {
   var canCommit = false
   var selectedReviewScope = GitReviewScope.unstaged
   var gitReviewLastTurnOnly = false
+  var reviewScopeOptions: [GitReviewScope] {
+    gitReviewLastTurnOnly ? [.lastTurn] : GitReviewScope.allCases
+  }
   var reviewScope: GitReviewScope {
     get { gitReviewLastTurnOnly ? .lastTurn : selectedReviewScope }
     set { selectedReviewScope = newValue }

@@ -158,6 +158,9 @@ import XCTest
   }
 
   func testActualClearIsTabReachableAndSpaceReleasePersistsOnlyItsBinding() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     try await withPage { store, window, host, _ in
       store.voicePreferences.globalHoldHotkey = ShortcutBinding("⌃⌥⇧K")
       store.voicePreferences.globalToggleHotkey = ShortcutBinding("⌃⌥⇧J")
@@ -165,6 +168,7 @@ import XCTest
       try await self.settle(host); try await self.expand(host)
       let edit = try self.button("edit-toggle", host), clear = try self.button("clear-toggle", host)
       XCTAssertTrue(window.makeFirstResponder(edit)); try self.key(.keyDown, 48, "\t", window)
+      try await self.settle(host)
       XCTAssertTrue(window.firstResponder === clear)
       try self.key(.keyDown, 49, " ", window); try await self.settle(host)
       XCTAssertEqual(store.voicePreferences.globalToggleHotkey, ShortcutBinding("⌃⌥⇧J"))
@@ -328,10 +332,14 @@ import XCTest
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     let presentation = VoiceShortcutPresentation()
     let window = ShortcutControlsWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 1800),
-      styleMask: [.borderless], backing: .buffered, defer: false); window.isReleasedWhenClosed = false
+      styleMask: [.borderless], backing: .buffered, defer: false); window.isReleasedWhenClosed = false; window.autorecalculatesKeyViewLoop = true
     let host = NSHostingView(rootView: ShortcutControlsPage(store: store, presentation: presentation))
-    window.contentView = host; defer { window.close() }; try await settle(host)
-    try await action(store, window, host, presentation); XCTAssertFalse(window.isVisible)
+    window.contentView = host; defer { window.contentView = nil; window.close() }
+    let interactive = ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1"
+    if interactive { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+    try await settle(host)
+    if interactive { XCTAssertTrue(window.isKeyWindow); XCTAssertTrue(NSApp.isActive) }
+    try await action(store, window, host, presentation); XCTAssertEqual(window.isVisible, interactive)
   }
   private func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
   private func find(_ id: String, _ host: NSView) -> VoiceShortcutActionButton.Control? {
@@ -354,7 +362,10 @@ import XCTest
       windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: repeatKey, keyCode: code))
   }
   private func key(_ type: NSEvent.EventType, _ code: UInt16, _ text: String, _ window: NSWindow) throws {
-    window.sendEvent(try event(type, code, text, window))
+    let event = try event(type, code, text, window)
+    if ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" {
+      NSApp.postEvent(event, atStart: false)
+    } else { window.sendEvent(event) }
   }
   private func mouse(_ type: NSEvent.EventType, _ point: NSPoint, _ window: NSWindow) throws -> NSEvent {
     try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 1,

@@ -606,7 +606,7 @@ extension WorkspaceStore {
     guard result.field?.requiresProject != true || project != nil else { return }
     if destination == .settings, result.page != settingsPage, hasUnsavedSettingsEdits {
       beginSettingsNavigationConfirmation(.reveal(result), onCancelFocus: onCancelFocus,
-        onConfirmFocus: onCancelFocus)
+        onConfirmFocus: onCancelFocus ?? { [weak self] in self?.settingsSearchFocusRequest = UUID() })
       return
     }
     if destination != .settings { openSettings(result.page) }

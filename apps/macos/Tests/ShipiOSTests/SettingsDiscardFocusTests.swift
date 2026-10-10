@@ -193,7 +193,8 @@ import XCTest
     XCTAssertNotNil(store.pendingSettingsNavigation)
     try post(48, "\t"); try post(36, "\r"); try await settle()
     XCTAssertEqual(store.settingsPage, .general)
-    XCTAssertTrue(window.firstResponder === search.currentEditor(), "Confirmed native search navigation resumes the query editor")
+    let confirmedEditor = try XCTUnwrap(search.currentEditor(), "Confirmed navigation must own a live native query editor")
+    XCTAssertTrue(window.firstResponder === confirmedEditor, "Confirmed native search navigation resumes the query editor")
 
     // A dismissed request cannot reclaim focus after another navigation or modal.
     var restored = 0

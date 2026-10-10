@@ -12,10 +12,10 @@ import XCTest
     store.voicePreferences.globalToggleHotkey = ShortcutBinding("⌃⌥D")
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 1800),
       styleMask: [.borderless], backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false
+    window.isReleasedWhenClosed = false; window.autorecalculatesKeyViewLoop = true
     let host = NSHostingView(rootView: VoiceSettingsView(store: store)
       .environment(\.appAppearance, store.appearance))
-    window.contentView = host; defer { window.close() }
+    window.contentView = host; defer { window.contentView = nil; window.close() }
     try await Task.sleep(for: .milliseconds(200)); host.layoutSubtreeIfNeeded()
     let button = try XCTUnwrap(descendants(host).compactMap { $0 as? NSButton }
       .first { $0.accessibilityLabel() == "高级听写快捷键" })
@@ -45,6 +45,9 @@ import XCTest
   }
 
   func testActualAdvancedSpaceReleaseThenTabCaptureSavesAndCollapsePreservesBinding() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     try await withPage { store, window, host in
       let advanced = try self.advanced(host)
       XCTAssertTrue(window.makeFirstResponder(advanced))
@@ -71,6 +74,9 @@ import XCTest
   }
 
   func testCollapsingDuringActualCaptureUnmountsItAndReturnsFocusWithoutChangingBinding() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     try await withPage { store, window, host in
       let advanced = try self.advanced(host)
       XCTAssertTrue(advanced.accessibilityPerformPress()); try await self.settle(host)
@@ -129,6 +135,9 @@ import XCTest
   }
 
   func testLeavingVoicePageResetsDisclosureAndCancelsCaptureWithoutClearingSavedBinding() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     try await withPage { store, window, host in
       store.settingsPage = .voice; store.destination = .settings
       store.voicePreferences.globalToggleHotkey = ShortcutBinding("⌃⌥D")
@@ -149,6 +158,9 @@ import XCTest
   }
 
   func testConflictingCaptureExitsWithoutChangingSavedShortcutOrRegisteringAgain() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     try await withPage { store, window, host in
       store.voicePreferences.globalHoldHotkey = ShortcutBinding("⌃⌥⇧K")
       store.voicePreferences.globalToggleHotkey = ShortcutBinding("⌃⌥⇧J")
@@ -166,6 +178,9 @@ import XCTest
   }
 
   func testSecondEventBeforeRecorderUnmountCannotOverwriteBindingAfterConflict() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     try await withPage { store, window, host in
       store.voicePreferences.globalHoldHotkey = ShortcutBinding("⌃⌥⇧K")
       store.voicePreferences.globalToggleHotkey = ShortcutBinding("⌃⌥⇧J")
@@ -205,6 +220,9 @@ import XCTest
   }
 
   func testActualVoiceChatAndSingleTapFailuresStayInTheirRowsAndRetryClearsOnlyItsError() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let presentation = VoiceShortcutPresentation()
     try await withPage(shortcutPresentation: presentation) { store, window, host in
       store.modelConfiguration.baseURL = "http://127.0.0.1:9/v1"
@@ -236,6 +254,9 @@ import XCTest
   }
 
   func testActualBareModifierOverlapEndsCaptureAndPreservesSavedBinding() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let presentation = VoiceShortcutPresentation()
     try await withPage(shortcutPresentation: presentation) { store, window, host in
       store.voicePreferences.globalHoldHotkey = ShortcutBinding("⌃")
@@ -251,6 +272,9 @@ import XCTest
   }
 
   func testOldCaptureCallbacksCannotCancelOrWriteIntoNewCaptureOfSameMode() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let presentation = VoiceShortcutPresentation()
     try await withPage(shortcutPresentation: presentation) { store, window, host in
       XCTAssertTrue(try self.advanced(host).accessibilityPerformPress()); try await self.settle(host)
@@ -272,6 +296,9 @@ import XCTest
   }
 
   func testRepeatedKeyDoesNotConsumeActualCaptureButNextOrdinaryKeySaves() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let presentation = VoiceShortcutPresentation()
     try await withPage(shortcutPresentation: presentation) { store, window, host in
       XCTAssertTrue(try self.advanced(host).accessibilityPerformPress()); try await self.settle(host)
@@ -287,6 +314,9 @@ import XCTest
   }
 
   func testRejectedReservedKeyEndsActualCaptureWithoutReplacingExistingBinding() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Native Tab traversal requires a visible key window; mandatory in script/test_macos_foreground.py")
+    }
     let presentation = VoiceShortcutPresentation()
     try await withPage(shortcutPresentation: presentation) { store, window, host in
       store.voicePreferences.globalToggleHotkey = ShortcutBinding("⌃⌥⇧J"); try await self.settle(host)
@@ -322,6 +352,7 @@ import XCTest
     let button = try advanced(host); XCTAssertTrue(window.makeFirstResponder(button))
     let tabs = (host as? Host)?.rootView.store.voicePreferences.globalHoldHotkey == nil ? 2 : 3
     for _ in 0..<tabs { try key(.keyDown, 48, "\t", window); try await settle(host) }
+    try requireEditFocus(window)
     try key(.keyDown, 36, "\r", window); try await settle(host)
     let capture = try XCTUnwrap(descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
     XCTAssertEqual(capture.accessibilityLabel(), "录制单击听写快捷键")
@@ -331,9 +362,15 @@ import XCTest
     let language = try XCTUnwrap(descendants(host).compactMap { $0 as? SettingsMenuControl }.first { $0.accessibilityLabel() == "语言" })
     XCTAssertTrue(window.makeFirstResponder(language))
     for _ in 0..<2 { try key(.keyDown, 48, "\t", window); try await settle(host) }
+    try requireEditFocus(window)
     try key(.keyDown, 36, "\r", window); try await settle(host)
     let capture = try XCTUnwrap(descendants(host).compactMap { $0 as? ShortcutCapture.Field }.first)
     XCTAssertEqual(capture.accessibilityLabel(), "录制语音聊天快捷键"); return capture
+  }
+  private func requireEditFocus(_ window: NSWindow) throws {
+    _ = try XCTUnwrap((window.firstResponder as? VoiceShortcutActionButton.Control)
+      .flatMap { $0.kind == .edit ? $0 : nil },
+      "Tab must reach the shortcut edit action before Return; do not open a misplaced native menu")
   }
   private typealias Host = NSHostingView<VoiceShortcutTestPage>
   private func withPage(shortcutPresentation: VoiceShortcutPresentation? = nil,
@@ -343,18 +380,25 @@ import XCTest
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root); store.libraryLoaded = true
     let window = VoiceShortcutTestWindow(contentRect: .init(x: 0, y: 0, width: 760, height: 1800), styleMask: [.borderless], backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false
+    window.isReleasedWhenClosed = false; window.autorecalculatesKeyViewLoop = true
     let host = NSHostingView(rootView: VoiceShortcutTestPage(store: store, shortcutPresentation: shortcutPresentation))
-    window.contentView = host; defer { window.close() }; try await settle(host)
+    window.contentView = host; defer { window.contentView = nil; window.close() }
+    let interactive = ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1"
+    if interactive { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+    try await settle(host)
+    if interactive { XCTAssertTrue(window.isKeyWindow); XCTAssertTrue(NSApp.isActive) }
     try await action(store, window, host)
-    XCTAssertFalse(window.isVisible)
+    XCTAssertEqual(window.isVisible, interactive)
   }
   private func settle(_ host: NSView) async throws { try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded() }
   private func key(_ type: NSEvent.EventType, _ code: UInt16, _ text: String, _ window: NSWindow, _ modifiers: NSEvent.ModifierFlags = [], repeating: Bool = false) throws {
-    window.sendEvent(try event(type, code, text, window, modifiers, repeating: repeating))
+    let event = try event(type, code, text, window, modifiers, repeating: repeating)
+    if ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" {
+      NSApp.postEvent(event, atStart: false)
+    } else { window.sendEvent(event) }
   }
   private func event(_ type: NSEvent.EventType, _ code: UInt16, _ text: String, _ window: NSWindow, _ modifiers: NSEvent.ModifierFlags = [], repeating: Bool = false) throws -> NSEvent {
-    try XCTUnwrap(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: modifiers, timestamp: 1, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: repeating, keyCode: code))
+    try XCTUnwrap(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: repeating, keyCode: code))
   }
   private func modifierEvent(_ modifiers: NSEvent.ModifierFlags, _ window: NSWindow) throws -> NSEvent {
     try event(.flagsChanged, 59, "", window, modifiers)
