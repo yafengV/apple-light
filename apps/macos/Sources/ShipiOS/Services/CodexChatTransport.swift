@@ -156,13 +156,20 @@ final class CodexChatTransport {
     let projectData = dataRoot.appendingPathComponent("Projects/\(digest)", isDirectory: true)
     let processData = dataRoot.appendingPathComponent("CodexAgents/\(digest)", isDirectory: true)
     let client = AgentClient()
-    client.onCodexEvent = { [weak self] event in self?.receive(event) }
-    client.onCodexGap = { [weak self] in
-      self?.reset(project: path,
+    // A retired process can still emit notifications while stdout drains.
+    // Route only the client currently registered for this project.
+    client.onCodexEvent = { [weak self, weak client] event in
+      guard let self, let client, self.clients[path] === client else { return }
+      self.receive(event)
+    }
+    client.onCodexGap = { [weak self, weak client] in
+      guard let self, let client, self.clients[path] === client else { return }
+      self.reset(project: path,
         error: AgentFailure(message: "Codex 事件流中断，本轮回复无法完整确认。"))
     }
-    client.onDisconnect = { [weak self] message in
-      self?.reset(project: path, error: AgentFailure(message: message))
+    client.onDisconnect = { [weak self, weak client] message in
+      guard let self, let client, self.clients[path] === client else { return }
+      self.reset(project: path, error: AgentFailure(message: message))
     }
     try Task.checkCancellation()
     try client.start(executable: executable, project: workspace,
