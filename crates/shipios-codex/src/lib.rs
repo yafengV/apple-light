@@ -883,7 +883,10 @@ impl CodexSession {
         #[cfg(test)]
         let test_config = config.clone();
         let durable_start = !text_only
-            && matches!(&history, SessionHistory::New | SessionHistory::ForkInitial(_));
+            && matches!(
+                &history,
+                SessionHistory::New | SessionHistory::ForkInitial(_)
+            );
         let NewThread {
             thread_id, thread, ..
         } = match history {

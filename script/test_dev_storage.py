@@ -19,6 +19,14 @@ class StorageTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name).resolve()
+        # Nested guards must use the fixture's managed paths, rather than inherit
+        # the outer repository guard's absolute cache locations.
+        environment = patch.dict(os.environ, {
+            'SHIPIOS_BUILD_CACHE_ROOT': str(self.root / '.cache'),
+            'CARGO_TARGET_DIR': str(self.root / 'target'),
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
 
     def test_reuses_fixed_paths_and_rejects_arbitrary_or_symlink_targets(self):
         env = storage.build_environment(self.root, {})
