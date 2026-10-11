@@ -48,7 +48,11 @@ private struct SettingsLabeledRowLayout: Layout {
     let ideal = labelIdeal.width + max(controlIdeal.width, reserves ? 160 : 0) + gap
     let width = max(0, proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? ideal)
     let minimum = reserves ? min(160, width * 0.4) : 0
-    let controlWidth = min(width, max(controlIdeal.width, minimum))
+    // Long wrapping values must leave room for the label and the row gap.
+    // Keep ordinary controls at their existing natural/reserved widths.
+    let labelMinimum = hasLabel ? min(labelIdeal.width, width * 0.4) : 0
+    let controlMaximum = max(0, width - gap - labelMinimum)
+    let controlWidth = min(controlMaximum, max(controlIdeal.width, minimum))
     let labelWidth = max(0, width - controlWidth - gap)
     let controlProposal = ProposedViewSize(width: controlWidth, height: nil)
     return (width, labelWidth, controlProposal,

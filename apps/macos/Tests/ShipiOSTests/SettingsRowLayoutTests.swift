@@ -105,6 +105,32 @@ struct SettingsRowLayoutReference: Decodable {
     XCTAssertGreaterThan(heights[0], 20)
   }
 
+  func testLongWrappingValueKeepsItsLabelVisibleAndStaysInsideTheRow() async throws {
+    _ = NSApplication.shared
+    let window = makeWindow(); defer { window.close() }
+    let label = NSView(), control = NSView()
+    let path = "/Users/fixture/" + String(repeating: "long-folder-name/", count: 24)
+    let host = NSHostingView(rootView: SettingsLabeledRow {
+      Text("文件夹").background(RowLayoutProbe(view: label))
+    } control: {
+      Text(path).lineLimit(2).multilineTextAlignment(.trailing)
+        .background(RowLayoutProbe(view: control))
+    }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
+    window.contentView = host
+    // Available card-row widths in the two required main-window sizes.
+    for width: CGFloat in [652, 736] {
+      window.setContentSize(.init(width: width, height: 300))
+      host.frame.size = .init(width: width, height: 300)
+      try await settle(host)
+      let l = label.convert(label.bounds, to: host), c = control.convert(control.bounds, to: host)
+      XCTAssertGreaterThan(l.width, 20, "The path must not collapse the visible folder label")
+      XCTAssertGreaterThanOrEqual(l.minX, -1)
+      XCTAssertLessThanOrEqual(c.maxX, width + 1, "Wrapping values must fit inside the card")
+      XCTAssertGreaterThanOrEqual(c.minX - l.maxX, 23, "Label and value must not overlap")
+    }
+    XCTAssertFalse(window.isVisible)
+  }
+
   func testSingleLineLabelAndDescriptionUsePublicLineHeightsWithoutExtraRowPadding() async throws {
     let reference = try SettingsRowLayoutReference.load().expected
     for family in ["", "Menlo", "Times New Roman"] {
