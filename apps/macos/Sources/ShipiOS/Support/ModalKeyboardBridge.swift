@@ -4,6 +4,7 @@ import SwiftUI
 /// Tab cycles the two dialog actions even when full keyboard access is disabled.
 struct ModalKeyboardBridge: NSViewRepresentable {
   enum Key: Equatable { case cancel, activate, next }
+  var onCapture: (() -> Void)? = nil
   let onReady: () -> Void
   let action: (Key) -> Void
   static func key(for event: NSEvent) -> Key? {
@@ -19,7 +20,7 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     }
   }
 
-  func makeCoordinator() -> Coordinator { Coordinator(onReady: onReady, action: action) }
+  func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture, onReady: onReady, action: action) }
   func makeNSView(context: Context) -> Anchor {
     let view = Anchor()
     view.coordinator = context.coordinator
@@ -27,6 +28,7 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     return view
   }
   func updateNSView(_ view: Anchor, context: Context) {
+    context.coordinator.onCapture = onCapture
     context.coordinator.onReady = onReady
     context.coordinator.action = action
   }
@@ -40,11 +42,13 @@ struct ModalKeyboardBridge: NSViewRepresentable {
     }
   }
   final class Coordinator {
+    var onCapture: (() -> Void)?
     var onReady: () -> Void
     var action: (Key) -> Void
     private var monitor: Any?
     private weak var window: NSWindow?
-    init(onReady: @escaping () -> Void, action: @escaping (Key) -> Void) {
+    init(onCapture: (() -> Void)? = nil, onReady: @escaping () -> Void, action: @escaping (Key) -> Void) {
+      self.onCapture = onCapture
       self.onReady = onReady
       self.action = action
     }
@@ -52,6 +56,7 @@ struct ModalKeyboardBridge: NSViewRepresentable {
       guard self.window == nil else { return }
       self.window = window
       window.makeFirstResponder(nil)
+      onCapture?()
       // SwiftUI's onAppear can focus a button before this native anchor has
       // captured the responder. Hand focus back only after capture completes.
       DispatchQueue.main.async { [weak self, weak window] in

@@ -36,6 +36,27 @@ struct WorkspaceKeyboardBridge: NSViewRepresentable {
             window.attachedSheet == nil, NSApp.modalWindow == nil, !WindowModalInteraction.blocksCommands(in: window), let store else {
             self?.recent.cancel(); return event
           }
+          // This route is mounted with the window, before a pending discard
+          // dialog has rendered. Queued keys must never reach the form below.
+          if event.type == .keyDown, store.pendingSettingsNavigation != nil,
+            !store.settingsDiscardKeyboardReady {
+            // Keep the application Quit menu equivalent available while all
+            // other unhandled keys remain blocked from the underlying form.
+            if event.modifierFlags.intersection([.command, .control, .option, .shift]) == .command,
+              event.charactersIgnoringModifiers == "q" { return event }
+            guard let key = ModalKeyboardBridge.key(for: event) else { return nil }
+            self?.recent.cancel()
+            switch key {
+            case .cancel: store.cancelDiscardSettingsChanges()
+            case .activate:
+              if store.settingsDiscardKeyboardSelection.current == .confirm {
+                store.confirmDiscardSettingsChanges()
+              } else { store.cancelDiscardSettingsChanges() }
+            case .next:
+              _ = store.settingsDiscardKeyboardSelection.advance(between: .cancel, and: .confirm)
+            }
+            return nil
+          }
           if event.type == .keyDown, (window.firstResponder as? NSTextView)?.hasMarkedText() == true {
             self?.recent.cancel(); return event
           }

@@ -142,6 +142,8 @@ final class WorkspaceStore {
   var showingOpenSourceLicenses = false
   var modelSettingsDirty = false
   var modelSettingsResetRequest = UUID()
+  @ObservationIgnored var settingsDiscardKeyboardReady = false
+  @ObservationIgnored let settingsDiscardKeyboardSelection = ModalButtonSelection<SettingsConfirmationDialog.Action>(.cancel)
   var pendingSettingsNavigation: PendingSettingsNavigation?
   var settingsSearchRequest: SettingsSearchRequest?
   var settingsSearchFocusRequest = UUID()

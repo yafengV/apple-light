@@ -169,6 +169,8 @@ extension WorkspaceStore {
     settingsDiscardFocusRevision = UUID()
     settingsDiscardReturnFocus = SettingsDiscardReturnFocus(window: mainInteractionWindow,
       store: self, restoreControl: onCancelFocus, confirmControl: onConfirmFocus)
+    settingsDiscardKeyboardReady = false
+    settingsDiscardKeyboardSelection.current = .cancel
     pendingSettingsNavigation = pending
   }
 

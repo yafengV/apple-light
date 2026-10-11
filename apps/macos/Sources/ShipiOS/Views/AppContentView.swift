@@ -100,8 +100,11 @@ struct AppContentView: View {
             message: "你有未保存的更改。现在离开将丢失这些更改。",
             confirmLabel: "丢弃更改", busyLabel: "丢弃更改", busy: false,
             error: nil, width: 420, identifier: "settings-unsaved-changes-dialog",
-            cancelLabel: "继续编辑", cancel: store.cancelDiscardSettingsChanges,
+            cancelLabel: "继续编辑", externalKeyboardSelection: store.settingsDiscardKeyboardSelection,
+            onKeyboardCapture: { store.settingsDiscardKeyboardReady = true },
+            cancel: store.cancelDiscardSettingsChanges,
             confirm: store.confirmDiscardSettingsChanges)
+            .id(store.settingsDiscardFocusRevision)
         } else if let session = store.appearanceThemeImport {
           AppearanceThemeImportView(store: store, session: session).id(session.id)
         } else if let request = store.archiveConfirmation() {

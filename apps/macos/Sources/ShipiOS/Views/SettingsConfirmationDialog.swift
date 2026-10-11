@@ -11,12 +11,15 @@ struct SettingsConfirmationDialog: View {
   let width: CGFloat
   let identifier: String
   var cancelLabel = "取消"
+  var externalKeyboardSelection: ModalButtonSelection<Action>? = nil
+  var onKeyboardCapture: (() -> Void)? = nil
   let cancel: () -> Void
   let confirm: () -> Void
   @Environment(\.appAppearance) private var appearance
   @FocusState private var focusedButton: Action?
   @State private var keyboardSelection = ModalButtonSelection<Action>(.cancel)
   enum Action { case cancel, confirm }
+  private var selection: ModalButtonSelection<Action> { externalKeyboardSelection ?? keyboardSelection }
 
   var body: some View {
     GeometryReader { geometry in
@@ -58,17 +61,18 @@ struct SettingsConfirmationDialog: View {
         .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier(identifier)
         .onChange(of: focusedButton) { _, value in
-          if let value { keyboardSelection.current = value }
+          if let value { selection.current = value }
         }
-        .background(ModalKeyboardBridge(onReady: {
-          keyboardSelection.current = .cancel; focusedButton = .cancel
+        .background(ModalKeyboardBridge(onCapture: onKeyboardCapture, onReady: {
+          if externalKeyboardSelection == nil { selection.current = .cancel }
+          focusedButton = selection.current
         }) { key in
           guard !busy else { return }
           switch key {
           case .cancel: cancel()
           case .activate:
-            if keyboardSelection.current == .confirm { confirm() } else { cancel() }
-          case .next: focusedButton = keyboardSelection.advance(between: .cancel, and: .confirm)
+            if selection.current == .confirm { confirm() } else { cancel() }
+          case .next: focusedButton = selection.advance(between: .cancel, and: .confirm)
           }
         }.frame(width: 0, height: 0))
       }.frame(maxWidth: .infinity, maxHeight: .infinity)

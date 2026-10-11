@@ -236,6 +236,24 @@ import XCTest
     XCTAssertFalse(window.firstResponder === search.currentEditor())
     XCTAssertEqual(restored, 0, "Discarding and exiting must leave focus to the destination")
     XCTAssertTrue(window.isVisible)
+
+    store.openSettings(.model); try await settle()
+    store.modelSettingsDirty = true
+    // Exiting settings unmounts its native field; reopening owns a new one.
+    let reopenedSearch = try XCTUnwrap(fields(host).first { $0.accessibilityLabel() == "搜索设置" })
+    XCTAssertTrue(reopenedSearch.window === window)
+    XCTAssertTrue(window.makeFirstResponder(reopenedSearch))
+    let reopenedEditor = try XCTUnwrap(reopenedSearch.currentEditor() as? NSTextView)
+    XCTAssertTrue(window.firstResponder === reopenedEditor)
+    XCTAssertEqual(reopenedSearch.stringValue, "")
+    try post(48, "\u{19}", flags: .shift); try await settle()
+    // Open the real discard dialog and select/activate its second action
+    // without a render or run-loop yield between any of the three keys.
+    try post(36, "\r"); try post(48, "\t"); try post(36, "\r")
+    try await settle()
+    XCTAssertEqual(store.destination, .workspace, "Opening a dialog must not lose the following Tab")
+    XCTAssertNil(store.pendingSettingsNavigation)
+    XCTAssertFalse(store.modelSettingsDirty)
     await store.shutdown()
   }
 }
