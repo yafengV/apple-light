@@ -61,10 +61,8 @@ struct BackgroundTerminalOutputHost: NSViewRepresentable {
   func updateNSView(_ view: BackgroundOutputTerminalView, context: Context) {
     // nativeFont applies the user's codeSize to the 12-point baseline.
     view.font = appearance.nativeFont(size: 12, code: true)
-    view.nativeBackgroundColor = appearance.backgroundHex.flatMap(AppearancePreferences.color).map(NSColor.init)
-      ?? .textBackgroundColor
-    view.nativeForegroundColor = appearance.foregroundHex.flatMap(AppearancePreferences.color).map(NSColor.init)
-      ?? .textColor
+    view.nativeBackgroundColor = NSColor(appearance.backgroundColor)
+    view.nativeForegroundColor = NSColor(appearance.foregroundColor)
     context.coordinator.update(view, output: output)
     context.coordinator.updateInteraction(view, focused: focused, canFocus: canFocus, openLink: openLink)
   }

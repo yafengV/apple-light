@@ -183,10 +183,10 @@ struct TerminalHost: NSViewRepresentable {
     guard let view = view as? SessionTerminalView else { return }
     let font = appearance.nativeFont(size: 12, code: true)
     view.applyBaseFont(font)
-    view.nativeBackgroundColor = appearance.backgroundHex.flatMap(AppearancePreferences.color).map(NSColor.init)
-      ?? .textBackgroundColor
-    view.nativeForegroundColor = appearance.foregroundHex.flatMap(AppearancePreferences.color).map(NSColor.init)
-      ?? .textColor
+    // SwiftTerm caches RGB and layer colors. Semantic AppKit colors can resolve
+    // against the old drawing appearance while this retained view changes theme.
+    view.nativeBackgroundColor = NSColor(appearance.backgroundColor)
+    view.nativeForegroundColor = NSColor(appearance.foregroundColor)
     context.coordinator.update(view: view, request: focus, canFocus: canFocus)
   }
   static func dismantleNSView(_ view: NSView, coordinator: Coordinator) {
