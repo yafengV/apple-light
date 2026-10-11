@@ -15,6 +15,11 @@ struct ComposerView: View {
   @AppStorage(ComposerSendShortcut.storageKey) private var sendShortcutRaw =
     ComposerSendShortcut.commandEnter.rawValue
 
+  @MainActor init(store: WorkspaceStore, branchCatalog: GitBranchCatalog? = nil) {
+    self.store = store
+    _newTaskBranches = State(initialValue: branchCatalog ?? GitBranchCatalog())
+  }
+
   var body: some View {
     content.onChange(of: store.repositorySkillRevision) { _, _ in updateCommands() }
   }
@@ -185,7 +190,9 @@ struct ComposerView: View {
       }
     }
     .onChange(of: store.draft, initial: true) { _, _ in updateCommands() }
-    .task(id: "\(store.project?.path ?? "")|\(store.newTaskExecution.rawValue)|\(newTaskBranchRefresh)") {
+    // Restoration can mount the composer before Git inspection completes.
+    // Reload when readiness or the selected task changes, without toggling execution mode.
+    .task(id: "\(store.project?.path ?? "")|\(store.newTaskExecution.rawValue)|\(store.workspace.gitAvailable)|\(store.selectedTask?.id ?? "")|\(newTaskBranchRefresh)") {
       if let project = store.project, store.newTaskExecution == .worktree,
         store.workspace.gitAvailable, store.selectedTask == nil {
         await newTaskBranches.load(root: project)
