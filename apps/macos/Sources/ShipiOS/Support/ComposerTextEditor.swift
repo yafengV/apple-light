@@ -203,13 +203,13 @@ struct ComposerTextEditor: NSViewRepresentable {
       guard active, allowed() else { pendingReturnFocus = nil; return false }
       guard parent.isEnabled, parent.focusAllowed, editor.isEditable else { return true }
       pendingReturnFocus = nil
-      DispatchQueue.main.async { [weak self, weak editor] in
-        guard let self, self.active, self.parent.isEnabled, self.parent.focusAllowed, allowed(),
-          let editor, editor.isEditable, let window = editor.window,
-          window.isKeyWindow, window.attachedSheet == nil, NSApp.modalWindow == nil,
-          !editor.isHiddenOrHasHiddenAncestor else { return }
-        window.makeFirstResponder(editor)
-      }
+      // This update already reenables the retained editor. Another queue hop
+      // leaves the next native key targeting the departing settings control.
+      // Focus binding publication remains deferred in nativeFocusChanged.
+      guard let window = editor.window, window.isKeyWindow,
+        window.attachedSheet == nil, NSApp.modalWindow == nil,
+        !editor.isHiddenOrHasHiddenAncestor else { return true }
+      window.makeFirstResponder(editor)
       return true
     }
 

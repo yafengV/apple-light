@@ -127,6 +127,9 @@ extension WorkspaceStore {
     let returnFocus = settingsReturnFocus
     settingsReturnFocus = nil
     destination = settingsReturnDestination
+    // Complete the retained page's enabling update before AppKit dispatches
+    // the next queued key. Otherwise it still targets the settings field editor.
+    (returnFocus?.target.window ?? mainInteractionWindow)?.contentView?.layoutSubtreeIfNeeded()
     if returnFocus?.restore(store: self) != true, destination == .workspace {
       focusComposer = UUID()
     }

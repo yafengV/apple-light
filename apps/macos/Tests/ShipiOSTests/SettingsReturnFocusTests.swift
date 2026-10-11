@@ -4,6 +4,29 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsReturnFocusTests: XCTestCase {
+  func testSettingsExitEnablesRetainedComposerBeforeNextNativeKey() async throws {
+    let fixture = try await ChildComposerFixture(followsSettingsRoute: true)
+    defer { fixture.close() }
+    let editor = try XCTUnwrap(fixture.editor)
+    editor.setSelectedRange(.init(location: editor.string.utf16.count, length: 0))
+    XCTAssertTrue(fixture.window.makeFirstResponder(editor))
+    fixture.store.openSettings(.general)
+    try await fixture.settle()
+    XCTAssertFalse(editor.isEditable)
+    XCTAssertTrue(fixture.window.makeFirstResponder(fixture.query))
+    fixture.store.closeSettings()
+    // The router must flush its enabling update before returning to AppKit.
+    XCTAssertTrue(editor.isEditable)
+    XCTAssertTrue(fixture.window.firstResponder === editor)
+    let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+      modifierFlags: [], timestamp: 0, windowNumber: fixture.window.windowNumber,
+      context: nil, characters: "a", charactersIgnoringModifiers: "a",
+      isARepeat: false, keyCode: 0))
+    fixture.window.sendEvent(key)
+    XCTAssertEqual(editor.string, "中文 child draft🙂a")
+    XCTAssertEqual(fixture.state.text, "中文 child draft🙂a")
+  }
+
   func testChildComposerReturnWaitsForRetainedEditorToBecomeEnabled() async throws {
     let fixture = try await ChildComposerFixture()
     defer { fixture.close() }
@@ -325,7 +348,7 @@ import XCTest
     }
     return find(host)
   }
-  init() async throws {
+  init(followsSettingsRoute: Bool = false) async throws {
     _ = NSApplication.shared
     store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     store.libraryLoaded = true; store.scopeLoaded = true; store.connected = true
@@ -335,7 +358,9 @@ import XCTest
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     window.identifier = .init("main")
-    host = NSHostingView(rootView: AnyView(ChildComposerFixtureView(state: state)))
+    host = NSHostingView(rootView: followsSettingsRoute
+      ? AnyView(SettingsRoutedComposerFixtureView(state: state, store: store))
+      : AnyView(ChildComposerFixtureView(state: state)))
     window.contentView = host; host.addSubview(query)
     try await settle()
   }
@@ -349,6 +374,14 @@ private struct ChildComposerFixtureView: View {
     SubagentComposerView(text: $state.text, plainTextMode: true, sendShortcut: .commandEnter,
       working: false, sending: false, stopping: false, canSend: true, canStop: false,
       stopError: nil, previousPrompt: nil, send: {}, stop: {}).disabled(!state.enabled)
+  }
+}
+
+private struct SettingsRoutedComposerFixtureView: View {
+  let state: ChildComposerFixture.State
+  @Bindable var store: WorkspaceStore
+  var body: some View {
+    ChildComposerFixtureView(state: state).disabled(store.destination == .settings)
   }
 }
 

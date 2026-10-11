@@ -94,6 +94,39 @@ final class ComposerTextEditorTests: XCTestCase {
     override var isKeyWindow: Bool { true }
   }
 
+  @MainActor func testSettingsReturnFocusIsReadyBeforeNextNativeKeyAfterEnabling() throws {
+    _ = NSApplication.shared
+    var draft = "existing "
+    let component = ComposerTextEditor(text: Binding(get: { draft }, set: { draft = $0 }),
+      focused: .constant(false), plainTextMode: true, placeholder: "Message",
+      accessibilityLabel: "Composer", focusRequest: UUID(),
+      onKey: { _, _, _ in false }, onPasteAttachments: { _ in })
+    let coordinator = ComposerTextEditor.Coordinator(component)
+    let editor = ComposerNativeTextView()
+    editor.delegate = coordinator; editor.coordinator = coordinator
+    coordinator.install(draft, in: editor)
+    let window = FocusTestWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 100),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    window.contentView = editor
+    editor.setSelectedRange(.init(location: draft.utf16.count, length: 0))
+    editor.isEditable = false
+    coordinator.restoreFocus(in: editor, when: { true })
+    XCTAssertFalse(window.firstResponder === editor)
+    editor.isEditable = true
+    XCTAssertTrue(coordinator.applyPendingReturnFocus(in: editor))
+    // No run-loop yield: the next queued native key must already have a target.
+    XCTAssertTrue(window.firstResponder === editor)
+    let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+      modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+      context: nil, characters: "a", charactersIgnoringModifiers: "a",
+      isARepeat: false, keyCode: 0))
+    window.sendEvent(key)
+    XCTAssertEqual(editor.string, "existing a")
+    XCTAssertEqual(draft, "existing a")
+  }
+
   @MainActor func testDisabledRetainedEditorCannotReclaimFocusOrAcceptInput() async throws {
     _ = NSApplication.shared
     var text = "Retained draft"
