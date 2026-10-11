@@ -267,6 +267,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
       startAutomationPolling()
       startSkillMonitoring()
       ready = true
+#if DEBUG
+      do {
+        try DevelopmentWindowValidation.prepare(arguments: CommandLine.arguments,
+          dataRoot: store.dataRoot, windows: NSApp.windows)
+      } catch {
+        NSLog("Unable to record development window geometry: %@", String(describing: error))
+      }
+#endif
     }
     await openPendingNotification()
     await openPendingDeepLinks()
