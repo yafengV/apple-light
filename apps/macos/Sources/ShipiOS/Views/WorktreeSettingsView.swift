@@ -6,7 +6,9 @@ struct WorktreeSettingsView: View {
   var body: some View {
     SettingsForm {
       SettingsSection("工作树根目录") {
-        Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.worktreeRoot)
+        Text(store.worktreeRoot.path).textSelection(.enabled)
+          .id(store.worktreeRoot.path)
+          .settingsSearchTarget(.worktreeRoot)
         HStack {
           Button("选择文件夹…") { store.chooseWorktreeRoot() }
           Button("恢复默认目录") { store.setWorktreeRoot(nil) }.disabled(store.library.worktreeRoot == nil)
