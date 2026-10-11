@@ -109,6 +109,9 @@ struct BrowserSettingsView: View {
         Text(store.browserDownloadDirectory.path)
           .lineLimit(2).multilineTextAlignment(.trailing).textSelection(.enabled)
       }
+      // Refresh the native row's cached accessibility value with its path.
+      // Keep the picker buttons and download preferences mounted separately.
+      .id(store.browserDownloadDirectory.path)
       .settingsSearchTarget(.browserDownloadFolder)
       HStack {
         Button("选择文件夹…") { store.chooseBrowserDownloadFolder() }
