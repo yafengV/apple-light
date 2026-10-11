@@ -145,6 +145,11 @@ struct SettingsNavigationView: View {
     .onAppear { store.settingsSearchFocusRequest = UUID() }
     .onChange(of: store.settingsSearchFocusRequest) { _, _ in
       exitingSidebar = false
+      // Native field-editor focus must not compete with a retained SwiftUI
+      // navigation/result-button focus when a confirmation has just closed.
+      focusedPage = nil
+      focusedResultID = nil
+      returnFocused = false
     }
     .onChange(of: query) { _, _ in highlightedResultID = nil; exitingSidebar = false }
   }

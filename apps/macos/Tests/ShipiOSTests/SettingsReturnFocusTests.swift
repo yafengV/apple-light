@@ -4,6 +4,102 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class SettingsReturnFocusTests: XCTestCase {
+  func testSettingsReturnRestoresVisibleFileSelectionBeforeNextNativeKey() async throws {
+    for location in ["left", "right", "inspector"] {
+      let fixture = try await Fixture(location: location)
+      defer {
+        fixture.workspace.fileAutosaveTasks.values.forEach { $0.cancel() }
+        fixture.workspace.stopFileMonitoring()
+        fixture.close()
+      }
+      try FileManager.default.createDirectory(at: fixture.store.dataRoot, withIntermediateDirectories: true)
+      try Data("let one = 1\nlet two = 2".utf8).write(to: fixture.store.dataRoot.appendingPathComponent("File.swift"))
+      await fixture.workspace.openFile("File.swift")
+      fixture.workspace.beginEditingSelectedFile()
+      try await fixture.settle()
+      let editor = try XCTUnwrap(fixture.editor)
+      XCTAssertTrue(editor.isEditable)
+      editor.setSelectedRange(.init(location: 4, length: 3))
+      XCTAssertTrue(fixture.window.makeFirstResponder(editor))
+      fixture.store.openSettings(.general)
+      fixture.focusQuery()
+      fixture.store.closeSettings()
+      XCTAssertTrue(fixture.window.firstResponder === editor, location)
+      let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: [], timestamp: 0, windowNumber: fixture.window.windowNumber,
+        context: nil, characters: "x", charactersIgnoringModifiers: "x",
+        isARepeat: false, keyCode: 7))
+      fixture.window.sendEvent(key)
+      XCTAssertEqual(editor.string, "let x = 1\nlet two = 2", location)
+      XCTAssertEqual(fixture.query.stringValue, "", location)
+    }
+  }
+
+  func testStandaloneSettingsReturnRestoresFieldAndCaretBeforeNextNativeKey() async throws {
+    for page: AppDestination in [.projects, .plugins, .skills, .automations] {
+      let fixture = try await Fixture(location: "left")
+      defer { fixture.close() }
+      fixture.store.destination = page
+      let field = NSTextField(frame: .init(x: 0, y: 60, width: 200, height: 24))
+      field.stringValue = "a23-auto"
+      fixture.host.addSubview(field)
+      XCTAssertTrue(fixture.window.makeFirstResponder(field))
+      let editor = try XCTUnwrap(field.currentEditor())
+      editor.selectedRange = .init(location: field.stringValue.utf16.count, length: 0)
+      fixture.store.openSettings(.general)
+      fixture.focusQuery()
+      fixture.store.closeSettings()
+      // Dispatch the first key without yielding to the old queued restore.
+      XCTAssertTrue(fixture.window.firstResponder === field.currentEditor(), "\(page)")
+      let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: [], timestamp: 0, windowNumber: fixture.window.windowNumber,
+        context: nil, characters: "-", charactersIgnoringModifiers: "-",
+        isARepeat: false, keyCode: 27))
+      fixture.window.sendEvent(key)
+      XCTAssertEqual(field.currentEditor()?.string, "a23-auto-", "\(page)")
+      XCTAssertEqual(fixture.query.stringValue, "", "\(page)")
+    }
+  }
+
+  func testSettingsExitRestoresRetainedTerminalBeforeNextNativeKey() async throws {
+    let fixture = try await Fixture(location: "left")
+    defer { fixture.close() }
+    try FileManager.default.createDirectory(at: fixture.store.dataRoot, withIntermediateDirectories: true)
+    let session = TerminalSession(root: fixture.store.dataRoot)
+    defer { session.stop() }
+    fixture.host.addSubview(session.view)
+    try await fixture.settle()
+    XCTAssertTrue(session.view.process.running)
+    let pid = session.view.process.shellPid
+    XCTAssertTrue(fixture.window.makeFirstResponder(session.view))
+    fixture.store.openSettings(.general)
+    fixture.focusQuery()
+    fixture.store.closeSettings()
+    // AppKit can dispatch all of these keys before an asynchronous focus callback.
+    XCTAssertTrue(fixture.window.firstResponder === session.view)
+    for (character, code): (Character, UInt16) in [("a", 0), ("2", 19), ("3", 20),
+      ("t", 17), ("e", 14), ("r", 15), ("m", 46), ("i", 34), ("n", 45), ("a", 0), ("l", 37)] {
+      let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: [], timestamp: 0, windowNumber: fixture.window.windowNumber,
+        context: nil, characters: String(character), charactersIgnoringModifiers: String(character),
+        isARepeat: false, keyCode: code))
+      fixture.window.sendEvent(key)
+    }
+    func output() -> String {
+      // The long temporary-directory prompt wraps the echoed word across rows.
+      String(decoding: session.view.getTerminal().getBufferAsData(), as: UTF8.self)
+        .replacingOccurrences(of: "\n", with: "")
+    }
+    for _ in 0..<100 {
+      if output().contains("a23terminal") { break }
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertTrue(output().contains("a23terminal"), String(output().suffix(512)))
+    XCTAssertEqual(session.view.process.shellPid, pid)
+    XCTAssertTrue(session.view.process.running)
+    XCTAssertEqual(fixture.query.stringValue, "")
+  }
+
   func testSettingsExitEnablesRetainedComposerBeforeNextNativeKey() async throws {
     let fixture = try await ChildComposerFixture(followsSettingsRoute: true)
     defer { fixture.close() }
@@ -269,12 +365,12 @@ import XCTest
     fixture.host.addSubview(first); fixture.host.addSubview(second)
     XCTAssertTrue(fixture.window.makeFirstResponder(first))
     XCTAssertGreaterThan(first.acquisitions, 0)
-    let acquisitions = first.acquisitions
     fixture.store.openSettings(.general)
     fixture.focusQuery()
     fixture.store.closeSettings()
-    // The first close has queued an AppKit callback, but a second entry already
-    // belongs to a different control on the retained page.
+    // The first close may restore immediately; a subsequent entry must still
+    // prevent any late callback from reacquiring that previous control.
+    let acquisitions = first.acquisitions
     XCTAssertTrue(fixture.window.makeFirstResponder(second))
     fixture.store.openSettings(.general)
     fixture.focusQuery()

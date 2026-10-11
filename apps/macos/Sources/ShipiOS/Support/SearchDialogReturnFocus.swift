@@ -35,12 +35,18 @@ import AppKit
 
   /// File previews may be recreated while a modal is visible. Route a fresh
   /// request through the original editor's model instead of retaining its view.
-  func restoreFileFocus(store: WorkspaceStore) -> Bool {
+  func restoreFileFocus(store: WorkspaceStore, immediately: Bool = false) -> Bool {
     guard destination == .workspace, store.destination == destination,
       store.presentedOverlay == nil, matchesWorkspaceScope(store), let window, window.isKeyWindow,
       window.attachedSheet == nil, let source = fileWorkspace,
       let fileRoot, let filePath, source.root == fileRoot, source.selectedFile == filePath,
       (source === store.workspace ? store.filesVisible : store.commandFileWorkspace === source) else { return false }
+    // Use the model's current bound editor, which can differ from the captured
+    // view after settings. A missing/remounting editor keeps the normal request.
+    if immediately, !source.fileLoading, source.fileError == nil, !source.showingFileLine,
+      let editor = source.fileFind.editor, editor.workspace === source,
+      editor.window === window, !editor.isHiddenOrHasHiddenAncestor,
+      NSApp.modalWindow == nil, window.makeFirstResponder(editor) { return true }
     source.fileFocusRequest = UUID()
     return true
   }
@@ -66,18 +72,25 @@ import AppKit
   }
 
   func restore(when allowed: @escaping @MainActor () -> Bool) {
-    DispatchQueue.main.async { [weak view, weak window, fieldSelection] in
-      guard allowed(), let view, let window, window.isKeyWindow, view.window === window,
-        !view.isHiddenOrHasHiddenAncestor, window.attachedSheet == nil else { return }
-      guard window.makeFirstResponder(view) else { return }
-      // AppKit reuses one field editor and selects the entire value on return.
-      // Restore its original range only while the source value is unchanged;
-      // keep an ephemeral fingerprint, never another copy of the field value.
-      if let fieldSelection, let field = view as? NSTextField,
-        let editor = field.currentEditor(), editor.string.hashValue == fieldSelection.fingerprint {
-        editor.selectedRange = fieldSelection.range
-      }
+    DispatchQueue.main.async {
+      restoreImmediately(when: allowed)
     }
+  }
+
+  /// Settings have already enabled and laid out the retained page before exit.
+  /// Restore its field editor and selection before AppKit dispatches another key.
+  @discardableResult func restoreImmediately(when allowed: @MainActor () -> Bool) -> Bool {
+    guard allowed(), let view, let window, window.isKeyWindow, view.window === window,
+      !view.isHiddenOrHasHiddenAncestor, window.attachedSheet == nil else { return false }
+    guard window.makeFirstResponder(view) else { return false }
+    // AppKit reuses one field editor and selects the entire value on return.
+    // Restore its original range only while the source value is unchanged;
+    // keep an ephemeral fingerprint, never another copy of the field value.
+    if let fieldSelection, let field = view as? NSTextField,
+      let editor = field.currentEditor(), editor.string.hashValue == fieldSelection.fingerprint {
+      editor.selectedRange = fieldSelection.range
+    }
+    return true
   }
 
   private func matchesWorkspaceScope(_ store: WorkspaceStore) -> Bool {

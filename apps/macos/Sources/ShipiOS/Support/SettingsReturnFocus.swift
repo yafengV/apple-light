@@ -15,7 +15,7 @@ import AppKit
 
   func restore(store: WorkspaceStore) -> Bool {
     guard matches(store), store.presentedOverlay == nil else { return false }
-    if target.isFileSource { return target.restoreFileFocus(store: store) }
+    if target.isFileSource { return target.restoreFileFocus(store: store, immediately: true) }
     guard let view = target.view, let window = target.window,
       window.isKeyWindow, window.attachedSheet == nil, view.window === window,
       !view.isHiddenOrHasHiddenAncestor else { return false }
@@ -29,6 +29,11 @@ import AppKit
     if let editor = view as? ComposerNativeTextView,
       let coordinator = editor.coordinator, coordinator.active {
       coordinator.restoreFocus(in: editor, when: allowed)
+    } else if view is SessionTerminalView || view is NSTextField {
+      // closeSettings has already enabled and laid out the retained workspace.
+      // A queue hop here would send the next PTY keys to the old search editor.
+      guard allowed(), NSApp.modalWindow == nil else { return false }
+      return target.restoreImmediately(when: allowed)
     } else { target.restore(when: allowed) }
     return true
   }

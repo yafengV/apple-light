@@ -2,6 +2,34 @@
 // Scheduling from an AppKit timer keeps asynchronous MainActor tests runnable.
 import AppKit
 import XCTest
+final class WindowFailureObserver: NSObject, XCTestObservation {
+ var reported = Set<String>()
+ func testCase(_ testCase: XCTestCase, didFailWithDescription description: String,
+               inFile filePath: String?, atLine lineNumber: Int) {
+  guard reported.insert(testCase.name).inserted else { return }
+  func fields(_ view:NSView) -> [[String:Any]] {
+   if let field=view as? NSSearchField {
+    return [["valueLength":field.stringValue.utf16.count,
+     "editorLength":field.currentEditor()?.string.utf16.count ?? -1,
+     "enabled":field.isEnabled, "editing":field.currentEditor() != nil]]
+   }
+   return view.subviews.flatMap(fields)
+  }
+  let windows = NSApp.windows.map { window -> [String:Any] in
+   ["number":window.windowNumber, "title":window.title,
+    "key":window.isKeyWindow, "main":window.isMainWindow,
+    "visible":window.isVisible, "level":window.level.rawValue,
+    "responder":window.firstResponder.map { String(describing:type(of:$0)) } ?? "nil",
+    "searchFields":window.contentView.map(fields) ?? []]
+  }
+  let value: [String:Any] = ["stage":"first-assertion-failure", "test":testCase.name,
+   "description":description, "line":lineNumber, "active":NSApp.isActive,
+   "windows":windows]
+  if let data=try? JSONSerialization.data(withJSONObject:value,options:[.sortedKeys]) {
+   print(String(decoding:data,as:UTF8.self)); fflush(stdout)
+  }
+ }
+}
 final class Delegate: NSObject, NSApplicationDelegate {
  let resultPath: String
  let bundlePath: String
@@ -53,6 +81,9 @@ final class Delegate: NSObject, NSApplicationDelegate {
    collect(all)
    write(["stage":"loaded", "testNames":suite.tests.map(\.name),"active":NSApp.isActive,"running":NSApp.isRunning])
    guard suite.tests.count==selected.count else { write(["error":"Missing selected tests","testNames":suite.tests.map(\.name)]); NSApp.terminate(nil); return }
+   let observer=WindowFailureObserver()
+   XCTestObservationCenter.shared.addTestObserver(observer)
+   defer { XCTestObservationCenter.shared.removeTestObserver(observer) }
    suite.run()
    let run=suite.testRun!
    write(["stage":"finished","executed":run.executionCount,"failures":run.failureCount,"unexpected":run.unexpectedExceptionCount,"skipped":run.skipCount,"succeeded":run.hasSucceeded])
