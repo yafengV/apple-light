@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import WebKit
 import XCTest
 
@@ -32,6 +33,60 @@ final class BrowserTests: XCTestCase {
   @MainActor private func load(_ tab: BrowserTab, _ path: String, title: String) async throws {
     tab.address = base + path; tab.navigate()
     try await eventually("Page did not finish: \(path)") { !tab.loading && tab.title == title && tab.error == nil }
+  }
+  @MainActor func testLoadedPageAndAddressSurvivePaneReplacementWithoutReload() async throws {
+    _ = NSApplication.shared
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browser-pane-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = WorkspaceStore(dataRoot: root)
+    let session = store.workspace.browser
+    defer { session.shutdown() }
+    let tab = session.newTab()
+    // Cold restoration starts navigation before SwiftUI mounts its content pane.
+    try await load(tab, "/one", title: "One")
+    let webView = tab.view
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 700, height: 500),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.contentView = nil; window.close() }
+    let panel = NSHostingView(rootView: BrowserPanel(store: store, session: session, showsTabStrip: false))
+    window.contentView = panel
+    panel.layoutSubtreeIfNeeded()
+    try await eventually("Loaded browser was not attached at a usable size") {
+      panel.layoutSubtreeIfNeeded()
+      return webView.window === window && webView.frame.width > 300 && webView.frame.height > 200
+    }
+    let field = try XCTUnwrap(session.addressField)
+    XCTAssertEqual(field.stringValue, base + "/one")
+    let viewport = try await webView.evaluateJavaScript("window.innerWidth") as? NSNumber
+    XCTAssertGreaterThan(try XCTUnwrap(viewport).doubleValue, 300)
+    _ = try await webView.evaluateJavaScript("document.querySelector('input').value = 'retained-pane-input'; undefined;")
+    _ = try await webView.evaluateJavaScript("location.href = '/two'; undefined;")
+    try await eventually("Native address did not follow page navigation") {
+      panel.layoutSubtreeIfNeeded()
+      return !tab.loading && tab.title == "Two" && field.stringValue == self.base + "/two"
+    }
+    tab.back()
+    try await eventually("Back did not restore the native address") {
+      panel.layoutSubtreeIfNeeded()
+      return !tab.loading && tab.title == "One" && field.stringValue == self.base + "/one"
+    }
+    for width in [500.0, 900.0, 500.0] {
+      let replacement = NSHostingView(rootView: BrowserPanel(store: store, session: session,
+        showsTabStrip: false, tabID: tab.id))
+      window.setContentSize(.init(width: width, height: 500))
+      window.contentView = replacement
+      try await eventually("Replacement pane did not retain the loaded browser") {
+        replacement.layoutSubtreeIfNeeded()
+        return webView.window === window && abs(webView.frame.width - width) < 1
+      }
+      XCTAssertTrue(tab.view === webView)
+      let input = try await webView.evaluateJavaScript("document.querySelector('input').value") as? String
+      XCTAssertEqual(input,
+        "retained-pane-input", "Replacing a pane must not reload the page or discard DOM input")
+      XCTAssertEqual(session.addressField?.stringValue, base + "/one")
+    }
+    XCTAssertFalse(window.isVisible, "Hidden lifecycle coverage does not prove formal cold-window rendering")
   }
   @MainActor func testPageFindSearchesLoadedWebContentAndKeepsTabState() async throws {
     let session = BrowserSession()
