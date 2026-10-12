@@ -25,17 +25,28 @@ import XCTest
     try await verify(.task, backgroundReply: false)
   }
 
-  private func verify(_ surface: Surface, readingHistory: Bool = true, backgroundReply: Bool = true) async throws {
+  func testMainReturnToLongReplyPreservesPositionInsideLastTurn() async throws {
+    try await verify(.main, backgroundReply: false, longReply: true)
+  }
+  func testTaskWindowReturnToLongReplyPreservesPositionInsideLastTurn() async throws {
+    try await verify(.task, backgroundReply: false, longReply: true)
+  }
+
+  private func verify(_ surface: Surface, readingHistory: Bool = true, backgroundReply: Bool = true,
+    longReply: Bool = false) async throws {
     _ = NSApplication.shared
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("reading-navigation-\(UUID())")
     let store = WorkspaceStore(dataRoot: root, agentExecutable: root.appendingPathComponent("absent-agent"))
     store.libraryLoaded = true; store.scopeLoaded = true
     let runs = (0..<2).flatMap { task in
       (0..<8).map { turn in
-        AgentRun(id: "\(task)-\(turn)", kind: "chat", project: "", status: "succeeded",
+        let text = longReply && task == 0 && turn == 7
+          ? (1...120).map { "Line \($0) — long completed reply.\n\n" }.joined()
+          : String(repeating: "Task \(task), turn \(turn). ", count: 40)
+        return AgentRun(id: "\(task)-\(turn)", kind: "chat", project: "", status: "succeeded",
           createdAt: Double(turn + 1), updatedAt: Double(turn + 1),
           request: .object(["model": .string("Test Model")]),
-          result: .object(["response": .string(String(repeating: "Task \(task), turn \(turn). ", count: 40))]))
+          result: .object(["response": .string(text)]))
       }
     }
     let tasks = (0..<2).map { task in
@@ -100,7 +111,9 @@ import XCTest
       XCTAssertLessThanOrEqual((scroll.documentView?.bounds.height ?? 0)
         - scroll.contentView.bounds.height - position(scroll), 40)
     }
-    let first = readingHistory ? try await move(120) : position(try timeline())
+    let historyOffset = longReply
+      ? max(120, (try timeline().documentView?.bounds.height ?? 0) - size.height - 800) : 120
+    let first = readingHistory ? try await move(historyOffset) : position(try timeline())
     if !readingHistory { try verifyBottom() }
     try await show(1)
     let second = readingHistory ? try await move(280) : position(try timeline())
@@ -135,8 +148,13 @@ import XCTest
         store.selectTask(tasks[0])
         store.conversationReveal = .init(runID: "0-7")
         try await settle()
-        XCTAssertGreaterThan(position(try timeline()), first + 100,
-          "An explicit notification reveal must take priority over the remembered position")
+        if longReply {
+          XCTAssertLessThan(position(try timeline()), first - 100,
+            "Revealing the beginning of the long turn must take priority over its remembered interior position")
+        } else {
+          XCTAssertGreaterThan(position(try timeline()), first + 100,
+            "An explicit notification reveal must take priority over the remembered position")
+        }
         let afterReveal = try await move(180)
         try await show(1); try await show(0)
         XCTAssertEqual(position(try timeline()), afterReveal, accuracy: 10,

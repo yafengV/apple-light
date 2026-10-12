@@ -1352,6 +1352,7 @@ struct TaskWindowView: View {
             case .geometry(let metrics):
               if let saved = pendingReadingPosition {
                 guard let restored = scrollSnapshot.restore(offset: saved.metrics.offset) else { return }
+                guard abs(restored.offset - saved.metrics.offset) <= 1 else { return }
                 pendingReadingPosition = nil
                 _ = scrolling.observe(restored)
                 rememberReadingPosition(restored)
@@ -1360,6 +1361,7 @@ struct TaskWindowView: View {
               if scrolling.observe(metrics) { reader.scrollTo("task-window-end", anchor: .bottom) }
               rememberReadingPosition(metrics)
             case .began:
+              pendingReadingPosition = nil
               pendingText = nil; pendingMatch = nil
               scrolling.beginUserScroll()
             case .ended(let metrics):

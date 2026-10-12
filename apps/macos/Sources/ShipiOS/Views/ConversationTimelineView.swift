@@ -90,6 +90,9 @@ struct ConversationTimelineView: View {
               case .geometry(let metrics):
                 if let saved = pendingReadingPosition {
                   guard let restored = scrollSnapshot.restore(offset: saved.metrics.offset) else { return }
+                  // A lazy document initially estimates a long reply's height.
+                  // Keep the request until scrolling has mounted that content.
+                  guard abs(restored.offset - saved.metrics.offset) <= 1 else { return }
                   pendingReadingPosition = nil
                   _ = scrolling.observe(restored)
                   rememberReadingPosition(restored)
@@ -98,6 +101,7 @@ struct ConversationTimelineView: View {
                 if scrolling.observe(metrics) { scrollToLatest(reader) }
                 rememberReadingPosition(metrics)
               case .began:
+                pendingReadingPosition = nil
                 pendingText = nil
                 pendingMatch = nil
                 scrolling.beginUserScroll()
