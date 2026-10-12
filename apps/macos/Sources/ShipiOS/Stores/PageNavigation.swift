@@ -72,7 +72,10 @@ extension WorkspaceStore {
   func openSettings(_ page: SettingsPage? = nil) {
     guard !hasSettingsConfirmation else { return }
     if destination == .settings {
-      if let page, page != settingsPage { requestSettingsPage(page) }
+      if let page {
+        if page != settingsPage { requestSettingsPage(page) }
+        else { showingOpenSourceLicenses = false }
+      }
       return
     }
     showingOpenSourceLicenses = false

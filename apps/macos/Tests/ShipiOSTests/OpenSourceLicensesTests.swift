@@ -44,6 +44,8 @@ import XCTest
     XCTAssertFalse(store.showingOpenSourceLicenses)
     store.settingsPage = .general
     store.showingOpenSourceLicenses = true
+    store.openSettings()
+    XCTAssertTrue(store.showingOpenSourceLicenses)
     store.openSettings(.general)
     XCTAssertFalse(store.showingOpenSourceLicenses)
     let result = try XCTUnwrap(SettingsSearch.results(for: "开源许可")
