@@ -153,15 +153,21 @@ struct ComposerModelPicker: View {
           ProgressView("正在获取模型列表…").controlSize(.small)
         } else if let error = catalog.error {
           Text(error).appFont(.caption).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
       Text("模型列表由当前服务提供；推理强度是否可用取决于所选模型。更改用于下一次请求。")
         .appFont(.caption).foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
       if catalog.isCurrentReasoningUnsupported(for: configuration.model, reasoning: configuration.reasoning) {
         Text("当前推理强度不在此模型声明的支持列表中；请选择其他等级或服务默认值。")
           .appFont(.caption).foregroundStyle(.orange)
+          .fixedSize(horizontal: false, vertical: true)
       }
-      if let saveError { Text(saveError).appFont(.caption).foregroundStyle(.red) }
+      if let saveError {
+        Text(saveError).appFont(.caption).foregroundStyle(.red)
+          .fixedSize(horizontal: false, vertical: true)
+      }
       HStack {
         Button("模型与 API 设置…") { if let onSettings { onSettings() } else { store.openSettings(.model) } }.buttonStyle(.plain)
         Spacer()

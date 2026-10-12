@@ -12,8 +12,11 @@ struct ModelSettingsView: View {
       SettingsSection("独立 API 服务") {
         SettingsTextField("基础地址", text: $draft.baseURL, prompt: Text("https://api.example.com/v1"))
           .settingsSearchTarget(.apiURL)
-        SettingsTextField("模型 ID", text: $draft.model, prompt: Text("由你的服务商提供"))
+        SettingsTextField("默认模型 ID", text: $draft.model, prompt: Text("由你的服务商提供"))
           .settingsSearchTarget(.modelID)
+        Text("这里设置新聊天的默认模型。已有聊天若单独选择过模型，请在输入栏的模型菜单中切换；更改从下一次请求生效。")
+          .appFont(.caption).foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
         SettingsTextField("实时语音模型 ID", text: $realtimeModelDraft,
           prompt: Text("支持 /realtime 的模型；留空关闭语音聊天"))
           .settingsSearchTarget(.voiceModel)

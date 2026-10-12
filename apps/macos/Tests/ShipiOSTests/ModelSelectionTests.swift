@@ -287,8 +287,13 @@ final class ModelSelectionTests: XCTestCase {
     XCTAssertEqual(store.modelConfiguration(for: "one").model, "default-model")
     XCTAssertEqual(store.modelConfiguration(for: "two").model, "task-model")
     XCTAssertEqual(store.modelConfiguration(for: "two").reasoning, "high")
+    config.model = "updated-default"
+    try store.saveModelConfiguration(config)
+    XCTAssertEqual(store.modelConfiguration(for: "one").model, "updated-default")
+    XCTAssertEqual(store.modelConfiguration(for: "two").model, "task-model")
     let restored = WorkspaceStore(dataRoot: root)
     await restored.restore()
+    XCTAssertEqual(restored.modelConfiguration(for: "one").model, "updated-default")
     XCTAssertEqual(restored.modelConfiguration(for: "two").model, "task-model")
     XCTAssertEqual(restored.library.drafts["one"], "first draft")
     XCTAssertEqual(restored.library.drafts["two"], "second draft")
