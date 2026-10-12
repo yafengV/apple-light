@@ -53,6 +53,14 @@ final class GitReviewTests: XCTestCase {
       try await Task.sleep(for: .milliseconds(100))
     }
     XCTAssertFalse(horizontalScrolls(host).isEmpty)
+    let scroller = try XCTUnwrap(horizontalScrolls(host).first)
+    let document = try XCTUnwrap(scroller.documentView)
+    XCTAssertGreaterThan(document.frame.width, scroller.contentView.bounds.width + 50,
+      "Unwrapped code must remain reachable through the horizontal scroller")
+    let end = max(0, document.frame.width - scroller.contentView.bounds.width)
+    scroller.contentView.scroll(to: CGPoint(x: end, y: 0))
+    scroller.reflectScrolledClipView(scroller.contentView)
+    XCTAssertGreaterThan(scroller.contentView.bounds.minX, 50)
     store.reviewDiffWrap = true
     try await Task.sleep(for: .milliseconds(250)); host.layoutSubtreeIfNeeded()
     XCTAssertTrue(horizontalScrolls(host).isEmpty)

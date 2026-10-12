@@ -73,15 +73,17 @@ struct ReviewFileView: View {
   }
 
   private func diffRows(_ patch: ReviewDiff, editableHunks: [Int: ReviewHunk]) -> some View {
-    LazyVStack(alignment: .leading, spacing: 0) {
+    let columnWidth = store.reviewDiffSplit && !store.reviewDiffWrap
+      ? ReviewSplitMetrics.minimumColumnWidth(lines: patch.lines, appearance: store.appearance) : 0
+    return LazyVStack(alignment: .leading, spacing: 0) {
       if store.reviewDiffSplit {
         ForEach(GitHubPRSplitLine.rows(patch.lines)) { row in
           if let line = row.left, line.kind == .header || line.kind == .metadata {
             reviewRow(line, patch: patch, editableHunks: editableHunks)
           } else {
-            HStack(alignment: .top, spacing: 0) {
+            ReviewSplitRow(wrap: store.reviewDiffWrap, minimumColumnWidth: columnWidth) {
               splitCell(row.left, side: .old, patch: patch)
-              Divider()
+            } right: {
               splitCell(row.right, side: .new, patch: patch)
             }
             ForEach(matchingComments(row, patch: patch)) { comment in

@@ -67,16 +67,18 @@ private struct LastTurnReviewFileView: View {
   }
 
   private func diffRows(_ diff: ReviewDiff) -> some View {
-    LazyVStack(alignment: .leading, spacing: 0) {
+    let columnWidth = store.reviewDiffSplit && !store.reviewDiffWrap
+      ? ReviewSplitMetrics.minimumColumnWidth(lines: diff.lines, appearance: store.appearance) : 0
+    return LazyVStack(alignment: .leading, spacing: 0) {
       if store.reviewDiffSplit {
         ForEach(GitHubPRSplitLine.rows(diff.lines)) { row in
           if let line = row.left, line.kind == .header || line.kind == .metadata {
             codeLine(line, diff: diff)
             comments(for: [line], diff: diff)
           } else {
-            HStack(alignment: .top, spacing: 0) {
+            ReviewSplitRow(wrap: store.reviewDiffWrap, minimumColumnWidth: columnWidth) {
               splitCell(row.left, side: .old, diff: diff)
-              Divider()
+            } right: {
               splitCell(row.right, side: .new, diff: diff)
             }
             comments(for: [row.left, row.right].compactMap { $0 }, diff: diff)
