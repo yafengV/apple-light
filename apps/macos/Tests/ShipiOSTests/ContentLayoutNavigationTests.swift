@@ -74,6 +74,7 @@ import XCTest
     window.sendEvent(key)
     XCTAssertEqual(store.draft, "返回聊天后的草稿t")
     XCTAssertNil(store.focusedWorkspaceContentTab)
+    try await TaskWindowImmediateNavigationTests.verifyNumericReturn(actualKeyWindow: true)
   }
 
   private struct Reference: Decodable {

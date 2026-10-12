@@ -75,7 +75,13 @@ struct TaskWindowCommandKeyboardBridge: NSViewRepresentable {
       if ComposerCommandContext.route(binding, shortcuts: shortcuts, in: view?.window) { return true }
       guard (view?.window?.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }
       guard let id = commands.command(for: binding, shortcuts: shortcuts) else { return false }
-      return commands.execute(id)
+      let handled = commands.execute(id)
+      if handled, DesktopCommand.numberSlot(id) != nil {
+        // Task windows own their command bridge. Mount the selected composer
+        // before the next queued key can reach the departing content field.
+        view?.window?.contentView?.layoutSubtreeIfNeeded()
+      }
+      return handled
     }
   }
   static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.stop() }
