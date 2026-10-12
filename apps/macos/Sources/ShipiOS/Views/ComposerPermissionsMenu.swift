@@ -30,9 +30,9 @@ struct ComposerPermissionsMenu: View {
         }
     } label: {
       Label(title, systemImage: "lock.shield")
-        .appFont(.caption)
+        .appFont(.caption).lineLimit(1)
     }
-    .menuStyle(.borderlessButton).fixedSize()
+    .menuStyle(.borderlessButton).fixedSize(horizontal: false, vertical: true)
     .accessibilityLabel("权限：\(title)")
     .help(taskID == nil ? "为新任务选择 Codex Core 权限" : "为当前任务下一轮选择 Codex Core 权限")
     .disabled(!store.libraryLoaded)
