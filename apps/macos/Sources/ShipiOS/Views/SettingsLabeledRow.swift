@@ -21,12 +21,14 @@ extension EnvironmentValues {
 /// resizing does not require an asynchronous state update or replace controls.
 struct SettingsLabeledRow<Label: View, Control: View>: View {
   var reservesControlWidth = true
+  var reservesLabelWidth = true
   var gap: CGFloat = SettingsCardLayout.rowGap
   @ViewBuilder var label: () -> Label
   @ViewBuilder var control: () -> Control
 
   var body: some View {
-    SettingsLabeledRowLayout(reservesControlWidth: reservesControlWidth, gap: gap) {
+    SettingsLabeledRowLayout(reservesControlWidth: reservesControlWidth,
+      reservesLabelWidth: reservesLabelWidth, gap: gap) {
       label().appFont(size: SettingsRowTypography.labelSize, weight: .medium)
       control()
     }.accessibilityElement(children: .contain)
@@ -35,6 +37,7 @@ struct SettingsLabeledRow<Label: View, Control: View>: View {
 
 private struct SettingsLabeledRowLayout: Layout {
   var reservesControlWidth: Bool
+  var reservesLabelWidth: Bool
   var gap: CGFloat
 
   private func dimensions(_ proposal: ProposedViewSize, _ subviews: Subviews)
@@ -51,7 +54,7 @@ private struct SettingsLabeledRowLayout: Layout {
     // Long wrapping values must leave room for the label and the row gap.
     // Keep ordinary controls at their existing natural/reserved widths.
     let labelMinimum = hasLabel ? min(labelIdeal.width, width * 0.4) : 0
-    let controlMaximum = max(0, width - gap - labelMinimum)
+    let controlMaximum = reservesLabelWidth ? max(0, width - gap - labelMinimum) : width
     let controlWidth = min(controlMaximum, max(controlIdeal.width, minimum))
     let labelWidth = max(0, width - controlWidth - gap)
     let controlProposal = ProposedViewSize(width: controlWidth, height: nil)

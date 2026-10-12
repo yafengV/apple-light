@@ -23,7 +23,8 @@ struct AppearanceSettingsRow<Label: View, Content: View>: View {
   @ViewBuilder var content: () -> Content
   @ViewBuilder var label: () -> Label
   var body: some View {
-    SettingsLabeledRow(gap: compact ? 16 : 24) {
+    // Font controls retain their intrinsic widths while the label can collapse.
+    SettingsLabeledRow(reservesLabelWidth: false, gap: compact ? 16 : 24) {
       label().frame(maxWidth: .infinity, alignment: .leading)
     } control: {
       content()
