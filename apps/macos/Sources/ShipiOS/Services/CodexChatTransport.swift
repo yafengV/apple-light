@@ -44,6 +44,7 @@ final class CodexChatTransport {
 
   private let dataRoot: URL
   private var clients: [String: AgentClient] = [:]
+  private var endingClients: Set<ObjectIdentifier> = []
   private final class ClientStartup {
     let id = UUID()
     var task: Task<Void, Never>?
@@ -162,10 +163,18 @@ final class CodexChatTransport {
     let processData = dataRoot.appendingPathComponent("CodexAgents/\(digest)", isDirectory: true)
     let client = AgentClient()
     // A retired process can still emit notifications while stdout drains.
-    // Route only the client currently registered for this project.
+    // Only graceful shutdown may retain its thread-scoped SessionEnd history.
     client.onCodexEvent = { [weak self, weak client] event in
-      guard let self, let client, self.clients[path] === client else { return }
-      self.receive(event)
+      guard let self, let client else { return }
+      if self.clients[path] === client {
+        self.receive(event)
+      } else if self.endingClients.contains(ObjectIdentifier(client)) {
+        let hook = event["event"]
+        guard ["hook_started", "hook_completed"].contains(hook["type"].text ?? ""),
+          hook["run"]["scope"].text == "thread", hook["run"]["event_name"].text == "session_end",
+          let taskID = event["taskId"].text, let threadID = event["threadId"].text else { return }
+        self.onHookEvent?(taskID, threadID, hook)
+      }
     }
     client.onCodexGap = { [weak self, weak client] in
       guard let self, let client, self.clients[path] === client else { return }
@@ -757,13 +766,19 @@ final class CodexChatTransport {
     }
     reset(CancellationError())
     let running = Array(clients.values)
+    endingClients.formUnion(running.map(ObjectIdentifier.init))
     clients.removeAll()
     let pendingStartups = Array(startupTasks.values)
     for startup in pendingStartups { await startup.value }
     // Independent project Agents must receive EOF together. Sequential waits
     // accumulate SessionEnd deadlines and can strand another session's cleanup.
     await withTaskGroup(of: Void.self) { group in
-      for client in running { group.addTask { @MainActor in await client.stop() } }
+      for client in running {
+        group.addTask { @MainActor in
+          await client.stop()
+          self.endingClients.remove(ObjectIdentifier(client))
+        }
+      }
       await group.waitForAll()
     }
   }

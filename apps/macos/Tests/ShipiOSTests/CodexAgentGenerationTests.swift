@@ -51,6 +51,10 @@ final class CodexAgentGenerationTests: XCTestCase {
         if mode == "events":
             event(task, "agent_message_delta", delta="OLD_LATE")
             event(task, "error", message="OLD_LATE_ERROR")
+            event(task, "hook_completed", run={"hook_id":"old-late-hook",
+                "scope":"thread", "event_name":"session_end", "status":"completed",
+                "source":"plugin", "started_at":1, "completed_at":2,
+                "display_order":0, "entries":[]})
         elif mode == "disconnect":
             with lock: print("malformed protocol frame", flush=True)
         else: gap()
@@ -96,6 +100,9 @@ final class CodexAgentGenerationTests: XCTestCase {
     let continued = try XCTUnwrap(store.library.chatRuns.first { $0.id == second })
     XCTAssertEqual(continued.status, "succeeded", continued.result?["message"].text ?? "")
     XCTAssertEqual(continued.result?["response"].text, "NEW_ONLY")
+    XCTAssertTrue(continued.codexHookRuns.isEmpty)
+    XCTAssertTrue(store.library.chatRuns.first { $0.id == first }?.codexHookRuns.isEmpty == true,
+      "Failure retirement must not acquire the graceful SessionEnd history route")
     XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("launch-count")), "2")
     XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("late-events-sent")), mode)
     XCTAssertNil(store.codexTransport.turnToken(taskID: owner))
