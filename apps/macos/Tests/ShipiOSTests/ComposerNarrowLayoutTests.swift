@@ -31,25 +31,28 @@ import XCTest
     var focused = false
     for preferences in [AgentRuntimePreferences.askForApproval, named] {
       store.library.taskRuntimePreferences["layout-task"] = preferences
-      for width: CGFloat in [325, 540, 325] {
-        window.setContentSize(.init(width: width, height: 360))
-        host.frame.size = .init(width: width, height: 360)
-        try await Task.sleep(for: .milliseconds(100))
-        host.layoutSubtreeIfNeeded()
-        let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? ComposerNativeTextView }.first)
-        let scroll = try XCTUnwrap(editor.enclosingScrollView)
-        let rect = scroll.convert(scroll.bounds, to: host)
-        XCTAssertGreaterThanOrEqual(rect.minX, 15, "Controls must not widen and center the entire composer outside its pane")
-        XCTAssertLessThanOrEqual(rect.maxX, width - 15, "The input card must stay inside the split pane")
-        XCTAssertGreaterThan(rect.width, width - 50)
-        XCTAssertEqual(editor.string, "保留布局草稿")
-        if focused {
-          XCTAssertTrue(window.firstResponder === editor)
-          XCTAssertEqual(editor.selectedRange(), .init(location: 2, length: 2))
-        } else {
-          XCTAssertTrue(window.makeFirstResponder(editor))
-          editor.setSelectedRange(.init(location: 2, length: 2))
-          focused = true
+      for mode in [ChatMode.standard, .plan] {
+        store.chatMode = mode
+        for width: CGFloat in [325, 540, 325] {
+          window.setContentSize(.init(width: width, height: 360))
+          host.frame.size = .init(width: width, height: 360)
+          try await Task.sleep(for: .milliseconds(100))
+          host.layoutSubtreeIfNeeded()
+          let editor = try XCTUnwrap(descendants(host).compactMap { $0 as? ComposerNativeTextView }.first)
+          let scroll = try XCTUnwrap(editor.enclosingScrollView)
+          let rect = scroll.convert(scroll.bounds, to: host)
+          XCTAssertGreaterThanOrEqual(rect.minX, 15, "Controls must not widen and center the entire composer outside its pane")
+          XCTAssertLessThanOrEqual(rect.maxX, width - 15, "The input card must stay inside the split pane")
+          XCTAssertGreaterThan(rect.width, width - 50)
+          XCTAssertEqual(editor.string, "保留布局草稿")
+          if focused {
+            XCTAssertTrue(window.firstResponder === editor)
+            XCTAssertEqual(editor.selectedRange(), .init(location: 2, length: 2))
+          } else {
+            XCTAssertTrue(window.makeFirstResponder(editor))
+            editor.setSelectedRange(.init(location: 2, length: 2))
+            focused = true
+          }
         }
       }
     }

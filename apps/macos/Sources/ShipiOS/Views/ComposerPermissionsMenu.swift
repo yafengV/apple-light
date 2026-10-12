@@ -6,6 +6,7 @@ struct ComposerPermissionsMenu: View {
   @Bindable var store: WorkspaceStore
   let taskID: String?
   let draftKey: String
+  var compact = false
 
   private var effective: AgentRuntimePreferences {
     store.composerRuntimePreferences(taskID: taskID, draftKey: draftKey)
@@ -29,12 +30,17 @@ struct ComposerPermissionsMenu: View {
           _ = store.saveComposerRuntimePreferences(choice, taskID: taskID, draftKey: draftKey)
         }
     } label: {
-      Label(title, systemImage: "lock.shield")
-        .appFont(.caption).lineLimit(1)
+      if compact {
+        Image(systemName: "lock.shield").appFont(.caption)
+          .accessibilityLabel("权限：\(title)")
+      } else {
+        Label(title, systemImage: "lock.shield")
+          .appFont(.caption).lineLimit(1)
+      }
     }
     .menuStyle(.borderlessButton).fixedSize(horizontal: false, vertical: true)
     .accessibilityLabel("权限：\(title)")
-    .help(taskID == nil ? "为新任务选择 Codex Core 权限" : "为当前任务下一轮选择 Codex Core 权限")
+    .help("\(title) · " + (taskID == nil ? "为新任务选择 Codex Core 权限" : "为当前任务下一轮选择 Codex Core 权限"))
     .disabled(!store.libraryLoaded)
   }
 }

@@ -353,7 +353,14 @@ struct ComposerView: View {
       draft: store.draft, skills: store.composerSkills)
   }
   private var controls: some View {
-    HStack(spacing: 10) {
+    ViewThatFits(in: .horizontal) {
+      controlsRow(compact: false)
+      controlsRow(compact: true)
+    }
+  }
+
+  private func controlsRow(compact: Bool) -> some View {
+    HStack(spacing: compact ? 6 : 10) {
       Menu {
         Button("文件与文件夹…", systemImage: "paperclip") { store.chooseFiles() }
           .disabled(store.draftFiles.count >= FileAttachmentStorage.maxCount
@@ -384,12 +391,18 @@ struct ComposerView: View {
           store.showingGoalEditor = true
         }
       } label: {
-        Label(
-          store.action == .chat && store.chatMode != .standard ? store.chatMode.title : store.action.title,
-          systemImage: store.action == .chat && store.chatMode != .standard
+        HStack(spacing: 4) {
+          Image(systemName: store.action == .chat && store.chatMode != .standard
             ? store.chatMode.icon : store.action.icon
-        ).appFont(.caption)
+          )
+            .accessibilityLabel(store.action == .chat && store.chatMode != .standard ? store.chatMode.title : store.action.title)
+          if !compact {
+            Text(store.action == .chat && store.chatMode != .standard ? store.chatMode.title : store.action.title)
+          }
+        }.appFont(.caption)
       }.menuStyle(.borderlessButton).fixedSize()
+        .accessibilityLabel(store.action == .chat && store.chatMode != .standard ? store.chatMode.title : store.action.title)
+        .help(store.action == .chat && store.chatMode != .standard ? store.chatMode.title : store.action.title)
       if store.action == .chat, store.chatMode != .standard {
         Button {
           if store.chatMode == .goal { store.leaveGoalMode() } else { store.chatMode = .standard }
@@ -403,11 +416,11 @@ struct ComposerView: View {
       if store.action == .chat {
         if store.modelConfiguration(for: store.selectedTask?.id).apiProtocol == .codexResponses {
           ComposerPermissionsMenu(store: store, taskID: store.selectedTask?.id,
-            draftKey: store.draftKey)
+            draftKey: store.draftKey, compact: compact)
         }
         Button(store.modelConfiguration(for: store.selectedTask?.id).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: store.selectedTask?.id).model) {
           store.openModelPicker()
-        }.buttonStyle(.plain).appFont(.caption).lineLimit(1).help(
+        }.buttonStyle(.plain).appFont(.caption).lineLimit(1).frame(minWidth: 72).layoutPriority(1).help(
           "选择模型与推理强度 \(store.shortcuts.label("model"))")
           .popover(isPresented: $store.showingModelPicker, arrowEdge: .top) {
             ComposerModelPicker(store: store, taskID: store.selectedTask?.id)
@@ -427,7 +440,7 @@ struct ComposerView: View {
           }
       }
       Spacer(minLength: 8)
-      if store.showContextUsageIndicator,
+      if !compact, store.showContextUsageIndicator,
         let tokens = store.contextInputTokens(taskID: store.selectedTask?.id)
       {
         Label(tokens.formatted() + " tokens", systemImage: "gauge.with.dots.needle.33percent")
