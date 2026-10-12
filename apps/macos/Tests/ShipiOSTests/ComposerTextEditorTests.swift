@@ -94,6 +94,36 @@ final class ComposerTextEditorTests: XCTestCase {
     override var isKeyWindow: Bool { true }
   }
 
+  @MainActor func testMountedFocusedComposerAcceptsFirstKeyWithoutRunLoopYield() throws {
+    _ = NSApplication.shared
+    var draft = ""
+    let component = ComposerTextEditor(text: Binding(get: { draft }, set: { draft = $0 }),
+      focused: .constant(true), plainTextMode: true, placeholder: "Message",
+      accessibilityLabel: "Composer", focusRequest: UUID(),
+      onKey: { _, _, _ in false }, onPasteAttachments: { _ in })
+    let coordinator = ComposerTextEditor.Coordinator(component)
+    let editor = ComposerNativeTextView()
+    editor.delegate = coordinator; editor.coordinator = coordinator
+    // SwiftUI can update the newly created editor before it has a window.
+    coordinator.requestFocus(in: editor)
+    let window = FocusTestWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 100),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    window.contentView = editor
+    XCTAssertTrue(window.firstResponder === editor, "Mounting must finish focus before the next queued key")
+    let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+      modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+      context: nil, characters: "t", charactersIgnoringModifiers: "t",
+      isARepeat: false, keyCode: 17))
+    window.sendEvent(key)
+    XCTAssertEqual(editor.string, "t")
+    XCTAssertEqual(draft, "t")
+    window.makeFirstResponder(nil)
+    coordinator.requestFocus(in: editor)
+    XCTAssertTrue(window.firstResponder === editor, "An already mounted editor must focus synchronously too")
+  }
+
   @MainActor func testSettingsReturnFocusIsReadyBeforeNextNativeKeyAfterEnabling() throws {
     _ = NSApplication.shared
     var draft = "existing "

@@ -159,6 +159,7 @@ struct ComposerTextEditor: NSViewRepresentable {
     var focusRequest: UUID
     var appliedFocus: Bool
     var active = true
+    private var pendingAutomaticFocusRequest: UUID?
     private var pendingReturnFocus: (@MainActor () -> Bool)?
     private var applying = false
     init(_ parent: ComposerTextEditor) {
@@ -182,13 +183,32 @@ struct ComposerTextEditor: NSViewRepresentable {
 
     func requestFocus(in editor: ComposerNativeTextView) {
       let request = focusRequest
+      pendingAutomaticFocusRequest = request
+      if applyAutomaticFocus(in: editor) { return }
       DispatchQueue.main.async { [weak self, weak editor] in
-        guard let self, let editor, self.active, self.parent.isEnabled, self.parent.focusAllowed, self.parent.automaticFocusAllowed,
-          self.focusRequest == request, editor.isEditable,
-          let window = editor.window, window.isKeyWindow, window.attachedSheet == nil,
-          NSApp.modalWindow == nil else { return }
-        window.makeFirstResponder(editor)
+        guard let self, let editor, self.pendingAutomaticFocusRequest == request else { return }
+        _ = self.applyAutomaticFocus(in: editor)
       }
+    }
+
+    func editorMounted(in editor: ComposerNativeTextView) {
+      guard editor.window != nil else { return }
+      if applyPendingReturnFocus(in: editor) { return }
+      if pendingAutomaticFocusRequest != nil { _ = applyAutomaticFocus(in: editor) }
+      else if parent.focused { requestFocus(in: editor) }
+    }
+
+    @discardableResult private func applyAutomaticFocus(in editor: ComposerNativeTextView) -> Bool {
+      guard let request = pendingAutomaticFocusRequest, active, parent.isEnabled,
+        parent.focusAllowed, parent.automaticFocusAllowed, focusRequest == request,
+        editor.isEditable, let window = editor.window, window.isKeyWindow,
+        window.attachedSheet == nil, NSApp.modalWindow == nil,
+        !editor.isHiddenOrHasHiddenAncestor else { return false }
+      // A newly mounted composer must receive the next queued key. Publishing
+      // the binding remains deferred, but acquiring its responder need not be.
+      guard window.makeFirstResponder(editor) else { return false }
+      pendingAutomaticFocusRequest = nil
+      return true
     }
 
     /// A retained workspace is still disabled when settings routing changes.
@@ -431,6 +451,11 @@ final class ComposerNativeTextView: AppearanceTextView {
   weak var coordinator: ComposerTextEditor.Coordinator?
   var placeholder = ""
   override var acceptsFirstResponder: Bool { isEditable && super.acceptsFirstResponder }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    coordinator?.editorMounted(in: self)
+  }
 
   override func becomeFirstResponder() -> Bool {
     let accepted = super.becomeFirstResponder()
