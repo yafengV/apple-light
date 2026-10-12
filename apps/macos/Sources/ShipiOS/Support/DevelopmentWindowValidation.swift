@@ -18,16 +18,28 @@ enum DevelopmentWindowValidation {
     }
   }
 
+  static func targetFrame(current: NSRect, size: NSSize, visibleFrames: [NSRect]) -> NSRect? {
+    let requested = NSRect(x: current.minX, y: current.maxY - size.height,
+      width: size.width, height: size.height)
+    if visibleFrames.contains(where: { $0.contains(requested) }) { return requested }
+    let fitting = visibleFrames.filter { $0.width >= size.width && $0.height >= size.height }
+    let center = NSPoint(x: current.midX, y: current.midY)
+    guard let screen = fitting.first(where: { $0.contains(center) }) ?? fitting.first else { return nil }
+    return NSRect(x: min(max(requested.minX, screen.minX), screen.maxX - size.width),
+      y: min(max(requested.minY, screen.minY), screen.maxY - size.height),
+      width: size.width, height: size.height)
+  }
+
   @MainActor static func prepare(arguments: [String], dataRoot: URL,
     windows: [NSWindow]) throws {
     guard let size = requestedSize(arguments: arguments),
       let window = windows.first(where: { $0.identifier?.rawValue == "main" && $0.isVisible }),
       !window.styleMask.contains(.fullScreen), window.attachedSheet == nil else { return }
-    // Keep the existing top-left position and responder. Do not activate an app,
-    // hide another window, or manufacture foreground evidence.
-    let frame = NSRect(x: window.frame.minX, y: window.frame.maxY - size.height,
-      width: size.width, height: size.height)
-    window.setFrame(frame, display: true)
+    // Only this explicit isolated validation launch may move to a fitting screen.
+    // Preserve the responder and activation; do not manufacture foreground evidence.
+    let visibleFrames = NSScreen.screens.map(\.visibleFrame)
+    let frame = targetFrame(current: window.frame, size: size, visibleFrames: visibleFrames)
+    if let frame { window.setFrame(frame, display: true) }
     let actual = window.frame
     let record: [String: Any] = [
       "requestedWidth": size.width, "requestedHeight": size.height,
@@ -38,6 +50,11 @@ enum DevelopmentWindowValidation {
       "visible": window.isVisible, "key": window.isKeyWindow,
       "active": NSApp.isActive, "pid": ProcessInfo.processInfo.processIdentifier,
       "matchesRequestedFrame": actual.size == size,
+      "targetDisplayAvailable": frame != nil,
+      "fullyVisibleOnOneScreen": visibleFrames.contains(where: { $0.contains(actual) }),
+      "visibleScreenFrames": visibleFrames.map {
+        ["x": $0.minX, "y": $0.minY, "width": $0.width, "height": $0.height]
+      },
     ]
     let data = try JSONSerialization.data(withJSONObject: record, options: [.prettyPrinted, .sortedKeys])
     try data.write(to: dataRoot.appendingPathComponent("validation-window.json"), options: .atomic)
