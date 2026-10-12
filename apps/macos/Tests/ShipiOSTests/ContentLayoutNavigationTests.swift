@@ -55,6 +55,25 @@ import XCTest
         XCTAssertNil(editor(host))
       } else { XCTAssertEqual(current.string, "返回聊天后的草稿") }
     }
+    store.activateWorkspaceTab(tab.id)
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    XCTAssertNil(editor(host))
+    let address = try XCTUnwrap(store.workspace.browser.addressField)
+    XCTAssertTrue(window.makeFirstResponder(address))
+    XCTAssertTrue(store.handleWorkspaceShortcut(ShortcutBinding("⌘1"), in: window))
+    // No yield between navigation and the next native key. A late address
+    // editing notification must not pull the chat back into the browser.
+    let immediate = editor(host)
+    XCTAssertNotNil(immediate)
+    XCTAssertTrue(window.firstResponder === immediate)
+    immediate?.setSelectedRange(.init(location: "返回聊天后的草稿".utf16.count, length: 0))
+    let key = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+      modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+      context: nil, characters: "t", charactersIgnoringModifiers: "t", isARepeat: false, keyCode: 17))
+    window.sendEvent(key)
+    XCTAssertEqual(store.draft, "返回聊天后的草稿t")
+    XCTAssertNil(store.focusedWorkspaceContentTab)
   }
 
   private struct Reference: Decodable {

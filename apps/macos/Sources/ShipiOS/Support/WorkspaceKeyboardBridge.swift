@@ -88,7 +88,15 @@ extension WorkspaceStore {
       !showingBranchPicker, presentedOverlay == nil, !hasSettingsConfirmation,
       shortcutCaptureCount == 0,
       ComposerCommandContext.route(binding, shortcuts: shortcuts, in: window) { return true }
-    return handleWorkspaceShortcut(binding)
+    let handled = handleWorkspaceShortcut(binding)
+    if handled, DesktopCommand.all.contains(where: {
+      DesktopCommand.numberSlot($0.id) != nil && shortcuts.matches($0.id, binding)
+    }) {
+      // The next native key can already be queued behind this shortcut. Finish
+      // mounting the selected content before it reaches the departing field.
+      window?.contentView?.layoutSubtreeIfNeeded()
+    }
+    return handled
   }
 
   func handleWorkspaceShortcut(_ binding: ShortcutBinding) -> Bool {

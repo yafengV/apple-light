@@ -86,6 +86,7 @@ struct BrowserPanel: View {
   private var comments: [BrowserComment] { store.browserComments(taskID: context?.taskID) }
   private func canFocus() -> Bool {
     context?.canFocus() ?? (store.browserVisible && store.presentedOverlay == nil
+      && store.focusedWorkspaceContentTab?.browserID == displayedTab?.id
       && !store.showingModelPicker && !store.showingBranchPicker)
   }
   private var displayedTab: BrowserTab? {

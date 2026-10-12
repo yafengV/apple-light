@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import SwiftUI
 
 /// A temporary surface above embedded WebKit/terminal views while a tab is
@@ -25,6 +26,7 @@ struct ContentTabDropSurface: NSViewRepresentable {
     view.targeted = nil
   }
   final class DropView: NSView {
+    private static let logger = Logger(subsystem: "dev.shipios.desktop", category: "ContentTabDrag")
     var accepts: ((String) -> Bool)?
     var drop: ((String) -> Bool)?
     var targeted: ((Bool) -> Void)?
@@ -42,7 +44,9 @@ struct ContentTabDropSurface: NSViewRepresentable {
       }
       let perform = drop
       targeted?(false)
-      return perform?(token) ?? false
+      let accepted = perform?(token) ?? false
+      Self.logger.info("Native content drop completed: accepted=\(accepted)")
+      return accepted
     }
     private func update(_ sender: NSDraggingInfo) -> NSDragOperation {
       let valid = token(sender) != nil

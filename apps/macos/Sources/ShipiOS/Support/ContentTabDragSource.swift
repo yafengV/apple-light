@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import SwiftUI
 
 /// SwiftUI owns the tab and its drop destinations. AppKit owns the pointer drag
@@ -35,6 +36,7 @@ struct ContentTabDragSource: NSViewRepresentable {
   }
 
   final class SourceView: NSView, NSDraggingSource {
+    private static let logger = Logger(subsystem: "dev.shipios.desktop", category: "ContentTabDrag")
     var title = ""
     var token = ""
     var select: (() -> Void)?
@@ -72,6 +74,7 @@ struct ContentTabDragSource: NSViewRepresentable {
         !token.isEmpty, let sessionID = begin?(), let end else { return }
       pointerDown = nil
       completion = TabDragCompletion(id: sessionID, end: end)
+      Self.logger.info("Native tab drag began")
       let item = NSDraggingItem(pasteboardWriter: token as NSString)
       item.setDraggingFrame(bounds, contents: preview())
       let session = beginDraggingSession(with: [item], event: event, source: self)
@@ -90,6 +93,7 @@ struct ContentTabDragSource: NSViewRepresentable {
       completion = nil
       pointerDown = nil
       finished?.finish()
+      Self.logger.info("Native tab drag ended: operation=\(operation.rawValue)")
     }
     func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
 
