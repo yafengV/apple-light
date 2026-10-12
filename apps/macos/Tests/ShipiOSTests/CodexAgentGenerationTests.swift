@@ -40,6 +40,10 @@ final class CodexAgentGenerationTests: XCTestCase {
             "event":dict(fields, type=kind, turn_id="turn-"+str(generation))}})
     def gap():
         send({"jsonrpc":"2.0", "method":"events.gap", "params":{"source":"codex"}})
+    def publish_marker():
+        staged = root / "late-events-staged"
+        staged.write_text(mode)
+        staged.replace(root / "late-events-sent")
     def retired(task):
         time.sleep(.05)
         event(task, "agent_message_delta", delta="BEFORE_GAP")
@@ -56,9 +60,12 @@ final class CodexAgentGenerationTests: XCTestCase {
                 "source":"plugin", "started_at":1, "completed_at":2,
                 "display_order":0, "entries":[]})
         elif mode == "disconnect":
+            # The protocol reader terminates this producer on the next frame.
+            publish_marker()
             with lock: print("malformed protocol frame", flush=True)
+            return
         else: gap()
-        (root / "late-events-sent").write_text(mode)
+        publish_marker()
     def current(task):
         (root / "second-active").write_text("ready")
         deadline = time.monotonic() + 4
