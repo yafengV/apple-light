@@ -60,6 +60,23 @@ import XCTest
     appearance.dark.translucentSidebar = true; appearance.dark.skill = "#123456"
     XCTAssertEqual(appearance.resolvedColors["textForeground"].hex, "#ffffff")
   }
+  func testPrimaryActionsKeepReadableInkAndCustomAccentPairs() {
+    for dark in [false, true] {
+      var appearance = AppearancePreferences(); appearance.theme = dark ? "dark" : "light"
+      let baseline = appearance.primaryActionColors
+      XCTAssertEqual(baseline.background, dark ? .white : AppearanceRGBA(hex: "#1a1c1f"))
+      XCTAssertEqual(baseline.foreground, dark ? .black : .white)
+      for hex in ["#000000", "#ffffff", "#339cff", "#123456"] {
+        if dark { appearance.dark.accent = hex } else { appearance.light.accent = hex }
+        let colors = appearance.primaryActionColors
+        XCTAssertEqual(colors.background.hex, hex)
+        XCTAssertNotEqual(colors.background, colors.foreground)
+        let high = max(colors.background.luminance, colors.foreground.luminance)
+        let low = min(colors.background.luminance, colors.foreground.luminance)
+        XCTAssertGreaterThan((high + 0.05) / (low + 0.05), 2.5, hex)
+      }
+    }
+  }
   func testReferenceSurfaceAndControlColorsRenderOffscreenInSRGB() throws {
     let cases = try fixture().cases.filter { $0.id == "contrast/45" || $0.id == "contrast/60" || $0.id == "custom/#123456/100" }
     for item in cases {

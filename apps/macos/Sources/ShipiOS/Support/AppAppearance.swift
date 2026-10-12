@@ -36,6 +36,10 @@ extension AppearancePreferences {
   func resolvedColors(dark: Bool) -> AppearanceResolvedColors { .init(theme: themeShare(dark: dark).theme, dark: dark) }
   var resolvedColors: AppearanceResolvedColors { resolvedColors(dark: isDark) }
   var accentColor: Color { resolvedColors["accent"].color }
+  var primaryActionColors: (background: AppearanceRGBA, foreground: AppearanceRGBA) {
+    let background = resolvedColors[accentHex == nil ? "ink" : "accent"]
+    return (background, background.textOnAccent)
+  }
   var backgroundColor: Color { resolvedColors["surface"].color }
   var foregroundColor: Color { resolvedColors["textForeground"].color }
   var selectionOpacity: Double { 0.045 + activePalette.contrast * 0.0011 }

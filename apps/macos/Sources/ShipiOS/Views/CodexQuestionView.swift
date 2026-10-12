@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CodexQuestionView: View {
+  @Environment(\.appAppearance) private var appearance
   @Bindable var store: WorkspaceStore
   let run: AgentRun
   let request: CodexQuestionRequest
@@ -82,13 +83,16 @@ struct CodexQuestionView: View {
             store.cancelCodexQuestion(request.id)
           }
           .help("取消这个问题及其所属回合")
-          Button("提交回答") {
+          Button {
             let submitted = answers
             drafts.removeAll()
             selections.removeAll()
             Task { await store.answerCodexQuestion(request.id, answers: submitted) }
+          } label: {
+            Text("提交回答").foregroundColor(appearance.primaryActionColors.foreground.color)
           }
           .buttonStyle(.borderedProminent)
+          .tint(appearance.primaryActionColors.background.color)
           .disabled(!request.validAnswers(answers))
         }
       }

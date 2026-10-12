@@ -8,6 +8,7 @@ struct MCPToolExecutionView: View {
   @State private var showingRaw = false
   @FocusState private var approveFocused: Bool
   @Environment(\.mcpApprovalSurfaceVisible) private var approvalSurfaceVisible
+  @Environment(\.appAppearance) private var appearance
   private var approvalContext: MCPApprovalContext? { store.mcpPendingApprovals[execution.id] }
   private var awaiting: Bool {
     run.isActive && execution.status == .awaitingApproval && approvalContext != nil
@@ -65,8 +66,11 @@ struct MCPToolExecutionView: View {
             }
           }
           if approvalContext?.allowsOnce == true {
-            Button("允许本次") { store.resolveMCPApproval(execution.id, decision: .allowOnce) }
+            Button { store.resolveMCPApproval(execution.id, decision: .allowOnce) } label: {
+              Text("允许本次").foregroundColor(appearance.primaryActionColors.foreground.color)
+            }
               .buttonStyle(.borderedProminent)
+              .tint(appearance.primaryActionColors.background.color)
               .focused($approveFocused)
               .help("批准当前请求 " + store.shortcuts.label("approval-approve"))
           }
