@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "verifiedAt": "2026-10-13T20:07:58.413630+08:00",
   "status": "not_accepted",
   "productCommit": "ca427eed3cab1d7ca481d78b23d848651670371a",
@@ -137,19 +137,23 @@
     }
   },
   "reference": {
-    "version": "26.930.51102",
-    "build": "13100",
     "pageGroups": 20,
     "fixtureCount": 15,
     "fixtureHashesUnchanged": true,
-    "missingRawHashes": [
+    "officialLivePagesRead": 0,
+    "limitation": "official application read previously refused for safety reasons; no bypass or retry",
+    "fixtureVersion": "26.930.51102",
+    "fixtureBuild": "13100",
+    "legacyMissingRawHashes": [
       "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
       "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
       "db5f01832c7d9c730407f6f4e4cdd699dd584393c206439fe12890d265dd3c4b",
       "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab"
     ],
-    "officialLivePagesRead": 0,
-    "limitation": "official application read previously refused for safety reasons; no bypass or retry"
+    "visualVersion": "26.1007.30912",
+    "visualBuild": "20156",
+    "visualReferenceUserDecision": "approved current installed version on 2026-10-13",
+    "manualVisualPagesVerified": 0
   },
   "evidence": {
     ".cache/delivery/t11-final/post-fixture-completed-validation.json": "2eb5acef94de835dbaafe9dafc7fba1de7b4c3496ff0ca70268acff80db36dd5",
@@ -168,8 +172,9 @@
       "A30"
     ],
     "A09": "NotificationCenter read timeoutReached; no OS notification click verified",
-    "A30": "frozen reference sources and full page evidence incomplete"
+    "A30": "Approved current visual baseline; manual core-page evidence still pending; old fixture contracts retained"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
-  "runtimeAfterAudit": "original user instance restored through standard build and actual composer focus verified; no API call"
+  "runtimeAfterAudit": "original user instance restored through standard build and actual composer focus verified; no API call",
+  "referenceAmendedAt": "2026-10-13T21:37:08.611730+08:00"
 }
