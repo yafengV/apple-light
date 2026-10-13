@@ -153,7 +153,17 @@
     "visualVersion": "26.1007.30912",
     "visualBuild": "20156",
     "visualReferenceUserDecision": "approved current installed version on 2026-10-13",
-    "manualVisualPagesVerified": 0
+    "manualVisualPagesVerified": 0,
+    "accessReview": {
+      "reviewedAt": "2026-10-13T22:51:35.110479+08:00",
+      "applicationAllowAPIExposed": false,
+      "controlShipiOSReadSucceeded": true,
+      "officialDeniedTargetRetried": false,
+      "rootCauseEstablished": false,
+      "intake": "docs/delivery/v0.1-reference-intake.md",
+      "intakePageGroups": 20,
+      "actualNewVisualPagesVerified": 0
+    }
   },
   "evidence": {
     ".cache/delivery/t11-final/post-fixture-completed-validation.json": "2eb5acef94de835dbaafe9dafc7fba1de7b4c3496ff0ca70268acff80db36dd5",
@@ -163,7 +173,8 @@
     ".cache/delivery/t03-real-service/real-lifecycle-validation.json": "d9b5f000783746f34ac959c6aeeb5b9dae8e01022e312fff5ac9462b65801f5f",
     ".cache/delivery/t27-notifications/a09-latest/validation.json": "1d3892573ac6602ac1af41004bed4de121867ddc8036950f1e9a73a211990d91",
     ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb",
-    ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "fab23dc3018df70052def843588af31a703b4312a5e7963d419b880fb86123a8"
+    ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "fab23dc3018df70052def843588af31a703b4312a5e7963d419b880fb86123a8",
+    ".cache/delivery/t11-final/a30-access-review/validation.json": "0405277c2f2a433624f4515d3510121614d888e82072cad1b46f58da9d299129"
   },
   "deliveryGate": {
     "ready": false,
@@ -172,7 +183,7 @@
       "A30"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Approved current visual baseline; manual core-page evidence still pending; old fixture contracts retained"
+    "A30": "Current visual baseline unchanged; no exposed API to allow denied native target; manual evidence required using fixed 20-group intake"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
   "runtimeAfterAudit": "Original user instance restored through standard build and actual composer focus verified; seven protected fields, nine runs and model unchanged; no API call",
