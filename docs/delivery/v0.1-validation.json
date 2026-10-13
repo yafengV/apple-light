@@ -162,7 +162,8 @@
     ".cache/delivery/t03-real-service/real-counter-validation.json": "d0a7ab6dab45a93e359679c23823a09e307ebeb09e370512c0ad1d07ebd616b2",
     ".cache/delivery/t03-real-service/real-lifecycle-validation.json": "d9b5f000783746f34ac959c6aeeb5b9dae8e01022e312fff5ac9462b65801f5f",
     ".cache/delivery/t27-notifications/a09-latest/validation.json": "1d3892573ac6602ac1af41004bed4de121867ddc8036950f1e9a73a211990d91",
-    ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb"
+    ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb",
+    ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "c17c90f03a756955dbe4313af6933856bd50a6cfc51acfcfe833ce73a18c0172"
   },
   "deliveryGate": {
     "ready": false,
@@ -171,10 +172,22 @@
       "A09",
       "A30"
     ],
-    "A09": "NotificationCenter read timeoutReached; no OS notification click verified",
+    "A09": "Original background policy visible/clicked and correct route/draft verified on temporary diagnostic build; instrumentation withdrawn, clean candidate click and user-instance restore pending",
     "A30": "Approved current visual baseline; manual core-page evidence still pending; old fixture contracts retained"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
-  "runtimeAfterAudit": "original user instance restored through standard build and actual composer focus verified; no API call",
-  "referenceAmendedAt": "2026-10-13T21:37:08.611730+08:00"
+  "runtimeAfterAudit": "Notification diagnostic instance retained pending final clean-candidate click; original user protected fields/model/nine runs unchanged",
+  "referenceAmendedAt": "2026-10-13T21:37:08.611730+08:00",
+  "notificationDiagnosis": {
+    "instrumentationWithdrawn": true,
+    "sourceInputCount": 2477,
+    "changedInputs": [],
+    "foregroundFilteredCase": true,
+    "backgroundHumanClickVerified": true,
+    "cleanCandidateClickVerified": false,
+    "earlierMissingCauseResolved": false,
+    "systemReminderStyleRestored": "temporary",
+    "ownedServerStopped": true,
+    "ownedLogStreamStopped": true
+  }
 }
