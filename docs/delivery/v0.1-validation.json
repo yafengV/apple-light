@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "verifiedAt": "2026-10-13T20:07:58.413630+08:00",
+  "verifiedAt": "2026-10-13T22:42:21.260065+08:00",
   "status": "not_accepted",
   "productCommit": "ca427eed3cab1d7ca481d78b23d848651670371a",
   "testCommit": "eabb236e71b4883527e163e2c7c423cc3f96d88b",
@@ -17,6 +17,7 @@
       "A06",
       "A07",
       "A08",
+      "A09",
       "A10",
       "A11",
       "A12",
@@ -40,11 +41,10 @@
       "A31"
     ],
     "pending": [
-      "A09",
       "A30",
       "A32"
     ],
-    "passedCount": 29,
+    "passedCount": 30,
     "total": 32
   },
   "checks": {
@@ -85,15 +85,15 @@
   "artifacts": {
     "app": {
       "path": "dist/ShipiOS.app/Contents/MacOS/ShipiOS",
-      "sha256": "e19f61dd3978ca7f13f0347580cc1de702513a937942838c25501e0ded164620"
+      "sha256": "48eb9b80b4be884c1dda7604c27929012e265ed6179bb0b89309b6665ff8c88d"
     },
     "agent": {
       "path": "dist/ShipiOS.app/Contents/Helpers/shipios-agent",
-      "sha256": "8690d1ada7bbb87f3313744f9d311c18d7447c6ef5a2295047492d0beeb25bf2"
+      "sha256": "908b5351a41e22ec6ca314c28d44b21b5984daa56733c8b70be96e7d23710341"
     },
     "buildLog": {
-      "path": ".cache/delivery/t11-final/delivery-user-restore-build.log",
-      "sha256": "84cec3b9af3cd4ea2e994a1e6441eda807e7ae9970f00831dfe4657543a6a987"
+      "path": ".cache/delivery/t27-notifications/a09-diagnosis/final-user-restore-build.log",
+      "sha256": "a726bd16916ec320eb37a3c9e3ef030acef7150fbca7aee2d8cdfff2b8174d60"
     },
     "signatureScope": "local Apple Development build; no notarization or distribution claim"
   },
@@ -163,20 +163,19 @@
     ".cache/delivery/t03-real-service/real-lifecycle-validation.json": "d9b5f000783746f34ac959c6aeeb5b9dae8e01022e312fff5ac9462b65801f5f",
     ".cache/delivery/t27-notifications/a09-latest/validation.json": "1d3892573ac6602ac1af41004bed4de121867ddc8036950f1e9a73a211990d91",
     ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb",
-    ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "c17c90f03a756955dbe4313af6933856bd50a6cfc51acfcfe833ce73a18c0172"
+    ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "fab23dc3018df70052def843588af31a703b4312a5e7963d419b880fb86123a8"
   },
   "deliveryGate": {
     "ready": false,
-    "A32DocumentAudit": "passed; acceptance still pending A09 and A30",
+    "A32DocumentAudit": "passed; acceptance still pending A30",
     "blockingPrerequisites": [
-      "A09",
       "A30"
     ],
-    "A09": "Original background policy visible/clicked and correct route/draft verified on temporary diagnostic build; instrumentation withdrawn, clean candidate click and user-instance restore pending",
+    "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
     "A30": "Approved current visual baseline; manual core-page evidence still pending; old fixture contracts retained"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
-  "runtimeAfterAudit": "Notification diagnostic instance retained pending final clean-candidate click; original user protected fields/model/nine runs unchanged",
+  "runtimeAfterAudit": "Original user instance restored through standard build and actual composer focus verified; seven protected fields, nine runs and model unchanged; no API call",
   "referenceAmendedAt": "2026-10-13T21:37:08.611730+08:00",
   "notificationDiagnosis": {
     "instrumentationWithdrawn": true,
@@ -184,10 +183,12 @@
     "changedInputs": [],
     "foregroundFilteredCase": true,
     "backgroundHumanClickVerified": true,
-    "cleanCandidateClickVerified": false,
+    "cleanCandidateClickVerified": true,
     "earlierMissingCauseResolved": false,
     "systemReminderStyleRestored": "temporary",
     "ownedServerStopped": true,
-    "ownedLogStreamStopped": true
+    "ownedLogStreamStopped": true,
+    "originalUserInstanceRestored": true,
+    "actualComposerFocusVerified": true
   }
 }
