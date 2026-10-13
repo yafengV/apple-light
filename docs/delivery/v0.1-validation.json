@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-10-13T20:07:58.413630+08:00",
+  "status": "not_accepted",
+  "productCommit": "ca427eed3cab1d7ca481d78b23d848651670371a",
+  "testCommit": "eabb236e71b4883527e163e2c7c423cc3f96d88b",
+  "sourceInputCount": 2477,
+  "changedInputs": [],
+  "scope": "v0.1 fixed 32 acceptance items and 20 core UI reference groups",
+  "acceptance": {
+    "passed": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08",
+      "A10",
+      "A11",
+      "A12",
+      "A13",
+      "A14",
+      "A15",
+      "A16",
+      "A17",
+      "A18",
+      "A19",
+      "A20",
+      "A21",
+      "A22",
+      "A23",
+      "A24",
+      "A25",
+      "A26",
+      "A27",
+      "A28",
+      "A29",
+      "A31"
+    ],
+    "pending": [
+      "A09",
+      "A30",
+      "A32"
+    ],
+    "passedCount": 29,
+    "total": 32
+  },
+  "checks": {
+    "fullStandardExitCode": 0,
+    "rust": {
+      "passed": 198,
+      "failed": 0,
+      "ignored": 0
+    },
+    "swift": {
+      "executed": 3610,
+      "passed": 3586,
+      "skipped": 24,
+      "failed": 0,
+      "seconds": 5166.072,
+      "wallSeconds": 5166.601
+    },
+    "foreground": {
+      "executed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "changedInputs": []
+    },
+    "cliSkips": {
+      "requiredForegroundVerified": 22,
+      "predeclaredOptionalVoiceFixtures": 2
+    },
+    "IPC": "passed",
+    "pythonCounter": {
+      "executed": 6,
+      "failed": 0
+    },
+    "coreEmbed": "passed on same source inputs",
+    "coreRPC": "passed on same source inputs",
+    "strictDeepSignature": "passed",
+    "userStateProtection": "seven fields, model file and nine runs unchanged"
+  },
+  "artifacts": {
+    "app": {
+      "path": "dist/ShipiOS.app/Contents/MacOS/ShipiOS",
+      "sha256": "e19f61dd3978ca7f13f0347580cc1de702513a937942838c25501e0ded164620"
+    },
+    "agent": {
+      "path": "dist/ShipiOS.app/Contents/Helpers/shipios-agent",
+      "sha256": "8690d1ada7bbb87f3313744f9d311c18d7447c6ef5a2295047492d0beeb25bf2"
+    },
+    "buildLog": {
+      "path": ".cache/delivery/t11-final/delivery-user-restore-build.log",
+      "sha256": "84cec3b9af3cd4ea2e994a1e6441eda807e7ae9970f00831dfe4657543a6a987"
+    },
+    "signatureScope": "local Apple Development build; no notarization or distribution claim"
+  },
+  "realCounter": {
+    "model": "MiniMax-M3.1-Flash-Preview",
+    "protocol": "codexResponses",
+    "modelCandidate": "6cfba100",
+    "baselineCommit": "3d9d958ccf8fbef874dcad5d5233297dac05f5a1",
+    "finalCommit": "9dcebb07262eb0a6c5f551834e585cf9123a682e",
+    "finalTree": "2c01ae46689ffb57701020024d037435d57f8f4f",
+    "clean": true,
+    "diff": {
+      "file": "HelloShipiOSApp.swift",
+      "addedLines": 10,
+      "deletedLines": 0,
+      "behavior": "state counter, displayed value and increment/reset buttons with fixed accessibility IDs"
+    },
+    "fixedUITest": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "automaticRepairs": 0,
+    "sourceHashes": {
+      "HelloShipiOSApp.swift": "3648e540623d34814a675fdff0ac0d6e35d2e5a53b953fd62dc4b5a601f167e6",
+      "HelloShipiOS.xcodeproj/project.pbxproj": "73c7eb9d3fe45b35435c3a0f2454f28556829a49e383f6df90b12b626c7308d3",
+      "HelloShipiOS.xcodeproj/xcshareddata/xcschemes/HelloShipiOS.xcscheme": "5388f996284bf4bb861189eec8f331031a967f6f87fd0d6492eba20c259eda4e",
+      "HelloShipiOSUITests.swift": "582351b393c85c83f0c92942cdbaad333b2a01cee3d14c7d3e5e734740bc6da2",
+      "README.md": "15c2c3197cbe8a54cf3820f051cc973f4cf4b03714f698fee6b29b596b59f7e6"
+    },
+    "desktopReportSHA256": "7d5eab7e92a519bf6c3a716cb924c541c56a3caa44e2e988d76d94ec7c80a33c",
+    "backendReportSHA256": "45d679a3cc00a9fc524a77460848fae1aa6e280bb93e57093f04bd38319ff4b6",
+    "desktopReportMatchesRecordedSHA": true,
+    "desktopVerificationPayloadMatchesBackend": true,
+    "environment": {
+      "device": "iPhone 16 Pro",
+      "iOS": "26.2",
+      "macOS": "27.0.1",
+      "Xcode": "27.0 (27A266a)"
+    }
+  },
+  "reference": {
+    "version": "26.930.51102",
+    "build": "13100",
+    "pageGroups": 20,
+    "fixtureCount": 15,
+    "fixtureHashesUnchanged": true,
+    "missingRawHashes": [
+      "22f3ea455585cfc0508e3d3627eac161c80c849c0aace3d76d09fdebaa0aeca3",
+      "91ef510e7631785df4c62c25f3b9018a0ca3c15ce3fa1b208f3cf8394abdf535",
+      "db5f01832c7d9c730407f6f4e4cdd699dd584393c206439fe12890d265dd3c4b",
+      "eb2500c5398279d4fbf5c71d7ce982d54631660907761740199f6c22591d71ab"
+    ],
+    "officialLivePagesRead": 0,
+    "limitation": "official application read previously refused for safety reasons; no bypass or retry"
+  },
+  "evidence": {
+    ".cache/delivery/t11-final/post-fixture-completed-validation.json": "2eb5acef94de835dbaafe9dafc7fba1de7b4c3496ff0ca70268acff80db36dd5",
+    ".cache/delivery/t11-final/foreground-latest/manifest.json": "8345eb8705067703974006334e71d0a574c43c7f4bd43a37656df4c935cc1364",
+    ".cache/delivery/t11-final/a01-latest-validation.json": "68e689e839d40b3cb73a1a47d9e33f0133e4cdd10c8a32cd2ba1d6959c46966b",
+    ".cache/delivery/t03-real-service/real-counter-validation.json": "d0a7ab6dab45a93e359679c23823a09e307ebeb09e370512c0ad1d07ebd616b2",
+    ".cache/delivery/t03-real-service/real-lifecycle-validation.json": "d9b5f000783746f34ac959c6aeeb5b9dae8e01022e312fff5ac9462b65801f5f",
+    ".cache/delivery/t27-notifications/a09-latest/validation.json": "1d3892573ac6602ac1af41004bed4de121867ddc8036950f1e9a73a211990d91",
+    ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb"
+  },
+  "deliveryGate": {
+    "ready": false,
+    "A32DocumentAudit": "passed; acceptance still pending A09 and A30",
+    "blockingPrerequisites": [
+      "A09",
+      "A30"
+    ],
+    "A09": "NotificationCenter read timeoutReached; no OS notification click verified",
+    "A30": "frozen reference sources and full page evidence incomplete"
+  },
+  "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
+  "runtimeAfterAudit": "original user instance restored through standard build and actual composer focus verified; no API call"
+}
