@@ -6,6 +6,7 @@ Click “开始验收” in the launched window; do not operate other windows du
 This does not replace launching the product with script/build_and_run.sh.
 """
 import argparse
+from datetime import datetime
 import hashlib
 import json
 import os
@@ -50,6 +51,28 @@ def main():
     resources = sorted(build.glob('*.bundle'))
     inputs += [p for bundle in resources for p in bundle.rglob('*') if p.is_file()]
     before = fingerprints(inputs)
+    test_binary = test / 'Contents/MacOS/ShipiOSPackageTests'
+    if not test_binary.is_file():
+        parser.error('Expected the compiled ShipiOSPackageTests executable.')
+    source_files = [p for p in inputs if p.suffix == '.swift'
+                    and p.is_relative_to(root / 'apps/macos')]
+    newer_sources = [str(p.relative_to(root)) for p in source_files
+                     if p.stat().st_mtime_ns > test_binary.stat().st_mtime_ns]
+    if newer_sources:
+        parser.error('Sources changed after the test executable was built; rebuild tests first: '
+                     + ', '.join(newer_sources))
+    source_digest = hashlib.sha256(json.dumps({str(p.relative_to(root)): before[str(p)]
+                                             for p in source_files}, sort_keys=True).encode()).hexdigest()
+    revision = subprocess.check_output(['git', 'rev-parse', '--short=12', 'HEAD'], cwd=root, text=True).strip()
+    dirty = bool(subprocess.check_output(['git', 'status', '--porcelain', '--',
+                                         'apps/macos/Sources', 'apps/macos/Tests'], cwd=root, text=True).strip())
+    provenance = {'revision': revision, 'workingTreeChanges': dirty, 'sourceSHA256': source_digest,
+                  'testBinarySHA256': before[str(test_binary)],
+                  'testBuiltAt': datetime.fromtimestamp(test_binary.stat().st_mtime).astimezone().isoformat()}
+    (output / 'build-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
+    version_label = ('独立测试宿主 · 临时测试数据\n工作区 ' + revision
+                     + (' + 未提交改动' if dirty else '') + ' · 源码 ' + source_digest[:12]
+                     + '\n测试包 ' + before[str(test_binary)][:12] + ' · 构建 ' + provenance['testBuiltAt'])
     with temporary_runtime(output) as runtime:
         app = runtime / 'ShipiOSForegroundTests.app'
         binary = app / 'Contents/MacOS/ShipiOSForegroundTests'
@@ -93,6 +116,7 @@ def main():
         print(json.dumps(descriptor), flush=True)
         environment = {k: os.environ[k] for k in ('PATH', 'HOME', 'TMPDIR') if k in os.environ}
         command = ['/usr/bin/open', '-n', '-W', '--env', 'SHIPIOS_TEST_FOREGROUND_ALLOWED=1',
+                   '--env', 'SHIPIOS_TEST_BUILD_LABEL=' + version_label,
                    '--env', 'SHIPIOS_TEST_AGENT=' + str(copied_agent), '--stdout', str(log),
                    '--stderr', str(log), str(app), '--args', str(copied_test), str(result), *selected]
         timed_out = False
@@ -121,6 +145,7 @@ def main():
                   and state.get('failures') == 0 and state.get('unexpected') == 0
                   and state.get('skipped') == 0 and state.get('succeeded') is True)
         manifest = {'exitCode': exit_code, 'timedOut': timed_out, 'passed': passed,
+                    'buildProvenance': provenance,
                     'result': state, 'changedInputs': changed, 'sha256': before,
                     'runtime': descriptor, 'selectedMethods': selected, 'fullSuite': not bool(args.method), 'scope': ('Focused existing methods' if args.method else 'Twenty-two selected XCTest methods: nine native-window methods and thirteen voice keyboard components; not all R1–R8.')}
         (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')

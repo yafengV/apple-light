@@ -43,10 +43,15 @@ final class Delegate: NSObject, NSApplicationDelegate {
   selected = requested.isEmpty ? available : requested
  }
  func applicationDidFinishLaunching(_ notification: Notification) {
-  let window = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 460,height: 180),styleMask: [.titled,.closable],backing: .buffered,defer: false)
+  let window = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 680,height: 220),styleMask: [.titled,.closable],backing: .buffered,defer: false)
   window.title = "ShipiOS 原生交互验收"
+  let version = NSTextField(wrappingLabelWithString: ProcessInfo.processInfo.environment["SHIPIOS_TEST_BUILD_LABEL"] ?? "构建来源未提供")
+  version.frame = NSRect(x: 24,y: 110,width: 632,height: 85)
+  version.font = .systemFont(ofSize: 12)
+  version.textColor = .secondaryLabelColor
+  window.contentView?.addSubview(version)
   let button = NSButton(title: "开始验收",target: self,action: #selector(startTests))
-  button.frame = NSRect(x: 130,y: 65,width: 200,height: 40)
+  button.frame = NSRect(x: 240,y: 45,width: 200,height: 40)
   window.contentView?.addSubview(button)
   launcher = window
   window.center(); window.makeKeyAndOrderFront(nil)
