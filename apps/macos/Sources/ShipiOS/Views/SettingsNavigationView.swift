@@ -30,7 +30,7 @@ struct SettingsNavigationView: View {
         Button { returnToApp() } label: {
           HStack(spacing: 8) {
             Image(systemName: "arrow.left").frame(width: 16)
-            Text(store.showingOpenSourceLicenses ? "返回通用" : "设置")
+            Text(store.showingOpenSourceLicenses ? "返回常规" : "设置")
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.vertical, 8).contentShape(Rectangle())
@@ -60,7 +60,7 @@ struct SettingsNavigationView: View {
           return .ignored
         }
         .help("返回之前的页面（Esc）")
-        .accessibilityLabel(store.showingOpenSourceLicenses ? "返回通用" : "返回应用")
+        .accessibilityLabel(store.showingOpenSourceLicenses ? "返回常规" : "返回应用")
 
         SettingsSearchInput(query: $query, focusRequest: store.settingsSearchFocusRequest,
           visible: store.destination == .settings, onMove: moveSearchHighlight,
@@ -84,7 +84,15 @@ struct SettingsNavigationView: View {
               else if let resultID { focusedResultID = resultID }
               else { focusedPage = SettingsNavigation.pages.first }
             }
-          }, onCancelEmpty: { store.closeSettings() })
+          }, onCancelEmpty: { store.closeSettings() }, onBeginEditing: {
+            // Native search editing supersedes a retained SwiftUI page/result
+            // focus, including when AppKit focuses the field without Find.
+            let relinquishingFocus = focusedPage != nil || focusedResultID != nil || returnFocused
+            focusedPage = nil
+            focusedResultID = nil
+            returnFocused = false
+            return relinquishingFocus
+          })
           .frame(height: 28).padding(.bottom, 8)
       }.focusSection()
 

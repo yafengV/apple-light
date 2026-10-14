@@ -15,6 +15,7 @@ struct SettingsSearchInput: NSViewRepresentable {
   typealias TabHandoff = () -> Void
   var onTab: ((Bool) -> TabHandoff?)? = nil
   var onCancelEmpty: (() -> Void)? = nil
+  var onBeginEditing: (() -> Bool)? = nil
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> NSSearchField {
@@ -73,6 +74,18 @@ struct SettingsSearchInput: NSViewRepresentable {
     func controlTextDidChange(_ notification: Notification) {
       guard let field = notification.object as? NSSearchField else { return }
       searchChanged(field)
+    }
+    func controlTextDidBeginEditing(_ notification: Notification) {
+      guard let field = notification.object as? NSSearchField,
+        active, parent.visible, parent.isEnabled, field.isEnabled,
+        WindowModalInteraction.allows(field) else { return }
+      guard parent.onBeginEditing?() == true else { return }
+      // Commit the relinquished SwiftUI button focus before returning to
+      // AppKit. Otherwise its pending update can evict this new field editor.
+      field.window?.contentView?.layoutSubtreeIfNeeded()
+      if active, parent.visible, parent.isEnabled, WindowModalInteraction.allows(field) {
+        field.window?.makeFirstResponder(field)
+      }
     }
     func control(_ control: NSControl, textView: NSTextView,
       doCommandBy commandSelector: Selector) -> Bool {

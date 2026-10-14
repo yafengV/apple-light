@@ -21,7 +21,7 @@ import AppKit
       selected = supported
     }
     guard available(selected) else {
-      throw AgentFailure(message: "未检测到 \(selected.title)。请在设置 → 通用中选择已安装的编辑器。")
+      throw AgentFailure(message: "未检测到 \(selected.title)。请在设置 → 常规中选择已安装的编辑器。")
     }
     switch try EditorOpenRequest.make(editor: selected, file: file, line: line) {
     case .file(let file):

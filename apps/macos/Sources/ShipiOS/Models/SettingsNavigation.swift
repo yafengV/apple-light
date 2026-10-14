@@ -34,9 +34,13 @@ enum SettingsNavigation {
     let terms = query.split(whereSeparator: \.isWhitespace).map(String.init)
     guard !terms.isEmpty else { return pages }
     return pages.filter { page in
-      let document = ([page.title, page.rawValue] + keywords(for: page)).joined(separator: " ")
+      let document = ([page.title, page.rawValue] + searchAliases(for: page) + keywords(for: page)).joined(separator: " ")
       return terms.allSatisfy { document.localizedStandardContains($0) }
     }
+  }
+
+  static func searchAliases(for page: SettingsPage) -> [String] {
+    page == .general ? ["通用"] : []
   }
 
   static func adjacent(to page: SettingsPage?, offset: Int, in pages: [SettingsPage]) -> SettingsPage? {

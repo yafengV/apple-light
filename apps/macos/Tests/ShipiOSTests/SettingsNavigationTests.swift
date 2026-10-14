@@ -213,6 +213,11 @@ final class SettingsNavigationTests: XCTestCase {
   }
 
   func testSearchReturnsSpecificControlsWithStablePageOwnership() {
+    XCTAssertEqual(SettingsPage.general.title, "常规")
+    XCTAssertEqual(SettingsPage.shortcuts.title, "键盘快捷键")
+    for title in ["常规", "通用"] {
+      XCTAssertEqual(SettingsSearch.results(for: title + " 菜单栏").map(\.field), [.menuBar])
+    }
     XCTAssertEqual(SettingsSearch.results(for: "菜单栏").map(\.field), [.menuBar])
     XCTAssertEqual(SettingsSearch.results(for: "默认使用独立聊天").map(\.field), [.popoutScope])
     XCTAssertEqual(SettingsSearch.results(for: "弹出窗口快捷键").map(\.field), [.popoutHotkey])

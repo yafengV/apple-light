@@ -571,13 +571,14 @@ enum SettingsSearch {
       terms.allSatisfy { document.localizedStandardContains($0) }
     }
     return SettingsNavigation.pages.flatMap { page -> [SettingsSearchResult] in
+      let pageNames = ([page.title, page.rawValue] + SettingsNavigation.searchAliases(for: page)).joined(separator: " ")
       let fields = SettingsSearchField.allCases.filter {
         $0.page == page && ![SettingsSearchField.uiFont, .codeFont, .importTheme, .exportTheme].contains($0)
           && (!$0.requiresProject || hasProject)
           && ($0.pluginSection.map { pluginSections.contains($0) } ?? true)
           && ($0 != .agentNetwork || agentSandboxMode == .workspaceWrite)
           && ($0.appearanceVariant.map { AppearancePagePresentation.effectiveVariant(theme: appearanceTheme, systemDark: systemDark) == $0 } ?? true)
-          && matches([page.title, $0.title, $0.aliases].joined(separator: " "))
+          && matches([pageNames, $0.title, $0.aliases].joined(separator: " "))
       }.map { SettingsSearchResult(page: page, field: $0) }
       let commands = page == .shortcuts ? DesktopCommand.all.filter { command in
         let bindings = shortcutBindings?[command.id] ?? (shortcutBindings == nil ? command.defaultBindings : [])
@@ -585,7 +586,7 @@ enum SettingsSearch {
           bindings.map(\.display).joined(separator: " ")]
           .joined(separator: " "))
       }.map { SettingsSearchResult(page: page, commandID: $0.id) } : []
-      let pageMatches = matches(page.title + " " + page.rawValue)
+      let pageMatches = matches(pageNames)
       // Keep the existing page-keyword search for pages without field anchors.
       let fallback = fields.isEmpty && commands.isEmpty && SettingsNavigation.results(for: query).contains(page)
       return (pageMatches || fallback ? [SettingsSearchResult(page: page)] : []) + fields + commands

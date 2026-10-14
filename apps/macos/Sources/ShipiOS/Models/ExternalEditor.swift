@@ -31,7 +31,7 @@ enum EditorOpenRequest: Equatable {
     switch editor {
     case .system:
       guard line == nil else {
-        throw AgentFailure(message: "此默认应用不支持行定位。请在设置 → 通用中选择 Xcode 或 Visual Studio Code。")
+        throw AgentFailure(message: "此默认应用不支持行定位。请在设置 → 常规中选择 Xcode 或 Visual Studio Code。")
       }
       return .file(file)
     case .xcode:

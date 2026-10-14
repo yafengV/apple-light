@@ -118,6 +118,7 @@ import XCTest
       let editor = try XCTUnwrap(search.currentEditor() as? NSTextView)
       editor.insertText(text, replacementRange: .init(location: 0, length: editor.string.utf16.count))
       try await settle()
+      XCTAssertTrue(window.firstResponder === search.currentEditor(), "Editing a native query must supersede retained result-button focus")
     }
     XCTAssertTrue(window.firstResponder === search.currentEditor())
     let queryEditor = try XCTUnwrap(search.currentEditor() as? NSTextView)
@@ -150,7 +151,7 @@ import XCTest
     store.cancelDiscardSettingsChanges(); try await settle()
 
     try await query("")
-    let general = try XCTUnwrap(element("通用", in: host))
+    let general = try XCTUnwrap(element("常规", in: host))
     XCTAssertEqual(general.accessibilityPerformPress?(), true)
     try await settle()
     XCTAssertEqual(store.pendingSettingsNavigation, .page(.general))
@@ -172,7 +173,7 @@ import XCTest
     try post(53, "\u{1b}"); try await settle()
     XCTAssertTrue(window.firstResponder === search.currentEditor())
     XCTAssertEqual(search.stringValue, "菜单栏")
-    let result = try XCTUnwrap(element("通用：在菜单栏中显示", in: host))
+    let result = try XCTUnwrap(element("常规：在菜单栏中显示", in: host))
     XCTAssertEqual(result.accessibilityPerformPress?(), true)
     try await settle()
     XCTAssertNotNil(store.pendingSettingsNavigation)
@@ -185,16 +186,18 @@ import XCTest
     try post(36, "\r"); try await settle()
     XCTAssertNotEqual(store.settingsSearchRequest?.token, previousReveal, "Confirmed search navigation resumes the result button")
 
-    store.openSettings(.model); try await settle()
-    store.modelSettingsDirty = true
-    try await query("菜单栏")
-    try post(125, "\u{f701}"); try await settle()
-    try post(36, "\r"); try await settle()
-    XCTAssertNotNil(store.pendingSettingsNavigation)
-    try post(48, "\t"); try post(36, "\r"); try await settle()
-    XCTAssertEqual(store.settingsPage, .general)
-    let confirmedEditor = try XCTUnwrap(search.currentEditor(), "Confirmed navigation must own a live native query editor")
-    XCTAssertTrue(window.firstResponder === confirmedEditor, "Confirmed native search navigation resumes the query editor")
+    for attempt in 0..<3 {
+      store.openSettings(.model); try await settle()
+      store.modelSettingsDirty = true
+      try await query("菜单栏")
+      try post(125, "\u{f701}"); try await settle()
+      try post(36, "\r"); try await settle()
+      XCTAssertNotNil(store.pendingSettingsNavigation)
+      try post(48, "\t"); try post(36, "\r"); try await settle()
+      XCTAssertEqual(store.settingsPage, .general)
+      let confirmedEditor = try XCTUnwrap(search.currentEditor(), "Confirmed navigation must own a live native query editor, attempt \(attempt)")
+      XCTAssertTrue(window.firstResponder === confirmedEditor, "Confirmed native search navigation resumes the query editor")
+    }
 
     // A dismissed request cannot reclaim focus after another navigation or modal.
     var restored = 0

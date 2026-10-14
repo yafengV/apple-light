@@ -231,7 +231,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
   var id: String { rawValue }
   var title: String {
     switch self {
-    case .general: "通用"
+    case .general: "常规"
     case .profile: "个人资料"
     case .appearance: "外观"
     case .pets: "宠物"
@@ -243,7 +243,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .codeReview: "代码审查"
     case .environments: "环境"
     case .usage: "用量"
-    case .shortcuts: "快捷键"
+    case .shortcuts: "键盘快捷键"
     case .notifications: "通知"
     case .voice: "语音"
     case .browser: "浏览器"
