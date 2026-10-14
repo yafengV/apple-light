@@ -1,12 +1,28 @@
 import Foundation
 
 enum AppearanceFontSize: String, Codable, CaseIterable, Sendable {
-  case ui, code
-  var title: String { self == .ui ? "界面字号" : "代码字号" }
-  var description: String { self == .ui ? "调整 ShipiOS 界面的基础字号。" : "调整聊天和差异中代码的基础字号。" }
+  case ui, content, code
+  var title: String {
+    switch self { case .ui: "界面字号"; case .content: "内容字体大小"; case .code: "代码字号" }
+  }
+  var description: String {
+    switch self {
+    case .ui: "调整 ShipiOS 界面的基础字号。"
+    case .content: "调整页面内容的基础字号。"
+    case .code: "调整聊天和差异中代码的基础字号。"
+    }
+  }
   var range: ClosedRange<Double> { self == .ui ? 11...16 : 8...24 }
-  var defaultValue: Double { self == .ui ? 14 : 12 }
-  func value(in appearance: AppearancePreferences) -> Double { self == .ui ? appearance.uiSize : appearance.codeSize }
+  var defaultValue: Double { self == .code ? 12 : 14 }
+  var searchField: SettingsSearchField {
+    switch self { case .ui: .uiFontSize; case .content: .contentFontSize; case .code: .codeFontSize }
+  }
+  func value(in appearance: AppearancePreferences) -> Double {
+    switch self { case .ui: appearance.uiSize; case .content: appearance.contentSize; case .code: appearance.codeSize }
+  }
+  func setting(_ value: Double, in appearance: inout AppearancePreferences) {
+    switch self { case .ui: appearance.uiSize = value; case .content: appearance.contentSize = value; case .code: appearance.codeSize = value }
+  }
   func normalized(_ value: Double) -> Double { value.isFinite ? min(range.upperBound, max(range.lowerBound, value)) : defaultValue }
   /// HTML number inputs sanitize their value before the reference blur/Enter parser reads it.
   func parsed(_ text: String) -> Double? {

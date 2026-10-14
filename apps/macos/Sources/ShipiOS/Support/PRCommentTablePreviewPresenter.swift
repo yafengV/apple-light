@@ -121,7 +121,7 @@ struct PRCommentTablePreviewPresenter: NSViewRepresentable {
       let key = block.id + "\n" + block.source + "\n" + source + "\n" + revision
       guard key != renderedKey || renderedAppearance != appearance else { needsDisplay = true; return }
       renderedKey = key; renderedAppearance = appearance; generation = UUID(); let id = generation
-      let metrics = PRCommentTableMetrics(appearance: appearance, baseSize: CGFloat(appearance.uiSize),
+      let metrics = PRCommentTableMetrics(appearance: appearance, baseSize: CGFloat(appearance.contentSize),
         tabularDigits: false, preferredLimit: .greatestFiniteMagnitude)
       let plan = metrics.plan(block, width: nil); tableSize = .init(width: plan.width, height: plan.height)
       document.rootView = AnyView(PreviewContent(block: block, source: source, metrics: metrics, width: plan.width) { [weak self] height in

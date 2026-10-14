@@ -11,6 +11,8 @@ struct AppearanceAdvancedSection: View {
       AppearanceSettingsCard {
         AppearanceFontSizeRow(store: store, kind: .ui)
         AppearanceSettingsDivider()
+        AppearanceFontSizeRow(store: store, kind: .content)
+        AppearanceSettingsDivider()
         AppearanceFontSizeRow(store: store, kind: .code)
       }
       AppearanceSettingsCard {

@@ -3,7 +3,7 @@ import Foundation
 extension AppearancePreferences {
   var hasAdvancedChanges: Bool {
     let defaults = Self()
-    if uiSize != defaults.uiSize || codeSize != defaults.codeSize || !codeFont.isEmpty { return true }
+    if uiSize != defaults.uiSize || contentSize != defaults.contentSize || codeSize != defaults.codeSize || !codeFont.isEmpty { return true }
     if reduceMotion != defaults.reduceMotion || diffMarkerStyle != defaults.diffMarkerStyle { return true }
     if usePointerCursors != defaults.usePointerCursors { return true }
     if useFontSmoothing != defaults.useFontSmoothing { return true }
@@ -22,6 +22,7 @@ extension AppearancePreferences {
     let defaults = Self()
     var value = self
     value.uiSize = defaults.uiSize
+    value.contentSize = defaults.contentSize
     value.codeSize = defaults.codeSize
     value.codeFont = defaults.codeFont
     value.reduceMotion = defaults.reduceMotion

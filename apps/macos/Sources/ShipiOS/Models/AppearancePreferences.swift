@@ -78,6 +78,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
   var uiFont = ""
   var codeFont = ""
   var uiSize: Double = AppearanceFontSize.ui.defaultValue
+  var contentSize: Double = AppearanceFontSize.content.defaultValue
   var codeSize: Double = 12
   var accent: String?
   var background: String?
@@ -92,7 +93,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
   var codeThemes = CodeThemePair()
 
   enum CodingKeys: String, CodingKey {
-    case theme, uiFont, codeFont, uiSize, codeSize, accent, background, foreground
+    case theme, uiFont, codeFont, uiSize, contentSize, codeSize, accent, background, foreground
     case light, dark, useFontSmoothing, usePointerCursors, dockIcon, diffMarkerStyle, reduceMotion, codeThemes
   }
 
@@ -104,6 +105,9 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
     uiFont = try values.decodeIfPresent(String.self, forKey: .uiFont) ?? ""
     codeFont = try values.decodeIfPresent(String.self, forKey: .codeFont) ?? ""
     uiSize = try values.decodeIfPresent(Double.self, forKey: .uiSize) ?? AppearanceFontSize.ui.defaultValue
+    // Preserve the old content scale once during migration, then keep it independent.
+    contentSize = try values.decodeIfPresent(Double.self, forKey: .contentSize)
+      ?? AppearanceFontSize.ui.normalized(uiSize)
     codeSize = try values.decodeIfPresent(Double.self, forKey: .codeSize) ?? 12
     accent = try values.decodeIfPresent(String.self, forKey: .accent)
     background = try values.decodeIfPresent(String.self, forKey: .background)
@@ -131,6 +135,7 @@ struct AppearancePreferences: Codable, Equatable, Sendable {
     var value = self
     if !["system", "light", "dark"].contains(theme) { value.theme = "system" }
     value.uiSize = AppearanceFontSize.ui.normalized(uiSize)
+    value.contentSize = AppearanceFontSize.content.normalized(contentSize)
     value.codeSize = AppearanceFontSize.code.normalized(codeSize)
     value.uiFont = String(uiFont.prefix(200))
     value.codeFont = String(codeFont.prefix(200))

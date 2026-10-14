@@ -70,9 +70,16 @@ struct PRCommentTableContent: View {
 
 struct PRCommentTableMetrics {
   let appearance: AppearancePreferences
-  var baseSize: CGFloat = 13
+  let baseSize: CGFloat
   var tabularDigits = true
   var preferredLimit: CGFloat = 480
+  init(appearance: AppearancePreferences, baseSize: CGFloat? = nil,
+    tabularDigits: Bool = true, preferredLimit: CGFloat = 480) {
+    self.appearance = appearance
+    self.baseSize = baseSize ?? appearance.nativeFont(size: 13, content: true).pointSize
+    self.tabularDigits = tabularDigits
+    self.preferredLimit = preferredLimit
+  }
   var font: NSFont {
     let base = appearance.nativeFont(size: baseSize, content: true).withSize(max(CGFloat(appearance.codeSize), baseSize * 0.875))
     guard tabularDigits else { return base }

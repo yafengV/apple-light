@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "verifiedAt": "2026-10-13T22:42:21.260065+08:00",
+  "verifiedAt": "2026-10-14T12:32:19.338411+08:00",
   "status": "not_accepted",
   "productCommit": "ca427eed3cab1d7ca481d78b23d848651670371a",
   "testCommit": "eabb236e71b4883527e163e2c7c423cc3f96d88b",
@@ -175,16 +175,19 @@
     ".cache/delivery/t27-notifications/a09-latest/validation.json": "1d3892573ac6602ac1af41004bed4de121867ddc8036950f1e9a73a211990d91",
     ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb",
     ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "fab23dc3018df70052def843588af31a703b4312a5e7963d419b880fb86123a8",
-    ".cache/delivery/t11-final/a30-access-review/validation.json": "0405277c2f2a433624f4515d3510121614d888e82072cad1b46f58da9d299129"
+    ".cache/delivery/t11-final/a30-access-review/validation.json": "0405277c2f2a433624f4515d3510121614d888e82072cad1b46f58da9d299129",
+    ".cache/delivery/t11-final/content-font-size/validation.json": "19dd6b725a825826c9f7bc8d59cd23c205fb19c560aed132993c500c4127cc3f"
   },
   "deliveryGate": {
     "ready": false,
-    "A32DocumentAudit": "passed; acceptance still pending A30",
+    "A32DocumentAudit": "Historical audit preserved; new candidate final audit pending",
     "blockingPrerequisites": [
-      "A30"
+      "A30",
+      "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Current visual baseline unchanged; no exposed API to allow denied native target; manual evidence required using fixed 20-group intake"
+    "A30": "Three manual reference pages received, remaining fixed groups and differences pending",
+    "A31": "Pending final candidate full standard and foreground suite"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
   "runtimeAfterAudit": "Original user instance restored through standard build and actual composer focus verified; seven protected fields, nine runs and model unchanged; no API call",
@@ -250,26 +253,32 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A30 manual reference batch 1; independent content size requested next",
+    "stage": "A30 manual reference batch 1 and independent content font size verified",
+    "layoutCommit": "03cde547",
     "commit": null,
-    "fullRegression": "pending final source; historical full check not rebound",
+    "inputSHA256": "f1a3214ea2d9505b327b1c89f8dd822a67c30317589c4dc0631432133562ad2a",
+    "sourceInputCount": 2479,
     "manualReferencePagesReceived": 3,
     "fullyAcceptedReferenceGroups": 0,
-    "evidence": "v0.1-reference-batch1.md",
-    "inputSHA256": "a63e378d72ba5028e8a674c192a6f8596ccdd4e63efa2801bf399f5f1a7ae33e",
-    "sourceInputCount": 2478,
-    "associatedFinal": {
-      "executed": 44,
-      "skipped": 2,
-      "failed": 0
-    },
-    "foregroundFocused": {
-      "executed": 2,
+    "fullRegression": "pending final candidate; historical full checks not rebound",
+    "associatedContentMethodsLatestStatus": {
+      "passed": 205,
       "failed": 0,
-      "skipped": 0,
-      "changedInputs": []
+      "skipped": 0
     },
-    "standardBuild": "passed; actual main-window return and composer focus verified",
-    "userProtection": "seven fields, nine runs and model file unchanged"
+    "nativeContentSize": {
+      "searchReveal": true,
+      "committed": {
+        "uiSize": 11,
+        "contentSize": 18.5,
+        "codeSize": 12
+      },
+      "coldNarrowRestored": true,
+      "invalid25Kept18_5": true,
+      "controlledDefaultsRestored": true
+    },
+    "appSHA256": "150bef115ada56f0ad126c9401a2437804e05a1f41b0af14600479ffe7b3b427",
+    "userProtection": "seven fields, nine runs and model unchanged; standard user instance restored with actual focus",
+    "evidence": "v0.1-reference-batch1.md and evidence sections 97/98"
   }
 }

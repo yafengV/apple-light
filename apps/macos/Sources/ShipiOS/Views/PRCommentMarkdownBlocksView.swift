@@ -9,7 +9,7 @@ struct PRCommentMarkdownBlocksView: View {
   var trailing: CGFloat = 0
   var listDepth = 0
   @Environment(\.appAppearance) private var appearance
-  private var metrics: PRCommentMarkdownTypography { .init(font: appearance.nativeFont(size: 13, content: true).withSize(13)) }
+  private var metrics: PRCommentMarkdownTypography { .init(font: appearance.nativeFont(size: 13, content: true)) }
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in

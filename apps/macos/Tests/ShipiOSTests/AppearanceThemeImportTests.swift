@@ -239,7 +239,7 @@ import XCTest
     var controls: [NSControl] = colors.flatMap { [$0.field, $0.swatch] as [NSControl] }
     controls.append(contentsOf: numbers); controls.append(contentsOf: menus); controls.append(contentsOf: radios)
     controls.append(contentsOf: sliders); controls.append(contentsOf: headers)
-    XCTAssertEqual(colors.count, 3); XCTAssertEqual(numbers.count, 2); XCTAssertEqual(radios.count, 3); XCTAssertEqual(sliders.count, 1)
+    XCTAssertEqual(colors.count, 3); XCTAssertEqual(numbers.count, 3); XCTAssertEqual(radios.count, 3); XCTAssertEqual(sliders.count, 1)
     let enabled = controls.map(\.isEnabled), original = store.appearance
     let color = try XCTUnwrap(colors.first), before = try drawnColor(color)
     store.beginAppearanceImport(dark: false)

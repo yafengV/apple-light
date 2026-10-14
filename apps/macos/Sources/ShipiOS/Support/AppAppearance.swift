@@ -63,7 +63,8 @@ extension AppearancePreferences {
   }
   func nativeFont(size: CGFloat, code: Bool = false, content: Bool = false) -> NSFont {
     let role: AppearanceFontRole = code ? .code : content ? .content : .ui
-    let pointSize = code ? CGFloat(codeSize) + size - 12 : (size * CGFloat(uiSize) / 14).rounded()
+    let pointSize = code ? CGFloat(codeSize) + size - 12
+      : (size * CGFloat(content ? contentSize : uiSize) / 14).rounded()
     let families = AppearanceFontFamily.names(fontFamily(role, dark: isDark))
     if let face = fontFace(role, dark: isDark), families.first?.caseInsensitiveCompare(face.family) == .orderedSame,
       let font = NSFont(name: face.postscriptName, size: pointSize),

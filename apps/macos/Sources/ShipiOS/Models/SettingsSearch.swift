@@ -21,7 +21,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     projectlessFolder, popoutHotkey, popoutScope, followUp, menuBar, reviewDelivery, terminalLocation,
     preventSleep, confetti, audioVisualizer, enablePlugins, openSourceLicenses
   case appearanceAdvanced, appearanceSeparateModes
-  case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, codeFont, codeFontSize,
+  case theme, lightPalette, darkPalette, lightCodeTheme, darkCodeTheme, uiFont, uiFontSize, contentFontSize, codeFont, codeFontSize,
     pointer, dockIcon, fontSmoothing, diffMarkers, reduceMotion, importTheme, exportTheme
   case lightUIFontStyle, darkUIFontStyle
   case lightUIFont, darkUIFont, lightContentFont, darkContentFont, lightCodeFont, darkCodeFont, lightThemeShare, darkThemeShare
@@ -157,7 +157,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   }
   var page: SettingsPage {
     switch self {
-    case .lightUIFontStyle, .darkUIFontStyle, .appearanceAdvanced, .appearanceSeparateModes, .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .codeFont, .codeFontSize,
+    case .lightUIFontStyle, .darkUIFontStyle, .appearanceAdvanced, .appearanceSeparateModes, .theme, .lightPalette, .darkPalette, .lightCodeTheme, .darkCodeTheme, .uiFont, .uiFontSize, .contentFontSize, .codeFont, .codeFontSize,
       .pointer, .dockIcon, .fontSmoothing, .diffMarkers, .reduceMotion, .importTheme, .exportTheme,
       .lightUIFont, .darkUIFont, .lightContentFont, .darkContentFont, .lightCodeFont, .darkCodeFont, .lightThemeShare, .darkThemeShare: .appearance
     case .apiURL, .modelID, .voiceModel, .apiKey, .reasoning, .tokenUsage: .model
@@ -391,6 +391,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .lightThemeShare: "浅色主题导入与复制"
     case .darkThemeShare: "深色主题导入与复制"
     case .uiFontSize: "界面字号"
+    case .contentFontSize: "内容字体大小"
     case .codeFont: "代码字体"
     case .codeFontSize: "代码字号"
     case .pointer: "交互控件使用指针光标"

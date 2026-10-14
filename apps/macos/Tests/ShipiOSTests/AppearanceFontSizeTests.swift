@@ -83,7 +83,8 @@ import XCTest
       var appearance = AppearancePreferences(); appearance.uiSize = size; appearance.codeSize = 8.5
       for base: CGFloat in [12, 13, 14, 16, 18, 20, 24, 28, 36, 48, 72] {
         XCTAssertEqual(appearance.nativeFont(size: base).pointSize, floor(base * size / 14 + 0.5))
-        XCTAssertEqual(appearance.nativeFont(size: base, content: true).pointSize, floor(base * size / 14 + 0.5))
+        XCTAssertEqual(appearance.nativeFont(size: base, content: true).pointSize, base,
+          "Content has its own default scale even when the UI scale changes")
       }
       XCTAssertEqual(appearance.nativeFont(size: 12, code: true).pointSize, 8.5)
     }

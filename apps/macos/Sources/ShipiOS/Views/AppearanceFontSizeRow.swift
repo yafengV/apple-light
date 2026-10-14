@@ -10,7 +10,7 @@ struct AppearanceFontSizeRow: View {
           get: { kind.value(in: store.appearance) },
           set: { value in
             var appearance = store.appearance
-            if kind == .ui { appearance.uiSize = value } else { appearance.codeSize = value }
+            kind.setting(value, in: &appearance)
             _ = store.commitAppearance(appearance)
           }))
           .frame(width: 64, height: 28)
@@ -22,6 +22,6 @@ struct AppearanceFontSizeRow: View {
       SettingsControlLabel(title: kind.title, description: kind.description)
     }
     .disabled(!store.libraryLoaded || store.restoringLibrary)
-    .settingsSearchTarget(kind == .ui ? .uiFontSize : .codeFontSize)
+    .settingsSearchTarget(kind.searchField)
   }
 }
