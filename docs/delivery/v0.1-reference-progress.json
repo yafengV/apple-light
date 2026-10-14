@@ -208,5 +208,13 @@
       "pairedAcceptance": "pending",
       "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
     }
-  ]
+  ],
+  "productFollowup": {
+    "commit": "935b74e91e114677c6eb6bde24b30de4abbfd7bc",
+    "evidence": "v0.1-evidence.md section 101",
+    "A23": "passed focused native and formal product checks",
+    "productMatrix": "1000x700 dark/light received-page checks passed",
+    "wideWindow": "pending: visible screen height 742 cannot fully fit 1280x800",
+    "A30": "pending remaining fixed reference groups"
+  }
 }

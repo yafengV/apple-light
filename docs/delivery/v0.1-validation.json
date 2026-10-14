@@ -31,6 +31,7 @@
       "A20",
       "A21",
       "A22",
+      "A23",
       "A24",
       "A25",
       "A26",
@@ -39,12 +40,11 @@
       "A29"
     ],
     "pending": [
-      "A23",
       "A30",
       "A31",
       "A32"
     ],
-    "passedCount": 28,
+    "passedCount": 29,
     "total": 32
   },
   "checks": {
@@ -177,20 +177,22 @@
     ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "fab23dc3018df70052def843588af31a703b4312a5e7963d419b880fb86123a8",
     ".cache/delivery/t11-final/a30-access-review/validation.json": "0405277c2f2a433624f4515d3510121614d888e82072cad1b46f58da9d299129",
     ".cache/delivery/t11-final/content-font-size/validation.json": "19dd6b725a825826c9f7bc8d59cd23c205fb19c560aed132993c500c4127cc3f",
-    ".cache/delivery/t11-final/a30-followup/in-progress.json": "510fce316ddbf5eba16f24792f50fd33b2085456b46d77993868bd6393e34ae8"
+    ".cache/delivery/t11-final/a30-followup/in-progress.json": "510fce316ddbf5eba16f24792f50fd33b2085456b46d77993868bd6393e34ae8",
+    ".cache/delivery/t11-final/a30-followup/verified-stage.json": "2621ea124d2862233b375875d5d67fdd6400a126ec822fe3d540fbe68b343949",
+    ".cache/delivery/t11-final/a30-followup/foreground-product-confirmed/manifest.json": "5539f9d7cd62d669fbe5709aed158eaa766b9827b8851e28298eb4fafaf09b76",
+    ".cache/delivery/t11-final/a30-followup/candidate-verified-inputs.json": "528d5dc1d95ccfd68a435aba73f727c530037303e9b8bf730b1ee84c4c990980"
   },
   "deliveryGate": {
     "ready": false,
     "A32DocumentAudit": "Historical audit preserved; new candidate final audit pending",
     "blockingPrerequisites": [
-      "A23",
       "A30",
       "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Three manual reference pages received, remaining fixed groups and differences pending",
+    "A30": "Three manual references received; remaining fixed groups and current wide viewport pending",
     "A31": "Pending final candidate full standard and foreground suite",
-    "A23": "Reopened: native confirmation-to-search focus failed; latest clean native check not run because Cua reports Mac locked"
+    "A23": "passed: current native search handoff and focused foreground methods plus latest formal product actions"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
   "runtimeAfterAudit": "Original user instance restored through standard build and actual composer focus verified; seven protected fields, nine runs and model unchanged; no API call",
@@ -256,33 +258,56 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A30 manual reference batch 1 and independent content font size verified",
-    "layoutCommit": "03cde547",
-    "commit": "f2f4fd9efaa17010c43a989babe41840937b03f7",
-    "inputSHA256": "f1a3214ea2d9505b327b1c89f8dd822a67c30317589c4dc0631432133562ad2a",
+    "stage": "A23 search focus repair and A30 received-page product checks verified",
+    "commit": "935b74e91e114677c6eb6bde24b30de4abbfd7bc",
     "sourceInputCount": 2479,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-followup/candidate-verified-inputs.json",
+    "sourceFingerprintSHA256": "528d5dc1d95ccfd68a435aba73f727c530037303e9b8bf730b1ee84c4c990980",
     "manualReferencePagesReceived": 3,
     "fullyAcceptedReferenceGroups": 0,
-    "fullRegression": "pending final candidate; historical full checks not rebound",
-    "associatedContentMethodsLatestStatus": {
-      "passed": 205,
+    "fullRegression": "pending final A30 candidate; historical full checks not rebound",
+    "associated": {
+      "executed": 50,
       "failed": 0,
-      "skipped": 0
+      "skipped": 3,
+      "log": ".cache/delivery/t11-final/a30-followup/native-search-focus-commit-tests.log"
     },
-    "nativeContentSize": {
-      "searchReveal": true,
-      "committed": {
-        "uiSize": 11,
-        "contentSize": 18.5,
-        "codeSize": 12
-      },
-      "coldNarrowRestored": true,
-      "invalid25Kept18_5": true,
-      "controlledDefaultsRestored": true
+    "nativeFocus": {
+      "executed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "changedInputs": [],
+      "confirmationAttemptsInsideExistingMethod": 3
     },
-    "appSHA256": "150bef115ada56f0ad126c9401a2437804e05a1f41b0af14600479ffe7b3b427",
-    "userProtection": "seven fields, nine runs and model unchanged; standard user instance restored with actual focus",
-    "evidence": "v0.1-reference-batch1.md and evidence sections 97/98"
+    "formalProductActions": [
+      "native query -> discard confirmation -> query continues without click",
+      "result button -> cancellation -> Return reopens confirmation",
+      "result button -> confirmed navigation -> Return preserves result navigation",
+      "result button -> native query -> confirmed navigation -> query resumes",
+      "legacy 通用 search resolves current 常规 field",
+      "content font search reveals appearance advanced section",
+      "same main window retains draft and immediate subsequent input",
+      "controlled 1000x700 cold restore retains draft and editable composer"
+    ],
+    "productMatrix": {
+      "size": [
+        1000,
+        700
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "pages": [
+        "new task",
+        "general",
+        "appearance advanced"
+      ],
+      "wide": "pending, visible height 742 cannot fit requested 1280x800"
+    },
+    "appSHA256": "facb5def83911caecb287706295bad016f351cbfdc87cd9bb1c81cec453de3d0",
+    "userProtection": "seven fields, nine runs and model unchanged; latest standard user instance restored with actual composer focus",
+    "evidence": "v0.1-evidence.md section 101 and .cache/delivery/t11-final/a30-followup/verified-stage.json"
   },
   "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
   "priorAcceptedCandidate": {
@@ -325,7 +350,36 @@
     "passedCount": 29,
     "total": 32
   },
-  "inProgressCandidate": {
+  "previousProductCandidate": {
+    "stage": "A30 manual reference batch 1 and independent content font size verified",
+    "layoutCommit": "03cde547",
+    "commit": "f2f4fd9efaa17010c43a989babe41840937b03f7",
+    "inputSHA256": "f1a3214ea2d9505b327b1c89f8dd822a67c30317589c4dc0631432133562ad2a",
+    "sourceInputCount": 2479,
+    "manualReferencePagesReceived": 3,
+    "fullyAcceptedReferenceGroups": 0,
+    "fullRegression": "pending final candidate; historical full checks not rebound",
+    "associatedContentMethodsLatestStatus": {
+      "passed": 205,
+      "failed": 0,
+      "skipped": 0
+    },
+    "nativeContentSize": {
+      "searchReveal": true,
+      "committed": {
+        "uiSize": 11,
+        "contentSize": 18.5,
+        "codeSize": 12
+      },
+      "coldNarrowRestored": true,
+      "invalid25Kept18_5": true,
+      "controlledDefaultsRestored": true
+    },
+    "appSHA256": "150bef115ada56f0ad126c9401a2437804e05a1f41b0af14600479ffe7b3b427",
+    "userProtection": "seven fields, nine runs and model unchanged; standard user instance restored with actual focus",
+    "evidence": "v0.1-reference-batch1.md and evidence sections 97/98"
+  },
+  "historicalInProgressCandidate": {
     "baseCommit": "1527de5c",
     "sourceInputCount": 2479,
     "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-followup/candidate-inputs-current.json",
