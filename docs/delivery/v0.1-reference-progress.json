@@ -11,9 +11,9 @@
   "fullyAcceptedGroups": 0,
   "overallStatus": "pending_reference_and_pairing",
   "nextBatch": [
-    "已收审查参考：文件树与筛选差异修复",
-    "当前任务文件／终端核心面板",
-    "搜索／Activity 主要状态与独立窗口必要参考"
+    "解锁后实际验收新审查文件树／筛选／键盘和主题尺寸",
+    "独立任务窗口消息头／模型入口必要核对",
+    "当前任务文件／终端及搜索／Activity 主要状态必要参考"
   ],
   "instructions": "See v0.1-reference-intake.md; use current task only, no secrets or side-effectful reference setup",
   "groups": [
@@ -125,9 +125,9 @@
         "timeline-full",
         "timeline-split-review"
       ],
-      "requiredReference": "已收同任务审查分屏；文件树／过滤结构差异待修",
+      "requiredReference": "已收同任务审查分屏；文件树／过滤已实现，实际操作未验",
       "pairedAcceptance": "pending",
-      "productEvidence": "v0.1-evidence.md section 106; main timeline/card/split matrix and independent route verified; full pairing pending"
+      "productEvidence": "v0.1-evidence.md sections 106/107; prior card/split acceptance retained; new tree UI pending locked Mac"
     },
     {
       "id": "G12",
@@ -246,11 +246,11 @@
     }
   ],
   "productFollowup": {
-    "commit": "e5159e1ce3a245291fffd1d2185d7c9a45bfee4b",
-    "evidence": "v0.1-evidence.md section 106",
+    "commit": "1aa712af795cc798f14e999d6ece0d6ce69f00f9",
+    "evidence": "v0.1-evidence.md section 107",
     "mandatoryForegroundMethods": 25,
-    "productMatrix": "main timeline/split: 1280x800 and 1000x700, light/dark; independent route representative only",
-    "A30": "known review tree difference and remaining core reference pairing pending; secondary exemptions retained"
+    "productMatrix": "review tree implementation built and tested; actual operations 0 due locked Mac; stage 106 matrix retained with its original inputs",
+    "A30": "tree UI pending actual acceptance, other core pairing gaps retained"
   },
   "visualScopeAmendment": {
     "date": "2026-10-14",

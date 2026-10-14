@@ -258,111 +258,67 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A30 core timeline and turn-card same-window review",
-    "productCommit": "e5159e1ce3a245291fffd1d2185d7c9a45bfee4b",
+    "stage": "A30 responsive review tree implementation; actual UI acceptance pending",
+    "productCommit": "1aa712af795cc798f14e999d6ece0d6ce69f00f9",
     "A30Accepted": false,
     "A31Accepted": false,
     "A32Accepted": false,
-    "sourceInputCount": 2487,
-    "sourceFingerprintSHA256": "9e90e11c502bb8c99e1b8875657b21f4eb7946c93a1075ab92b990197536234f",
+    "sourceInputCount": 2490,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/review-tree/source-inputs.json",
+    "sourceFingerprintSHA256": "db2570391b7c78cfeddd8e1eb5cc1a767b5e553ab1cc34444ad570b4701dfb46",
     "changedInputs": [],
     "associated": {
-      "finalExecuted": 46,
+      "finalExecuted": 6,
       "failed": 0,
       "skipped": 0,
-      "log": "associated-candidate.log",
-      "previousBroaderExecuted": 58,
-      "overlappingDoNotAdd": true
+      "log": ".cache/delivery/t11-final/review-tree/keyboard-associated.log",
+      "earlierTests": [
+        {
+          "executed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "log": ".cache/delivery/t11-final/review-tree/associated.log",
+          "scope": "last-turn snapshot, path jump and tree; before final keyboard view adjustment"
+        },
+        {
+          "executed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "log": ".cache/delivery/t11-final/review-tree/readonly-tests.log",
+          "scope": "read-only authorization; before final keyboard view adjustment"
+        }
+      ],
+      "doNotSumOverlappingRuns": true
     },
     "formalApp": {
-      "SHA256": "69a90c0d78ddb2efa78aa175f8ee199aaefe77cf1c943c6de0225b11f0c23346",
+      "sha256": "fe2d71849339b9bf651b76a0b019ab1a587c8bfc97e2d2ca0fd6c8900c1fe9d5",
       "strictSignatureVerified": true,
-      "userInstanceRestoredAndInputClicked": true
-    },
-    "geometry": {
-      "wide": {
-        "active": true,
-        "actualHeight": 800,
-        "actualWidth": 1280,
-        "backingScale": 1,
-        "contentHeight": 748,
-        "contentWidth": 1280,
-        "fullyVisibleOnOneScreen": true,
-        "key": true,
-        "matchesRequestedFrame": true,
-        "pid": 31232,
-        "requestedHeight": 800,
-        "requestedWidth": 1280,
-        "targetDisplayAvailable": true,
-        "visible": true,
-        "visibleScreenFrames": [
-          {
-            "height": 996,
-            "width": 1710,
-            "x": 0,
-            "y": 77
-          },
-          {
-            "height": 1050,
-            "width": 1920,
-            "x": -1920,
-            "y": 27
-          }
-        ]
-      },
-      "narrow": {
-        "active": true,
-        "actualHeight": 700,
-        "actualWidth": 1000,
-        "backingScale": 1,
-        "contentHeight": 648,
-        "contentWidth": 1000,
-        "fullyVisibleOnOneScreen": true,
-        "key": true,
-        "matchesRequestedFrame": true,
-        "pid": 32394,
-        "requestedHeight": 700,
-        "requestedWidth": 1000,
-        "targetDisplayAvailable": true,
-        "visible": true,
-        "visibleScreenFrames": [
-          {
-            "height": 996,
-            "width": 1710,
-            "x": 0,
-            "y": 77
-          },
-          {
-            "height": 1050,
-            "width": 1920,
-            "x": -1920,
-            "y": 27
-          }
-        ]
-      }
+      "originalUserInstanceLaunchedByStandardScript": true,
+      "interactiveVerificationAtThisStage": false,
+      "lastInteractiveVerification": "e5159e1c stage 106"
     },
     "protection": {
-      "user": "seven fields, nine runs, model and five preferences unchanged",
-      "fixture": "six fields unchanged; task added only normalized createdAt/updatedAt; draft preserved; model/preferences unchanged"
+      "userAndFixtureSevenFieldsUnchanged": true,
+      "userRuns": 9,
+      "fixtureRuns": 1,
+      "modelsAndPreferencesUnchanged": true
     },
-    "fixture": {
-      "realModelRun": false,
-      "files": 2,
-      "additions": 3,
-      "deletions": 1,
-      "malformedSubagentDraftsCorrectedBeforeAcceptance": true
+    "actualWindowAcceptance": {
+      "executed": 0,
+      "status": "blocked_by_locked_mac",
+      "toolMessage": "The Mac is locked and automatic unlock is paused because physical input was detected. Ask the user to unlock the Mac manually before continuing.",
+      "pending": [
+        "wide permanent tree/filter/folder keyboard and file jump",
+        "narrow tree popover and selection/return focus",
+        "light/dark and source-bound screenshots",
+        "independent task ownership with shared review UI"
+      ]
     },
-    "actualInteractions": [
-      "main card opens same-window right last-turn review",
-      "full review returns to chat with draft and immediate first key",
-      "raw snapshot sheet closes with file list/counts retained",
-      "independent card opens own read-only last-turn review; hide returns immediate first key"
-    ],
-    "matrix": "main timeline/split: 1280x800 and 1000x700, light/dark; independent route representative only",
-    "remainingMaterialDifference": "Review file tree/filter vs current jump popover remains to implement",
     "mandatoryForegroundMethods": 25,
-    "evidence": ".cache/delivery/t11-final/core-reference-batch/verified-stage.json",
-    "evidenceSHA256": "54a280996f4d9bbac71599cce651db5ab4f4a0c0336c12f0bd1dba2bd37dc00b"
+    "pendingA31": true,
+    "pendingA32": true,
+    "evidence": ".cache/delivery/t11-final/review-tree/pending-stage.json",
+    "evidenceSHA256": "f285adf63b167e98acf5e061933835a6c3cd83dc019fb8488ca707a2252544a5"
   },
   "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
   "priorAcceptedCandidate": {
@@ -901,5 +857,112 @@
     },
     "stageEvidence": ".cache/delivery/t11-final/core-ui-final/verified-stage.json",
     "stageEvidenceSHA256": "c0da46f8864f5a012f460628b30b02fe95a2e534d93cb643165a4bbb321ce8fa"
+  },
+  "previousTimelineProductCandidate": {
+    "stage": "A30 core timeline and turn-card same-window review",
+    "productCommit": "e5159e1ce3a245291fffd1d2185d7c9a45bfee4b",
+    "A30Accepted": false,
+    "A31Accepted": false,
+    "A32Accepted": false,
+    "sourceInputCount": 2487,
+    "sourceFingerprintSHA256": "9e90e11c502bb8c99e1b8875657b21f4eb7946c93a1075ab92b990197536234f",
+    "changedInputs": [],
+    "associated": {
+      "finalExecuted": 46,
+      "failed": 0,
+      "skipped": 0,
+      "log": "associated-candidate.log",
+      "previousBroaderExecuted": 58,
+      "overlappingDoNotAdd": true
+    },
+    "formalApp": {
+      "SHA256": "69a90c0d78ddb2efa78aa175f8ee199aaefe77cf1c943c6de0225b11f0c23346",
+      "strictSignatureVerified": true,
+      "userInstanceRestoredAndInputClicked": true
+    },
+    "geometry": {
+      "wide": {
+        "active": true,
+        "actualHeight": 800,
+        "actualWidth": 1280,
+        "backingScale": 1,
+        "contentHeight": 748,
+        "contentWidth": 1280,
+        "fullyVisibleOnOneScreen": true,
+        "key": true,
+        "matchesRequestedFrame": true,
+        "pid": 31232,
+        "requestedHeight": 800,
+        "requestedWidth": 1280,
+        "targetDisplayAvailable": true,
+        "visible": true,
+        "visibleScreenFrames": [
+          {
+            "height": 996,
+            "width": 1710,
+            "x": 0,
+            "y": 77
+          },
+          {
+            "height": 1050,
+            "width": 1920,
+            "x": -1920,
+            "y": 27
+          }
+        ]
+      },
+      "narrow": {
+        "active": true,
+        "actualHeight": 700,
+        "actualWidth": 1000,
+        "backingScale": 1,
+        "contentHeight": 648,
+        "contentWidth": 1000,
+        "fullyVisibleOnOneScreen": true,
+        "key": true,
+        "matchesRequestedFrame": true,
+        "pid": 32394,
+        "requestedHeight": 700,
+        "requestedWidth": 1000,
+        "targetDisplayAvailable": true,
+        "visible": true,
+        "visibleScreenFrames": [
+          {
+            "height": 996,
+            "width": 1710,
+            "x": 0,
+            "y": 77
+          },
+          {
+            "height": 1050,
+            "width": 1920,
+            "x": -1920,
+            "y": 27
+          }
+        ]
+      }
+    },
+    "protection": {
+      "user": "seven fields, nine runs, model and five preferences unchanged",
+      "fixture": "six fields unchanged; task added only normalized createdAt/updatedAt; draft preserved; model/preferences unchanged"
+    },
+    "fixture": {
+      "realModelRun": false,
+      "files": 2,
+      "additions": 3,
+      "deletions": 1,
+      "malformedSubagentDraftsCorrectedBeforeAcceptance": true
+    },
+    "actualInteractions": [
+      "main card opens same-window right last-turn review",
+      "full review returns to chat with draft and immediate first key",
+      "raw snapshot sheet closes with file list/counts retained",
+      "independent card opens own read-only last-turn review; hide returns immediate first key"
+    ],
+    "matrix": "main timeline/split: 1280x800 and 1000x700, light/dark; independent route representative only",
+    "remainingMaterialDifference": "Review file tree/filter vs current jump popover remains to implement",
+    "mandatoryForegroundMethods": 25,
+    "evidence": ".cache/delivery/t11-final/core-reference-batch/verified-stage.json",
+    "evidenceSHA256": "54a280996f4d9bbac71599cce651db5ab4f4a0c0336c12f0bd1dba2bd37dc00b"
   }
 }
