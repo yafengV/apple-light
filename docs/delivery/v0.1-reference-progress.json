@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "updatedDate": "2026-10-14",
+  "scope": "Fixed 20 core UI groups; no additional pages or acceptance items",
+  "visualBaseline": {
+    "version": "26.1007.30912",
+    "build": "20156",
+    "source": "Previously approved installed metadata; attachments do not independently prove version"
+  },
+  "receivedPages": 3,
+  "fullyAcceptedGroups": 0,
+  "overallStatus": "pending_reference_and_pairing",
+  "nextBatch": [
+    "个性化",
+    "通知",
+    "键盘快捷键",
+    "Agent"
+  ],
+  "instructions": "See v0.1-reference-intake.md; use current task only, no secrets or side-effectful reference setup",
+  "groups": [
+    {
+      "id": "G01",
+      "title": "新聊天",
+      "referenceStatus": "partial",
+      "received": [
+        "new-task"
+      ],
+      "requiredReference": "其余新任务状态／浅色参考",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G02",
+      "title": "聊天时间线",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "当前任务时间线与已有工具卡片",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G03",
+      "title": "项目侧栏",
+      "referenceStatus": "partial",
+      "received": [
+        "new-task"
+      ],
+      "requiredReference": "侧栏菜单／选中态",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G04",
+      "title": "Activity",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "活动面板",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G05",
+      "title": "搜索",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "任务搜索结果",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G06",
+      "title": "归档",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "归档列表，可复用 S6",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G07",
+      "title": "分支／工作树起点",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "本机／工作树起点菜单",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G08",
+      "title": "工作树准备",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "已有准备状态；无现成状态时说明",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G09",
+      "title": "文件编辑器",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "当前任务文件面板",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G10",
+      "title": "终端",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "当前任务终端面板",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G11",
+      "title": "差异／Git",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "当前任务差异审查",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G12",
+      "title": "浏览器／内容标签／分屏",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "当前任务内容标签分屏／完整视图",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G13",
+      "title": "独立任务窗口",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "已有独立任务窗口",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G14",
+      "title": "主窗口设置／共用确认",
+      "referenceStatus": "partial",
+      "received": [
+        "general",
+        "appearance"
+      ],
+      "requiredReference": "共用确认状态；同主窗口往返已确认",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G15",
+      "title": "S1 通用／外观／个性化",
+      "referenceStatus": "partial",
+      "received": [
+        "general",
+        "appearance"
+      ],
+      "requiredReference": "个性化；常规／外观上部深色已收",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G16",
+      "title": "S2 API／Agent",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "Agent；独立 API 为既定范围差异",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G17",
+      "title": "S3 Git／审查／环境",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "Git／代码审查／环境只读概览",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G18",
+      "title": "S4 快捷键／通知",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "通知／键盘快捷键",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G19",
+      "title": "S5 本地 MCP／skills",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "现有本地 MCP／技能入口或已安装插件详情",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    },
+    {
+      "id": "G20",
+      "title": "S6 工作树／归档／浏览器设置",
+      "referenceStatus": "missing",
+      "received": [],
+      "requiredReference": "工作树／归档／浏览器历史、下载、权限",
+      "pairedAcceptance": "pending",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+    }
+  ]
+}
