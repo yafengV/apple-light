@@ -255,7 +255,7 @@
   "currentCandidate": {
     "stage": "A30 manual reference batch 1 and independent content font size verified",
     "layoutCommit": "03cde547",
-    "commit": null,
+    "commit": "f2f4fd9efaa17010c43a989babe41840937b03f7",
     "inputSHA256": "f1a3214ea2d9505b327b1c89f8dd822a67c30317589c4dc0631432133562ad2a",
     "sourceInputCount": 2479,
     "manualReferencePagesReceived": 3,
@@ -280,5 +280,6 @@
     "appSHA256": "150bef115ada56f0ad126c9401a2437804e05a1f41b0af14600479ffe7b3b427",
     "userProtection": "seven fields, nine runs and model unchanged; standard user instance restored with actual focus",
     "evidence": "v0.1-reference-batch1.md and evidence sections 97/98"
-  }
+  },
+  "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product."
 }
