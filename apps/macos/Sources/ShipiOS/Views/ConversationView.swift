@@ -8,12 +8,17 @@ struct ConversationView: View {
     } else {
       VStack(spacing: 24) {
         Spacer()
-        Image(systemName: "sparkle").appFont(size: 34, weight: .light).foregroundStyle(
+        Image(systemName: "terminal").appFont(size: 34, weight: .light).foregroundStyle(
           .secondary)
         VStack(spacing: 10) {
-          Text("准备好开始了吗？").appFont(size: 29, weight: .medium)
-          Text(store.project.map { store.library.projectTitle($0.path) } ?? "直接开始对话，或选择一个项目。")
-            .appFont(.title3).foregroundStyle(.secondary)
+          Text(store.project.map {
+            "你想让我们在 \(store.library.projectTitle($0.path)) 中构建什么？"
+          } ?? "你想构建什么？")
+            .appFont(size: 29, weight: .medium).multilineTextAlignment(.center)
+          if store.project == nil {
+            Text("直接开始对话，或选择一个项目。")
+              .appFont(.title3).foregroundStyle(.secondary)
+          }
         }
         if store.personalization.showSuggestedPrompts {
           HStack(spacing: 10) {

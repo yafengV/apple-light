@@ -39,6 +39,30 @@ struct TaskSidebarView: View {
   private var regularSidebar: some View {
     VStack(spacing: 0) {
       VStack(spacing: 2) {
+        HStack(spacing: 12) {
+          Menu {
+            Button("项目", systemImage: "folder") { store.showProjects() }
+            Button("插件", systemImage: "shippingbox") { store.showPlugins() }
+            Button("技能", systemImage: "wand.and.stars") { store.showSkills() }
+            Button("自动化", systemImage: "clock.arrow.circlepath") { store.showAutomations() }
+            Divider()
+            Button("命令菜单", systemImage: "command") { store.showingCommands = true }
+          } label: {
+            Text("ShipiOS").appFont(size: 17, weight: .semibold)
+          }.menuStyle(.borderlessButton).fixedSize()
+            .accessibilityLabel("工作区导航")
+          Spacer(minLength: 0)
+          Button { store.toggleActivity() } label: {
+            Image(systemName: store.activityBadgeCount > 0 ? "bell.badge" : "bell")
+          }.buttonStyle(.plain).disabled(!store.libraryLoaded)
+            .accessibilityLabel("活动")
+            .accessibilityValue(store.activityBadgeCount > 0 ? "\(store.activityBadgeCount) 项需关注" : "")
+            .help("活动 \(store.shortcuts.label("activity"))")
+          Button { store.showingSearch = true } label: {
+            Image(systemName: "magnifyingglass")
+          }.buttonStyle(.plain).accessibilityLabel("搜索任务")
+            .help("搜索任务 \(store.shortcuts.label("search"))")
+        }.padding(.horizontal, 10).padding(.bottom, 12)
         navButton("新任务", "square.and.pencil", shortcut: store.shortcuts.label("new")) {
           Task { await store.newChat() }
         }
@@ -62,23 +86,6 @@ struct TaskSidebarView: View {
           } else if store.workspaceTabDropTarget == .newChat {
             store.workspaceTabDropTarget = nil
           }
-        }
-        navButton("搜索任务", "magnifyingglass", shortcut: store.shortcuts.label("search")) {
-          store.showingSearch = true
-        }
-        navButton("活动", store.activityBadgeCount > 0 ? "bell.badge" : "bell",
-          shortcut: store.shortcuts.label("activity"), selected: store.showingActivity,
-          badge: store.activityBadgeCount) {
-          store.toggleActivity()
-        }.disabled(!store.libraryLoaded)
-        navButton("项目", "folder", selected: store.destination == .projects) { store.showProjects() }
-        navButton("插件", "shippingbox", selected: store.destination == .plugins || store.destination == .pluginDetail) { store.showPlugins() }
-        navButton("技能", "wand.and.stars", selected: store.destination == .skills) { store.showSkills() }
-        navButton("自动化", "clock.arrow.circlepath", selected: store.destination == .automations) {
-          store.showAutomations()
-        }
-        navButton("命令菜单", "command", shortcut: store.shortcuts.label("palette")) {
-          store.showingCommands = true
         }
       }.padding(.horizontal, 10).padding(.top, 12)
       ScrollView {

@@ -139,9 +139,12 @@ import XCTest
       try XCTUnwrap(NSEvent.mouseEvent(with:.mouseMoved,location:point,modifierFlags:[],timestamp:1,
         windowNumber:window.windowNumber,context:nil,eventNumber:0,clickCount:0,pressure:0))
     }
-    owner.mouseMoved(with:try move(.init(x:anchor.midX,y:anchor.minY-4)))
+    let trackingSelector = NSSelectorFromString("mouseMoved:")
+    XCTAssertTrue(owner.responds(to: trackingSelector), "AppKit dispatches the tracking area through mouseMoved:")
+    guard owner.responds(to: trackingSelector) else { return }
+    owner.perform(trackingSelector, with: try move(.init(x:anchor.midX,y:anchor.minY-4)))
     XCTAssertNotNil(owner.popup)
-    owner.mouseMoved(with:try move(.init(x:0,y:anchor.minY-4)))
+    owner.perform(trackingSelector, with: try move(.init(x:0,y:anchor.minY-4)))
     XCTAssertNil(owner.popup); XCTAssertFalse(window.acceptsMouseMovedEvents)
     owner.detach()
     XCTAssertFalse(surface.trackingAreas.contains { ($0.owner as? WorkspaceLayoutMenuButton.Coordinator) === owner })

@@ -40,9 +40,10 @@ struct RuntimeSettingsView: View {
               .accessibilityHidden(store.settingsPage != page)
           }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
-      }.frame(maxWidth: SettingsPageLayout.viewportWidth).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      }.frame(maxWidth: SettingsDesktopPresentation.viewportWidth).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .focusSection()
-    }.frame(maxWidth: .infinity, maxHeight: .infinity).appSurface()
+    }.environment(\.settingsPageTopInset, SettingsDesktopPresentation.topInset)
+      .frame(maxWidth: .infinity, maxHeight: .infinity).appSurface()
       .onAppear { ComposerSendShortcut.migrate() }
       .onExitCommand { store.closeSettingsFromKeyboard() }
   }
@@ -61,8 +62,8 @@ struct RuntimeSettingsView: View {
         OpenSourceLicensesView()
       } else {
       SettingsForm {
-        EditorSettingsSection(store: store)
-        GeneralPermissionSettingsSection(store: store)
+        GeneralPermissionSettingsSection(store: store, includesNamedProfiles: false)
+        GeneralWorkspaceSettingsSection(store: store)
         SettingsSection("玩具") {
           SettingsToggle(title: "彩纸效果",
             description: "当你要求 ShipiOS 庆祝时，允许模型在应用窗口中撒彩纸。",
@@ -97,37 +98,13 @@ struct RuntimeSettingsView: View {
             description: "在主窗口和独立任务窗口的输入区显示最近一轮请求的输入 token。",
             isOn: $store.showContextUsageIndicator)
             .settingsSearchTarget(.contextUsage)
-          SettingsToggle(title: "底部面板",
-            description: "在应用标题栏显示底部面板布局控制；终端快捷键仍可直接打开底部终端。",
-            isOn: $store.showBottomPanelControl)
-            .settingsSearchTarget(.bottomPanel)
         }
-        SettingsSection("链接与无项目任务") {
+        SettingsSection("链接") {
           SettingsMenuPicker("打开网页链接",
             description: "应用内浏览器会把回答中的 HTTP 和 HTTPS 链接作为当前任务的内容标签打开；邮件链接仍交给系统。",
             selection: $store.webLinkTarget,
             options: WebLinkTarget.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.webLinks)
-          SettingsLabeledRow {
-            SettingsControlLabel(title: "无项目任务文件夹",
-              description: "没有项目的任务默认在此位置保存数据。")
-          } control: {
-            HStack(spacing: 8) {
-              Text(store.projectlessWorkspaceRoot.path)
-                .appFont(size: 11, design: .monospaced).foregroundStyle(.secondary)
-                .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
-                .frame(minWidth: 0, idealWidth: 192, maxWidth: 192, alignment: .leading)
-                .help(store.projectlessWorkspaceRoot.path)
-              HStack(spacing: 4) {
-                Button("更改…") { store.chooseProjectlessWorkspaceRoot() }
-                if store.library.projectlessWorkspaceRoot != nil {
-                  Button("恢复默认") { store.setProjectlessWorkspaceRoot(nil) }
-                    .buttonStyle(SettingsActionButtonStyle(color: .ghost))
-                }
-              }.fixedSize()
-            }
-          }
-          .settingsSearchTarget(.projectlessFolder)
         }
         SettingsSection("弹出窗口") {
           PopoutHotkeySettingsRow(store: store)
@@ -149,12 +126,6 @@ struct RuntimeSettingsView: View {
           Text("任务、草稿、归档与模型配置保存在 ShipiOS 独立目录中。")
             .foregroundStyle(.secondary)
         }
-        SettingsSection("应用") {
-          SettingsToggle(title: "在菜单栏中显示", description: "主窗口关闭后，让 ShipiOS 保留在 macOS 菜单栏中。",
-            isOn: $store.showInMenuBar)
-            .accessibilityLabel("在菜单栏中显示 ShipiOS")
-            .settingsSearchTarget(.menuBar)
-        }
         SettingsSection("代码审查") {
           Picker("审查结果呈现方式", selection: Binding(
             get: { store.library.gitPreferences.reviewDelivery },
@@ -171,35 +142,14 @@ struct RuntimeSettingsView: View {
           Text("尽可能在当前聊天中启动 /review，或启动单独的审查聊天。")
             .appFont(.caption).foregroundStyle(.secondary)
         }
-        SettingsSection("终端") {
-          SettingsSegmentedPicker(title: "默认终端位置",
-            description: "工具栏终端按钮、命令菜单和固定终端恢复都会使用此位置。", selection: Binding(
-            get: { store.library.defaultTerminalLocation },
-            set: { store.setDefaultTerminalLocation($0) }), options: [
-              SettingsSegmentOption(value: .bottom, title: "底部"),
-              SettingsSegmentOption(value: .right, title: "右侧")
-            ])
-          .settingsSearchTarget(.terminalLocation)
-        }
-        SettingsSection("运行") {
-          SettingsToggle(title: "运行时防止休眠",
-            description: "任务执行期间阻止空闲休眠，结束后自动恢复。显示器仍可熄灭，手动休眠和合盖仍由系统处理。",
-            isOn: $store.preventIdleSleep)
-            .settingsSearchTarget(.preventSleep)
-          if store.sleepPrevention.active {
-            Label("正在防止空闲休眠", systemImage: "moon.zzz").foregroundStyle(.secondary)
-          }
-          if let error = store.sleepPrevention.error {
-            Text(error).foregroundStyle(.red).textSelection(.enabled)
-            Button("重试") { store.updateSleepPrevention(force: true) }
-          }
-        }
+
         SettingsSection("插件") {
           SettingsToggle(title: "插件",
             description: "允许 ShipiOS 使用已安装并启用的插件。关闭后，@插件、$技能候选和模型请求中的插件上下文立即停用。",
             isOn: $store.pluginsEnabled)
             .settingsSearchTarget(.enablePlugins)
         }
+        NamedPermissionProfilesSettingsSection(store: store)
         SettingsSection("关于") {
           HStack(alignment: .center, spacing: 16) {
             SettingsControlLabel(title: "开源许可", description: "所捆绑依赖的第三方声明")

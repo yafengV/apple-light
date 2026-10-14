@@ -285,7 +285,7 @@ struct WorkspaceLayoutMenuButton: NSViewRepresentable {
         let handled = MainActor.assumeIsolated { self?.handle(event) ?? false }; return handled ? nil : event
       }
     }
-    @objc func mouseMoved(with event: NSEvent) { _ = handle(event) }
+    @objc(mouseMoved:) func mouseMoved(with event: NSEvent) { _ = handle(event) }
     func handle(_ event: NSEvent) -> Bool {
       guard let window, event.window === window, popup != nil, let trigger else { return false }
       guard available else { dismiss(restore:false); return false }

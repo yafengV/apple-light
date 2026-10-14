@@ -39,8 +39,10 @@ import AppKit
     // Let the retained page become enabled before restoring its SwiftUI focus.
     DispatchQueue.main.async {
       guard allowed() else { return }
+      target.window?.contentView?.layoutSubtreeIfNeeded()
+      guard allowed() else { return }
       if let restoreControl { restoreControl() }
-      else { target.restore(when: allowed) }
+      else { target.restoreImmediately(when: allowed) }
     }
   }
 }

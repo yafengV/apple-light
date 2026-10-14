@@ -10,6 +10,14 @@ enum SettingsPageLayout {
   static let sectionSpacing: CGFloat = 40
 }
 
+/// Current manual page reference; legacy component layout contracts remain
+/// available to embedded forms and their original regression fixtures.
+enum SettingsDesktopPresentation {
+  static let sidebarWidth: CGFloat = 288
+  static let viewportWidth: CGFloat = 768
+  static let topInset: CGFloat = 76
+}
+
 enum SettingsCardLayout {
   static let sectionHeadingSize: CGFloat = 14
   static let sectionHeaderMinHeight: CGFloat = 46
@@ -38,7 +46,14 @@ private struct SettingsPageTitleKey: EnvironmentKey {
 private struct SettingsFormEmbeddedKey: EnvironmentKey {
   static let defaultValue = false
 }
+private struct SettingsPageTopInsetKey: EnvironmentKey {
+  static let defaultValue = SettingsPageLayout.horizontalInset
+}
 extension EnvironmentValues {
+  var settingsPageTopInset: CGFloat {
+    get { self[SettingsPageTopInsetKey.self] }
+    set { self[SettingsPageTopInsetKey.self] = newValue }
+  }
   var settingsFormEmbedded: Bool {
     get { self[SettingsFormEmbeddedKey.self] }
     set { self[SettingsFormEmbeddedKey.self] = newValue }
@@ -81,6 +96,7 @@ struct SettingsFormLabeledContentStyle: LabeledContentStyle {
 /// A single scroll document; only the optional search/filter controls pin.
 struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
   @Environment(\.appAppearance) private var appearance
+  @Environment(\.settingsPageTopInset) private var topInset
   let title: String
   var subtitle: String? = nil
   var pinsControls = false
@@ -99,7 +115,7 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
               if let subtitle { Text(subtitle).foregroundStyle(.secondary) }
             }.frame(maxWidth: .infinity, alignment: .leading)
             actions()
-          }.padding(.top, SettingsPageLayout.horizontalInset)
+          }.padding(.top, topInset)
             .padding(.bottom, SettingsPageLayout.headingContentSpacing)
             .id(SettingsPageLayout.topAnchorID)
         }
@@ -113,7 +129,7 @@ struct SettingsScrollPage<Actions: View, Controls: View, Content: View>: View {
               .background(appearance.backgroundColor)
           }
         }
-      }.padding(.top, title.isEmpty ? SettingsPageLayout.horizontalInset : 0)
+      }.padding(.top, title.isEmpty ? topInset : 0)
         .padding(.horizontal, SettingsPageLayout.horizontalInset)
         .padding(.bottom, SettingsPageLayout.horizontalInset)
     }

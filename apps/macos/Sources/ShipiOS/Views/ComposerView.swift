@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ComposerView: View {
   @Bindable var store: WorkspaceStore
+  @Environment(\.appAppearance) private var appearance
   @State private var imageDropTargeted = false
   @State private var showingBuildOptions = false
   @State private var newTaskBranches = GitBranchCatalog()
@@ -70,6 +71,93 @@ struct ComposerView: View {
           }
         }.padding(.horizontal, 4)
       }
+      if store.action == .chat, store.selectedTask == nil, let project = store.project,
+        store.workspace.gitAvailable,
+        !store.library.managedWorktrees.contains(where: { $0.path == project.path }) {
+        VStack(alignment: .leading, spacing: 8) {
+          HStack(spacing: 12) {
+            Label(store.library.projectTitle(project.path), systemImage: "folder")
+              .appFont(size: 12).lineLimit(1).frame(minWidth: 0, maxWidth: 180, alignment: .leading)
+            Picker("执行环境", selection: $store.newTaskExecution) {
+              ForEach(NewTaskExecution.allCases) { execution in
+                Text(execution == .local ? "此计算机" : execution.title).tag(execution)
+              }
+            }.pickerStyle(.menu).labelsHidden().frame(width: 180)
+            Spacer(minLength: 0)
+          }
+          if store.newTaskExecution == .worktree {
+            if store.managedTaskPreparing {
+              ProgressView(store.managedTaskPreparationMessage).controlSize(.small)
+            } else {
+              HStack(spacing: 8) {
+                Picker("环境", selection: $store.newTaskEnvironmentSelection) {
+                  Text("无环境").tag(WorktreeEnvironmentChoice.none)
+                  if store.newTaskEnvironmentSelection == WorktreeEnvironmentChoice.legacy
+                    || store.environmentFiles.isEmpty && store.hasLegacyWorktreeEnvironment {
+                    Text("ShipiOS 本地配置").tag(WorktreeEnvironmentChoice.legacy)
+                  }
+                  ForEach(store.environmentFiles.filter { $0.error == nil }) { entry in
+                    Text(entry.fileName == "environment.toml"
+                      ? "默认环境 · \(entry.title)" : entry.title).tag(entry.id)
+                  }
+                  if ![WorktreeEnvironmentChoice.none, WorktreeEnvironmentChoice.legacy]
+                    .contains(store.newTaskEnvironmentSelection),
+                    !store.environmentFiles.contains(where: {
+                      $0.id == store.newTaskEnvironmentSelection && $0.error == nil
+                    }) {
+                    Text("所选环境已不可用").tag(store.newTaskEnvironmentSelection)
+                  }
+                }.frame(maxWidth: 310)
+                  .disabled(store.library.pendingManagedDraftTaskIDs[project.path] != nil)
+                Button("环境设置…") {
+                  store.environmentSettingsOpenProject = true
+                  store.openSettings(.environments)
+                }
+                  .buttonStyle(.plain)
+              }
+              HStack(spacing: 8) {
+                if let snapshot = newTaskBranches.snapshot {
+                  Picker("起始分支", selection: Binding(
+                    get: { store.newTaskStartingBranch?.reference ?? "" },
+                    set: { reference in
+                      store.newTaskStartingBranch = snapshot.branches.first {
+                        $0.reference == reference
+                      }
+                    })) {
+                      Text("当前提交 · \(snapshot.currentName)").tag("")
+                      ForEach(snapshot.branches) { branch in
+                        Text(branch.name).tag(branch.reference)
+                      }
+                    }.frame(maxWidth: 290)
+                  Button { newTaskBranchRefresh = UUID() } label: {
+                    Image(systemName: "arrow.clockwise")
+                  }.buttonStyle(.plain).accessibilityLabel("刷新起始分支")
+                } else if newTaskBranches.loading {
+                  ProgressView("正在读取分支…").controlSize(.small)
+                }
+              }
+              if let error = newTaskBranches.error {
+                Text(error).appFont(.caption).foregroundStyle(.red)
+              } else if let branch = store.newTaskStartingBranch,
+                newTaskBranches.snapshot?.branches.contains(where: {
+                  $0.reference == branch.reference && $0.commit == branch.commit
+                }) == false {
+                Text("起始分支已更新；请刷新后重新选择。")
+                  .appFont(.caption).foregroundStyle(.red)
+              } else {
+                Text(store.newTaskStartingBranch == nil
+                  || store.newTaskStartingBranch?.reference == newTaskBranches.snapshot?.currentReference
+                  ? "从所选提交创建工作树；未提交文件会复制过去"
+                  : "从所选分支创建工作树；当前检出的修改留在原项目")
+                  .appFont(.caption).foregroundStyle(.secondary)
+              }
+            }
+          }
+        }.padding(.horizontal, 16).padding(.vertical, 8)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .background(appearance.resolvedColors["elevatedSecondaryOpaque"].color,
+            in: RoundedRectangle(cornerRadius: 14))
+      }
       VStack(alignment: .leading, spacing: 12) {
         ImageAttachmentsView(store: store, images: store.draftImages, removable: true,
           draftKey: store.draftKey)
@@ -81,87 +169,10 @@ struct ComposerView: View {
         editor
         DictationStatusView(store: store, target: store.draftKey)
         controls
-        if store.action == .chat, store.selectedTask == nil, let project = store.project,
-          store.workspace.gitAvailable,
-          !store.library.managedWorktrees.contains(where: { $0.path == project.path }) {
-          VStack(alignment: .leading, spacing: 8) {
-            Picker("执行环境", selection: $store.newTaskExecution) {
-              ForEach(NewTaskExecution.allCases) { execution in
-                Text(execution.title).tag(execution)
-              }
-            }.pickerStyle(.segmented).frame(width: 230)
-            if store.newTaskExecution == .worktree {
-              if store.managedTaskPreparing {
-                ProgressView(store.managedTaskPreparationMessage).controlSize(.small)
-              } else {
-                HStack(spacing: 8) {
-                  Picker("环境", selection: $store.newTaskEnvironmentSelection) {
-                    Text("无环境").tag(WorktreeEnvironmentChoice.none)
-                    if store.newTaskEnvironmentSelection == WorktreeEnvironmentChoice.legacy
-                      || store.environmentFiles.isEmpty && store.hasLegacyWorktreeEnvironment {
-                      Text("ShipiOS 本地配置").tag(WorktreeEnvironmentChoice.legacy)
-                    }
-                    ForEach(store.environmentFiles.filter { $0.error == nil }) { entry in
-                      Text(entry.fileName == "environment.toml"
-                        ? "默认环境 · \(entry.title)" : entry.title).tag(entry.id)
-                    }
-                    if ![WorktreeEnvironmentChoice.none, WorktreeEnvironmentChoice.legacy]
-                      .contains(store.newTaskEnvironmentSelection),
-                      !store.environmentFiles.contains(where: {
-                        $0.id == store.newTaskEnvironmentSelection && $0.error == nil
-                      }) {
-                      Text("所选环境已不可用").tag(store.newTaskEnvironmentSelection)
-                    }
-                  }.frame(maxWidth: 310)
-                    .disabled(store.library.pendingManagedDraftTaskIDs[project.path] != nil)
-                  Button("环境设置…") {
-                    store.environmentSettingsOpenProject = true
-                    store.openSettings(.environments)
-                  }
-                    .buttonStyle(.plain)
-                }
-                HStack(spacing: 8) {
-                  if let snapshot = newTaskBranches.snapshot {
-                    Picker("起始分支", selection: Binding(
-                      get: { store.newTaskStartingBranch?.reference ?? "" },
-                      set: { reference in
-                        store.newTaskStartingBranch = snapshot.branches.first {
-                          $0.reference == reference
-                        }
-                      })) {
-                        Text("当前提交 · \(snapshot.currentName)").tag("")
-                        ForEach(snapshot.branches) { branch in
-                          Text(branch.name).tag(branch.reference)
-                        }
-                      }.frame(maxWidth: 290)
-                    Button { newTaskBranchRefresh = UUID() } label: {
-                      Image(systemName: "arrow.clockwise")
-                    }.buttonStyle(.plain).accessibilityLabel("刷新起始分支")
-                  } else if newTaskBranches.loading {
-                    ProgressView("正在读取分支…").controlSize(.small)
-                  }
-                }
-                if let error = newTaskBranches.error {
-                  Text(error).appFont(.caption).foregroundStyle(.red)
-                } else if let branch = store.newTaskStartingBranch,
-                  newTaskBranches.snapshot?.branches.contains(where: {
-                    $0.reference == branch.reference && $0.commit == branch.commit
-                  }) == false {
-                  Text("起始分支已更新；请刷新后重新选择。")
-                    .appFont(.caption).foregroundStyle(.red)
-                } else {
-                  Text(store.newTaskStartingBranch == nil
-                    || store.newTaskStartingBranch?.reference == newTaskBranches.snapshot?.currentReference
-                    ? "从所选提交创建工作树；未提交文件会复制过去"
-                    : "从所选分支创建工作树；当前检出的修改留在原项目")
-                    .appFont(.caption).foregroundStyle(.secondary)
-                }
-              }
-            }
-          }
-        }
+
       }.padding(16)
-        .background(.background, in: RoundedRectangle(cornerRadius: 18))
+        .background(appearance.resolvedColors["elevatedPrimaryOpaque"].color,
+          in: RoundedRectangle(cornerRadius: 18))
         .overlay(
           RoundedRectangle(cornerRadius: 18).strokeBorder(
             Color.primary.opacity(focused ? 0.23 : 0.12), lineWidth: 1)
@@ -176,7 +187,7 @@ struct ComposerView: View {
         Text("\(store.shortcuts.label("send")) 执行").foregroundStyle(.tertiary)
       }.appFont(size: 10).foregroundStyle(.secondary).padding(.horizontal, 4)
     }
-    .frame(maxWidth: 780)
+    .frame(maxWidth: 740)
     .dropDestination(for: URL.self) { urls, _ in
       guard store.destination == .workspace, !store.importingImages, !store.importingFiles, !urls.isEmpty else { return false }
       let key = store.draftKey
@@ -267,7 +278,7 @@ struct ComposerView: View {
         store.dictationCarets[store.draftKey] = DictationCaret(text: store.draft, range: range)
       }
     )
-    .frame(minHeight: 50, maxHeight: 118)
+    .frame(minHeight: 50, maxHeight: store.draft.isEmpty ? 50 : 118)
   }
   private func handleEditorKey(
     _ key: ComposerEditorKey, _ modifiers: NSEvent.ModifierFlags, _ composing: Bool

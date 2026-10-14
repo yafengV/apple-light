@@ -327,7 +327,9 @@ struct ComposerTextEditor: NSViewRepresentable {
         }
       }
       storage.endEditing()
-      editor.selectedRanges = selected
+      // Restyling does not move the selection. Reassigning an unchanged range
+      // can synchronously activate the input method during SwiftUI layout.
+      if editor.selectedRanges != selected { editor.selectedRanges = selected }
       editor.typingAttributes = [
         .font: NSFont.systemFont(ofSize: 14),
         .foregroundColor: NSColor.labelColor,

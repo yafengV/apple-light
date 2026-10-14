@@ -5,6 +5,27 @@ import XCTest
 @testable import ShipiOS
 
 final class ComposerTextEditorTests: XCTestCase {
+  @MainActor func testRestylingDoesNotReassignUnchangedNativeSelection() {
+    let component = ComposerTextEditor(text: .constant("Keep **draft**"),
+      focused: .constant(false), plainTextMode: false, placeholder: "Message",
+      accessibilityLabel: "Composer", focusRequest: UUID(),
+      onKey: { _, _, _ in false }, onPasteAttachments: { _ in })
+    let editor = SelectionRecordingTextView()
+    editor.string = "Keep **draft**"
+    editor.setSelectedRange(.init(location: 2, length: 3))
+    editor.selectionAssignments = 0
+    ComposerTextEditor.Coordinator(component).applyStyles(in: editor)
+    XCTAssertEqual(editor.selectionAssignments, 0, "Unchanged selection must not reactivate the input method during layout")
+    XCTAssertEqual(editor.selectedRange(), .init(location: 2, length: 3))
+    XCTAssertEqual(editor.string, "Keep **draft**")
+  }
+  @MainActor private final class SelectionRecordingTextView: NSTextView {
+    var selectionAssignments = 0
+    override var selectedRanges: [NSValue] {
+      get { super.selectedRanges }
+      set { selectionAssignments += 1; super.selectedRanges = newValue }
+    }
+  }
   @MainActor func testClickFocusWithoutTypingSurvivesUnrelatedViewUpdate() async throws {
     _ = NSApplication.shared
     var text = "Keep this draft", focused = false

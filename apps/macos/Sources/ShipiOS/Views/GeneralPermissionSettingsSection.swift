@@ -4,6 +4,7 @@ import SwiftUI
 /// change an existing task or silently grant it broader access.
 struct GeneralPermissionSettingsSection: View {
   @Bindable var store: WorkspaceStore
+  var includesNamedProfiles = true
   @State private var confirmingFullAccess = false
   @State private var status = ""
 
@@ -61,7 +62,7 @@ struct GeneralPermissionSettingsSection: View {
     } message: {
       Text("选择完全访问后，Agent 可访问网络、读取和编辑电脑上的文件，且不再请求批准，包括执行可能造成破坏的命令。确认仅将完全访问加入输入区权限菜单，不会自动启用。")
     }
-    NamedPermissionProfilesSettingsSection(store: store)
+    if includesNamedProfiles { NamedPermissionProfilesSettingsSection(store: store) }
   }
 
   private var defaultOptions: [SettingsMenuOption<AgentRuntimePreferences>] {

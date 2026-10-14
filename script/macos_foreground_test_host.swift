@@ -66,6 +66,9 @@ final class Delegate: NSObject, NSApplicationDelegate {
   perform(#selector(waitForActivation), with:nil, afterDelay:0.1)
  }
  @objc func runTests() {
+   // Activation has been verified. The launcher must no longer compete with
+   // each test's key window when the initiating accessibility click completes.
+   launcher?.orderOut(nil)
    guard !selected.isEmpty, Set(selected).count == selected.count,
      selected.allSatisfy(available.contains) else {
     write(["stage":"failed", "error":"Invalid selected methods"]); NSApp.terminate(nil); return

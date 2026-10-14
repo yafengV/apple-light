@@ -30,12 +30,12 @@ struct SettingsNavigationView: View {
         Button { returnToApp() } label: {
           HStack(spacing: 8) {
             Image(systemName: "arrow.left").frame(width: 16)
-            Text(store.showingOpenSourceLicenses ? "返回通用" : "返回应用")
+            Text(store.showingOpenSourceLicenses ? "返回通用" : "设置")
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.vertical, 8).contentShape(Rectangle())
         }
-        .buttonStyle(.plain).focusable().appFont(size: 13)
+        .buttonStyle(.plain).focusable().appFont(size: 17, weight: .semibold)
         .focused($returnFocused)
         .onKeyPress(keys: [.space, .return], phases: .down) { press in
           guard press.modifiers.isEmpty else { return .ignored }
@@ -141,7 +141,7 @@ struct SettingsNavigationView: View {
       }.focusSection()
     }
     .padding(.horizontal, 12).padding(.top, 16)
-    .frame(width: 275).appSidebarSurface()
+    .frame(width: SettingsDesktopPresentation.sidebarWidth).appSidebarSurface()
     .onAppear { store.settingsSearchFocusRequest = UUID() }
     .onChange(of: store.settingsSearchFocusRequest) { _, _ in
       exitingSidebar = false

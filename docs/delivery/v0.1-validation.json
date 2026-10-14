@@ -37,14 +37,14 @@
       "A26",
       "A27",
       "A28",
-      "A29",
-      "A31"
+      "A29"
     ],
     "pending": [
       "A30",
+      "A31",
       "A32"
     ],
-    "passedCount": 30,
+    "passedCount": 29,
     "total": 32
   },
   "checks": {
@@ -80,7 +80,8 @@
     "coreEmbed": "passed on same source inputs",
     "coreRPC": "passed on same source inputs",
     "strictDeepSignature": "passed",
-    "userStateProtection": "seven fields, model file and nine runs unchanged"
+    "userStateProtection": "seven fields, model file and nine runs unchanged",
+    "scope": "historicalCandidate only; current fullRegression pending"
   },
   "artifacts": {
     "app": {
@@ -201,5 +202,74 @@
     "ownedLogStreamStopped": true,
     "originalUserInstanceRestored": true,
     "actualComposerFocusVerified": true
+  },
+  "historicalCandidate": {
+    "productCommit": "ca427eed3cab1d7ca481d78b23d848651670371a",
+    "testCommit": "eabb236e71b4883527e163e2c7c423cc3f96d88b",
+    "sourceInputCount": 2477,
+    "acceptance": {
+      "passed": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A18",
+        "A19",
+        "A20",
+        "A21",
+        "A22",
+        "A23",
+        "A24",
+        "A25",
+        "A26",
+        "A27",
+        "A28",
+        "A29",
+        "A31"
+      ],
+      "pending": [
+        "A30",
+        "A32"
+      ],
+      "passedCount": 30,
+      "total": 32
+    },
+    "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
+  },
+  "currentCandidate": {
+    "stage": "A30 manual reference batch 1; independent content size requested next",
+    "commit": null,
+    "fullRegression": "pending final source; historical full check not rebound",
+    "manualReferencePagesReceived": 3,
+    "fullyAcceptedReferenceGroups": 0,
+    "evidence": "v0.1-reference-batch1.md",
+    "inputSHA256": "a63e378d72ba5028e8a674c192a6f8596ccdd4e63efa2801bf399f5f1a7ae33e",
+    "sourceInputCount": 2478,
+    "associatedFinal": {
+      "executed": 44,
+      "skipped": 2,
+      "failed": 0
+    },
+    "foregroundFocused": {
+      "executed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "changedInputs": []
+    },
+    "standardBuild": "passed; actual main-window return and composer focus verified",
+    "userProtection": "seven fields, nine runs and model file unchanged"
   }
 }
