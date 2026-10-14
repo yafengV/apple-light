@@ -26,7 +26,7 @@
       ],
       "requiredReference": "其余新任务状态／浅色参考",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 105; main input placement, native menu return, navigation and viewport partial verification; full pairing pending"
     },
     {
       "id": "G02",
@@ -35,7 +35,7 @@
       "received": [],
       "requiredReference": "当前任务时间线与已有工具卡片",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 105; main input placement, native menu return, navigation and viewport partial verification; full pairing pending"
     },
     {
       "id": "G03",
@@ -46,7 +46,7 @@
       ],
       "requiredReference": "侧栏菜单／选中态",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 105; main input placement, native menu return, navigation and viewport partial verification; full pairing pending"
     },
     {
       "id": "G04",
@@ -153,7 +153,7 @@
       ],
       "requiredReference": "共用确认官方动态参考仍缺；产品新入口确认已验",
       "pairedAcceptance": "pending",
-      "productEvidence": "v0.1-evidence.md section 102; existing unaffected evidence preserved, A31 final full pending"
+      "productEvidence": "v0.1-evidence.md section 105; main input placement, native menu return, navigation and viewport partial verification; full pairing pending"
     },
     {
       "id": "G15",
@@ -235,12 +235,12 @@
     }
   ],
   "productFollowup": {
-    "commit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
-    "evidence": "v0.1-evidence.md section 103",
-    "productMatrix": "1000x700 dark/light core page checks, managers, persistence and native controls passed",
-    "mandatoryForegroundMethods": 24,
-    "wideWindow": "still pending; no wide test in this stage",
-    "A30": "Core visual states and viewport pending; secondary page parity waived, no new product validation in scope-only amendment"
+    "commit": "0332fa3efa37df9f9387b8e0a50f85aa8736bd47",
+    "evidence": "v0.1-evidence.md section 105",
+    "mandatoryForegroundMethods": 25,
+    "productMatrix": "Main composer model controls and immediate first key after Escape/Done verified in formal wide and narrow cold windows; six core settings wide light/dark overview checked; unchanged settings sources retained",
+    "wideWindow": "1280x800 available; recorded exact/fully-visible/key/active geometry; main and settings overview gap resolved, no blanket all-core matrix claim",
+    "A30": "Remaining official core page pairing/states pending; secondary exemptions preserved"
   },
   "visualScopeAmendment": {
     "date": "2026-10-14",

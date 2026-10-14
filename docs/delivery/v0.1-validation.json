@@ -190,8 +190,8 @@
       "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Core UI references/states and viewport pending; secondary review/environment/archive/browser-manager full parity waived by user; functional checks retained",
-    "A31": "Pending final A30 candidate full standard regression and 24 mandatory foreground methods",
+    "A30": "Main composer and settings wide overview verified; remaining official core page references/states pending; secondary page visual exemptions preserved",
+    "A31": "Pending final A30 candidate full standard regression and 25 mandatory foreground methods",
     "A23": "passed: current native search handoff and focused foreground methods plus latest formal product actions"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
@@ -258,130 +258,159 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A30 batch 2B supplied Git, review-agent, worktree and browser references",
+    "stage": "A30 core composer placement and explicit native model-popover return focus",
+    "productCommit": "0332fa3efa37df9f9387b8e0a50f85aa8736bd47",
     "A30Accepted": false,
     "A31Accepted": false,
     "A32Accepted": false,
-    "manualReferencePagesReceived": 11,
-    "partialGroups": 8,
-    "fullyAcceptedReferenceGroups": 0,
-    "sourceInputCount": 2479,
-    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/source-inputs.json",
-    "sourceFingerprintSHA256": "bad529d8352c85348cec5fed074dea4377509c23574c741142358ff12462712c",
-    "sourceChangesAfterProductVerification": [],
-    "initialAssociated": {
-      "executed": 196,
-      "failedAssertions": 4,
-      "failedMethods": 2,
-      "log": ".cache/delivery/t11-final/a30-manual-batch2b/final-associated-tests.log",
-      "note": "194 other methods passed; includes 45 worktree tests. Two SwiftUI AX methods resolved in interactive native host; no repeated full stage suite."
-    },
+    "sourceInputCount": 2481,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/core-ui-final/source-inputs.json",
+    "sourceFingerprintSHA256": "30d58edabb255f4cbb0abb2ca974c2913304bc9371bf939499cc3fb397ac3525",
     "associated": {
-      "executed": 19,
+      "executed": 30,
       "failed": 0,
-      "skipped": 2,
-      "log": ".cache/delivery/t11-final/a30-manual-batch2b/final-control-tests.log",
-      "skippedMethods": [
-        "testNativeGitPageSegmentsChangePersistedReviewDeliveryAndSearchRoutesBackToIt",
-        "testNativeBrowserOverviewLinkPreferencePersistsAndManagerNavigatesToHistory"
-      ],
-      "note": "Both required skips executed and passed in native manifest, overlaps initial stage checks"
+      "skipped": 1,
+      "log": ".cache/delivery/t11-final/core-ui-final/cancel-associated-tests.log",
+      "requiredSkip": "testNativeModelPopoverDismissalReturnsTheFirstQueuedKeyToComposer"
     },
     "native": {
-      "executed": 2,
+      "executed": 1,
       "failed": 0,
       "skipped": 0,
-      "changedInputs": [],
-      "manifest": ".cache/delivery/t11-final/a30-manual-batch2b/foreground-controls/manifest.json",
-      "manifestSHA256": "5a2beb37003dfc9241461cda6e60bb8fd829ef59cbd389acc86a023864939c5f"
+      "manifest": ".cache/delivery/t11-final/core-ui-final/foreground-model-cancel/manifest.json",
+      "manifestSHA256": "12424eefd7b560310a071b491e4df645b2d7e08f1f9ce4a585cfbbb3840e4c92",
+      "changedInputs": []
     },
-    "mandatoryForegroundMethodCount": 24,
-    "previousMandatoryForegroundMethodCount": 22,
-    "fullRegression": "pending final A30 candidate freeze; historical full checks not rebound",
+    "mandatoryForegroundMethodCount": 25,
     "formalApp": {
       "path": "dist/ShipiOS.app",
-      "sha256": "fec0f9b8809f7b5e66e35e58e99536b9d1102416bf858eb0fa9ad0a6d728fa0b",
+      "sha256": "a7a09c908d6eb945bc11b212b84a1f2682d82ed641dd2d6fe0307d42556a19eb",
       "strictSignatureVerified": true,
-      "userInstanceRestoredAndComposerClicked": true
+      "originalUserInstanceRestoredAndInputClicked": true
     },
-    "productMatrix": {
-      "size": [
-        1000,
-        700
-      ],
-      "themes": [
-        "dark",
-        "light"
-      ],
-      "pages": [
-        "Git",
-        "worktrees",
-        "browser overview",
-        "local code review"
-      ],
-      "subpages": [
-        "browser history",
-        "browser downloads",
-        "browser permissions"
-      ],
-      "officialLightReference": false,
-      "wide": "not executed in this stage; still pending"
-    },
-    "productActions": [
-      "branch-prefix keyboard save and cold restore; original restored",
-      "merge and review segments save/cold restore; originals restored",
-      "worktree retention 15->16 in zero-worktree runtime, cold restore, original restored",
-      "worktree environment entry same-main-window navigation; duplicate AX label resolved by documented screenshot-coordinate click",
-      "browser defaults to overview; history/download/permission managers navigate to existing pages",
-      "web-link target persists and cold restores; original restored",
-      "browser overview search from permissions selects General and keeps native query focus",
-      "four-page light/dark inspection, dark restored; Escape returns same task and editable composer",
-      "original user instance restored by standard script and composer actually clicked"
-    ],
-    "protection": {
-      "controlled": {
-        "protectedUnchanged": true,
-        "modelUnchanged": true,
-        "preferencesRestored": true,
-        "runs": 9
+    "geometry": {
+      "wide": {
+        "active": true,
+        "actualHeight": 800,
+        "actualWidth": 1280,
+        "backingScale": 2,
+        "contentHeight": 748,
+        "contentWidth": 1280,
+        "fullyVisibleOnOneScreen": true,
+        "key": true,
+        "matchesRequestedFrame": true,
+        "pid": 14010,
+        "requestedHeight": 800,
+        "requestedWidth": 1280,
+        "targetDisplayAvailable": true,
+        "visible": true,
+        "visibleScreenFrames": [
+          {
+            "height": 996,
+            "width": 1710,
+            "x": 0,
+            "y": 77
+          },
+          {
+            "height": 1050,
+            "width": 1920,
+            "x": -1920,
+            "y": 27
+          }
+        ]
       },
+      "narrow": {
+        "active": true,
+        "actualHeight": 700,
+        "actualWidth": 1000,
+        "backingScale": 2,
+        "contentHeight": 648,
+        "contentWidth": 1000,
+        "fullyVisibleOnOneScreen": true,
+        "key": true,
+        "matchesRequestedFrame": true,
+        "pid": 14311,
+        "requestedHeight": 700,
+        "requestedWidth": 1000,
+        "targetDisplayAvailable": true,
+        "visible": true,
+        "visibleScreenFrames": [
+          {
+            "height": 996,
+            "width": 1710,
+            "x": 0,
+            "y": 77
+          },
+          {
+            "height": 1050,
+            "width": 1920,
+            "x": -1920,
+            "y": 27
+          }
+        ]
+      }
+    },
+    "protection": {
       "user": {
         "protectedUnchanged": true,
         "modelUnchanged": true,
-        "preferencesRestored": true,
+        "preferencesUnchanged": true,
+        "runs": 9
+      },
+      "controlled": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "preferencesUnchanged": true,
         "runs": 9
       }
     },
-    "referenceSHA256": {
-      "code-review-agents-reference.png": "c53597624cb320467697d35a9941d9ef1eacfbf6d18234c944e488546d6c21cb",
-      "git-reference.png": "60e7f048988926a762a1ed7a8a768f4a3cf827f7e00980d6334120ec5a4a439c",
-      "worktrees-reference.png": "4814672ef23e7d314f73636eaec4bce977c8abff95f67b3943febbc7014658e3",
-      "browser-reference.png": "08907368fe2f3361902f1a6d3237c97ef6e89ff2d29c00475913ce4c91d52008"
-    },
-    "productScreenshots": {
-      "browser-downloads-dark.png": "d2b198de9911f0ba1ab3a2d1c8bc4ade49b2b770ae47afb413c3dc0ec030de27",
-      "browser-overview-light.png": "16986c1060b9375d6cfb96439c094d40fd7806d99f6e9b4af6a29e06f76961be",
-      "code-review-local-dark.png": "ed0d8c3f9ba64cab51af7d812f55dc088715e5d0c382668727db4ef676f1bf41",
-      "worktrees-light.png": "3d623854f0c92a280ac3fc54a9b5465733e94a47366089284aa8f886ce3077fd",
-      "worktrees-dark.png": "737e4f93ed7e00da55ad39f33aa62ce122bab3827759da2d1812b1546bde9c29",
-      "browser-permissions-dark.png": "47dd6ac98c07298c9bfff1ab265167d270276f21749cc88a9beb51510248e954",
-      "git-dark.png": "7e5cdc50a5602637af7437c2ba91e813a03fd2a1ecfa6f0ff53cb09c4f52acc0",
-      "browser-overview-dark.png": "7d45e5c171a6c12a7e4e399ccdc7e88ac02646b2efb20de5b8e453e2cf8cb17f",
-      "browser-history-dark.png": "082bf53a046f3f30a474ac9abdc6222dc0a7bce0e0b2f85a9b2dbef5a41332ae",
-      "code-review-local-light.png": "e54d6f420644cd1d6a6b01f99f87d24cfd814307e49a1b79dd8ce3050cd9f665",
-      "git-light.png": "4b79fa2a9ffeffc403505d6a65335cabe14d312c05e2338c0697c84527b7fd7b"
-    },
-    "knownGaps": [
-      "cloud review-agent image does not establish local review preference parity",
-      "environment/archived/browser-manager reference pages not received",
-      "worktree environment navigates existing page rather than embedded tab; always-fetch preference missing",
-      "browser full URL/local URL/global enable/import/screenshot policy controls differ from installed reference",
-      "remaining fixed core groups, wide and official light states pending"
+    "productActions": [
+      "Wide: Esc then immediate a retained; Done then immediate b retained",
+      "Narrow cold launch: Esc then immediate c retained",
+      "Test-only characters cleared; only new empty controlled draft entry removed under exact baseline-hash guard",
+      "Original user instance restored, empty composer actually clicked; no model request sent"
     ],
-    "productCommit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
-    "commit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
-    "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/verified-stage.json",
-    "stageEvidenceSHA256": "3581473dff3cc9aff8f861684a2152025da697a9f6178b53de79975d7701d885"
+    "layoutEvidence": "New-task/main timeline in narrow/wide and dark/light; six core settings wide dark/light overview captured before native-popover change; settings sources unchanged. This does not close all core page pairing.",
+    "knownGaps": [
+      "Official core timeline/content/review page references remain incomplete",
+      "Task-window model picker has not been changed or newly accepted by this main-composer fix",
+      "A31 final full suite not run; A32 pending"
+    ],
+    "failedEvidence": [
+      "foreground-model: 1 method/12 assertions, host inactive at first assertion",
+      "SwiftUI/native transient Escape swallowed return-focus callback before final monitor; formal first-key failures retained in tool trace"
+    ],
+    "screenshots": {
+      "appearance-wide-dark.jpg": "532580950b285f89dc953ffcd48fc7dc04209922532369fd1be774bccd967f07",
+      "appearance-wide-light.jpg": "5893b870a8ec175e04be7f40927bc841048f0ecc928b183448eca592c38fe9b3",
+      "configuration-wide-dark.jpg": "42e59a6c369a4b1adb7b750c728d07da641c8c45730f534b5fd5d137cf3a0429",
+      "configuration-wide-light.jpg": "cbf74ea824c0eb88dd99dbd266ca075014333119037003597e54ffa8f3b475a9",
+      "final-narrow-escape-first-key.jpg": "51801c7d03348dc7db969d9242e06a33dd82387585cf0ad112174dba1f055170",
+      "final-wide-done-first-key.jpg": "08a65dd660f4612df1035bab2ca31441a560db7ec71e7d8a07d682ff661eab5c",
+      "final-wide-escape-first-key.jpg": "da11c8e1883108c54e4c04be34a565702c660abf54b85c9b2243686adefbf0ab",
+      "general-wide-dark.jpg": "7bb95fe18292861e8fe9d83a34341753fe8938cdffec6bf2a54bf1cccef8d9d4",
+      "general-wide-light.jpg": "8ea5a30d72fc714d8a25b1a82cf85c94badb47199bec30bf9e1f97603d1605c1",
+      "git-wide-dark.jpg": "ed285176cefe1c6a911f17e0d59425d7d218b120e694827977075d8c75819eed",
+      "git-wide-light.jpg": "7b0b35e47f19e080b989f3ceb648c92d8929ded76c7629c778f646b2a56af879",
+      "model-menu-unavailable-service.jpg": "0ef6a75392cdc9be8ca17100edfd4a3c559ca2c5e199e50817690efd7a180b28",
+      "model-return-focused-input.jpg": "c94c98ae0b2e9ef1ff81f7b9506e6b5a11c860ff2e23f4c5e7b7e68f245a4426",
+      "new-task-before.jpg": "394c53d02e0c32b95807c0437ba0ec86657af6e743fb4f326b2e877bb09266e8",
+      "new-task-narrow-dark.jpg": "197ce92b27cd22f641d67da68fa416444fefcbe4f12092999eec483e8ce62f46",
+      "new-task-narrow-light.jpg": "9cc512cc938606ebbc60989585891f742341252e3fedfa69cf29af2fcfef20cc",
+      "new-task-wide-dark.jpg": "21f7925777c49fe51cf7a409d463d09acd6212b10ac9a48e17b5041bff12487e",
+      "new-task-wide-light.jpg": "dcd00711594729b3986eab6d4949f57126487e8ba488af22f4e97dc251e6e1c6",
+      "personalization-wide-dark.jpg": "653f8624e3ff58a2a4c86ddb5e336f8c5a7b4a9260e355abf80af31dac11ae80",
+      "personalization-wide-light.jpg": "34caaad7d076c829cf13f2e3327e84bcdc63e66154afa7171c834aa8cbe865c4",
+      "restored-user-input.jpg": "a5852d169b6b4fc4dbcfcb126198f91aace9a8444f278af10e620b2620976380",
+      "search-narrow-light.jpg": "4fdb540c5292c02ab0a31e920a25f904376ce9f143d19230e0a3cc60c245ea4f",
+      "shortcuts-wide-dark.jpg": "803457607e01e5f5ec7a7964919c6b4c693fa5e8179159529a3e0c242da5ec40",
+      "shortcuts-wide-light.jpg": "a71f286c75a197aec5fdbe112eedf52811ac4bb558fd8a63a7dbc6762a988dfb",
+      "timeline-narrow-light.jpg": "7f2a72342ba7ff2105ecac27bf15ef1422e2ccd5621fbfa99217d929c6b109bc",
+      "timeline-wide-dark.jpg": "48a958bb2ac49fe93707d1ebef7a9531c9bd27deb265d0fce96819e15f3030de",
+      "timeline-wide-light.jpg": "d7526a17c0539f2aa3416274bc925ae8a49d2b249998e7917c49cde27e72e3b9"
+    },
+    "stageEvidence": ".cache/delivery/t11-final/core-ui-final/verified-stage.json",
+    "stageEvidenceSHA256": "c0da46f8864f5a012f460628b30b02fe95a2e534d93cb643165a4bbb321ce8fa"
   },
   "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
   "priorAcceptedCandidate": {
@@ -639,5 +668,131 @@
     ],
     "policy": "No complete visual parity or official screenshot requirement; functional behavior, persistence, focus and error checks remain",
     "evidence": "v0.1-evidence.md section 104"
+  },
+  "previousCoreSettingsCandidate": {
+    "stage": "A30 batch 2B supplied Git, review-agent, worktree and browser references",
+    "A30Accepted": false,
+    "A31Accepted": false,
+    "A32Accepted": false,
+    "manualReferencePagesReceived": 11,
+    "partialGroups": 8,
+    "fullyAcceptedReferenceGroups": 0,
+    "sourceInputCount": 2479,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/source-inputs.json",
+    "sourceFingerprintSHA256": "bad529d8352c85348cec5fed074dea4377509c23574c741142358ff12462712c",
+    "sourceChangesAfterProductVerification": [],
+    "initialAssociated": {
+      "executed": 196,
+      "failedAssertions": 4,
+      "failedMethods": 2,
+      "log": ".cache/delivery/t11-final/a30-manual-batch2b/final-associated-tests.log",
+      "note": "194 other methods passed; includes 45 worktree tests. Two SwiftUI AX methods resolved in interactive native host; no repeated full stage suite."
+    },
+    "associated": {
+      "executed": 19,
+      "failed": 0,
+      "skipped": 2,
+      "log": ".cache/delivery/t11-final/a30-manual-batch2b/final-control-tests.log",
+      "skippedMethods": [
+        "testNativeGitPageSegmentsChangePersistedReviewDeliveryAndSearchRoutesBackToIt",
+        "testNativeBrowserOverviewLinkPreferencePersistsAndManagerNavigatesToHistory"
+      ],
+      "note": "Both required skips executed and passed in native manifest, overlaps initial stage checks"
+    },
+    "native": {
+      "executed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "changedInputs": [],
+      "manifest": ".cache/delivery/t11-final/a30-manual-batch2b/foreground-controls/manifest.json",
+      "manifestSHA256": "5a2beb37003dfc9241461cda6e60bb8fd829ef59cbd389acc86a023864939c5f"
+    },
+    "mandatoryForegroundMethodCount": 24,
+    "previousMandatoryForegroundMethodCount": 22,
+    "fullRegression": "pending final A30 candidate freeze; historical full checks not rebound",
+    "formalApp": {
+      "path": "dist/ShipiOS.app",
+      "sha256": "fec0f9b8809f7b5e66e35e58e99536b9d1102416bf858eb0fa9ad0a6d728fa0b",
+      "strictSignatureVerified": true,
+      "userInstanceRestoredAndComposerClicked": true
+    },
+    "productMatrix": {
+      "size": [
+        1000,
+        700
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "pages": [
+        "Git",
+        "worktrees",
+        "browser overview",
+        "local code review"
+      ],
+      "subpages": [
+        "browser history",
+        "browser downloads",
+        "browser permissions"
+      ],
+      "officialLightReference": false,
+      "wide": "not executed in this stage; still pending"
+    },
+    "productActions": [
+      "branch-prefix keyboard save and cold restore; original restored",
+      "merge and review segments save/cold restore; originals restored",
+      "worktree retention 15->16 in zero-worktree runtime, cold restore, original restored",
+      "worktree environment entry same-main-window navigation; duplicate AX label resolved by documented screenshot-coordinate click",
+      "browser defaults to overview; history/download/permission managers navigate to existing pages",
+      "web-link target persists and cold restores; original restored",
+      "browser overview search from permissions selects General and keeps native query focus",
+      "four-page light/dark inspection, dark restored; Escape returns same task and editable composer",
+      "original user instance restored by standard script and composer actually clicked"
+    ],
+    "protection": {
+      "controlled": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "preferencesRestored": true,
+        "runs": 9
+      },
+      "user": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "preferencesRestored": true,
+        "runs": 9
+      }
+    },
+    "referenceSHA256": {
+      "code-review-agents-reference.png": "c53597624cb320467697d35a9941d9ef1eacfbf6d18234c944e488546d6c21cb",
+      "git-reference.png": "60e7f048988926a762a1ed7a8a768f4a3cf827f7e00980d6334120ec5a4a439c",
+      "worktrees-reference.png": "4814672ef23e7d314f73636eaec4bce977c8abff95f67b3943febbc7014658e3",
+      "browser-reference.png": "08907368fe2f3361902f1a6d3237c97ef6e89ff2d29c00475913ce4c91d52008"
+    },
+    "productScreenshots": {
+      "browser-downloads-dark.png": "d2b198de9911f0ba1ab3a2d1c8bc4ade49b2b770ae47afb413c3dc0ec030de27",
+      "browser-overview-light.png": "16986c1060b9375d6cfb96439c094d40fd7806d99f6e9b4af6a29e06f76961be",
+      "code-review-local-dark.png": "ed0d8c3f9ba64cab51af7d812f55dc088715e5d0c382668727db4ef676f1bf41",
+      "worktrees-light.png": "3d623854f0c92a280ac3fc54a9b5465733e94a47366089284aa8f886ce3077fd",
+      "worktrees-dark.png": "737e4f93ed7e00da55ad39f33aa62ce122bab3827759da2d1812b1546bde9c29",
+      "browser-permissions-dark.png": "47dd6ac98c07298c9bfff1ab265167d270276f21749cc88a9beb51510248e954",
+      "git-dark.png": "7e5cdc50a5602637af7437c2ba91e813a03fd2a1ecfa6f0ff53cb09c4f52acc0",
+      "browser-overview-dark.png": "7d45e5c171a6c12a7e4e399ccdc7e88ac02646b2efb20de5b8e453e2cf8cb17f",
+      "browser-history-dark.png": "082bf53a046f3f30a474ac9abdc6222dc0a7bce0e0b2f85a9b2dbef5a41332ae",
+      "code-review-local-light.png": "e54d6f420644cd1d6a6b01f99f87d24cfd814307e49a1b79dd8ce3050cd9f665",
+      "git-light.png": "4b79fa2a9ffeffc403505d6a65335cabe14d312c05e2338c0697c84527b7fd7b"
+    },
+    "knownGaps": [
+      "cloud review-agent image does not establish local review preference parity",
+      "environment/archived/browser-manager reference pages not received",
+      "worktree environment navigates existing page rather than embedded tab; always-fetch preference missing",
+      "browser full URL/local URL/global enable/import/screenshot policy controls differ from installed reference",
+      "remaining fixed core groups, wide and official light states pending"
+    ],
+    "productCommit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
+    "commit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
+    "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/verified-stage.json",
+    "stageEvidenceSHA256": "3581473dff3cc9aff8f861684a2152025da697a9f6178b53de79975d7701d885"
   }
 }
