@@ -227,7 +227,6 @@ struct ComposerView: View {
     .onChange(of: store.blurComposer) { _, _ in focused = false }
     .onChange(of: store.showingModelPicker) { _, showing in
       if showing { focused = false }
-      else if store.destination == .workspace { focused = true }
     }
     .onChange(of: store.action) { _, action in
       if action != .chat {
@@ -429,13 +428,31 @@ struct ComposerView: View {
           ComposerPermissionsMenu(store: store, taskID: store.selectedTask?.id,
             draftKey: store.draftKey, compact: compact)
         }
+      }
+      Spacer(minLength: 8)
+      if !compact, store.showContextUsageIndicator,
+        let tokens = store.contextInputTokens(taskID: store.selectedTask?.id)
+      {
+        Label(tokens.formatted() + " tokens", systemImage: "gauge.with.dots.needle.33percent")
+          .appFont(.caption).foregroundStyle(.secondary)
+          .help("最近一轮请求使用的上下文输入 token")
+      }
+      if store.action == .chat {
         Button(store.modelConfiguration(for: store.selectedTask?.id).model.isEmpty ? "配置模型…" : store.modelConfiguration(for: store.selectedTask?.id).model) {
           store.openModelPicker()
         }.buttonStyle(.plain).appFont(.caption).lineLimit(1).frame(minWidth: 72).layoutPriority(1).help(
           "选择模型与推理强度 \(store.shortcuts.label("model"))")
-          .popover(isPresented: $store.showingModelPicker, arrowEdge: .top) {
-            ComposerModelPicker(store: store, taskID: store.selectedTask?.id)
-          }
+          .background(ComposerModelPopover(presented: store.showingModelPicker,
+            ownerID: store.draftKey, dismiss: { restore in
+              store.showingModelPicker = false
+              if restore, store.destination == .workspace {
+                focused = true
+                store.focusComposer = UUID()
+              }
+            }, content: { close in
+              AnyView(ComposerModelPicker(store: store, taskID: store.selectedTask?.id,
+                onClose: close))
+            }))
       }
       if store.action == .build {
         Button {
@@ -449,14 +466,6 @@ struct ComposerView: View {
           .popover(isPresented: $showingBuildOptions, arrowEdge: .top) {
             BuildOptionsView(store: store).padding(20).frame(width: 360)
           }
-      }
-      Spacer(minLength: 8)
-      if !compact, store.showContextUsageIndicator,
-        let tokens = store.contextInputTokens(taskID: store.selectedTask?.id)
-      {
-        Label(tokens.formatted() + " tokens", systemImage: "gauge.with.dots.needle.33percent")
-          .appFont(.caption).foregroundStyle(.secondary)
-          .help("最近一轮请求使用的上下文输入 token")
       }
       if store.action == .chat {
         DictationButton(store: store, target: store.draftKey, enabled: store.destination == .workspace)
