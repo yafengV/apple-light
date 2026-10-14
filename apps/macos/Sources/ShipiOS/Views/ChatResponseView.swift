@@ -3,6 +3,7 @@ import SwiftUI
 /// Shared by the main conversation and independent task windows.
 struct ChatResponseView: View {
   @Environment(\.messageBrowserRoute) private var openInApp
+  @Environment(\.turnReviewRoute) private var openReview
   let store: WorkspaceStore
   let run: AgentRun
   var railSpace: String? = nil
@@ -48,7 +49,8 @@ struct ChatResponseView: View {
         CodexNoticeView(kind: kind, message: message)
       case .diff(let id):
         if let diff = run.codexTurnDiff, diff.id == id {
-          CodexTurnDiffView(diff: diff, root: store.dataRoot)
+          CodexTurnDiffView(diff: diff, root: store.dataRoot,
+            onReview: { openReview?(run) ?? store.openTurnReview(runID: run.id) })
         }
       case .compaction:
         Label("上下文已整理", systemImage: "text.badge.checkmark")

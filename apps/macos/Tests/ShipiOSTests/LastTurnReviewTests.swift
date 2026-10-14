@@ -80,6 +80,30 @@ private actor LastTurnReadGate {
     XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), oldIndex)
   }
 
+  func testTurnCardOpensLatestSnapshotInSameWorkspaceWithoutChangingDraftOrDefaultScope() async throws {
+    let (store, root) = try await fixture()
+    let old = appendRun(store, root: root, diff: patch)
+    let latest = appendRun(store, root: root, diff: patch.replacingOccurrences(of: "assistant", with: "latest"))
+    store.draft = "保留当前草稿"
+    store.workspaceContentLayoutMode = .full
+    let defaultScope = store.library.gitPreferences.defaultReviewScope
+    XCTAssertFalse(store.openTurnReview(runID: old.id), "Historical cards must not silently open a newer turn")
+    XCTAssertTrue(store.openTurnReview(runID: latest.id))
+    XCTAssertEqual(store.workspaceContentLayoutMode, .split)
+    let tab = WorkspaceContentTab.review(owner: "owner")
+    XCTAssertEqual(store.workspaceTabPlacement(tab.id), .right)
+    XCTAssertEqual(store.activeRightWorkspaceContentTab, tab)
+    XCTAssertEqual(store.workspace.selectedReviewScope, .lastTurn)
+    XCTAssertEqual(store.library.gitPreferences.defaultReviewScope, defaultScope)
+    XCTAssertEqual(store.draft, "保留当前草稿")
+    XCTAssertFalse(store.openTurnReview(runID: "another-task-run"))
+    store.destination = .settings
+    XCTAssertFalse(store.openTurnReview(runID: latest.id))
+    let workingDiff = try await GitReviewService.checked(["diff"], at: root)
+    XCTAssertEqual(workingDiff, "")
+    await store.shutdown()
+  }
+
   func testHiddenLastTurnReviewSwitchesBetweenScrollableSplitAndWrappedColumns() async throws {
     let (store, root) = try await fixture()
     appendRun(store, root: root, diff: patch)

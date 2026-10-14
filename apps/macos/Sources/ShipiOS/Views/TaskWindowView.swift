@@ -517,6 +517,15 @@ struct TaskWindowView: View {
       guard !windowCommandsBlocked else { return }
       tabs.openBrowser(url, presentation: presentation)
     }
+    .environment(\.turnReviewRoute) { run in
+      guard !windowCommandsBlocked, task?.runIDs.contains(run.id) == true,
+        store.lastTurnReviewSource(taskID: taskID)?.runID == run.id,
+        run.codexTurnDiff != nil, taskWorkspace.root != nil else { return false }
+      tabs.contentLayoutMode = .split
+      tabs.openReview(in: .right, defaultScope: .lastTurn)
+      taskWorkspace.selectedReviewScope = .lastTurn
+      return true
+    }
     .onChange(of: tabs.chatFocus) { _, _ in
       guard tabs.chatVisible, !windowCommandsBlocked else { return }
       composerFocused = true; taskComposerFocusRequest = UUID()

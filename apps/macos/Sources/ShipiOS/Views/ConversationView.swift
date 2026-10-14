@@ -92,6 +92,7 @@ struct ExecutionMessageView: View {
   @State private var expanded = false
   @State private var copied = false
   @State private var showingHookStats = false
+  @Environment(\.appAppearance) private var appearance
 
   var body: some View {
     VStack(alignment: .leading, spacing: 23) {
@@ -109,26 +110,38 @@ struct ExecutionMessageView: View {
         .appContentFont(size: 14).textSelection(.enabled).padding(.horizontal, 17).padding(
           .vertical, 12
         )
-        .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
+        .background(appearance.accentColor.opacity(appearance.isDark ? 0.32 : 0.13),
+          in: RoundedRectangle(cornerRadius: 16))
         .conversationRailFlash(run.id)
       }
       VStack(alignment: .leading, spacing: 16) {
-        HStack(spacing: 9) {
-          Image(systemName: "sparkle").appFont(size: 18)
-          Text("ShipiOS").appFont(size: 13, weight: .semibold)
-          Text(run.executionSourceLabel).appFont(.caption)
-            .foregroundStyle(.tertiary)
-          Spacer()
-          if run.kind == "chat" {
+        if run.kind == "chat" {
+          HStack(spacing: 6) {
             Button {
               if let actions { actions.inspect(run, "overview") }
               else { store.showDetails("overview", run: run) }
             } label: {
-              Image(systemName: "list.bullet.rectangle")
-            }.buttonStyle(.plain).help("查看执行详情")
+              HStack(spacing: 6) {
+                Text(run.isActive ? run.statusLabel
+                  : RunElapsedTime.title(createdAt: run.createdAt, updatedAt: run.updatedAt)
+                    ?? run.statusLabel)
+                Image(systemName: "chevron.right").appFont(size: 9)
+              }
+            }.buttonStyle(.plain).appFont(.caption).foregroundStyle(.secondary)
               .accessibilityLabel(run.isWatchPreflight ? "查看 PR 状态检查详情" : "查看模型执行详情")
+              .help(run.executionSourceLabel + " · " + run.date.formatted())
+            Spacer()
           }
-          Text(run.date, style: .time).appFont(.caption).foregroundStyle(.tertiary)
+          Divider()
+        } else {
+          HStack(spacing: 9) {
+            Image(systemName: "sparkle").appFont(size: 18)
+            Text("ShipiOS").appFont(size: 13, weight: .semibold)
+            Text(run.executionSourceLabel).appFont(.caption)
+              .foregroundStyle(.tertiary)
+            Spacer()
+            Text(run.date, style: .time).appFont(.caption).foregroundStyle(.tertiary)
+          }
         }
         if run.kind != "chat" {
           DisclosureGroup(isExpanded: $expanded) {
