@@ -190,8 +190,8 @@
       "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Seven manual references received; six partial groups, automatic memory/rule semantic gaps, remaining fixed groups and wide viewport pending",
-    "A31": "Pending final candidate full standard and foreground suite",
+    "A30": "Eleven references received; eight partial groups, remaining fixed core pages/states and wide viewport pending; capability differences recorded",
+    "A31": "Pending final A30 candidate full standard regression and 24 mandatory foreground methods",
     "A23": "passed: current native search handoff and focused foreground methods plus latest formal product actions"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
@@ -258,36 +258,49 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A30 manual batch 2A core settings implementation and product checks",
+    "stage": "A30 batch 2B supplied Git, review-agent, worktree and browser references",
     "A30Accepted": false,
     "A31Accepted": false,
     "A32Accepted": false,
-    "receivedTotalPages": 7,
-    "partialGroups": 6,
-    "fullyAcceptedGroups": 0,
+    "manualReferencePagesReceived": 11,
+    "partialGroups": 8,
+    "fullyAcceptedReferenceGroups": 0,
     "sourceInputCount": 2479,
-    "changedInputs": [],
-    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-manual-batch2a/source-inputs.json",
-    "sourceFingerprintSHA256": "a6123a02fd45bb4f23bebde077148f82650ead1a469b6530899e6d550ba60631",
-    "associated": [
-      {
-        "executed": 105,
-        "failed": 0,
-        "skipped": 0,
-        "log": ".cache/delivery/t11-final/a30-manual-batch2a/final-associated-tests.log",
-        "scope": "Configuration/personalization final inputs before shortcut-only presentation changes"
-      },
-      {
-        "executed": 66,
-        "failed": 0,
-        "skipped": 0,
-        "log": ".cache/delivery/t11-final/a30-manual-batch2a/shortcut-verified-tests.log",
-        "scope": "Final shortcut presentation and navigation; overlaps preceding set"
-      }
-    ],
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/source-inputs.json",
+    "sourceFingerprintSHA256": "bad529d8352c85348cec5fed074dea4377509c23574c741142358ff12462712c",
+    "sourceChangesAfterProductVerification": [],
+    "initialAssociated": {
+      "executed": 196,
+      "failedAssertions": 4,
+      "failedMethods": 2,
+      "log": ".cache/delivery/t11-final/a30-manual-batch2b/final-associated-tests.log",
+      "note": "194 other methods passed; includes 45 worktree tests. Two SwiftUI AX methods resolved in interactive native host; no repeated full stage suite."
+    },
+    "associated": {
+      "executed": 19,
+      "failed": 0,
+      "skipped": 2,
+      "log": ".cache/delivery/t11-final/a30-manual-batch2b/final-control-tests.log",
+      "skippedMethods": [
+        "testNativeGitPageSegmentsChangePersistedReviewDeliveryAndSearchRoutesBackToIt",
+        "testNativeBrowserOverviewLinkPreferencePersistsAndManagerNavigatesToHistory"
+      ],
+      "note": "Both required skips executed and passed in native manifest, overlaps initial stage checks"
+    },
+    "native": {
+      "executed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "changedInputs": [],
+      "manifest": ".cache/delivery/t11-final/a30-manual-batch2b/foreground-controls/manifest.json",
+      "manifestSHA256": "5a2beb37003dfc9241461cda6e60bb8fd829ef59cbd389acc86a023864939c5f"
+    },
+    "mandatoryForegroundMethodCount": 24,
+    "previousMandatoryForegroundMethodCount": 22,
+    "fullRegression": "pending final A30 candidate freeze; historical full checks not rebound",
     "formalApp": {
       "path": "dist/ShipiOS.app",
-      "sha256": "5357c1f3234d3f00f437c6860ff8cc56eaf5c45aa99ed293c9b954c8fd21e120",
+      "sha256": "fec0f9b8809f7b5e66e35e58e99536b9d1102416bf858eb0fa9ad0a6d728fa0b",
       "strictSignatureVerified": true,
       "userInstanceRestoredAndComposerClicked": true
     },
@@ -301,70 +314,74 @@
         "light"
       ],
       "pages": [
-        "configuration",
-        "personalization",
-        "shortcuts",
-        "notifications"
+        "Git",
+        "worktrees",
+        "browser overview",
+        "local code review"
+      ],
+      "subpages": [
+        "browser history",
+        "browser downloads",
+        "browser permissions"
       ],
       "officialLightReference": false,
       "wide": "not executed in this stage; still pending"
     },
     "productActions": [
-      "main-window configuration core controls and approval menu cancellation",
-      "verbosity concise saved and cold restored, original model default restored",
-      "local memory switch saved and cold restored, original enabled restored",
-      "unsaved instruction draft -> memory entry confirmation -> cancellation restores entry -> Return reopens -> confirmation discards only draft",
-      "memory entry opens existing local manager",
-      "custom rule entry reveals existing named permission profiles",
-      "notification timing never saved and cold restored, original background restored",
-      "archive shortcut recorder -> Escape -> original binding and edit-button focus restored",
-      "shortcut command search finds archive without mutation",
-      "four light pages saved and inspected; dark theme restored",
-      "settings Escape returns same main task and focuses composer"
+      "branch-prefix keyboard save and cold restore; original restored",
+      "merge and review segments save/cold restore; originals restored",
+      "worktree retention 15->16 in zero-worktree runtime, cold restore, original restored",
+      "worktree environment entry same-main-window navigation; duplicate AX label resolved by documented screenshot-coordinate click",
+      "browser defaults to overview; history/download/permission managers navigate to existing pages",
+      "web-link target persists and cold restores; original restored",
+      "browser overview search from permissions selects General and keeps native query focus",
+      "four-page light/dark inspection, dark restored; Escape returns same task and editable composer",
+      "original user instance restored by standard script and composer actually clicked"
     ],
     "protection": {
       "controlled": {
         "protectedUnchanged": true,
         "modelUnchanged": true,
+        "preferencesRestored": true,
         "runs": 9
       },
       "user": {
         "protectedUnchanged": true,
         "modelUnchanged": true,
+        "preferencesRestored": true,
         "runs": 9
       }
     },
     "referenceSHA256": {
-      "configuration-reference.png": "3fa1789b5079c73855eac5a6233e42248c1175310d262564990da4e3b0ff1d3e",
-      "shortcuts-reference.png": "4231986e011075ddb07df1ebe1ba196ba698f53afbe1cf4e399a18b904e24065",
-      "notifications-reference.png": "a20c9275ab8d32a9abfdbd155dd46e900a6a75ee44097af77f35665e606ad107",
-      "personalization-reference.png": "4fdd4e32f9b8a05cabedd1ff66b9f8d2fd54e549352f3757a9062a50a2b9d824"
+      "code-review-agents-reference.png": "c53597624cb320467697d35a9941d9ef1eacfbf6d18234c944e488546d6c21cb",
+      "git-reference.png": "60e7f048988926a762a1ed7a8a768f4a3cf827f7e00980d6334120ec5a4a439c",
+      "worktrees-reference.png": "4814672ef23e7d314f73636eaec4bce977c8abff95f67b3943febbc7014658e3",
+      "browser-reference.png": "08907368fe2f3361902f1a6d3237c97ef6e89ff2d29c00475913ce4c91d52008"
     },
     "productScreenshots": {
-      "configuration-dark.png": "6eec6528d53c54927e8fb18dd317edeb5c5a99837260219d9bd5d739c46b144d",
-      "shortcuts-light.png": "e7576ac4cf0a21daff6c494f329d4fda29e24e6788986a1645b2c944ab9da27b",
-      "shortcuts-dark.png": "ccbf87bf8867475e03533fba075c96f6ad14ea16e761432289154a1c135247b5",
-      "personalization-light.png": "3f440e11208336271394a43716d993dc93e436718a29ae0f0a0226c386d0c6cf",
-      "notifications-light.png": "85646ea453f01887235871481dab0dceec64f25ab41322059705e7bfbc80a974",
-      "configuration-light.png": "6f88b421f3b49a845e15d9f4b3384fffd7053a906c1e3fc8b7ca99b54dfcba2d",
-      "shortcuts-initial-dark.png": "e389bae7faf4cf00ac7fe5be253f7713b51c947aca680195f50219cd2fa9b4af",
-      "notifications-dark.png": "17f97dfcac1975c279692c170ea26267be55109b087c698682bca544e8494995",
-      "personalization-dark.png": "8781165d9da26d1fa228e1157894da3536cdbdc0c12f5cf05b1760f734cda0f7"
+      "browser-downloads-dark.png": "d2b198de9911f0ba1ab3a2d1c8bc4ade49b2b770ae47afb413c3dc0ec030de27",
+      "browser-overview-light.png": "16986c1060b9375d6cfb96439c094d40fd7806d99f6e9b4af6a29e06f76961be",
+      "code-review-local-dark.png": "ed0d8c3f9ba64cab51af7d812f55dc088715e5d0c382668727db4ef676f1bf41",
+      "worktrees-light.png": "3d623854f0c92a280ac3fc54a9b5465733e94a47366089284aa8f886ce3077fd",
+      "worktrees-dark.png": "737e4f93ed7e00da55ad39f33aa62ce122bab3827759da2d1812b1546bde9c29",
+      "browser-permissions-dark.png": "47dd6ac98c07298c9bfff1ab265167d270276f21749cc88a9beb51510248e954",
+      "git-dark.png": "7e5cdc50a5602637af7437c2ba91e813a03fd2a1ecfa6f0ff53cb09c4f52acc0",
+      "browser-overview-dark.png": "7d45e5c171a6c12a7e4e399ccdc7e88ac02646b2efb20de5b8e453e2cf8cb17f",
+      "browser-history-dark.png": "082bf53a046f3f30a474ac9abdc6222dc0a7bce0e0b2f85a9b2dbef5a41332ae",
+      "code-review-local-light.png": "e54d6f420644cd1d6a6b01f99f87d24cfd814307e49a1b79dd8ce3050cd9f665",
+      "git-light.png": "4b79fa2a9ffeffc403505d6a65335cabe14d312c05e2338c0697c84527b7fd7b"
     },
     "knownGaps": [
-      "automatic memory extraction differs from local saved-memory management; pending A30",
-      "permission rule editor semantic parity not established by overview screenshot",
-      "reference lower sections/menus and official light states remain incomplete",
-      "remaining fixed core reference groups pending",
-      "final full A31 pending A30 candidate freeze"
+      "cloud review-agent image does not establish local review preference parity",
+      "environment/archived/browser-manager reference pages not received",
+      "worktree environment navigates existing page rather than embedded tab; always-fetch preference missing",
+      "browser full URL/local URL/global enable/import/screenshot policy controls differ from installed reference",
+      "remaining fixed core groups, wide and official light states pending"
     ],
-    "productCommit": "fe9c8a7600857baaff88483aa229853d595f8471",
-    "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2a/verified-stage.json",
-    "stageEvidenceSHA256": "a81cc06c67524feb35cb4f0ef3382c8558dd2b537c13a9e0d422c11b85160a55",
-    "commit": "fe9c8a7600857baaff88483aa229853d595f8471",
-    "fullRegression": "pending final A30 candidate; historical full checks not rebound",
-    "manualReferencePagesReceived": 7,
-    "fullyAcceptedReferenceGroups": 0
+    "productCommit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
+    "commit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
+    "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/verified-stage.json",
+    "stageEvidenceSHA256": "3581473dff3cc9aff8f861684a2152025da697a9f6178b53de79975d7701d885"
   },
   "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
   "priorAcceptedCandidate": {
@@ -501,5 +518,114 @@
     "appSHA256": "facb5def83911caecb287706295bad016f351cbfdc87cd9bb1c81cec453de3d0",
     "userProtection": "seven fields, nine runs and model unchanged; latest standard user instance restored with actual composer focus",
     "evidence": "v0.1-evidence.md section 101 and .cache/delivery/t11-final/a30-followup/verified-stage.json"
+  },
+  "previousManual2AProductCandidate": {
+    "stage": "A30 manual batch 2A core settings implementation and product checks",
+    "A30Accepted": false,
+    "A31Accepted": false,
+    "A32Accepted": false,
+    "receivedTotalPages": 7,
+    "partialGroups": 6,
+    "fullyAcceptedGroups": 0,
+    "sourceInputCount": 2479,
+    "changedInputs": [],
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-manual-batch2a/source-inputs.json",
+    "sourceFingerprintSHA256": "a6123a02fd45bb4f23bebde077148f82650ead1a469b6530899e6d550ba60631",
+    "associated": [
+      {
+        "executed": 105,
+        "failed": 0,
+        "skipped": 0,
+        "log": ".cache/delivery/t11-final/a30-manual-batch2a/final-associated-tests.log",
+        "scope": "Configuration/personalization final inputs before shortcut-only presentation changes"
+      },
+      {
+        "executed": 66,
+        "failed": 0,
+        "skipped": 0,
+        "log": ".cache/delivery/t11-final/a30-manual-batch2a/shortcut-verified-tests.log",
+        "scope": "Final shortcut presentation and navigation; overlaps preceding set"
+      }
+    ],
+    "formalApp": {
+      "path": "dist/ShipiOS.app",
+      "sha256": "5357c1f3234d3f00f437c6860ff8cc56eaf5c45aa99ed293c9b954c8fd21e120",
+      "strictSignatureVerified": true,
+      "userInstanceRestoredAndComposerClicked": true
+    },
+    "productMatrix": {
+      "size": [
+        1000,
+        700
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "pages": [
+        "configuration",
+        "personalization",
+        "shortcuts",
+        "notifications"
+      ],
+      "officialLightReference": false,
+      "wide": "not executed in this stage; still pending"
+    },
+    "productActions": [
+      "main-window configuration core controls and approval menu cancellation",
+      "verbosity concise saved and cold restored, original model default restored",
+      "local memory switch saved and cold restored, original enabled restored",
+      "unsaved instruction draft -> memory entry confirmation -> cancellation restores entry -> Return reopens -> confirmation discards only draft",
+      "memory entry opens existing local manager",
+      "custom rule entry reveals existing named permission profiles",
+      "notification timing never saved and cold restored, original background restored",
+      "archive shortcut recorder -> Escape -> original binding and edit-button focus restored",
+      "shortcut command search finds archive without mutation",
+      "four light pages saved and inspected; dark theme restored",
+      "settings Escape returns same main task and focuses composer"
+    ],
+    "protection": {
+      "controlled": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "runs": 9
+      },
+      "user": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "runs": 9
+      }
+    },
+    "referenceSHA256": {
+      "configuration-reference.png": "3fa1789b5079c73855eac5a6233e42248c1175310d262564990da4e3b0ff1d3e",
+      "shortcuts-reference.png": "4231986e011075ddb07df1ebe1ba196ba698f53afbe1cf4e399a18b904e24065",
+      "notifications-reference.png": "a20c9275ab8d32a9abfdbd155dd46e900a6a75ee44097af77f35665e606ad107",
+      "personalization-reference.png": "4fdd4e32f9b8a05cabedd1ff66b9f8d2fd54e549352f3757a9062a50a2b9d824"
+    },
+    "productScreenshots": {
+      "configuration-dark.png": "6eec6528d53c54927e8fb18dd317edeb5c5a99837260219d9bd5d739c46b144d",
+      "shortcuts-light.png": "e7576ac4cf0a21daff6c494f329d4fda29e24e6788986a1645b2c944ab9da27b",
+      "shortcuts-dark.png": "ccbf87bf8867475e03533fba075c96f6ad14ea16e761432289154a1c135247b5",
+      "personalization-light.png": "3f440e11208336271394a43716d993dc93e436718a29ae0f0a0226c386d0c6cf",
+      "notifications-light.png": "85646ea453f01887235871481dab0dceec64f25ab41322059705e7bfbc80a974",
+      "configuration-light.png": "6f88b421f3b49a845e15d9f4b3384fffd7053a906c1e3fc8b7ca99b54dfcba2d",
+      "shortcuts-initial-dark.png": "e389bae7faf4cf00ac7fe5be253f7713b51c947aca680195f50219cd2fa9b4af",
+      "notifications-dark.png": "17f97dfcac1975c279692c170ea26267be55109b087c698682bca544e8494995",
+      "personalization-dark.png": "8781165d9da26d1fa228e1157894da3536cdbdc0c12f5cf05b1760f734cda0f7"
+    },
+    "knownGaps": [
+      "automatic memory extraction differs from local saved-memory management; pending A30",
+      "permission rule editor semantic parity not established by overview screenshot",
+      "reference lower sections/menus and official light states remain incomplete",
+      "remaining fixed core reference groups pending",
+      "final full A31 pending A30 candidate freeze"
+    ],
+    "productCommit": "fe9c8a7600857baaff88483aa229853d595f8471",
+    "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2a/verified-stage.json",
+    "stageEvidenceSHA256": "a81cc06c67524feb35cb4f0ef3382c8558dd2b537c13a9e0d422c11b85160a55",
+    "commit": "fe9c8a7600857baaff88483aa229853d595f8471",
+    "fullRegression": "pending final A30 candidate; historical full checks not rebound",
+    "manualReferencePagesReceived": 7,
+    "fullyAcceptedReferenceGroups": 0
   }
 }

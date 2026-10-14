@@ -7,16 +7,14 @@
     "build": "20156",
     "source": "Previously approved installed metadata; attachments do not independently prove version"
   },
-  "receivedPages": 7,
+  "receivedPages": 11,
   "fullyAcceptedGroups": 0,
   "overallStatus": "pending_reference_and_pairing",
   "nextBatch": [
-    "Git",
-    "代码审查",
-    "环境",
-    "工作树",
+    "代码审查：偏好设置",
+    "Worktrees：环境",
     "已归档聊天",
-    "浏览器：历史／下载／权限"
+    "浏览器：历史管理（后续下载／权限）"
   ],
   "instructions": "See v0.1-reference-intake.md; use current task only, no secrets or side-effectful reference setup",
   "groups": [
@@ -184,11 +182,14 @@
     {
       "id": "G17",
       "title": "S3 Git／审查／环境",
-      "referenceStatus": "missing",
-      "received": [],
-      "requiredReference": "Git／代码审查／环境只读概览",
+      "referenceStatus": "partial",
+      "received": [
+        "git",
+        "code-review-agents"
+      ],
+      "requiredReference": "本地代码审查偏好／环境概览；云端智能体不能替代核心本地页面",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 103; local review unchanged, Git controls and persistence checked"
     },
     {
       "id": "G18",
@@ -214,19 +215,22 @@
     {
       "id": "G20",
       "title": "S6 工作树／归档／浏览器设置",
-      "referenceStatus": "missing",
-      "received": [],
-      "requiredReference": "工作树／归档／浏览器历史、下载、权限",
+      "referenceStatus": "partial",
+      "received": [
+        "worktrees",
+        "browser"
+      ],
+      "requiredReference": "环境／归档／浏览器管理子页、主题和动态状态",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 103; core existing controls and routes checked; installed-version differences retained"
     }
   ],
   "productFollowup": {
-    "commit": "fe9c8a7600857baaff88483aa229853d595f8471",
-    "evidence": "v0.1-evidence.md section 102",
-    "A23": "Prior accepted focus stage preserved",
-    "productMatrix": "1000x700 dark/light four-page checks and representative persistence/keyboard actions passed",
+    "commit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
+    "evidence": "v0.1-evidence.md section 103",
+    "productMatrix": "1000x700 dark/light core page checks, managers, persistence and native controls passed",
+    "mandatoryForegroundMethods": 24,
     "wideWindow": "still pending; no wide test in this stage",
-    "A30": "pending remaining fixed reference groups and identified capability differences"
+    "A30": "remaining fixed groups and declared visual/capability differences pending"
   }
 }
