@@ -25,7 +25,10 @@ struct ShortcutSettingsView: View {
   private var ordinaryRows: [Row] {
     var rows: [Row] = []
     let ordinaryIDs = Set(dictationGroup.ordinaryCommandIDs)
-    let commands = matches.filter { ordinaryIDs.contains($0.id) }
+    let preferred = ["new", "archive", "new-standalone", "open-side-chat"]
+    let remaining = matches.filter { ordinaryIDs.contains($0.id) }
+    let commands = preferred.compactMap { id in remaining.first { $0.id == id } }
+      + remaining.filter { !preferred.contains($0.id) }
     for command in commands {
       rows.append(.command(command))
       if command.id == "browser-new", showsLinkShortcut { rows.append(.externalBrowser) }
@@ -39,12 +42,10 @@ struct ShortcutSettingsView: View {
     let rows = ordinaryRows
     ScrollViewReader { proxy in
       SettingsScrollPage(title: SettingsPage.shortcuts.title, pinsControls: true) {
-        if store.shortcuts.hasCustomizations {
-          Button("恢复全部默认") {
-            requestReset()
-          }.settingsActionFocus($resetFocus, equals: true, activate: requestReset)
-            .settingsSearchTarget(.shortcutReset)
-        }
+        Button("全部重置为默认值") { requestReset() }
+          .settingsActionFocus($resetFocus, equals: true, activate: requestReset)
+          .disabled(!store.shortcuts.hasCustomizations)
+          .settingsSearchTarget(.shortcutReset)
       } controls: {
         HStack(spacing: 8) {
           if editor.searchByKeys {
@@ -224,7 +225,7 @@ struct ShortcutSettingsView: View {
       layout {
         VStack(alignment: .leading, spacing: 5) {
           Text("数字快捷键")
-          Text(tabs ? "使用 ⌘1–9 切换标签，⌃1–9 切换聊天" : "使用 ⌘1–9 切换聊天，⌃1–9 切换标签")
+          Text(tabs ? "使用 ⌘1–9 切换标签页，⌃1–9 切换聊天" : "使用 ⌘1–9 切换聊天，⌃1–9 切换标签页")
             .appFont(.caption).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
         SettingsMenuPicker("数字快捷键", selection: Binding(
@@ -234,7 +235,7 @@ struct ShortcutSettingsView: View {
             do { try store.shortcuts.setNumberShortcutTarget(target); numberShortcutError = nil }
             catch { numberShortcutError = "无法保存快捷键偏好：\(error.localizedDescription)" }
           }), options: [
-            SettingsMenuOption(value: .tabs, title: "⌘1–9 切换标签"),
+            SettingsMenuOption(value: .tabs, title: "⌘1–9 切换标签页"),
             SettingsMenuOption(value: .sidebar, title: "⌘1–9 切换聊天")
           ]).labelsHidden().fixedSize()
       }
@@ -247,6 +248,16 @@ struct ShortcutSettingsView: View {
     }.settingsSearchTarget(.shortcutNumbers)
   }
 
+  private func commandDescription(_ id: String) -> String? {
+    switch id {
+    case "new": "开始新任务"
+    case "archive": "归档当前任务"
+    case "new-standalone": "在项目外开始新任务"
+    case "open-side-chat": "在侧边聊天中打开当前任务"
+    default: nil
+    }
+  }
+
   private func commandRow(_ item: DesktopCommand, contentWidth: CGFloat) -> some View {
     let values = store.shortcuts.bindings(item.id)
     let session = editor.capture?.commandID == item.id ? editor.capture : nil
@@ -254,6 +265,10 @@ struct ShortcutSettingsView: View {
     let rows: [ShortcutBinding?] = values.isEmpty ? [nil] : values.map(Optional.some) + (appending ? [nil] : [])
     let label = VStack(alignment: .leading, spacing: 4) {
         Text(item.title)
+        if let description = commandDescription(item.id) {
+          Text(description).appFont(.caption).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
         if let error = editor.errors[item.id] ?? store.shortcuts.registrationError(item.id) {
           Text(error).foregroundStyle(.red).appFont(.caption).textSelection(.enabled)
         }
@@ -297,7 +312,7 @@ struct ShortcutSettingsView: View {
       if let binding {
         Button {
           editor.change(command.id) { try store.shortcuts.replace(binding, with: nil, for: command.id) }
-        } label: { Image(systemName: "xmark").frame(width: 24, height: 28) }
+        } label: { Image(systemName: "trash").frame(width: 24, height: 28) }
           .buttonStyle(.plain).accessibilityLabel("清除\(command.title)快捷键：\(binding.display)")
           .help("清除此快捷键")
       }

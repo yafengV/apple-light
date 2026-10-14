@@ -2,9 +2,28 @@ import SwiftUI
 
 struct PersonalizationSettingsView: View {
   @Bindable var store: WorkspaceStore
+  @FocusState private var navigationFocus: String?
 
   var body: some View {
     SettingsForm {
+      SettingsSection("ShipiOS 记忆") {
+        SettingsToggle(title: "启用记忆",
+          description: "将本机保存的记忆用于后续模型会话。关闭不会删除内容。",
+          isOn: Binding(get: { store.memoryPreferences.enabled },
+            set: { _ = store.saveMemoryEnabled($0) }))
+          .disabled(!store.memoriesLoaded)
+        navigationRow("管理记忆", description: "查看、编辑和删除本机保存的记忆。") {
+          store.requestSettingsPage(.memories, onCancelFocus: { navigationFocus = "管理记忆" })
+        }
+      }
+      SettingsSection("权限") {
+        navigationRow("自定义规则", description: "管理任务可使用的命名权限档案。") {
+          store.revealSetting(.init(page: .general, field: .generalNamedPermissions), onCancelFocus: {
+            if store.settingsPage == .personalization { navigationFocus = "自定义规则" }
+            else { store.settingsSearchFocusRequest = UUID() }
+          })
+        }
+      }
       SettingsSection("回复风格") {
         Picker(
           "默认风格",
@@ -43,6 +62,17 @@ struct PersonalizationSettingsView: View {
           .settingsSearchTarget(.instructions)
       }
     }.settingsFormStyle().appSurface()
+  }
+
+  private func navigationRow(_ title: String, description: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      HStack(spacing: 16) {
+        SettingsControlLabel(title: title, description: description)
+          .frame(maxWidth: .infinity, alignment: .leading)
+        Image(systemName: "chevron.right").foregroundStyle(.secondary)
+      }.contentShape(Rectangle())
+    }.buttonStyle(.plain)
+      .settingsActionFocus($navigationFocus, equals: title, activate: action)
   }
 
   @ViewBuilder private var instructionsContent: some View {

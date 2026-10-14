@@ -184,6 +184,13 @@ final class SettingsNavigationTests: XCTestCase {
     XCTAssertEqual(Set(SettingsSearchField.allCases.map(\.page)), Set(SettingsNavigation.pages))
     XCTAssertEqual(SettingsSearch.results(for: "分支前缀").compactMap(\.field), [.branchPrefix])
     XCTAssertEqual(SettingsSearch.results(for: "审批策略").compactMap(\.field), [.agentApproval])
+    XCTAssertEqual(SettingsPage.agent.title, "配置")
+    XCTAssertTrue(SettingsNavigation.results(for: "Agent").contains(.agent))
+    for (query, field) in [("批准策略", SettingsSearchField.agentApproval),
+      ("沙盒设置", .agentSandbox), ("输出详细程度", .agentVerbosity),
+      ("全部重置为默认值", .shortcutReset)] {
+      XCTAssertEqual(SettingsSearch.results(for: query).compactMap(\.field), [field])
+    }
     let permissionFields = Set(SettingsSearch.results(for: "权限").compactMap(\.field))
     XCTAssertTrue(permissionFields.isSuperset(of: [
       .generalDefaultPermissions, .generalAutoReview, .generalNamedPermissions,

@@ -191,7 +191,8 @@ final class ShortcutSettingsStateTests: XCTestCase {
     let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     store.openSettings(.shortcuts)
     let editor = ShortcutSettingsState()
-    let command = try XCTUnwrap(DesktopCommand.all.first)
+    // The current page starts with New; the global command palette order is independent.
+    let command = try XCTUnwrap(DesktopCommand.all.first { $0.id == "new" })
     editor.begin(command.id, replacing: store.shortcuts.binding(command.id))
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
       styleMask: [.borderless], backing: .buffered, defer: false)

@@ -10,6 +10,77 @@ struct AgentSettingsView: View {
 
   var body: some View {
     SettingsForm {
+      SettingsSection("任务配置") {
+        SettingsMenuPicker("批准策略", description: "按需请求批准，或不再请求批准；受沙箱限制的操作会失败。", selection: Binding(
+          get: { store.library.agentRuntimePreferences.approvalPolicy },
+          set: { value in updatePermissions { $0.approvalPolicy = value } }),
+          options: AgentApprovalPolicy.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentApproval)
+        SettingsMenuPicker("沙盒设置", description: "限制 Agent 可编辑的文件范围。", selection: Binding(
+          get: { store.library.agentRuntimePreferences.sandboxMode },
+          set: { value in updatePermissions {
+            $0.sandboxMode = value
+            if value != .workspaceWrite { $0.networkAccess = false }
+            if value == .fullAccess { $0.approvalPolicy = .never }
+          } }),
+          options: AgentSandboxMode.visibleOptions(
+            showFullAccess: store.library.showFullAccessInComposer)
+            .map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentSandbox)
+        if store.library.agentRuntimePreferences.sandboxMode == .workspaceWrite {
+          SettingsToggle(title: "允许网络访问",
+            description: "工作区写入沙箱中的命令可以访问网络。", isOn: Binding(
+              get: { store.library.agentRuntimePreferences.networkAccess },
+              set: { value in updatePermissions { $0.networkAccess = value } }))
+            .settingsSearchTarget(.agentNetwork)
+        }
+        SettingsMenuPicker("网页搜索", description: "缓存、索引和实时搜索需要独立 API 服务支持托管 web_search 工具。",
+          selection: Binding(
+            get: { store.library.agentWebSearchMode },
+            set: { value in searchStatus = store.saveAgentWebSearchMode(value) ? "已保存。" : "保存失败，请重试。" }),
+          options: AgentWebSearchMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .disabled(store.modelConfiguration.apiProtocol != .codexResponses
+            || !store.modelConfiguration.supportsHostedWebSearch)
+          .settingsSearchTarget(.agentWebSearch)
+        SettingsMenuPicker("输出详细程度", description: "仅支持此参数的模型会应用该设置。", selection: Binding(
+          get: { store.library.agentResponsePreferences.verbosity },
+          set: { value in updateResponses { $0.verbosity = value } }),
+          options: AgentResponseVerbosity.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentVerbosity)
+        SettingsMenuPicker("推理摘要", description: "决定模型返回的推理摘要详细程度。", selection: Binding(
+          get: { store.library.agentResponsePreferences.reasoningSummary },
+          set: { value in updateResponses { $0.reasoningSummary = value } }),
+          options: AgentReasoningSummary.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .settingsSearchTarget(.agentReasoningSummary)
+      }
+      Text("选择 ShipiOS 处理任务的方式。配置用于新建会话；已有会话保留创建时的设置。")
+        .appFont(.caption).foregroundStyle(.secondary)
+      if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
+      if !responseStatus.isEmpty { Text(responseStatus).appFont(.caption).foregroundStyle(.secondary) }
+      SettingsSection("服务支持") {
+        if store.modelConfiguration.apiProtocol != .codexResponses
+          || !store.modelConfiguration.supportsHostedWebSearch {
+          Text("当前模型配置未声明搜索能力。")
+            .appFont(.caption).foregroundStyle(.secondary)
+          Button("配置模型服务…") { store.requestSettingsPage(.model) }
+        }
+        Text("搜索模式只用于新建的 Codex Core 会话；实际结果由服务商提供。")
+          .appFont(.caption).foregroundStyle(.secondary)
+        if !searchStatus.isEmpty { Text(searchStatus).appFont(.caption).foregroundStyle(.secondary) }
+        Text("独立 API 服务或模型可能不支持回复参数。")
+          .appFont(.caption).foregroundStyle(.secondary)
+      }
+      SettingsSection("审批者") {
+        SettingsMenuPicker("审批者", description: "由你处理越界请求，或让 Codex 自动审查可批准的请求。", selection: Binding(
+          get: { store.library.agentRuntimePreferences.approvalReviewer },
+          set: { value in updatePermissions { $0.approvalReviewer = value } }),
+          options: AgentApprovalReviewer.allCases.filter {
+            $0 != .autoReview || store.library.showAutoReviewInComposer
+              || store.library.agentRuntimePreferences.approvalReviewer == .autoReview
+          }.map { SettingsMenuOption(value: $0, title: $0.title) })
+          .disabled(store.library.agentRuntimePreferences.approvalPolicy == .never)
+          .settingsSearchTarget(.agentApprovalReviewer)
+      }
       SettingsSection("Agent 默认值") {
         LabeledContent("模型", value: store.modelConfiguration.model.isEmpty ? "尚未配置" : store.modelConfiguration.model).settingsSearchTarget(.agentModel)
         LabeledContent("推理强度", value: reasoningTitle).settingsSearchTarget(.agentReasoning)
@@ -35,77 +106,6 @@ struct AgentSettingsView: View {
           get: { store.personalization.showSuggestedPrompts },
           set: { _ = store.saveSuggestedPrompts($0) }))
           .disabled(!store.personalizationLoaded).settingsSearchTarget(.agentSuggestions)
-      }
-      SettingsSection("Codex Core 权限") {
-        SettingsMenuPicker("审批者", description: "由你处理越界请求，或让 Codex 自动审查可批准的请求。", selection: Binding(
-          get: { store.library.agentRuntimePreferences.approvalReviewer },
-          set: { value in updatePermissions { $0.approvalReviewer = value } }),
-          options: AgentApprovalReviewer.allCases.filter {
-            $0 != .autoReview || store.library.showAutoReviewInComposer
-              || store.library.agentRuntimePreferences.approvalReviewer == .autoReview
-          }.map { SettingsMenuOption(value: $0, title: $0.title) })
-          .disabled(store.library.agentRuntimePreferences.approvalPolicy == .never)
-          .settingsSearchTarget(.agentApprovalReviewer)
-        SettingsMenuPicker("审批策略", description: "按需请求批准，或不再请求批准；受沙箱限制的操作会失败。", selection: Binding(
-          get: { store.library.agentRuntimePreferences.approvalPolicy },
-          set: { value in updatePermissions { $0.approvalPolicy = value } }),
-          options: AgentApprovalPolicy.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
-          .settingsSearchTarget(.agentApproval)
-        SettingsMenuPicker("文件访问", description: "限制 Agent 可编辑的文件范围。", selection: Binding(
-          get: { store.library.agentRuntimePreferences.sandboxMode },
-          set: { value in updatePermissions {
-            $0.sandboxMode = value
-            if value != .workspaceWrite { $0.networkAccess = false }
-            if value == .fullAccess { $0.approvalPolicy = .never }
-          } }),
-          options: AgentSandboxMode.visibleOptions(
-            showFullAccess: store.library.showFullAccessInComposer)
-            .map { SettingsMenuOption(value: $0, title: $0.title) })
-          .settingsSearchTarget(.agentSandbox)
-        if store.library.agentRuntimePreferences.sandboxMode == .workspaceWrite {
-          SettingsToggle(title: "允许网络访问",
-            description: "工作区写入沙箱中的命令可以访问网络。", isOn: Binding(
-              get: { store.library.agentRuntimePreferences.networkAccess },
-              set: { value in updatePermissions { $0.networkAccess = value } }))
-            .settingsSearchTarget(.agentNetwork)
-        }
-        Text("权限只用于新建的 Codex Core 会话；已有会话继续使用创建时的设置。")
-          .appFont(.caption).foregroundStyle(.secondary)
-        if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
-      }
-      SettingsSection("回复") {
-        SettingsMenuPicker("回复详细度", description: "仅支持此参数的模型会应用该设置。", selection: Binding(
-          get: { store.library.agentResponsePreferences.verbosity },
-          set: { value in updateResponses { $0.verbosity = value } }),
-          options: AgentResponseVerbosity.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
-          .settingsSearchTarget(.agentVerbosity)
-        SettingsMenuPicker("推理摘要", description: "决定模型返回的推理摘要详细程度。", selection: Binding(
-          get: { store.library.agentResponsePreferences.reasoningSummary },
-          set: { value in updateResponses { $0.reasoningSummary = value } }),
-          options: AgentReasoningSummary.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
-          .settingsSearchTarget(.agentReasoningSummary)
-        Text("回复设置只用于新建的 Codex Core 会话。独立 API 服务或模型可能不支持这些参数。")
-          .appFont(.caption).foregroundStyle(.secondary)
-        if !responseStatus.isEmpty { Text(responseStatus).appFont(.caption).foregroundStyle(.secondary) }
-      }
-      SettingsSection("网页搜索") {
-        SettingsMenuPicker("搜索模式", description: "缓存、索引和实时搜索需要独立 API 服务支持托管 web_search 工具。",
-          selection: Binding(
-            get: { store.library.agentWebSearchMode },
-            set: { value in searchStatus = store.saveAgentWebSearchMode(value) ? "已保存。" : "保存失败，请重试。" }),
-          options: AgentWebSearchMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
-          .disabled(store.modelConfiguration.apiProtocol != .codexResponses
-            || !store.modelConfiguration.supportsHostedWebSearch)
-          .settingsSearchTarget(.agentWebSearch)
-        if store.modelConfiguration.apiProtocol != .codexResponses
-          || !store.modelConfiguration.supportsHostedWebSearch {
-          Text("当前模型配置未声明搜索能力。")
-            .appFont(.caption).foregroundStyle(.secondary)
-          Button("配置模型服务…") { store.requestSettingsPage(.model) }
-        }
-        Text("搜索模式只用于新建的 Codex Core 会话；实际结果由服务商提供。")
-          .appFont(.caption).foregroundStyle(.secondary)
-        if !searchStatus.isEmpty { Text(searchStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
     }
     .settingsFormStyle().appSurface()

@@ -40,7 +40,11 @@ enum SettingsNavigation {
   }
 
   static func searchAliases(for page: SettingsPage) -> [String] {
-    page == .general ? ["通用"] : []
+    switch page {
+    case .general: ["通用"]
+    case .agent: ["Agent"]
+    default: []
+    }
   }
 
   static func adjacent(to page: SettingsPage?, offset: Int, in pages: [SettingsPage]) -> SettingsPage? {

@@ -238,7 +238,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .personalization: "个性化"
     case .memories: "记忆"
     case .model: "模型与 API"
-    case .agent: "Agent"
+    case .agent: "配置"
     case .git: "Git"
     case .codeReview: "代码审查"
     case .environments: "环境"
