@@ -141,7 +141,9 @@ final class SettingsNavigationTests: XCTestCase {
 
   @MainActor func testSearchSelectsSubpageAndManualNavigationCancelsOldTarget() {
     let store = WorkspaceStore(dataRoot: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    XCTAssertEqual(store.browserSettingsSection, .general)
     let targets: [(SettingsSearchField, BrowserSettingsSection)] = [
+      (.browserOverview, .general),
       (.browserDownloadFolder, .downloads), (.browserDefaultAccess, .permissions),
       (.browserHistory, .history), (.browserAskDownload, .downloads),
     ]

@@ -150,20 +150,7 @@ struct GitSettingsView: View {
 
   var body: some View {
     SettingsForm {
-      SettingsSection("审查面板") {
-        SettingsToggle(title: "关闭基于 Git 的审查",
-          description: "审查面板仅显示“最近一轮”，隐藏未暂存、已暂存、提交和分支审查及其 Git 操作。",
-          isOn: Binding(
-            get: { store.library.gitPreferences.disableGitBasedReview },
-            set: { value in
-              var preferences = store.library.gitPreferences
-              preferences.disableGitBasedReview = value
-              reviewModeStatus = store.saveGitPreferences(preferences)
-                ? "已保存审查面板模式。" : (store.error ?? "保存失败，请重试。")
-            })).settingsSearchTarget(.disableGitBasedReview)
-        if !reviewModeStatus.isEmpty { Text(reviewModeStatus).appFont(.caption).foregroundStyle(.secondary) }
-      }
-      SettingsSection("分支") {
+      SettingsSection {
         SettingsTextField("分支前缀", text: $branchPrefix, prompt: Text("codex/")).settingsSearchTarget(.branchPrefix)
         Text("从当前提交创建分支时自动填入此前缀。留空可关闭。")
           .appFont(.caption).foregroundStyle(.secondary)
@@ -172,8 +159,14 @@ struct GitSettingsView: View {
           Button("恢复默认") { branchPrefix = "codex/"; savePrefix() }
         }
         if !status.isEmpty { Text(status).appFont(.caption).foregroundStyle(.secondary) }
-      }
-      SettingsSection("推送") {
+        SettingsSegmentedPicker(title: "Pull Request 合并方法", description: "选择合并 Pull Request 的方式。", selection: Binding(
+          get: { store.library.gitPreferences.pullRequestMergeMethod },
+          set: { value in
+            var preferences = store.library.gitPreferences
+            preferences.pullRequestMergeMethod = value
+            status = store.saveGitPreferences(preferences) ? "已保存合并方式。" : (store.error ?? "保存失败，请重试。")
+          }), options: GitHubPRMergeMethod.allCases.map { .init(value: $0, title: $0 == .merge ? "合并" : "压缩合并") })
+          .settingsSearchTarget(.pullRequestMergeMethod)
         SettingsToggle(title: "始终强制推送", description: "从 ShipiOS 推送时使用 --force-with-lease。", isOn: Binding(
           get: { store.library.gitPreferences.alwaysForcePush },
           set: { value in
@@ -183,26 +176,14 @@ struct GitSettingsView: View {
               ? (value ? "已启用始终强制推送。" : "已关闭始终强制推送。")
               : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.alwaysForcePush)
-      }
-      SettingsSection("Pull Request") {
-        SettingsMenuPicker("默认合并方式", selection: Binding(
-          get: { store.library.gitPreferences.pullRequestMergeMethod },
-          set: { value in
-            var preferences = store.library.gitPreferences
-            preferences.pullRequestMergeMethod = value
-            status = store.saveGitPreferences(preferences) ? "已保存合并方式。" : (store.error ?? "保存失败，请重试。")
-          }), options: GitHubPRMergeMethod.allCases.map { .init(value: $0, title: $0.label) })
-          .settingsSearchTarget(.pullRequestMergeMethod)
-        SettingsToggle(title: "创建草稿 PR", description: "创建 PR 时默认使用草稿状态。", isOn: Binding(
+        SettingsToggle(title: "创建草稿 Pull Request", description: "创建 PR 时默认使用草稿状态。", isOn: Binding(
           get: { store.library.gitPreferences.createDraftPullRequests },
           set: { value in
             var preferences = store.library.gitPreferences
             preferences.createDraftPullRequests = value
             status = store.saveGitPreferences(preferences) ? "已保存 PR 创建方式。" : (store.error ?? "保存失败，请重试。")
           })).settingsSearchTarget(.createDraftPullRequests)
-      }
-      SettingsSection("代码审查") {
-        SettingsMenuPicker("审查结果呈现方式",
+        SettingsSegmentedPicker(title: "审查结果呈现方式",
           description: "内联时优先在当前聊天中运行审查，无法使用时创建独立任务；单独模式始终创建独立任务。",
           selection: Binding(
             get: { store.library.gitPreferences.reviewDelivery },
@@ -212,13 +193,13 @@ struct GitSettingsView: View {
               reviewDeliveryStatus = store.saveGitPreferences(preferences)
                 ? "已保存审查结果呈现方式。" : (store.error ?? "保存失败，请重试。")
             }),
-          options: ReviewDelivery.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+          options: ReviewDelivery.allCases.map { SettingsSegmentOption(value: $0, title: $0.title) })
           .settingsSearchTarget(.reviewDelivery)
         if !reviewDeliveryStatus.isEmpty {
           Text(reviewDeliveryStatus).appFont(.caption).foregroundStyle(.secondary)
         }
       }
-      SettingsSection("PR 监控与修复") {
+      SettingsSection("监控并修复 Pull Request") {
         SettingsToggle(title: "准备好时自动合并",
           description: "新建的 PR 监控任务会在修复相关问题、检查通过且仓库允许时请求合并。",
           isOn: Binding(
@@ -232,6 +213,19 @@ struct GitSettingsView: View {
         if !watchStatus.isEmpty { Text(watchStatus).appFont(.caption).foregroundStyle(.secondary) }
       }
       GitInstructionsView(store: store, kind: .watch)
+      SettingsSection("审查面板") {
+        SettingsToggle(title: "关闭基于 Git 的审查",
+          description: "审查面板仅显示“最近一轮”，隐藏未暂存、已暂存、提交和分支审查及其 Git 操作。",
+          isOn: Binding(
+            get: { store.library.gitPreferences.disableGitBasedReview },
+            set: { value in
+              var preferences = store.library.gitPreferences
+              preferences.disableGitBasedReview = value
+              reviewModeStatus = store.saveGitPreferences(preferences)
+                ? "已保存审查面板模式。" : (store.error ?? "保存失败，请重试。")
+            })).settingsSearchTarget(.disableGitBasedReview)
+        if !reviewModeStatus.isEmpty { Text(reviewModeStatus).appFont(.caption).foregroundStyle(.secondary) }
+      }
       SettingsSection("工作树根目录") {
         Text(store.worktreeRoot.path).textSelection(.enabled).settingsSearchTarget(.gitWorktreeRoot)
         HStack {

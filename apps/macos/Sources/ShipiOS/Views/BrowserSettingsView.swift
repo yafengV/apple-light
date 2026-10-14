@@ -8,6 +8,7 @@ struct BrowserSettingsView: View {
   @State private var clearSelection = BrowserDataClearSelection()
   @State private var site = ""
   @State private var siteDecision = BrowserAccessDecision.allow
+  @FocusState private var navigationFocus: String?
 
   private var entries: [BrowserHistoryEntry] {
     let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -26,6 +27,7 @@ struct BrowserSettingsView: View {
         }.pickerStyle(.segmented)
       }
       switch store.browserSettingsSection {
+      case .general: overview
       case .history: historyAndData
       case .downloads: downloads
       case .permissions: permissions
@@ -46,6 +48,32 @@ struct BrowserSettingsView: View {
       } message: {
         Text("将清除所选时间范围内勾选的数据。浏览历史与网站登录状态清除后无法恢复。")
       }
+  }
+
+  private var overview: some View {
+    SettingsSection("常规") {
+      SettingsMenuPicker("网页 URL 和链接打开位置",
+        description: "选择聊天中网页链接的默认打开位置。",
+        selection: $store.webLinkTarget,
+        options: WebLinkTarget.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+        .settingsSearchTarget(.browserOverview)
+      overviewRow("浏览数据", description: "管理浏览历史、网站数据和缓存。", destination: .history)
+      overviewRow("浏览历史", description: "查看在内置浏览器中访问过的页面。", destination: .history)
+      overviewRow("下载", description: "管理下载位置和已下载文件记录。", destination: .downloads)
+      overviewRow("网站访问权限", description: "管理浏览器 Agent 的默认访问和网站规则。", destination: .permissions)
+    }
+  }
+
+  private func overviewRow(_ title: String, description: String,
+    destination: BrowserSettingsSection) -> some View {
+    SettingsLabeledRow {
+      SettingsControlLabel(title: title, description: description)
+    } control: {
+      Button("管理") { store.browserSettingsSection = destination }
+        .accessibilityLabel("管理" + title)
+        .settingsActionFocus($navigationFocus, equals: title,
+          activate: { store.browserSettingsSection = destination })
+    }
   }
 
   @ViewBuilder private var historyAndData: some View {

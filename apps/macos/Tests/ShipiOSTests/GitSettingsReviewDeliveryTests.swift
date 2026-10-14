@@ -4,7 +4,10 @@ import XCTest
 @testable import ShipiOS
 
 @MainActor final class GitSettingsReviewDeliveryTests: XCTestCase {
-  func testGitPagePickerChangesPersistedReviewDeliveryAndSearchRoutesBackToIt() async throws {
+  func testNativeGitPageSegmentsChangePersistedReviewDeliveryAndSearchRoutesBackToIt() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Requires the interactive AppKit test host and native SwiftUI accessibility")
+    }
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let store = WorkspaceStore(dataRoot: root)
@@ -12,21 +15,21 @@ import XCTest
     store.openSettings(.git)
     _ = NSApplication.shared
     let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 900),
-      styleMask: [.borderless], backing: .buffered, defer: false)
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     let host = NSHostingView(rootView: GitSettingsView(store: store))
     window.contentView = host
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
     defer { window.close() }
     try await settle(host)
 
-    let picker = try XCTUnwrap(findReviewDeliveryPicker(host))
-    XCTAssertEqual(picker.menu?.items.map(\.title), ["内联", "单独"])
-    XCTAssertEqual(picker.titleOfSelectedItem, "内联")
-    XCTAssertTrue(picker.active)
-    XCTAssertTrue(picker.isEnabled)
-    XCTAssertFalse(picker.isHiddenOrHasHiddenAncestor)
-    picker.selectItem(at: 1)
-    picker.sendAction(picker.action, to: picker.target)
+    let inline = try XCTUnwrap(element("内联", in: window))
+    let detached = try XCTUnwrap(element("单独", in: window))
+    XCTAssertEqual(inline.isAccessibilityEnabled?(), true)
+    XCTAssertEqual(detached.isAccessibilityEnabled?(), true)
+    XCTAssertEqual(store.library.gitPreferences.reviewDelivery, .inline)
+    XCTAssertEqual(detached.accessibilityPerformPress?(), true)
     XCTAssertEqual(store.library.gitPreferences.reviewDelivery, .detached)
     XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
       .gitPreferences.reviewDelivery, .detached)
@@ -41,7 +44,9 @@ import XCTest
     XCTAssertEqual(store.settingsSearchRequest?.result.field, .reviewDelivery)
 
     try await settle(host)
-    XCTAssertEqual(picker.titleOfSelectedItem, "单独")
+    XCTAssertNotNil(element("内联", in: window))
+    XCTAssertNotNil(element("单独", in: window))
+    XCTAssertEqual(store.library.gitPreferences.reviewDelivery, .detached)
   }
 
   private func settle(_ host: NSView) async throws {
@@ -49,9 +54,13 @@ import XCTest
     try await Task.sleep(for: .milliseconds(100))
   }
 
-  private func findReviewDeliveryPicker(_ view: NSView) -> SettingsMenuControl? {
-    if let control = view as? SettingsMenuControl,
-       control.accessibilityLabel() == "审查结果呈现方式" { return control }
-    return view.subviews.lazy.compactMap(findReviewDeliveryPicker).first
+  private func element(_ label: String, in object: Any) -> AnyObject? {
+    guard let node = object as? NSObject else { return nil }
+    let dynamic: AnyObject = node
+    if dynamic.accessibilityLabel?() == label { return dynamic }
+    for child in dynamic.accessibilityChildren?() ?? [] {
+      if let found = element(label, in: child) { return found }
+    }
+    return nil
   }
 }

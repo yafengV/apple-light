@@ -163,7 +163,7 @@ final class WorkspaceStore {
       }
     }
   }
-  var browserSettingsSection = BrowserSettingsSection.history {
+  var browserSettingsSection = BrowserSettingsSection.general {
     didSet {
       if let target = settingsSearchRequest?.result.field?.browserSection,
         target != browserSettingsSection { settingsSearchRequest = nil }

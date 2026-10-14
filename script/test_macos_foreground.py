@@ -147,7 +147,7 @@ def main():
         manifest = {'exitCode': exit_code, 'timedOut': timed_out, 'passed': passed,
                     'buildProvenance': provenance,
                     'result': state, 'changedInputs': changed, 'sha256': before,
-                    'runtime': descriptor, 'selectedMethods': selected, 'fullSuite': not bool(args.method), 'scope': ('Focused existing methods' if args.method else 'Twenty-two selected XCTest methods: nine native-window methods and thirteen voice keyboard components; not all R1–R8.')}
+                    'runtime': descriptor, 'selectedMethods': selected, 'fullSuite': not bool(args.method), 'scope': ('Focused existing methods' if args.method else 'Twenty-four selected XCTest methods: eleven native-window methods and thirteen voice keyboard components; not all R1–R8.')}
         (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         print(json.dumps({k: v for k, v in manifest.items() if k != 'sha256'}), flush=True)
         return 0 if passed else 1

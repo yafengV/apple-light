@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import Foundation
 import XCTest
 @testable import ShipiOS
@@ -13,6 +15,53 @@ import XCTest
     try store.library.save(to: root.appendingPathComponent("workspace.json"))
     addTeardownBlock { try? FileManager.default.removeItem(at: root) }
     return (store, root, folder)
+  }
+
+  func testNativeBrowserOverviewLinkPreferencePersistsAndManagerNavigatesToHistory() async throws {
+    guard ProcessInfo.processInfo.environment["SHIPIOS_TEST_FOREGROUND_ALLOWED"] == "1" else {
+      throw XCTSkip("Requires the interactive AppKit test host and native SwiftUI accessibility")
+    }
+    let (store, root, _) = try fixture()
+    store.openSettings(.browser)
+    XCTAssertEqual(store.browserSettingsSection, .general)
+    _ = NSApplication.shared
+    let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 800),
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let host = NSHostingView(rootView: BrowserSettingsView(store: store))
+    window.contentView = host
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+    try await Task.sleep(for: .milliseconds(150))
+    host.layoutSubtreeIfNeeded()
+    func picker(_ view: NSView) -> SettingsMenuControl? {
+      if let control = view as? SettingsMenuControl,
+        control.accessibilityLabel() == "网页 URL 和链接打开位置" { return control }
+      return view.subviews.lazy.compactMap(picker).first
+    }
+    let control = try XCTUnwrap(picker(host))
+    XCTAssertTrue(control.isEnabled)
+    XCTAssertEqual(control.menu?.items.map(\.title), WebLinkTarget.allCases.map(\.title))
+    control.selectItem(at: 1)
+    control.sendAction(control.action, to: control.target)
+    XCTAssertEqual(store.webLinkTarget, .externalBrowser)
+    XCTAssertEqual(try WorkspaceLibrary.load(from: root.appendingPathComponent("workspace.json"))
+      .webLinkTarget, .externalBrowser)
+    func element(_ label: String, in object: Any) -> AnyObject? {
+      guard let node = object as? NSObject else { return nil }
+      let dynamic: AnyObject = node
+      if dynamic.accessibilityLabel?() == label { return dynamic }
+      for child in dynamic.accessibilityChildren?() ?? [] {
+        if let found = element(label, in: child) { return found }
+      }
+      return nil
+    }
+    XCTAssertEqual(try XCTUnwrap(element("管理浏览历史", in: window)).accessibilityPerformPress?(), true)
+    XCTAssertEqual(store.browserSettingsSection, .history)
+    store.revealSetting(.init(page: .browser, field: .browserOverview))
+    XCTAssertEqual(store.browserSettingsSection, .general)
+    XCTAssertEqual(store.settingsSearchRequest?.result.field, .browserOverview)
   }
 
   private func blockSaving(_ root: URL) throws {

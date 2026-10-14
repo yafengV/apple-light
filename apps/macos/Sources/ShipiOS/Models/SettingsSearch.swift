@@ -1,6 +1,7 @@
 import Foundation
 
 enum BrowserSettingsSection: String, CaseIterable, Identifiable {
+  case general = "常规"
   case history = "历史与数据"
   case downloads = "下载"
   case permissions = "权限"
@@ -96,7 +97,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   case appshotHotkey
   case appshotDestination
   case appshotSound
-  case browserHistory
+  case browserOverview, browserHistory
   case browserClear
   case browserDownloadFolder
   case browserAskDownload
@@ -141,6 +142,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
   }
   var browserSection: BrowserSettingsSection? {
     switch self {
+    case .browserOverview: .general
     case .browserHistory, .browserClear: .history
     case .browserDownloadFolder, .browserAskDownload, .browserDownloadHistory: .downloads
     case .browserDefaultAccess, .browserAddRule: .permissions
@@ -216,7 +218,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .voiceChat, .voiceVoice, .voiceScreenContext, .voiceChatHotkey,
       .voiceLanguage, .voiceMicrophone, .voiceHoldHotkey,
       .voiceToggleHotkey, .voiceDictionary, .voiceRecordings: .voice
-    case .browserHistory: .browser
+    case .browserOverview, .browserHistory: .browser
     case .browserClear: .browser
     case .browserDownloadFolder: .browser
     case .browserAskDownload: .browser
@@ -305,8 +307,8 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .pullRequestWatchInstructions: "PR 监控指令"
     case .autoMergeWatchedPullRequests: "准备好时自动合并"
     case .alwaysForcePush: "始终强制推送"
-    case .createDraftPullRequests: "创建草稿 PR"
-    case .pullRequestMergeMethod: "默认合并方式"
+    case .createDraftPullRequests: "创建草稿 Pull Request"
+    case .pullRequestMergeMethod: "Pull Request 合并方法"
     case .gitWorktreeRoot: "工作树根目录"
     case .reviewScope: "默认变更范围"
     case .readOnlyReview: "只读审查"
@@ -314,7 +316,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .environmentScheme: "Scheme"
     case .environmentConfiguration: "构建配置"
     case .worktreeRoot: "工作树根目录"
-    case .worktreeCleanup: "托管工作树自动清理"
+    case .worktreeCleanup: "自动删除旧工作树"
     case .worktreeList: "永久工作树"
     case .anyApplication: "任意应用"
     case .screenRecording: "屏幕录制"
@@ -323,6 +325,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .appshotHotkey: "应用快照快捷键"
     case .appshotDestination: "Appshot 发送目标"
     case .appshotSound: "播放音效"
+    case .browserOverview: "浏览器常规"
     case .browserHistory: "浏览历史"
     case .browserClear: "清除浏览数据"
     case .browserDownloadFolder: "下载位置"
@@ -467,7 +470,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .autoMergeWatchedPullRequests: "auto merge watched pull request"
     case .alwaysForcePush: "push force-with-lease 远端"
     case .createDraftPullRequests: "draft pull request GitHub"
-    case .pullRequestMergeMethod: "merge squash pull request GitHub 压缩 合并提交"
+    case .pullRequestMergeMethod: "默认合并方式 merge squash pull request GitHub 压缩 合并提交"
     case .gitWorktreeRoot: "目录"
     case .reviewScope: "比较范围"
     case .readOnlyReview: "暂存 提交"
@@ -475,7 +478,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .environmentScheme: "方案"
     case .environmentConfiguration: "Debug Release"
     case .worktreeRoot: "文件夹"
-    case .worktreeCleanup: "数量上限 快照 删除"
+    case .worktreeCleanup: "数量上限 快照 删除 自动删除限制 托管工作树自动清理"
     case .worktreeList: "恢复登记"
     case .anyApplication: "控制"
     case .screenRecording: "系统访问"
@@ -484,6 +487,7 @@ enum SettingsSearchField: String, CaseIterable, Identifiable {
     case .appshotHotkey: "同时按下两个 Command ⌘ Option ⌥ Shift ⇧ 键 无"
     case .appshotDestination: "自动 当前聊天 新聊天"
     case .appshotSound: "截图声音"
+    case .browserOverview: "网页 URL 链接打开位置 常规 overview"
     case .browserHistory: "历史与数据 搜索标题网址"
     case .browserClear: "Cookie 缓存"
     case .browserDownloadFolder: "文件夹"
