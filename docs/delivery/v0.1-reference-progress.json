@@ -7,14 +7,16 @@
     "build": "20156",
     "source": "Previously approved installed metadata; attachments do not independently prove version"
   },
-  "receivedPages": 3,
+  "receivedPages": 7,
   "fullyAcceptedGroups": 0,
   "overallStatus": "pending_reference_and_pairing",
   "nextBatch": [
-    "个性化",
-    "通知",
-    "键盘快捷键",
-    "Agent"
+    "Git",
+    "代码审查",
+    "环境",
+    "工作树",
+    "已归档聊天",
+    "浏览器：历史／下载／权限"
   ],
   "instructions": "See v0.1-reference-intake.md; use current task only, no secrets or side-effectful reference setup",
   "groups": [
@@ -145,11 +147,15 @@
       "referenceStatus": "partial",
       "received": [
         "general",
-        "appearance"
+        "appearance",
+        "personalization",
+        "notifications",
+        "shortcuts",
+        "configuration"
       ],
-      "requiredReference": "共用确认状态；同主窗口往返已确认",
+      "requiredReference": "共用确认官方动态参考仍缺；产品新入口确认已验",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 102; existing unaffected evidence preserved, A31 final full pending"
     },
     {
       "id": "G15",
@@ -157,20 +163,23 @@
       "referenceStatus": "partial",
       "received": [
         "general",
-        "appearance"
+        "appearance",
+        "personalization"
       ],
-      "requiredReference": "个性化；常规／外观上部深色已收",
+      "requiredReference": "自动生成记忆与规则语义差异、未展示状态和浅色参考",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 102; existing unaffected evidence preserved, A31 final full pending"
     },
     {
       "id": "G16",
       "title": "S2 API／Agent",
-      "referenceStatus": "missing",
-      "received": [],
-      "requiredReference": "Agent；独立 API 为既定范围差异",
+      "referenceStatus": "partial",
+      "received": [
+        "configuration"
+      ],
+      "requiredReference": "配置下部／菜单／动态／浅色；独立 API 为既定范围差异",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 102; existing unaffected evidence preserved, A31 final full pending"
     },
     {
       "id": "G17",
@@ -184,11 +193,14 @@
     {
       "id": "G18",
       "title": "S4 快捷键／通知",
-      "referenceStatus": "missing",
-      "received": [],
-      "requiredReference": "通知／键盘快捷键",
+      "referenceStatus": "partial",
+      "received": [
+        "shortcuts",
+        "notifications"
+      ],
+      "requiredReference": "完整下部、菜单选项及官方动态行为；云通知为范围外",
       "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "productEvidence": "v0.1-evidence.md section 102; existing unaffected evidence preserved, A31 final full pending"
     },
     {
       "id": "G19",
@@ -210,11 +222,11 @@
     }
   ],
   "productFollowup": {
-    "commit": "935b74e91e114677c6eb6bde24b30de4abbfd7bc",
-    "evidence": "v0.1-evidence.md section 101",
-    "A23": "passed focused native and formal product checks",
-    "productMatrix": "1000x700 dark/light received-page checks passed",
-    "wideWindow": "pending: visible screen height 742 cannot fully fit 1280x800",
-    "A30": "pending remaining fixed reference groups"
+    "commit": "fe9c8a7600857baaff88483aa229853d595f8471",
+    "evidence": "v0.1-evidence.md section 102",
+    "A23": "Prior accepted focus stage preserved",
+    "productMatrix": "1000x700 dark/light four-page checks and representative persistence/keyboard actions passed",
+    "wideWindow": "still pending; no wide test in this stage",
+    "A30": "pending remaining fixed reference groups and identified capability differences"
   }
 }

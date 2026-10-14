@@ -190,7 +190,7 @@
       "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Three manual references received; remaining fixed groups and current wide viewport pending",
+    "A30": "Seven manual references received; six partial groups, automatic memory/rule semantic gaps, remaining fixed groups and wide viewport pending",
     "A31": "Pending final candidate full standard and foreground suite",
     "A23": "passed: current native search handoff and focused foreground methods plus latest formal product actions"
   },
@@ -258,37 +258,39 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A23 search focus repair and A30 received-page product checks verified",
-    "commit": "935b74e91e114677c6eb6bde24b30de4abbfd7bc",
+    "stage": "A30 manual batch 2A core settings implementation and product checks",
+    "A30Accepted": false,
+    "A31Accepted": false,
+    "A32Accepted": false,
+    "receivedTotalPages": 7,
+    "partialGroups": 6,
+    "fullyAcceptedGroups": 0,
     "sourceInputCount": 2479,
-    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-followup/candidate-verified-inputs.json",
-    "sourceFingerprintSHA256": "528d5dc1d95ccfd68a435aba73f727c530037303e9b8bf730b1ee84c4c990980",
-    "manualReferencePagesReceived": 3,
-    "fullyAcceptedReferenceGroups": 0,
-    "fullRegression": "pending final A30 candidate; historical full checks not rebound",
-    "associated": {
-      "executed": 50,
-      "failed": 0,
-      "skipped": 3,
-      "log": ".cache/delivery/t11-final/a30-followup/native-search-focus-commit-tests.log"
-    },
-    "nativeFocus": {
-      "executed": 2,
-      "failed": 0,
-      "skipped": 0,
-      "changedInputs": [],
-      "confirmationAttemptsInsideExistingMethod": 3
-    },
-    "formalProductActions": [
-      "native query -> discard confirmation -> query continues without click",
-      "result button -> cancellation -> Return reopens confirmation",
-      "result button -> confirmed navigation -> Return preserves result navigation",
-      "result button -> native query -> confirmed navigation -> query resumes",
-      "legacy 通用 search resolves current 常规 field",
-      "content font search reveals appearance advanced section",
-      "same main window retains draft and immediate subsequent input",
-      "controlled 1000x700 cold restore retains draft and editable composer"
+    "changedInputs": [],
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-manual-batch2a/source-inputs.json",
+    "sourceFingerprintSHA256": "a6123a02fd45bb4f23bebde077148f82650ead1a469b6530899e6d550ba60631",
+    "associated": [
+      {
+        "executed": 105,
+        "failed": 0,
+        "skipped": 0,
+        "log": ".cache/delivery/t11-final/a30-manual-batch2a/final-associated-tests.log",
+        "scope": "Configuration/personalization final inputs before shortcut-only presentation changes"
+      },
+      {
+        "executed": 66,
+        "failed": 0,
+        "skipped": 0,
+        "log": ".cache/delivery/t11-final/a30-manual-batch2a/shortcut-verified-tests.log",
+        "scope": "Final shortcut presentation and navigation; overlaps preceding set"
+      }
     ],
+    "formalApp": {
+      "path": "dist/ShipiOS.app",
+      "sha256": "5357c1f3234d3f00f437c6860ff8cc56eaf5c45aa99ed293c9b954c8fd21e120",
+      "strictSignatureVerified": true,
+      "userInstanceRestoredAndComposerClicked": true
+    },
     "productMatrix": {
       "size": [
         1000,
@@ -299,15 +301,70 @@
         "light"
       ],
       "pages": [
-        "new task",
-        "general",
-        "appearance advanced"
+        "configuration",
+        "personalization",
+        "shortcuts",
+        "notifications"
       ],
-      "wide": "pending, visible height 742 cannot fit requested 1280x800"
+      "officialLightReference": false,
+      "wide": "not executed in this stage; still pending"
     },
-    "appSHA256": "facb5def83911caecb287706295bad016f351cbfdc87cd9bb1c81cec453de3d0",
-    "userProtection": "seven fields, nine runs and model unchanged; latest standard user instance restored with actual composer focus",
-    "evidence": "v0.1-evidence.md section 101 and .cache/delivery/t11-final/a30-followup/verified-stage.json"
+    "productActions": [
+      "main-window configuration core controls and approval menu cancellation",
+      "verbosity concise saved and cold restored, original model default restored",
+      "local memory switch saved and cold restored, original enabled restored",
+      "unsaved instruction draft -> memory entry confirmation -> cancellation restores entry -> Return reopens -> confirmation discards only draft",
+      "memory entry opens existing local manager",
+      "custom rule entry reveals existing named permission profiles",
+      "notification timing never saved and cold restored, original background restored",
+      "archive shortcut recorder -> Escape -> original binding and edit-button focus restored",
+      "shortcut command search finds archive without mutation",
+      "four light pages saved and inspected; dark theme restored",
+      "settings Escape returns same main task and focuses composer"
+    ],
+    "protection": {
+      "controlled": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "runs": 9
+      },
+      "user": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "runs": 9
+      }
+    },
+    "referenceSHA256": {
+      "configuration-reference.png": "3fa1789b5079c73855eac5a6233e42248c1175310d262564990da4e3b0ff1d3e",
+      "shortcuts-reference.png": "4231986e011075ddb07df1ebe1ba196ba698f53afbe1cf4e399a18b904e24065",
+      "notifications-reference.png": "a20c9275ab8d32a9abfdbd155dd46e900a6a75ee44097af77f35665e606ad107",
+      "personalization-reference.png": "4fdd4e32f9b8a05cabedd1ff66b9f8d2fd54e549352f3757a9062a50a2b9d824"
+    },
+    "productScreenshots": {
+      "configuration-dark.png": "6eec6528d53c54927e8fb18dd317edeb5c5a99837260219d9bd5d739c46b144d",
+      "shortcuts-light.png": "e7576ac4cf0a21daff6c494f329d4fda29e24e6788986a1645b2c944ab9da27b",
+      "shortcuts-dark.png": "ccbf87bf8867475e03533fba075c96f6ad14ea16e761432289154a1c135247b5",
+      "personalization-light.png": "3f440e11208336271394a43716d993dc93e436718a29ae0f0a0226c386d0c6cf",
+      "notifications-light.png": "85646ea453f01887235871481dab0dceec64f25ab41322059705e7bfbc80a974",
+      "configuration-light.png": "6f88b421f3b49a845e15d9f4b3384fffd7053a906c1e3fc8b7ca99b54dfcba2d",
+      "shortcuts-initial-dark.png": "e389bae7faf4cf00ac7fe5be253f7713b51c947aca680195f50219cd2fa9b4af",
+      "notifications-dark.png": "17f97dfcac1975c279692c170ea26267be55109b087c698682bca544e8494995",
+      "personalization-dark.png": "8781165d9da26d1fa228e1157894da3536cdbdc0c12f5cf05b1760f734cda0f7"
+    },
+    "knownGaps": [
+      "automatic memory extraction differs from local saved-memory management; pending A30",
+      "permission rule editor semantic parity not established by overview screenshot",
+      "reference lower sections/menus and official light states remain incomplete",
+      "remaining fixed core reference groups pending",
+      "final full A31 pending A30 candidate freeze"
+    ],
+    "productCommit": "fe9c8a7600857baaff88483aa229853d595f8471",
+    "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2a/verified-stage.json",
+    "stageEvidenceSHA256": "a81cc06c67524feb35cb4f0ef3382c8558dd2b537c13a9e0d422c11b85160a55",
+    "commit": "fe9c8a7600857baaff88483aa229853d595f8471",
+    "fullRegression": "pending final A30 candidate; historical full checks not rebound",
+    "manualReferencePagesReceived": 7,
+    "fullyAcceptedReferenceGroups": 0
   },
   "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
   "priorAcceptedCandidate": {
@@ -392,5 +449,57 @@
     "native": "0 executed; host remained ready and hit 300-second timeout after Cua reported Mac locked",
     "failureEvidence": "v0.1-evidence.md section 99",
     "temporaryDiagnosticCodeRemoved": true
+  },
+  "previousFocusProductCandidate": {
+    "stage": "A23 search focus repair and A30 received-page product checks verified",
+    "commit": "935b74e91e114677c6eb6bde24b30de4abbfd7bc",
+    "sourceInputCount": 2479,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-followup/candidate-verified-inputs.json",
+    "sourceFingerprintSHA256": "528d5dc1d95ccfd68a435aba73f727c530037303e9b8bf730b1ee84c4c990980",
+    "manualReferencePagesReceived": 3,
+    "fullyAcceptedReferenceGroups": 0,
+    "fullRegression": "pending final A30 candidate; historical full checks not rebound",
+    "associated": {
+      "executed": 50,
+      "failed": 0,
+      "skipped": 3,
+      "log": ".cache/delivery/t11-final/a30-followup/native-search-focus-commit-tests.log"
+    },
+    "nativeFocus": {
+      "executed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "changedInputs": [],
+      "confirmationAttemptsInsideExistingMethod": 3
+    },
+    "formalProductActions": [
+      "native query -> discard confirmation -> query continues without click",
+      "result button -> cancellation -> Return reopens confirmation",
+      "result button -> confirmed navigation -> Return preserves result navigation",
+      "result button -> native query -> confirmed navigation -> query resumes",
+      "legacy 通用 search resolves current 常规 field",
+      "content font search reveals appearance advanced section",
+      "same main window retains draft and immediate subsequent input",
+      "controlled 1000x700 cold restore retains draft and editable composer"
+    ],
+    "productMatrix": {
+      "size": [
+        1000,
+        700
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "pages": [
+        "new task",
+        "general",
+        "appearance advanced"
+      ],
+      "wide": "pending, visible height 742 cannot fit requested 1280x800"
+    },
+    "appSHA256": "facb5def83911caecb287706295bad016f351cbfdc87cd9bb1c81cec453de3d0",
+    "userProtection": "seven fields, nine runs and model unchanged; latest standard user instance restored with actual composer focus",
+    "evidence": "v0.1-evidence.md section 101 and .cache/delivery/t11-final/a30-followup/verified-stage.json"
   }
 }
