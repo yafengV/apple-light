@@ -190,7 +190,7 @@
       "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
-    "A30": "Eleven references received; eight partial groups, remaining fixed core pages/states and wide viewport pending; capability differences recorded",
+    "A30": "Core UI references/states and viewport pending; secondary review/environment/archive/browser-manager full parity waived by user; functional checks retained",
     "A31": "Pending final A30 candidate full standard regression and 24 mandatory foreground methods",
     "A23": "passed: current native search handoff and focused foreground methods plus latest formal product actions"
   },
@@ -627,5 +627,17 @@
     "fullRegression": "pending final A30 candidate; historical full checks not rebound",
     "manualReferencePagesReceived": 7,
     "fullyAcceptedReferenceGroups": 0
+  },
+  "visualScopeAmendment": {
+    "date": "2026-10-14",
+    "authority": "Direct user request: 这些不是很重要的窗口可以不用完全对齐",
+    "waivedPages": [
+      "代码审查偏好",
+      "Worktrees 环境",
+      "已归档聊天",
+      "浏览器历史／下载／权限管理"
+    ],
+    "policy": "No complete visual parity or official screenshot requirement; functional behavior, persistence, focus and error checks remain",
+    "evidence": "v0.1-evidence.md section 104"
   }
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "updatedDate": "2026-10-14",
-  "scope": "Fixed 20 core UI groups; no additional pages or acceptance items",
+  "scope": "20-group inventory retained; secondary page visual parity waived by user on 2026-10-14; functional acceptance retained",
   "visualBaseline": {
     "version": "26.1007.30912",
     "build": "20156",
@@ -11,10 +11,9 @@
   "fullyAcceptedGroups": 0,
   "overallStatus": "pending_reference_and_pairing",
   "nextBatch": [
-    "代码审查：偏好设置",
-    "Worktrees：环境",
-    "已归档聊天",
-    "浏览器：历史管理（后续下载／权限）"
+    "核心输入／时间线及已有工具卡片",
+    "侧栏／搜索主要状态",
+    "文件／终端／差异和内容布局的必要参考"
   ],
   "instructions": "See v0.1-reference-intake.md; use current task only, no secrets or side-effectful reference setup",
   "groups": [
@@ -72,9 +71,10 @@
       "title": "归档",
       "referenceStatus": "missing",
       "received": [],
-      "requiredReference": "归档列表，可复用 S6",
-      "pairedAcceptance": "pending",
-      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31"
+      "requiredReference": "不再要求完整官方参考；归档恢复与入口功能保留",
+      "pairedAcceptance": "visual_requirement_waived_functional_evidence_retained",
+      "productEvidence": "Existing evidence index; new candidate partial tests do not replace final A31",
+      "visualParityRequirement": "waived"
     },
     {
       "id": "G07",
@@ -187,9 +187,13 @@
         "git",
         "code-review-agents"
       ],
-      "requiredReference": "本地代码审查偏好／环境概览；云端智能体不能替代核心本地页面",
+      "requiredReference": "已豁免子页不再索图；保留已收概览和核心功能证据",
       "pairedAcceptance": "pending",
-      "productEvidence": "v0.1-evidence.md section 103; local review unchanged, Git controls and persistence checked"
+      "productEvidence": "v0.1-evidence.md section 103; local review unchanged, Git controls and persistence checked",
+      "waivedSubpages": [
+        "代码审查偏好",
+        "Worktrees 环境"
+      ]
     },
     {
       "id": "G18",
@@ -220,9 +224,14 @@
         "worktrees",
         "browser"
       ],
-      "requiredReference": "环境／归档／浏览器管理子页、主题和动态状态",
+      "requiredReference": "已豁免子页不再索图；保留已收概览和核心功能证据",
       "pairedAcceptance": "pending",
-      "productEvidence": "v0.1-evidence.md section 103; core existing controls and routes checked; installed-version differences retained"
+      "productEvidence": "v0.1-evidence.md section 103; core existing controls and routes checked; installed-version differences retained",
+      "waivedSubpages": [
+        "Worktrees 环境",
+        "已归档聊天",
+        "浏览器历史／下载／权限管理"
+      ]
     }
   ],
   "productFollowup": {
@@ -231,6 +240,18 @@
     "productMatrix": "1000x700 dark/light core page checks, managers, persistence and native controls passed",
     "mandatoryForegroundMethods": 24,
     "wideWindow": "still pending; no wide test in this stage",
-    "A30": "remaining fixed groups and declared visual/capability differences pending"
+    "A30": "Core visual states and viewport pending; secondary page parity waived, no new product validation in scope-only amendment"
+  },
+  "visualScopeAmendment": {
+    "date": "2026-10-14",
+    "authority": "Direct user request: 这些不是很重要的窗口可以不用完全对齐",
+    "waivedPages": [
+      "代码审查偏好",
+      "Worktrees 环境",
+      "已归档聊天",
+      "浏览器历史／下载／权限管理"
+    ],
+    "policy": "No complete visual parity or official screenshot requirement; functional behavior, persistence, focus and error checks remain",
+    "evidence": "v0.1-evidence.md section 104"
   }
 }
